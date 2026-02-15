@@ -1,0 +1,6 @@
+[
+  {"sku": "A-102", "warehouse_stock": null, "sold_units": 42, "last_stock": 80},
+  {"sku": "B-204", "warehouse_stock": 60, "sold_units": 10, "last_stock": 60},
+  {"sku": "C-330", "warehouse_stock": 20, "sold_units": 8, "last_stock": 20},
+  {"sku": "D-410", "warehouse_stock": null, "sold_units": 30, "last_stock": 55}
+]

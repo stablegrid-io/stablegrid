@@ -1,0 +1,51 @@
+{
+  "questions": [
+    {
+      "id": "sql-001",
+      "topic": "sql",
+      "difficulty": "medium",
+      "type": "code",
+      "question": "Write a query to find the 2nd highest salary from an `employees` table.",
+      "codeSnippet": "SELECT __________ FROM employees\n",
+      "correctAnswer": "SELECT MAX(salary) FROM employees WHERE salary < (SELECT MAX(salary) FROM employees)",
+      "alternateAnswers": [
+        "SELECT DISTINCT salary FROM employees ORDER BY salary DESC LIMIT 1 OFFSET 1"
+      ],
+      "explanation": "You can use a subquery to exclude the max, or use LIMIT OFFSET. Both are valid.",
+      "hint": "Think: find the max salary, then filter below it.",
+      "xpReward": 50,
+      "tags": ["subqueries", "aggregation"]
+    },
+    {
+      "id": "sql-002",
+      "topic": "sql",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "A table has 100K rows. You run `SELECT * FROM table`. How can you speed this up?",
+      "options": [
+        "Add an index",
+        "Use LIMIT",
+        "Use WHERE to filter",
+        "Both B and C"
+      ],
+      "correctAnswer": "Both B and C",
+      "explanation": "Indexes help with WHERE clauses, but if you're selecting all rows, you need to limit or filter.",
+      "xpReward": 30,
+      "tags": ["performance", "querying"]
+    },
+    {
+      "id": "sql-003",
+      "topic": "sql",
+      "difficulty": "medium",
+      "type": "free-text",
+      "question": "What will this query return?\n\nSELECT COUNT(DISTINCT user_id) FROM orders WHERE status = 'cancelled';",
+      "correctAnswer": [
+        "number of unique users who cancelled",
+        "count of distinct users with cancelled orders"
+      ],
+      "explanation": "COUNT(DISTINCT) counts unique values, so this returns how many different users cancelled orders.",
+      "xpReward": 40,
+      "tags": ["aggregation", "distinct"]
+    }
+  ]
+}

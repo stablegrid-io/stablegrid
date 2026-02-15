@@ -1,0 +1,44 @@
+{
+  "questions": [
+    {
+      "id": "python-015",
+      "topic": "python",
+      "difficulty": "easy",
+      "type": "code",
+      "question": "Fill in the missing line to remove duplicate rows:",
+      "codeSnippet": "df = pd.read_csv('data.csv')\n# Your code here:\n_______________\nprint(df.shape)",
+      "correctAnswer": "df = df.drop_duplicates()",
+      "explanation": "drop_duplicates() removes all duplicate rows based on all columns by default.",
+      "hint": "There is a built-in pandas method for de-duping rows.",
+      "xpReward": 40,
+      "tags": ["pandas", "data-cleaning"]
+    },
+    {
+      "id": "python-021",
+      "topic": "python",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Which method converts a pandas Series to datetime?",
+      "options": ["to_datetime()", "as_date()", "parse_date()", "datetimeify()"],
+      "correctAnswer": "to_datetime()",
+      "explanation": "pd.to_datetime() or Series.astype('datetime64[ns]') are the standard ways.",
+      "xpReward": 35,
+      "tags": ["time-series", "pandas"]
+    },
+    {
+      "id": "python-032",
+      "topic": "python",
+      "difficulty": "medium",
+      "type": "free-text",
+      "question": "What does `df['col'].isnull().sum()` return?",
+      "correctAnswer": [
+        "number of missing values",
+        "count of nulls in the column",
+        "total nulls"
+      ],
+      "explanation": "isnull() marks missing values, and sum() counts them.",
+      "xpReward": 30,
+      "tags": ["pandas", "nulls"]
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "tasks": [
+    {
+      "id": "wind-farm-downtime",
+      "title": "Wind Farm Downtime Analysis",
+      "industry": "energy",
+      "skills": ["time-series", "interpolation", "pandas"],
+      "difficulty": "mid",
+      "reward": 5000,
+      "status": "critical",
+      "description": "A wind farm's turbine sensors went offline for 6 hours. Fill gaps using linear interpolation and calculate total energy loss.",
+      "dataFile": "/mockData/wind-farm.csv",
+      "dataPreview": "timestamp,turbine_id,power_output\n2024-01-15 08:00:00,T01,NaN\n2024-01-15 09:00:00,T01,321.4\n2024-01-15 10:00:00,T01,NaN\n...",
+      "briefing": "The client needs a report showing: (1) interpolated power values, (2) estimated revenue loss at $50/MWh.",
+      "testCases": [
+        {
+          "check": "df_cleaned.isnull().sum().sum() == 0",
+          "message": "All missing values must be handled"
+        },
+        {
+          "check": "revenue_loss > 0",
+          "message": "Calculate revenue loss in dollars"
+        }
+      ],
+      "hints": [
+        "Use pd.to_datetime() for timestamp column",
+        "Try df.interpolate(method='linear')",
+        "Power is in kW, convert to MWh for revenue calc"
+      ],
+      "starterCode": "import pandas as pd\nimport numpy as np\n\n# Load data\ndf = pd.read_csv('wind-farm.csv')\n\n# Clean data\n# df_cleaned = ...\n\n# Compute revenue loss\n# revenue_loss = ...\n"
+    },
+    {
+      "id": "fraud-latency-spike",
+      "title": "Fraud Detection Latency Spike",
+      "industry": "fintech",
+      "skills": ["anomaly-detection", "groupby", "numpy"],
+      "difficulty": "advanced",
+      "reward": 9000,
+      "status": "critical",
+      "description": "Payment alerts are arriving late for a subset of transactions. Identify impacted regions and quantify average delay.",
+      "prerequisites": ["wind-farm-downtime"],
+      "dataFile": "/mockData/fraud-transactions.csv",
+      "dataPreview": "tx_id,region,created_at,alerted_at,amount\nTX1001,EMEA,2024-01-15 10:15:00,2024-01-15 10:23:44,1200\nTX1002,APAC,2024-01-15 10:22:00,2024-01-15 10:25:10,330\nTX1003,AMER,2024-01-15 10:30:00,2024-01-15 10:31:08,560\n...",
+      "briefing": "Pinpoint regions where alert latency exceeds 120 seconds and report median delay + total volume impacted.",
+      "testCases": [
+        {
+          "check": "len(impacted_regions) > 0",
+          "message": "Identify impacted regions"
+        },
+        {
+          "check": "median_delay_seconds > 120",
+          "message": "Median delay should be computed in seconds"
+        }
+      ],
+      "hints": [
+        "Convert timestamp columns to datetime",
+        "Compute alert_delay = (alerted_at - created_at).dt.total_seconds()",
+        "Use groupby on region"
+      ],
+      "starterCode": "import pandas as pd\n\n# Load data\ndf = pd.read_csv('fraud-transactions.csv')\n\n# Derive delay columns\n# df['alert_delay'] = ...\n\n# impacted_regions = ...\n# median_delay_seconds = ...\n"
+    },
+    {
+      "id": "inventory-crash",
+      "title": "Inventory Crash After Flash Sale",
+      "industry": "ecommerce",
+      "skills": ["joins", "data-cleaning", "sql"],
+      "difficulty": "mid",
+      "reward": 6500,
+      "status": "expiring",
+      "description": "Inventory counts diverged after a flash sale. Reconcile SKU stock using orders + warehouse logs.",
+      "dataFile": "/mockData/inventory-crash.json",
+      "dataPreview": "{\n  \"sku\": \"A-102\",\n  \"warehouse_stock\": null,\n  \"sold_units\": 42,\n  \"reconciled_stock\": \"?\"\n}\n...",
+      "briefing": "Reconcile stock by SKU. The client needs a list of SKUs where reconciled stock is below reorder threshold (25 units).",
+      "testCases": [
+        {
+          "check": "len(low_stock_skus) > 0",
+          "message": "Return SKUs below reorder threshold"
+        },
+        {
+          "check": "all([isinstance(sku, str) for sku in low_stock_skus])",
+          "message": "Ensure output is a list of SKU strings"
+        }
+      ],
+      "hints": [
+        "Fill missing warehouse stock values with latest known",
+        "Reconciled stock = warehouse_stock - sold_units",
+        "Filter SKUs where reconciled stock < 25"
+      ],
+      "starterCode": "import pandas as pd\nimport json\n\n# Load data\nwith open('inventory-crash.json', 'r') as f:\n    raw = json.load(f)\n\n# df = pd.DataFrame(raw)\n\n# low_stock_skus = ...\n"
+    }
+  ]
+}
