@@ -3,7 +3,8 @@
 import type { ComponentType } from 'react';
 import Link from 'next/link';
 import { ChevronRight, Lock, ShieldAlert, Trophy, Zap } from 'lucide-react';
-import { type MissionDifficulty } from '@/data/missions';
+import { MISSIONS, type MissionDifficulty } from '@/data/missions';
+import { formatKwh, getMissionRewardUnits, unitsToKwh } from '@/lib/energy';
 import { mergeWithDefaultMissions, type MissionWithProgress } from '@/lib/missions';
 import type { UserMissionProgress } from '@/types/missions';
 
@@ -43,10 +44,15 @@ export function MissionsOverview({ missionProgress }: MissionsOverviewProps) {
     (mission) => mission.status === 'available' && !mission.completed
   ).length;
   const lockedCount = missions.filter((mission) => mission.status === 'locked').length;
-  const totalXP = missions.filter((mission) => mission.completed).reduce(
-    (sum, mission) => sum + mission.xp,
-    0
+  const missionRewardBySlug = new Map(
+    MISSIONS.map((mission) => [mission.slug, getMissionRewardUnits(mission.difficulty)])
   );
+  const totalEnergyUnits = missionProgress.reduce((sum, mission) => {
+    if (mission.state !== 'completed') return sum;
+    const storedUnits = Number(mission.energyAwardedUnits ?? 0);
+    if (storedUnits > 0) return sum + storedUnits;
+    return sum + (missionRewardBySlug.get(mission.missionSlug) ?? 0);
+  }, 0);
   const completionPct =
     missions.length > 0 ? Math.round((completedCount / missions.length) * 100) : 0;
 
@@ -83,7 +89,11 @@ export function MissionsOverview({ missionProgress }: MissionsOverviewProps) {
         <StatTile label="Completed" value={completedCount} icon={Trophy} />
         <StatTile label="Active" value={activeCount} icon={ShieldAlert} />
         <StatTile label="Locked" value={lockedCount} icon={Lock} />
-        <StatTile label="XP Earned" value={totalXP.toLocaleString()} icon={Zap} />
+        <StatTile
+          label="Energy Generated"
+          value={formatKwh(unitsToKwh(totalEnergyUnits), 1)}
+          icon={Zap}
+        />
       </div>
 
       <div className="mt-4">

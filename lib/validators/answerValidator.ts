@@ -9,13 +9,6 @@ const normalizeText = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const normalizeCode = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/\s+/g, '')
-    .replace(/;+/g, ';')
-    .trim();
-
 const toArray = (value: string | string[]) =>
   Array.isArray(value) ? value : [value];
 
@@ -31,23 +24,7 @@ export function validateAnswer(question: Question, answer: string): boolean {
   }
 
   const expected = collectExpectedAnswers(question);
-
-  if (question.type === 'multiple-choice') {
-    return expected.some(
-      (choice) => normalizeText(choice) === normalizeText(answer)
-    );
-  }
-
-  if (question.type === 'free-text') {
-    const normalizedAnswer = normalizeText(answer);
-    return expected.some((choice) =>
-      normalizedAnswer.includes(normalizeText(choice)) ||
-      normalizeText(choice).includes(normalizedAnswer)
-    );
-  }
-
-  const normalizedAnswer = normalizeCode(answer);
-  return expected.some((choice) =>
-    normalizedAnswer.includes(normalizeCode(choice))
+  return expected.some(
+    (choice) => normalizeText(choice) === normalizeText(answer)
   );
 }

@@ -6,6 +6,5 @@ export interface UserMissionProgress {
   unlocked: boolean;
   startedAt: string | null;
   completedAt: string | null;
-  xpAwarded: number;
+  energyAwardedUnits: number;
 }
-

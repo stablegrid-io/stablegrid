@@ -1,11 +1,9 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Code2, Edit3, FileText, Info } from 'lucide-react';
+import { FileText, Info } from 'lucide-react';
 import type { Question } from '@/lib/types';
 import { MultipleChoice } from './MultipleChoice';
-import { CodeAnswer } from './CodeAnswer';
-import { TextAnswer } from './TextAnswer';
 
 interface QuestionCardProps {
   question: Question;
@@ -26,14 +24,7 @@ export const QuestionCard = ({
   onRevealHint,
   showFeedback
 }: QuestionCardProps) => {
-  const typeConfig = {
-    'multiple-choice': { icon: FileText, label: 'Multiple Choice' },
-    code: { icon: Code2, label: 'Code' },
-    'free-text': { icon: Edit3, label: 'Short Answer' }
-  };
-
-  const config = typeConfig[question.type];
-  const Icon = config.icon;
+  const Icon = FileText;
 
   const difficultyConfig = {
     easy: {
@@ -70,7 +61,7 @@ export const QuestionCard = ({
           </div>
           <div>
             <div className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-              {config.label}
+              Multiple Choice
             </div>
             <div className={`badge ${diffStyle.bg} ${diffStyle.border} ${diffStyle.color}`}>
               {question.difficulty}
@@ -129,31 +120,12 @@ export const QuestionCard = ({
       <div className="divider" />
 
       <div className="space-y-4">
-        {question.type === 'multiple-choice' && question.options && (
-          <MultipleChoice
-            options={question.options}
-            selected={userAnswer}
-            onSelect={onAnswerChange}
-            disabled={showFeedback}
-          />
-        )}
-
-        {question.type === 'code' && (
-          <CodeAnswer
-            value={userAnswer}
-            onChange={onAnswerChange}
-            disabled={showFeedback}
-            language={question.topic === 'sql' ? 'sql' : 'python'}
-          />
-        )}
-
-        {question.type === 'free-text' && (
-          <TextAnswer
-            value={userAnswer}
-            onChange={onAnswerChange}
-            disabled={showFeedback}
-          />
-        )}
+        <MultipleChoice
+          options={question.options ?? []}
+          selected={userAnswer}
+          onSelect={onAnswerChange}
+          disabled={showFeedback}
+        />
       </div>
 
       {!showFeedback && (

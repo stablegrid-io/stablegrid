@@ -3,6 +3,9 @@
 import { motion } from 'framer-motion';
 import { Award, Clock, Target, TrendingUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { PulseMascot } from '@/components/mascot/PulseMascot';
+import { formatUnitsAsKwh } from '@/lib/energy';
+import { usePulseMascotStore } from '@/lib/stores/usePulseMascotStore';
 
 interface SessionStats {
   totalQuestions: number;
@@ -25,6 +28,9 @@ export const SessionComplete = ({
   onRestart
 }: SessionCompleteProps) => {
   const router = useRouter();
+  const pulseMood = usePulseMascotStore((state) => state.mood);
+  const pulseMotion = usePulseMascotStore((state) => state.motion);
+  const pulseAction = usePulseMascotStore((state) => state.action);
 
   const accuracy =
     stats.totalQuestions > 0
@@ -71,10 +77,10 @@ export const SessionComplete = ({
         <div className="card p-4">
           <div className="mb-2 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-success-500" />
-            <span className="text-caption">XP Earned</span>
+            <span className="text-caption">Energy Earned</span>
           </div>
           <div className="text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary">
-            +{stats.totalXP}
+            +{formatUnitsAsKwh(stats.totalXP)}
           </div>
         </div>
 
@@ -99,6 +105,22 @@ export const SessionComplete = ({
         </div>
       </div>
 
+      <div className="card p-4">
+        <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:text-left">
+          <div className="flex h-24 w-24 items-center justify-center rounded-xl border border-brand-200/70 bg-gradient-to-b from-brand-50 to-teal-50 dark:border-brand-700/40 dark:from-brand-900/20 dark:to-teal-900/10">
+            <PulseMascot mood={pulseMood} motion={pulseMotion} action={pulseAction} size={84} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
+              Pulse synchronized this session
+            </p>
+            <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              Verified answer energy has been injected into your grid profile.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="card p-6 text-center">
         <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
           {accuracy >= 90 &&
@@ -119,7 +141,7 @@ export const SessionComplete = ({
           Practice Again
         </button>
         <button
-          onClick={() => router.push('/hub')}
+          onClick={() => router.push('/flashcards')}
           className="btn btn-primary flex-1"
         >
           Choose New Topic

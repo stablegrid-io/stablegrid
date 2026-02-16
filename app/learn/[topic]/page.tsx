@@ -26,13 +26,13 @@ export function generateMetadata({ params }: LearnTopicPageProps): Metadata {
   const meta = getLearnTopicMeta(params.topic);
   if (!meta) {
     return {
-      title: 'Learn | Gridlock',
+      title: 'Learn | DataGridLab',
       description: 'Topic learning modes.'
     };
   }
 
   return {
-    title: `${meta.title} | Learn | Gridlock`,
+    title: `${meta.title} | Learn | DataGridLab`,
     description: meta.description
   };
 }

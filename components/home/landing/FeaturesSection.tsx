@@ -39,12 +39,12 @@ const FEATURES = [
     label: 'Practice',
     headline: 'Flashcard drills',
     description:
-      'Difficulty-tiered practice with instant feedback, XP, streaks, and accuracy tracking.',
+      'Difficulty-tiered practice with instant feedback, kWh rewards, streaks, and accuracy tracking.',
     preview: [
       '🎯 Difficulty: Beginner → Advanced',
       '📊 Accuracy tracked per topic',
       '🔥 Streak system for consistency',
-      '⚡ XP earned per correct answer'
+      '⚡ kWh generated per correct answer'
     ],
     color: '#f59e0b',
     footer: '440 questions across the question bank'

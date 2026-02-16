@@ -27,7 +27,7 @@ const dmSerif = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'Gridlock | Data Analytics Flashcards',
+  title: 'DataGridLab | Data Analytics Flashcards',
   description: 'Sequential flashcard drills for mid-level data analysts.'
 };
 
@@ -47,7 +47,7 @@ export default function RootLayout({
           attribute="class"
           defaultTheme="system"
           enableSystem
-          storageKey="gridlock-theme"
+          storageKey="datagridlab-theme"
         >
           <AuthProvider>
             <Navigation />

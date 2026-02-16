@@ -27,7 +27,7 @@ export const FilterPanel = ({
   onClearFilters,
   hasActiveFilters,
   resultCount,
-  availableTopics = ['sql', 'python', 'statistics', 'excel', 'pyspark'],
+  availableTopics = ['sql', 'python', 'pyspark', 'fabric'],
   availableTags = []
 }: FilterPanelProps) => {
   const [isOpen, setIsOpen] = useState(false);

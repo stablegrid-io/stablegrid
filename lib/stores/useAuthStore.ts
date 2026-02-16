@@ -22,7 +22,7 @@ export const useAuthStore = create<AuthState>()(
       clearAuth: () => set({ user: null, loading: false })
     }),
     {
-      name: 'gridlock-auth',
+      name: 'datagridlab-auth',
       partialize: (state) => ({ user: state.user })
     }
   )

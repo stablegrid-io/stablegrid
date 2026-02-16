@@ -1,13 +1,19 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Flame, Target, Zap } from 'lucide-react';
+import Link from 'next/link';
+import { MascotWalker } from '@/components/mascot/MascotWalker';
+import { formatUnitsAsKwh, unitsToKwh } from '@/lib/energy';
+import { usePulseMascotStore } from '@/lib/stores/usePulseMascotStore';
 
 interface HomeHeroHeaderProps {
   firstName: string;
   greeting: string;
   streak: number;
-  totalXP: number;
+  totalEnergyUnits: number;
+  energyTodayUnits: number;
   questionsCompleted: number;
   overallAccuracy: number;
   chaptersCompleted: number;
@@ -18,18 +24,44 @@ export const HomeHeroHeader = ({
   firstName,
   greeting,
   streak,
-  totalXP,
+  totalEnergyUnits,
+  energyTodayUnits,
   questionsCompleted,
   overallAccuracy,
   chaptersCompleted,
   overallProgress
 }: HomeHeroHeaderProps) => {
+  const pulseMood = usePulseMascotStore((state) => state.mood);
+  const pulseMotion = usePulseMascotStore((state) => state.motion);
+  const pulseAction = usePulseMascotStore((state) => state.action);
+  const energyBalanceKwh = unitsToKwh(totalEnergyUnits);
+  const todayKwh = unitsToKwh(energyTodayUnits);
+  const batteryPct = Math.max(8, Math.min(100, Math.round((energyBalanceKwh % 10) * 10)));
+  const [showEnergyBurst, setShowEnergyBurst] = useState(false);
+  const previousEnergyRef = useRef(totalEnergyUnits);
+
+  useEffect(() => {
+    const previous = previousEnergyRef.current;
+    previousEnergyRef.current = totalEnergyUnits;
+
+    if (totalEnergyUnits <= previous) return;
+
+    setShowEnergyBurst(true);
+    const timeoutId = window.setTimeout(() => {
+      setShowEnergyBurst(false);
+    }, 900);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [totalEnergyUnits]);
+
   const statCards = [
     {
-      label: 'Total XP',
-      value: totalXP.toLocaleString(),
+      label: 'Energy balance',
+      value: formatUnitsAsKwh(totalEnergyUnits),
       icon: Zap,
-      subLabel: 'all sessions'
+      subLabel: 'lifetime generated'
     },
     {
       label: 'Current streak',
@@ -83,7 +115,20 @@ export const HomeHeroHeader = ({
         }}
       />
 
-      <div className="relative">
+      <div className="pointer-events-none absolute bottom-[116px] right-[228px] top-[12px] z-0 hidden lg:block xl:right-[244px]">
+        <div className="h-full w-[300px] xl:w-[360px]">
+          <MascotWalker
+            mood={pulseMood}
+            motion={pulseMotion}
+            action={pulseAction}
+            bounds={{ top: 0, left: 0, right: 0, bottom: 0 }}
+            size={132}
+            speed={50}
+          />
+        </div>
+      </div>
+
+      <div className="relative z-10">
         <div className="grid gap-5 px-5 pb-6 pt-6 sm:px-6 md:grid-cols-[1fr_auto] md:items-start lg:px-7">
           <div>
             <p className="mb-2 text-sm font-medium text-emerald-500">{greeting}</p>
@@ -95,10 +140,53 @@ export const HomeHeroHeader = ({
                 ? `${streak}-day streak. Keep momentum with one focused session today.`
                 : 'Start a focused session today to establish your streak.'}
             </p>
+            <div className="mt-4 inline-flex items-center gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2">
+              <div className="relative h-4 w-10 overflow-hidden rounded-sm border border-emerald-400/30 bg-emerald-950/40">
+                <motion.div
+                  className="absolute inset-y-0 left-0 bg-emerald-400"
+                  animate={{ width: `${batteryPct}%` }}
+                  transition={{ type: 'spring', stiffness: 220, damping: 24 }}
+                />
+                <AnimatePresence>
+                  {showEnergyBurst &&
+                    [0, 1, 2].map((index) => (
+                      <motion.span
+                        key={index}
+                        className="pointer-events-none absolute top-1/2 h-1 w-1 rounded-full bg-emerald-300"
+                        initial={{
+                          opacity: 0.8,
+                          x: 8 + index * 6,
+                          y: -2
+                        }}
+                        animate={{
+                          opacity: 0,
+                          x: 14 + index * 9,
+                          y: -8 - index * 3
+                        }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.65, delay: index * 0.06 }}
+                      />
+                    ))}
+                </AnimatePresence>
+              </div>
+              <div className="text-xs text-emerald-200">
+                Energy Balance: <span className="font-semibold">{formatUnitsAsKwh(totalEnergyUnits)}</span>
+              </div>
+              <div className="text-xs text-emerald-300">
+                Today +{todayKwh.toLocaleString(undefined, { maximumFractionDigits: 2 })} kWh
+              </div>
+              <Link
+                href="/energy"
+                data-pulse-target="home-energy-lab"
+                className="rounded-md border border-emerald-400/30 px-2 py-1 text-[11px] font-medium text-emerald-200 transition hover:bg-emerald-500/20"
+              >
+                Open Energy Lab
+              </Link>
+            </div>
           </div>
 
           <div className="flex justify-center md:justify-end md:pr-1">
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center gap-3">
               <div className="relative h-24 w-24">
                 <svg
                   viewBox="0 0 96 96"

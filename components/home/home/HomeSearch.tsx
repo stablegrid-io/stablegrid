@@ -1,6 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
@@ -13,7 +20,7 @@ import {
 import type { HomeSearchItem, HomeSearchItemType } from '@/types/home-search';
 import { getHomeTopicMeta } from './topicMeta';
 
-const RECENT_STORAGE_KEY = 'gridlock-home-search-recent';
+const RECENT_STORAGE_KEY = 'datagridlab-home-search-recent';
 const EMPTY_RECENT: string[] = [];
 
 const FILTERS: Array<{ id: HomeSearchItemType | null; label: string }> = [
@@ -31,24 +38,26 @@ const TYPE_META: Record<HomeSearchItemType, { label: string; icon: JSX.Element }
 
 interface HomeSearchProps {
   items: HomeSearchItem[];
+  triggerVariant?: 'default' | 'nav';
 }
 
-export function HomeSearch({ items }: HomeSearchProps) {
+export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const deferredQuery = useDeferredValue(query);
   const [filter, setFilter] = useState<HomeSearchItemType | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(EMPTY_RECENT);
 
   const rankedResults = useMemo(() => {
-    if (!query.trim()) {
+    if (!deferredQuery.trim()) {
       return [] as Array<HomeSearchItem & { score: number }>;
     }
 
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = deferredQuery.trim().toLowerCase();
 
     return items
       .map((item) => {
@@ -69,7 +78,7 @@ export function HomeSearch({ items }: HomeSearchProps) {
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 24);
-  }, [items, query]);
+  }, [deferredQuery, items]);
 
   const filteredResults = useMemo(() => {
     if (!filter) {
@@ -124,14 +133,16 @@ export function HomeSearch({ items }: HomeSearchProps) {
       return;
     }
 
-    const nextRecent = [normalized, ...recentSearches.filter((entry) => entry !== normalized)].slice(0, 5);
-    setRecentSearches(nextRecent);
-    try {
-      window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(nextRecent));
-    } catch {
-      // ignore storage errors
-    }
-  }, [recentSearches]);
+    setRecentSearches((current) => {
+      const nextRecent = [normalized, ...current.filter((entry) => entry !== normalized)].slice(0, 5);
+      try {
+        window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(nextRecent));
+      } catch {
+        // ignore storage errors
+      }
+      return nextRecent;
+    });
+  }, []);
 
   const navigateTo = useCallback((item: HomeSearchItem) => {
     saveRecent(query || item.title);
@@ -251,13 +262,31 @@ export function HomeSearch({ items }: HomeSearchProps) {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="card flex w-full items-center gap-3 px-4 py-3 text-left transition-all hover:border-brand-300 dark:hover:border-brand-700"
+        className={
+          triggerVariant === 'nav'
+            ? 'flex w-full items-center gap-1.5 rounded-lg border border-light-border bg-light-surface px-2 py-1.5 text-left transition-all hover:border-brand-300 dark:border-dark-border dark:bg-dark-surface dark:hover:border-brand-700'
+            : 'card flex w-full items-center gap-3 px-4 py-3 text-left transition-all hover:border-brand-300 dark:hover:border-brand-700'
+        }
       >
-        <Search className="h-4 w-4 text-text-light-tertiary dark:text-text-dark-tertiary" />
-        <span className="flex-1 text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
-          Search chapters, functions, and questions...
+        <Search
+          className={`text-text-light-tertiary dark:text-text-dark-tertiary ${
+            triggerVariant === 'nav' ? 'h-3.5 w-3.5' : 'h-4 w-4'
+          }`}
+        />
+        <span
+          className={`flex-1 text-text-light-tertiary dark:text-text-dark-tertiary ${
+            triggerVariant === 'nav' ? 'text-[11px]' : 'text-sm'
+          }`}
+        >
+          {triggerVariant === 'nav'
+            ? 'Search'
+            : 'Search chapters, functions, and questions...'}
         </span>
-        <kbd className="rounded-md border border-light-border bg-light-muted px-2 py-0.5 text-[11px] text-text-light-tertiary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-tertiary">
+        <kbd
+          className={`rounded-md border border-light-border bg-light-muted text-text-light-tertiary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-tertiary ${
+            triggerVariant === 'nav' ? 'px-1 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[11px]'
+          }`}
+        >
           ⌘K
         </kbd>
       </button>

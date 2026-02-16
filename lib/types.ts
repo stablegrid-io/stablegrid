@@ -2,10 +2,7 @@ export type PracticeTopic =
   | 'sql'
   | 'python'
   | 'pyspark'
-  | 'excel'
-  | 'statistics'
-  | 'visualization'
-  | 'etl';
+  | 'fabric';
 
 export type QuestionDifficulty = 'easy' | 'medium' | 'hard';
 

@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { MISSIONS } from '@/data/missions';
+import { getMissionRewardUnits } from '@/lib/energy';
 import { createClient } from '@/lib/supabase/server';
 import type { MissionState } from '@/types/missions';
 
 const missionSlugSet = new Set(MISSIONS.map((mission) => mission.slug));
+const missionRewardBySlug = new Map(
+  MISSIONS.map((mission) => [mission.slug, getMissionRewardUnits(mission.difficulty)])
+);
 
 interface UserMissionRow {
   mission_slug: string;
@@ -73,6 +77,7 @@ export async function POST(request: Request) {
   }
 
   const now = new Date().toISOString();
+  let rewardAwardedUnits = 0;
   const updatePayload: Record<string, unknown> = {
     user_id: user.id,
     mission_slug: missionSlug,
@@ -92,6 +97,21 @@ export async function POST(request: Request) {
   }
 
   if (state === 'completed') {
+    const { data: existingProgress } = await supabase
+      .from('user_missions')
+      .select('xp_awarded')
+      .eq('user_id', user.id)
+      .eq('mission_slug', missionSlug)
+      .maybeSingle<{ xp_awarded: number | null }>();
+
+    const existingReward = Number(existingProgress?.xp_awarded ?? 0);
+    if (existingReward <= 0) {
+      const rewardUnits = missionRewardBySlug.get(missionSlug) ?? 0;
+      if (rewardUnits > 0) {
+        updatePayload.xp_awarded = rewardUnits;
+        rewardAwardedUnits = rewardUnits;
+      }
+    }
     updatePayload.completed_at = now;
     updatePayload.started_at = now;
   }
@@ -111,6 +131,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json({
+    data,
+    reward_awarded_units: rewardAwardedUnits
+  });
 }
-

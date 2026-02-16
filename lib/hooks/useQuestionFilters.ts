@@ -33,15 +33,17 @@ const defaultFilters: QuestionFilters = {
   tags: []
 };
 
+const EMPTY_IDS: string[] = [];
+
 export const useQuestionFilters = (
   questions: Question[],
   options: UseQuestionFiltersOptions = {}
 ) => {
   const [filters, setFilters] = useState<QuestionFilters>(defaultFilters);
 
-  const completedQuestionIds = options.completedQuestionIds ?? [];
-  const incorrectQuestionIds = options.incorrectQuestionIds ?? [];
-  const bookmarkedQuestionIds = options.bookmarkedQuestionIds ?? [];
+  const completedQuestionIds = options.completedQuestionIds ?? EMPTY_IDS;
+  const incorrectQuestionIds = options.incorrectQuestionIds ?? EMPTY_IDS;
+  const bookmarkedQuestionIds = options.bookmarkedQuestionIds ?? EMPTY_IDS;
 
   const filteredQuestions = useMemo(() => {
     return questions.filter((question) => {

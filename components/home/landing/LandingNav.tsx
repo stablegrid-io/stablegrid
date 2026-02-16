@@ -26,7 +26,7 @@ export const LandingNav = () => {
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#6b7fff]">
             <Zap className="h-4 w-4 fill-white text-white" />
           </div>
-          <span className="text-sm font-semibold tracking-tight">Gridlock</span>
+          <span className="text-sm font-semibold tracking-tight">DataGridLab</span>
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">

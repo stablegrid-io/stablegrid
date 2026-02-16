@@ -13,7 +13,7 @@
         "No difference, they're interchangeable"
       ],
       "correctAnswer": "Transformations are lazy (not executed immediately), actions trigger execution",
-      "explanation": "Transformations (filter, select, map) are lazy—they build an execution plan but don't run. Actions (collect, count, show) trigger computation. This lazy evaluation enables optimization.",
+      "explanation": "Transformations build a plan; actions trigger execution.",
       "xpReward": 30,
       "tags": ["fundamentals", "lazy-evaluation", "transformations"]
     },
@@ -21,15 +21,16 @@
       "id": "spark-002",
       "topic": "pyspark",
       "difficulty": "easy",
-      "type": "code",
-      "question": "Read a CSV file into a PySpark DataFrame with headers and infer schema.",
-      "codeSnippet": "from pyspark.sql import SparkSession\\nspark = SparkSession.builder.appName('demo').getOrCreate()\\n\\ndf = spark.read._____________________\\n",
-      "correctAnswer": "csv('data.csv', header=True, inferSchema=True)",
-      "alternateAnswers": [
-        "format('csv').option('header', 'true').option('inferSchema', 'true').load('data.csv')",
-        "csv('data.csv', header=True, inferSchema=True)"
+      "type": "multiple-choice",
+      "question": "How do you read a CSV into a DataFrame with header and inferred schema?",
+      "options": [
+        "df = spark.read.csv('data.csv', header=True, inferSchema=True)",
+        "df = spark.read.json('data.csv', header=True, inferSchema=True)",
+        "df = spark.csv.read('data.csv', header=True, inferSchema=True)",
+        "df = spark.read.csv('data.csv')"
       ],
-      "explanation": "spark.read.csv() reads CSV files. header=True treats first row as column names. inferSchema=True automatically detects data types (though it requires an extra pass).",
+      "correctAnswer": "df = spark.read.csv('data.csv', header=True, inferSchema=True)",
+      "explanation": "Use spark.read.csv with both header and inferSchema options when needed.",
       "xpReward": 25,
       "tags": ["io", "dataframe", "basics"]
     },
@@ -37,15 +38,16 @@
       "id": "spark-003",
       "topic": "pyspark",
       "difficulty": "medium",
-      "type": "code",
-      "question": "Filter rows where 'age' > 30 and 'salary' >= 50000, then select only 'name' and 'department' columns.",
-      "codeSnippet": "from pyspark.sql import functions as F\\n\\ndf_filtered = df._____________________\\n",
-      "correctAnswer": "filter((F.col('age') > 30) & (F.col('salary') >= 50000)).select('name', 'department')",
-      "alternateAnswers": [
-        "where((df['age'] > 30) & (df['salary'] >= 50000)).select('name', 'department')",
-        "filter('age > 30 AND salary >= 50000').select('name', 'department')"
+      "type": "multiple-choice",
+      "question": "Choose the correct expression to filter age > 30 and salary >= 50000, then select name and department.",
+      "options": [
+        "df.filter((F.col('age') > 30) & (F.col('salary') >= 50000)).select('name', 'department')",
+        "df.filter(F.col('age') > 30 && F.col('salary') >= 50000).select('name', 'department')",
+        "df.select('name', 'department').filter('age > 30 OR salary >= 50000')",
+        "df.where('age > 30').where('salary').select('name', 'department')"
       ],
-      "explanation": "filter() or where() filters rows. Use & for AND, | for OR (parentheses required!). select() chooses columns. Can also use SQL-style string conditions.",
+      "correctAnswer": "df.filter((F.col('age') > 30) & (F.col('salary') >= 50000)).select('name', 'department')",
+      "explanation": "Use & with parentheses for AND logic and then select required columns.",
       "xpReward": 40,
       "tags": ["filtering", "selection", "operators"]
     },
@@ -54,10 +56,10 @@
       "topic": "pyspark",
       "difficulty": "easy",
       "type": "multiple-choice",
-      "question": "Which of these is an ACTION (not a transformation)?",
+      "question": "Which of these is an action (not a transformation)?",
       "options": ["filter()", "groupBy()", "collect()", "join()"],
       "correctAnswer": "collect()",
-      "explanation": "Actions: collect(), count(), show(), take(), first(), write(). Transformations: filter(), select(), groupBy(), join(), withColumn(). Actions return results to driver or write data.",
+      "explanation": "collect() triggers execution and returns data to the driver.",
       "xpReward": 25,
       "tags": ["fundamentals", "actions", "transformations"]
     },
@@ -65,11 +67,16 @@
       "id": "spark-005",
       "topic": "pyspark",
       "difficulty": "hard",
-      "type": "code",
-      "question": "Calculate a running total of 'sales' partitioned by 'store_id' and ordered by 'date'.",
-      "codeSnippet": "from pyspark.sql import Window\\nfrom pyspark.sql import functions as F\\n\\nwindow_spec = Window._____________________\\ndf = df.withColumn('running_total', _____________________)\\n",
-      "correctAnswer": "partitionBy('store_id').orderBy('date'), F.sum('sales').over(window_spec)",
-      "explanation": "Window functions perform calculations across row groups. partitionBy() creates groups, orderBy() defines order within partitions. sum().over() applies aggregation with window.",
+      "type": "multiple-choice",
+      "question": "You need running total of sales partitioned by store_id and ordered by date. Which setup is correct?",
+      "options": [
+        "window_spec = Window.partitionBy('store_id').orderBy('date'); df = df.withColumn('running_total', F.sum('sales').over(window_spec))",
+        "window_spec = Window.orderBy('store_id').partitionBy('date'); df = df.withColumn('running_total', F.avg('sales').over(window_spec))",
+        "window_spec = Window.partitionBy('date').orderBy('store_id'); df = df.withColumn('running_total', F.sum('sales'))",
+        "window_spec = Window.partitionBy('store_id'); df = df.withColumn('running_total', F.sum('sales'))"
+      ],
+      "correctAnswer": "window_spec = Window.partitionBy('store_id').orderBy('date'); df = df.withColumn('running_total', F.sum('sales').over(window_spec))",
+      "explanation": "Running totals require both partition and ordered window, then sum over that window.",
       "xpReward": 75,
       "tags": ["window-functions", "analytics", "advanced"]
     },
@@ -82,11 +89,11 @@
       "options": [
         "No difference, they're aliases",
         "cache() stores in memory only, persist() allows storage level configuration",
-        "persist() is faster",
-        "cache() is for RDDs, persist() is for DataFrames"
+        "persist() is always faster",
+        "cache() is for RDDs only, persist() is for DataFrames only"
       ],
       "correctAnswer": "cache() stores in memory only, persist() allows storage level configuration",
-      "explanation": "cache() = persist(MEMORY_ONLY). persist() allows custom storage: MEMORY_ONLY, MEMORY_AND_DISK, DISK_ONLY, etc. Use for DataFrames accessed multiple times.",
+      "explanation": "cache() is equivalent to persist(MEMORY_ONLY).",
       "xpReward": 45,
       "tags": ["caching", "performance", "optimization"]
     },
@@ -94,15 +101,16 @@
       "id": "spark-007",
       "topic": "pyspark",
       "difficulty": "medium",
-      "type": "code",
-      "question": "Join two DataFrames on 'customer_id' using a left join.",
-      "codeSnippet": "# df1: customer_id, name\\n# df2: customer_id, order_amount\\n\\nresult = df1._____________________\\n",
-      "correctAnswer": "join(df2, on='customer_id', how='left')",
-      "alternateAnswers": [
-        "join(df2, df1['customer_id'] == df2['customer_id'], 'left')",
-        "join(df2, 'customer_id', 'left')"
+      "type": "multiple-choice",
+      "question": "How do you left join df1 and df2 on customer_id?",
+      "options": [
+        "result = df1.join(df2, on='customer_id', how='left')",
+        "result = df1.merge(df2, on='customer_id', how='left')",
+        "result = df1.joinLeft(df2, 'customer_id')",
+        "result = left_join(df1, df2, 'customer_id')"
       ],
-      "explanation": "join(other_df, on=column, how=type). Join types: inner (default), left, right, outer, left_semi, left_anti. Can join on multiple columns: on=['col1', 'col2'].",
+      "correctAnswer": "result = df1.join(df2, on='customer_id', how='left')",
+      "explanation": "DataFrame joins in PySpark use join(other, on=..., how=...).",
       "xpReward": 50,
       "tags": ["joins", "dataframe", "operations"]
     },
@@ -111,15 +119,15 @@
       "topic": "pyspark",
       "difficulty": "hard",
       "type": "multiple-choice",
-      "question": "You have a highly skewed join where 80% of records have the same key. What's the best optimization?",
+      "question": "You have a highly skewed join where 80% of records share one key. Best optimization?",
       "options": [
         "Increase executor memory",
         "Use broadcast join",
         "Use salting technique to distribute skewed keys",
-        "Add more partitions"
+        "Add more partitions only"
       ],
       "correctAnswer": "Use salting technique to distribute skewed keys",
-      "explanation": "Skew: one partition gets most data, causing stragglers. Salting: add random prefix to skewed keys, join, then remove. Also: adaptive query execution (AQE) in Spark 3.0+ helps automatically.",
+      "explanation": "Salting splits hot keys across buckets and reduces skewed partition bottlenecks.",
       "xpReward": 80,
       "tags": ["performance", "skew", "optimization", "advanced"]
     },
@@ -127,15 +135,16 @@
       "id": "spark-009",
       "topic": "pyspark",
       "difficulty": "easy",
-      "type": "code",
-      "question": "Group by 'department' and calculate the average 'salary'.",
-      "codeSnippet": "from pyspark.sql import functions as F\\n\\nresult = df._____________________\\n",
-      "correctAnswer": "groupBy('department').agg(F.avg('salary'))",
-      "alternateAnswers": [
-        "groupBy('department').avg('salary')",
-        "groupBy('department').agg(F.mean('salary'))"
+      "type": "multiple-choice",
+      "question": "How do you group by department and compute average salary?",
+      "options": [
+        "result = df.groupBy('department').agg(F.avg('salary'))",
+        "result = df.groupby('department').mean('salary').collectAll()",
+        "result = df.select('department').avg('salary')",
+        "result = avg(df, 'salary', by='department')"
       ],
-      "explanation": "groupBy() creates grouped data. agg() applies aggregations: avg(), sum(), count(), min(), max(). Can compute multiple: agg(F.avg('salary'), F.count('*')).",
+      "correctAnswer": "result = df.groupBy('department').agg(F.avg('salary'))",
+      "explanation": "groupBy + agg with avg is the standard DataFrame API pattern.",
       "xpReward": 30,
       "tags": ["groupby", "aggregation", "basics"]
     },
@@ -146,13 +155,13 @@
       "type": "multiple-choice",
       "question": "When should you use broadcast joins?",
       "options": [
-        "Always, they're always faster",
-        "When one DataFrame is small enough to fit in memory (~10MB default)",
+        "Always, they are always faster",
+        "When one DataFrame is small enough to fit in executor memory",
         "Only for outer joins",
-        "When both DataFrames are large"
+        "Only when both DataFrames are huge"
       ],
-      "correctAnswer": "When one DataFrame is small enough to fit in memory (~10MB default)",
-      "explanation": "Broadcast joins: send small DataFrame to all executors, avoiding shuffle. Automatic for tables <10MB (configurable). Use F.broadcast(small_df) to force. Huge speedup for large × small joins.",
+      "correctAnswer": "When one DataFrame is small enough to fit in executor memory",
+      "explanation": "Broadcast avoids a large shuffle by sending the small table to all executors.",
       "xpReward": 55,
       "tags": ["joins", "broadcast", "performance"]
     },
@@ -160,11 +169,16 @@
       "id": "spark-011",
       "topic": "pyspark",
       "difficulty": "hard",
-      "type": "code",
-      "question": "Create a User Defined Function (UDF) to categorize temperature: <0='Freezing', 0-20='Cold', 20-30='Warm', >30='Hot'.",
-      "codeSnippet": "from pyspark.sql.types import StringType\\nfrom pyspark.sql.functions import udf\\n\\ndef categorize_temp(temp):\\n    _____________________\\n\\ncategorize_udf = udf(categorize_temp, StringType())\\ndf = df.withColumn('temp_category', categorize_udf('temperature'))\\n",
-      "correctAnswer": "if temp < 0: return 'Freezing'\\nelif temp < 20: return 'Cold'\\nelif temp <= 30: return 'Warm'\\nelse: return 'Hot'",
-      "explanation": "UDFs apply custom Python functions to columns. Slower than built-in functions (serialization overhead). Prefer when() with built-in functions when possible. Pandas UDFs are faster.",
+      "type": "multiple-choice",
+      "question": "Which temperature categorization logic matches: <0 Freezing, 0-19 Cold, 20-30 Warm, >30 Hot?",
+      "options": [
+        "if temp < 0: 'Freezing'; elif temp < 20: 'Cold'; elif temp <= 30: 'Warm'; else: 'Hot'",
+        "if temp <= 0: 'Freezing'; elif temp <= 20: 'Cold'; elif temp < 30: 'Warm'; else: 'Hot'",
+        "if temp < 0: 'Cold'; elif temp <= 30: 'Warm'; else: 'Hot'",
+        "if temp > 30: 'Freezing'; else: 'Warm'"
+      ],
+      "correctAnswer": "if temp < 0: 'Freezing'; elif temp < 20: 'Cold'; elif temp <= 30: 'Warm'; else: 'Hot'",
+      "explanation": "Boundaries must map exactly to the requested ranges.",
       "xpReward": 70,
       "tags": ["udf", "functions", "custom-logic"]
     },
@@ -172,15 +186,16 @@
       "id": "spark-012",
       "topic": "pyspark",
       "difficulty": "medium",
-      "type": "code",
-      "question": "Handle null values: fill nulls in 'age' with median, and in 'city' with 'Unknown'.",
-      "codeSnippet": "from pyspark.sql import functions as F\\n\\nmedian_age = df.approxQuantile('age', [0.5], 0.01)[0]\\n\\ndf_clean = df._____________________\\n",
-      "correctAnswer": "fillna({'age': median_age, 'city': 'Unknown'})",
-      "alternateAnswers": [
-        "na.fill({'age': median_age, 'city': 'Unknown'})",
-        "fillna(median_age, subset=['age']).fillna('Unknown', subset=['city'])"
+      "type": "multiple-choice",
+      "question": "How do you fill nulls with median_age for age and 'Unknown' for city?",
+      "options": [
+        "df_clean = df.fillna({'age': median_age, 'city': 'Unknown'})",
+        "df_clean = df.fillna(median_age, 'age', 'Unknown', 'city')",
+        "df_clean = df.na.drop({'age': median_age, 'city': 'Unknown'})",
+        "df_clean = fill_nulls(df, age=median_age, city='Unknown')"
       ],
-      "explanation": "fillna() or na.fill() replaces nulls. Can pass dict for column-specific values or single value for all columns. dropna() removes rows with nulls. replace() swaps specific values.",
+      "correctAnswer": "df_clean = df.fillna({'age': median_age, 'city': 'Unknown'})",
+      "explanation": "fillna accepts a dictionary for per-column replacement values.",
       "xpReward": 50,
       "tags": ["null-handling", "data-cleaning", "missing-data"]
     },
@@ -192,12 +207,12 @@
       "question": "What does repartition() do?",
       "options": [
         "Sorts the DataFrame",
-        "Redistributes data across partitions (with shuffle)",
+        "Redistributes data across partitions with a shuffle",
         "Removes duplicate rows",
         "Caches the DataFrame"
       ],
-      "correctAnswer": "Redistributes data across partitions (with shuffle)",
-      "explanation": "repartition(n) redistributes data into n partitions (full shuffle—expensive). coalesce(n) reduces partitions without shuffle (cheaper, but can't increase). Use for better parallelism or to reduce small files.",
+      "correctAnswer": "Redistributes data across partitions with a shuffle",
+      "explanation": "repartition triggers a full shuffle to rebalance data.",
       "xpReward": 35,
       "tags": ["partitioning", "optimization", "fundamentals"]
     },
@@ -205,14 +220,16 @@
       "id": "spark-014",
       "topic": "pyspark",
       "difficulty": "hard",
-      "type": "code",
-      "question": "Find the top 3 products by sales in each category using window functions.",
-      "codeSnippet": "from pyspark.sql import Window\\nfrom pyspark.sql import functions as F\\n\\nwindow_spec = Window._____________________\\ndf_ranked = df.withColumn('rank', _____________________)\\nresult = df_ranked._____________________\\n",
-      "correctAnswer": "partitionBy('category').orderBy(F.desc('sales')), F.row_number().over(window_spec), filter(F.col('rank') <= 3)",
-      "alternateAnswers": [
-        "partitionBy('category').orderBy(F.col('sales').desc()), F.rank().over(window_spec), where('rank <= 3')"
+      "type": "multiple-choice",
+      "question": "How do you keep the top 3 products by sales in each category?",
+      "options": [
+        "window_spec = Window.partitionBy('category').orderBy(F.desc('sales')); df_ranked = df.withColumn('rank', F.row_number().over(window_spec)); result = df_ranked.filter(F.col('rank') <= 3)",
+        "window_spec = Window.orderBy('category'); result = df.withColumn('rank', F.rank()).filter(F.col('rank') <= 3)",
+        "result = df.groupBy('category').agg(F.max('sales')).limit(3)",
+        "result = df.orderBy(F.desc('sales')).limit(3)"
       ],
-      "explanation": "Window with partitionBy() and orderBy(). row_number() gives unique rank (1,2,3...). rank() allows ties (1,1,3...). dense_rank() no gaps (1,1,2...). Filter to get top N per group.",
+      "correctAnswer": "window_spec = Window.partitionBy('category').orderBy(F.desc('sales')); df_ranked = df.withColumn('rank', F.row_number().over(window_spec)); result = df_ranked.filter(F.col('rank') <= 3)",
+      "explanation": "Top-N per group requires a partitioned window and then filtering by rank.",
       "xpReward": 85,
       "tags": ["window-functions", "ranking", "top-n", "advanced"]
     },
@@ -221,7 +238,7 @@
       "topic": "pyspark",
       "difficulty": "medium",
       "type": "multiple-choice",
-      "question": "What's the recommended way to write a DataFrame to Parquet for best query performance?",
+      "question": "What's the recommended way to write Parquet for better filtered query performance?",
       "options": [
         "df.write.parquet('output.parquet')",
         "df.write.partitionBy('date_column').parquet('output.parquet')",
@@ -229,7 +246,7 @@
         "df.repartition(1000).write.parquet('output.parquet')"
       ],
       "correctAnswer": "df.write.partitionBy('date_column').parquet('output.parquet')",
-      "explanation": "partitionBy() creates directory partitions (e.g., date=2024-01-01/), enabling partition pruning—queries filter entire directories, not scanning all files. Huge speedup for filtered queries. Choose partition columns wisely (low cardinality).",
+      "explanation": "Partitioning enables partition pruning for selective reads.",
       "xpReward": 60,
       "tags": ["io", "parquet", "partitioning", "performance"]
     }

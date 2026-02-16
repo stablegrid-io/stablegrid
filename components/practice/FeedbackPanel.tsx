@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { CheckCircle2, Info, XCircle } from 'lucide-react';
+import { formatUnitsAsKwh } from '@/lib/energy';
 
 interface FeedbackPanelProps {
   isCorrect: boolean;
@@ -52,7 +53,7 @@ export const FeedbackPanel = ({
           </h3>
           {isCorrect && (
             <p className="mt-0.5 text-sm text-success-700 dark:text-success-300">
-              +{xpGained} XP earned
+              +{formatUnitsAsKwh(xpGained)} earned
             </p>
           )}
         </div>

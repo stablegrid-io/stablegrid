@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
+import { formatUnitsAsKwh } from '@/lib/energy';
 
 interface SessionHeaderProps {
   topic: string;
@@ -24,7 +25,7 @@ export const SessionHeader = ({
       <div className="container mx-auto px-4 py-4">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/hub" className="btn btn-ghost text-xs">
+            <Link href="/flashcards" className="btn btn-ghost text-xs">
               <ArrowLeft className="h-4 w-4" />
               Back
             </Link>
@@ -37,7 +38,7 @@ export const SessionHeader = ({
           <div className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 dark:border-brand-800 dark:bg-brand-900/20">
             <TrendingUp className="h-4 w-4 text-brand-600 dark:text-brand-400" />
             <span className="text-sm font-medium text-brand-700 dark:text-brand-300">
-              +{xpEarned} XP
+              +{formatUnitsAsKwh(xpEarned)}
             </span>
           </div>
         </div>

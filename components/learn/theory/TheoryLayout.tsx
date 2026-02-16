@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, Clock, Menu, X } from 'lucide-react';
+import { PulseMascot } from '@/components/mascot/PulseMascot';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import type { Topic } from '@/types/progress';
 import { getChapterCompletions } from '@/lib/progress';
 import { useReadingSession } from '@/lib/hooks/useReadingSession';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { usePulseMascotStore } from '@/lib/stores/usePulseMascotStore';
 import { TheorySidebar } from '@/components/learn/theory/TheorySidebar';
 import { TheoryContent } from '@/components/learn/theory/TheoryContent';
 
@@ -25,10 +27,15 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     new Set()
   );
   const [completionActionPending, setCompletionActionPending] = useState(false);
+  const [pulseVisible, setPulseVisible] = useState(false);
   const addXP = useProgressStore((state) => state.addXP);
+  const pulseMood = usePulseMascotStore((state) => state.mood);
+  const pulseMotion = usePulseMascotStore((state) => state.motion);
+  const pulseAction = usePulseMascotStore((state) => state.action);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const handleChapterComplete = useCallback(() => {
     setCompletedChapterIds((prev) => new Set([...prev, activeChapter.id]));
+    setPulseVisible(true);
   }, [activeChapter.id]);
   const handleChapterIncomplete = useCallback(() => {
     setCompletedChapterIds((prev) => {
@@ -49,7 +56,12 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       chapter: activeChapter,
       onChapterComplete: handleChapterComplete,
       onChapterIncomplete: handleChapterIncomplete,
-      onFirstCompletionXp: addXP
+      onFirstCompletionEnergyUnits: (units) =>
+        addXP(units, {
+          source: 'chapter-complete',
+          topic: doc.topic as Topic,
+          label: `Completed ${activeChapter.title}`
+        })
     });
 
   useEffect(() => {
@@ -64,6 +76,12 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       mounted = false;
     };
   }, [doc.topic]);
+
+  useEffect(() => {
+    if (!pulseVisible) return;
+    const timeout = window.setTimeout(() => setPulseVisible(false), 4800);
+    return () => window.clearTimeout(timeout);
+  }, [pulseVisible]);
 
   useEffect(() => {
     if (!requestedChapterId) {
@@ -114,10 +132,19 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
             Chapter completed
           </span>
-          <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-            <Clock className="h-3 w-3" />
-            {readingMinutes}m active reading
-          </span>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+              <Clock className="h-3 w-3" />
+              {readingMinutes}m active reading
+            </span>
+            <div
+              className={`transition-opacity duration-500 ${
+                pulseVisible ? 'opacity-100' : 'opacity-85'
+              }`}
+            >
+              <PulseMascot mood={pulseMood} motion={pulseMotion} action={pulseAction} size={40} />
+            </div>
+          </div>
         </div>
       ) : null}
 

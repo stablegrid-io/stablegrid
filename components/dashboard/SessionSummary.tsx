@@ -6,6 +6,7 @@ import type {
   DashboardPeriod,
   DashboardStats
 } from '@/lib/hooks/useDashboardData';
+import { formatUnitsAsKwh, kwhToUnits } from '@/lib/energy';
 
 interface SessionSummaryProps {
   stats: DashboardStats;
@@ -38,7 +39,8 @@ export const SessionSummary = ({
   const totalDays = activityData.length || 1;
   const correctAnswers = Math.round((stats.overallAccuracy / 100) * stats.questionsInPeriod);
   const questionGoal = period === 'week' ? 20 : period === 'month' ? 80 : 300;
-  const xpGoal = period === 'week' ? 200 : period === 'month' ? 800 : 3000;
+  const energyGoalUnits =
+    period === 'week' ? kwhToUnits(2) : period === 'month' ? kwhToUnits(8) : kwhToUnits(30);
 
   const range = getPeriodBounds(period);
   const rangeLabel = `${format(range.start, 'MMM d')} - ${format(range.end, 'MMM d')}`;
@@ -59,10 +61,10 @@ export const SessionSummary = ({
       color: 'bg-emerald-500'
     },
     {
-      label: 'XP Earned',
-      value: `+${stats.xpInPeriod}`,
-      sub: `of ${xpGoal} target`,
-      progress: clampPercent((stats.xpInPeriod / xpGoal) * 100),
+      label: 'Energy Generated',
+      value: `+${formatUnitsAsKwh(stats.xpInPeriod)}`,
+      sub: `of ${formatUnitsAsKwh(energyGoalUnits)} target`,
+      progress: clampPercent((stats.xpInPeriod / energyGoalUnits) * 100),
       color: 'bg-amber-500'
     },
     {

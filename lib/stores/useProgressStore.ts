@@ -3,6 +3,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { PracticeTopic } from '@/lib/types';
+import {
+  ENERGY_REWARDS,
+  FLASHCARD_STREAK_MILESTONES
+} from '@/lib/energy';
 
 interface TopicStats {
   correct: number;
@@ -18,6 +22,22 @@ interface QuestionAttempt {
   xp: number;
 }
 
+type EnergyEventSource =
+  | 'flashcard-correct'
+  | 'streak-milestone'
+  | 'chapter-complete'
+  | 'mission'
+  | 'manual';
+
+interface EnergyEvent {
+  id: string;
+  source: EnergyEventSource;
+  units: number;
+  timestamp: number;
+  topic?: PracticeTopic;
+  label?: string;
+}
+
 interface ProgressState {
   xp: number;
   streak: number;
@@ -26,9 +46,17 @@ interface ProgressState {
   dailyXP: Record<string, number>;
   dailyQuestions: Record<string, number>;
   questionHistory: QuestionAttempt[];
+  energyEvents: EnergyEvent[];
   lastSynced: string | null;
   userId: string | null;
-  addXP: (xp: number) => void;
+  addXP: (
+    xp: number,
+    event?: {
+      source?: EnergyEventSource;
+      topic?: PracticeTopic;
+      label?: string;
+    }
+  ) => void;
   answerQuestion: (
     questionId: string,
     topic: PracticeTopic,
@@ -46,10 +74,7 @@ const defaultTopicStats: Record<PracticeTopic, TopicStats> = {
   sql: { correct: 0, total: 0, lastAttempted: null },
   python: { correct: 0, total: 0, lastAttempted: null },
   pyspark: { correct: 0, total: 0, lastAttempted: null },
-  excel: { correct: 0, total: 0, lastAttempted: null },
-  statistics: { correct: 0, total: 0, lastAttempted: null },
-  visualization: { correct: 0, total: 0, lastAttempted: null },
-  etl: { correct: 0, total: 0, lastAttempted: null }
+  fabric: { correct: 0, total: 0, lastAttempted: null }
 };
 
 export const useProgressStore = create<ProgressState>()(
@@ -62,9 +87,10 @@ export const useProgressStore = create<ProgressState>()(
       dailyXP: {},
       dailyQuestions: {},
       questionHistory: [],
+      energyEvents: [],
       lastSynced: null,
       userId: null,
-      addXP: (xpToAdd) => {
+      addXP: (xpToAdd, event) => {
         if (!Number.isFinite(xpToAdd) || xpToAdd <= 0) return;
 
         const now = new Date().toISOString();
@@ -75,7 +101,18 @@ export const useProgressStore = create<ProgressState>()(
           dailyXP: {
             ...state.dailyXP,
             [today]: (state.dailyXP[today] ?? 0) + xpToAdd
-          }
+          },
+          energyEvents: [
+            ...state.energyEvents,
+            {
+              id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              source: event?.source ?? 'manual',
+              units: xpToAdd,
+              timestamp: Date.now(),
+              topic: event?.topic,
+              label: event?.label
+            }
+          ].slice(-200)
         }));
 
         const { userId } = get();
@@ -98,9 +135,19 @@ export const useProgressStore = create<ProgressState>()(
           };
 
           const shouldRecord = !alreadyCompleted;
+          const nextStreak = shouldRecord ? (correct ? state.streak + 1 : 0) : state.streak;
+          const streakBonus =
+            shouldRecord &&
+            correct &&
+            FLASHCARD_STREAK_MILESTONES.includes(
+              nextStreak as (typeof FLASHCARD_STREAK_MILESTONES)[number]
+            )
+              ? ENERGY_REWARDS.flashcardStreakMilestoneUnits
+              : 0;
+          const totalEnergyUnits = shouldRecord && correct ? xp + streakBonus : 0;
           const nextDailyXP = {
             ...state.dailyXP,
-            [today]: (state.dailyXP[today] ?? 0) + xp
+            [today]: (state.dailyXP[today] ?? 0) + totalEnergyUnits
           };
           const nextDailyQuestions = {
             ...state.dailyQuestions,
@@ -113,12 +160,33 @@ export const useProgressStore = create<ProgressState>()(
               topic,
               correct,
               timestamp: Date.now(),
-              xp
+              xp: totalEnergyUnits
             }
           ];
+          const nextEnergyEvents = [...state.energyEvents];
+          if (shouldRecord && correct && xp > 0) {
+            nextEnergyEvents.push({
+              id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              source: 'flashcard-correct',
+              units: xp,
+              timestamp: Date.now(),
+              topic,
+              label: 'Flashcard correct'
+            });
+          }
+          if (streakBonus > 0) {
+            nextEnergyEvents.push({
+              id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              source: 'streak-milestone',
+              units: streakBonus,
+              timestamp: Date.now(),
+              topic,
+              label: `${nextStreak} streak milestone`
+            });
+          }
           return {
-            xp: shouldRecord && correct ? state.xp + xp : state.xp,
-            streak: shouldRecord ? (correct ? state.streak + 1 : 0) : state.streak,
+            xp: state.xp + totalEnergyUnits,
+            streak: nextStreak,
             completedQuestions: nextCompleted,
             topicProgress: {
               ...state.topicProgress,
@@ -130,7 +198,8 @@ export const useProgressStore = create<ProgressState>()(
             },
             dailyXP: nextDailyXP,
             dailyQuestions: nextDailyQuestions,
-            questionHistory: nextHistory
+            questionHistory: nextHistory,
+            energyEvents: nextEnergyEvents.slice(-200)
           };
         });
 
@@ -201,12 +270,13 @@ export const useProgressStore = create<ProgressState>()(
           dailyXP: {},
           dailyQuestions: {},
           questionHistory: [],
+          energyEvents: [],
           lastSynced: null,
           userId: null
         })
     }),
     {
-      name: 'gridlock-progress',
+      name: 'datagridlab-progress',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         xp: state.xp,
@@ -215,7 +285,8 @@ export const useProgressStore = create<ProgressState>()(
         topicProgress: state.topicProgress,
         dailyXP: state.dailyXP,
         dailyQuestions: state.dailyQuestions,
-        questionHistory: state.questionHistory
+        questionHistory: state.questionHistory,
+        energyEvents: state.energyEvents
       })
     }
   )

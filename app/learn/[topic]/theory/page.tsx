@@ -57,13 +57,13 @@ export function generateMetadata({
   const doc = theoryDocs[params.topic];
   if (!doc) {
     return {
-      title: 'Theory | Learn | Gridlock',
+      title: 'Theory | Learn | DataGridLab',
       description: 'Chapter-based theory documentation.'
     };
   }
 
   return {
-    title: `${doc.title} Theory Categories | Gridlock`,
+    title: `${doc.title} Theory Categories | DataGridLab`,
     description: 'Choose a theory category before opening chapters.'
   };
 }

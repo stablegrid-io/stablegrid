@@ -6,6 +6,7 @@ import { LogOut, Moon, Settings, Sun, Trophy, Zap } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { formatUnitsAsKwh } from '@/lib/energy';
 
 export function UserMenu() {
   const { user, signOut } = useAuth();
@@ -79,7 +80,7 @@ export function UserMenu() {
           <div className="flex items-center gap-3 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
             <span className="flex items-center gap-1">
               <Zap className="h-3 w-3 text-warning-500" />
-              {xp} XP
+              {formatUnitsAsKwh(xp)}
             </span>
             <span className="flex items-center gap-1">
               <Trophy className="h-3 w-3 text-success-500" />
@@ -104,9 +105,9 @@ export function UserMenu() {
 
           <div className="space-y-2 py-3 text-sm">
             <div className="flex items-center justify-between text-text-light-tertiary dark:text-text-dark-tertiary">
-              <span>Total XP</span>
+              <span>Energy Balance</span>
               <span className="font-semibold text-success-600 dark:text-success-400">
-                {xp}
+                {formatUnitsAsKwh(xp)}
               </span>
             </div>
             <div className="flex items-center justify-between text-text-light-tertiary dark:text-text-dark-tertiary">

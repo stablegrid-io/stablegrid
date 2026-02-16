@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   CheckCircle2,
@@ -13,7 +13,9 @@ import {
   Zap
 } from 'lucide-react';
 import { MISSIONS, type MissionDefinition } from '@/data/missions';
+import { formatKwh, getMissionRewardKwh } from '@/lib/energy';
 import { mergeWithDefaultMissions } from '@/lib/missions';
+import { useProgressStore } from '@/lib/stores/useProgressStore';
 import type { MissionState, UserMissionProgress } from '@/types/missions';
 
 type MissionFilter = 'all' | 'available' | 'completed';
@@ -54,7 +56,7 @@ const TEAM = [
   { name: 'Alert System', role: 'Automated Incident Feed' }
 ];
 
-function MissionCard({
+const MissionCard = memo(function MissionCard({
   mission,
   onOpen
 }: {
@@ -177,15 +179,15 @@ function MissionCard({
             style={{ color: mission.accentColor }}
           >
             <Zap className="h-3.5 w-3.5" />
-            {mission.xp.toLocaleString()} XP
+            {formatKwh(getMissionRewardKwh(mission.difficulty), 1)}
           </span>
         </div>
       </div>
     </button>
   );
-}
+});
 
-function MissionDrawer({
+const MissionDrawer = memo(function MissionDrawer({
   mission,
   onClose,
   onUpdateMissionState
@@ -195,6 +197,7 @@ function MissionDrawer({
   onUpdateMissionState: (missionSlug: string, state: MissionState) => void;
 }) {
   const isLocked = mission.status === 'locked';
+  const missionPath = `/missions/${mission.slug}`;
 
   return (
     <>
@@ -290,7 +293,10 @@ function MissionDrawer({
           <section className="rounded-xl border border-light-border bg-light-surface p-4 dark:border-dark-border dark:bg-[#0c141f]">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <MetaItem label="Duration" value={mission.duration} />
-              <MetaItem label="XP" value={`${mission.xp.toLocaleString()} XP`} />
+              <MetaItem
+                label="Energy"
+                value={formatKwh(getMissionRewardKwh(mission.difficulty), 1)}
+              />
               <MetaItem label="Location" value={mission.location} />
               <MetaItem label="Status" value={mission.completed ? 'Completed' : mission.status} />
             </div>
@@ -346,20 +352,23 @@ function MissionDrawer({
               Rewards
             </p>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-              <RewardCell label="XP" value={`${mission.xp.toLocaleString()}`} />
+              <RewardCell
+                label="Energy"
+                value={formatKwh(getMissionRewardKwh(mission.difficulty), 1)}
+              />
               <RewardCell label="Badge" value={mission.rewardBadge} />
               <RewardCell label="Title" value={mission.rewardTitle} />
             </div>
           </section>
 
           <div className="flex items-center gap-2 pt-2">
-            {mission.workspaceTaskId && !isLocked ? (
+            {!isLocked ? (
               <Link
-                href={`/workspace/${mission.workspaceTaskId}`}
+                href={missionPath}
                 className="btn btn-primary flex-1"
                 onClick={() => onUpdateMissionState(mission.slug, 'in_progress')}
               >
-                {mission.completed ? 'Replay Mission' : 'Accept Mission'}
+                {mission.completed ? 'Replay Mission' : 'Start Mission'}
                 <ChevronRight className="h-4 w-4" />
               </Link>
             ) : (
@@ -373,6 +382,19 @@ function MissionDrawer({
               </button>
             )}
 
+            {!isLocked && !mission.completed ? (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  onUpdateMissionState(mission.slug, 'completed');
+                  onClose();
+                }}
+              >
+                Mark Complete
+              </button>
+            ) : null}
+
             <Link href={`/missions/${mission.slug}`} className="btn btn-secondary">
               Full Brief
             </Link>
@@ -381,9 +403,9 @@ function MissionDrawer({
       </aside>
     </>
   );
-}
+});
 
-function MetaItem({ label, value }: { label: string; value: string }) {
+const MetaItem = memo(function MetaItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-light-border bg-light-bg px-3 py-2 dark:border-dark-border dark:bg-[#101a27]">
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
@@ -394,9 +416,9 @@ function MetaItem({ label, value }: { label: string; value: string }) {
       </p>
     </div>
   );
-}
+});
 
-function RewardCell({ label, value }: { label: string; value: string }) {
+const RewardCell = memo(function RewardCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-light-border bg-light-bg px-2 py-2 dark:border-dark-border dark:bg-[#101a27]">
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
@@ -407,10 +429,12 @@ function RewardCell({ label, value }: { label: string; value: string }) {
       </p>
     </div>
   );
-}
+});
 
 export default function MissionsPage() {
+  const addXP = useProgressStore((state) => state.addXP);
   const [filter, setFilter] = useState<MissionFilter>('all');
+  const deferredFilter = useDeferredValue(filter);
   const [selectedMission, setSelectedMission] = useState<MissionDefinition | null>(
     null
   );
@@ -447,7 +471,7 @@ export default function MissionsPage() {
             unlocked: row.unlocked,
             startedAt: row.started_at,
             completedAt: row.completed_at,
-            xpAwarded: row.xp_awarded
+            energyAwardedUnits: row.xp_awarded
           }))
         : [];
 
@@ -474,7 +498,7 @@ export default function MissionsPage() {
       );
 
       try {
-        await fetch('/api/missions/progress', {
+        const response = await fetch('/api/missions/progress', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -484,24 +508,51 @@ export default function MissionsPage() {
           }),
           keepalive: true
         });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          reward_awarded_units?: number;
+        };
+        const rewardUnits = Number(payload.reward_awarded_units ?? 0);
+
+        if (state === 'completed' && rewardUnits > 0) {
+          const mission = MISSIONS.find((item) => item.slug === missionSlug);
+          addXP(rewardUnits, {
+            source: 'mission',
+            label: mission
+              ? `Mission complete: ${mission.codename}`
+              : 'Mission complete'
+          });
+        }
       } catch {
         // Ignore network failures and keep optimistic state.
       }
     },
-    []
+    [addXP]
   );
 
   const filteredMissions = useMemo(() => {
     return missions.filter((mission) => {
-      if (filter === 'available') {
+      if (deferredFilter === 'available') {
         return mission.status === 'available' && !mission.completed;
       }
-      if (filter === 'completed') {
+      if (deferredFilter === 'completed') {
         return mission.completed;
       }
       return true;
     });
-  }, [filter, missions]);
+  }, [deferredFilter, missions]);
+
+  const handleSelectMission = useCallback((mission: MissionDefinition) => {
+    setSelectedMission(mission);
+  }, []);
+
+  const handleCloseMission = useCallback(() => {
+    setSelectedMission(null);
+  }, []);
 
   const stats = useMemo(() => {
     const completed = missions.filter((mission) => mission.completed).length;
@@ -569,7 +620,7 @@ export default function MissionsPage() {
               </p>
               <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-success-500 to-brand-500"
+                  className="h-full rounded-full bg-brand-500"
                   style={{ width: `${stats.completionPct}%` }}
                 />
               </div>
@@ -605,7 +656,7 @@ export default function MissionsPage() {
               <MissionCard
                 key={mission.slug}
                 mission={mission}
-                onOpen={setSelectedMission}
+                onOpen={handleSelectMission}
               />
             ))}
           </section>
@@ -621,7 +672,7 @@ export default function MissionsPage() {
       {selectedMission && (
         <MissionDrawer
           mission={selectedMission}
-          onClose={() => setSelectedMission(null)}
+          onClose={handleCloseMission}
           onUpdateMissionState={updateMissionState}
         />
       )}

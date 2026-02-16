@@ -1,7 +1,14 @@
-import { HomeDashboard } from '@/components/home/HomeDashboard';
-import { LandingPage } from '@/components/home/LandingPage';
+import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/server';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
+
+const LandingPage = dynamic(() =>
+  import('@/components/home/LandingPage').then((module) => module.LandingPage)
+);
+
+const HomeDashboard = dynamic(() =>
+  import('@/components/home/HomeDashboard').then((module) => module.HomeDashboard)
+);
 
 interface TopicProgressRow {
   id: string;
@@ -86,14 +93,14 @@ const mapReadingSessionRow = (row: ReadingSessionRow): ReadingSession => ({
 export default async function RootPage() {
   const supabase = createClient();
   const {
-    data: { session }
-  } = await supabase.auth.getSession();
+    data: { user }
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return <LandingPage />;
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
 
   const [
     topicProgressResult,
@@ -102,17 +109,26 @@ export default async function RootPage() {
     userProgressResult
   ] =
     await Promise.all([
-      supabase.from('topic_progress').select('*').eq('user_id', userId),
+      supabase
+        .from('topic_progress')
+        .select(
+          'id,user_id,topic,theory_chapters_total,theory_chapters_completed,theory_sections_total,theory_sections_read,theory_total_minutes_read,practice_questions_total,practice_questions_attempted,practice_questions_correct,functions_total,functions_viewed,functions_bookmarked,overall_completion_pct,first_activity_at,last_activity_at,updated_at'
+        )
+        .eq('user_id', userId),
       supabase
         .from('reading_sessions')
-        .select('*')
+        .select(
+          'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,active_seconds,is_completed'
+        )
         .eq('user_id', userId)
         .eq('is_completed', false)
         .order('last_active_at', { ascending: false })
         .limit(3),
       supabase
         .from('reading_sessions')
-        .select('*')
+        .select(
+          'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,active_seconds,is_completed'
+        )
         .eq('user_id', userId)
         .order('last_active_at', { ascending: false })
         .limit(60),
@@ -148,7 +164,7 @@ export default async function RootPage() {
 
   return (
     <HomeDashboard
-      user={session.user}
+      user={user}
       topicProgress={topicProgress}
       recentSessions={recentSessions}
       readingHistory={readingHistory}

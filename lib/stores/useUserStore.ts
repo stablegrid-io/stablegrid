@@ -37,7 +37,7 @@ export const useUserStore = create<UserState>()(
         })
     }),
     {
-      name: 'gridlock-storage',
+      name: 'datagridlab-storage',
       storage: createJSONStorage(() => localStorage)
     }
   )

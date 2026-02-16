@@ -10,12 +10,17 @@ import { SessionComplete } from '@/components/practice/SessionComplete';
 import { useQuestionSession } from '@/lib/hooks/useQuestionSession';
 import { Card } from '@/components/ui/Card';
 
+const ALLOWED_TOPICS: PracticeTopic[] = ['sql', 'python', 'pyspark', 'fabric'];
+
 export default function PracticePage({
   params
 }: {
   params: { topic: string };
 }) {
   const topic = params.topic as PracticeTopic;
+  const isAllowedTopic = ALLOWED_TOPICS.includes(topic);
+  const sessionTopic = isAllowedTopic ? topic : 'sql';
+
   const {
     currentQuestion,
     currentIndex,
@@ -35,10 +40,20 @@ export default function PracticePage({
     handleRestart,
     progress,
     questions,
-    isRuntimeLoading,
-    runtimeError,
     lastXpGained
-  } = useQuestionSession(topic, 10);
+  } = useQuestionSession(sessionTopic, 10, { enabled: isAllowedTopic });
+
+  if (!isAllowedTopic) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 text-center">
+        <div>
+          <p className="text-text-light-secondary dark:text-text-dark-secondary">
+            Topic not available in flashcards.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -89,18 +104,6 @@ export default function PracticePage({
 
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-4xl">
-          {topic === 'python' && isRuntimeLoading && (
-            <div className="mb-4 rounded-2xl border border-light-border bg-light-hover px-4 py-3 text-sm text-text-light-secondary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary">
-              Loading Python runtime for code checks...
-            </div>
-          )}
-          {runtimeError && (
-            <div className="mb-4 rounded-2xl border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-600 dark:border-error-800 dark:bg-error-900/10 dark:text-error-400">
-              {runtimeError} Code execution is temporarily unavailable; answers
-              will be validated by pattern matching only.
-            </div>
-          )}
-
           <Card className="p-8">
             <AnimatePresence mode="wait">
               {!showFeedback ? (

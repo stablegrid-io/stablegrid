@@ -1,5 +1,5 @@
 -- Reading sessions and completion tracking
--- Generated for Gridlock progress redesign
+-- Generated for DataGridLab progress redesign
 
 create extension if not exists "pgcrypto";
 

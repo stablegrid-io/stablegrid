@@ -33,6 +33,7 @@ export const HomeDashboard = ({
   stats
 }: HomeDashboardProps) => {
   const questionHistory = useProgressStore((state) => state.questionHistory);
+  const dailyEnergy = useProgressStore((state) => state.dailyXP);
 
   const firstName =
     user.user_metadata?.name?.split(' ')[0] ??
@@ -50,6 +51,11 @@ export const HomeDashboard = ({
       (entry) => format(new Date(entry.timestamp), 'yyyy-MM-dd') === today
     ).length;
   }, [questionHistory]);
+
+  const energyTodayUnits = useMemo(() => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    return dailyEnergy[today] ?? 0;
+  }, [dailyEnergy]);
 
   const chaptersCompleted = useMemo(
     () =>
@@ -107,7 +113,8 @@ export const HomeDashboard = ({
           firstName={firstName}
           greeting={greeting}
           streak={stats.currentStreak}
-          totalXP={stats.totalXp}
+          totalEnergyUnits={stats.totalXp}
+          energyTodayUnits={energyTodayUnits}
           questionsCompleted={stats.questionsCompleted}
           overallAccuracy={stats.overallAccuracy}
           chaptersCompleted={chaptersCompleted}

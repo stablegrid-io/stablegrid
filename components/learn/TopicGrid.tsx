@@ -13,6 +13,7 @@ interface TopicItem {
   title: string;
   description: string;
   functionCount: number;
+  chapterCount: number;
 }
 
 interface TopicGridProps {
@@ -69,11 +70,16 @@ export const TopicGrid = ({ topics }: TopicGridProps) => {
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-light-muted dark:bg-dark-muted">
                 <Icon className={`h-6 w-6 ${config.iconClass}`} />
               </div>
-              <span
-                className={`rounded-full px-2.5 py-1 text-xs font-medium ${config.badgeClass}`}
-              >
-                {topic.functionCount} entries
-              </span>
+              <div className="flex flex-wrap justify-end gap-1.5">
+                <span className="rounded-full border border-light-border bg-light-surface px-2.5 py-1 text-xs font-medium text-text-light-secondary dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-secondary">
+                  {topic.chapterCount} chapters
+                </span>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${config.badgeClass}`}
+                >
+                  {topic.functionCount} functions
+                </span>
+              </div>
             </div>
             <h3 className="mb-1 text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
               {topic.title}

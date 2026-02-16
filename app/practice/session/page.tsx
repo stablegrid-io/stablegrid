@@ -70,8 +70,6 @@ export default function PracticeSessionPage() {
     handleRestart,
     progress,
     questions,
-    isRuntimeLoading,
-    runtimeError,
     lastXpGained
   } = useQuestionSession(fallbackTopic, presetQuestions.length, {
     presetQuestions,
@@ -127,18 +125,6 @@ export default function PracticeSessionPage() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-4xl">
-          {isRuntimeLoading && (
-            <div className="mb-4 rounded-2xl border border-light-border bg-light-hover px-4 py-3 text-sm text-text-light-secondary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary">
-              Loading Python runtime for code checks...
-            </div>
-          )}
-          {runtimeError && (
-            <div className="mb-4 rounded-2xl border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-600 dark:border-error-800 dark:bg-error-900/10 dark:text-error-400">
-              {runtimeError} Code execution is temporarily unavailable; answers
-              will be validated by pattern matching only.
-            </div>
-          )}
-
           <Card className="p-8">
             <AnimatePresence mode="wait">
               {!showFeedback ? (

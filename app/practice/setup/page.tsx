@@ -8,7 +8,7 @@ import { useQuestionFilters } from '@/lib/hooks/useQuestionFilters';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import type { PracticeTopic, Question, QuestionDifficulty } from '@/lib/types';
 
-const TOPICS: PracticeTopic[] = ['sql', 'python', 'statistics', 'excel', 'pyspark'];
+const TOPICS: PracticeTopic[] = ['sql', 'python', 'pyspark', 'fabric'];
 
 export default function PracticeSetupPage() {
   const router = useRouter();
@@ -36,8 +36,8 @@ export default function PracticeSetupPage() {
 
       for (const topic of TOPICS) {
         try {
-          const module = await import(`@/data/questions/${topic}.json`);
-          const payload = module.default ?? module;
+          const topicModule = await import(`@/data/questions/${topic}.json`);
+          const payload = topicModule.default ?? topicModule;
           const questions: Question[] = payload.questions ?? payload[topic] ?? [];
           questions.forEach((question) => {
             all.push(question);

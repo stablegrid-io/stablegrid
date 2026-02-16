@@ -9,7 +9,7 @@ interface TopicSelectorProps {
 
 export function TopicSelector({ topics }: TopicSelectorProps) {
   return (
-    <section className="grid gap-6 md:grid-cols-2">
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {topics.map((topic, index) => (
         <TopicCard key={topic.id} topic={topic} index={index} />
       ))}

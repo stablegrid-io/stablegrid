@@ -4,12 +4,17 @@
       "id": "python-015",
       "topic": "python",
       "difficulty": "easy",
-      "type": "code",
-      "question": "Fill in the missing line to remove duplicate rows:",
-      "codeSnippet": "df = pd.read_csv('data.csv')\n# Your code here:\n_______________\nprint(df.shape)",
+      "type": "multiple-choice",
+      "question": "Which line removes duplicate rows from a pandas DataFrame df?",
+      "options": [
+        "df = df.drop_duplicates()",
+        "df = df.unique()",
+        "df = df.remove_duplicates()",
+        "df = df.dropna()"
+      ],
       "correctAnswer": "df = df.drop_duplicates()",
-      "explanation": "drop_duplicates() removes all duplicate rows based on all columns by default.",
-      "hint": "There is a built-in pandas method for de-duping rows.",
+      "explanation": "drop_duplicates() is the built-in pandas method for de-duplicating rows.",
+      "hint": "Use the pandas method specifically made for dedupe.",
       "xpReward": 40,
       "tags": ["pandas", "data-cleaning"]
     },
@@ -18,10 +23,10 @@
       "topic": "python",
       "difficulty": "medium",
       "type": "multiple-choice",
-      "question": "Which method converts a pandas Series to datetime?",
+      "question": "Which method converts values to datetime in pandas?",
       "options": ["to_datetime()", "as_date()", "parse_date()", "datetimeify()"],
       "correctAnswer": "to_datetime()",
-      "explanation": "pd.to_datetime() or Series.astype('datetime64[ns]') are the standard ways.",
+      "explanation": "pd.to_datetime() is the standard conversion utility in pandas.",
       "xpReward": 35,
       "tags": ["time-series", "pandas"]
     },
@@ -29,14 +34,16 @@
       "id": "python-032",
       "topic": "python",
       "difficulty": "medium",
-      "type": "free-text",
-      "question": "What does `df['col'].isnull().sum()` return?",
-      "correctAnswer": [
-        "number of missing values",
-        "count of nulls in the column",
-        "total nulls"
+      "type": "multiple-choice",
+      "question": "What does df['col'].isnull().sum() return?",
+      "options": [
+        "Count of non-null values in col",
+        "Count of null values in col",
+        "Percentage of null values in col",
+        "Boolean mask of null values"
       ],
-      "explanation": "isnull() marks missing values, and sum() counts them.",
+      "correctAnswer": "Count of null values in col",
+      "explanation": "isnull() creates a boolean mask where nulls are true, and sum() counts true values.",
       "xpReward": 30,
       "tags": ["pandas", "nulls"]
     }

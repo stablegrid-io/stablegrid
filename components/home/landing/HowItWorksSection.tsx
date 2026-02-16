@@ -20,7 +20,7 @@ const STEPS = [
   {
     number: '03',
     title: 'Practice what you learned',
-    body: 'Run through flashcards with immediate feedback, XP rewards, and accuracy tracking.',
+    body: 'Run through flashcards with immediate feedback, kWh rewards, and accuracy tracking.',
     detail:
       'Practice outcomes are tied back to topics, so weak areas are visible quickly.'
   }

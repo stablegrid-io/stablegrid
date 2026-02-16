@@ -23,10 +23,10 @@ const navItems: NavItem[] = [
   { href: '/', icon: Home, label: 'Home' },
   { href: '/learn', icon: BookOpen, label: 'Learn' },
   {
-    href: '/hub',
+    href: '/flashcards',
     icon: Swords,
     label: 'Practice',
-    matchPrefixes: ['/hub', '/missions', '/practice']
+    matchPrefixes: ['/flashcards', '/hub', '/missions', '/practice']
   },
   { href: '/progress', icon: BarChart3, label: 'Progress' }
 ];

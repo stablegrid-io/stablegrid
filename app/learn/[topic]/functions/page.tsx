@@ -29,12 +29,12 @@ export function generateMetadata({
   const sheet = cheatSheets[params.topic];
   if (!sheet) {
     return {
-      title: 'Functions | Learn | Gridlock',
+      title: 'Functions | Learn | DataGridLab',
       description: 'Interactive function reference.'
     };
   }
   return {
-    title: `${sheet.title} Functions | Gridlock`,
+    title: `${sheet.title} Functions | DataGridLab`,
     description: sheet.description
   };
 }

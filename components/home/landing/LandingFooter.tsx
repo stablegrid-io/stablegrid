@@ -9,7 +9,7 @@ export const LandingFooter = () => {
           <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#6b7fff]">
             <Zap className="h-3.5 w-3.5 fill-white text-white" />
           </div>
-          <span className="text-sm font-medium">Gridlock</span>
+          <span className="text-sm font-medium">DataGridLab</span>
         </div>
 
         <div className="flex items-center gap-8 text-sm text-[#525252]">
@@ -29,7 +29,7 @@ export const LandingFooter = () => {
           ))}
         </div>
 
-        <p className="text-xs text-[#525252]">© 2026 Gridlock</p>
+        <p className="text-xs text-[#525252]">© 2026 DataGridLab</p>
       </div>
     </footer>
   );

@@ -1,16 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { TheoryChapter } from '@/types/theory';
 import type { Topic } from '@/types/progress';
+import { getChapterCompletionRewardUnits } from '@/lib/energy';
 
 interface UseReadingSessionOptions {
   topic: Topic;
   chapter: TheoryChapter;
   onChapterComplete?: () => void;
   onChapterIncomplete?: () => void;
-  onFirstCompletionXp?: (xp: number) => void;
+  onFirstCompletionEnergyUnits?: (units: number) => void;
 }
 
 type ReadingSessionRow = {
@@ -20,14 +21,12 @@ type ReadingSessionRow = {
   xp_awarded?: boolean | null;
 };
 
-const READING_COMPLETION_XP = 50;
-
 export function useReadingSession({
   topic,
   chapter,
   onChapterComplete,
   onChapterIncomplete,
-  onFirstCompletionXp
+  onFirstCompletionEnergyUnits
 }: UseReadingSessionOptions) {
   // Keep one browser client instance for the lifetime of this hook.
   const supabaseRef = useRef(createClient());
@@ -40,6 +39,10 @@ export function useReadingSession({
   const activeSecondsRef = useRef(0);
   const isVisibleRef = useRef(true);
   const xpAwardedRef = useRef(false);
+  const chapterCompletionRewardUnits = useMemo(
+    () => getChapterCompletionRewardUnits(chapter.totalMinutes),
+    [chapter.totalMinutes]
+  );
 
   useEffect(() => {
     activeSecondsRef.current = activeSeconds;
@@ -56,7 +59,7 @@ export function useReadingSession({
 
       const { data: existing, error: existingError } = await supabase
         .from('reading_sessions')
-        .select('*')
+        .select('id,is_completed,active_seconds,xp_awarded')
         .eq('user_id', user.id)
         .eq('topic', topic)
         .eq('chapter_id', chapter.id)
@@ -266,15 +269,16 @@ export function useReadingSession({
     setIsCompleted(true);
     if (shouldAwardXp) {
       xpAwardedRef.current = true;
-      onFirstCompletionXp?.(READING_COMPLETION_XP);
+      onFirstCompletionEnergyUnits?.(chapterCompletionRewardUnits);
     }
     onChapterComplete?.();
     await updateTopicProgress();
   }, [
+    chapterCompletionRewardUnits,
     chapter.sections,
-    isCompleted,
-    onFirstCompletionXp,
     onChapterComplete,
+    onFirstCompletionEnergyUnits,
+    isCompleted,
     sessionId,
     supabase,
     updateTopicProgress

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ArrowRight, Zap } from 'lucide-react';
 
 const HERO_CODE = `# Chapter 4: Shuffles — The Performance Killer
-# From Gridlock's PySpark Theory Guide
+# From DataGridLab's PySpark Theory Guide
 
 # ❌ Two shuffles — slow
 result = (

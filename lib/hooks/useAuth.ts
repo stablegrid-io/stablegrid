@@ -19,34 +19,39 @@ export const useAuth = (listen: boolean = false) => {
 
     let isMounted = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const syncVerifiedUser = async () => {
+      const {
+        data: { user: verifiedUser }
+      } = await supabase.auth.getUser();
+
       if (!isMounted) {
         return;
       }
 
-      if (session?.user) {
-        setUser(session.user);
-        setUserId(session.user.id);
-        syncProgress(session.user.id);
+      if (verifiedUser) {
+        setUser(verifiedUser);
+        setUserId(verifiedUser.id);
+        syncProgress(verifiedUser.id);
       } else {
         clearAuth();
         setUserId(null);
         resetProgress();
       }
-    });
+    };
+
+    void syncVerifiedUser();
 
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setUserId(session?.user?.id ?? null);
-
-      if (session?.user) {
-        syncProgress(session.user.id);
-      } else {
+      if (!session) {
         clearAuth();
+        setUserId(null);
         resetProgress();
+        return;
       }
+
+      void syncVerifiedUser();
     });
 
     return () => {

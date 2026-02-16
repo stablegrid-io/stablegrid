@@ -18,7 +18,9 @@ export async function getTopicProgress(topic: Topic) {
 
   const { data, error } = await supabase
     .from('topic_progress')
-    .select('*')
+    .select(
+      'id,user_id,topic,theory_chapters_total,theory_chapters_completed,theory_sections_total,theory_sections_read,theory_total_minutes_read,practice_questions_total,practice_questions_attempted,practice_questions_correct,functions_total,functions_viewed,functions_bookmarked,overall_completion_pct,first_activity_at,last_activity_at,updated_at'
+    )
     .eq('user_id', user.id)
     .eq('topic', topic)
     .single();

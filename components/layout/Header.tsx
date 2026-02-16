@@ -20,7 +20,7 @@ export function Header() {
             <Database className="h-4 w-4 text-white" />
           </div>
           <div>
-            <div className="text-base font-semibold">Gridlock</div>
+            <div className="text-base font-semibold">DataGridLab</div>
             <div className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
               Data Analytics Practice
             </div>

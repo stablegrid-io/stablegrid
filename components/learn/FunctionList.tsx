@@ -9,7 +9,9 @@ interface FunctionListProps {
   selectedId: string | null;
   onSelect: (entry: FunctionEntry) => void;
   bookmarkedIds: string[];
+  masteredIds: string[];
   onToggleBookmark: (id: string) => void;
+  onToggleMastered: (id: string) => void;
 }
 
 export const FunctionList = ({
@@ -17,7 +19,9 @@ export const FunctionList = ({
   selectedId,
   onSelect,
   bookmarkedIds,
-  onToggleBookmark
+  masteredIds,
+  onToggleBookmark,
+  onToggleMastered
 }: FunctionListProps) => {
   if (functions.length === 0) {
     return (
@@ -38,8 +42,10 @@ export const FunctionList = ({
           entry={entry}
           selected={entry.id === selectedId}
           bookmarked={bookmarkedIds.includes(entry.id)}
+          mastered={masteredIds.includes(entry.id)}
           onSelect={() => onSelect(entry)}
           onToggleBookmark={() => onToggleBookmark(entry.id)}
+          onToggleMastered={() => onToggleMastered(entry.id)}
         />
       ))}
     </div>

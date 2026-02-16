@@ -4,20 +4,18 @@ import { SettingsShell } from './_components/SettingsShell';
 import type { ProfileRecord, SubscriptionRecord } from './_components/types';
 
 export const metadata = {
-  title: 'Settings — Gridlock'
+  title: 'Settings — DataGridLab'
 };
 
 export default async function SettingsPage() {
   const supabase = createClient();
   const {
-    data: { session }
-  } = await supabase.auth.getSession();
+    data: { user }
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect('/login');
   }
-
-  const user = session.user;
 
   const [profileResult, subscriptionResult] = await Promise.all([
     supabase

@@ -164,23 +164,23 @@ export const MISSIONS: MissionDefinition[] = [
     rewardTitle: 'Grid Intelligence Lead'
   },
   {
-    slug: 'phantom-load',
-    codename: 'PHANTOM LOAD',
+    slug: 'ghost-regulator',
+    codename: 'GHOST REGULATOR',
     icon: '👻',
-    status: 'locked',
+    status: 'available',
     completed: false,
-    difficulty: 'Medium',
-    duration: '70 min',
-    location: 'São Paulo',
-    xp: 1600,
-    tagline: '14,000 kWh appear every night. Nobody scheduled them.',
-    accentColor: '#a3e635',
-    accentRgb: '163,230,53',
-    stakes: 'Nightly phantom consumption appears with no dispatch schedule.',
+    difficulty: 'Hard',
+    duration: '90 min',
+    location: 'Zaragoza-Lleida',
+    xp: 2800,
+    tagline: '847 inverted SCADA events and a hidden control loop at α=0.94.',
+    accentColor: '#f87171',
+    accentRgb: '248,113,113',
+    stakes: 'Frequency deviation +0.42Hz, deleted telemetry windows, and synthetic event replay.',
     summary:
-      'A recurring load signature appears outside any known schedule. You isolate anomalies and confirm whether telemetry drift or fraud is responsible.',
-    skills: ['SQL', 'Python', 'Anomaly detection'],
-    rewardBadge: 'Night Shift Detective',
-    rewardTitle: 'Grid Analyst'
+      'A deliberate smoothing algorithm is masking instability in the Iberian corridor. Reconstruct deleted windows, prove event ordering inversion, isolate the control signature, and classify the incident before the next cascade.',
+    skills: ['PySpark windows', 'Event ordering', 'Time-series autocorrelation'],
+    rewardBadge: 'Grid Investigator',
+    rewardTitle: 'Senior Data Engineer'
   }
 ];

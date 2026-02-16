@@ -1,30 +1,32 @@
 'use client';
 
-import { Bookmark, ChevronRight, Code } from 'lucide-react';
+import { Bookmark, Check, ChevronRight } from 'lucide-react';
 import type { FunctionEntry } from '@/types/learn';
 
 interface FunctionCardProps {
   entry: FunctionEntry;
   selected: boolean;
   bookmarked: boolean;
+  mastered: boolean;
   onSelect: () => void;
   onToggleBookmark: () => void;
+  onToggleMastered: () => void;
 }
 
-const difficultyClass: Record<FunctionEntry['difficulty'], string> = {
-  beginner:
-    'bg-success-50 text-success-700 dark:bg-success-900/20 dark:text-success-400',
-  intermediate:
-    'bg-warning-50 text-warning-700 dark:bg-warning-900/20 dark:text-warning-400',
-  advanced: 'bg-error-50 text-error-700 dark:bg-error-900/20 dark:text-error-400'
+const difficultyDotClass: Record<FunctionEntry['difficulty'], string> = {
+  beginner: 'bg-success-500',
+  intermediate: 'bg-warning-500',
+  advanced: 'bg-violet-500'
 };
 
 export const FunctionCard = ({
   entry,
   selected,
   bookmarked,
+  mastered,
   onSelect,
-  onToggleBookmark
+  onToggleBookmark,
+  onToggleMastered
 }: FunctionCardProps) => {
   return (
     <div
@@ -37,25 +39,21 @@ export const FunctionCard = ({
           onSelect();
         }
       }}
-      className={`group w-full cursor-pointer rounded-lg border p-4 text-left transition-all duration-150 ${
+      className={`group relative w-full cursor-pointer rounded-lg border px-3 py-2.5 text-left transition-all duration-150 ${
         selected
-          ? 'border-brand-300 bg-brand-50 dark:border-brand-700 dark:bg-brand-900/20'
-          : 'border-transparent bg-light-bg hover:border-light-border hover:bg-light-surface dark:bg-dark-bg dark:hover:border-dark-border dark:hover:bg-dark-surface'
+          ? 'border-brand-300 bg-brand-50/70 dark:border-brand-700 dark:bg-brand-900/20'
+          : 'border-transparent bg-transparent hover:border-light-border hover:bg-light-bg dark:hover:border-dark-border dark:hover:bg-dark-surface'
       }`}
-      aria-selected={selected}
     >
-      <div className="mb-1.5 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <Code
-              className={`h-4 w-4 flex-shrink-0 ${
-                selected
-                  ? 'text-brand-500'
-                  : 'text-text-light-tertiary dark:text-text-dark-tertiary'
-              }`}
-            />
+      {selected ? (
+        <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-brand-500" />
+      ) : null}
+
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center gap-2">
             <code
-              className={`truncate text-sm font-semibold ${
+              className={`truncate text-[13px] font-semibold ${
                 selected
                   ? 'text-brand-700 dark:text-brand-300'
                   : 'text-text-light-primary dark:text-text-dark-primary'
@@ -63,15 +61,31 @@ export const FunctionCard = ({
             >
               {entry.name}
             </code>
+            {mastered ? (
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-success-300 bg-success-50 text-success-600 dark:border-success-700 dark:bg-success-900/20 dark:text-success-400">
+                <Check className="h-2.5 w-2.5" />
+              </span>
+            ) : null}
           </div>
+
+          <p className="line-clamp-1 text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+            {entry.shortDescription}
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
           <span
-            className={`rounded-md px-2 py-0.5 text-xs font-medium ${difficultyClass[entry.difficulty]}`}
-          >
-            {entry.difficulty}
-          </span>
+            className={`h-2 w-2 rounded-full ${difficultyDotClass[entry.difficulty]}`}
+            aria-hidden
+          />
+          {bookmarked ? (
+            <span className="text-[10px] font-semibold text-brand-500">◆</span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={(event) => {
@@ -85,20 +99,33 @@ export const FunctionCard = ({
             }`}
             aria-label={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
           >
-            <Bookmark className={`h-4 w-4 ${bookmarked ? 'fill-brand-500' : ''}`} />
+            <Bookmark className={`h-3.5 w-3.5 ${bookmarked ? 'fill-brand-500' : ''}`} />
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleMastered();
+            }}
+            className={`rounded p-1 transition ${
+              mastered
+                ? 'text-success-500'
+                : 'text-text-light-tertiary hover:text-text-light-primary dark:text-text-dark-tertiary dark:hover:text-text-dark-primary'
+            }`}
+            aria-label={mastered ? 'Unmark mastered' : 'Mark mastered'}
+          >
+            <Check className="h-3.5 w-3.5" />
           </button>
         </div>
+
+        <ChevronRight
+          className={`h-3.5 w-3.5 ${
+            selected
+              ? 'text-brand-500'
+              : 'text-text-light-tertiary dark:text-text-dark-tertiary'
+          }`}
+        />
       </div>
-
-      <p className="ml-6 line-clamp-2 text-xs text-text-light-secondary dark:text-text-dark-secondary">
-        {entry.shortDescription}
-      </p>
-
-      {selected ? (
-        <div className="mt-2 flex justify-end">
-          <ChevronRight className="h-4 w-4 text-brand-500" />
-        </div>
-      ) : null}
     </div>
   );
 };

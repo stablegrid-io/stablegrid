@@ -1,1796 +1,31 @@
 {
   "topics": {
+    "pyspark": {
+      "name": "PySpark Foundations",
+      "icon": "🔥",
+      "description": "DataFrame operations, Spark optimization, and distributed processing",
+      "totalQuestions": 15
+    },
     "sql": {
       "name": "SQL Mastery",
       "icon": "📊",
-      "description": "Joins, aggregations, window functions, and query optimization",
-      "totalQuestions": 40
+      "description": "Joins, aggregations, and production query patterns",
+      "totalQuestions": 3
     },
     "python": {
       "name": "Python & Pandas",
       "icon": "🐍",
-      "description": "Data manipulation, cleaning, and transformation with Pandas",
-      "totalQuestions": 35
+      "description": "Core data manipulation and analysis workflows",
+      "totalQuestions": 3
     },
-    "statistics": {
-      "name": "Statistics",
-      "icon": "📈",
-      "description": "Probability, distributions, hypothesis testing, and inference",
-      "totalQuestions": 25
-    },
-    "excel": {
-      "name": "Excel Functions",
-      "icon": "📉",
-      "description": "Formulas, pivot tables, and advanced Excel techniques",
-      "totalQuestions": 20
-    },
-    "visualization": {
-      "name": "Data Viz",
-      "icon": "📊",
-      "description": "Chart selection, design principles, and storytelling",
-      "totalQuestions": 15
-    },
-    "etl": {
-      "name": "ETL & Pipelines",
-      "icon": "🔄",
-      "description": "Data warehousing, pipelines, and architecture concepts",
-      "totalQuestions": 15
-    },
-    "pyspark": {
-      "name": "PySpark Foundations",
-      "icon": "🔥",
-      "description": "DataFrame operations, performance, and Spark fundamentals",
-      "totalQuestions": 15
+    "fabric": {
+      "name": "Microsoft Fabric",
+      "icon": "🏗️",
+      "description": "Fabric Lakehouse, pipelines, and Delta patterns",
+      "totalQuestions": 5
     }
   },
   "questions": {
-    "sql": [
-      {
-        "id": "sql-001",
-        "topic": "sql",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "Which SQL keyword is used to remove duplicate rows from a result set?",
-        "options": [
-          "UNIQUE",
-          "DISTINCT",
-          "DEDUPE",
-          "REMOVE_DUPLICATES"
-        ],
-        "correctAnswer": "DISTINCT",
-        "explanation": "DISTINCT is used after SELECT to return only unique rows. Example: SELECT DISTINCT customer_id FROM orders",
-        "xpReward": 25,
-        "tags": [
-          "basics",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "sql-002",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Write a query to find the 2nd highest salary from an employees table.",
-        "codeSnippet": "-- employees table: id, name, salary, department\nSELECT ___________________\n",
-        "correctAnswer": "SELECT MAX(salary) FROM employees WHERE salary < (SELECT MAX(salary) FROM employees)",
-        "alternateAnswers": [
-          "SELECT DISTINCT salary FROM employees ORDER BY salary DESC LIMIT 1 OFFSET 1",
-          "SELECT salary FROM employees ORDER BY salary DESC LIMIT 1,1"
-        ],
-        "explanation": "You can use a subquery to find the max excluding the highest, or use ORDER BY with LIMIT OFFSET. Window functions (DENSE_RANK) also work.",
-        "xpReward": 50,
-        "tags": [
-          "subqueries",
-          "aggregation",
-          "sorting"
-        ]
-      },
-      {
-        "id": "sql-003",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "Which JOIN returns all records from the left table and matched records from the right table?",
-        "options": [
-          "INNER JOIN",
-          "LEFT JOIN",
-          "RIGHT JOIN",
-          "FULL OUTER JOIN"
-        ],
-        "correctAnswer": "LEFT JOIN",
-        "explanation": "LEFT JOIN (or LEFT OUTER JOIN) returns all rows from the left table, with NULLs for unmatched rows from the right table.",
-        "xpReward": 30,
-        "tags": [
-          "joins",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "sql-004",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Find customers who made purchases in both 2023 AND 2024. Write the query using two different methods.",
-        "codeSnippet": "-- orders: order_id, customer_id, order_date, amount\n-- Method 1 (Using INTERSECT):\nSELECT ___________________\n\n-- Method 2 (Using GROUP BY and HAVING):\nSELECT ___________________\n",
-        "correctAnswer": "SELECT customer_id FROM orders WHERE YEAR(order_date) = 2023 INTERSECT SELECT customer_id FROM orders WHERE YEAR(order_date) = 2024",
-        "alternateAnswers": [
-          "SELECT customer_id FROM orders WHERE YEAR(order_date) IN (2023, 2024) GROUP BY customer_id HAVING COUNT(DISTINCT YEAR(order_date)) = 2"
-        ],
-        "explanation": "INTERSECT finds common values. GROUP BY with HAVING COUNT(DISTINCT) ensures both years exist. Both are valid patterns for 'AND' logic across rows.",
-        "xpReward": 75,
-        "tags": [
-          "set-operations",
-          "aggregation",
-          "advanced"
-        ]
-      },
-      {
-        "id": "sql-005",
-        "topic": "sql",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What does COUNT(*) return when no rows match the WHERE clause?",
-        "options": [
-          "NULL",
-          "0",
-          "Error",
-          "-1"
-        ],
-        "correctAnswer": "0",
-        "explanation": "COUNT(*) always returns a number. If no rows match, it returns 0 (not NULL). This is different from SUM() which returns NULL for empty sets.",
-        "xpReward": 25,
-        "tags": [
-          "aggregation",
-          "null-handling"
-        ]
-      },
-      {
-        "id": "sql-006",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Calculate the running total of sales by date.",
-        "codeSnippet": "-- sales: sale_date, amount\nSELECT sale_date, amount,\n  _____________________ AS running_total\nFROM sales\nORDER BY sale_date;\n",
-        "correctAnswer": "SUM(amount) OVER (ORDER BY sale_date)",
-        "explanation": "Window functions with OVER (ORDER BY) create running calculations. SUM() OVER (ORDER BY date) gives cumulative sum up to each row.",
-        "xpReward": 60,
-        "tags": [
-          "window-functions",
-          "analytics"
-        ]
-      },
-      {
-        "id": "sql-007",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "You have a query that takes 30 seconds on a 10M row table filtering by customer_id. What's the BEST first optimization?",
-        "options": [
-          "Add LIMIT 1000",
-          "Create an index on customer_id",
-          "Use EXPLAIN to analyze",
-          "Partition the table by date"
-        ],
-        "correctAnswer": "Use EXPLAIN to analyze",
-        "explanation": "Always analyze with EXPLAIN first to see the execution plan. An index on customer_id will likely help, but EXPLAIN confirms what's causing the slowness before making changes.",
-        "xpReward": 50,
-        "tags": [
-          "performance",
-          "optimization",
-          "indexing"
-        ]
-      },
-      {
-        "id": "sql-008",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Find all customers who never made a purchase. (customers table: id, name | orders table: id, customer_id, amount)",
-        "codeSnippet": "SELECT c.id, c.name\nFROM customers c\n_____________________\n",
-        "correctAnswer": "LEFT JOIN orders o ON c.id = o.customer_id WHERE o.id IS NULL",
-        "alternateAnswers": [
-          "WHERE NOT EXISTS (SELECT 1 FROM orders WHERE customer_id = c.id)",
-          "WHERE c.id NOT IN (SELECT customer_id FROM orders)"
-        ],
-        "explanation": "LEFT JOIN with WHERE IS NULL finds unmatched rows. NOT EXISTS or NOT IN also work. Be careful with NOT IN if the subquery can return NULLs.",
-        "xpReward": 55,
-        "tags": [
-          "joins",
-          "subqueries",
-          "null-handling"
-        ]
-      },
-      {
-        "id": "sql-009",
-        "topic": "sql",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What's the difference between WHERE and HAVING?",
-        "options": [
-          "No difference, they're interchangeable",
-          "WHERE filters rows before grouping, HAVING filters after",
-          "HAVING is faster than WHERE",
-          "WHERE is for columns, HAVING is for tables"
-        ],
-        "correctAnswer": "WHERE filters rows before grouping, HAVING filters after",
-        "explanation": "WHERE filters individual rows before GROUP BY. HAVING filters grouped results (often using aggregate functions). Use WHERE when possible—it's more efficient.",
-        "xpReward": 30,
-        "tags": [
-          "aggregation",
-          "filtering",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "sql-010",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Find products that were purchased every single month in 2024.",
-        "codeSnippet": "-- orders: order_id, product_id, order_date\nSELECT product_id\nFROM orders\nWHERE YEAR(order_date) = 2024\n_____________________\n",
-        "correctAnswer": "GROUP BY product_id HAVING COUNT(DISTINCT MONTH(order_date)) = 12",
-        "explanation": "COUNT(DISTINCT MONTH(order_date)) = 12 ensures the product appears in all 12 months. This tests 'for all' logic—every month must have at least one order.",
-        "xpReward": 70,
-        "tags": [
-          "aggregation",
-          "date-functions",
-          "advanced"
-        ]
-      },
-      {
-        "id": "sql-011",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "Which window function would you use to assign a unique sequential number to each row within a partition?",
-        "options": [
-          "RANK()",
-          "DENSE_RANK()",
-          "ROW_NUMBER()",
-          "NTILE()"
-        ],
-        "correctAnswer": "ROW_NUMBER()",
-        "explanation": "ROW_NUMBER() assigns unique sequential integers (1, 2, 3...). RANK() and DENSE_RANK() can produce ties. NTILE() divides rows into buckets.",
-        "xpReward": 40,
-        "tags": [
-          "window-functions",
-          "ranking"
-        ]
-      },
-      {
-        "id": "sql-012",
-        "topic": "sql",
-        "difficulty": "easy",
-        "type": "code",
-        "question": "Convert this WHERE clause to use BETWEEN: WHERE price >= 100 AND price <= 500",
-        "codeSnippet": "SELECT * FROM products\n_____________________\n",
-        "correctAnswer": "WHERE price BETWEEN 100 AND 500",
-        "explanation": "BETWEEN is inclusive of both endpoints. BETWEEN 100 AND 500 is equivalent to >= 100 AND <= 500. It's more readable for range checks.",
-        "xpReward": 20,
-        "tags": [
-          "operators",
-          "syntax",
-          "basics"
-        ]
-      },
-      {
-        "id": "sql-013",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "A self-join on a 1M row employees table (employee_id, manager_id) is very slow. What's the likely issue?",
-        "options": [
-          "Self-joins are always slow",
-          "No index on manager_id",
-          "Too many NULL values in manager_id",
-          "The table needs to be partitioned"
-        ],
-        "correctAnswer": "No index on manager_id",
-        "explanation": "Self-joins (e.g., employees e1 JOIN employees e2 ON e1.manager_id = e2.employee_id) are common for hierarchical data. Without an index on manager_id, the database does a full table scan for each join.",
-        "xpReward": 65,
-        "tags": [
-          "joins",
-          "performance",
-          "indexing"
-        ]
-      },
-      {
-        "id": "sql-014",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Calculate the percentage of total sales for each product category.",
-        "codeSnippet": "-- sales: product_id, category, amount\nSELECT category,\n  SUM(amount) as category_sales,\n  _____________________ as pct_of_total\nFROM sales\nGROUP BY category;\n",
-        "correctAnswer": "SUM(amount) * 100.0 / SUM(SUM(amount)) OVER ()",
-        "alternateAnswers": [
-          "ROUND(SUM(amount) * 100.0 / (SELECT SUM(amount) FROM sales), 2)"
-        ],
-        "explanation": "Window functions with empty OVER() calculate across all rows. SUM(SUM(amount)) OVER () gives the grand total, allowing percentage calculation per group.",
-        "xpReward": 55,
-        "tags": [
-          "window-functions",
-          "aggregation",
-          "percentage"
-        ]
-      },
-      {
-        "id": "sql-015",
-        "topic": "sql",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What does COALESCE(column1, column2, 0) do?",
-        "options": [
-          "Returns 0 if both columns are NULL",
-          "Returns the first non-NULL value from column1, column2, or 0",
-          "Adds column1 + column2, defaulting to 0",
-          "Replaces NULL in column1 with column2"
-        ],
-        "correctAnswer": "Returns the first non-NULL value from column1, column2, or 0",
-        "explanation": "COALESCE returns the first non-NULL value in its argument list. It's useful for providing default values when dealing with NULLs.",
-        "xpReward": 30,
-        "tags": [
-          "null-handling",
-          "functions"
-        ]
-      },
-      {
-        "id": "sql-016",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Find the top 3 highest-paid employees in each department.",
-        "codeSnippet": "-- employees: emp_id, name, department, salary\nWITH ranked AS (\n  SELECT *,\n    _____________________ as rn\n  FROM employees\n)\nSELECT * FROM ranked WHERE rn <= 3;\n",
-        "correctAnswer": "ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC)",
-        "alternateAnswers": [
-          "RANK() OVER (PARTITION BY department ORDER BY salary DESC)",
-          "DENSE_RANK() OVER (PARTITION BY department ORDER BY salary DESC)"
-        ],
-        "explanation": "PARTITION BY creates separate ranking windows per department. ORDER BY salary DESC ranks highest first. ROW_NUMBER gives exactly 3 per department; RANK/DENSE_RANK handle ties differently.",
-        "xpReward": 75,
-        "tags": [
-          "window-functions",
-          "ranking",
-          "top-n"
-        ]
-      },
-      {
-        "id": "sql-017",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What's the result of: SELECT NULL = NULL",
-        "options": [
-          "TRUE",
-          "FALSE",
-          "NULL",
-          "Error"
-        ],
-        "correctAnswer": "NULL",
-        "explanation": "NULL = NULL returns NULL (not TRUE) because NULL represents unknown. Use IS NULL to check for NULL values. This is SQL's three-valued logic (TRUE, FALSE, NULL).",
-        "xpReward": 45,
-        "tags": [
-          "null-handling",
-          "logic",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "sql-018",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Find customers who made more than 5 purchases in the last 30 days.",
-        "codeSnippet": "-- orders: order_id, customer_id, order_date\nSELECT customer_id, COUNT(*) as purchase_count\nFROM orders\nWHERE _____________________\nGROUP BY customer_id\nHAVING COUNT(*) > 5;\n",
-        "correctAnswer": "order_date >= CURRENT_DATE - INTERVAL 30 DAY",
-        "alternateAnswers": [
-          "order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)",
-          "order_date >= DATEADD(day, -30, GETDATE())"
-        ],
-        "explanation": "Date arithmetic varies by database. MySQL: DATE_SUB() or INTERVAL. PostgreSQL: CURRENT_DATE - INTERVAL. SQL Server: DATEADD(). Always filter before grouping when possible.",
-        "xpReward": 50,
-        "tags": [
-          "date-functions",
-          "aggregation",
-          "filtering"
-        ]
-      },
-      {
-        "id": "sql-019",
-        "topic": "sql",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "Which clause limits the number of rows returned by a query?",
-        "options": [
-          "FETCH",
-          "LIMIT",
-          "TOP",
-          "All of the above (database-dependent)"
-        ],
-        "correctAnswer": "All of the above (database-dependent)",
-        "explanation": "MySQL/PostgreSQL use LIMIT. SQL Server uses TOP. Standard SQL uses FETCH FIRST n ROWS. Always check your database's syntax.",
-        "xpReward": 25,
-        "tags": [
-          "syntax",
-          "limiting",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "sql-020",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Find gaps in a sequence of order_ids. (Assume order_id should be continuous integers)",
-        "codeSnippet": "-- orders: order_id (integer)\nSELECT o1.order_id + 1 AS gap_start,\n  _____________________ AS gap_end\nFROM orders o1\nLEFT JOIN orders o2 ON o1.order_id + 1 = o2.order_id\nWHERE _____________________\n",
-        "correctAnswer": "MIN(o3.order_id) - 1, o2.order_id IS NULL",
-        "alternateAnswers": [
-          "Use LEAD() window function to find next value and compare"
-        ],
-        "explanation": "Gap detection: find order_ids where order_id + 1 doesn't exist. You can use self-joins or window functions (LEAD) to find missing sequence numbers.",
-        "xpReward": 80,
-        "tags": [
-          "gaps-islands",
-          "advanced",
-          "sequence"
-        ]
-      },
-      {
-        "id": "sql-021",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "When should you use a UNION instead of UNION ALL?",
-        "options": [
-          "Always use UNION for better performance",
-          "When you need to remove duplicates between result sets",
-          "When combining tables with different schemas",
-          "UNION and UNION ALL are identical"
-        ],
-        "correctAnswer": "When you need to remove duplicates between result sets",
-        "explanation": "UNION removes duplicates (like DISTINCT) but requires sorting—slower. UNION ALL just appends all rows—faster. Use UNION ALL unless you specifically need deduplication.",
-        "xpReward": 40,
-        "tags": [
-          "set-operations",
-          "performance"
-        ]
-      },
-      {
-        "id": "sql-022",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Pivot this data: Convert rows of monthly sales into columns (Jan, Feb, Mar...)",
-        "codeSnippet": "-- sales: product, month, amount\n-- Want: product | Jan | Feb | Mar | ...\nSELECT product,\n  _____________________ AS Jan,\n  _____________________ AS Feb,\n  _____________________ AS Mar\nFROM sales\nGROUP BY product;\n",
-        "correctAnswer": "SUM(CASE WHEN month = 'Jan' THEN amount ELSE 0 END)",
-        "alternateAnswers": [
-          "SUM(IF(month = 'Jan', amount, 0))",
-          "Use PIVOT function (SQL Server/Oracle)"
-        ],
-        "explanation": "Pivoting: use conditional aggregation (CASE WHEN inside SUM). Some databases have built-in PIVOT functions, but CASE WHEN is universal.",
-        "xpReward": 60,
-        "tags": [
-          "pivoting",
-          "case-statements",
-          "aggregation"
-        ]
-      },
-      {
-        "id": "sql-023",
-        "topic": "sql",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What's the purpose of the GROUP BY clause?",
-        "options": [
-          "To sort results alphabetically",
-          "To combine rows with identical values into groups",
-          "To filter rows based on conditions",
-          "To join multiple tables"
-        ],
-        "correctAnswer": "To combine rows with identical values into groups",
-        "explanation": "GROUP BY collapses rows with the same values in grouped columns, allowing aggregate functions (SUM, COUNT, AVG) to operate on each group.",
-        "xpReward": 20,
-        "tags": [
-          "aggregation",
-          "grouping",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "sql-024",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Calculate the median salary for each department (without using built-in MEDIAN function).",
-        "codeSnippet": "-- employees: emp_id, department, salary\nWITH ordered AS (\n  SELECT department, salary,\n    ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary) as rn,\n    COUNT(*) OVER (PARTITION BY department) as cnt\n  FROM employees\n)\nSELECT department, _____________________\nFROM ordered\nWHERE _____________________ ;\n",
-        "correctAnswer": "AVG(salary), rn IN (cnt/2, cnt/2+1, (cnt+1)/2)",
-        "explanation": "Median is the middle value(s). For odd counts, it's position (n+1)/2. For even counts, average positions n/2 and n/2+1. Use window functions to assign row numbers.",
-        "xpReward": 85,
-        "tags": [
-          "statistics",
-          "window-functions",
-          "advanced"
-        ]
-      },
-      {
-        "id": "sql-025",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What's a correlated subquery?",
-        "options": [
-          "A subquery that runs once for the entire query",
-          "A subquery that references columns from the outer query",
-          "A subquery using UNION",
-          "A subquery with multiple tables"
-        ],
-        "correctAnswer": "A subquery that references columns from the outer query",
-        "explanation": "Correlated subqueries execute once per row of the outer query (e.g., WHERE EXISTS). They're powerful but can be slow—often replaceable with JOINs for better performance.",
-        "xpReward": 45,
-        "tags": [
-          "subqueries",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "sql-026",
-        "topic": "sql",
-        "difficulty": "easy",
-        "type": "code",
-        "question": "Write a query to count the number of NULL values in the email column.",
-        "codeSnippet": "-- users: id, name, email\nSELECT ___________________\nFROM users;\n",
-        "correctAnswer": "COUNT(*) - COUNT(email)",
-        "alternateAnswers": [
-          "SUM(CASE WHEN email IS NULL THEN 1 ELSE 0 END)",
-          "COUNT(CASE WHEN email IS NULL THEN 1 END)"
-        ],
-        "explanation": "COUNT(column) ignores NULLs, COUNT(*) counts all rows. The difference gives NULL count. CASE WHEN also works but is more verbose.",
-        "xpReward": 30,
-        "tags": [
-          "null-handling",
-          "aggregation"
-        ]
-      },
-      {
-        "id": "sql-027",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "You need to update 10M rows in a production table. What's the safest approach?",
-        "options": [
-          "Run UPDATE on all rows at once",
-          "Use transactions and batch updates in chunks (e.g., 10k rows at a time)",
-          "Drop and recreate the table",
-          "Use DELETE then INSERT"
-        ],
-        "correctAnswer": "Use transactions and batch updates in chunks (e.g., 10k rows at a time)",
-        "explanation": "Large updates can lock tables and fill transaction logs. Batch updates (with commits between) reduce lock contention, allow progress tracking, and can be paused if issues arise.",
-        "xpReward": 70,
-        "tags": [
-          "performance",
-          "transactions",
-          "best-practices"
-        ]
-      },
-      {
-        "id": "sql-028",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Find all dates in the last 7 days that have zero orders.",
-        "codeSnippet": "-- orders: order_id, order_date\n-- Generate date series and find missing dates\nWITH date_series AS (\n  SELECT _____________________\n)\nSELECT ds.date\nFROM date_series ds\nLEFT JOIN orders o ON ds.date = o.order_date\nWHERE o.order_date IS NULL;\n",
-        "correctAnswer": "DATE_SUB(CURDATE(), INTERVAL n DAY) as date FROM (recursive CTE or numbers table)",
-        "explanation": "Generate a series of dates for the last 7 days, then LEFT JOIN to orders and find where no match exists (IS NULL). Implementation varies by database (recursive CTEs, generate_series, etc.).",
-        "xpReward": 65,
-        "tags": [
-          "date-functions",
-          "gaps-islands",
-          "cte"
-        ]
-      },
-      {
-        "id": "sql-029",
-        "topic": "sql",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What's the difference between CHAR(10) and VARCHAR(10)?",
-        "options": [
-          "No difference",
-          "CHAR is fixed-length (padded), VARCHAR is variable-length",
-          "CHAR is faster for short strings, VARCHAR for long strings",
-          "VARCHAR allows special characters, CHAR doesn't"
-        ],
-        "correctAnswer": "CHAR is fixed-length (padded), VARCHAR is variable-length",
-        "explanation": "CHAR(10) always uses 10 bytes (space-padded). VARCHAR(10) uses only what's needed (+ small overhead). Use CHAR for fixed-width data (country codes), VARCHAR for variable text.",
-        "xpReward": 25,
-        "tags": [
-          "data-types",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "sql-030",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Calculate customer retention rate: % of customers who made purchases in both Month 1 and Month 2.",
-        "codeSnippet": "-- orders: customer_id, order_date\nWITH month1 AS (\n  SELECT DISTINCT customer_id FROM orders \n  WHERE MONTH(order_date) = 1\n),\nmonth2 AS (\n  SELECT DISTINCT customer_id FROM orders \n  WHERE MONTH(order_date) = 2\n)\nSELECT _____________________\n",
-        "correctAnswer": "COUNT(m2.customer_id) * 100.0 / COUNT(m1.customer_id) FROM month1 m1 LEFT JOIN month2 m2 ON m1.customer_id = m2.customer_id",
-        "alternateAnswers": [
-          "Use INTERSECT and divide by month1 count"
-        ],
-        "explanation": "Retention = (customers in both months) / (customers in first month) * 100. Use LEFT JOIN from month1 to month2, count non-NULL matches divided by total from month1.",
-        "xpReward": 80,
-        "tags": [
-          "analytics",
-          "retention",
-          "business-metrics"
-        ]
-      },
-      {
-        "id": "sql-031",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What does the EXPLAIN command do?",
-        "options": [
-          "Adds comments to your query",
-          "Shows the query execution plan",
-          "Validates SQL syntax",
-          "Formats the query output"
-        ],
-        "correctAnswer": "Shows the query execution plan",
-        "explanation": "EXPLAIN (or EXPLAIN ANALYZE) shows how the database will execute your query: which indexes it uses, join methods, estimated rows. Essential for optimization.",
-        "xpReward": 35,
-        "tags": [
-          "performance",
-          "optimization",
-          "debugging"
-        ]
-      },
-      {
-        "id": "sql-032",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Find products that were never ordered.",
-        "codeSnippet": "-- products: product_id, name\n-- orders: order_id, product_id\nSELECT p.product_id, p.name\nFROM products p\n_____________________\n",
-        "correctAnswer": "WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.product_id = p.product_id)",
-        "alternateAnswers": [
-          "LEFT JOIN orders o ON p.product_id = o.product_id WHERE o.product_id IS NULL",
-          "WHERE p.product_id NOT IN (SELECT product_id FROM orders)"
-        ],
-        "explanation": "Three approaches: NOT EXISTS (usually fastest), LEFT JOIN with IS NULL, or NOT IN (careful with NULLs). NOT EXISTS often performs best with proper indexes.",
-        "xpReward": 50,
-        "tags": [
-          "subqueries",
-          "joins",
-          "filtering"
-        ]
-      },
-      {
-        "id": "sql-033",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "You have a slowly changing dimension (SCD Type 2) tracking customer address history. How do you query for a customer's address on a specific date?",
-        "options": [
-          "SELECT * FROM customers WHERE customer_id = 123",
-          "SELECT * FROM customers WHERE customer_id = 123 AND valid_from <= '2024-01-15' AND valid_to >= '2024-01-15'",
-          "SELECT * FROM customers WHERE customer_id = 123 ORDER BY valid_from DESC LIMIT 1",
-          "Use CURRENT_DATE in the WHERE clause"
-        ],
-        "correctAnswer": "SELECT * FROM customers WHERE customer_id = 123 AND valid_from <= '2024-01-15' AND valid_to >= '2024-01-15'",
-        "explanation": "SCD Type 2 keeps history with valid_from and valid_to dates. To find the record valid on a specific date, the date must fall within the [valid_from, valid_to] range.",
-        "xpReward": 75,
-        "tags": [
-          "data-warehousing",
-          "scd",
-          "temporal-data"
-        ]
-      },
-      {
-        "id": "sql-034",
-        "topic": "sql",
-        "difficulty": "easy",
-        "type": "code",
-        "question": "Concatenate first_name and last_name with a space in between.",
-        "codeSnippet": "-- employees: first_name, last_name\nSELECT _____________________ AS full_name\nFROM employees;\n",
-        "correctAnswer": "CONCAT(first_name, ' ', last_name)",
-        "alternateAnswers": [
-          "first_name || ' ' || last_name",
-          "first_name + ' ' + last_name"
-        ],
-        "explanation": "CONCAT() works in most databases. PostgreSQL/Oracle use ||. SQL Server uses + (but watch for NULLs—they make the whole expression NULL unless you use CONCAT).",
-        "xpReward": 20,
-        "tags": [
-          "string-functions",
-          "syntax"
-        ]
-      },
-      {
-        "id": "sql-035",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What's the output of: SELECT 10 / 3",
-        "options": [
-          "3.33",
-          "3",
-          "3.0",
-          "Depends on the database"
-        ],
-        "correctAnswer": "Depends on the database",
-        "explanation": "Integer division behavior varies. Some DBs return integer (3), others float (3.33). PostgreSQL returns integer; use 10.0 / 3 or CAST for decimal division. Always be explicit with data types.",
-        "xpReward": 35,
-        "tags": [
-          "operators",
-          "data-types",
-          "gotchas"
-        ]
-      },
-      {
-        "id": "sql-036",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Identify 'churned' users: customers who made purchases before 2024 but none in 2024.",
-        "codeSnippet": "-- orders: customer_id, order_date\nSELECT DISTINCT customer_id\nFROM orders\nWHERE YEAR(order_date) < 2024\n  AND customer_id NOT IN (\n    _____________________\n  );\n",
-        "correctAnswer": "SELECT customer_id FROM orders WHERE YEAR(order_date) = 2024",
-        "alternateAnswers": [
-          "Use NOT EXISTS with correlated subquery",
-          "Use LEFT JOIN and check for NULL"
-        ],
-        "explanation": "Find customers from before 2024, exclude those who appear in 2024. NOT IN subquery, NOT EXISTS, or LEFT JOIN all work. Watch for NULL handling with NOT IN.",
-        "xpReward": 70,
-        "tags": [
-          "churn-analysis",
-          "subqueries",
-          "business-metrics"
-        ]
-      },
-      {
-        "id": "sql-037",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What's a composite index?",
-        "options": [
-          "An index on multiple tables",
-          "An index on multiple columns",
-          "An index that combines B-tree and hash",
-          "A temporary index used during joins"
-        ],
-        "correctAnswer": "An index on multiple columns",
-        "explanation": "Composite (multi-column) indexes: CREATE INDEX idx ON table(col1, col2). Column order matters! Useful when WHERE clauses filter on multiple columns. Can speed up queries but slow down writes.",
-        "xpReward": 45,
-        "tags": [
-          "indexing",
-          "performance"
-        ]
-      },
-      {
-        "id": "sql-038",
-        "topic": "sql",
-        "difficulty": "easy",
-        "type": "code",
-        "question": "Round a decimal to 2 decimal places.",
-        "codeSnippet": "-- sales: amount (decimal)\nSELECT _____________________ AS rounded_amount\nFROM sales;\n",
-        "correctAnswer": "ROUND(amount, 2)",
-        "explanation": "ROUND(value, decimals) rounds to specified decimal places. ROUND(3.14159, 2) = 3.14. Also see FLOOR (round down), CEILING (round up), TRUNCATE (cut decimals).",
-        "xpReward": 20,
-        "tags": [
-          "numeric-functions",
-          "formatting"
-        ]
-      },
-      {
-        "id": "sql-039",
-        "topic": "sql",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Calculate month-over-month growth rate for revenue.",
-        "codeSnippet": "-- revenue: month_date, revenue\nWITH monthly AS (\n  SELECT month_date, revenue,\n    _____________________ AS prev_month_revenue\n  FROM revenue\n)\nSELECT month_date, \n  (revenue - prev_month_revenue) * 100.0 / prev_month_revenue AS growth_rate\nFROM monthly;\n",
-        "correctAnswer": "LAG(revenue) OVER (ORDER BY month_date)",
-        "explanation": "LAG() window function accesses previous row values. LAG(revenue, 1) gets last month's revenue. Then calculate % change: (current - previous) / previous * 100.",
-        "xpReward": 75,
-        "tags": [
-          "window-functions",
-          "analytics",
-          "growth-metrics"
-        ]
-      },
-      {
-        "id": "sql-040",
-        "topic": "sql",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What's the primary purpose of a database view?",
-        "options": [
-          "To speed up queries with caching",
-          "To provide a virtual table based on a query result",
-          "To create backups of tables",
-          "To enforce foreign key constraints"
-        ],
-        "correctAnswer": "To provide a virtual table based on a query result",
-        "explanation": "Views are stored queries that act like tables. Use for: simplifying complex queries, security (hide sensitive columns), abstraction. Most views don't store data (except materialized views).",
-        "xpReward": 40,
-        "tags": [
-          "views",
-          "database-design",
-          "fundamentals"
-        ]
-      }
-    ],
-    "python": [
-      {
-        "id": "py-001",
-        "topic": "python",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "Which Pandas function reads a CSV file?",
-        "options": [
-          "pd.load_csv()",
-          "pd.read_csv()",
-          "pd.import_csv()",
-          "pd.csv_read()"
-        ],
-        "correctAnswer": "pd.read_csv()",
-        "explanation": "pd.read_csv('file.csv') is the standard function. It has many parameters: delimiter, header, dtype, parse_dates, etc. Returns a DataFrame.",
-        "xpReward": 20,
-        "tags": [
-          "pandas",
-          "io",
-          "basics"
-        ]
-      },
-      {
-        "id": "py-002",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Remove all rows with any missing values from a DataFrame.",
-        "codeSnippet": "import pandas as pd\ndf = pd.read_csv('data.csv')\n# Remove rows with NaN\ndf_clean = _____________________\n",
-        "correctAnswer": "df.dropna()",
-        "alternateAnswers": [
-          "df.dropna(how='any')",
-          "df[df.notna().all(axis=1)]"
-        ],
-        "explanation": "dropna() removes rows with NaN. Parameters: how='any' (default, any NaN) or 'all' (only if all values NaN), subset (specific columns), inplace (modify in-place).",
-        "xpReward": 35,
-        "tags": [
-          "pandas",
-          "data-cleaning",
-          "missing-data"
-        ]
-      },
-      {
-        "id": "py-003",
-        "topic": "python",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What does df.head() return by default?",
-        "options": [
-          "The entire DataFrame",
-          "First 5 rows",
-          "First 10 rows",
-          "The header row only"
-        ],
-        "correctAnswer": "First 5 rows",
-        "explanation": "df.head() returns the first 5 rows by default. Use df.head(n) for custom number. df.tail() returns last rows. Useful for quick data inspection.",
-        "xpReward": 20,
-        "tags": [
-          "pandas",
-          "exploration",
-          "basics"
-        ]
-      },
-      {
-        "id": "py-004",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Calculate the mean of each numeric column.",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'A': [1,2,3], 'B': [4,5,6], 'C': ['x','y','z']})\nmeans = _____________________\n",
-        "correctAnswer": "df.mean(numeric_only=True)",
-        "alternateAnswers": [
-          "df.select_dtypes(include='number').mean()",
-          "df.mean()"
-        ],
-        "explanation": "df.mean() calculates column means. numeric_only=True skips non-numeric columns. Other aggregations: sum(), median(), std(), min(), max().",
-        "xpReward": 30,
-        "tags": [
-          "pandas",
-          "aggregation",
-          "statistics"
-        ]
-      },
-      {
-        "id": "py-005",
-        "topic": "python",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Merge two DataFrames on multiple columns with different names.",
-        "codeSnippet": "# df1: customer_id, date, amount\n# df2: cust_id, order_date, quantity\nmerged = pd.merge(df1, df2, \n  _____________________,\n  _____________________\n)\n",
-        "correctAnswer": "left_on=['customer_id', 'date'], right_on=['cust_id', 'order_date']",
-        "explanation": "Use left_on and right_on when column names differ. For same names, just use on=['col1', 'col2']. Specify how='inner' (default), 'left', 'right', 'outer'.",
-        "xpReward": 60,
-        "tags": [
-          "pandas",
-          "merging",
-          "joins"
-        ]
-      },
-      {
-        "id": "py-006",
-        "topic": "python",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "How do you select a single column from a DataFrame?",
-        "options": [
-          "df['column_name']",
-          "df.column_name",
-          "df.loc[:, 'column_name']",
-          "All of the above"
-        ],
-        "correctAnswer": "All of the above",
-        "explanation": "Three ways to select columns: df['col'] (bracket notation), df.col (attribute access), df.loc[:, 'col'] (explicit indexer). Bracket notation is most common.",
-        "xpReward": 20,
-        "tags": [
-          "pandas",
-          "selection",
-          "basics"
-        ]
-      },
-      {
-        "id": "py-007",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Fill missing values with the column mean.",
-        "codeSnippet": "import pandas as pd\nimport numpy as np\ndf = pd.DataFrame({'A': [1, np.nan, 3, np.nan, 5]})\ndf['A'] = _____________________\n",
-        "correctAnswer": "df['A'].fillna(df['A'].mean())",
-        "explanation": "fillna() replaces NaN values. Can use a constant, method ('ffill', 'bfill'), or calculated value (mean, median). Be careful with forward/backward fill on time series.",
-        "xpReward": 40,
-        "tags": [
-          "pandas",
-          "missing-data",
-          "imputation"
-        ]
-      },
-      {
-        "id": "py-008",
-        "topic": "python",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "What's the difference between loc and iloc?",
-        "options": [
-          "No difference",
-          "loc uses labels, iloc uses integer positions",
-          "loc is faster than iloc",
-          "iloc only works with columns"
-        ],
-        "correctAnswer": "loc uses labels, iloc uses integer positions",
-        "explanation": "loc[row_label, col_label] uses names/labels. iloc[row_position, col_position] uses integer positions (0-indexed). loc includes end of slice, iloc doesn't.",
-        "xpReward": 45,
-        "tags": [
-          "pandas",
-          "indexing",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "py-009",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Group by category and calculate both mean and sum of sales.",
-        "codeSnippet": "# df: category, product, sales\nresult = df.groupby('category')['sales']._____________________\n",
-        "correctAnswer": "agg(['mean', 'sum'])",
-        "alternateAnswers": [
-          "agg({'sales': ['mean', 'sum']})",
-          "agg([np.mean, np.sum])"
-        ],
-        "explanation": "agg() applies multiple aggregation functions. Pass a list of function names or actual functions. Can also use dictionary for different operations per column.",
-        "xpReward": 50,
-        "tags": [
-          "pandas",
-          "groupby",
-          "aggregation"
-        ]
-      },
-      {
-        "id": "py-010",
-        "topic": "python",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What does df.shape return?",
-        "options": [
-          "Total number of cells",
-          "Number of rows only",
-          "Tuple of (rows, columns)",
-          "Dictionary of column types"
-        ],
-        "correctAnswer": "Tuple of (rows, columns)",
-        "explanation": "df.shape returns (num_rows, num_columns). It's an attribute (no parentheses). Use df.shape[0] for row count, df.shape[1] for column count.",
-        "xpReward": 20,
-        "tags": [
-          "pandas",
-          "exploration",
-          "basics"
-        ]
-      },
-      {
-        "id": "py-011",
-        "topic": "python",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Create a new column that flags rows where 'amount' is more than 2 standard deviations from the mean.",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'amount': [10, 12, 11, 100, 13, 9, 200]})\nmean = df['amount'].mean()\nstd = df['amount'].std()\ndf['is_outlier'] = _____________________\n",
-        "correctAnswer": "abs(df['amount'] - mean) > 2 * std",
-        "explanation": "Outlier detection using Z-score: if |value - mean| > k*std (k=2 or 3), it's an outlier. This creates a boolean Series that can be used for filtering or flagging.",
-        "xpReward": 65,
-        "tags": [
-          "pandas",
-          "outliers",
-          "statistics"
-        ]
-      },
-      {
-        "id": "py-012",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What does df.describe() show?",
-        "options": [
-          "Column names only",
-          "Summary statistics (count, mean, std, quartiles) for numeric columns",
-          "Data types of each column",
-          "First 5 rows of data"
-        ],
-        "correctAnswer": "Summary statistics (count, mean, std, quartiles) for numeric columns",
-        "explanation": "describe() shows: count, mean, std, min, 25%, 50% (median), 75%, max for numeric columns. Use include='all' to see stats for non-numeric too.",
-        "xpReward": 30,
-        "tags": [
-          "pandas",
-          "exploration",
-          "statistics"
-        ]
-      },
-      {
-        "id": "py-013",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Sort DataFrame by multiple columns: first by 'date' descending, then by 'amount' ascending.",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'date': ['2024-01-01', '2024-01-02', '2024-01-01'],\n                   'amount': [100, 200, 50]})\ndf_sorted = _____________________\n",
-        "correctAnswer": "df.sort_values(by=['date', 'amount'], ascending=[False, True])",
-        "explanation": "sort_values() sorts by columns. Pass list of columns and list of booleans for ascending. Default is ascending=True for all.",
-        "xpReward": 40,
-        "tags": [
-          "pandas",
-          "sorting",
-          "data-manipulation"
-        ]
-      },
-      {
-        "id": "py-014",
-        "topic": "python",
-        "difficulty": "easy",
-        "type": "code",
-        "question": "Convert a column to datetime type.",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'date_str': ['2024-01-15', '2024-02-20']})\ndf['date'] = _____________________\n",
-        "correctAnswer": "pd.to_datetime(df['date_str'])",
-        "explanation": "pd.to_datetime() converts strings/timestamps to datetime objects. Parameters: format (specify format string), errors ('coerce' for invalid dates to NaT), dayfirst, yearfirst.",
-        "xpReward": 30,
-        "tags": [
-          "pandas",
-          "datetime",
-          "type-conversion"
-        ]
-      },
-      {
-        "id": "py-015",
-        "topic": "python",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Pivot a DataFrame: convert long format to wide format.",
-        "codeSnippet": "# df_long: date, product, sales\n# Want: date | ProductA | ProductB | ProductC\ndf_wide = _____________________\n",
-        "correctAnswer": "df_long.pivot(index='date', columns='product', values='sales')",
-        "alternateAnswers": [
-          "df_long.pivot_table(index='date', columns='product', values='sales', aggfunc='sum')"
-        ],
-        "explanation": "pivot() reshapes data from long to wide. index = rows, columns = new column names, values = data to fill. Use pivot_table() if you have duplicate index/column combinations.",
-        "xpReward": 70,
-        "tags": [
-          "pandas",
-          "reshaping",
-          "pivot"
-        ]
-      },
-      {
-        "id": "py-016",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What's the best way to apply a custom function to each row of a DataFrame?",
-        "options": [
-          "for loop",
-          "df.apply() with axis=1",
-          "Vectorized operations (preferred)",
-          "df.iterrows()"
-        ],
-        "correctAnswer": "Vectorized operations (preferred)",
-        "explanation": "Vectorized operations (using Pandas/NumPy functions) are fastest. If you must apply custom functions, use apply(axis=1). Avoid loops/iterrows—they're 100-1000x slower.",
-        "xpReward": 50,
-        "tags": [
-          "pandas",
-          "performance",
-          "best-practices"
-        ]
-      },
-      {
-        "id": "py-017",
-        "topic": "python",
-        "difficulty": "easy",
-        "type": "code",
-        "question": "Filter rows where 'age' is greater than 30.",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'name': ['Alice', 'Bob', 'Charlie'], 'age': [25, 35, 40]})\nfiltered = _____________________\n",
-        "correctAnswer": "df[df['age'] > 30]",
-        "explanation": "Boolean indexing: df[condition] filters rows. Can combine conditions with & (and), | (or), ~ (not). Remember to use parentheses around each condition.",
-        "xpReward": 25,
-        "tags": [
-          "pandas",
-          "filtering",
-          "basics"
-        ]
-      },
-      {
-        "id": "py-018",
-        "topic": "python",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Find duplicate rows based on specific columns and keep only the first occurrence.",
-        "codeSnippet": "# df: customer_id, email, purchase_date\ndf_deduped = _____________________\n",
-        "correctAnswer": "df.drop_duplicates(subset=['customer_id', 'email'], keep='first')",
-        "explanation": "drop_duplicates() removes duplicates. subset specifies which columns to check. keep='first' (default) keeps first occurrence, 'last' keeps last, False removes all duplicates.",
-        "xpReward": 55,
-        "tags": [
-          "pandas",
-          "deduplication",
-          "data-cleaning"
-        ]
-      },
-      {
-        "id": "py-019",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What's the difference between pd.concat() and pd.merge()?",
-        "options": [
-          "No difference",
-          "concat stacks DataFrames (rows/columns), merge joins on keys",
-          "concat is slower",
-          "merge only works with two DataFrames"
-        ],
-        "correctAnswer": "concat stacks DataFrames (rows/columns), merge joins on keys",
-        "explanation": "concat() stacks DataFrames vertically (rows) or horizontally (columns). merge() performs SQL-style joins on key columns. Use concat for simple stacking, merge for relational joins.",
-        "xpReward": 45,
-        "tags": [
-          "pandas",
-          "combining",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "py-020",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Create a new column by applying a function: convert 'price' to 'price_category' (Low, Medium, High).",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'price': [10, 50, 100, 200]})\n\ndef categorize(price):\n    if price < 50: return 'Low'\n    elif price < 150: return 'Medium'\n    else: return 'High'\n\ndf['price_category'] = _____________________\n",
-        "correctAnswer": "df['price'].apply(categorize)",
-        "alternateAnswers": [
-          "df['price'].map(categorize)",
-          "pd.cut(df['price'], bins=[0,50,150,500], labels=['Low','Medium','High'])"
-        ],
-        "explanation": "apply() applies a function to each element. For binning continuous values, pd.cut() is more efficient. map() also works for element-wise functions.",
-        "xpReward": 50,
-        "tags": [
-          "pandas",
-          "feature-engineering",
-          "apply"
-        ]
-      },
-      {
-        "id": "py-021",
-        "topic": "python",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "How do you rename columns in a DataFrame?",
-        "options": [
-          "df.rename_columns()",
-          "df.rename(columns={'old': 'new'})",
-          "df.columns = ['new_names']",
-          "Both B and C"
-        ],
-        "correctAnswer": "Both B and C",
-        "explanation": "Two ways: df.rename(columns={'old': 'new'}) renames specific columns. df.columns = ['list', 'of', 'names'] replaces all column names. Add inplace=True to modify in place.",
-        "xpReward": 25,
-        "tags": [
-          "pandas",
-          "data-manipulation",
-          "basics"
-        ]
-      },
-      {
-        "id": "py-022",
-        "topic": "python",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Calculate a rolling 7-day average for a time series.",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'date': pd.date_range('2024-01-01', periods=30),\n                   'value': range(30)})\ndf = df.set_index('date')\ndf['rolling_avg'] = _____________________\n",
-        "correctAnswer": "df['value'].rolling(window=7).mean()",
-        "explanation": "rolling() creates a rolling window. window=7 means each point averages the last 7 values. Useful for smoothing time series. Can also use min_periods to handle edge cases.",
-        "xpReward": 65,
-        "tags": [
-          "pandas",
-          "time-series",
-          "rolling"
-        ]
-      },
-      {
-        "id": "py-023",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What does inplace=True do in Pandas operations?",
-        "options": [
-          "Makes operations faster",
-          "Modifies the DataFrame directly instead of returning a new one",
-          "Creates a backup copy",
-          "Validates data before operation"
-        ],
-        "correctAnswer": "Modifies the DataFrame directly instead of returning a new one",
-        "explanation": "inplace=True modifies the existing DataFrame (returns None). Without it, methods return a new DataFrame. Caution: inplace can make debugging harder. Many recommend avoiding it.",
-        "xpReward": 35,
-        "tags": [
-          "pandas",
-          "best-practices",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "py-024",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Melt a wide DataFrame into long format.",
-        "codeSnippet": "# df_wide: student | Math | Science | English\n# Want: student | subject | score\ndf_long = _____________________\n",
-        "correctAnswer": "pd.melt(df_wide, id_vars=['student'], var_name='subject', value_name='score')",
-        "explanation": "melt() unpivots from wide to long format. id_vars are columns to keep, var_name names the new 'variable' column, value_name names the new 'value' column.",
-        "xpReward": 55,
-        "tags": [
-          "pandas",
-          "reshaping",
-          "melt"
-        ]
-      },
-      {
-        "id": "py-025",
-        "topic": "python",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Efficiently handle a large CSV (1GB+) that doesn't fit in memory.",
-        "codeSnippet": "import pandas as pd\n# Read and process in chunks\nchunk_results = []\nfor chunk in _____________________:\n    # Process chunk\n    result = chunk[chunk['amount'] > 1000]\n    chunk_results.append(result)\n\ndf_final = pd.concat(chunk_results)\n",
-        "correctAnswer": "pd.read_csv('large_file.csv', chunksize=10000)",
-        "explanation": "chunksize parameter reads file in chunks (iterator). Process each chunk separately, collect results, concat at end. Prevents memory overflow on large files.",
-        "xpReward": 75,
-        "tags": [
-          "pandas",
-          "performance",
-          "large-data"
-        ]
-      },
-      {
-        "id": "py-026",
-        "topic": "python",
-        "difficulty": "easy",
-        "type": "code",
-        "question": "Count the number of non-null values in each column.",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'A': [1, 2, None], 'B': [4, None, 6]})\ncounts = _____________________\n",
-        "correctAnswer": "df.count()",
-        "explanation": "df.count() returns count of non-null values per column. Different from len(df) which gives total rows. Use df.isnull().sum() to count nulls.",
-        "xpReward": 25,
-        "tags": [
-          "pandas",
-          "missing-data",
-          "exploration"
-        ]
-      },
-      {
-        "id": "py-027",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What's the best practice for chaining multiple Pandas operations?",
-        "options": [
-          "Store intermediate results in separate variables",
-          "Use method chaining with backslashes",
-          "Use method chaining with parentheses for multi-line",
-          "Avoid chaining, it's slower"
-        ],
-        "correctAnswer": "Use method chaining with parentheses for multi-line",
-        "explanation": "Method chaining is Pythonic and readable. Use parentheses for multi-line chains (no backslashes needed). Example: df.filter(...).groupby(...).agg(...) wrapped in parens.",
-        "xpReward": 40,
-        "tags": [
-          "pandas",
-          "best-practices",
-          "code-style"
-        ]
-      },
-      {
-        "id": "py-028",
-        "topic": "python",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Calculate the cumulative sum grouped by category.",
-        "codeSnippet": "# df: date, category, sales\ndf['cumulative_sales'] = _____________________\n",
-        "correctAnswer": "df.groupby('category')['sales'].cumsum()",
-        "alternateAnswers": [
-          "df.sort_values('date').groupby('category')['sales'].cumsum()"
-        ],
-        "explanation": "cumsum() calculates cumulative sum. When grouped, it resets for each group. Make sure data is sorted by date first if order matters.",
-        "xpReward": 60,
-        "tags": [
-          "pandas",
-          "groupby",
-          "cumulative"
-        ]
-      },
-      {
-        "id": "py-029",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Replace specific values in a column using a dictionary mapping.",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'status': ['Y', 'N', 'Y', 'U']})\nmapping = {'Y': 'Yes', 'N': 'No', 'U': 'Unknown'}\ndf['status'] = _____________________\n",
-        "correctAnswer": "df['status'].map(mapping)",
-        "alternateAnswers": [
-          "df['status'].replace(mapping)"
-        ],
-        "explanation": "map() applies a mapping dictionary element-wise. replace() also works. Difference: map() returns NaN for unmapped values, replace() keeps original values.",
-        "xpReward": 40,
-        "tags": [
-          "pandas",
-          "data-cleaning",
-          "mapping"
-        ]
-      },
-      {
-        "id": "py-030",
-        "topic": "python",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What does df.info() display?",
-        "options": [
-          "Statistical summary of numeric columns",
-          "Overview of DataFrame: rows, columns, dtypes, non-null counts, memory usage",
-          "First 5 rows",
-          "Column names only"
-        ],
-        "correctAnswer": "Overview of DataFrame: rows, columns, dtypes, non-null counts, memory usage",
-        "explanation": "df.info() shows: index dtype, column names, non-null counts, data types, memory usage. Essential for initial data exploration and spotting issues.",
-        "xpReward": 25,
-        "tags": [
-          "pandas",
-          "exploration",
-          "basics"
-        ]
-      },
-      {
-        "id": "py-031",
-        "topic": "python",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Detect and handle outliers using the IQR method.",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'value': [10, 12, 11, 100, 13, 9, 200, 14]})\n\nQ1 = df['value'].quantile(0.25)\nQ3 = df['value'].quantile(0.75)\nIQR = Q3 - Q1\n\n# Remove outliers\ndf_clean = _____________________\n",
-        "correctAnswer": "df[(df['value'] >= Q1 - 1.5*IQR) & (df['value'] <= Q3 + 1.5*IQR)]",
-        "explanation": "IQR method: values outside [Q1 - 1.5*IQR, Q3 + 1.5*IQR] are outliers. More robust than Z-score for skewed distributions. Use & for combining conditions.",
-        "xpReward": 70,
-        "tags": [
-          "pandas",
-          "outliers",
-          "statistics"
-        ]
-      },
-      {
-        "id": "py-032",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What's the difference between merge and join in Pandas?",
-        "options": [
-          "No difference, they're aliases",
-          "join uses index by default, merge uses columns",
-          "merge is faster",
-          "join only works with two DataFrames"
-        ],
-        "correctAnswer": "join uses index by default, merge uses columns",
-        "explanation": "join() joins on index by default (can specify other columns). merge() joins on columns by default. join() is essentially a convenience wrapper around merge().",
-        "xpReward": 45,
-        "tags": [
-          "pandas",
-          "joining",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "py-033",
-        "topic": "python",
-        "difficulty": "medium",
-        "type": "code",
-        "question": "Normalize a column to 0-1 scale (min-max normalization).",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'score': [10, 20, 30, 40, 50]})\ndf['normalized'] = _____________________\n",
-        "correctAnswer": "(df['score'] - df['score'].min()) / (df['score'].max() - df['score'].min())",
-        "explanation": "Min-max scaling: (x - min) / (max - min) transforms values to [0, 1]. Common for features with different scales. Also consider StandardScaler from sklearn.",
-        "xpReward": 50,
-        "tags": [
-          "pandas",
-          "normalization",
-          "feature-engineering"
-        ]
-      },
-      {
-        "id": "py-034",
-        "topic": "python",
-        "difficulty": "easy",
-        "type": "code",
-        "question": "Get unique values from a column.",
-        "codeSnippet": "import pandas as pd\ndf = pd.DataFrame({'category': ['A', 'B', 'A', 'C', 'B']})\nunique_vals = _____________________\n",
-        "correctAnswer": "df['category'].unique()",
-        "alternateAnswers": [
-          "df['category'].drop_duplicates()",
-          "df['category'].value_counts().index"
-        ],
-        "explanation": "unique() returns array of unique values. value_counts() gives counts of each unique value. nunique() gives count of unique values.",
-        "xpReward": 20,
-        "tags": [
-          "pandas",
-          "exploration",
-          "basics"
-        ]
-      },
-      {
-        "id": "py-035",
-        "topic": "python",
-        "difficulty": "hard",
-        "type": "code",
-        "question": "Create a cross-tabulation (contingency table) of two categorical variables.",
-        "codeSnippet": "# df: department, gender, count\ncrosstab = _____________________\n",
-        "correctAnswer": "pd.crosstab(df['department'], df['gender'])",
-        "alternateAnswers": [
-          "df.pivot_table(index='department', columns='gender', aggfunc='size')"
-        ],
-        "explanation": "crosstab() creates a frequency table of two or more categorical variables. Similar to pivot_table with count aggregation. Useful for analyzing relationships between categories.",
-        "xpReward": 60,
-        "tags": [
-          "pandas",
-          "crosstab",
-          "analytics"
-        ]
-      }
-    ],
-    "statistics": [
-      {
-        "id": "stat-001",
-        "topic": "statistics",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What does a p-value of 0.03 typically indicate (at α = 0.05)?",
-        "options": [
-          "The null hypothesis is true",
-          "Reject the null hypothesis",
-          "The results are 97% accurate",
-          "There's a 3% chance the alternative hypothesis is true"
-        ],
-        "correctAnswer": "Reject the null hypothesis",
-        "explanation": "If p-value < α (significance level), reject the null hypothesis. p=0.03 < 0.05 means results are statistically significant. P-value is NOT the probability that the hypothesis is true.",
-        "xpReward": 35,
-        "tags": [
-          "hypothesis-testing",
-          "p-value",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "stat-002",
-        "topic": "statistics",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "Which measure of central tendency is most affected by outliers?",
-        "options": [
-          "Mean",
-          "Median",
-          "Mode",
-          "All equally affected"
-        ],
-        "correctAnswer": "Mean",
-        "explanation": "Mean is sensitive to extreme values (outliers). Median is resistant—it only depends on the middle value. Mode is least affected. For skewed data with outliers, prefer median.",
-        "xpReward": 30,
-        "tags": [
-          "descriptive-stats",
-          "central-tendency"
-        ]
-      },
-      {
-        "id": "stat-003",
-        "topic": "statistics",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What is the relationship between standard deviation and variance?",
-        "options": [
-          "They're unrelated",
-          "Standard deviation = sqrt(variance)",
-          "Variance = sqrt(standard deviation)",
-          "Standard deviation = variance²"
-        ],
-        "correctAnswer": "Standard deviation = sqrt(variance)",
-        "explanation": "Standard deviation (σ) is the square root of variance (σ²). Variance is in squared units, standard deviation is in original units. Both measure spread/dispersion.",
-        "xpReward": 25,
-        "tags": [
-          "dispersion",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "stat-004",
-        "topic": "statistics",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "A correlation coefficient of -0.85 indicates:",
-        "options": [
-          "Weak negative relationship",
-          "Strong negative relationship",
-          "No relationship",
-          "Causation"
-        ],
-        "correctAnswer": "Strong negative relationship",
-        "explanation": "Correlation ranges from -1 to +1. |-0.85| = 0.85 is strong. Negative means variables move in opposite directions. IMPORTANT: correlation ≠ causation!",
-        "xpReward": 40,
-        "tags": [
-          "correlation",
-          "relationships"
-        ]
-      },
-      {
-        "id": "stat-005",
-        "topic": "statistics",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What's the purpose of a confidence interval?",
-        "options": [
-          "To test hypotheses",
-          "To estimate a range likely to contain the true population parameter",
-          "To calculate correlation",
-          "To remove outliers"
-        ],
-        "correctAnswer": "To estimate a range likely to contain the true population parameter",
-        "explanation": "A 95% confidence interval means: if we repeated sampling 100 times, ~95 intervals would contain the true parameter. It's about estimation uncertainty, not the probability the parameter is in this specific interval.",
-        "xpReward": 45,
-        "tags": [
-          "inference",
-          "confidence-intervals"
-        ]
-      },
-      {
-        "id": "stat-006",
-        "topic": "statistics",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What type of variable is 'customer satisfaction rating' on a scale of 1-5?",
-        "options": [
-          "Nominal",
-          "Ordinal",
-          "Interval",
-          "Ratio"
-        ],
-        "correctAnswer": "Ordinal",
-        "explanation": "Ordinal: categories with meaningful order (1 < 2 < 3...) but unequal intervals. Nominal: no order (colors). Interval: equal intervals, no true zero (temperature). Ratio: equal intervals + true zero (height).",
-        "xpReward": 25,
-        "tags": [
-          "data-types",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "stat-007",
-        "topic": "statistics",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "You run 20 hypothesis tests at α=0.05. What's the probability of at least one Type I error (false positive)?",
-        "options": [
-          "5%",
-          "~64%",
-          "100%",
-          "0.25%"
-        ],
-        "correctAnswer": "~64%",
-        "explanation": "Multiple testing problem: P(at least one error) = 1 - (1-0.05)²⁰ ≈ 0.64. This is why we need corrections (Bonferroni, FDR) for multiple comparisons.",
-        "xpReward": 75,
-        "tags": [
-          "hypothesis-testing",
-          "multiple-testing",
-          "advanced"
-        ]
-      },
-      {
-        "id": "stat-008",
-        "topic": "statistics",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "When should you use a t-test instead of a z-test?",
-        "options": [
-          "Always use t-test",
-          "When sample size is small (n<30) or population variance is unknown",
-          "When you want more significant results",
-          "When data is categorical"
-        ],
-        "correctAnswer": "When sample size is small (n<30) or population variance is unknown",
-        "explanation": "T-test: small samples or unknown population variance (uses sample variance). Z-test: large samples with known population variance. In practice, t-test is more common.",
-        "xpReward": 50,
-        "tags": [
-          "hypothesis-testing",
-          "t-test",
-          "z-test"
-        ]
-      },
-      {
-        "id": "stat-009",
-        "topic": "statistics",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What does the Central Limit Theorem state?",
-        "options": [
-          "All data is normally distributed",
-          "Sample means approach a normal distribution as sample size increases",
-          "Population variance equals sample variance",
-          "Outliers don't matter with large samples"
-        ],
-        "correctAnswer": "Sample means approach a normal distribution as sample size increases",
-        "explanation": "CLT: distribution of sample means becomes approximately normal as n increases, regardless of the population distribution. This justifies using normal-based inference methods.",
-        "xpReward": 30,
-        "tags": [
-          "clt",
-          "sampling",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "stat-010",
-        "topic": "statistics",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "What's the difference between Type I and Type II errors?",
-        "options": [
-          "Type I: false positive (reject true H₀), Type II: false negative (fail to reject false H₀)",
-          "Type I: false negative, Type II: false positive",
-          "Both are calculation errors",
-          "Type I is worse than Type II"
-        ],
-        "correctAnswer": "Type I: false positive (reject true H₀), Type II: false negative (fail to reject false H₀)",
-        "explanation": "Type I (α): rejecting a true null hypothesis (false alarm). Type II (β): failing to reject a false null hypothesis (missed detection). Power = 1-β.",
-        "xpReward": 60,
-        "tags": [
-          "hypothesis-testing",
-          "errors",
-          "power"
-        ]
-      },
-      {
-        "id": "stat-011",
-        "topic": "statistics",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What does R² measure in regression?",
-        "options": [
-          "The strength of the relationship",
-          "The proportion of variance in Y explained by X",
-          "The probability the model is correct",
-          "The slope of the regression line"
-        ],
-        "correctAnswer": "The proportion of variance in Y explained by X",
-        "explanation": "R² (coefficient of determination): proportion of variance in dependent variable explained by independent variable(s). Ranges 0-1. R²=0.8 means 80% of variance is explained. Careful: high R² doesn't mean causation.",
-        "xpReward": 45,
-        "tags": [
-          "regression",
-          "r-squared"
-        ]
-      },
-      {
-        "id": "stat-012",
-        "topic": "statistics",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What's the difference between population and sample?",
-        "options": [
-          "No difference",
-          "Population is entire group, sample is subset",
-          "Sample is always larger",
-          "Population is only for countries"
-        ],
-        "correctAnswer": "Population is entire group, sample is subset",
-        "explanation": "Population: entire group of interest. Sample: subset selected for study. We use sample statistics to estimate population parameters. Sampling allows us to make inferences without measuring everyone.",
-        "xpReward": 20,
-        "tags": [
-          "sampling",
-          "fundamentals"
-        ]
-      },
-      {
-        "id": "stat-013",
-        "topic": "statistics",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "Which assumption is NOT required for linear regression?",
-        "options": [
-          "Linearity",
-          "Independence of errors",
-          "Normality of residuals",
-          "Equal sample sizes for all X values"
-        ],
-        "correctAnswer": "Equal sample sizes for all X values",
-        "explanation": "Linear regression assumptions: linearity, independence, homoscedasticity (constant variance), normality of residuals. Sample sizes can vary. Check with residual plots and diagnostic tests.",
-        "xpReward": 70,
-        "tags": [
-          "regression",
-          "assumptions",
-          "advanced"
-        ]
-      },
-      {
-        "id": "stat-014",
-        "topic": "statistics",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What does statistical power represent?",
-        "options": [
-          "The significance level",
-          "The probability of correctly rejecting a false null hypothesis",
-          "The sample size",
-          "The effect size"
-        ],
-        "correctAnswer": "The probability of correctly rejecting a false null hypothesis",
-        "explanation": "Power = 1 - β (Type II error rate). It's the probability of detecting an effect if it exists. Typically aim for 80% power. Increases with: larger effect size, bigger sample, higher α.",
-        "xpReward": 55,
-        "tags": [
-          "hypothesis-testing",
-          "power"
-        ]
-      },
-      {
-        "id": "stat-015",
-        "topic": "statistics",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What does a skewed distribution mean?",
-        "options": [
-          "The data has outliers",
-          "The distribution is not symmetric",
-          "The mean equals the median",
-          "The data is categorical"
-        ],
-        "correctAnswer": "The distribution is not symmetric",
-        "explanation": "Skewed: asymmetric distribution. Right/positive skew: tail extends right, mean > median. Left/negative skew: tail extends left, mean < median. Symmetric: mean ≈ median.",
-        "xpReward": 25,
-        "tags": [
-          "distributions",
-          "skewness"
-        ]
-      }
-    ],
-    "excel": [],
-    "visualization": [],
-    "etl": [],
     "pyspark": [
       {
         "id": "spark-001",
@@ -1805,7 +40,7 @@
           "No difference, they're interchangeable"
         ],
         "correctAnswer": "Transformations are lazy (not executed immediately), actions trigger execution",
-        "explanation": "Transformations (filter, select, map) are lazy—they build an execution plan but don't run. Actions (collect, count, show) trigger computation. This lazy evaluation enables optimization.",
+        "explanation": "Transformations build a plan; actions trigger execution.",
         "xpReward": 30,
         "tags": [
           "fundamentals",
@@ -1817,15 +52,16 @@
         "id": "spark-002",
         "topic": "pyspark",
         "difficulty": "easy",
-        "type": "code",
-        "question": "Read a CSV file into a PySpark DataFrame with headers and infer schema.",
-        "codeSnippet": "from pyspark.sql import SparkSession\nspark = SparkSession.builder.appName('demo').getOrCreate()\n\ndf = spark.read._____________________\n",
-        "correctAnswer": "csv('data.csv', header=True, inferSchema=True)",
-        "alternateAnswers": [
-          "format('csv').option('header', 'true').option('inferSchema', 'true').load('data.csv')",
-          "csv('data.csv', header=True, inferSchema=True)"
+        "type": "multiple-choice",
+        "question": "How do you read a CSV into a DataFrame with header and inferred schema?",
+        "options": [
+          "df = spark.read.csv('data.csv', header=True, inferSchema=True)",
+          "df = spark.read.json('data.csv', header=True, inferSchema=True)",
+          "df = spark.csv.read('data.csv', header=True, inferSchema=True)",
+          "df = spark.read.csv('data.csv')"
         ],
-        "explanation": "spark.read.csv() reads CSV files. header=True treats first row as column names. inferSchema=True automatically detects data types (though it requires an extra pass).",
+        "correctAnswer": "df = spark.read.csv('data.csv', header=True, inferSchema=True)",
+        "explanation": "Use spark.read.csv with both header and inferSchema options when needed.",
         "xpReward": 25,
         "tags": [
           "io",
@@ -1837,15 +73,16 @@
         "id": "spark-003",
         "topic": "pyspark",
         "difficulty": "medium",
-        "type": "code",
-        "question": "Filter rows where 'age' > 30 and 'salary' >= 50000, then select only 'name' and 'department' columns.",
-        "codeSnippet": "from pyspark.sql import functions as F\n\ndf_filtered = df._____________________\n",
-        "correctAnswer": "filter((F.col('age') > 30) & (F.col('salary') >= 50000)).select('name', 'department')",
-        "alternateAnswers": [
-          "where((df['age'] > 30) & (df['salary'] >= 50000)).select('name', 'department')",
-          "filter('age > 30 AND salary >= 50000').select('name', 'department')"
+        "type": "multiple-choice",
+        "question": "Choose the correct expression to filter age > 30 and salary >= 50000, then select name and department.",
+        "options": [
+          "df.filter((F.col('age') > 30) & (F.col('salary') >= 50000)).select('name', 'department')",
+          "df.filter(F.col('age') > 30 && F.col('salary') >= 50000).select('name', 'department')",
+          "df.select('name', 'department').filter('age > 30 OR salary >= 50000')",
+          "df.where('age > 30').where('salary').select('name', 'department')"
         ],
-        "explanation": "filter() or where() filters rows. Use & for AND, | for OR (parentheses required!). select() chooses columns. Can also use SQL-style string conditions.",
+        "correctAnswer": "df.filter((F.col('age') > 30) & (F.col('salary') >= 50000)).select('name', 'department')",
+        "explanation": "Use & with parentheses for AND logic and then select required columns.",
         "xpReward": 40,
         "tags": [
           "filtering",
@@ -1858,7 +95,7 @@
         "topic": "pyspark",
         "difficulty": "easy",
         "type": "multiple-choice",
-        "question": "Which of these is an ACTION (not a transformation)?",
+        "question": "Which of these is an action (not a transformation)?",
         "options": [
           "filter()",
           "groupBy()",
@@ -1866,7 +103,7 @@
           "join()"
         ],
         "correctAnswer": "collect()",
-        "explanation": "Actions: collect(), count(), show(), take(), first(), write(). Transformations: filter(), select(), groupBy(), join(), withColumn(). Actions return results to driver or write data.",
+        "explanation": "collect() triggers execution and returns data to the driver.",
         "xpReward": 25,
         "tags": [
           "fundamentals",
@@ -1878,11 +115,16 @@
         "id": "spark-005",
         "topic": "pyspark",
         "difficulty": "hard",
-        "type": "code",
-        "question": "Calculate a running total of 'sales' partitioned by 'store_id' and ordered by 'date'.",
-        "codeSnippet": "from pyspark.sql import Window\nfrom pyspark.sql import functions as F\n\nwindow_spec = Window._____________________\ndf = df.withColumn('running_total', _____________________)\n",
-        "correctAnswer": "partitionBy('store_id').orderBy('date'), F.sum('sales').over(window_spec)",
-        "explanation": "Window functions perform calculations across row groups. partitionBy() creates groups, orderBy() defines order within partitions. sum().over() applies aggregation with window.",
+        "type": "multiple-choice",
+        "question": "You need running total of sales partitioned by store_id and ordered by date. Which setup is correct?",
+        "options": [
+          "window_spec = Window.partitionBy('store_id').orderBy('date'); df = df.withColumn('running_total', F.sum('sales').over(window_spec))",
+          "window_spec = Window.orderBy('store_id').partitionBy('date'); df = df.withColumn('running_total', F.avg('sales').over(window_spec))",
+          "window_spec = Window.partitionBy('date').orderBy('store_id'); df = df.withColumn('running_total', F.sum('sales'))",
+          "window_spec = Window.partitionBy('store_id'); df = df.withColumn('running_total', F.sum('sales'))"
+        ],
+        "correctAnswer": "window_spec = Window.partitionBy('store_id').orderBy('date'); df = df.withColumn('running_total', F.sum('sales').over(window_spec))",
+        "explanation": "Running totals require both partition and ordered window, then sum over that window.",
         "xpReward": 75,
         "tags": [
           "window-functions",
@@ -1899,11 +141,11 @@
         "options": [
           "No difference, they're aliases",
           "cache() stores in memory only, persist() allows storage level configuration",
-          "persist() is faster",
-          "cache() is for RDDs, persist() is for DataFrames"
+          "persist() is always faster",
+          "cache() is for RDDs only, persist() is for DataFrames only"
         ],
         "correctAnswer": "cache() stores in memory only, persist() allows storage level configuration",
-        "explanation": "cache() = persist(MEMORY_ONLY). persist() allows custom storage: MEMORY_ONLY, MEMORY_AND_DISK, DISK_ONLY, etc. Use for DataFrames accessed multiple times.",
+        "explanation": "cache() is equivalent to persist(MEMORY_ONLY).",
         "xpReward": 45,
         "tags": [
           "caching",
@@ -1915,15 +157,16 @@
         "id": "spark-007",
         "topic": "pyspark",
         "difficulty": "medium",
-        "type": "code",
-        "question": "Join two DataFrames on 'customer_id' using a left join.",
-        "codeSnippet": "# df1: customer_id, name\n# df2: customer_id, order_amount\n\nresult = df1._____________________\n",
-        "correctAnswer": "join(df2, on='customer_id', how='left')",
-        "alternateAnswers": [
-          "join(df2, df1['customer_id'] == df2['customer_id'], 'left')",
-          "join(df2, 'customer_id', 'left')"
+        "type": "multiple-choice",
+        "question": "How do you left join df1 and df2 on customer_id?",
+        "options": [
+          "result = df1.join(df2, on='customer_id', how='left')",
+          "result = df1.merge(df2, on='customer_id', how='left')",
+          "result = df1.joinLeft(df2, 'customer_id')",
+          "result = left_join(df1, df2, 'customer_id')"
         ],
-        "explanation": "join(other_df, on=column, how=type). Join types: inner (default), left, right, outer, left_semi, left_anti. Can join on multiple columns: on=['col1', 'col2'].",
+        "correctAnswer": "result = df1.join(df2, on='customer_id', how='left')",
+        "explanation": "DataFrame joins in PySpark use join(other, on=..., how=...).",
         "xpReward": 50,
         "tags": [
           "joins",
@@ -1936,15 +179,15 @@
         "topic": "pyspark",
         "difficulty": "hard",
         "type": "multiple-choice",
-        "question": "You have a highly skewed join where 80% of records have the same key. What's the best optimization?",
+        "question": "You have a highly skewed join where 80% of records share one key. Best optimization?",
         "options": [
           "Increase executor memory",
           "Use broadcast join",
           "Use salting technique to distribute skewed keys",
-          "Add more partitions"
+          "Add more partitions only"
         ],
         "correctAnswer": "Use salting technique to distribute skewed keys",
-        "explanation": "Skew: one partition gets most data, causing stragglers. Salting: add random prefix to skewed keys, join, then remove. Also: adaptive query execution (AQE) in Spark 3.0+ helps automatically.",
+        "explanation": "Salting splits hot keys across buckets and reduces skewed partition bottlenecks.",
         "xpReward": 80,
         "tags": [
           "performance",
@@ -1957,15 +200,16 @@
         "id": "spark-009",
         "topic": "pyspark",
         "difficulty": "easy",
-        "type": "code",
-        "question": "Group by 'department' and calculate the average 'salary'.",
-        "codeSnippet": "from pyspark.sql import functions as F\n\nresult = df._____________________\n",
-        "correctAnswer": "groupBy('department').agg(F.avg('salary'))",
-        "alternateAnswers": [
-          "groupBy('department').avg('salary')",
-          "groupBy('department').agg(F.mean('salary'))"
+        "type": "multiple-choice",
+        "question": "How do you group by department and compute average salary?",
+        "options": [
+          "result = df.groupBy('department').agg(F.avg('salary'))",
+          "result = df.groupby('department').mean('salary').collectAll()",
+          "result = df.select('department').avg('salary')",
+          "result = avg(df, 'salary', by='department')"
         ],
-        "explanation": "groupBy() creates grouped data. agg() applies aggregations: avg(), sum(), count(), min(), max(). Can compute multiple: agg(F.avg('salary'), F.count('*')).",
+        "correctAnswer": "result = df.groupBy('department').agg(F.avg('salary'))",
+        "explanation": "groupBy + agg with avg is the standard DataFrame API pattern.",
         "xpReward": 30,
         "tags": [
           "groupby",
@@ -1980,13 +224,13 @@
         "type": "multiple-choice",
         "question": "When should you use broadcast joins?",
         "options": [
-          "Always, they're always faster",
-          "When one DataFrame is small enough to fit in memory (~10MB default)",
+          "Always, they are always faster",
+          "When one DataFrame is small enough to fit in executor memory",
           "Only for outer joins",
-          "When both DataFrames are large"
+          "Only when both DataFrames are huge"
         ],
-        "correctAnswer": "When one DataFrame is small enough to fit in memory (~10MB default)",
-        "explanation": "Broadcast joins: send small DataFrame to all executors, avoiding shuffle. Automatic for tables <10MB (configurable). Use F.broadcast(small_df) to force. Huge speedup for large × small joins.",
+        "correctAnswer": "When one DataFrame is small enough to fit in executor memory",
+        "explanation": "Broadcast avoids a large shuffle by sending the small table to all executors.",
         "xpReward": 55,
         "tags": [
           "joins",
@@ -1998,11 +242,16 @@
         "id": "spark-011",
         "topic": "pyspark",
         "difficulty": "hard",
-        "type": "code",
-        "question": "Create a User Defined Function (UDF) to categorize temperature: <0='Freezing', 0-20='Cold', 20-30='Warm', >30='Hot'.",
-        "codeSnippet": "from pyspark.sql.types import StringType\nfrom pyspark.sql.functions import udf\n\ndef categorize_temp(temp):\n    _____________________\n\ncategorize_udf = udf(categorize_temp, StringType())\ndf = df.withColumn('temp_category', categorize_udf('temperature'))\n",
-        "correctAnswer": "if temp < 0: return 'Freezing'\nelif temp < 20: return 'Cold'\nelif temp <= 30: return 'Warm'\nelse: return 'Hot'",
-        "explanation": "UDFs apply custom Python functions to columns. Slower than built-in functions (serialization overhead). Prefer when() with built-in functions when possible. Pandas UDFs are faster.",
+        "type": "multiple-choice",
+        "question": "Which temperature categorization logic matches: <0 Freezing, 0-19 Cold, 20-30 Warm, >30 Hot?",
+        "options": [
+          "if temp < 0: 'Freezing'; elif temp < 20: 'Cold'; elif temp <= 30: 'Warm'; else: 'Hot'",
+          "if temp <= 0: 'Freezing'; elif temp <= 20: 'Cold'; elif temp < 30: 'Warm'; else: 'Hot'",
+          "if temp < 0: 'Cold'; elif temp <= 30: 'Warm'; else: 'Hot'",
+          "if temp > 30: 'Freezing'; else: 'Warm'"
+        ],
+        "correctAnswer": "if temp < 0: 'Freezing'; elif temp < 20: 'Cold'; elif temp <= 30: 'Warm'; else: 'Hot'",
+        "explanation": "Boundaries must map exactly to the requested ranges.",
         "xpReward": 70,
         "tags": [
           "udf",
@@ -2014,15 +263,16 @@
         "id": "spark-012",
         "topic": "pyspark",
         "difficulty": "medium",
-        "type": "code",
-        "question": "Handle null values: fill nulls in 'age' with median, and in 'city' with 'Unknown'.",
-        "codeSnippet": "from pyspark.sql import functions as F\n\nmedian_age = df.approxQuantile('age', [0.5], 0.01)[0]\n\ndf_clean = df._____________________\n",
-        "correctAnswer": "fillna({'age': median_age, 'city': 'Unknown'})",
-        "alternateAnswers": [
-          "na.fill({'age': median_age, 'city': 'Unknown'})",
-          "fillna(median_age, subset=['age']).fillna('Unknown', subset=['city'])"
+        "type": "multiple-choice",
+        "question": "How do you fill nulls with median_age for age and 'Unknown' for city?",
+        "options": [
+          "df_clean = df.fillna({'age': median_age, 'city': 'Unknown'})",
+          "df_clean = df.fillna(median_age, 'age', 'Unknown', 'city')",
+          "df_clean = df.na.drop({'age': median_age, 'city': 'Unknown'})",
+          "df_clean = fill_nulls(df, age=median_age, city='Unknown')"
         ],
-        "explanation": "fillna() or na.fill() replaces nulls. Can pass dict for column-specific values or single value for all columns. dropna() removes rows with nulls. replace() swaps specific values.",
+        "correctAnswer": "df_clean = df.fillna({'age': median_age, 'city': 'Unknown'})",
+        "explanation": "fillna accepts a dictionary for per-column replacement values.",
         "xpReward": 50,
         "tags": [
           "null-handling",
@@ -2038,12 +288,12 @@
         "question": "What does repartition() do?",
         "options": [
           "Sorts the DataFrame",
-          "Redistributes data across partitions (with shuffle)",
+          "Redistributes data across partitions with a shuffle",
           "Removes duplicate rows",
           "Caches the DataFrame"
         ],
-        "correctAnswer": "Redistributes data across partitions (with shuffle)",
-        "explanation": "repartition(n) redistributes data into n partitions (full shuffle—expensive). coalesce(n) reduces partitions without shuffle (cheaper, but can't increase). Use for better parallelism or to reduce small files.",
+        "correctAnswer": "Redistributes data across partitions with a shuffle",
+        "explanation": "repartition triggers a full shuffle to rebalance data.",
         "xpReward": 35,
         "tags": [
           "partitioning",
@@ -2055,14 +305,16 @@
         "id": "spark-014",
         "topic": "pyspark",
         "difficulty": "hard",
-        "type": "code",
-        "question": "Find the top 3 products by sales in each category using window functions.",
-        "codeSnippet": "from pyspark.sql import Window\nfrom pyspark.sql import functions as F\n\nwindow_spec = Window._____________________\ndf_ranked = df.withColumn('rank', _____________________)\nresult = df_ranked._____________________\n",
-        "correctAnswer": "partitionBy('category').orderBy(F.desc('sales')), F.row_number().over(window_spec), filter(F.col('rank') <= 3)",
-        "alternateAnswers": [
-          "partitionBy('category').orderBy(F.col('sales').desc()), F.rank().over(window_spec), where('rank <= 3')"
+        "type": "multiple-choice",
+        "question": "How do you keep the top 3 products by sales in each category?",
+        "options": [
+          "window_spec = Window.partitionBy('category').orderBy(F.desc('sales')); df_ranked = df.withColumn('rank', F.row_number().over(window_spec)); result = df_ranked.filter(F.col('rank') <= 3)",
+          "window_spec = Window.orderBy('category'); result = df.withColumn('rank', F.rank()).filter(F.col('rank') <= 3)",
+          "result = df.groupBy('category').agg(F.max('sales')).limit(3)",
+          "result = df.orderBy(F.desc('sales')).limit(3)"
         ],
-        "explanation": "Window with partitionBy() and orderBy(). row_number() gives unique rank (1,2,3...). rank() allows ties (1,1,3...). dense_rank() no gaps (1,1,2...). Filter to get top N per group.",
+        "correctAnswer": "window_spec = Window.partitionBy('category').orderBy(F.desc('sales')); df_ranked = df.withColumn('rank', F.row_number().over(window_spec)); result = df_ranked.filter(F.col('rank') <= 3)",
+        "explanation": "Top-N per group requires a partitioned window and then filtering by rank.",
         "xpReward": 85,
         "tags": [
           "window-functions",
@@ -2076,7 +328,7 @@
         "topic": "pyspark",
         "difficulty": "medium",
         "type": "multiple-choice",
-        "question": "What's the recommended way to write a DataFrame to Parquet for best query performance?",
+        "question": "What's the recommended way to write Parquet for better filtered query performance?",
         "options": [
           "df.write.parquet('output.parquet')",
           "df.write.partitionBy('date_column').parquet('output.parquet')",
@@ -2084,13 +336,246 @@
           "df.repartition(1000).write.parquet('output.parquet')"
         ],
         "correctAnswer": "df.write.partitionBy('date_column').parquet('output.parquet')",
-        "explanation": "partitionBy() creates directory partitions (e.g., date=2024-01-01/), enabling partition pruning—queries filter entire directories, not scanning all files. Huge speedup for filtered queries. Choose partition columns wisely (low cardinality).",
+        "explanation": "Partitioning enables partition pruning for selective reads.",
         "xpReward": 60,
         "tags": [
           "io",
           "parquet",
           "partitioning",
           "performance"
+        ]
+      }
+    ],
+    "sql": [
+      {
+        "id": "sql-001",
+        "topic": "sql",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "Which query correctly returns the 2nd highest salary from an employees table?",
+        "options": [
+          "SELECT MAX(salary) FROM employees WHERE salary < (SELECT MAX(salary) FROM employees)",
+          "SELECT salary FROM employees ORDER BY salary DESC LIMIT 1",
+          "SELECT MIN(salary) FROM employees",
+          "SELECT AVG(salary) FROM employees"
+        ],
+        "correctAnswer": "SELECT MAX(salary) FROM employees WHERE salary < (SELECT MAX(salary) FROM employees)",
+        "explanation": "The query first finds the highest salary and then returns the max value below it, which is the 2nd highest salary.",
+        "hint": "Find the global max first, then filter below it.",
+        "xpReward": 50,
+        "tags": [
+          "subqueries",
+          "aggregation"
+        ]
+      },
+      {
+        "id": "sql-002",
+        "topic": "sql",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "A table has 100K rows. You run SELECT * FROM table. What is the best immediate way to reduce query cost?",
+        "options": [
+          "Add an index",
+          "Use LIMIT",
+          "Use WHERE to filter",
+          "Both B and C"
+        ],
+        "correctAnswer": "Both B and C",
+        "explanation": "Limiting returned rows and filtering scanned rows both reduce cost immediately. Indexes help mostly when predicates are selective.",
+        "xpReward": 30,
+        "tags": [
+          "performance",
+          "querying"
+        ]
+      },
+      {
+        "id": "sql-003",
+        "topic": "sql",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "What does this query return? SELECT COUNT(DISTINCT user_id) FROM orders WHERE status = 'cancelled';",
+        "options": [
+          "Total cancelled orders",
+          "Number of unique users who cancelled at least one order",
+          "Number of users with any order",
+          "Number of duplicate cancelled orders"
+        ],
+        "correctAnswer": "Number of unique users who cancelled at least one order",
+        "explanation": "COUNT(DISTINCT user_id) counts unique users, not order rows.",
+        "xpReward": 40,
+        "tags": [
+          "aggregation",
+          "distinct"
+        ]
+      }
+    ],
+    "python": [
+      {
+        "id": "python-015",
+        "topic": "python",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "Which line removes duplicate rows from a pandas DataFrame df?",
+        "options": [
+          "df = df.drop_duplicates()",
+          "df = df.unique()",
+          "df = df.remove_duplicates()",
+          "df = df.dropna()"
+        ],
+        "correctAnswer": "df = df.drop_duplicates()",
+        "explanation": "drop_duplicates() is the built-in pandas method for de-duplicating rows.",
+        "hint": "Use the pandas method specifically made for dedupe.",
+        "xpReward": 40,
+        "tags": [
+          "pandas",
+          "data-cleaning"
+        ]
+      },
+      {
+        "id": "python-021",
+        "topic": "python",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "Which method converts values to datetime in pandas?",
+        "options": [
+          "to_datetime()",
+          "as_date()",
+          "parse_date()",
+          "datetimeify()"
+        ],
+        "correctAnswer": "to_datetime()",
+        "explanation": "pd.to_datetime() is the standard conversion utility in pandas.",
+        "xpReward": 35,
+        "tags": [
+          "time-series",
+          "pandas"
+        ]
+      },
+      {
+        "id": "python-032",
+        "topic": "python",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "What does df['col'].isnull().sum() return?",
+        "options": [
+          "Count of non-null values in col",
+          "Count of null values in col",
+          "Percentage of null values in col",
+          "Boolean mask of null values"
+        ],
+        "correctAnswer": "Count of null values in col",
+        "explanation": "isnull() creates a boolean mask where nulls are true, and sum() counts true values.",
+        "xpReward": 30,
+        "tags": [
+          "pandas",
+          "nulls"
+        ]
+      }
+    ],
+    "fabric": [
+      {
+        "id": "fabric-001",
+        "topic": "fabric",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What is OneLake in Microsoft Fabric?",
+        "options": [
+          "A storage layer shared across Fabric workloads",
+          "A Python runtime for notebooks",
+          "A SQL-only query engine",
+          "A dashboard-only service"
+        ],
+        "correctAnswer": "A storage layer shared across Fabric workloads",
+        "explanation": "OneLake is the unified storage foundation behind Fabric experiences.",
+        "xpReward": 30,
+        "tags": [
+          "fundamentals",
+          "onelake",
+          "architecture"
+        ]
+      },
+      {
+        "id": "fabric-002",
+        "topic": "fabric",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "Which command reads a Delta table from a Fabric Lakehouse in a Spark notebook?",
+        "options": [
+          "df = spark.read.format('delta').load('Tables/sales')",
+          "df = spark.delta.read('Tables/sales')",
+          "df = spark.read.parquet('Tables/sales').asDelta()",
+          "df = spark.table.read('sales')"
+        ],
+        "correctAnswer": "df = spark.read.format('delta').load('Tables/sales')",
+        "explanation": "Lakehouse tables are Delta tables and can be loaded through spark.read.format('delta').",
+        "xpReward": 45,
+        "tags": [
+          "lakehouse",
+          "delta",
+          "spark"
+        ]
+      },
+      {
+        "id": "fabric-003",
+        "topic": "fabric",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "When moving data between sources and Fabric destinations, which pipeline activity is most commonly used?",
+        "options": [
+          "Copy activity",
+          "Notebook activity",
+          "Webhook activity",
+          "Lookup activity"
+        ],
+        "correctAnswer": "Copy activity",
+        "explanation": "Copy activity is the standard pipeline step for ingestion and movement patterns.",
+        "xpReward": 40,
+        "tags": [
+          "pipelines",
+          "data-factory",
+          "ingestion"
+        ]
+      },
+      {
+        "id": "fabric-004",
+        "topic": "fabric",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "Which MERGE pattern correctly upserts source rows into target by business key?",
+        "options": [
+          "MERGE INTO target t USING source s ON t.id = s.id WHEN MATCHED THEN UPDATE SET * WHEN NOT MATCHED THEN INSERT *",
+          "UPDATE target SET * FROM source WHERE target.id = source.id; INSERT INTO target SELECT * FROM source",
+          "REPLACE TABLE target AS SELECT * FROM source",
+          "INSERT OVERWRITE target SELECT * FROM source"
+        ],
+        "correctAnswer": "MERGE INTO target t USING source s ON t.id = s.id WHEN MATCHED THEN UPDATE SET * WHEN NOT MATCHED THEN INSERT *",
+        "explanation": "MERGE handles matched and unmatched records in one atomic upsert statement.",
+        "xpReward": 70,
+        "tags": [
+          "delta",
+          "merge",
+          "upsert"
+        ]
+      },
+      {
+        "id": "fabric-005",
+        "topic": "fabric",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What does workspace role management control in Fabric?",
+        "options": [
+          "Who can view, edit, or manage Fabric items in the workspace",
+          "How Spark executors are allocated",
+          "Automatic query optimization levels",
+          "Notebook kernel version"
+        ],
+        "correctAnswer": "Who can view, edit, or manage Fabric items in the workspace",
+        "explanation": "Workspace roles define permissions over artifacts and collaboration boundaries.",
+        "xpReward": 25,
+        "tags": [
+          "governance",
+          "security",
+          "workspace"
         ]
       }
     ]

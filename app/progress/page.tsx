@@ -149,7 +149,7 @@ const toUserMissionProgressModel = (row: UserMissionRow): UserMissionProgress =>
   unlocked: row.unlocked,
   startedAt: row.started_at,
   completedAt: row.completed_at,
-  xpAwarded: row.xp_awarded
+  energyAwardedUnits: row.xp_awarded
 });
 
 export default async function ProgressPage() {
@@ -167,12 +167,16 @@ export default async function ProgressPage() {
     await Promise.all([
     supabase
       .from('topic_progress')
-      .select('*')
+      .select(
+        'id,user_id,topic,theory_chapters_total,theory_chapters_completed,theory_sections_total,theory_sections_read,theory_total_minutes_read,practice_questions_total,practice_questions_attempted,practice_questions_correct,functions_total,functions_viewed,functions_bookmarked,overall_completion_pct,first_activity_at,last_activity_at,updated_at'
+      )
       .eq('user_id', user.id)
       .order('topic'),
     supabase
       .from('reading_sessions')
-      .select('*')
+      .select(
+        'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,active_seconds,is_completed'
+      )
       .eq('user_id', user.id)
       .order('started_at', { ascending: false })
       .limit(50),

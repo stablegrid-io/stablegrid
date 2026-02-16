@@ -4,8 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PracticeTopic, Question } from '@/lib/types';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { validateAnswer } from '@/lib/validators/answerValidator';
-import { runCodeTests } from '@/lib/validators/testRunner';
-import { usePyodide } from '@/lib/hooks/usePyodide';
+import { ENERGY_REWARDS } from '@/lib/energy';
+import sqlQuestionsData from '@/data/questions/sql.json';
+import pythonQuestionsData from '@/data/questions/python.json';
+import pysparkQuestionsData from '@/data/questions/pyspark.json';
+import fabricQuestionsData from '@/data/questions/fabric.json';
 
 interface SessionStats {
   totalQuestions: number;
@@ -16,6 +19,17 @@ interface SessionStats {
   timeSpent: number;
 }
 
+interface QuestionPayload {
+  questions?: Question[];
+}
+
+const QUESTION_BANKS: Record<PracticeTopic, Question[]> = {
+  sql: (sqlQuestionsData as QuestionPayload).questions ?? [],
+  python: (pythonQuestionsData as QuestionPayload).questions ?? [],
+  pyspark: (pysparkQuestionsData as QuestionPayload).questions ?? [],
+  fabric: (fabricQuestionsData as QuestionPayload).questions ?? []
+};
+
 const shuffleQuestions = (items: Question[]) => {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i -= 1) {
@@ -23,6 +37,58 @@ const shuffleQuestions = (items: Question[]) => {
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
+};
+
+const normalizeOption = (value: string) => value.trim().toLowerCase();
+
+const toMultipleChoiceQuestion = (question: Question): Question => {
+  const baseCorrect = Array.isArray(question.correctAnswer)
+    ? question.correctAnswer[0] ?? ''
+    : question.correctAnswer;
+  const correctAnswer = `${baseCorrect}`.trim();
+
+  const candidateOptions = [
+    correctAnswer,
+    ...(question.options ?? []),
+    ...(question.alternateAnswers ?? [])
+  ]
+    .map((value) => `${value}`.trim())
+    .filter(Boolean);
+
+  const deduped: string[] = [];
+  const seen = new Set<string>();
+  candidateOptions.forEach((option) => {
+    const key = normalizeOption(option);
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(option);
+    }
+  });
+
+  const fallbackDistractors = [
+    'All of the above',
+    'None of the above',
+    'Insufficient information',
+    'Not applicable'
+  ];
+
+  while (deduped.length < 4) {
+    const fallback =
+      fallbackDistractors.find((item) => !seen.has(normalizeOption(item))) ??
+      `Option ${deduped.length + 1}`;
+    const key = normalizeOption(fallback);
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(fallback);
+    }
+  }
+
+  return {
+    ...question,
+    type: 'multiple-choice',
+    options: deduped.slice(0, 4),
+    correctAnswer: correctAnswer || deduped[0]
+  };
 };
 
 interface UseQuestionSessionOptions {
@@ -60,12 +126,6 @@ export const useQuestionSession = (
   const [sessionComplete, setSessionComplete] = useState(false);
 
   const { answerQuestion } = useProgressStore();
-  const shouldEnableRuntime =
-    hasPresetQuestions && presetQuestions
-      ? presetQuestions.some((question) => question.topic === 'python')
-      : topic === 'python';
-  const { runCode, isLoading: runtimeLoading, error: runtimeError } =
-    usePyodide(enabled && shouldEnableRuntime);
 
   const loadQuestions = useCallback(async () => {
     if (!enabled) {
@@ -88,13 +148,10 @@ export const useQuestionSession = (
       if (hasPresetQuestions) {
         allQuestions = presetQuestions ?? [];
       } else {
-        const questionModule = await import(`@/data/questions/${topic}.json`);
-        const payload = (questionModule.default ?? questionModule) as {
-          questions?: Question[];
-          [key: string]: Question[] | undefined;
-        };
-        allQuestions = payload.questions ?? payload[topic] ?? [];
+        allQuestions = QUESTION_BANKS[topic] ?? [];
       }
+
+      allQuestions = allQuestions.map(toMultipleChoiceQuestion);
 
       const selected = shuffleQuestions(allQuestions).slice(
         0,
@@ -136,7 +193,7 @@ export const useQuestionSession = (
     if (!currentQuestion) {
       return;
     }
-    setUserAnswer(currentQuestion.codeSnippet ?? '');
+    setUserAnswer('');
   }, [currentQuestion]);
 
   const handleSubmit = useCallback(
@@ -147,30 +204,16 @@ export const useQuestionSession = (
 
       const answer =
         typeof answerOverride === 'string' ? answerOverride : userAnswer;
-      const baseCorrect = validateAnswer(currentQuestion, answer);
-      let finalCorrect = baseCorrect;
-
-      if (
-        baseCorrect &&
-        currentQuestion.type === 'code' &&
-        currentQuestion.topic === 'python' &&
-        !runtimeLoading &&
-        !runtimeError
-      ) {
-        const testResult = await runCodeTests({
-          question: currentQuestion,
-          answer,
-          runPython: runCode
-        });
-        finalCorrect = testResult.success;
-      }
+      const finalCorrect = validateAnswer(currentQuestion, answer);
 
       setIsCorrect(finalCorrect);
       setShowFeedback(true);
 
       const alreadyAnswered = answeredQuestionIds.has(currentQuestion.id);
       const xpGained =
-        !alreadyAnswered && finalCorrect ? currentQuestion.xpReward : 0;
+        !alreadyAnswered && finalCorrect
+          ? ENERGY_REWARDS.flashcardCorrectUnits
+          : 0;
       setLastXpGained(xpGained);
 
       if (!alreadyAnswered) {
@@ -199,9 +242,6 @@ export const useQuestionSession = (
       answerQuestion,
       answeredQuestionIds,
       currentQuestion,
-      runCode,
-      runtimeError,
-      runtimeLoading,
       userAnswer
     ]
   );
@@ -264,8 +304,6 @@ export const useQuestionSession = (
     sessionStats,
     isLoading,
     sessionComplete,
-    isRuntimeLoading: runtimeLoading,
-    runtimeError,
     lastXpGained,
 
     setUserAnswer,
@@ -277,6 +315,8 @@ export const useQuestionSession = (
     handleRestart,
 
     progress,
-    accuracy
+    accuracy,
+    isRuntimeLoading: false,
+    runtimeError: null
   };
 };

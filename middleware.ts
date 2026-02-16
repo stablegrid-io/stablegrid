@@ -7,8 +7,8 @@ const PROTECTED_ROUTES = ['/hub', '/missions', '/practice', '/workspace'];
 export async function middleware(request: NextRequest) {
   const { supabase, response } = createMiddlewareClient(request);
   const {
-    data: { session }
-  } = await supabase.auth.getSession();
+    data: { user }
+  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
@@ -16,11 +16,11 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
 
-  if (!session && isProtectedRoute) {
+  if (!user && isProtectedRoute) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  if (session && isAuthRoute) {
+  if (user && isAuthRoute) {
     return NextResponse.redirect(new URL('/hub', request.url));
   }
 

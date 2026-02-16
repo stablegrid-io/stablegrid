@@ -13,6 +13,7 @@ import { ActivityChart } from '@/components/dashboard/ActivityChart';
 import { SessionSummary } from '@/components/dashboard/SessionSummary';
 import { TopicBreakdown } from '@/components/dashboard/TopicBreakdown';
 import { EmptyState } from '@/components/dashboard/EmptyState';
+import { formatUnitsAsKwh } from '@/lib/energy';
 
 const periodOptions: Array<{ value: DashboardPeriod; label: string }> = [
   { value: 'all', label: 'All Period' },
@@ -62,7 +63,7 @@ export default function DashboardPage() {
                 );
               })}
             </div>
-            <Link href="/hub" className="btn btn-primary text-sm">
+            <Link href="/flashcards" className="btn btn-primary text-sm">
               <Play className="h-3.5 w-3.5" />
               Start Practice
             </Link>
@@ -80,8 +81,8 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium text-brand-900 dark:text-brand-100">
                     Your journey starts here
                   </p>
-                  <p className="mt-0.5 text-xs text-brand-700 dark:text-brand-300">
-                    Complete your first practice session to start earning XP and tracking
+                    <p className="mt-0.5 text-xs text-brand-700 dark:text-brand-300">
+                    Complete your first practice session to start generating energy and tracking
                     progress.
                   </p>
                 </div>
@@ -90,11 +91,11 @@ export default function DashboardPage() {
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
-                label={period === 'all' ? 'Total XP' : 'XP In Period'}
-                value={stats.totalXP.toLocaleString()}
+                label={period === 'all' ? 'Energy Balance' : 'Energy In Period'}
+                value={formatUnitsAsKwh(stats.totalXP)}
                 icon={Zap}
                 accentColor="brand"
-                description="XP earned across all sessions"
+                description="kWh generated across all sessions"
               />
               <StatCard
                 label="Current Streak"

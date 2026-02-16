@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Code2 } from 'lucide-react';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { getHomeTopicMeta } from '@/components/home/home/topicMeta';
+import { formatUnitsAsKwh } from '@/lib/energy';
 
 interface QuestionLookup {
   [id: string]: string;
@@ -130,7 +131,7 @@ export const RecentQuestionsCard = () => {
                       {topicMeta.label}
                     </span>
                     <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                      {attempt.correct ? `+${attempt.xp} XP` : '0 XP'}
+                      {attempt.correct ? `+${formatUnitsAsKwh(attempt.xp)}` : '0 kWh'}
                     </span>
                   </div>
                 </div>

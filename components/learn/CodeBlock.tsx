@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 
@@ -7,10 +8,184 @@ interface CodeBlockProps {
   code: string;
   label?: string;
   output?: string;
+  language?: 'python' | 'sql' | 'text';
 }
 
-export const CodeBlock = ({ code, label, output }: CodeBlockProps) => {
+const PYTHON_KEYWORDS = [
+  'import',
+  'from',
+  'as',
+  'def',
+  'class',
+  'return',
+  'if',
+  'elif',
+  'else',
+  'for',
+  'while',
+  'try',
+  'except',
+  'finally',
+  'with',
+  'in',
+  'is',
+  'not',
+  'and',
+  'or',
+  'lambda',
+  'yield',
+  'await',
+  'async',
+  'True',
+  'False',
+  'None',
+  'pass',
+  'break',
+  'continue'
+];
+
+const SQL_KEYWORDS = [
+  'SELECT',
+  'FROM',
+  'WHERE',
+  'JOIN',
+  'LEFT',
+  'RIGHT',
+  'INNER',
+  'OUTER',
+  'FULL',
+  'ON',
+  'GROUP',
+  'BY',
+  'ORDER',
+  'HAVING',
+  'LIMIT',
+  'OFFSET',
+  'AS',
+  'DISTINCT',
+  'CASE',
+  'WHEN',
+  'THEN',
+  'ELSE',
+  'END',
+  'AND',
+  'OR',
+  'NOT',
+  'IN',
+  'IS',
+  'NULL',
+  'LIKE',
+  'BETWEEN',
+  'UNION',
+  'ALL',
+  'INSERT',
+  'INTO',
+  'VALUES',
+  'UPDATE',
+  'SET',
+  'DELETE',
+  'CREATE',
+  'TABLE',
+  'VIEW',
+  'WITH',
+  'OVER',
+  'PARTITION'
+];
+
+const buildTokenRegex = (keywords: string[]) =>
+  new RegExp(
+    [
+      '(?<comment>#.*$|--.*$)',
+      '(?<string>"(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\')',
+      '(?<number>\\b\\d+(?:\\.\\d+)?\\b)',
+      '(?<decorator>@[A-Za-z_]\\w*)',
+      `(?<keyword>\\b(?:${keywords.join('|')})\\b)`,
+      '(?<function>\\b[A-Za-z_]\\w*(?=\\s*\\())'
+    ].join('|'),
+    'g'
+  );
+
+const PYTHON_REGEX = buildTokenRegex(PYTHON_KEYWORDS);
+const SQL_REGEX = buildTokenRegex(SQL_KEYWORDS);
+
+const detectLanguage = (
+  code: string,
+  label?: string,
+  explicit?: CodeBlockProps['language']
+): 'python' | 'sql' | 'text' => {
+  if (explicit) return explicit;
+
+  const normalizedLabel = (label ?? '').toLowerCase();
+  if (normalizedLabel.includes('sql')) return 'sql';
+  if (normalizedLabel.includes('python') || normalizedLabel.includes('pyspark')) {
+    return 'python';
+  }
+
+  const sqlSignals = /\b(select|from|where|join|group\s+by|order\s+by)\b/i.test(code);
+  if (sqlSignals) return 'sql';
+
+  const pythonSignals = /\b(import|def|class|spark|lambda|return)\b/.test(code);
+  if (pythonSignals) return 'python';
+
+  return 'text';
+};
+
+const tokenClass = (type: string) => {
+  if (type === 'comment') return 'text-slate-500';
+  if (type === 'string') return 'text-amber-300';
+  if (type === 'number') return 'text-cyan-300';
+  if (type === 'decorator') return 'text-violet-300';
+  if (type === 'keyword') return 'text-fuchsia-300 font-medium';
+  if (type === 'function') return 'text-emerald-300';
+  return 'text-slate-100';
+};
+
+const highlightLine = (
+  line: string,
+  regex: RegExp,
+  lineKey: string
+): ReactNode[] => {
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  regex.lastIndex = 0;
+
+  for (const match of line.matchAll(regex)) {
+    const index = match.index ?? 0;
+    const token = match[0];
+
+    if (index > lastIndex) {
+      parts.push(line.slice(lastIndex, index));
+    }
+
+    const groups = match.groups ?? {};
+    const type =
+      Object.keys(groups).find((key) => Boolean(groups[key])) ?? 'plain';
+
+    parts.push(
+      <span key={`${lineKey}-${index}`} className={tokenClass(type)}>
+        {token}
+      </span>
+    );
+
+    lastIndex = index + token.length;
+  }
+
+  if (lastIndex < line.length) {
+    parts.push(line.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [line];
+};
+
+export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => {
   const [copied, setCopied] = useState(false);
+  const detectedLanguage = detectLanguage(code, label, language);
+  const highlightRegex =
+    detectedLanguage === 'sql'
+      ? SQL_REGEX
+      : detectedLanguage === 'python'
+        ? PYTHON_REGEX
+        : null;
 
   const handleCopy = async () => {
     try {
@@ -56,9 +231,17 @@ export const CodeBlock = ({ code, label, output }: CodeBlockProps) => {
         </button>
       </div>
 
-      <div className="overflow-x-auto bg-light-muted p-4 dark:bg-dark-muted">
-        <pre className="text-sm leading-relaxed text-text-light-primary dark:text-text-dark-primary">
-          <code>{code}</code>
+      <div className="overflow-x-auto bg-slate-950 p-4">
+        <pre className="text-sm leading-relaxed text-slate-100">
+          <code>
+            {code.split('\n').map((line, index) => (
+              <span key={`${index}-${line.slice(0, 10)}`} className="block">
+                {highlightRegex
+                  ? highlightLine(line, highlightRegex, `line-${index}`)
+                  : line}
+              </span>
+            ))}
+          </code>
         </pre>
       </div>
 
