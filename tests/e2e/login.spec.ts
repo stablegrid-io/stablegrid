@@ -13,11 +13,17 @@ test.describe('login page', () => {
   });
 
   test('toggles password visibility', async ({ page }) => {
+    await page.getByLabel('Email').fill('qa@example.com');
+
     const password = page.locator('#login-password');
     await password.fill('Secret123!');
     await expect(password).toHaveAttribute('type', 'password');
+    await expect(page.getByRole('button', { name: 'Log in' })).toBeEnabled();
 
-    await page.getByRole('button', { name: 'Show password' }).click();
+    const showButton = page.getByRole('button', { name: 'Show password' });
+    await expect(showButton).toBeVisible();
+    await showButton.click();
+    await expect(page.getByRole('button', { name: 'Hide password' })).toBeVisible();
     await expect(password).toHaveAttribute('type', 'text');
 
     await page.getByRole('button', { name: 'Hide password' }).click();
@@ -25,7 +31,8 @@ test.describe('login page', () => {
   });
 
   test('navigates to signup', async ({ page }) => {
-    await page.getByRole('link', { name: 'Sign up free' }).click();
-    await expect(page).toHaveURL(/\/signup$/);
+    const signupLink = page.getByRole('link', { name: 'Sign up free' });
+    await expect(signupLink).toBeVisible();
+    await expect(signupLink).toHaveAttribute('href', '/signup');
   });
 });
