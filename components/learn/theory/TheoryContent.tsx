@@ -14,6 +14,7 @@ interface TheoryContentProps {
   isCompleted: boolean;
   onCompletionAction: () => void;
   completionActionPending: boolean;
+  completionRewardLabel: string;
 }
 
 export const TheoryContent = ({
@@ -23,7 +24,8 @@ export const TheoryContent = ({
   onSectionVisible,
   isCompleted,
   onCompletionAction,
-  completionActionPending
+  completionActionPending,
+  completionRewardLabel
 }: TheoryContentProps) => {
   const chapterIndex = allChapters.findIndex((item) => item.id === chapter.id);
   const previousChapter = chapterIndex > 0 ? allChapters[chapterIndex - 1] : null;
@@ -90,7 +92,7 @@ export const TheoryContent = ({
             Chapter Completion
           </h3>
           <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
-            Mark this chapter when you finish reading it. You can always change it later.
+            Mark this chapter when you finish reading it. First completion awards +{completionRewardLabel}.
           </p>
           <button
             type="button"
@@ -127,7 +129,7 @@ export const TheoryContent = ({
             <button
               type="button"
               onClick={() => onNavigate(nextChapter)}
-              className="flex-1 rounded-xl border border-brand-500 bg-gradient-to-r from-brand-500 to-brand-600 p-4 text-right text-white shadow-sm transition-all hover:from-brand-600 hover:to-brand-700"
+              className="ml-auto flex-none w-full rounded-xl border border-brand-500 bg-gradient-to-r from-brand-500 to-brand-600 px-4 py-2.5 text-right text-white shadow-sm transition-all hover:from-brand-600 hover:to-brand-700 sm:w-[18rem]"
             >
               <div className="mb-1 text-xs text-white/80">
                 Next

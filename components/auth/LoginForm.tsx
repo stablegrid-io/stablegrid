@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Eye, EyeOff, Zap } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { StableGridWordmark } from '@/components/brand/StableGridLogo';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 const GOOGLE_ICON = (
@@ -98,40 +99,39 @@ export function LoginForm() {
   return (
     <main className="min-h-screen bg-[#0a0a0a]">
       <div className="grid min-h-screen lg:grid-cols-2">
-        <aside className="relative hidden overflow-hidden border-r border-[#1f1f1f] bg-[#0a0a0a] px-10 py-11 lg:flex lg:flex-col lg:justify-between xl:px-14">
+        <aside className="relative hidden overflow-hidden border-r border-[#1a2a22] bg-[#0a0a0a] px-10 py-11 lg:flex lg:flex-col lg:justify-between xl:px-14">
           <div
-            className="pointer-events-none absolute inset-0 opacity-[0.035]"
+            className="pointer-events-none absolute inset-0 opacity-[0.06]"
             style={{
               backgroundImage:
-                'linear-gradient(#10b981 1px, transparent 1px), linear-gradient(90deg, #10b981 1px, transparent 1px)',
+                'linear-gradient(#4ade80 1px, transparent 1px), linear-gradient(90deg, #4ade80 1px, transparent 1px)',
               backgroundSize: '40px 40px'
             }}
           />
           <div
-            className="pointer-events-none absolute -left-16 top-20 h-72 w-72 rounded-full opacity-15"
-            style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)' }}
+            className="pointer-events-none absolute -left-16 top-20 h-72 w-72 rounded-full opacity-25"
+            style={{ background: 'radial-gradient(circle, #4ade80, transparent 70%)' }}
           />
 
-          <div className="relative z-10 inline-flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#121212]">
-              <Zap className="h-4.5 w-4.5 text-[#f0f0f0]" />
-            </div>
-            <div>
-              <p className="text-[28px] font-semibold tracking-tight text-[#f0f0f0]">stablegrid.io</p>
-              <p className="-mt-0.5 text-xs text-[#5f5f5f]">Data Engineering Platform</p>
-            </div>
+          <div className="relative z-10">
+            <StableGridWordmark
+              size="lg"
+              titleClassName="text-[#f0f0f0]"
+              subtitle="Data Engineering Platform"
+              subtitleClassName="text-[#6f8d79]"
+            />
           </div>
 
           <div className="relative z-10">
-            <p className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#3b3b3b]">
+            <p className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#4ade80]">
               StableGrid Operations
             </p>
             <h1 className="font-display text-[42px] font-bold leading-[1.06] tracking-tight text-[#f0f0f0]">
               Learn data engineering.
               <br />
-              Stabilize the grid.
+              <span className="text-[#4ade80]">Stabilize the grid.</span>
             </h1>
-            <p className="mt-5 max-w-[390px] text-sm leading-7 text-[#5c5c5c]">
+            <p className="mt-5 max-w-[390px] text-sm leading-7 text-[#7d8f84]">
               Correct answers generate deployment kWh you can spend on infrastructure.
               Continue where you left off across practice, theory, and mission operations.
             </p>
@@ -141,34 +141,34 @@ export function LoginForm() {
                 <div
                   key={feature.label}
                   className={`flex gap-3.5 py-3 ${
-                    index < LEFT_FEATURES.length - 1 ? 'border-b border-[#151515]' : ''
+                    index < LEFT_FEATURES.length - 1 ? 'border-b border-[#16261f]' : ''
                   }`}
                 >
-                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#3f3f3f]" />
+                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#4ade80]" />
                   <div>
-                    <p className="text-sm font-semibold text-[#d3d3d3]">{feature.label}</p>
-                    <p className="mt-0.5 text-xs text-[#404040]">{feature.description}</p>
+                    <p className="text-sm font-semibold text-[#d9eee0]">{feature.label}</p>
+                    <p className="mt-0.5 text-xs text-[#5f7a6a]">{feature.description}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <p className="relative z-10 border-t border-[#151515] pt-4 text-xs text-[#3f3f3f]">
+          <p className="relative z-10 border-t border-[#16261f] pt-4 text-xs text-[#5f7a6a]">
             Free tier available · SQL and Python included · No credit card required
           </p>
         </aside>
 
-        <section className="flex items-center justify-center bg-white px-5 py-10 sm:px-8 lg:px-14">
+        <section className="flex items-center justify-center bg-[#f8fbf9] px-5 py-10 sm:px-8 lg:px-14">
           <div className="w-full max-w-md">
             <header className="mb-8">
-              <p className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#b9b9b9]">
-                stablegrid.io Access
+              <p className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#6e8d7a]">
+                StableGrid.io Access
               </p>
               <h2 className="font-display text-4xl font-bold tracking-tight text-[#121212]">
                 Welcome back
               </h2>
-              <p className="mt-2 text-sm text-[#848484]">
+              <p className="mt-2 text-sm text-[#6b736d]">
                 Sign in to continue your learning progress.
               </p>
             </header>
@@ -177,7 +177,7 @@ export function LoginForm() {
               <button
                 type="button"
                 onClick={() => handleOAuth('google')}
-                className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#dfdfdf] bg-white px-3 py-2.5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#cfcfcf] hover:bg-[#f8f8f8]"
+                className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#d4ddd7] bg-white px-3 py-2.5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#b7d8c4] hover:bg-[#f2fbf5]"
               >
                 {GOOGLE_ICON}
                 Google
@@ -185,7 +185,7 @@ export function LoginForm() {
               <button
                 type="button"
                 onClick={() => handleOAuth('github')}
-                className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#dfdfdf] bg-white px-3 py-2.5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#cfcfcf] hover:bg-[#f8f8f8]"
+                className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#d4ddd7] bg-white px-3 py-2.5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#b7d8c4] hover:bg-[#f2fbf5]"
               >
                 {GITHUB_ICON}
                 GitHub
@@ -193,11 +193,11 @@ export function LoginForm() {
             </div>
 
             <div className="mb-6 flex items-center gap-3">
-              <div className="h-px flex-1 bg-[#ececec]" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#cccccc]">
+              <div className="h-px flex-1 bg-[#dbe9e0]" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ab5a4]">
                 Or continue with email
               </span>
-              <div className="h-px flex-1 bg-[#ececec]" />
+              <div className="h-px flex-1 bg-[#dbe9e0]" />
             </div>
 
             {error ? (
@@ -221,7 +221,7 @@ export function LoginForm() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="you@example.com"
-                  className="w-full rounded-[10px] border border-[#dfdfdf] bg-white px-3.5 py-2.5 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#111111] focus:ring-2 focus:ring-black/5"
+                  className="w-full rounded-[10px] border border-[#d4ddd7] bg-white px-3.5 py-2.5 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#4ade80] focus:ring-2 focus:ring-[#4ade80]/20"
                   required
                 />
               </div>
@@ -236,7 +236,7 @@ export function LoginForm() {
                   </label>
                   <Link
                     href="/reset-password"
-                    className="text-xs font-semibold text-[#111111] underline underline-offset-2"
+                    className="text-xs font-semibold text-[#111111] underline underline-offset-2 transition-colors hover:text-[#1f7a4f]"
                   >
                     Forgot password?
                   </Link>
@@ -250,13 +250,13 @@ export function LoginForm() {
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="Your password"
-                    className="w-full rounded-[10px] border border-[#dfdfdf] bg-white px-3.5 py-2.5 pr-11 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#111111] focus:ring-2 focus:ring-black/5"
+                    className="w-full rounded-[10px] border border-[#d4ddd7] bg-white px-3.5 py-2.5 pr-11 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#4ade80] focus:ring-2 focus:ring-[#4ade80]/20"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((value) => !value)}
-                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[#b8b8b8] transition-colors hover:text-[#666666]"
+                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[#b8b8b8] transition-colors hover:text-[#1f7a4f]"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -267,7 +267,7 @@ export function LoginForm() {
               <button
                 type="submit"
                 disabled={!email || !password || isSubmitting}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#111111] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:bg-[#dfdfdf] disabled:text-[#acacac]"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] border border-[#101a14] bg-gradient-to-r from-[#101312] to-[#163124] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:border-[#2c7f57] hover:from-[#0f1713] hover:to-[#1f4a34] disabled:cursor-not-allowed disabled:border-[#d4ddd7] disabled:bg-[#dfdfdf] disabled:text-[#acacac]"
               >
                 {isSubmitting ? (
                   <>
@@ -285,7 +285,7 @@ export function LoginForm() {
 
             <p className="mt-5 text-center text-sm text-[#9a9a9a]">
               Don&apos;t have an account?{' '}
-              <Link href="/signup" className="font-semibold text-[#111111] hover:underline">
+              <Link href="/signup" className="font-semibold text-[#1f7a4f] hover:underline">
                 Sign up free
               </Link>
             </p>

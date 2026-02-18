@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { LogOut, Moon, Settings, Sun, Trophy, Zap } from 'lucide-react';
+import { LogOut, Moon, Settings, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
@@ -66,27 +66,14 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-3 rounded-lg border border-light-border bg-light-surface px-4 py-2 text-text-light-secondary shadow-sm transition hover:bg-light-hover dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-secondary dark:hover:bg-dark-hover"
+        className="flex h-11 w-11 items-center justify-center rounded-full border border-light-border bg-light-surface text-text-light-secondary shadow-sm transition hover:bg-light-hover dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-secondary dark:hover:bg-dark-hover"
         aria-expanded={isOpen}
         aria-haspopup="menu"
+        aria-label="Open profile menu"
+        title={email}
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-600 dark:bg-brand-900/20 dark:text-brand-300">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-600 dark:bg-brand-900/20 dark:text-brand-300">
           {initials}
-        </div>
-        <div className="hidden text-left md:block">
-          <div className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-            {email}
-          </div>
-          <div className="flex items-center gap-3 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-            <span className="flex items-center gap-1">
-              <Zap className="h-3 w-3 text-warning-500" />
-              {formatUnitsAsKwh(xp)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Trophy className="h-3 w-3 text-success-500" />
-              {streak} streak
-            </span>
-          </div>
         </div>
       </button>
 

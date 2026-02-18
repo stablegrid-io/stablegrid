@@ -24,17 +24,51 @@ export default async function LearnTopicTheoryPage({ params }: LearnTopicTheoryP
   } = await supabase.auth.getUser();
 
   let completedChapterIds: string[] = [];
+  let chapterProgressById: Record<
+    string,
+    {
+      sectionsRead: number;
+      sectionsTotal: number;
+      isCompleted: boolean;
+      lastActiveAt: string | null;
+    }
+  > = {};
   if (user) {
     const { data } = await supabase
       .from('reading_sessions')
-      .select('chapter_id')
+      .select('chapter_id,sections_read,sections_total,is_completed,last_active_at')
       .eq('user_id', user.id)
-      .eq('topic', params.topic)
-      .eq('is_completed', true);
+      .eq('topic', params.topic);
 
     completedChapterIds = (data ?? [])
+      .filter((row) => row.is_completed)
       .map((row) => row.chapter_id)
       .filter((chapterId): chapterId is string => typeof chapterId === 'string');
+
+    chapterProgressById = (data ?? []).reduce<
+      Record<
+        string,
+        {
+          sectionsRead: number;
+          sectionsTotal: number;
+          isCompleted: boolean;
+          lastActiveAt: string | null;
+        }
+      >
+    >((accumulator, row) => {
+      if (typeof row.chapter_id !== 'string') {
+        return accumulator;
+      }
+
+      accumulator[row.chapter_id] = {
+        sectionsRead: Number(row.sections_read ?? 0),
+        sectionsTotal: Number(row.sections_total ?? 0),
+        isCompleted: Boolean(row.is_completed),
+        lastActiveAt:
+          typeof row.last_active_at === 'string' ? row.last_active_at : null
+      };
+      return accumulator;
+    }, {});
   }
 
   const categories = getTheoryCategories(doc);
@@ -43,6 +77,7 @@ export default async function LearnTopicTheoryPage({ params }: LearnTopicTheoryP
       doc={doc}
       categories={categories}
       completedChapterIds={completedChapterIds}
+      chapterProgressById={chapterProgressById}
     />
   );
 }

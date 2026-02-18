@@ -25,17 +25,17 @@ const STEPS = [
 
 export const HowItWorksSection = () => {
   return (
-    <section id="how-it-works" className="border-t border-[#1f1f1f] py-24">
+    <section id="how-it-works" className="border-t border-[#1a2a22] py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
-          <h2 className="mb-4 text-3xl font-bold" style={{ fontFamily: 'Georgia, serif' }}>
+          <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
             Learning -&gt; Infrastructure -&gt; Stability
           </h2>
-          <p className="text-[#8aaece]">A professional progression loop with operational consequences.</p>
+          <p className="text-[#9ab8a9]">A professional progression loop with operational consequences.</p>
         </div>
 
         <div className="relative grid grid-cols-1 gap-8 md:grid-cols-3">
-          <div className="absolute left-[calc(16.67%+1rem)] right-[calc(16.67%+1rem)] top-8 hidden h-px bg-[#223754] md:block" />
+          <div className="absolute left-[calc(16.67%+1rem)] right-[calc(16.67%+1rem)] top-8 hidden h-px bg-[#1f3629] md:block" />
 
           {STEPS.map((step, index) => (
             <motion.div
@@ -45,13 +45,13 @@ export const HowItWorksSection = () => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.15 }}
             >
-              <div className="relative z-10 mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-[#64a0dc]/30 bg-[#64a0dc]/10">
-                <span className="font-mono text-lg font-bold text-[#64a0dc]">{step.number}</span>
+              <div className="relative z-10 mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-[#4ade80]/30 bg-[#4ade80]/10">
+                <span className="font-mono text-lg font-bold text-[#4ade80]">{step.number}</span>
               </div>
 
-              <h3 className="mb-2 text-base font-semibold text-[#d8eaf8]">{step.title}</h3>
-              <p className="mb-3 text-sm leading-relaxed text-[#9ab8d4]">{step.body}</p>
-              <p className="text-xs leading-relaxed text-[#6f93b2]">{step.detail}</p>
+              <h3 className="mb-2 text-base font-semibold text-[#e3efe8]">{step.title}</h3>
+              <p className="mb-3 text-sm leading-relaxed text-[#9ab8a9]">{step.body}</p>
+              <p className="text-xs leading-relaxed text-[#6f8f7d]">{step.detail}</p>
             </motion.div>
           ))}
         </div>

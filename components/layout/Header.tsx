@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Database } from 'lucide-react';
 import { UserMenu } from '@/components/layout/UserMenu';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { StableGridIcon } from '@/components/brand/StableGridLogo';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 
 export function Header() {
@@ -16,14 +16,9 @@ export function Header() {
           href="/"
           className="flex items-center gap-2 transition-opacity hover:opacity-80"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500">
-            <Database className="h-4 w-4 text-white" />
-          </div>
+          <StableGridIcon size="md" />
           <div>
-            <div className="text-base font-semibold">stablegrid.io</div>
-            <div className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-              Data Analytics Practice
-            </div>
+            <div className="text-base font-semibold">StableGrid.io</div>
           </div>
         </Link>
 

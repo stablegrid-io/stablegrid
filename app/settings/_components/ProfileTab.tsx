@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Sparkles, User, UserCircle2, Waves, Hand } from 'lucide-react';
+import { Sparkles, User, UserCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { PulseMascot3D } from '@/components/mascot/PulseMascot3D';
 import { usePulseMascotStore } from '@/lib/stores/usePulseMascotStore';
@@ -31,6 +31,7 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
   const [name, setName] = useState(profile.name ?? '');
   const [email, setEmail] = useState(userEmail);
   const [loading, setLoading] = useState(false);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
   const initials = useMemo(() => {
     const source = (name || email || 'GL').trim();
@@ -78,6 +79,26 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyTraits = ({
+    mood,
+    motion,
+    action
+  }: {
+    mood: PulseMood;
+    motion: PulseMotion;
+    action: PulseAction;
+  }) => {
+    setPulseMood(mood);
+    setPulseMotion(motion);
+    setPulseAction(action);
+  };
+
+  const handleApplyPreset = (preset: PulsePreset) => {
+    applyTraits(preset);
+    setActivePresetId(preset.id);
+    onToast(`${preset.label} preset applied for Elektrainis.`, 'success');
   };
 
   return (
@@ -140,7 +161,7 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
       </SettingsCard>
 
       <SettingsCard
-        title="Pulse Companion"
+        title="Elektrainis"
         description="Configure the waveform mascot that appears after chapter, flashcard, and mission completion."
         icon={<Sparkles className="h-4 w-4" />}
       >
@@ -158,17 +179,17 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
                   height={132}
                   interactive
                   showLabel={false}
-                  title="Pulse preview"
+                  title="Elektrainis preview"
                   modelUrl={process.env.NEXT_PUBLIC_PULSE_MODEL_URL}
                 />
               </div>
             </div>
             <div className="space-y-3">
               <p className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
-                Pulse Traits
+                Elektrainis Traits
               </p>
               <p className="text-xs leading-relaxed text-text-light-tertiary dark:text-text-dark-tertiary">
-                These traits apply everywhere Pulse appears: completion banners, mission debriefs, and companion overlays.
+                These traits apply everywhere Elektrainis appears: completion banners, mission debriefs, and companion overlays.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Badge label={`Expression: ${PULSE_MOOD_LABELS[pulseMood]}`} />
@@ -178,73 +199,43 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
+          <div className="space-y-3 rounded-xl border border-light-border bg-light-bg p-4 dark:border-dark-border dark:bg-dark-bg">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                Expression
+                Quick Presets
               </p>
-              <div className="flex flex-wrap gap-2">
-                {PULSE_MOOD_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setPulseMood(option.value)}
-                    className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                      pulseMood === option.value
-                        ? 'border-brand-400 bg-brand-50 text-brand-700 dark:border-brand-500/70 dark:bg-brand-900/25 dark:text-brand-300'
-                        : 'border-light-border text-text-light-secondary hover:border-brand-300 hover:bg-light-surface dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-700/50 dark:hover:bg-dark-surface'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
             </div>
-            <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                Wave Motion
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {PULSE_MOTION_OPTIONS.map((option) => (
+            <div className="grid gap-2 lg:grid-cols-2">
+              {PULSE_PRESETS.map((preset) => {
+                const isActive =
+                  activePresetId === preset.id ||
+                  (pulseMood === preset.mood &&
+                    pulseMotion === preset.motion &&
+                    pulseAction === preset.action);
+
+                return (
                   <button
-                    key={option.value}
+                    key={preset.id}
                     type="button"
-                    onClick={() => setPulseMotion(option.value)}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                      pulseMotion === option.value
-                        ? 'border-brand-400 bg-brand-50 text-brand-700 dark:border-brand-500/70 dark:bg-brand-900/25 dark:text-brand-300'
-                        : 'border-light-border text-text-light-secondary hover:border-brand-300 hover:bg-light-surface dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-700/50 dark:hover:bg-dark-surface'
+                    onClick={() => handleApplyPreset(preset)}
+                    className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+                      isActive
+                        ? 'border-brand-400 bg-brand-50 dark:border-brand-500/70 dark:bg-brand-900/25'
+                        : 'border-light-border bg-light-surface hover:border-brand-300 dark:border-dark-border dark:bg-dark-surface dark:hover:border-brand-700/50'
                     }`}
                   >
-                    <Waves className="h-3 w-3" />
-                    {option.label}
+                    <p className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
+                      {preset.label}
+                    </p>
+                    <p className="mt-0.5 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+                      {preset.description}
+                    </p>
                   </button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                Companion Action
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {PULSE_ACTION_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setPulseAction(option.value)}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                      pulseAction === option.value
-                        ? 'border-brand-400 bg-brand-50 text-brand-700 dark:border-brand-500/70 dark:bg-brand-900/25 dark:text-brand-300'
-                        : 'border-light-border text-text-light-secondary hover:border-brand-300 hover:bg-light-surface dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-700/50 dark:hover:bg-dark-surface'
-                    }`}
-                  >
-                    <Hand className="h-3 w-3" />
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
+
         </div>
       </SettingsCard>
 
@@ -257,9 +248,9 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
           <SummaryCell label="Email" value={userEmail || '—'} />
           <SummaryCell label="Profile ID" value={profile.id.slice(0, 8)} />
           <SummaryCell label="Avatar" value={profile.avatar_url ? 'Custom' : 'Generated'} />
-          <SummaryCell label="Pulse mood" value={PULSE_MOOD_LABELS[pulseMood]} />
-          <SummaryCell label="Pulse motion" value={PULSE_MOTION_LABELS[pulseMotion]} />
-          <SummaryCell label="Pulse action" value={PULSE_ACTION_LABELS[pulseAction]} />
+          <SummaryCell label="Elektrainis mood" value={PULSE_MOOD_LABELS[pulseMood]} />
+          <SummaryCell label="Elektrainis motion" value={PULSE_MOTION_LABELS[pulseMotion]} />
+          <SummaryCell label="Elektrainis action" value={PULSE_ACTION_LABELS[pulseAction]} />
         </div>
       </SettingsCard>
     </div>
@@ -287,23 +278,48 @@ function Badge({ label }: { label: string }) {
   );
 }
 
-const PULSE_MOOD_OPTIONS: Array<{ value: PulseMood; label: string }> = [
-  { value: 'calm', label: 'Calm' },
-  { value: 'focused', label: 'Focused' },
-  { value: 'happy', label: 'Happy' },
-  { value: 'alert', label: 'Alert' }
-];
+type PulsePreset = {
+  id: string;
+  label: string;
+  description: string;
+  mood: PulseMood;
+  motion: PulseMotion;
+  action: PulseAction;
+};
 
-const PULSE_MOTION_OPTIONS: Array<{ value: PulseMotion; label: string }> = [
-  { value: 'steady', label: 'Steady' },
-  { value: 'flow', label: 'Flow' },
-  { value: 'surge', label: 'Surge' }
-];
-
-const PULSE_ACTION_OPTIONS: Array<{ value: PulseAction; label: string }> = [
-  { value: 'idle', label: 'Idle' },
-  { value: 'wave', label: 'Wave' },
-  { value: 'celebrate', label: 'Celebrate' }
+const PULSE_PRESETS: PulsePreset[] = [
+  {
+    id: 'deep-focus',
+    label: 'Deep Focus',
+    description: 'Quiet and disciplined for theory chapters and long reads.',
+    mood: 'calm',
+    motion: 'steady',
+    action: 'idle'
+  },
+  {
+    id: 'daily-ops',
+    label: 'Daily Ops',
+    description: 'Balanced profile for regular practice and reviews.',
+    mood: 'focused',
+    motion: 'flow',
+    action: 'wave'
+  },
+  {
+    id: 'incident-mode',
+    label: 'Incident Mode',
+    description: 'Fast and reactive for mission debugging pressure.',
+    mood: 'alert',
+    motion: 'surge',
+    action: 'wave'
+  },
+  {
+    id: 'victory-lap',
+    label: 'Victory Lap',
+    description: 'Playful, energetic animation for completions and streaks.',
+    mood: 'happy',
+    motion: 'surge',
+    action: 'celebrate'
+  }
 ];
 
 const PULSE_MOOD_LABELS: Record<PulseMood, string> = {

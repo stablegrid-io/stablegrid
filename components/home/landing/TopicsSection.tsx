@@ -77,13 +77,13 @@ const TOPICS = [
 
 export const TopicsSection = () => {
   return (
-    <section id="topics" className="border-t border-[#1f1f1f] py-24">
+    <section id="topics" className="border-t border-[#1a2a22] py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
-          <h2 className="mb-4 text-3xl font-bold text-[#d8eaf8]" style={{ fontFamily: 'Georgia, serif' }}>
+          <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
             Curriculum engineered for the StableGrid loop
           </h2>
-          <p className="text-[#8aaece]">
+          <p className="text-[#9ab8a9]">
             Start free with SQL + Python. Unlock full PySpark and Fabric tracks in Pro.
           </p>
         </div>
@@ -99,7 +99,7 @@ export const TopicsSection = () => {
             >
               <Link
                 href={`/learn/${topic.id}`}
-                className="group block rounded-xl border border-[#223754] bg-[#0b1524] p-5 transition-all hover:border-[#2f4f73]"
+                className="group block rounded-xl border border-[#1f3629] bg-[#0d1410] p-5 transition-all hover:border-[#2b4f3a]"
               >
                 <div className="mb-4 flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -114,8 +114,8 @@ export const TopicsSection = () => {
                       {topic.icon}
                     </span>
                     <div>
-                      <h3 className="text-sm font-semibold text-[#d8eaf8]">{topic.label}</h3>
-                      <p className="text-xs text-[#6f93b2]">{topic.version}</p>
+                      <h3 className="text-sm font-semibold text-[#e3efe8]">{topic.label}</h3>
+                      <p className="text-xs text-[#6f8f7d]">{topic.version}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -129,11 +129,11 @@ export const TopicsSection = () => {
                     >
                       {topic.plan}
                     </span>
-                    <ChevronRight className="h-4 w-4 text-[#6f93b2] transition-transform group-hover:translate-x-0.5" />
+                    <ChevronRight className="h-4 w-4 text-[#6f8f7d] transition-transform group-hover:translate-x-0.5" />
                   </div>
                 </div>
 
-                <div className="mb-4 flex gap-4 border-b border-[#223754] pb-4">
+                <div className="mb-4 flex gap-4 border-b border-[#1f3629] pb-4">
                   {[
                     { label: 'chapters', value: topic.chapters },
                     { label: 'functions', value: topic.functions },
@@ -143,14 +143,14 @@ export const TopicsSection = () => {
                       <div className="text-base font-bold" style={{ color: topic.color }}>
                         {stat.value}
                       </div>
-                      <div className="text-xs text-[#6f93b2]">{stat.label}</div>
+                      <div className="text-xs text-[#6f8f7d]">{stat.label}</div>
                     </div>
                   ))}
                 </div>
 
                 <div className="space-y-1.5">
                   {topic.highlights.map((highlight) => (
-                    <div key={highlight} className="flex items-center gap-2 text-xs text-[#9ab8d4]">
+                    <div key={highlight} className="flex items-center gap-2 text-xs text-[#9ab8a9]">
                       <div
                         className="h-1 w-1 flex-shrink-0 rounded-full"
                         style={{ backgroundColor: topic.color }}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 import type { PulseAction, PulseMood, PulseMotion } from '@/types/mascot';
 import { PulseMascot3D } from '@/components/mascot/PulseMascot3D';
 
@@ -33,6 +34,9 @@ export function PulseCompanionOverlay({
 }: PulseCompanionOverlayProps) {
   const [mounted, setMounted] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const { theme, systemTheme } = useTheme();
+  const resolvedTheme = theme === 'system' ? systemTheme : theme;
+  const isLight = resolvedTheme === 'light';
 
   const fallbackPosition = useCallback(() => {
     if (typeof window === 'undefined') return { x: VIEWPORT_MARGIN, y: 72 };
@@ -110,17 +114,55 @@ export function PulseCompanionOverlay({
       }}
       aria-hidden
     >
-      <div className="pointer-events-auto animate-[pulseCompanionFloat_4.2s_ease-in-out_infinite]">
-        <PulseMascot3D
-          mood={mood}
-          motion={motion}
-          action={action}
-          interactive
-          height={size}
-          showLabel={false}
-          modelUrl={modelUrl}
-          title="Pulse companion"
-        />
+      <div className="pointer-events-auto relative animate-[pulseCompanionFloat_4.2s_ease-in-out_infinite]">
+        {isLight ? (
+          <>
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 -z-10 rounded-[42%] border border-[#9dcab7]/45"
+              style={{
+                width: size * 0.78,
+                height: size * 0.9,
+                transform: 'translate(-50%, -50%)',
+                background:
+                  'linear-gradient(180deg, rgba(249,255,252,0.94) 0%, rgba(229,247,238,0.82) 100%)',
+                boxShadow:
+                  '0 12px 24px rgba(22, 82, 61, 0.16), inset 0 1px 0 rgba(255,255,255,0.7)'
+              }}
+            />
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 -z-10 rounded-full"
+              style={{
+                width: size * 0.56,
+                height: size * 0.56,
+                transform: 'translate(-50%, -48%)',
+                background:
+                  'radial-gradient(circle, rgba(16,185,129,0.14), rgba(16,185,129,0) 70%)'
+              }}
+            />
+            <div
+              className="pointer-events-none absolute left-1/2 top-full -z-10 rounded-full"
+              style={{
+                width: size * 0.38,
+                height: size * 0.08,
+                transform: 'translate(-50%, -18px)',
+                background:
+                  'radial-gradient(circle, rgba(14, 70, 52, 0.24), rgba(14, 70, 52, 0) 72%)'
+              }}
+            />
+          </>
+        ) : null}
+        <div className="relative">
+          <PulseMascot3D
+            mood={mood}
+            motion={motion}
+            action={action}
+            interactive
+            height={size}
+            showLabel={false}
+            modelUrl={modelUrl}
+            title="Pulse companion"
+          />
+        </div>
       </div>
       <style jsx>{`
         @keyframes pulseCompanionFloat {

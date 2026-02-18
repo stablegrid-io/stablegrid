@@ -30,14 +30,14 @@ export const HeroSection = () => {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(circle at 18% 22%, rgba(100,160,220,0.22), transparent 40%), radial-gradient(circle at 84% 18%, rgba(240,160,50,0.16), transparent 36%)'
+            'radial-gradient(circle at 18% 22%, rgba(74,222,128,0.19), transparent 40%), radial-gradient(circle at 84% 18%, rgba(100,160,220,0.12), transparent 36%)'
         }}
       />
       <div
         className="absolute inset-0 opacity-[0.08]"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(100,160,220,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(100,160,220,0.35) 1px, transparent 1px)',
+            'linear-gradient(rgba(74,222,128,0.32) 1px, transparent 1px), linear-gradient(90deg, rgba(74,222,128,0.32) 1px, transparent 1px)',
           backgroundSize: '46px 46px'
         }}
       />
@@ -48,42 +48,40 @@ export const HeroSection = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#64a0dc]/25 bg-[#64a0dc]/10 px-3 py-1.5 text-xs font-semibold text-[#9cc0db]">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#4ade80]/30 bg-[#4ade80]/10 px-3 py-1.5 text-xs font-semibold text-[#9de3b5]">
             <Activity className="h-3 w-3" />
             87% renewable grid penetration. Stability is the bottleneck.
           </div>
 
-          <h1 className="mb-6 text-5xl font-bold leading-[1.04] tracking-tight lg:text-6xl" style={{ fontFamily: 'Georgia, serif' }}>
+          <h1 className="mb-6 text-5xl font-bold leading-[1.04] tracking-tight text-[#e3efe8] lg:text-6xl" style={{ fontFamily: 'Georgia, serif' }}>
             Master data engineering
             <br />
             by balancing
             <br />
-            <span className="text-[#64a0dc]">a live power grid.</span>
+            <span className="text-[#4ade80]">a live power grid.</span>
           </h1>
 
-          <p className="mb-8 max-w-xl text-lg leading-relaxed text-[#9ab8d4]">
+          <p className="mb-8 max-w-xl text-lg leading-relaxed text-[#9ab8a9]">
             Earn kWh credits through SQL, Python, PySpark, and statistics. Deploy real infrastructure in a renewable grid simulation and watch stability climb from marginal to optimal.
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/signup"
-              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-[#64a0dc] px-6 py-3 font-medium text-[#09111e] transition-colors hover:bg-[#8eb9de]"
+              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-[#4ade80] px-6 py-3 font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
             >
               Start Learning - Earn Your First kWh
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <a
               href="#how-it-works"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#3a6080] px-6 py-3 font-medium text-[#9ab8d4] transition-colors hover:border-[#64a0dc] hover:text-[#d8eaf8]"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2b4f3a] px-6 py-3 font-medium text-[#9ab8a9] transition-colors hover:border-[#4ade80] hover:text-[#e3efe8]"
             >
               See the loop
             </a>
           </div>
 
-          <p className="mt-6 text-xs text-[#6f93b2]">
-            Free tier available. Pro from $29/mo. Team from $99/mo.
-          </p>
+          <p className="mt-6 text-xs text-[#6f8f7d]">Free tier available. Pro for $9.99/mo.</p>
         </motion.div>
 
         <motion.div
@@ -92,25 +90,25 @@ export const HeroSection = () => {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="hidden lg:block"
         >
-          <div className="overflow-hidden rounded-xl border border-[#3a6080]/55 bg-[#0c182a] shadow-2xl shadow-black/40">
-            <div className="flex items-center gap-2 border-b border-[#3a6080]/45 bg-[#0a1524] px-4 py-3">
+          <div className="overflow-hidden rounded-xl border border-[#2b4f3a]/60 bg-[#0d1410] shadow-2xl shadow-black/50">
+            <div className="flex items-center gap-2 border-b border-[#2b4f3a]/50 bg-[#0a120d] px-4 py-3">
               <div className="h-3 w-3 rounded-full bg-[#f87171]" />
               <div className="h-3 w-3 rounded-full bg-[#f0a032]" />
               <div className="h-3 w-3 rounded-full bg-[#4ade80]" />
-              <span className="ml-3 font-mono text-xs text-[#6f93b2]">
+              <span className="ml-3 font-mono text-xs text-[#7fb99a]">
                 Mission 002 - Evening Peak Cascade
               </span>
             </div>
 
-            <pre className="overflow-x-auto p-5 font-mono text-xs leading-relaxed text-[#d8eaf8]">
+            <pre className="overflow-x-auto p-5 font-mono text-xs leading-relaxed text-[#d5ecdf]">
               <code>{HERO_SNIPPET}</code>
             </pre>
 
-            <div className="flex items-center gap-3 border-t border-[#3a6080]/45 px-4 py-3">
-              <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#173150]">
-                <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-[#64a0dc] to-[#4ade80]" />
+            <div className="flex items-center gap-3 border-t border-[#2b4f3a]/50 px-4 py-3">
+              <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#173223]">
+                <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-[#4ade80] to-[#64a0dc]" />
               </div>
-              <span className="font-mono text-xs text-[#6f93b2]">+1.4 kWh mission reward</span>
+              <span className="font-mono text-xs text-[#7fb99a]">+1.4 kWh mission reward</span>
             </div>
           </div>
         </motion.div>

@@ -8,7 +8,6 @@ import { getTheoryCategories, type TheoryCategorySlug } from '@/data/learn/theor
 interface TheorySidebarProps {
   doc: TheoryDoc;
   activeChapterId: string;
-  activeSectionId: string;
   completedChapterIds: Set<string>;
   onSelectChapter: (chapter: TheoryChapter) => void;
 }
@@ -16,7 +15,6 @@ interface TheorySidebarProps {
 export const TheorySidebar = ({
   doc,
   activeChapterId,
-  activeSectionId,
   completedChapterIds,
   onSelectChapter
 }: TheorySidebarProps) => {
@@ -161,22 +159,6 @@ export const TheorySidebar = ({
                       </div>
                     </div>
 
-                    {isActive ? (
-                      <div className="ml-9 mt-2 space-y-1">
-                        {chapter.sections.map((section) => (
-                          <div
-                            key={section.id}
-                            className={`rounded px-2 py-1 text-xs ${
-                              section.id === activeSectionId
-                                ? 'font-medium text-brand-600 dark:text-brand-400'
-                                : 'text-text-light-tertiary dark:text-text-dark-tertiary'
-                            }`}
-                          >
-                            {section.title}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
                   </button>
                 );
               })}

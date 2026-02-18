@@ -16,7 +16,7 @@ const FEATURES = [
       'Completion tracking across all topics',
       'Prerequisite-gated progression'
     ],
-    color: '#64a0dc',
+    color: '#4ade80',
     footer: 'Learn the concepts behind reliable grid analytics'
   },
   {
@@ -46,20 +46,20 @@ const FEATURES = [
       'Battery, forecast, and frequency indicators',
       'Stability tiers from Critical to Optimal'
     ],
-    color: '#4ade80',
+    color: '#64a0dc',
     footer: 'Your learning directly changes system outcomes'
   }
 ] as const;
 
 export const FeaturesSection = () => {
   return (
-    <section id="features" className="border-t border-[#1f1f1f] py-24">
+    <section id="features" className="border-t border-[#1a2a22] py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
-          <h2 className="mb-4 text-3xl font-bold" style={{ fontFamily: 'Georgia, serif' }}>
+          <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
             Built for data engineers in infrastructure-heavy domains
           </h2>
-          <p className="mx-auto max-w-2xl text-[#8aaece]">
+          <p className="mx-auto max-w-2xl text-[#9ab8a9]">
             StableGrid combines technical learning, deployment economics, and a live grid simulation into one progression system.
           </p>
         </div>
@@ -74,7 +74,7 @@ export const FeaturesSection = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="flex flex-col rounded-xl border border-[#223754] bg-[#0b1524] p-6 transition-colors hover:border-[#2f4f73]"
+                className="flex flex-col rounded-xl border border-[#1f3629] bg-[#0d1410] p-6 transition-colors hover:border-[#2b4f3a]"
               >
                 <div
                   className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg"
@@ -92,18 +92,18 @@ export const FeaturesSection = () => {
                 >
                   {feature.label}
                 </div>
-                <h3 className="mb-3 text-base font-semibold text-[#d8eaf8]">{feature.headline}</h3>
-                <p className="mb-5 text-sm leading-relaxed text-[#9ab8d4]">{feature.description}</p>
+                <h3 className="mb-3 text-base font-semibold text-[#e3efe8]">{feature.headline}</h3>
+                <p className="mb-5 text-sm leading-relaxed text-[#9ab8a9]">{feature.description}</p>
 
                 <div className="mb-5 flex-1 space-y-2">
                   {feature.preview.map((item) => (
-                    <div key={item} className="text-xs text-[#6f93b2]">
+                    <div key={item} className="text-xs text-[#6f8f7d]">
                       {item}
                     </div>
                   ))}
                 </div>
 
-                <div className="border-t border-[#223754] pt-4 text-xs text-[#6f93b2]">{feature.footer}</div>
+                <div className="border-t border-[#1f3629] pt-4 text-xs text-[#6f8f7d]">{feature.footer}</div>
               </motion.div>
             );
           })}

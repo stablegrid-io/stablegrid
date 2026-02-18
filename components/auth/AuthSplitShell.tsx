@@ -1,7 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Database, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import { StableGridWordmark } from '@/components/brand/StableGridLogo';
 
 interface AuthSplitShellProps {
   title: string;
@@ -49,13 +50,12 @@ export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProp
 
           <div className="relative z-10 w-full max-w-md">
             <div className="mb-12 inline-flex items-center gap-3">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500 text-white">
-                <Database className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-base font-semibold tracking-tight">stablegrid.io</div>
-                <div className="text-xs text-[#737373]">Data Engineering Learning Platform</div>
-              </div>
+              <StableGridWordmark
+                size="md"
+                titleClassName="text-[#fafafa]"
+                subtitle="Data Engineering Learning Platform"
+                subtitleClassName="text-[#737373]"
+              />
             </div>
 
             <h2 className="mb-4 max-w-md font-serif text-4xl leading-tight tracking-tight text-[#fafafa]">
@@ -97,7 +97,7 @@ export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProp
           <div className="w-full max-w-md">
             <header className="mb-8">
               <p className="data-mono mb-2 text-[11px] uppercase tracking-[0.22em] text-brand-500">
-                stablegrid.io Access
+                StableGrid.io Access
               </p>
               <h1 className="mb-2 text-3xl font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">
                 {title}
