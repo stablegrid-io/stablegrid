@@ -78,7 +78,7 @@ export function generateMetadata({
   const doc = theoryDocs[params.topic];
   if (!doc) {
     return {
-      title: 'Theory | Learn | DataGridLab',
+      title: 'Theory | Learn | stablegrid.io',
       description: 'Chapter-based theory documentation.'
     };
   }
@@ -91,7 +91,7 @@ export function generateMetadata({
   );
 
   return {
-    title: `${doc.title} ${categoryMeta.label} | DataGridLab`,
+    title: `${doc.title} ${categoryMeta.label} | stablegrid.io`,
     description: categoryMeta.description
   };
 }

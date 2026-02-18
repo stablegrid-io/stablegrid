@@ -27,7 +27,7 @@ const dmSerif = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'DataGridLab | Data Analytics Flashcards',
+  title: 'stablegrid.io | Data Analytics Flashcards',
   description: 'Sequential flashcard drills for mid-level data analysts.'
 };
 
@@ -47,7 +47,7 @@ export default function RootLayout({
           attribute="class"
           defaultTheme="system"
           enableSystem
-          storageKey="datagridlab-theme"
+          storageKey="stablegrid-theme"
         >
           <AuthProvider>
             <Navigation />

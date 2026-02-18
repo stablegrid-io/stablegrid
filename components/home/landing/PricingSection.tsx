@@ -76,17 +76,17 @@ export const PricingSection = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="relative flex h-full flex-col overflow-hidden rounded-xl border border-[#6b7fff]/40 bg-[#111111] p-6"
+            className="relative flex h-full flex-col overflow-hidden rounded-xl border border-[#10b981]/40 bg-[#111111] p-6"
           >
             <div
               className="pointer-events-none absolute right-0 top-0 h-48 w-48 rounded-full opacity-5"
-              style={{ background: 'radial-gradient(circle, #6b7fff, transparent 70%)' }}
+              style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)' }}
             />
 
             <div className="relative mb-5">
               <div className="mb-1 flex items-center gap-2">
-                <span className="text-sm text-[#6b7fff]">Pro</span>
-                <span className="rounded-full border border-[#6b7fff]/20 bg-[#6b7fff]/10 px-2 py-0.5 text-xs text-[#6b7fff]">
+                <span className="text-sm text-[#10b981]">Pro</span>
+                <span className="rounded-full border border-[#10b981]/20 bg-[#10b981]/10 px-2 py-0.5 text-xs text-[#10b981]">
                   Most popular
                 </span>
               </div>
@@ -97,7 +97,7 @@ export const PricingSection = () => {
             <ul className="relative mb-6 flex-1 space-y-3">
               {PRO_FEATURES.map((feature) => (
                 <li key={feature.text} className="flex items-start gap-3 text-sm">
-                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#6b7fff]" />
+                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#10b981]" />
                   <span className="text-[#a3a3a3]">{feature.text}</span>
                 </li>
               ))}
@@ -105,7 +105,7 @@ export const PricingSection = () => {
 
             <Link
               href="/signup?plan=pro"
-              className="relative block w-full rounded-lg bg-[#6b7fff] py-3 text-center text-sm font-medium text-white transition-all hover:bg-[#5a6ef0]"
+              className="relative block w-full rounded-lg bg-[#10b981] py-3 text-center text-sm font-medium text-white transition-all hover:bg-[#059669]"
             >
               Start Pro — $12/month
             </Link>

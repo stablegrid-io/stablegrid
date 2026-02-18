@@ -20,7 +20,7 @@ import {
 import type { HomeSearchItem, HomeSearchItemType } from '@/types/home-search';
 import { getHomeTopicMeta } from './topicMeta';
 
-const RECENT_STORAGE_KEY = 'datagridlab-home-search-recent';
+const RECENT_STORAGE_KEY = 'stablegrid-home-search-recent';
 const EMPTY_RECENT: string[] = [];
 
 const FILTERS: Array<{ id: HomeSearchItemType | null; label: string }> = [
@@ -37,13 +37,19 @@ const TYPE_META: Record<HomeSearchItemType, { label: string; icon: JSX.Element }
 };
 
 interface HomeSearchProps {
-  items: HomeSearchItem[];
+  items?: HomeSearchItem[];
+  loadItems?: () => Promise<HomeSearchItem[]>;
   triggerVariant?: 'default' | 'nav';
 }
 
-export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProps) {
+export function HomeSearch({
+  items,
+  loadItems,
+  triggerVariant = 'default'
+}: HomeSearchProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const loadRequestRef = useRef(0);
 
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -51,6 +57,41 @@ export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProp
   const [filter, setFilter] = useState<HomeSearchItemType | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(EMPTY_RECENT);
+  const [loadedItems, setLoadedItems] = useState<HomeSearchItem[]>([]);
+  const [isIndexLoading, setIsIndexLoading] = useState(false);
+  const [indexError, setIndexError] = useState<string | null>(null);
+
+  const resolvedItems = items ?? loadedItems;
+
+  const ensureItemsLoaded = useCallback(async () => {
+    if (items || !loadItems || loadedItems.length > 0 || isIndexLoading) {
+      return;
+    }
+
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
+    setIsIndexLoading(true);
+    setIndexError(null);
+
+    try {
+      const nextItems = await loadItems();
+      if (loadRequestRef.current !== requestId) {
+        return;
+      }
+      setLoadedItems(nextItems ?? []);
+    } catch (error) {
+      if (loadRequestRef.current !== requestId) {
+        return;
+      }
+      const message =
+        error instanceof Error ? error.message : 'Failed to load search index.';
+      setIndexError(message);
+    } finally {
+      if (loadRequestRef.current === requestId) {
+        setIsIndexLoading(false);
+      }
+    }
+  }, [isIndexLoading, items, loadItems, loadedItems.length]);
 
   const rankedResults = useMemo(() => {
     if (!deferredQuery.trim()) {
@@ -59,7 +100,7 @@ export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProp
 
     const normalizedQuery = deferredQuery.trim().toLowerCase();
 
-    return items
+    return resolvedItems
       .map((item) => {
         let score = 0;
         const title = item.title.toLowerCase();
@@ -78,7 +119,7 @@ export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProp
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 24);
-  }, [deferredQuery, items]);
+  }, [deferredQuery, resolvedItems]);
 
   const filteredResults = useMemo(() => {
     if (!filter) {
@@ -112,6 +153,7 @@ export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProp
       return;
     }
 
+    void ensureItemsLoaded();
     inputRef.current?.focus();
     setActiveIndex(0);
 
@@ -125,7 +167,7 @@ export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProp
     } catch {
       setRecentSearches(EMPTY_RECENT);
     }
-  }, [isOpen]);
+  }, [ensureItemsLoaded, isOpen]);
 
   const saveRecent = useCallback((value: string) => {
     const normalized = value.trim();
@@ -134,7 +176,10 @@ export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProp
     }
 
     setRecentSearches((current) => {
-      const nextRecent = [normalized, ...current.filter((entry) => entry !== normalized)].slice(0, 5);
+      const nextRecent = [
+        normalized,
+        ...current.filter((entry) => entry !== normalized)
+      ].slice(0, 5);
       try {
         window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(nextRecent));
       } catch {
@@ -144,13 +189,16 @@ export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProp
     });
   }, []);
 
-  const navigateTo = useCallback((item: HomeSearchItem) => {
-    saveRecent(query || item.title);
-    setIsOpen(false);
-    setQuery('');
-    setFilter(null);
-    router.push(item.href);
-  }, [query, router, saveRecent]);
+  const navigateTo = useCallback(
+    (item: HomeSearchItem) => {
+      saveRecent(query || item.title);
+      setIsOpen(false);
+      setQuery('');
+      setFilter(null);
+      router.push(item.href);
+    },
+    [query, router, saveRecent]
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -261,7 +309,16 @@ export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProp
     <>
       <button
         type="button"
-        onClick={() => setIsOpen(true)}
+        onMouseEnter={() => {
+          void ensureItemsLoaded();
+        }}
+        onFocus={() => {
+          void ensureItemsLoaded();
+        }}
+        onClick={() => {
+          void ensureItemsLoaded();
+          setIsOpen(true);
+        }}
         className={
           triggerVariant === 'nav'
             ? 'flex w-full items-center gap-1.5 rounded-lg border border-light-border bg-light-surface px-2 py-1.5 text-left transition-all hover:border-brand-300 dark:border-dark-border dark:bg-dark-surface dark:hover:border-brand-700'
@@ -354,6 +411,18 @@ export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProp
             </div>
 
             <div className="max-h-[430px] overflow-y-auto py-1">
+              {isIndexLoading ? (
+                <div className="px-4 py-4 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+                  Loading search index...
+                </div>
+              ) : null}
+
+              {indexError ? (
+                <div className="px-4 py-4 text-sm text-error-600 dark:text-error-400">
+                  {indexError}
+                </div>
+              ) : null}
+
               {!query.trim() ? (
                 <div className="px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-light-tertiary dark:text-text-dark-tertiary">
@@ -378,7 +447,7 @@ export function HomeSearch({ items, triggerVariant = 'default' }: HomeSearchProp
                     )}
                   </div>
                 </div>
-              ) : filteredResults.length === 0 ? (
+              ) : filteredResults.length === 0 && !isIndexLoading ? (
                 <div className="px-4 py-12 text-center">
                   <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
                     No results for &quot;{query}&quot;.

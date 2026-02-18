@@ -16,7 +16,7 @@ const FEATURES = [
       '⚡ Ch.8: Adaptive Query Execution',
       '⚡ Ch.13: Optimization Playbook'
     ],
-    color: '#6b7fff',
+    color: '#10b981',
     footer: '4 topics · chapter-based learning'
   },
   {
@@ -31,7 +31,7 @@ const FEATURES = [
       '🔖 Bookmark your most-used functions',
       '🏷️ Filter by difficulty and category'
     ],
-    color: '#10b981',
+    color: '#14b8a6',
     footer: 'PySpark, SQL, Python, and Fabric references'
   },
   {

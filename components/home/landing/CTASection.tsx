@@ -15,7 +15,7 @@ export const CTASection = () => {
         </p>
         <Link
           href="/signup"
-          className="inline-flex items-center gap-2 rounded-xl bg-[#6b7fff] px-8 py-4 text-lg font-medium text-white transition-all hover:bg-[#5a6ef0]"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#10b981] px-8 py-4 text-lg font-medium text-white transition-all hover:bg-[#059669]"
         >
           Start for free
         </Link>

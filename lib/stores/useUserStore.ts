@@ -37,7 +37,7 @@ export const useUserStore = create<UserState>()(
         })
     }),
     {
-      name: 'datagridlab-storage',
+      name: 'stablegrid-storage',
       storage: createJSONStorage(() => localStorage)
     }
   )

@@ -1,5 +1,5 @@
 {
-  "name": "datagridlab",
+  "name": "stablegrid.io",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -13,7 +13,9 @@
     "test:run": "vitest run",
     "test:cover": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:perf:e2e": "PERF_ASSERT=1 npm run build && PERF_ASSERT=1 playwright test -c playwright.perf.config.ts tests/e2e/performance.spec.ts",
+    "perf:lighthouse": "npx --yes @lhci/cli@0.14.x autorun --config=.lighthouserc.json"
   },
   "dependencies": {
     "@monaco-editor/react": "4.6.0",

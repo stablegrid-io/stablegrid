@@ -8,7 +8,10 @@ import type { ReadingSession, TopicProgress } from '@/types/progress';
 import { ContinueReading } from '@/components/home/home/ContinueReading';
 import { DailyPracticeCard } from '@/components/home/home/DailyPracticeCard';
 import { HomeHeroHeader } from '@/components/home/home/HomeHeroHeader';
-import { WeeklyActivityCard } from '@/components/home/home/WeeklyActivityCard';
+import {
+  WeeklyActivityCard,
+  type ReadingSignal
+} from '@/components/home/home/WeeklyActivityCard';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { HOME_TOPIC_ORDER, getHomeTopicMeta } from '@/components/home/home/topicMeta';
 
@@ -16,7 +19,7 @@ interface HomeDashboardProps {
   user: User;
   topicProgress: TopicProgress[];
   recentSessions: ReadingSession[];
-  readingHistory: ReadingSession[];
+  readingSignals: ReadingSignal[];
   stats: {
     totalXp: number;
     currentStreak: number;
@@ -29,7 +32,7 @@ export const HomeDashboard = ({
   user,
   topicProgress,
   recentSessions,
-  readingHistory,
+  readingSignals,
   stats
 }: HomeDashboardProps) => {
   const questionHistory = useProgressStore((state) => state.questionHistory);
@@ -68,12 +71,6 @@ export const HomeDashboard = ({
 
   const overallProgress = useMemo(() => {
     const topicMap = new Map(topicProgress.map((topic) => [topic.topic, topic]));
-    const completedReadingByTopic = readingHistory
-      .filter((session) => session.isCompleted)
-      .reduce<Record<string, number>>((acc, session) => {
-        acc[session.topic] = (acc[session.topic] ?? 0) + 1;
-        return acc;
-      }, {});
 
     const chapterTotals = HOME_TOPIC_ORDER.reduce((sum, topicId) => {
       const dbTotal = topicMap.get(topicId)?.theoryChaptersTotal ?? 0;
@@ -83,8 +80,7 @@ export const HomeDashboard = ({
 
     const chapterCompleted = HOME_TOPIC_ORDER.reduce((sum, topicId) => {
       const dbCompleted = topicMap.get(topicId)?.theoryChaptersCompleted ?? 0;
-      const fallbackCompleted = completedReadingByTopic[topicId] ?? 0;
-      return sum + Math.max(dbCompleted, fallbackCompleted);
+      return sum + dbCompleted;
     }, 0);
 
     const practiceTotals = HOME_TOPIC_ORDER.reduce((sum, topicId) => {
@@ -103,7 +99,7 @@ export const HomeDashboard = ({
 
     const combined = Math.round((theoryPct + practicePct) / 2);
     return Math.max(0, Math.min(100, combined));
-  }, [readingHistory, stats.questionsCompleted, topicProgress]);
+  }, [stats.questionsCompleted, topicProgress]);
 
   const hasInProgress = recentSessions.length > 0;
   return (
@@ -152,7 +148,7 @@ export const HomeDashboard = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.18, duration: 0.4 }}
             >
-              <WeeklyActivityCard readingHistory={readingHistory} />
+              <WeeklyActivityCard readingSignals={readingSignals} />
             </motion.div>
           </div>
         </div>

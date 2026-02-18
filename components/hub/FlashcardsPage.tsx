@@ -91,11 +91,11 @@ export default function FlashcardsPage() {
   }, [topicStatuses]);
 
   return (
-    <main className="min-h-screen bg-light-bg px-6 pb-16 pt-10 dark:bg-[#060b12]">
+    <main className="min-h-screen bg-light-bg px-6 pb-16 pt-10 dark:bg-dark-bg">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-7">
         <header className="flex flex-col gap-3">
           <p className="data-mono text-xs uppercase tracking-[0.35em] text-brand-500/80">
-            DataGridLab Flashcard Deck
+            stablegrid.io Flashcard Deck
           </p>
           <h1 className="text-4xl font-semibold text-text-light-primary dark:text-text-dark-primary md:text-5xl font-display">
             Flashcards

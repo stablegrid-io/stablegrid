@@ -151,7 +151,7 @@ export function WorkspaceClient({ task }: WorkspaceClientProps) {
                   onChange={setCode}
                   language={language}
                   onLanguageChange={setLanguage}
-                  storageKey={`datagridlab-code-${task.id}`}
+                  storageKey={`stablegrid-code-${task.id}`}
                 />
               </Panel>
               <PanelResizeHandle className="my-2 h-2 rounded-full bg-light-hover hover:bg-light-active dark:bg-dark-hover dark:hover:bg-dark-active" />
@@ -169,7 +169,7 @@ export function WorkspaceClient({ task }: WorkspaceClientProps) {
             onChange={setCode}
             language={language}
             onLanguageChange={setLanguage}
-            storageKey={`datagridlab-code-${task.id}`}
+            storageKey={`stablegrid-code-${task.id}`}
           />
           <div className="h-64">
             <ConsoleOutput lines={consoleOutput} />

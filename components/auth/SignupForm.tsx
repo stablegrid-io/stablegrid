@@ -127,13 +127,13 @@ export function SignupForm() {
             className="pointer-events-none absolute inset-0 opacity-[0.035]"
             style={{
               backgroundImage:
-                'linear-gradient(#6b7fff 1px, transparent 1px), linear-gradient(90deg, #6b7fff 1px, transparent 1px)',
+                'linear-gradient(#10b981 1px, transparent 1px), linear-gradient(90deg, #10b981 1px, transparent 1px)',
               backgroundSize: '40px 40px'
             }}
           />
           <div
             className="pointer-events-none absolute -left-16 top-20 h-72 w-72 rounded-full opacity-15"
-            style={{ background: 'radial-gradient(circle, #6b7fff, transparent 70%)' }}
+            style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)' }}
           />
 
           <div className="relative z-10 inline-flex items-center gap-3">
@@ -141,7 +141,7 @@ export function SignupForm() {
               <Zap className="h-4.5 w-4.5 text-[#f0f0f0]" />
             </div>
             <div>
-              <p className="text-[28px] font-semibold tracking-tight text-[#f0f0f0]">DataGridLab</p>
+              <p className="text-[28px] font-semibold tracking-tight text-[#f0f0f0]">stablegrid.io</p>
               <p className="-mt-0.5 text-xs text-[#5f5f5f]">Data Engineering Platform</p>
             </div>
           </div>
@@ -187,7 +187,7 @@ export function SignupForm() {
           <div className="w-full max-w-md">
             <header className="mb-8">
               <p className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#b9b9b9]">
-                DataGridLab Access
+                stablegrid.io Access
               </p>
               <h2 className="font-display text-4xl font-bold tracking-tight text-[#121212]">
                 Create your account
@@ -291,7 +291,7 @@ export function SignupForm() {
                         Password
                       </label>
                       {passwordStrength ? (
-                        <span className="text-xs font-semibold text-[#6b7fff]">
+                        <span className="text-xs font-semibold text-[#10b981]">
                           {passwordStrength}
                         </span>
                       ) : null}

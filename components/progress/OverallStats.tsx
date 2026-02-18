@@ -22,7 +22,7 @@ export const OverallStats = ({
       label: 'Chapters Completed',
       value: chaptersCompleted,
       icon: BookOpen,
-      color: '#6b7fff',
+      color: '#10b981',
       sub: 'theory chapters finished'
     },
     {
@@ -36,7 +36,7 @@ export const OverallStats = ({
       label: 'Questions Correct',
       value: questionsCorrect,
       icon: CheckCircle2,
-      color: '#10b981',
+      color: '#14b8a6',
       sub: 'across all topics'
     },
     {

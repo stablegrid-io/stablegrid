@@ -50,7 +50,7 @@ export function DangerZoneTab({ onToast }: DangerZoneTabProps) {
       const blob = await response.blob();
       const contentDisposition = response.headers.get('content-disposition');
       const filenameMatch = contentDisposition?.match(/filename="?([^\"]+)"?/i);
-      const filename = filenameMatch?.[1] ?? 'datagridlab-export.json';
+      const filename = filenameMatch?.[1] ?? 'stablegrid-export.json';
 
       const url = window.URL.createObjectURL(blob);
       const anchor = document.createElement('a');

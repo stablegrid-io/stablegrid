@@ -276,7 +276,7 @@ export const useProgressStore = create<ProgressState>()(
         })
     }),
     {
-      name: 'datagridlab-progress',
+      name: 'stablegrid-progress',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         xp: state.xp,

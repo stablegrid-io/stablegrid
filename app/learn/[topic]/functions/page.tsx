@@ -29,12 +29,12 @@ export function generateMetadata({
   const sheet = cheatSheets[params.topic];
   if (!sheet) {
     return {
-      title: 'Functions | Learn | DataGridLab',
+      title: 'Functions | Learn | stablegrid.io',
       description: 'Interactive function reference.'
     };
   }
   return {
-    title: `${sheet.title} Functions | DataGridLab`,
+    title: `${sheet.title} Functions | stablegrid.io`,
     description: sheet.description
   };
 }

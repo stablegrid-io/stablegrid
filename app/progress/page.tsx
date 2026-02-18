@@ -1,7 +1,4 @@
 import { redirect } from 'next/navigation';
-import questionsIndex from '@/data/questions/index.json';
-import { cheatSheets } from '@/data/learn';
-import { theoryDocs } from '@/data/learn/theory';
 import { createClient } from '@/lib/supabase/server';
 import { ProgressDashboard } from '@/components/progress/ProgressDashboard';
 import type {
@@ -58,25 +55,51 @@ interface UserMissionRow {
 }
 
 const learnTopics: Topic[] = ['pyspark', 'sql', 'python', 'fabric'];
-const questionTopicMeta = questionsIndex.topics as Record<
-  string,
-  { totalQuestions?: number }
->;
 
-const getTopicDefaults = (topic: Topic) => {
-  const theory = theoryDocs[topic];
-  const practiceTotal = questionTopicMeta[topic]?.totalQuestions ?? 0;
-  const functionsTotal = cheatSheets[topic]?.functions.length ?? 0;
-  const theorySectionsTotal =
-    theory?.chapters.reduce((sum, chapter) => sum + chapter.sections.length, 0) ?? 0;
-  const theoryChaptersTotal = theory?.chapters.length ?? 0;
+const TOPIC_DEFAULTS: Record<
+  Topic,
+  {
+    theoryChaptersTotal: number;
+    theorySectionsTotal: number;
+    practiceTotal: number;
+    functionsTotal: number;
+  }
+> = {
+  pyspark: {
+    theoryChaptersTotal: 13,
+    theorySectionsTotal: 39,
+    practiceTotal: 45,
+    functionsTotal: 91
+  },
+  sql: {
+    theoryChaptersTotal: 10,
+    theorySectionsTotal: 30,
+    practiceTotal: 60,
+    functionsTotal: 60
+  },
+  python: {
+    theoryChaptersTotal: 9,
+    theorySectionsTotal: 27,
+    practiceTotal: 50,
+    functionsTotal: 50
+  },
+  fabric: {
+    theoryChaptersTotal: 5,
+    theorySectionsTotal: 15,
+    practiceTotal: 40,
+    functionsTotal: 40
+  }
+};
 
-  return {
-    theoryChaptersTotal,
-    theorySectionsTotal,
-    practiceTotal,
-    functionsTotal
-  };
+const ZERO_TOPIC_DEFAULT = {
+  theoryChaptersTotal: 0,
+  theorySectionsTotal: 0,
+  practiceTotal: 0,
+  functionsTotal: 0
+};
+
+const getTopicDefaults = (topic: Topic | string) => {
+  return TOPIC_DEFAULTS[topic as Topic] ?? ZERO_TOPIC_DEFAULT;
 };
 
 const toReadingSessionModel = (row: ReadingSessionRow): ReadingSession => ({

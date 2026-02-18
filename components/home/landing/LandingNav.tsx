@@ -23,10 +23,10 @@ export const LandingNav = () => {
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#6b7fff]">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#10b981]">
             <Zap className="h-4 w-4 fill-white text-white" />
           </div>
-          <span className="text-sm font-semibold tracking-tight">DataGridLab</span>
+          <span className="text-sm font-semibold tracking-tight">stablegrid.io</span>
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">
@@ -54,7 +54,7 @@ export const LandingNav = () => {
           </Link>
           <Link
             href="/signup"
-            className="rounded-lg bg-[#6b7fff] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5a6ef0]"
+            className="rounded-lg bg-[#10b981] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#059669]"
           >
             Start free
           </Link>

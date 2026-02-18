@@ -47,7 +47,7 @@ export async function POST() {
   return new NextResponse(JSON.stringify(payload, null, 2), {
     headers: {
       'Content-Type': 'application/json',
-      'Content-Disposition': `attachment; filename="datagridlab-export-${user.id}.json"`
+      'Content-Disposition': `attachment; filename="stablegrid-export-${user.id}.json"`
     }
   });
 }

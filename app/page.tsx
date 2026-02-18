@@ -1,6 +1,7 @@
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/server';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
+import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 
 const LandingPage = dynamic(() =>
   import('@/components/home/LandingPage').then((module) => module.LandingPage)
@@ -51,6 +52,12 @@ interface UserProgressRow {
   xp: number;
   streak: number;
   completed_questions: string[] | null;
+}
+
+interface ReadingSignalRow {
+  last_active_at: string;
+  completed_at: string | null;
+  is_completed: boolean;
 }
 
 const mapTopicProgressRow = (row: TopicProgressRow): TopicProgress => ({
@@ -105,7 +112,7 @@ export default async function RootPage() {
   const [
     topicProgressResult,
     recentSessionsResult,
-    readingHistoryResult,
+    readingSignalsResult,
     userProgressResult
   ] =
     await Promise.all([
@@ -127,11 +134,15 @@ export default async function RootPage() {
       supabase
         .from('reading_sessions')
         .select(
-          'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,active_seconds,is_completed'
+          'last_active_at,completed_at,is_completed'
         )
         .eq('user_id', userId)
+        .gte(
+          'last_active_at',
+          new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+        )
         .order('last_active_at', { ascending: false })
-        .limit(60),
+        .limit(120),
       supabase
         .from('user_progress')
         .select('xp, streak, completed_questions')
@@ -141,12 +152,16 @@ export default async function RootPage() {
 
   const topicProgressRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
   const recentSessionRows = (recentSessionsResult.data ?? []) as ReadingSessionRow[];
-  const readingHistoryRows = (readingHistoryResult.data ?? []) as ReadingSessionRow[];
+  const readingSignalRows = (readingSignalsResult.data ?? []) as ReadingSignalRow[];
   const userProgress = (userProgressResult.data ?? null) as UserProgressRow | null;
 
   const topicProgress = topicProgressRows.map(mapTopicProgressRow);
   const recentSessions = recentSessionRows.map(mapReadingSessionRow);
-  const readingHistory = readingHistoryRows.map(mapReadingSessionRow);
+  const readingSignals: ReadingSignal[] = readingSignalRows.map((row) => ({
+    lastActiveAt: row.last_active_at,
+    completedAt: row.completed_at,
+    isCompleted: row.is_completed
+  }));
 
   const totalAttempted = topicProgress.reduce(
     (sum, item) => sum + item.practiceQuestionsAttempted,
@@ -167,7 +182,7 @@ export default async function RootPage() {
       user={user}
       topicProgress={topicProgress}
       recentSessions={recentSessions}
-      readingHistory={readingHistory}
+      readingSignals={readingSignals}
       stats={{
         totalXp: userProgress?.xp ?? 0,
         currentStreak: userProgress?.streak ?? 0,

@@ -1,7 +1,6 @@
-import { HomeSearch } from '@/components/home/home/HomeSearch';
+import { LearnSearchPanel } from '@/components/home/home/LearnSearchPanel';
 import { TopicGrid } from '@/components/learn/TopicGrid';
 import { learnTopics } from '@/data/learn';
-import { learnSearchItems } from '@/lib/learn-search';
 
 export default function LearnPage() {
   return (
@@ -22,7 +21,7 @@ export default function LearnPage() {
           </header>
 
           <div className="mb-8">
-            <HomeSearch items={learnSearchItems} />
+            <LearnSearchPanel />
           </div>
 
           <TopicGrid topics={learnTopics} />

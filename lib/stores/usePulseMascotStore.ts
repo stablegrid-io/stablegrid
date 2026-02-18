@@ -30,7 +30,7 @@ export const usePulseMascotStore = create<PulseMascotState>()(
       reset: () => set(DEFAULT_STATE)
     }),
     {
-      name: 'datagridlab-pulse-mascot',
+      name: 'stablegrid-pulse-mascot',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         mood: state.mood,

@@ -8,7 +8,6 @@ import {
   Home,
   Swords
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 
 interface NavItem {
@@ -33,7 +32,11 @@ const navItems: NavItem[] = [
 
 const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
   if (!pathname) return false;
-  if (pathname.startsWith('/practice/') && pathname !== '/practice/setup') {
+  if (
+    pathname.startsWith('/practice/') &&
+    pathname !== '/practice/setup' &&
+    pathname !== '/practice/notebooks'
+  ) {
     return true;
   }
   if (pathname === '/') {
@@ -70,18 +73,14 @@ export const BottomNav = () => {
               type="button"
             >
               {isActive && (
-                <motion.div
-                  layoutId="bottomNavIndicator"
-                  className="absolute top-0 left-1/2 h-1 w-12 -translate-x-1/2 rounded-full bg-brand-500"
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                />
+                <div className="absolute left-1/2 top-0 h-1 w-12 -translate-x-1/2 rounded-full bg-emerald-500" />
               )}
 
               <div className="relative">
                 <Icon
                   className={`h-6 w-6 transition-colors ${
                     isActive
-                      ? 'text-brand-500'
+                      ? 'text-emerald-500'
                       : 'text-text-light-tertiary dark:text-text-dark-tertiary'
                   }`}
                 />
@@ -95,7 +94,7 @@ export const BottomNav = () => {
               <span
                 className={`text-xs font-medium transition-colors ${
                   isActive
-                    ? 'text-brand-500'
+                    ? 'text-emerald-500'
                     : 'text-text-light-tertiary dark:text-text-dark-tertiary'
                 }`}
               >

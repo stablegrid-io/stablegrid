@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
 import type { TopicInfo } from '@/lib/types';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
@@ -12,8 +11,8 @@ interface TopicCardProps {
 }
 
 const MONO_ACCENT = {
-  accentColor: '#6b7fff',
-  accentRgb: '107,127,255'
+  accentColor: '#10b981',
+  accentRgb: '16,185,129'
 };
 
 export function TopicCard({ topic, index = 0 }: TopicCardProps) {
@@ -35,13 +34,11 @@ export function TopicCard({ topic, index = 0 }: TopicCardProps) {
   const meta = MONO_ACCENT;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+    <div
       className="relative overflow-hidden rounded-2xl border border-light-border/90 bg-light-surface text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:border-dark-border dark:bg-[#0a1019] dark:hover:shadow-black/30"
       style={{
-        borderColor: `rgba(${meta.accentRgb}, 0.22)`
+        borderColor: `rgba(${meta.accentRgb}, 0.22)`,
+        transitionDelay: `${Math.min(index, 8) * 28}ms`
       }}
     >
       <div
@@ -134,6 +131,6 @@ export function TopicCard({ topic, index = 0 }: TopicCardProps) {
           </div>
         </div>
       </Link>
-    </motion.div>
+    </div>
   );
 }

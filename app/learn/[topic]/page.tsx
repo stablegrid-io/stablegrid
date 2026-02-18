@@ -26,13 +26,13 @@ export function generateMetadata({ params }: LearnTopicPageProps): Metadata {
   const meta = getLearnTopicMeta(params.topic);
   if (!meta) {
     return {
-      title: 'Learn | DataGridLab',
+      title: 'Learn | stablegrid.io',
       description: 'Topic learning modes.'
     };
   }
 
   return {
-    title: `${meta.title} | Learn | DataGridLab`,
+    title: `${meta.title} | Learn | stablegrid.io`,
     description: meta.description
   };
 }

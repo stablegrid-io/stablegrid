@@ -174,14 +174,14 @@ export const ProgressTrendChart = ({
               <Bar
                 dataKey="chaptersCompleted"
                 name="Chapters Completed"
-                fill="#6b7fff"
+                fill="#10b981"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={26}
               />
               <Bar
                 dataKey="correctAnswers"
                 name="Correct Answers"
-                fill="#10b981"
+                fill="#f59e0b"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={26}
               />
@@ -218,7 +218,7 @@ export const ProgressTrendChart = ({
                 type="monotone"
                 dataKey="chaptersCompleted"
                 name="Chapters Completed"
-                stroke="#6b7fff"
+                stroke="#10b981"
                 strokeWidth={2}
                 dot={false}
                 activeDot={{ r: 4 }}
@@ -227,7 +227,7 @@ export const ProgressTrendChart = ({
                 type="monotone"
                 dataKey="correctAnswers"
                 name="Correct Answers"
-                stroke="#10b981"
+                stroke="#f59e0b"
                 strokeWidth={2}
                 dot={false}
                 activeDot={{ r: 4 }}

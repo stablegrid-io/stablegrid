@@ -25,14 +25,14 @@ export const NextStepBanner = ({ session }: NextStepBannerProps) => {
       className="flex items-center gap-4 rounded-2xl border px-5 py-4"
       style={{
         borderColor: meta.softBorder,
-        background: `linear-gradient(135deg, ${meta.softBg}, rgba(107,127,255,0.05))`
+        background: `linear-gradient(135deg, ${meta.softBg}, rgba(16,185,129,0.05))`
       }}
     >
       <div
         className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-xl text-white"
         style={{
-          background: `linear-gradient(135deg, ${meta.color}, #6b7fff)`,
-          boxShadow: '0 8px 20px rgba(107, 127, 255, 0.25)'
+          background: `linear-gradient(135deg, ${meta.color}, #10b981)`,
+          boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)'
         }}
       >
         {meta.icon}

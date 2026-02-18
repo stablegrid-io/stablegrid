@@ -38,13 +38,13 @@ export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProp
             className="pointer-events-none absolute inset-0 opacity-[0.04]"
             style={{
               backgroundImage:
-                'linear-gradient(#6b7fff 1px, transparent 1px), linear-gradient(90deg, #6b7fff 1px, transparent 1px)',
+                'linear-gradient(#10b981 1px, transparent 1px), linear-gradient(90deg, #10b981 1px, transparent 1px)',
               backgroundSize: '36px 36px'
             }}
           />
           <div
             className="pointer-events-none absolute -left-28 -top-16 h-72 w-72 rounded-full opacity-20"
-            style={{ background: 'radial-gradient(circle, #6b7fff, transparent 70%)' }}
+            style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)' }}
           />
 
           <div className="relative z-10 w-full max-w-md">
@@ -53,7 +53,7 @@ export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProp
                 <Database className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-base font-semibold tracking-tight">DataGridLab</div>
+                <div className="text-base font-semibold tracking-tight">stablegrid.io</div>
                 <div className="text-xs text-[#737373]">Data Engineering Learning Platform</div>
               </div>
             </div>
@@ -97,7 +97,7 @@ export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProp
           <div className="w-full max-w-md">
             <header className="mb-8">
               <p className="data-mono mb-2 text-[11px] uppercase tracking-[0.22em] text-brand-500">
-                DataGridLab Access
+                stablegrid.io Access
               </p>
               <h1 className="mb-2 text-3xl font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">
                 {title}

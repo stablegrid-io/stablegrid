@@ -4,13 +4,18 @@ import { useMemo } from 'react';
 import { addDays, format, isAfter, parseISO, startOfWeek } from 'date-fns';
 import { BarChart3 } from 'lucide-react';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import type { ReadingSession } from '@/types/progress';
 
-interface WeeklyActivityCardProps {
-  readingHistory: ReadingSession[];
+export interface ReadingSignal {
+  lastActiveAt: string;
+  completedAt: string | null;
+  isCompleted: boolean;
 }
 
-export const WeeklyActivityCard = ({ readingHistory }: WeeklyActivityCardProps) => {
+interface WeeklyActivityCardProps {
+  readingSignals: ReadingSignal[];
+}
+
+export const WeeklyActivityCard = ({ readingSignals }: WeeklyActivityCardProps) => {
   const questionHistory = useProgressStore((state) => state.questionHistory);
   const weekStart = useMemo(
     () => startOfWeek(new Date(), { weekStartsOn: 1 }),
@@ -44,14 +49,14 @@ export const WeeklyActivityCard = ({ readingHistory }: WeeklyActivityCardProps) 
     const questions = chartData.reduce((sum, day) => sum + day.value, 0);
     const questionActiveDays = chartData.filter((day) => day.value > 0).map((day) => day.key);
 
-    const chapterCompletions = readingHistory.filter(
+    const chapterCompletions = readingSignals.filter(
       (session) =>
         session.isCompleted &&
         session.completedAt &&
         isAfter(parseISO(session.completedAt), addDays(weekStart, -1))
     ).length;
 
-    const readingActiveDays = readingHistory
+    const readingActiveDays = readingSignals
       .filter((session) => isAfter(parseISO(session.lastActiveAt), addDays(weekStart, -1)))
       .map((session) => format(parseISO(session.lastActiveAt), 'yyyy-MM-dd'));
 
@@ -62,7 +67,7 @@ export const WeeklyActivityCard = ({ readingHistory }: WeeklyActivityCardProps) 
       questions,
       chapters: chapterCompletions
     };
-  }, [chartData, readingHistory, weekStart]);
+  }, [chartData, readingSignals, weekStart]);
 
   return (
     <div className="rounded-2xl border border-neutral-100 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">

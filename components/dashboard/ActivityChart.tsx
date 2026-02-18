@@ -82,8 +82,8 @@ export const ActivityChart = ({ activityData }: ActivityChartProps) => {
         <AreaChart data={chartData} margin={{ left: -12, right: 8, top: 8 }}>
           <defs>
             <linearGradient id="questionsAreaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6b7fff" stopOpacity={0.18} />
-              <stop offset="95%" stopColor="#6b7fff" stopOpacity={0} />
+              <stop offset="5%" stopColor="#10b981" stopOpacity={0.18} />
+              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid
@@ -118,11 +118,11 @@ export const ActivityChart = ({ activityData }: ActivityChartProps) => {
           <Area
             type="monotone"
             dataKey="questions"
-            stroke="#6b7fff"
+            stroke="#10b981"
             strokeWidth={2}
             fill="url(#questionsAreaGradient)"
             dot={false}
-            activeDot={{ r: 4, fill: '#6b7fff', strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: '#10b981', strokeWidth: 0 }}
           />
         </AreaChart>
       </ResponsiveContainer>

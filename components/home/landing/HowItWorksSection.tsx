@@ -46,8 +46,8 @@ export const HowItWorksSection = () => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.15 }}
             >
-              <div className="relative z-10 mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-[#6b7fff]/30 bg-[#6b7fff]/10">
-                <span className="font-mono text-lg font-bold text-[#6b7fff]">
+              <div className="relative z-10 mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-[#10b981]/30 bg-[#10b981]/10">
+                <span className="font-mono text-lg font-bold text-[#10b981]">
                   {step.number}
                 </span>
               </div>

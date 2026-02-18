@@ -1,26 +1,39 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3,
   BookOpen,
   ChevronDown,
   Database,
   Home,
+  NotebookPen,
   ShieldAlert,
   Swords,
-  WalletCards
+  WalletCards,
+  type LucideIcon
 } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { UserMenu } from '@/components/layout/UserMenu';
-import { HomeSearch } from '@/components/home/home/HomeSearch';
+import { LearnSearchPanel } from '@/components/home/home/LearnSearchPanel';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
-import { learnSearchItems } from '@/lib/learn-search';
-import { learnTopics } from '@/data/learn';
 import { createClient } from '@/lib/supabase/client';
 import type { Topic } from '@/types/progress';
+import {
+  PracticeNavDropdown,
+  type PracticeNavChild
+} from '@/components/navigation/PracticeNavDropdown';
+
+const UserMenuLazy = dynamic(
+  () => import('@/components/layout/UserMenu').then((module) => module.UserMenu),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-9 w-9 rounded-full border border-light-border bg-light-surface dark:border-dark-border dark:bg-dark-surface" />
+    )
+  }
+);
 
 interface LearnNavProgress {
   theory: number;
@@ -29,18 +42,38 @@ interface LearnNavProgress {
 
 interface LearnTopicMeta {
   icon: string;
-  color: string;
-  rgb: string;
 }
 
+interface LearnNavTopic {
+  id: Topic;
+  title: string;
+  chapterCount: number;
+  functionCount: number;
+}
+
+const LEARN_NAV_TOPICS: LearnNavTopic[] = [
+  { id: 'pyspark', title: 'PySpark', chapterCount: 13, functionCount: 91 },
+  { id: 'sql', title: 'SQL', chapterCount: 10, functionCount: 60 },
+  { id: 'python', title: 'Python', chapterCount: 9, functionCount: 50 },
+  { id: 'fabric', title: 'Microsoft Fabric', chapterCount: 5, functionCount: 40 }
+];
+
 const LEARN_TOPIC_META: Record<string, LearnTopicMeta> = {
-  pyspark: { icon: '⚡', color: '#f59e0b', rgb: '245,158,11' },
-  sql: { icon: '🗄️', color: '#6b7fff', rgb: '107,127,255' },
-  python: { icon: '🐍', color: '#10b981', rgb: '16,185,129' },
-  fabric: { icon: '🏗️', color: '#06b6d4', rgb: '6,182,212' }
+  pyspark: { icon: '⚡' },
+  sql: { icon: '🗄️' },
+  python: { icon: '🐍' },
+  fabric: { icon: '🏗️' }
 };
 
-const defaultLearnProgress = learnTopics.reduce<Record<string, LearnNavProgress>>(
+const LEARN_NAV_TOPIC_LOOKUP = LEARN_NAV_TOPICS.reduce<Record<Topic, LearnNavTopic>>(
+  (accumulator, topic) => {
+    accumulator[topic.id] = topic;
+    return accumulator;
+  },
+  {} as Record<Topic, LearnNavTopic>
+);
+
+const defaultLearnProgress = LEARN_NAV_TOPICS.reduce<Record<string, LearnNavProgress>>(
   (accumulator, topic) => {
     accumulator[topic.id] = { theory: 0, functions: 0 };
     return accumulator;
@@ -48,7 +81,13 @@ const defaultLearnProgress = learnTopics.reduce<Record<string, LearnNavProgress>
   {}
 );
 
-const navItems = [
+const navItems: Array<{
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  matchPrefixes?: string[];
+  children?: PracticeNavChild[];
+}> = [
   { href: '/', icon: Home, label: 'Home' },
   { href: '/learn', icon: BookOpen, label: 'Learn' },
   {
@@ -58,6 +97,7 @@ const navItems = [
     matchPrefixes: ['/flashcards', '/hub', '/missions', '/practice'],
     children: [
       { href: '/flashcards', icon: WalletCards, label: 'Flashcards' },
+      { href: '/practice/notebooks', icon: NotebookPen, label: 'Notebooks' },
       { href: '/missions', icon: ShieldAlert, label: 'Missions' }
     ]
   },
@@ -66,7 +106,11 @@ const navItems = [
 
 const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
   if (!pathname) return false;
-  if (pathname.startsWith('/practice/') && pathname !== '/practice/setup') {
+  if (
+    pathname.startsWith('/practice/') &&
+    pathname !== '/practice/setup' &&
+    pathname !== '/practice/notebooks'
+  ) {
     return true;
   }
   if (pathname === '/') {
@@ -77,17 +121,45 @@ const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
 
 export const TopNav = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuthStore();
   const hideNav = shouldHideNav(pathname, Boolean(user));
   const [learnMenuOpen, setLearnMenuOpen] = useState(false);
   const [practiceMenuOpen, setPracticeMenuOpen] = useState(false);
   const [learnProgress, setLearnProgress] =
     useState<Record<string, LearnNavProgress>>(defaultLearnProgress);
+  const [hasLoadedLearnProgress, setHasLoadedLearnProgress] = useState(false);
   const learnMenuRef = useRef<HTMLDivElement | null>(null);
   const practiceMenuRef = useRef<HTMLDivElement | null>(null);
+  const prefetchedRoutesRef = useRef<Set<string>>(new Set());
 
   const isLearnActive =
     pathname === '/learn' || pathname?.startsWith('/learn/');
+
+  const prefetchRoute = useCallback(
+    (route: string) => {
+      if (prefetchedRoutesRef.current.has(route)) {
+        return;
+      }
+      prefetchedRoutesRef.current.add(route);
+      router.prefetch(route);
+    },
+    [router]
+  );
+
+  const prefetchPracticeRoutes = useCallback(() => {
+    prefetchRoute('/flashcards');
+    prefetchRoute('/practice/notebooks');
+    prefetchRoute('/missions');
+  }, [prefetchRoute]);
+
+  const prefetchLearnRoutes = useCallback(() => {
+    prefetchRoute('/learn');
+    LEARN_NAV_TOPICS.forEach((topic) => {
+      prefetchRoute(`/learn/${topic.id}/theory`);
+      prefetchRoute(`/learn/${topic.id}/functions`);
+    });
+  }, [prefetchRoute]);
 
   useEffect(() => {
     if (!learnMenuOpen && !practiceMenuOpen) return;
@@ -119,7 +191,7 @@ export const TopNav = () => {
   }, [learnMenuOpen, practiceMenuOpen]);
 
   useEffect(() => {
-    if (!learnMenuOpen || !user?.id) return;
+    if (!learnMenuOpen || !user?.id || hasLoadedLearnProgress) return;
 
     let cancelled = false;
 
@@ -142,12 +214,12 @@ export const TopNav = () => {
 
           const chapterTotal =
             Number(row.theory_chapters_total ?? 0) ||
-            learnTopics.find((entry) => entry.id === topic)?.chapterCount ||
+            LEARN_NAV_TOPIC_LOOKUP[topic]?.chapterCount ||
             0;
           const chapterCompleted = Number(row.theory_chapters_completed ?? 0);
           const functionTotal =
             Number(row.functions_total ?? 0) ||
-            learnTopics.find((entry) => entry.id === topic)?.functionCount ||
+            LEARN_NAV_TOPIC_LOOKUP[topic]?.functionCount ||
             0;
           const functionsViewed = Number(row.functions_viewed ?? 0);
 
@@ -165,6 +237,7 @@ export const TopNav = () => {
 
         if (!cancelled) {
           setLearnProgress(nextProgress);
+          setHasLoadedLearnProgress(true);
         }
       } catch {
         if (!cancelled) {
@@ -178,12 +251,54 @@ export const TopNav = () => {
     return () => {
       cancelled = true;
     };
-  }, [learnMenuOpen, user?.id]);
+  }, [hasLoadedLearnProgress, learnMenuOpen, user?.id]);
+
+  useEffect(() => {
+    setLearnProgress(defaultLearnProgress);
+    setHasLoadedLearnProgress(false);
+  }, [user?.id]);
 
   useEffect(() => {
     setLearnMenuOpen(false);
     setPracticeMenuOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const primaryRoutes = ['/learn', '/flashcards', '/progress'];
+    const secondaryRoutes = ['/practice/notebooks', '/missions', '/energy'];
+
+    const prefetchPrimary = () => {
+      primaryRoutes.forEach((route) => {
+        prefetchRoute(route);
+      });
+    };
+
+    const prefetchSecondary = () => {
+      void import('@/components/layout/UserMenu');
+      void import('@/components/hub/FlashcardsPage');
+      void import('@/components/practice/NotebooksPracticePage');
+      void import('@/components/home/home/LearnSearchPanel');
+      secondaryRoutes.forEach((route) => {
+        prefetchRoute(route);
+      });
+    };
+
+    const immediateId = window.setTimeout(prefetchPrimary, 0);
+
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(prefetchSecondary, { timeout: 1200 });
+      return () => {
+        window.clearTimeout(immediateId);
+        window.cancelIdleCallback(idleId);
+      };
+    }
+
+    const timeoutId = window.setTimeout(prefetchSecondary, 400);
+    return () => {
+      window.clearTimeout(immediateId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [prefetchRoute]);
 
   if (hideNav) {
     return null;
@@ -197,11 +312,11 @@ export const TopNav = () => {
             href="/"
             className="flex items-center gap-3 transition-opacity hover:opacity-80"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500">
               <Database className="h-5 w-5 text-white" />
             </div>
             <div className="hidden sm:block">
-              <div className="text-base font-semibold">DataGridLab</div>
+              <div className="text-base font-semibold">stablegrid.io</div>
               <div className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
                 Data Practice
               </div>
@@ -226,26 +341,24 @@ export const TopNav = () => {
                         setPracticeMenuOpen(false);
                         setLearnMenuOpen((open) => !open);
                       }}
+                      onMouseEnter={prefetchLearnRoutes}
+                      onFocus={prefetchLearnRoutes}
                       className="relative inline-flex items-center gap-2 overflow-hidden rounded-lg px-4 py-2 transition-colors hover:bg-light-hover dark:hover:bg-dark-hover"
                     >
                       {(isLearnActive || learnMenuOpen) && (
-                        <motion.div
-                          layoutId="topNavIndicator"
-                          className="absolute inset-0 rounded-lg border border-brand-200 bg-brand-50 dark:border-brand-800 dark:bg-brand-900/20"
-                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                        />
+                        <div className="absolute inset-0 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" />
                       )}
                       <Icon
                         className={`relative h-4 w-4 ${
                           isLearnActive || learnMenuOpen
-                            ? 'text-brand-500'
+                            ? 'text-emerald-500'
                             : 'text-text-light-secondary dark:text-text-dark-secondary'
                         }`}
                       />
                       <span
                         className={`relative text-sm font-medium ${
                           isLearnActive || learnMenuOpen
-                            ? 'text-brand-600 dark:text-brand-400'
+                            ? 'text-emerald-600 dark:text-emerald-400'
                             : 'text-text-light-primary dark:text-text-dark-primary'
                         }`}
                       >
@@ -254,7 +367,7 @@ export const TopNav = () => {
                       <ChevronDown
                         className={`relative h-3.5 w-3.5 transition-transform ${
                           isLearnActive || learnMenuOpen
-                            ? 'text-brand-500'
+                            ? 'text-emerald-500'
                             : 'text-text-light-tertiary dark:text-text-dark-tertiary'
                         } ${learnMenuOpen ? 'rotate-180' : ''}`}
                       />
@@ -262,7 +375,7 @@ export const TopNav = () => {
 
                     {learnMenuOpen ? (
                       <div className="absolute left-1/2 top-full z-50 w-[560px] -translate-x-1/2 pt-2">
-                        <div className="overflow-hidden rounded-2xl border border-light-border bg-light-surface shadow-2xl dark:border-dark-border dark:bg-[#0e1118]">
+                        <div className="overflow-hidden rounded-2xl border border-light-border bg-light-surface shadow-2xl dark:border-dark-border dark:bg-dark-surface">
                           <div className="grid grid-cols-2">
                             {(['theory', 'functions'] as const).map((mode) => (
                               <div
@@ -277,7 +390,7 @@ export const TopNav = () => {
                                   <div
                                     className={`flex h-6 w-6 items-center justify-center rounded-md border ${
                                       mode === 'theory'
-                                        ? 'border-brand-300 bg-brand-50 text-brand-600 dark:border-brand-700 dark:bg-brand-900/20 dark:text-brand-400'
+                                        ? 'border-emerald-300 bg-emerald-50 text-emerald-600 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
                                         : 'border-success-300 bg-success-50 text-success-600 dark:border-success-700 dark:bg-success-900/20 dark:text-success-400'
                                     }`}
                                   >
@@ -300,7 +413,7 @@ export const TopNav = () => {
                                 </div>
 
                                 <div className="space-y-1">
-                                  {learnTopics.map((topic) => {
+                                  {LEARN_NAV_TOPICS.map((topic) => {
                                     const meta = LEARN_TOPIC_META[topic.id];
                                     const progress =
                                       mode === 'theory'
@@ -315,14 +428,28 @@ export const TopNav = () => {
                                             ? `/learn/${topic.id}/theory`
                                             : `/learn/${topic.id}/functions`
                                         }
+                                        onMouseEnter={(event) => {
+                                          prefetchRoute(
+                                            mode === 'theory'
+                                              ? `/learn/${topic.id}/theory`
+                                              : `/learn/${topic.id}/functions`
+                                          );
+                                          event.currentTarget.style.borderColor =
+                                            'rgba(16,185,129,0.30)';
+                                          event.currentTarget.style.backgroundColor =
+                                            'rgba(16,185,129,0.12)';
+                                        }}
+                                        onFocus={() =>
+                                          prefetchRoute(
+                                            mode === 'theory'
+                                              ? `/learn/${topic.id}/theory`
+                                              : `/learn/${topic.id}/functions`
+                                          )
+                                        }
                                         onClick={() => setLearnMenuOpen(false)}
                                         className="group flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-2 transition-all hover:bg-light-bg hover:dark:bg-dark-bg"
                                         style={{
                                           borderColor: 'transparent'
-                                        }}
-                                        onMouseEnter={(event) => {
-                                          event.currentTarget.style.borderColor = `rgba(${meta?.rgb ?? '107,127,255'},0.24)`;
-                                          event.currentTarget.style.backgroundColor = `rgba(${meta?.rgb ?? '107,127,255'},0.08)`;
                                         }}
                                         onMouseLeave={(event) => {
                                           event.currentTarget.style.borderColor = 'transparent';
@@ -332,9 +459,9 @@ export const TopNav = () => {
                                         <div
                                           className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border text-sm"
                                           style={{
-                                            color: meta?.color ?? '#6b7fff',
-                                            backgroundColor: `rgba(${meta?.rgb ?? '107,127,255'},0.1)`,
-                                            borderColor: `rgba(${meta?.rgb ?? '107,127,255'},0.22)`
+                                            color: '#10b981',
+                                            backgroundColor: 'rgba(16,185,129,0.12)',
+                                            borderColor: 'rgba(16,185,129,0.28)'
                                           }}
                                         >
                                           {meta?.icon ?? '✦'}
@@ -342,10 +469,7 @@ export const TopNav = () => {
 
                                         <div className="min-w-0 flex-1">
                                           <div className="mb-1 flex items-center justify-between gap-2">
-                                            <span
-                                              className="truncate text-xs font-semibold text-text-light-primary dark:text-text-dark-primary"
-                                              style={{ color: meta?.color }}
-                                            >
+                                            <span className="truncate text-xs font-semibold text-text-light-primary dark:text-text-dark-primary">
                                               {topic.title}
                                             </span>
                                             <span className="text-[10px] font-medium text-text-light-tertiary dark:text-text-dark-tertiary">
@@ -354,10 +478,9 @@ export const TopNav = () => {
                                           </div>
                                           <div className="h-1 w-full rounded-full bg-light-border dark:bg-dark-border">
                                             <div
-                                              className="h-full rounded-full transition-all duration-300"
+                                              className="h-full rounded-full bg-emerald-500 transition-all duration-300"
                                               style={{
-                                                width: `${progress}%`,
-                                                backgroundColor: meta?.color ?? '#6b7fff'
+                                                width: `${progress}%`
                                               }}
                                             />
                                           </div>
@@ -407,26 +530,24 @@ export const TopNav = () => {
                         setLearnMenuOpen(false);
                         setPracticeMenuOpen((open) => !open);
                       }}
+                      onMouseEnter={prefetchPracticeRoutes}
+                      onFocus={prefetchPracticeRoutes}
                       className="relative inline-flex items-center gap-2 overflow-hidden rounded-lg px-4 py-2 transition-colors hover:bg-light-hover dark:hover:bg-dark-hover"
                     >
                       {(isActive || practiceMenuOpen) && (
-                        <motion.div
-                          layoutId="topNavIndicator"
-                          className="absolute inset-0 rounded-lg border border-brand-200 bg-brand-50 dark:border-brand-800 dark:bg-brand-900/20"
-                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                        />
+                        <div className="absolute inset-0 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" />
                       )}
                       <Icon
                         className={`relative h-4 w-4 ${
                           isActive || practiceMenuOpen
-                            ? 'text-brand-500'
+                            ? 'text-emerald-500'
                             : 'text-text-light-secondary dark:text-text-dark-secondary'
                         }`}
                       />
                       <span
                         className={`relative text-sm font-medium ${
                           isActive || practiceMenuOpen
-                            ? 'text-brand-600 dark:text-brand-400'
+                            ? 'text-emerald-600 dark:text-emerald-400'
                             : 'text-text-light-primary dark:text-text-dark-primary'
                         }`}
                       >
@@ -435,7 +556,7 @@ export const TopNav = () => {
                       <ChevronDown
                         className={`relative h-3.5 w-3.5 transition ${
                           isActive || practiceMenuOpen
-                            ? 'text-brand-500'
+                            ? 'text-emerald-500'
                             : 'text-text-light-tertiary dark:text-text-dark-tertiary'
                         } ${practiceMenuOpen ? 'rotate-180' : ''}`}
                       />
@@ -443,29 +564,11 @@ export const TopNav = () => {
 
                     {practiceMenuOpen ? (
                       <div className="absolute left-0 top-full z-50 w-48 pt-1">
-                        <div className="rounded-xl border border-light-border bg-light-surface p-1.5 shadow-lg dark:border-dark-border dark:bg-dark-surface">
-                          {item.children.map((child) => {
-                            const ChildIcon = child.icon;
-                            const childActive =
-                              pathname === child.href || pathname?.startsWith(`${child.href}/`);
-
-                            return (
-                              <Link
-                                key={child.href}
-                                href={child.href}
-                                onClick={() => setPracticeMenuOpen(false)}
-                                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
-                                  childActive
-                                    ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-300'
-                                    : 'text-text-light-secondary hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary'
-                                }`}
-                              >
-                                <ChildIcon className="h-4 w-4" />
-                                {child.label}
-                              </Link>
-                            );
-                          })}
-                        </div>
+                        <PracticeNavDropdown
+                          items={item.children}
+                          pathname={pathname}
+                          onSelect={() => setPracticeMenuOpen(false)}
+                        />
                       </div>
                     ) : null}
                   </div>
@@ -476,26 +579,24 @@ export const TopNav = () => {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onMouseEnter={() => prefetchRoute(item.href)}
+                  onFocus={() => prefetchRoute(item.href)}
                   className="relative inline-flex items-center gap-2 overflow-hidden rounded-lg px-4 py-2 transition-colors hover:bg-light-hover dark:hover:bg-dark-hover"
                 >
                   {isActive && (
-                    <motion.div
-                      layoutId="topNavIndicator"
-                      className="absolute inset-0 rounded-lg border border-brand-200 bg-brand-50 dark:border-brand-800 dark:bg-brand-900/20"
-                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    />
+                    <div className="absolute inset-0 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" />
                   )}
                   <Icon
                     className={`relative h-4 w-4 ${
                       isActive
-                        ? 'text-brand-500'
+                        ? 'text-emerald-500'
                         : 'text-text-light-secondary dark:text-text-dark-secondary'
                     }`}
                   />
                   <span
                     className={`relative text-sm font-medium ${
                       isActive
-                        ? 'text-brand-600 dark:text-brand-400'
+                        ? 'text-emerald-600 dark:text-emerald-400'
                         : 'text-text-light-primary dark:text-text-dark-primary'
                     }`}
                   >
@@ -508,10 +609,10 @@ export const TopNav = () => {
 
           <div className="flex items-center gap-3">
             <div className="hidden xl:block xl:w-[150px]">
-              <HomeSearch items={learnSearchItems} triggerVariant="nav" />
+              <LearnSearchPanel triggerVariant="nav" />
             </div>
             {user ? (
-              <UserMenu />
+              <UserMenuLazy />
             ) : (
               <Link href="/login" className="btn btn-secondary">
                 Sign in

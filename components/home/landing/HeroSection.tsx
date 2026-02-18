@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ArrowRight, Zap } from 'lucide-react';
 
 const HERO_CODE = `# Chapter 4: Shuffles — The Performance Killer
-# From DataGridLab's PySpark Theory Guide
+# From stablegrid.io's PySpark Theory Guide
 
 # ❌ Two shuffles — slow
 result = (
@@ -32,14 +32,14 @@ export const HeroSection = () => {
         className="absolute inset-0 opacity-[0.03]"
         style={{
           backgroundImage:
-            'linear-gradient(#6b7fff 1px, transparent 1px), linear-gradient(90deg, #6b7fff 1px, transparent 1px)',
+            'linear-gradient(#10b981 1px, transparent 1px), linear-gradient(90deg, #10b981 1px, transparent 1px)',
           backgroundSize: '40px 40px'
         }}
       />
 
       <div
         className="pointer-events-none absolute left-1/4 top-1/3 h-[600px] w-[600px] rounded-full opacity-10"
-        style={{ background: 'radial-gradient(circle, #6b7fff, transparent 70%)' }}
+        style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)' }}
       />
 
       <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-16 px-6 py-24 lg:grid-cols-2">
@@ -48,7 +48,7 @@ export const HeroSection = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#6b7fff]/20 bg-[#6b7fff]/10 px-3 py-1.5 text-xs font-medium text-[#6b7fff]">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#10b981]/20 bg-[#10b981]/10 px-3 py-1.5 text-xs font-medium text-[#10b981]">
             <Zap className="h-3 w-3" />
             Data Engineering · Theory + Reference + Practice
           </div>
@@ -58,7 +58,7 @@ export const HeroSection = () => {
             <br />
             engineering
             <br />
-            <span className="text-[#6b7fff]">that actually scales.</span>
+            <span className="text-[#10b981]">that actually scales.</span>
           </h1>
 
           <p className="mb-8 max-w-md text-lg leading-relaxed text-[#a3a3a3]">
@@ -69,7 +69,7 @@ export const HeroSection = () => {
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/signup"
-              className="group flex items-center justify-center gap-2 rounded-xl bg-[#6b7fff] px-6 py-3 font-medium text-white transition-all duration-200 hover:bg-[#5a6ef0]"
+              className="group flex items-center justify-center gap-2 rounded-xl bg-[#10b981] px-6 py-3 font-medium text-white transition-all duration-200 hover:bg-[#059669]"
             >
               Start for free
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -109,7 +109,7 @@ export const HeroSection = () => {
 
             <div className="flex items-center gap-3 border-t border-[#1f1f1f] px-4 py-3">
               <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#1f1f1f]">
-                <div className="h-full w-3/4 rounded-full bg-[#6b7fff]" />
+                <div className="h-full w-3/4 rounded-full bg-[#10b981]" />
               </div>
               <span className="font-mono text-xs text-[#525252]">3/4 sections read</span>
             </div>

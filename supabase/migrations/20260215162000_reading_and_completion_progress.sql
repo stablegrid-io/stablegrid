@@ -1,5 +1,5 @@
 -- Reading sessions and completion tracking
--- Generated for DataGridLab progress redesign
+-- Generated for stablegrid.io progress redesign
 
 create extension if not exists "pgcrypto";
 
