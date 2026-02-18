@@ -27,8 +27,9 @@ const dmSerif = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'stablegrid.io | Data Analytics Flashcards',
-  description: 'Sequential flashcard drills for mid-level data analysts.'
+  title: 'StableGrid | Master Data Engineering by Balancing the Grid',
+  description:
+    'Earn kWh deployment credits through data engineering tasks and deploy infrastructure to stabilize a renewable grid simulation.'
 };
 
 export default function RootLayout({

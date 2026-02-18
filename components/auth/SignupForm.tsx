@@ -148,16 +148,16 @@ export function SignupForm() {
 
           <div className="relative z-10">
             <p className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#3b3b3b]">
-              Energy Lab · Project Rebuild
+              StableGrid Operations
             </p>
             <h1 className="font-display text-[42px] font-bold leading-[1.06] tracking-tight text-[#f0f0f0]">
               Learn data engineering.
               <br />
-              Restore the grid.
+              Stabilize the grid.
             </h1>
             <p className="mt-5 max-w-[390px] text-sm leading-7 text-[#5c5c5c]">
-              Correct answers generate verified kWh and feed your mission timeline.
-              Continue where you left off across flashcards, theory, and incidents.
+              Correct answers generate deployment kWh you can spend on infrastructure.
+              Continue where you left off across practice, theory, and mission operations.
             </p>
 
             <div className="mt-9">

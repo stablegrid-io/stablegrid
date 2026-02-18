@@ -4,9 +4,35 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { PracticeTopic } from '@/lib/types';
 import {
+  DEFAULT_DEPLOYED_NODE_IDS,
   ENERGY_REWARDS,
-  FLASHCARD_STREAK_MILESTONES
+  FLASHCARD_STREAK_MILESTONES,
+  INFRASTRUCTURE_BY_ID,
+  getAvailableBudgetUnits as computeAvailableBudgetUnits,
+  getGridStabilityPct as computeGridStabilityPct,
+  kwhToUnits
 } from '@/lib/energy';
+
+const sanitizeDeployedNodeIds = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [...DEFAULT_DEPLOYED_NODE_IDS];
+  }
+
+  const sanitized = value
+    .filter((item): item is string => typeof item === 'string')
+    .filter((item) => Boolean(INFRASTRUCTURE_BY_ID[item]));
+
+  if (sanitized.length === 0) {
+    return [...DEFAULT_DEPLOYED_NODE_IDS];
+  }
+
+  const deduped = Array.from(new Set(sanitized));
+  if (!deduped.includes(DEFAULT_DEPLOYED_NODE_IDS[0])) {
+    deduped.unshift(DEFAULT_DEPLOYED_NODE_IDS[0]);
+  }
+
+  return deduped;
+};
 
 interface TopicStats {
   correct: number;
@@ -27,6 +53,7 @@ type EnergyEventSource =
   | 'streak-milestone'
   | 'chapter-complete'
   | 'mission'
+  | 'infrastructure-deploy'
   | 'manual';
 
 interface EnergyEvent {
@@ -42,6 +69,9 @@ interface ProgressState {
   xp: number;
   streak: number;
   completedQuestions: string[];
+  deployedNodeIds: string[];
+  lastDeployedNodeId: string | null;
+  revision: number;
   topicProgress: Record<PracticeTopic, TopicStats>;
   dailyXP: Record<string, number>;
   dailyQuestions: Record<string, number>;
@@ -63,9 +93,12 @@ interface ProgressState {
     correct: boolean,
     xp: number
   ) => void;
+  deployInfrastructure: (nodeId: string) => boolean;
+  getAvailableBudgetUnits: () => number;
+  getGridStabilityPct: () => number;
   setUserId: (userId: string | null) => void;
   syncProgress: (userId: string) => Promise<void>;
-  saveProgress: (userId: string) => Promise<void>;
+  saveProgress: () => Promise<void>;
   resetStreak: () => void;
   resetProgress: () => void;
 }
@@ -83,6 +116,9 @@ export const useProgressStore = create<ProgressState>()(
       xp: 0,
       streak: 0,
       completedQuestions: [],
+      deployedNodeIds: [...DEFAULT_DEPLOYED_NODE_IDS],
+      lastDeployedNodeId: null,
+      revision: 0,
       topicProgress: defaultTopicStats,
       dailyXP: {},
       dailyQuestions: {},
@@ -98,6 +134,7 @@ export const useProgressStore = create<ProgressState>()(
 
         set((state) => ({
           xp: state.xp + xpToAdd,
+          revision: state.revision + 1,
           dailyXP: {
             ...state.dailyXP,
             [today]: (state.dailyXP[today] ?? 0) + xpToAdd
@@ -115,10 +152,7 @@ export const useProgressStore = create<ProgressState>()(
           ].slice(-200)
         }));
 
-        const { userId } = get();
-        if (userId) {
-          void get().saveProgress(userId);
-        }
+        void get().saveProgress();
       },
       answerQuestion: (questionId, topic, correct, xp) => {
         const now = new Date().toISOString();
@@ -188,6 +222,7 @@ export const useProgressStore = create<ProgressState>()(
             xp: state.xp + totalEnergyUnits,
             streak: nextStreak,
             completedQuestions: nextCompleted,
+            revision: state.revision + 1,
             topicProgress: {
               ...state.topicProgress,
               [topic]: {
@@ -203,13 +238,64 @@ export const useProgressStore = create<ProgressState>()(
           };
         });
 
-        const { userId } = get();
-        if (userId) {
-          void get().saveProgress(userId);
+        void get().saveProgress();
+      },
+      deployInfrastructure: (nodeId) => {
+        let didDeploy = false;
+        set((state) => {
+          if (state.deployedNodeIds.includes(nodeId)) {
+            return state;
+          }
+
+          const infrastructure = INFRASTRUCTURE_BY_ID[nodeId];
+          if (!infrastructure) {
+            return state;
+          }
+
+          const availableUnits = computeAvailableBudgetUnits(
+            state.xp,
+            state.deployedNodeIds
+          );
+          const requiredUnits = kwhToUnits(infrastructure.kwhRequired);
+          if (availableUnits < requiredUnits) {
+            return state;
+          }
+
+          const deploymentEvent: EnergyEvent = {
+            id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            source: 'infrastructure-deploy',
+            units: -requiredUnits,
+            timestamp: Date.now(),
+            label: `Deployed ${infrastructure.name}`
+          };
+
+          didDeploy = true;
+          return {
+            deployedNodeIds: [...state.deployedNodeIds, nodeId],
+            lastDeployedNodeId: nodeId,
+            revision: state.revision + 1,
+            energyEvents: [...state.energyEvents, deploymentEvent].slice(-200)
+          };
+        });
+
+        if (didDeploy) {
+          void get().saveProgress();
         }
+
+        return didDeploy;
+      },
+      getAvailableBudgetUnits: () => {
+        const state = get();
+        return computeAvailableBudgetUnits(state.xp, state.deployedNodeIds);
+      },
+      getGridStabilityPct: () => {
+        const state = get();
+        return computeGridStabilityPct(state.deployedNodeIds);
       },
       setUserId: (userId) => set({ userId }),
       syncProgress: async (_userId) => {
+        const syncStartedAt = Date.now();
+        const syncStartRevision = get().revision;
         try {
           const response = await fetch('/api/auth/sync-progress', {
             method: 'GET'
@@ -220,22 +306,45 @@ export const useProgressStore = create<ProgressState>()(
           const payload = await response.json();
           const data = payload?.data;
           if (data) {
-            set({
-              xp: data.xp ?? 0,
-              streak: data.streak ?? 0,
-              completedQuestions: data.completed_questions ?? [],
-              topicProgress: {
-                ...defaultTopicStats,
-                ...(data.topic_progress ?? {})
-              },
-              lastSynced: new Date().toISOString()
+            const deployedNodeIds = sanitizeDeployedNodeIds(data.deployed_node_ids);
+            const rawLastDeployedNodeId =
+              typeof data.last_deployed_node_id === 'string'
+                ? data.last_deployed_node_id
+                : null;
+            set((state) => {
+              // Prevent stale sync responses from overriding newer local writes (e.g. deploy right after login).
+              if (state.revision !== syncStartRevision) {
+                return {
+                  lastSynced: new Date().toISOString()
+                };
+              }
+              const latestSync = state.lastSynced ? Date.parse(state.lastSynced) : 0;
+              if (Number.isFinite(latestSync) && latestSync > syncStartedAt) {
+                return state;
+              }
+
+              return {
+                xp: data.xp ?? 0,
+                streak: data.streak ?? 0,
+                completedQuestions: data.completed_questions ?? [],
+                deployedNodeIds,
+                lastDeployedNodeId:
+                  rawLastDeployedNodeId && deployedNodeIds.includes(rawLastDeployedNodeId)
+                    ? rawLastDeployedNodeId
+                    : null,
+                topicProgress: {
+                  ...defaultTopicStats,
+                  ...(data.topic_progress ?? {})
+                },
+                lastSynced: new Date().toISOString()
+              };
             });
           }
         } catch (error) {
           console.error('Failed to sync progress:', error);
         }
       },
-      saveProgress: async (_userId) => {
+      saveProgress: async () => {
         const state = get();
         try {
           const response = await fetch('/api/auth/sync-progress', {
@@ -245,6 +354,8 @@ export const useProgressStore = create<ProgressState>()(
               xp: state.xp,
               streak: state.streak,
               completedQuestions: state.completedQuestions,
+              deployedNodeIds: state.deployedNodeIds,
+              lastDeployedNodeId: state.lastDeployedNodeId,
               topicProgress: state.topicProgress
             })
           });
@@ -260,12 +371,15 @@ export const useProgressStore = create<ProgressState>()(
           console.error('Failed to save progress:', error);
         }
       },
-      resetStreak: () => set({ streak: 0 }),
+      resetStreak: () => set((state) => ({ streak: 0, revision: state.revision + 1 })),
       resetProgress: () =>
-        set({
+        set((state) => ({
           xp: 0,
           streak: 0,
           completedQuestions: [],
+          deployedNodeIds: [...DEFAULT_DEPLOYED_NODE_IDS],
+          lastDeployedNodeId: null,
+          revision: state.revision + 1,
           topicProgress: defaultTopicStats,
           dailyXP: {},
           dailyQuestions: {},
@@ -273,7 +387,7 @@ export const useProgressStore = create<ProgressState>()(
           energyEvents: [],
           lastSynced: null,
           userId: null
-        })
+        }))
     }),
     {
       name: 'stablegrid-progress',
@@ -282,6 +396,8 @@ export const useProgressStore = create<ProgressState>()(
         xp: state.xp,
         streak: state.streak,
         completedQuestions: state.completedQuestions,
+        deployedNodeIds: state.deployedNodeIds,
+        lastDeployedNodeId: state.lastDeployedNodeId,
         topicProgress: state.topicProgress,
         dailyXP: state.dailyXP,
         dailyQuestions: state.dailyQuestions,

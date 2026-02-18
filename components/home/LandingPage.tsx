@@ -9,7 +9,7 @@ import { LandingFooter } from '@/components/home/landing/LandingFooter';
 
 export const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#fafafa]">
+    <div className="min-h-screen bg-[#09111e] text-[#d8eaf8]">
       <LandingNav />
       <main>
         <HeroSection />

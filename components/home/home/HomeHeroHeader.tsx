@@ -5,8 +5,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Flame, Target, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { MascotWalker } from '@/components/mascot/MascotWalker';
-import { formatUnitsAsKwh, unitsToKwh } from '@/lib/energy';
+import {
+  formatUnitsAsKwh,
+  getAvailableBudgetUnits,
+  unitsToKwh
+} from '@/lib/energy';
 import { usePulseMascotStore } from '@/lib/stores/usePulseMascotStore';
+import { useProgressStore } from '@/lib/stores/useProgressStore';
 
 interface HomeHeroHeaderProps {
   firstName: string;
@@ -34,7 +39,9 @@ export const HomeHeroHeader = ({
   const pulseMood = usePulseMascotStore((state) => state.mood);
   const pulseMotion = usePulseMascotStore((state) => state.motion);
   const pulseAction = usePulseMascotStore((state) => state.action);
-  const energyBalanceKwh = unitsToKwh(totalEnergyUnits);
+  const deployedNodeIds = useProgressStore((state) => state.deployedNodeIds);
+  const availableBudgetUnits = getAvailableBudgetUnits(totalEnergyUnits, deployedNodeIds);
+  const energyBalanceKwh = unitsToKwh(availableBudgetUnits);
   const todayKwh = unitsToKwh(energyTodayUnits);
   const batteryPct = Math.max(8, Math.min(100, Math.round((energyBalanceKwh % 10) * 10)));
   const [showEnergyBurst, setShowEnergyBurst] = useState(false);
@@ -58,10 +65,10 @@ export const HomeHeroHeader = ({
 
   const statCards = [
     {
-      label: 'Energy balance',
-      value: formatUnitsAsKwh(totalEnergyUnits),
+      label: 'Deployment budget',
+      value: formatUnitsAsKwh(availableBudgetUnits),
       icon: Zap,
-      subLabel: 'lifetime generated'
+      subLabel: 'available to spend'
     },
     {
       label: 'Current streak',
@@ -170,7 +177,7 @@ export const HomeHeroHeader = ({
                 </AnimatePresence>
               </div>
               <div className="text-xs text-emerald-200">
-                Energy Balance: <span className="font-semibold">{formatUnitsAsKwh(totalEnergyUnits)}</span>
+                Budget: <span className="font-semibold">{formatUnitsAsKwh(availableBudgetUnits)}</span>
               </div>
               <div className="text-xs text-emerald-300">
                 Today +{todayKwh.toLocaleString(undefined, { maximumFractionDigits: 2 })} kWh
@@ -180,7 +187,7 @@ export const HomeHeroHeader = ({
                 data-pulse-target="home-energy-lab"
                 className="rounded-md border border-emerald-400/30 px-2 py-1 text-[11px] font-medium text-emerald-200 transition hover:bg-emerald-500/20"
               >
-                Open Energy Lab
+                Open Infrastructure Map
               </Link>
             </div>
           </div>

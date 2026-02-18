@@ -1,5 +1,27 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { DEFAULT_DEPLOYED_NODE_IDS, INFRASTRUCTURE_BY_ID } from '@/lib/energy';
+
+const INFRASTRUCTURE_NODE_ID_SET = new Set(Object.keys(INFRASTRUCTURE_BY_ID));
+
+const sanitizeDeployedNodeIds = (value: unknown) => {
+  if (!Array.isArray(value)) return null;
+
+  const sanitized = value
+    .filter((item): item is string => typeof item === 'string')
+    .filter((item) => INFRASTRUCTURE_NODE_ID_SET.has(item));
+
+  if (sanitized.length === 0) {
+    return [...DEFAULT_DEPLOYED_NODE_IDS];
+  }
+
+  const deduped = Array.from(new Set(sanitized));
+  if (!deduped.includes(DEFAULT_DEPLOYED_NODE_IDS[0])) {
+    deduped.unshift(DEFAULT_DEPLOYED_NODE_IDS[0]);
+  }
+
+  return deduped;
+};
 
 export async function GET() {
   const supabase = createClient();
@@ -66,17 +88,41 @@ export async function POST(request: Request) {
     typeof payload.topicProgress === 'object' && payload.topicProgress !== null
       ? payload.topicProgress
       : {};
+  const hasDeployedNodeIds = Object.prototype.hasOwnProperty.call(
+    payload,
+    'deployedNodeIds'
+  );
+  const hasLastDeployedNodeId = Object.prototype.hasOwnProperty.call(
+    payload,
+    'lastDeployedNodeId'
+  );
+  const deployedNodeIds = sanitizeDeployedNodeIds(payload.deployedNodeIds);
+  const lastDeployedNodeIdRaw =
+    typeof payload.lastDeployedNodeId === 'string' ? payload.lastDeployedNodeId : null;
+  const lastDeployedNodeId =
+    lastDeployedNodeIdRaw && deployedNodeIds?.includes(lastDeployedNodeIdRaw)
+      ? lastDeployedNodeIdRaw
+      : null;
+
+  const updatePayload: Record<string, unknown> = {
+    user_id: user.id,
+    xp,
+    streak,
+    completed_questions: completedQuestions,
+    topic_progress: topicProgress,
+    last_activity: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  if (hasDeployedNodeIds && deployedNodeIds) {
+    updatePayload.deployed_node_ids = deployedNodeIds;
+  }
+  if (hasLastDeployedNodeId) {
+    updatePayload.last_deployed_node_id = lastDeployedNodeId;
+  }
 
   const { error } = await supabase.from('user_progress').upsert(
-    {
-      user_id: user.id,
-      xp,
-      streak,
-      completed_questions: completedQuestions,
-      topic_progress: topicProgress,
-      last_activity: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
+    updatePayload,
     { onConflict: 'user_id' }
   );
 

@@ -19,7 +19,7 @@ export const QuickStats = ({
 }: QuickStatsProps) => {
   const cards = [
     {
-      label: 'Total XP',
+      label: 'Total kWh',
       value: formatNumber(xp),
       icon: Trophy,
       color: 'text-amber-500',

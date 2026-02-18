@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PracticeTopic, Question } from '@/lib/types';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { validateAnswer } from '@/lib/validators/answerValidator';
-import { ENERGY_REWARDS } from '@/lib/energy';
+import { getPracticeRewardUnits } from '@/lib/energy';
 import sqlQuestionsData from '@/data/questions/sql.json';
 import pythonQuestionsData from '@/data/questions/python.json';
 import pysparkQuestionsData from '@/data/questions/pyspark.json';
@@ -212,7 +212,7 @@ export const useQuestionSession = (
       const alreadyAnswered = answeredQuestionIds.has(currentQuestion.id);
       const xpGained =
         !alreadyAnswered && finalCorrect
-          ? ENERGY_REWARDS.flashcardCorrectUnits
+          ? getPracticeRewardUnits(currentQuestion.difficulty)
           : 0;
       setLastXpGained(xpGained);
 

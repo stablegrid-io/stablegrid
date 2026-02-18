@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   ENERGY_UNITS_PER_KWH,
   formatKwh,
+  getAvailableBudgetUnits,
   getChapterCompletionRewardUnits,
-  getEnergyTier,
+  getGridStabilityPct,
   getMissionRewardKwh,
   getMissionRewardUnits,
-  getNextEnergyTier,
-  getTierProgressPct,
-  getHoursPowered,
+  getPracticeRewardKwh,
+  getSpentInfrastructureUnits,
+  getStabilityTier,
   kwhToUnits,
   unitsToKwh
 } from '@/lib/energy';
@@ -30,50 +31,57 @@ describe('energy conversion', () => {
   });
 });
 
-describe('mission and chapter rewards', () => {
+describe('reward model', () => {
   it('maps mission reward by difficulty', () => {
-    expect(getMissionRewardKwh('Medium')).toBe(0.5);
-    expect(getMissionRewardKwh('Hard')).toBe(1.5);
-    expect(getMissionRewardKwh('Expert')).toBe(3);
+    expect(getMissionRewardKwh('Medium')).toBe(0.4);
+    expect(getMissionRewardKwh('Hard')).toBe(1.4);
+    expect(getMissionRewardKwh('Expert')).toBe(2.4);
   });
 
   it('returns mission reward in units', () => {
-    expect(getMissionRewardUnits('Hard')).toBe(1500);
+    expect(getMissionRewardUnits('Hard')).toBe(1400);
   });
 
-  it('returns chapter completion reward tiers', () => {
-    expect(getChapterCompletionRewardUnits(10)).toBe(2000);
-    expect(getChapterCompletionRewardUnits(20)).toBe(4000);
-    expect(getChapterCompletionRewardUnits(35)).toBe(8000);
-  });
-});
-
-describe('tier logic', () => {
-  it('returns current tier and next tier', () => {
-    expect(getEnergyTier(0).title).toBe('Coffee Corner');
-    expect(getNextEnergyTier(0)?.title).toBe('Workspace');
-    expect(getEnergyTier(60).title).toBe('Server Rack');
-    expect(getNextEnergyTier(60)?.title).toBe('Apartment');
+  it('returns fixed chapter completion reward', () => {
+    expect(getChapterCompletionRewardUnits(10)).toBe(150);
+    expect(getChapterCompletionRewardUnits(20)).toBe(150);
+    expect(getChapterCompletionRewardUnits(35)).toBe(150);
   });
 
-  it('returns 100% at max tier', () => {
-    expect(getTierProgressPct(450)).toBe(100);
-  });
-
-  it('computes in-tier progress', () => {
-    // Tier 2 spans 2..10 kWh, 6kWh is 50% through that tier
-    expect(getTierProgressPct(6)).toBeCloseTo(50, 4);
+  it('maps practice rewards by difficulty', () => {
+    expect(getPracticeRewardKwh('easy')).toBe(0.04);
+    expect(getPracticeRewardKwh('medium')).toBe(0.08);
+    expect(getPracticeRewardKwh('hard')).toBe(0.12);
   });
 });
 
-describe('device equivalence', () => {
-  it('calculates hours powered', () => {
-    expect(getHoursPowered(2, 2)).toBe(1);
-    expect(getHoursPowered(0.6, 0.06)).toBeCloseTo(10, 4);
+describe('infrastructure budget and stability', () => {
+  it('computes spent and available deployment budget', () => {
+    const deployedNodeIds = ['control-center', 'smart-transformer', 'solar-forecasting-array'];
+    const spent = getSpentInfrastructureUnits(deployedNodeIds);
+    expect(spent).toBe(5000);
+
+    const available = getAvailableBudgetUnits(10000, deployedNodeIds);
+    expect(available).toBe(5000);
   });
 
-  it('handles invalid power values', () => {
-    expect(getHoursPowered(2, 0)).toBe(0);
-    expect(getHoursPowered(2, -1)).toBe(0);
+  it('matches the documented stability progression', () => {
+    expect(getGridStabilityPct(['control-center'])).toBe(65);
+
+    expect(
+      getGridStabilityPct([
+        'control-center',
+        'battery-storage',
+        'frequency-controller'
+      ])
+    ).toBe(92);
+  });
+
+  it('resolves stability tiers', () => {
+    expect(getStabilityTier(92).label).toBe('OPTIMAL');
+    expect(getStabilityTier(80).label).toBe('STABLE');
+    expect(getStabilityTier(60).label).toBe('MARGINAL');
+    expect(getStabilityTier(35).label).toBe('UNSTABLE');
+    expect(getStabilityTier(10).label).toBe('CRITICAL');
   });
 });

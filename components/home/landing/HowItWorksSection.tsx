@@ -5,38 +5,37 @@ import { motion } from 'framer-motion';
 const STEPS = [
   {
     number: '01',
-    title: 'Pick a topic',
-    body: 'Start with SQL or Python for free, or jump into PySpark and Fabric with Pro.',
-    detail:
-      'Each topic combines theory, reference docs, and practice so you can move from concept to execution without switching tools.'
+    title: 'Complete learning tasks',
+    body: 'Work through chapters, function drills, and mission exercises in SQL, Python, PySpark, and statistics.',
+    detail: 'Practice answers award 0.04-0.12 kWh and chapter completions award 0.15 kWh.'
   },
   {
     number: '02',
-    title: 'Read the theory',
-    body: 'Use chapter docs with architecture diagrams, optimization notes, and executable examples.',
-    detail:
-      'Your reading state is tracked, so you can return exactly where you left off.'
+    title: 'Earn kWh deployment budget',
+    body: 'kWh is proof of analytical competency. The more you earn, the more infrastructure you are trusted to deploy.',
+    detail: 'Mission rewards scale from 0.4 to 2.4 kWh based on complexity.'
   },
   {
     number: '03',
-    title: 'Practice what you learned',
-    body: 'Run through flashcards with immediate feedback, kWh rewards, and accuracy tracking.',
-    detail:
-      'Practice outcomes are tied back to topics, so weak areas are visible quickly.'
+    title: 'Deploy infrastructure and stabilize the grid',
+    body: 'Spend kWh on assets like battery storage, frequency control, and demand response to raise grid stability.',
+    detail: 'Higher stability unlocks advanced content and harder operational missions.'
   }
 ] as const;
 
 export const HowItWorksSection = () => {
   return (
-    <section className="border-t border-[#1f1f1f] py-24">
+    <section id="how-it-works" className="border-t border-[#1f1f1f] py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
-          <h2 className="mb-4 font-serif text-3xl font-bold">How it works</h2>
-          <p className="text-[#a3a3a3]">Three steps. No fluff.</p>
+          <h2 className="mb-4 text-3xl font-bold" style={{ fontFamily: 'Georgia, serif' }}>
+            Learning -&gt; Infrastructure -&gt; Stability
+          </h2>
+          <p className="text-[#8aaece]">A professional progression loop with operational consequences.</p>
         </div>
 
         <div className="relative grid grid-cols-1 gap-8 md:grid-cols-3">
-          <div className="absolute left-[calc(16.67%+1rem)] right-[calc(16.67%+1rem)] top-8 hidden h-px bg-[#1f1f1f] md:block" />
+          <div className="absolute left-[calc(16.67%+1rem)] right-[calc(16.67%+1rem)] top-8 hidden h-px bg-[#223754] md:block" />
 
           {STEPS.map((step, index) => (
             <motion.div
@@ -46,15 +45,13 @@ export const HowItWorksSection = () => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.15 }}
             >
-              <div className="relative z-10 mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-[#10b981]/30 bg-[#10b981]/10">
-                <span className="font-mono text-lg font-bold text-[#10b981]">
-                  {step.number}
-                </span>
+              <div className="relative z-10 mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-[#64a0dc]/30 bg-[#64a0dc]/10">
+                <span className="font-mono text-lg font-bold text-[#64a0dc]">{step.number}</span>
               </div>
 
-              <h3 className="mb-2 text-base font-semibold">{step.title}</h3>
-              <p className="mb-3 text-sm leading-relaxed text-[#a3a3a3]">{step.body}</p>
-              <p className="text-xs leading-relaxed text-[#525252]">{step.detail}</p>
+              <h3 className="mb-2 text-base font-semibold text-[#d8eaf8]">{step.title}</h3>
+              <p className="mb-3 text-sm leading-relaxed text-[#9ab8d4]">{step.body}</p>
+              <p className="text-xs leading-relaxed text-[#6f93b2]">{step.detail}</p>
             </motion.div>
           ))}
         </div>
