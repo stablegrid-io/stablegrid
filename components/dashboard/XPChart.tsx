@@ -62,7 +62,10 @@ export const XPChart = ({ data, title = 'Completed Tasks Trend' }: XPChartProps)
                 : '0 6px 24px rgba(15,23,42,0.08)'
             }}
             labelStyle={{ color: isDark ? '#fafafa' : '#0a0a0a' }}
-            formatter={(value: number) => [`${value}`, 'Completed']}
+            formatter={(value: number | string | undefined) => [
+              `${typeof value === 'number' || typeof value === 'string' ? value : 0}`,
+              'Completed' as const
+            ]}
           />
           <Bar dataKey="completed" fill="#4f46e5" radius={[8, 8, 0, 0]} />
         </BarChart>

@@ -119,6 +119,11 @@ const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
   return ['/login', '/signup', '/reset-password', '/update-password'].includes(pathname);
 };
 
+type WindowWithIdle = Window & {
+  requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
+
 export const TopNav = () => {
   const pathname = usePathname();
   const router = useRouter();
@@ -283,20 +288,21 @@ export const TopNav = () => {
       });
     };
 
-    const immediateId = window.setTimeout(prefetchPrimary, 0);
+    const win = window as WindowWithIdle;
+    const immediateId = setTimeout(prefetchPrimary, 0);
 
-    if ('requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(prefetchSecondary, { timeout: 1200 });
+    if (typeof win.requestIdleCallback === 'function') {
+      const idleId = win.requestIdleCallback(prefetchSecondary, { timeout: 1200 });
       return () => {
-        window.clearTimeout(immediateId);
-        window.cancelIdleCallback(idleId);
+        clearTimeout(immediateId);
+        win.cancelIdleCallback?.(idleId);
       };
     }
 
-    const timeoutId = window.setTimeout(prefetchSecondary, 400);
+    const timeoutId = setTimeout(prefetchSecondary, 400);
     return () => {
-      window.clearTimeout(immediateId);
-      window.clearTimeout(timeoutId);
+      clearTimeout(immediateId);
+      clearTimeout(timeoutId);
     };
   }, [prefetchRoute]);
 

@@ -64,6 +64,7 @@ export async function POST(request: Request) {
       const admin = getAdminClient();
       const status = subscription.status;
       const isPaid = status === 'active' || status === 'trialing' || status === 'past_due';
+      const currentPeriodEnd = subscription.items.data[0]?.current_period_end ?? null;
 
       await admin.from('subscriptions').upsert(
         {
@@ -72,8 +73,8 @@ export async function POST(request: Request) {
           stripe_sub_id: subscription.id,
           plan: isPaid ? 'pro' : 'free',
           status,
-          current_period_end: subscription.current_period_end
-            ? new Date(subscription.current_period_end * 1000).toISOString()
+          current_period_end: currentPeriodEnd
+            ? new Date(currentPeriodEnd * 1000).toISOString()
             : null,
           updated_at: new Date().toISOString()
         },

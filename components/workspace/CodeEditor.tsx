@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'next-themes';
+import type { editor } from 'monaco-editor';
 import { Button } from '@/components/ui/Button';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -51,7 +52,7 @@ export function CodeEditor({
     return () => window.clearInterval(interval);
   }, [storageKey, value]);
 
-  const options = useMemo(
+  const options = useMemo<editor.IStandaloneEditorConstructionOptions>(
     () => ({
       minimap: { enabled: false },
       fontSize: 13,

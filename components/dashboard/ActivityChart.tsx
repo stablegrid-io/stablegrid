@@ -113,7 +113,10 @@ export const ActivityChart = ({ activityData }: ActivityChartProps) => {
               fontSize: '13px'
             }}
             labelStyle={{ color: isDark ? '#a3a3a3' : '#737373' }}
-            formatter={(value: number) => [`${value}`, 'Questions']}
+            formatter={(value: number | string | undefined) => [
+              `${typeof value === 'number' || typeof value === 'string' ? value : 0}`,
+              'Questions' as const
+            ]}
           />
           <Area
             type="monotone"

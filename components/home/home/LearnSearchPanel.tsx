@@ -20,6 +20,11 @@ interface LearnSearchPanelProps {
   triggerVariant?: 'default' | 'nav';
 }
 
+type WindowWithIdle = Window & {
+  requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
+
 export function LearnSearchPanel({ triggerVariant = 'default' }: LearnSearchPanelProps) {
   const loader = useCallback(() => loadLearnSearchItems(), []);
 
@@ -28,16 +33,18 @@ export function LearnSearchPanel({ triggerVariant = 'default' }: LearnSearchPane
       void loadLearnSearchItems();
     };
 
-    if ('requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(preload, { timeout: 1800 });
+    const win = window as WindowWithIdle;
+
+    if (typeof win.requestIdleCallback === 'function') {
+      const idleId = win.requestIdleCallback(preload, { timeout: 1800 });
       return () => {
-        window.cancelIdleCallback(idleId);
+        win.cancelIdleCallback?.(idleId);
       };
     }
 
-    const timeoutId = window.setTimeout(preload, 900);
+    const timeoutId = setTimeout(preload, 900);
     return () => {
-      window.clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
     };
   }, []);
 
