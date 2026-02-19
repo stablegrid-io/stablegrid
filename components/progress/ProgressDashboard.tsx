@@ -2537,9 +2537,9 @@ export const ProgressDashboard = ({
 
           {isEditMode ? (
             <aside
-              className={`fixed inset-y-0 right-0 z-50 border-l border-neutral-200 bg-white p-4 shadow-2xl transition-transform duration-300 ease-in-out dark:border-neutral-800 dark:bg-neutral-950 ${
+              className={`fixed inset-y-0 left-0 z-50 border-r border-neutral-200 bg-white p-4 shadow-2xl transition-transform duration-300 ease-in-out dark:border-neutral-800 dark:bg-neutral-950 ${
                 isMobile ? 'w-full' : 'w-[340px] max-w-[92vw]'
-              } ${drawerOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'}`}
+              } ${drawerOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'}`}
             >
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Add Widgets</h2>

@@ -92,13 +92,13 @@ export function generateMetadata({
   const doc = theoryDocs[params.topic];
   if (!doc) {
     return {
-      title: 'Theory | Learn | stablegrid.io',
+      title: 'StableGrid.io',
       description: 'Chapter-based theory documentation.'
     };
   }
 
   return {
-    title: `${doc.title} Theory Categories | stablegrid.io`,
+    title: 'StableGrid.io',
     description: 'Choose a theory category before opening chapters.'
   };
 }

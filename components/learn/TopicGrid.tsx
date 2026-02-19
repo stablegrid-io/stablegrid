@@ -63,7 +63,7 @@ export const TopicGrid = ({ topics }: TopicGridProps) => {
         return (
           <Link
             key={topic.id}
-            href={`/learn/${topic.id}`}
+            href={`/learn/${topic.id}/theory`}
             className="card card-hover group p-6"
           >
             <div className="mb-4 flex items-start justify-between">

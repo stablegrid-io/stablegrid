@@ -9,6 +9,7 @@ import {
   Lock,
   MapPin,
   ShieldAlert,
+  SlidersHorizontal,
   X,
   Zap
 } from 'lucide-react';
@@ -56,6 +57,13 @@ const TEAM = [
   { name: 'Alert System', role: 'Automated Incident Feed' }
 ];
 
+const DIFFICULTY_BADGE: Record<string, string> = {
+  Easy:   'border-success-200 bg-success-50 text-success-700 dark:border-success-700/60 dark:bg-success-900/30 dark:text-success-300',
+  Medium: 'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-700/60 dark:bg-warning-900/30 dark:text-warning-300',
+  Hard:   'border-error-200 bg-error-50 text-error-700 dark:border-error-700/60 dark:bg-error-900/30 dark:text-error-300',
+  Expert: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-700/60 dark:bg-fuchsia-900/30 dark:text-fuchsia-300',
+};
+
 const MissionCard = memo(function MissionCard({
   mission,
   onOpen
@@ -68,120 +76,68 @@ const MissionCard = memo(function MissionCard({
   return (
     <button
       type="button"
-      onClick={() => {
-        if (!locked) {
-          onOpen(mission);
-        }
-      }}
+      onClick={() => { if (!locked) onOpen(mission); }}
       disabled={locked}
-      className="group relative w-full overflow-hidden rounded-2xl border border-light-border/90 bg-light-surface p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:border-dark-border dark:bg-[#0a1019] dark:hover:shadow-black/30 disabled:!cursor-not-allowed disabled:!opacity-[0.55]"
-      style={{
-        borderColor: `rgba(${mission.accentRgb}, 0.22)`
-      }}
+      className="group card card-hover flex w-full flex-col gap-4 p-5 text-left disabled:!cursor-not-allowed disabled:!opacity-55"
     >
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(140deg, rgba(255,255,255,0.98), rgba(248,250,255,0.96) 65%), radial-gradient(circle at top right, rgba(' +
-            mission.accentRgb +
-            ', 0.16), transparent 58%)'
-        }}
-      />
-      <div
-        className="pointer-events-none absolute inset-0 hidden dark:block"
-        style={{
-          background:
-            'linear-gradient(145deg, rgba(8,12,20,0.96), rgba(7,10,16,0.95) 70%), radial-gradient(circle at top right, rgba(' +
-            mission.accentRgb +
-            ', 0.24), transparent 60%)'
-        }}
-      />
-
-      <div className="relative">
-        <div className="mb-4 flex items-start justify-between">
-          <div
-            className="flex h-11 w-11 items-center justify-center rounded-xl border text-xl"
-            style={{
-              borderColor: `rgba(${mission.accentRgb}, 0.28)`,
-              backgroundColor: `rgba(${mission.accentRgb}, 0.12)`
-            }}
-          >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-light-border bg-light-muted text-lg dark:border-dark-border dark:bg-dark-muted">
             {mission.icon}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {mission.completed ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-success-300 bg-success-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-success-700 dark:border-success-700/60 dark:bg-success-900/30 dark:text-success-300">
-                <CheckCircle2 className="h-3 w-3" />
-                Done
-              </span>
-            ) : mission.status === 'locked' ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                <Lock className="h-3 w-3" />
-                Locked
-              </span>
-            ) : (
-              <span
-                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
-                style={{
-                  borderColor: `rgba(${mission.accentRgb}, 0.35)`,
-                  backgroundColor: `rgba(${mission.accentRgb}, 0.12)`,
-                  color: mission.accentColor
-                }}
-              >
-                <span
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: mission.accentColor }}
-                />
-                Open
-              </span>
-            )}
-          </div>
-        </div>
-
-        <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-text-light-primary dark:text-[#f5f8ff]">
-          {mission.codename}
-        </h3>
-        <p className="mt-2 text-sm leading-relaxed text-text-light-secondary dark:text-[#9bb1c7]">
-          {mission.tagline}
-        </p>
-
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {mission.skills.map((skill) => (
-            <span
-              key={skill}
-              className="rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.07em]"
-              style={{
-                borderColor: `rgba(${mission.accentRgb}, 0.28)`,
-                backgroundColor: `rgba(${mission.accentRgb}, 0.1)`,
-                color: mission.accentColor
-              }}
-            >
-              {skill}
-            </span>
-          ))}
-        </div>
-
-        <div className="mt-5 flex items-center justify-between border-t border-light-border/80 pt-3 text-xs text-text-light-tertiary dark:border-dark-border dark:text-text-dark-tertiary">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1">
-              <Clock3 className="h-3.5 w-3.5" />
-              {mission.duration}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" />
-              {mission.location}
-            </span>
-          </div>
-          <span
-            className="inline-flex items-center gap-1 font-semibold"
-            style={{ color: mission.accentColor }}
-          >
-            <Zap className="h-3.5 w-3.5" />
-            {formatKwh(getMissionRewardKwh(mission.difficulty), 1)}
+          </span>
+          <span className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
+            {mission.codename}
           </span>
         </div>
+        <div className="shrink-0">
+          {mission.completed ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-success-300 bg-success-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-success-700 dark:border-success-700/60 dark:bg-success-900/30 dark:text-success-300">
+              <CheckCircle2 className="h-3 w-3" />
+              Done
+            </span>
+          ) : locked ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+              <Lock className="h-3 w-3" />
+              Locked
+            </span>
+          ) : (
+            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${DIFFICULTY_BADGE[mission.difficulty] ?? DIFFICULTY_BADGE.Medium}`}>
+              {mission.difficulty}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <p className="line-clamp-3 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+        {mission.tagline}
+      </p>
+
+      <div className="flex flex-wrap gap-1.5">
+        {mission.skills.map((skill) => (
+          <span
+            key={skill}
+            className="rounded-full border border-light-border bg-light-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.07em] text-text-light-secondary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary"
+          >
+            {skill}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-auto flex items-center justify-between border-t border-light-border/80 pt-3 text-xs text-text-light-tertiary dark:border-dark-border dark:text-text-dark-tertiary">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1">
+            <Clock3 className="h-3.5 w-3.5" />
+            {mission.duration}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="h-3.5 w-3.5" />
+            {mission.location}
+          </span>
+        </div>
+        <span className="inline-flex items-center gap-1 font-semibold text-brand-600 dark:text-brand-400">
+          <Zap className="h-3.5 w-3.5" />
+          {formatKwh(getMissionRewardKwh(mission.difficulty), 1)}
+        </span>
       </div>
     </button>
   );
@@ -208,13 +164,8 @@ const MissionDrawer = memo(function MissionDrawer({
         className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px]"
       />
 
-      <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-light-border bg-light-bg shadow-2xl dark:border-dark-border dark:bg-[#070d15]">
-        <div
-          className="h-1"
-          style={{
-            background: `linear-gradient(90deg, ${mission.accentColor}, transparent)`
-          }}
-        />
+      <aside className="fixed inset-y-0 left-0 z-50 w-full max-w-md overflow-y-auto border-r border-light-border bg-light-bg shadow-2xl dark:border-dark-border dark:bg-[#070d15]">
+        <div className="h-1 bg-gradient-to-r from-brand-500 to-transparent" />
 
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-light-border bg-light-bg/95 px-5 py-4 backdrop-blur dark:border-dark-border dark:bg-[#070d15]/95">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
@@ -233,20 +184,11 @@ const MissionDrawer = memo(function MissionDrawer({
           <section className="rounded-xl border border-light-border bg-light-surface p-4 dark:border-dark-border dark:bg-[#0c141f]">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-xl border text-xl"
-                  style={{
-                    borderColor: `rgba(${mission.accentRgb}, 0.32)`,
-                    backgroundColor: `rgba(${mission.accentRgb}, 0.12)`
-                  }}
-                >
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-light-border bg-light-muted text-xl dark:border-dark-border dark:bg-dark-muted">
                   {mission.icon}
                 </div>
                 <div>
-                  <p
-                    className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                    style={{ color: mission.accentColor }}
-                  >
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
                     Operation
                   </p>
                   <h2 className="text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
@@ -254,14 +196,7 @@ const MissionDrawer = memo(function MissionDrawer({
                   </h2>
                 </div>
               </div>
-              <span
-                className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
-                style={{
-                  borderColor: `rgba(${mission.accentRgb}, 0.35)`,
-                  backgroundColor: `rgba(${mission.accentRgb}, 0.12)`,
-                  color: mission.accentColor
-                }}
-              >
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${DIFFICULTY_BADGE[mission.difficulty] ?? DIFFICULTY_BADGE.Medium}`}>
                 {mission.difficulty}
               </span>
             </div>
@@ -270,17 +205,8 @@ const MissionDrawer = memo(function MissionDrawer({
               {mission.summary}
             </p>
 
-            <div
-              className="mt-4 rounded-lg border p-3"
-              style={{
-                borderColor: `rgba(${mission.accentRgb}, 0.26)`,
-                backgroundColor: `rgba(${mission.accentRgb}, 0.08)`
-              }}
-            >
-              <p
-                className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: mission.accentColor }}
-              >
+            <div className="mt-4 rounded-lg border border-light-border bg-light-muted p-3 dark:border-dark-border dark:bg-dark-muted">
+              <p className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
                 <ShieldAlert className="h-3.5 w-3.5" />
                 Stakes
               </p>
@@ -435,6 +361,7 @@ export default function MissionsPage() {
   const addXP = useProgressStore((state) => state.addXP);
   const [filter, setFilter] = useState<MissionFilter>('all');
   const deferredFilter = useDeferredValue(filter);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [selectedMission, setSelectedMission] = useState<MissionDefinition | null>(
     null
   );
@@ -614,41 +541,139 @@ export default function MissionsPage() {
 
         <section className="card flex flex-col gap-4 p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-                {stats.completed} of {stats.total} completed
-              </p>
-              <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                <div
-                  className="h-full rounded-full bg-brand-500"
-                  style={{ width: `${stats.completionPct}%` }}
-                />
-              </div>
+            <button
+              type="button"
+              onClick={() => setIsFilterPanelOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-light-border bg-light-surface px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
+            >
+              <SlidersHorizontal className="h-4 w-4 text-brand-500" />
+              Filter Panel
+              {filter !== 'all' ? (
+                <span className="rounded-full border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-500">
+                  1 active
+                </span>
+              ) : null}
+            </button>
+
+            <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
                 <span>{stats.active} active</span>
                 <span>•</span>
                 <span>{stats.locked} locked</span>
+                <span>•</span>
+                <span>Showing {filteredMissions.length} of {missions.length}</span>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {FILTERS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setFilter(option.id)}
-                  className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition ${
-                    filter === option.id
-                      ? 'bg-text-light-primary text-white dark:bg-white dark:text-dark-bg'
-                      : 'border border-light-border bg-light-surface text-text-light-tertiary hover:text-text-light-primary dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-tertiary dark:hover:text-text-dark-primary'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
+              <div className="flex items-center gap-3">
+                <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                  {stats.completed} of {stats.total} completed
+                </p>
+                <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+                  <div
+                    className="h-full rounded-full bg-brand-500"
+                    style={{ width: `${stats.completionPct}%` }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </section>
+
+        {isFilterPanelOpen ? (
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[1px]"
+            aria-label="Close filter panel backdrop"
+            onClick={() => setIsFilterPanelOpen(false)}
+          />
+        ) : null}
+
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 w-[380px] max-w-[94vw] border-r border-light-border bg-light-bg/95 p-4 shadow-2xl backdrop-blur-md transition-transform duration-300 ease-in-out dark:border-dark-border dark:bg-[#02060f]/95 ${
+            isFilterPanelOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
+          }`}
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
+              Filters
+            </h2>
+            <button
+              type="button"
+              onClick={() => setIsFilterPanelOpen(false)}
+              className="rounded-md p-1.5 text-text-light-secondary transition-colors hover:bg-light-surface hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-surface dark:hover:text-text-dark-primary"
+              aria-label="Close filter panel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <section className="flex h-[calc(100%-2.2rem)] flex-col rounded-2xl border border-light-border bg-light-surface/95 p-4 dark:border-dark-border dark:bg-dark-surface/95">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filter Panel
+              </div>
+              <button
+                type="button"
+                onClick={() => { setFilter('all'); setIsFilterPanelOpen(false); }}
+                className="inline-flex items-center gap-1 rounded-md border border-light-border px-2.5 py-1.5 text-xs font-medium text-text-light-secondary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-400 dark:hover:text-brand-300"
+              >
+                <X className="h-3.5 w-3.5" />
+                Reset
+              </button>
+            </div>
+
+            <div className="space-y-3 overflow-y-auto pr-1">
+              <section className="rounded-xl border border-light-border p-3 dark:border-dark-border">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                  Status
+                </p>
+                <div className="mt-2 space-y-2">
+                  {FILTERS.map((option) => {
+                    const selected = filter === option.id;
+                    const descriptions: Record<MissionFilter, string> = {
+                      all: 'Show all missions regardless of status.',
+                      available: 'Only missions you can start right now.',
+                      completed: 'Missions you\'ve already finished.'
+                    };
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setFilter(option.id)}
+                        aria-pressed={selected}
+                        className={`w-full rounded-lg border p-2.5 text-left transition ${
+                          selected
+                            ? 'border-brand-500/40 bg-brand-500/10'
+                            : 'border-light-border hover:border-brand-500/40 dark:border-dark-border'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                              {option.label}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-text-light-secondary dark:text-text-dark-secondary">
+                              {descriptions[option.id]}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              selected
+                                ? 'border border-brand-500/40 bg-brand-500/10 text-brand-500'
+                                : 'border border-light-border text-text-light-secondary dark:border-dark-border dark:text-text-dark-secondary'
+                            }`}
+                          >
+                            {selected ? 'Applied' : 'Use'}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            </div>
+          </section>
+        </aside>
 
         {filteredMissions.length > 0 ? (
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

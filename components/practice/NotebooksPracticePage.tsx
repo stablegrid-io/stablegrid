@@ -9,7 +9,9 @@ import {
   Flag,
   Lightbulb,
   NotebookPen,
-  RotateCcw
+  RotateCcw,
+  SlidersHorizontal,
+  X
 } from 'lucide-react';
 import { NOTEBOOKS, type NotebookDefinition, type NotebookIssue } from '@/data/notebooks';
 
@@ -95,6 +97,7 @@ export function NotebooksPracticePage() {
     new Set()
   );
   const [filter, setFilter] = useState<NotebookFilter>('all');
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
   const activeNotebook = useMemo(
     () => NOTEBOOKS.find((notebook) => notebook.id === activeNotebookId) ?? null,
@@ -248,36 +251,135 @@ export function NotebooksPracticePage() {
 
           <section className="card flex flex-col gap-4 p-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-4">
-                <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-                  {completionStats.completed} of {completionStats.total} completed
-                </p>
-                <div className="h-1.5 w-44 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                  <div
-                    className="h-full rounded-full bg-brand-500"
-                    style={{ width: `${completionStats.completionPct}%` }}
-                  />
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsFilterPanelOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-light-border bg-light-surface px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
+              >
+                <SlidersHorizontal className="h-4 w-4 text-brand-500" />
+                Filter Panel
+                {filter !== 'all' ? (
+                  <span className="rounded-full border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-500">
+                    1 active
+                  </span>
+                ) : null}
+              </button>
 
-              <div className="flex items-center gap-2">
-                {FILTERS.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setFilter(option.id)}
-                    className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition ${
-                      filter === option.id
-                        ? 'bg-text-light-primary text-white dark:bg-white dark:text-dark-bg'
-                        : 'border border-light-border bg-light-surface text-text-light-tertiary hover:text-text-light-primary dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-tertiary dark:hover:text-text-dark-primary'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="text-xs uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                  Showing {filteredNotebooks.length} of {NOTEBOOKS.length}
+                </span>
+                <div className="flex items-center gap-3">
+                  <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                    {completionStats.completed} of {completionStats.total} completed
+                  </p>
+                  <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+                    <div
+                      className="h-full rounded-full bg-brand-500"
+                      style={{ width: `${completionStats.completionPct}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </section>
+
+          {isFilterPanelOpen ? (
+            <button
+              type="button"
+              className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[1px]"
+              aria-label="Close filter panel backdrop"
+              onClick={() => setIsFilterPanelOpen(false)}
+            />
+          ) : null}
+
+          <aside
+            className={`fixed inset-y-0 left-0 z-50 w-[380px] max-w-[94vw] border-r border-light-border bg-light-bg/95 p-4 shadow-2xl backdrop-blur-md transition-transform duration-300 ease-in-out dark:border-dark-border dark:bg-[#02060f]/95 ${
+              isFilterPanelOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
+            }`}
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
+                Filters
+              </h2>
+              <button
+                type="button"
+                onClick={() => setIsFilterPanelOpen(false)}
+                className="rounded-md p-1.5 text-text-light-secondary transition-colors hover:bg-light-surface hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-surface dark:hover:text-text-dark-primary"
+                aria-label="Close filter panel"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <section className="flex h-[calc(100%-2.2rem)] flex-col rounded-2xl border border-light-border bg-light-surface/95 p-4 dark:border-dark-border dark:bg-dark-surface/95">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  Filter Panel
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setFilter('all'); setIsFilterPanelOpen(false); }}
+                  className="inline-flex items-center gap-1 rounded-md border border-light-border px-2.5 py-1.5 text-xs font-medium text-text-light-secondary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-400 dark:hover:text-brand-300"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Reset
+                </button>
+              </div>
+
+              <div className="space-y-3 overflow-y-auto pr-1">
+                <section className="rounded-xl border border-light-border p-3 dark:border-dark-border">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                    Status
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {FILTERS.map((option) => {
+                      const selected = filter === option.id;
+                      const descriptions: Record<NotebookFilter, string> = {
+                        all: 'Show all notebooks regardless of progress.',
+                        new: 'Only notebooks you haven\'t reviewed yet.',
+                        completed: 'Notebooks you\'ve already submitted.'
+                      };
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setFilter(option.id)}
+                          aria-pressed={selected}
+                          className={`w-full rounded-lg border p-2.5 text-left transition ${
+                            selected
+                              ? 'border-brand-500/40 bg-brand-500/10'
+                              : 'border-light-border hover:border-brand-500/40 dark:border-dark-border'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                                {option.label}
+                              </p>
+                              <p className="mt-0.5 text-[11px] text-text-light-secondary dark:text-text-dark-secondary">
+                                {descriptions[option.id]}
+                              </p>
+                            </div>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                selected
+                                  ? 'border border-brand-500/40 bg-brand-500/10 text-brand-500'
+                                  : 'border border-light-border text-text-light-secondary dark:border-dark-border dark:text-text-dark-secondary'
+                              }`}
+                            >
+                              {selected ? 'Applied' : 'Use'}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              </div>
+            </section>
+          </aside>
 
           {filteredNotebooks.length > 0 ? (
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

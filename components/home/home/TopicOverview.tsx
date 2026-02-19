@@ -60,7 +60,7 @@ export const TopicOverview = ({ topicProgress }: TopicOverviewProps) => {
           return (
             <Link
               key={topicId}
-              href={`/learn/${topicId}`}
+              href={`/learn/${topicId}/theory`}
               className="group block rounded-xl border border-neutral-100 bg-white p-3 transition-all hover:-translate-y-0.5 hover:border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-700"
             >
               <div className="mb-2 flex items-center justify-between">

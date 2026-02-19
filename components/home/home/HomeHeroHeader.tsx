@@ -4,13 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Flame, Target, Zap } from 'lucide-react';
 import Link from 'next/link';
-import { MascotWalker } from '@/components/mascot/MascotWalker';
 import {
   formatUnitsAsKwh,
   getAvailableBudgetUnits,
   unitsToKwh
 } from '@/lib/energy';
-import { usePulseMascotStore } from '@/lib/stores/usePulseMascotStore';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 
 interface HomeHeroHeaderProps {
@@ -36,9 +34,6 @@ export const HomeHeroHeader = ({
   chaptersCompleted,
   overallProgress
 }: HomeHeroHeaderProps) => {
-  const pulseMood = usePulseMascotStore((state) => state.mood);
-  const pulseMotion = usePulseMascotStore((state) => state.motion);
-  const pulseAction = usePulseMascotStore((state) => state.action);
   const deployedNodeIds = useProgressStore((state) => state.deployedNodeIds);
   const availableBudgetUnits = getAvailableBudgetUnits(totalEnergyUnits, deployedNodeIds);
   const energyBalanceKwh = unitsToKwh(availableBudgetUnits);
@@ -121,19 +116,6 @@ export const HomeHeroHeader = ({
           backgroundSize: '20px 20px'
         }}
       />
-
-      <div className="pointer-events-none absolute bottom-[116px] right-[228px] top-[12px] z-0 hidden lg:block xl:right-[244px]">
-        <div className="h-full w-[300px] xl:w-[360px]">
-          <MascotWalker
-            mood={pulseMood}
-            motion={pulseMotion}
-            action={pulseAction}
-            bounds={{ top: 0, left: 0, right: 0, bottom: 0 }}
-            size={132}
-            speed={50}
-          />
-        </div>
-      </div>
 
       <div className="relative z-10">
         <div className="grid gap-5 px-5 pb-6 pt-6 sm:px-6 md:grid-cols-[1fr_auto] md:items-start lg:px-7">

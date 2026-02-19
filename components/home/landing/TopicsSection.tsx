@@ -98,7 +98,7 @@ export const TopicsSection = () => {
               transition={{ delay: index * 0.08 }}
             >
               <Link
-                href={`/learn/${topic.id}`}
+                href={`/learn/${topic.id}/theory`}
                 className="group block rounded-xl border border-[#1f3629] bg-[#0d1410] p-5 transition-all hover:border-[#2b4f3a]"
               >
                 <div className="mb-4 flex items-start justify-between">

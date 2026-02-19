@@ -31,6 +31,29 @@ type MapNodeState = InfrastructureNode & {
 const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 420;
 
+const MAP_COLORS = {
+  textPrimary: '#e5efe9',
+  textSecondary: '#95ab9e',
+  textMuted: '#7f9f8d',
+  textStrong: '#cde0d5',
+  border: 'rgba(36,55,45,0.58)',
+  borderSoft: 'rgba(47,79,65,0.45)',
+  panel: 'rgba(10,18,14,0.94)',
+  panelSoft: 'rgba(12,22,17,0.82)',
+  panelActive: 'rgba(15,28,21,0.9)',
+  track: '#153427',
+  active: '#34d399',
+  success: '#4ade80',
+  warning: '#f0a032',
+  locked: '#6f9380',
+  lockedBorder: '#2f4f41',
+  grid: 'rgba(74,222,128,0.28)',
+  gridGlow: 'rgba(74,222,128,0.14)',
+  edgeActive: 'rgba(74,222,128,0.55)',
+  edgeActiveDash: 'rgba(52,211,153,0.95)',
+  edgeInactive: 'rgba(47,79,65,0.42)'
+} as const;
+
 const buildFrequencyPath = (time: number, width = 220, height = 52) => {
   const points: string[] = [];
   const steps = 64;
@@ -79,21 +102,21 @@ const IndicatorTile = memo(function IndicatorTile({
     <div
       className="rounded-xl border p-3"
       style={{
-        borderColor: active ? 'rgba(100,160,220,0.36)' : 'rgba(58,96,128,0.35)',
-        background: active ? 'rgba(12,24,38,0.88)' : 'rgba(8,16,28,0.76)'
+        borderColor: active ? 'rgba(74,222,128,0.36)' : MAP_COLORS.borderSoft,
+        background: active ? MAP_COLORS.panelActive : MAP_COLORS.panelSoft
       }}
     >
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8fb6d8]">{title}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: MAP_COLORS.textMuted }}>{title}</p>
         <span
           className="text-[10px] font-semibold uppercase tracking-[0.12em]"
-          style={{ color: active ? '#4ade80' : '#3a6080' }}
+          style={{ color: active ? MAP_COLORS.success : MAP_COLORS.locked }}
         >
           {active ? 'online' : 'locked'}
         </span>
       </div>
-      <div className="text-sm font-semibold text-[#d8eaf8]">{value}</div>
-      <p className="mt-0.5 text-[11px] text-[#6e90ae]">{detail}</p>
+      <div className="text-sm font-semibold" style={{ color: MAP_COLORS.textPrimary }}>{value}</div>
+      <p className="mt-0.5 text-[11px]" style={{ color: MAP_COLORS.textSecondary }}>{detail}</p>
       <div className="mt-2">{children}</div>
     </div>
   );
@@ -114,12 +137,12 @@ const DeploymentToastBanner = memo(function DeploymentToastBanner({
   }
 
   return (
-    <div className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-xl border border-[#64a0dc]/45 bg-[#0c1c2e]/95 px-4 py-3 shadow-xl backdrop-blur-sm">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#9dc2e1]">
+    <div className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-xl border px-4 py-3 shadow-xl backdrop-blur-sm" style={{ borderColor: 'rgba(74,222,128,0.45)', background: 'rgba(10,18,14,0.95)' }}>
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: MAP_COLORS.textStrong }}>
         Infrastructure deployed
       </p>
-      <p className="mt-1 text-sm font-semibold text-[#d8eaf8]">{node.name}</p>
-      <p className="mt-1 text-[11px] text-[#86a9c8]">
+      <p className="mt-1 text-sm font-semibold" style={{ color: MAP_COLORS.textPrimary }}>{node.name}</p>
+      <p className="mt-1 text-[11px]" style={{ color: MAP_COLORS.textSecondary }}>
         Grid stability: {toast.previousStability}% -&gt; {toast.nextStability}%
       </p>
     </div>
@@ -239,30 +262,30 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
     <article
       className="rounded-2xl border p-5"
       style={{
-        borderColor: 'rgba(58,96,128,0.45)',
-        background: 'linear-gradient(180deg, rgba(9,17,30,0.96), rgba(7,13,24,0.98))'
+        borderColor: MAP_COLORS.border,
+        background: 'linear-gradient(180deg, rgba(10,18,14,0.96), rgba(7,12,9,0.98))'
       }}
     >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#64a0dc]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: MAP_COLORS.textMuted }}>
             Infrastructure Command Map
           </p>
-          <h2 className="mt-1 text-lg font-semibold text-[#d8eaf8]">Deploy assets to stabilize the Iberian grid</h2>
-          <p className="mt-1 text-xs text-[#6e90ae]">
+          <h2 className="mt-1 text-lg font-semibold" style={{ color: MAP_COLORS.textPrimary }}>Deploy assets to stabilize the Iberian grid</h2>
+          <p className="mt-1 text-xs" style={{ color: MAP_COLORS.textSecondary }}>
             Stability = 100% - 40% variability + deployed infrastructure benefits
           </p>
         </div>
-        <div className="rounded-lg border border-[#64a0dc]/35 bg-[#0f1e32]/80 px-3 py-2 text-right">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8fb6d8]">Grid stability</p>
-          <p className="text-xl font-black text-[#d8eaf8]">{stabilityPct}%</p>
+        <div className="rounded-lg border px-3 py-2 text-right" style={{ borderColor: 'rgba(74,222,128,0.3)', background: 'rgba(12,22,17,0.82)' }}>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: MAP_COLORS.textMuted }}>Grid stability</p>
+          <p className="text-xl font-black" style={{ color: MAP_COLORS.textPrimary }}>{stabilityPct}%</p>
           <p className="text-[11px] font-semibold" style={{ color: stabilityTier.color }}>
             {stabilityTier.label}
           </p>
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-xl border border-[#3a6080]/35 bg-[radial-gradient(circle_at_24%_16%,rgba(100,160,220,0.14),transparent_42%),linear-gradient(180deg,#0a1525,#09111e)] shadow-[0_12px_34px_rgba(0,0,0,0.45)]">
+      <div className="relative overflow-hidden rounded-xl border shadow-[0_12px_34px_rgba(0,0,0,0.45)]" style={{ borderColor: MAP_COLORS.borderSoft, background: `radial-gradient(circle at 24% 16%, ${MAP_COLORS.gridGlow}, transparent 42%), linear-gradient(180deg, #0c1410, #0a1210)` }}>
         <DeploymentToastBanner toast={toast} />
 
         <svg
@@ -278,7 +301,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
               y1={index * (MAP_HEIGHT / 23)}
               x2={MAP_WIDTH}
               y2={index * (MAP_HEIGHT / 23)}
-              stroke="#64a0dc"
+              stroke={MAP_COLORS.grid}
               strokeWidth="0.7"
             />
           ))}
@@ -289,22 +312,22 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
               y1={0}
               x2={index * (MAP_WIDTH / 39)}
               y2={MAP_HEIGHT}
-              stroke="#64a0dc"
+              stroke={MAP_COLORS.grid}
               strokeWidth="0.7"
             />
           ))}
         </svg>
 
-        <div className="absolute left-3 top-3 z-10 rounded-lg border border-[#64a0dc]/30 bg-[#0b1a2c]/88 px-3 py-2 backdrop-blur-sm">
-          <p className="text-[11px] font-bold text-[#c7deef]">Infrastructure status</p>
+        <div className="absolute left-3 top-3 z-10 rounded-lg border px-3 py-2 backdrop-blur-sm" style={{ borderColor: 'rgba(74,222,128,0.28)', background: 'rgba(10,18,14,0.88)' }}>
+          <p className="text-[11px] font-bold" style={{ color: MAP_COLORS.textStrong }}>Infrastructure status</p>
           <div className="mt-1 flex items-center gap-2">
-            <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[#102840]">
+            <div className="h-1.5 w-28 overflow-hidden rounded-full" style={{ background: MAP_COLORS.track }}>
               <div
-                className="h-full rounded-full bg-gradient-to-r from-[#64a0dc] to-[#4ade80]"
+                className="h-full rounded-full bg-gradient-to-r from-[#34d399] to-[#4ade80]"
                 style={{ width: `${(activeCount / nodes.length) * 100}%` }}
               />
             </div>
-            <span className="text-[10px] font-semibold text-[#9cc0db]">
+            <span className="text-[10px] font-semibold" style={{ color: MAP_COLORS.textStrong }}>
               {activeCount}/{nodes.length}
             </span>
           </div>
@@ -330,7 +353,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
                       y1={node.position.y}
                       x2={target.position.x}
                       y2={target.position.y}
-                      stroke={active ? 'rgba(100,160,220,0.45)' : 'rgba(58,96,128,0.42)'}
+                      stroke={active ? MAP_COLORS.edgeActive : MAP_COLORS.edgeInactive}
                       strokeWidth={active ? 3 : 1.8}
                       strokeLinecap="round"
                     />
@@ -340,7 +363,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
                         y1={node.position.y}
                         x2={target.position.x}
                         y2={target.position.y}
-                        stroke="rgba(100,160,220,0.92)"
+                        stroke={MAP_COLORS.edgeActiveDash}
                         strokeWidth={2.6}
                         strokeLinecap="round"
                         strokeDasharray="12 64"
@@ -366,9 +389,9 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
               const isBatteryEdge =
                 node.id === 'battery-storage' || targetId === 'battery-storage';
 
-              let color = '#64a0dc';
+              let color: string = MAP_COLORS.active;
               if (isBatteryEdge) {
-                color = batteryCharging ? '#4ade80' : '#f0a032';
+                color = batteryCharging ? MAP_COLORS.success : MAP_COLORS.warning;
               }
 
               return (
@@ -399,16 +422,16 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
                   left: `${(node.position.x / MAP_WIDTH) * 100}%`,
                   top: `${(node.position.y / MAP_HEIGHT) * 100}%`,
                   borderColor: node.active
-                    ? '#64a0dc'
+                    ? MAP_COLORS.active
                     : node.ready
-                      ? '#f0a032'
-                      : '#3a6080',
-                  color: node.active ? '#d8eaf8' : node.ready ? '#f0a032' : '#6e90ae',
+                      ? MAP_COLORS.warning
+                      : MAP_COLORS.lockedBorder,
+                  color: node.active ? MAP_COLORS.textPrimary : node.ready ? MAP_COLORS.warning : MAP_COLORS.locked,
                   background: node.active
-                    ? 'rgba(17,47,77,0.92)'
-                    : 'rgba(9,17,30,0.94)',
+                    ? 'rgba(15,45,30,0.92)'
+                    : 'rgba(10,18,14,0.94)',
                   boxShadow: node.active
-                    ? '0 0 0 6px rgba(100,160,220,0.20), 0 10px 22px rgba(0,0,0,0.4)'
+                    ? '0 0 0 6px rgba(74,222,128,0.18), 0 10px 22px rgba(0,0,0,0.4)'
                     : node.ready
                       ? '0 0 0 6px rgba(240,160,50,0.18), 0 8px 18px rgba(0,0,0,0.45)'
                       : '0 8px 18px rgba(0,0,0,0.42)',
@@ -432,15 +455,15 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
       </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_280px]">
-        <div className="rounded-xl border border-[#3a6080]/35 bg-[#0b1a2c]/72 p-4">
+        <div className="rounded-xl border p-4" style={{ borderColor: MAP_COLORS.borderSoft, background: 'rgba(12,22,17,0.72)' }}>
           {selectedNode ? (
             <>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8fb6d8]">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: MAP_COLORS.textMuted }}>
                     Selected infrastructure
                   </p>
-                  <h3 className="mt-1 text-base font-semibold text-[#d8eaf8]">{selectedNode.name}</h3>
+                  <h3 className="mt-1 text-base font-semibold" style={{ color: MAP_COLORS.textPrimary }}>{selectedNode.name}</h3>
                 </div>
                 <div
                   className="rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em]"
@@ -449,20 +472,20 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
                       ? 'rgba(74,222,128,0.4)'
                       : selectedNode.ready
                         ? 'rgba(240,160,50,0.4)'
-                        : 'rgba(58,96,128,0.45)',
+                        : MAP_COLORS.borderSoft,
                     color: selectedNode.active
-                      ? '#4ade80'
+                      ? MAP_COLORS.success
                       : selectedNode.ready
-                        ? '#f0a032'
-                        : '#6e90ae'
+                        ? MAP_COLORS.warning
+                        : MAP_COLORS.locked
                   }}
                 >
                   {selectedNode.active ? 'deployed' : selectedNode.ready ? 'ready' : 'locked'}
                 </div>
               </div>
 
-              <p className="mt-2 text-sm text-[#8aaece]">{selectedNode.function}</p>
-              <p className="mt-1 text-[12px] text-[#6f93b2]">Unlocks: {selectedNode.unlocks}</p>
+              <p className="mt-2 text-sm" style={{ color: MAP_COLORS.textSecondary }}>{selectedNode.function}</p>
+              <p className="mt-1 text-[12px]" style={{ color: MAP_COLORS.textMuted }}>Unlocks: {selectedNode.unlocks}</p>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 <MetricCell label="Cost" value={formatKwh(selectedNode.kwhRequired, 1)} />
@@ -483,14 +506,14 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
                   disabled={!selectedNode.ready}
                   className="rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition disabled:cursor-not-allowed"
                   style={{
-                    background: selectedNode.ready ? '#64a0dc' : 'rgba(58,96,128,0.45)',
-                    color: selectedNode.ready ? '#09111e' : '#9ab8d4'
+                    background: selectedNode.ready ? MAP_COLORS.active : MAP_COLORS.lockedBorder,
+                    color: selectedNode.ready ? '#0a1210' : MAP_COLORS.textMuted
                   }}
                 >
                   {selectedNode.active ? 'Already deployed' : 'Deploy infrastructure'}
                 </button>
                 {!selectedNode.active && !selectedNode.affordable ? (
-                  <span className="text-[11px] text-[#f0a032]">
+                  <span className="text-[11px]" style={{ color: MAP_COLORS.warning }}>
                     Need {formatKwh(Math.max(0, selectedNode.kwhRequired - availableKwh), 2)} more
                   </span>
                 ) : null}
@@ -499,13 +522,13 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
           ) : null}
         </div>
 
-        <div className="rounded-xl border border-[#3a6080]/35 bg-[#0b1a2c]/72 p-4 text-right">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8fb6d8]">
+        <div className="rounded-xl border p-4 text-right" style={{ borderColor: MAP_COLORS.borderSoft, background: 'rgba(12,22,17,0.72)' }}>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: MAP_COLORS.textMuted }}>
             Deployment budget
           </p>
-          <p className="text-2xl font-black text-[#d8eaf8]">{formatKwh(availableKwh, 2)}</p>
-          <p className="mt-1 text-[11px] text-[#6f93b2]">Earned {formatKwh(totalEarnedKwh, 2)} · Spent {formatKwh(spentKwh, 2)}</p>
-          <p className="mt-2 text-[11px] text-[#8aaece]">
+          <p className="text-2xl font-black" style={{ color: MAP_COLORS.textPrimary }}>{formatKwh(availableKwh, 2)}</p>
+          <p className="mt-1 text-[11px]" style={{ color: MAP_COLORS.textMuted }}>Earned {formatKwh(totalEarnedKwh, 2)} · Spent {formatKwh(spentKwh, 2)}</p>
+          <p className="mt-2 text-[11px]" style={{ color: MAP_COLORS.textSecondary }}>
             {nextNode
               ? `Next target: ${nextNode.name} (${formatKwh(nextNode.kwhRequired, 1)})`
               : 'All infrastructure deployed'}
@@ -520,12 +543,12 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
           detail={batteryCharging ? 'Charging with midday surplus' : 'Discharging for evening peak'}
           active={batteryActive}
         >
-          <div className="h-1.5 overflow-hidden rounded-full bg-[#102840]">
+          <div className="h-1.5 overflow-hidden rounded-full" style={{ background: MAP_COLORS.track }}>
             <div
               className="h-full rounded-full transition-all duration-300"
               style={{
                 width: `${batteryActive ? batteryChargePct : 0}%`,
-                background: batteryCharging ? '#4ade80' : '#f0a032'
+                background: batteryCharging ? MAP_COLORS.success : MAP_COLORS.warning
               }}
             />
           </div>
@@ -543,14 +566,14 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
               y1={26}
               x2={220}
               y2={26}
-              stroke="rgba(100,160,220,0.28)"
+              stroke="rgba(74,222,128,0.28)"
               strokeWidth={1}
               strokeDasharray="4 6"
             />
             <path
               d={buildFrequencyPath(tick * 1.5)}
               fill="none"
-              stroke={frequencyActive ? '#64a0dc' : '#3a6080'}
+              stroke={frequencyActive ? MAP_COLORS.active : MAP_COLORS.locked}
               strokeWidth={1.8}
               strokeLinecap="round"
             />
@@ -567,13 +590,13 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
             <path
               d={buildForecastPath(0.04)}
               fill="none"
-              stroke="rgba(100,160,220,0.85)"
+              stroke="rgba(74,222,128,0.85)"
               strokeWidth={1.6}
             />
             <path
               d={buildForecastPath(0.11)}
               fill="none"
-              stroke={solarActive ? '#4ade80' : '#3a6080'}
+              stroke={solarActive ? MAP_COLORS.success : MAP_COLORS.locked}
               strokeWidth={1.3}
               strokeDasharray="5 4"
             />
@@ -590,12 +613,12 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
             <LoadRow
               label="Scheduled"
               pct={demandActive ? 72 : 0}
-              color="rgba(100,160,220,0.85)"
+              color="rgba(74,222,128,0.85)"
             />
             <LoadRow
               label="Actual"
               pct={demandActive ? 58 + Math.round(Math.sin(tick) * 8) : 0}
-              color={demandActive ? '#4ade80' : '#3a6080'}
+              color={demandActive ? MAP_COLORS.success : MAP_COLORS.locked}
             />
           </div>
         </IndicatorTile>
@@ -606,9 +629,9 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
 
 const MetricCell = ({ label, value }: { label: string; value: string }) => {
   return (
-    <div className="rounded-lg border border-[#3a6080]/35 bg-[#0a1728] px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6f93b2]">{label}</p>
-      <p className="mt-0.5 text-sm font-semibold text-[#d8eaf8]">{value}</p>
+    <div className="rounded-lg border px-3 py-2" style={{ borderColor: MAP_COLORS.borderSoft, background: 'rgba(11,20,15,0.94)' }}>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: MAP_COLORS.textMuted }}>{label}</p>
+      <p className="mt-0.5 text-sm font-semibold" style={{ color: MAP_COLORS.textPrimary }}>{value}</p>
     </div>
   );
 };
@@ -624,11 +647,11 @@ const LoadRow = ({
 }) => {
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-[#8aaece]">
+      <div className="mb-1 flex items-center justify-between" style={{ color: MAP_COLORS.textSecondary }}>
         <span>{label}</span>
         <span>{pct}%</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-[#102840]">
+      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: MAP_COLORS.track }}>
         <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>

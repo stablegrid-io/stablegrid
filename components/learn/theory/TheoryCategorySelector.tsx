@@ -173,210 +173,196 @@ export const TheoryCategorySelector = ({
       } => Boolean(item)
     );
 
+  // Flatten all chapters in order, tagged with their group
+  const allRows = chapterGroups.flatMap((group) =>
+    group.cards.map((card, indexInGroup) => ({
+      card,
+      group,
+      isFirstInGroup: indexInGroup === 0
+    }))
+  );
+  const lastIndex = allRows.length - 1;
+
   return (
     <div className="min-h-screen bg-light-bg pb-24 dark:bg-dark-bg lg:pb-8">
       <div className="container mx-auto px-4 py-8">
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-3xl">
+
           <Link
-            href={`/learn/${doc.topic}`}
+            href="/learn"
             className="mb-8 inline-flex items-center gap-2 text-sm text-text-light-tertiary transition-colors hover:text-brand-500 dark:text-text-dark-tertiary"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Topic
+            All Topics
           </Link>
 
           <header className="mb-8">
             <p className="mb-1 text-xs font-medium uppercase tracking-[0.24em] text-brand-500">
               Theory
             </p>
-            <h1 className="text-3xl font-bold">{doc.title}</h1>
-            <p className="mt-2 text-text-light-secondary dark:text-text-dark-secondary">
-              Chapter progression overview with live reading status.
+            <h1 className="mb-1 text-3xl font-bold text-text-light-primary dark:text-text-dark-primary">
+              {doc.title}
+            </h1>
+            <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              {doc.chapters.length} chapters · {totalMinutes} min total
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-              <span className="flex items-center gap-1.5">
-                <BookOpen className="h-3.5 w-3.5" />
-                {doc.chapters.length} chapters
-              </span>
-              <span>{totalMinutes} min total</span>
-            </div>
           </header>
 
-          <section aria-label="Overall chapter progress" className="mb-7">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-lg font-medium text-text-light-secondary dark:text-text-dark-secondary">
+          {/* Overall progress */}
+          <div className="mb-10 rounded-xl border border-light-border bg-light-surface p-4 dark:border-dark-border dark:bg-dark-surface">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-medium text-text-light-primary dark:text-text-dark-primary">
                 Overall Progress
               </span>
-              <span className="text-xl font-semibold text-emerald-500">
+              <span className="font-semibold text-emerald-500">
                 {completedLessons}/{totalLessons} lessons
               </span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+                className="h-full rounded-full bg-emerald-500 transition-all duration-500"
                 style={{ width: `${overallProgressPct}%` }}
               />
             </div>
-          </section>
+          </div>
 
-          <div className="space-y-5">
-            {chapterGroups.map((group) => {
-              return (
-                <section
-                  key={group.category.slug}
-                  className="rounded-2xl border border-light-border bg-light-surface/60 p-4 dark:border-dark-border dark:bg-dark-surface/60"
+          {/* Timeline */}
+          <div>
+            {allRows.map(({ card, group, isFirstInGroup }, rowIndex) => {
+              const isComplete = card.status === 'completed';
+              const isActive = card.status === 'active';
+              const isLocked = card.status === 'locked';
+              const isLast = rowIndex === lastIndex;
+              const accentWidth = isComplete ? 100 : card.chapterProgressPct;
+
+              const cardContent = (
+                <div
+                  className={`rounded-xl border p-4 transition-colors ${
+                    isActive
+                      ? 'border-emerald-500/50 bg-emerald-500/5 dark:bg-emerald-500/10'
+                      : isComplete
+                        ? 'border-emerald-500/25 bg-light-surface dark:bg-dark-surface'
+                        : isLocked
+                          ? 'border-light-border/50 bg-light-surface/50 opacity-60 dark:border-dark-border/50 dark:bg-dark-surface/50'
+                          : 'border-light-border bg-light-surface hover:border-brand-500/30 dark:border-dark-border dark:bg-dark-surface dark:hover:border-brand-500/30'
+                  }`}
                 >
-                  <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-500">
-                        {group.category.label}
-                      </p>
-                      <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
-                        {group.category.description}
-                      </p>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                          Ch. {card.chapter.number}
+                        </span>
+                        {isActive && (
+                          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-500">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <h2 className={`mt-0.5 text-base font-semibold leading-snug ${
+                        isLocked
+                          ? 'text-text-light-tertiary/60 dark:text-text-dark-tertiary/60'
+                          : 'text-text-light-primary dark:text-text-dark-primary'
+                      }`}>
+                        {card.chapter.title}
+                      </h2>
                     </div>
-                    <div className="text-right text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-                      <p>
-                        {group.completedCount}/{group.cards.length} chapters complete
-                      </p>
-                      <p>
-                        {group.lessonsDone}/{group.lessonsTotal} lessons
-                      </p>
+                    <div className="shrink-0 text-right text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+                      <div>{card.chapter.totalMinutes} min</div>
+                      <div className="mt-0.5">{card.lessonsDone}/{card.lessonsTotal}</div>
                     </div>
                   </div>
 
-                  <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
-                      style={{ width: `${group.progressPct}%` }}
-                    />
+                  {!isLocked && (
+                    <div className="mt-3">
+                      <div className="h-1 w-full overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+                        <div
+                          className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                          style={{ width: `${accentWidth}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center justify-between">
+                    {isActive ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-500">
+                        Continue reading <ArrowRight className="h-3.5 w-3.5" />
+                      </span>
+                    ) : isComplete ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-500">
+                        <Check className="h-3.5 w-3.5" /> Completed
+                      </span>
+                    ) : isLocked ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+                        <Lock className="h-3.5 w-3.5" /> Locked
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-500">
+                        Open chapter <ArrowRight className="h-3.5 w-3.5" />
+                      </span>
+                    )}
                   </div>
+                </div>
+              );
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {group.cards.map((card) => {
-                      const isComplete = card.status === 'completed';
-                      const isActive = card.status === 'active';
-                      const isLocked = card.status === 'locked';
-                      const accentWidth = isComplete ? 100 : card.chapterProgressPct;
+              return (
+                <div key={card.chapter.id}>
+                  {/* Category label — shown before first card of each group */}
+                  {isFirstInGroup && (
+                    <div className="flex items-center gap-3 pb-3 pt-2">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-brand-500/40 bg-brand-500/10 text-[11px]">
+                        {CATEGORY_EMOJI[group.category.slug] ?? '📘'}
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500">
+                          {group.category.label}
+                        </span>
+                        <span className="text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+                          {group.completedCount}/{group.cards.length} chapters
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
-                      const cardBody = (
-                        <>
-                          <div
-                            className={`absolute inset-x-0 top-0 h-0.5 rounded-t-2xl ${
-                              isLocked ? 'bg-transparent' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${accentWidth}%` }}
-                          />
+                  {/* Row: dot + connector + card */}
+                  <div className="flex gap-4">
+                    {/* Left: dot + vertical line */}
+                    <div className="flex w-6 shrink-0 flex-col items-center">
+                      <div
+                        className={`mt-4 h-3 w-3 shrink-0 rounded-full border-2 ${
+                          isActive
+                            ? 'border-emerald-500 bg-emerald-500 shadow-sm shadow-emerald-500/50'
+                            : isComplete
+                              ? 'border-emerald-500 bg-emerald-500'
+                              : isLocked
+                                ? 'border-light-border bg-light-bg dark:border-dark-border dark:bg-dark-bg'
+                                : 'border-light-border bg-light-bg dark:border-dark-border dark:bg-dark-bg'
+                        }`}
+                      />
+                      {!isLast && (
+                        <div className="mt-1 w-0.5 flex-1 bg-light-border dark:bg-dark-border" />
+                      )}
+                    </div>
 
-                          <div className="mb-2 flex items-start justify-between">
-                            <span className="text-xl" aria-hidden="true">
-                              {card.chapterIcon}
-                            </span>
-                            {isComplete ? (
-                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
-                                <Check className="h-3.5 w-3.5" />
-                              </span>
-                            ) : null}
-                            {isLocked ? (
-                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-dark-surface/60 text-text-dark-tertiary">
-                                <Lock className="h-3.5 w-3.5" />
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <h2
-                            className={`line-clamp-2 text-base font-semibold leading-snug ${
-                              isLocked
-                                ? 'text-text-light-tertiary/70 dark:text-text-dark-tertiary/70'
-                                : 'text-text-light-primary dark:text-text-dark-primary'
-                            }`}
-                          >
-                            {card.chapter.title}
-                          </h2>
-
-                          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                            <div
-                              className={`h-full rounded-full ${
-                                isLocked ? 'bg-text-light-tertiary/25 dark:bg-text-dark-tertiary/25' : 'bg-emerald-500'
-                              }`}
-                              style={{ width: `${accentWidth}%` }}
-                            />
-                          </div>
-
-                          <div className="mt-2 flex items-center justify-between text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
-                            <span>
-                              {card.lessonsDone}/{card.lessonsTotal} lessons
-                            </span>
-                            <span>{card.chapter.totalMinutes} min</span>
-                          </div>
-
-                          <div className="mt-2 flex items-center justify-between">
-                            {isActive ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-500">
-                                Continue
-                                <ArrowRight className="h-3.5 w-3.5" />
-                              </span>
-                            ) : isComplete ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500">
-                                <Check className="h-3.5 w-3.5" />
-                                Completed
-                              </span>
-                            ) : isLocked ? (
-                              <span className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-                                Locked
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-500">
-                                Open
-                                <ArrowRight className="h-3.5 w-3.5" />
-                              </span>
-                            )}
-
-                            <span className="text-[10px] uppercase tracking-[0.18em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                              Ch. {card.chapter.number}
-                            </span>
-                          </div>
-                        </>
-                      );
-
-                      const commonClassName = `relative overflow-hidden rounded-2xl border p-3 ${
-                        isActive
-                          ? 'border-emerald-500/60 bg-gradient-to-r from-[#0f172a] to-[#0b1f28] shadow-[0_0_0_1px_rgba(16,185,129,0.22)]'
-                          : isComplete
-                            ? 'border-emerald-500/35 bg-light-surface dark:bg-dark-surface'
-                            : isLocked
-                              ? 'border-light-border/60 bg-light-surface/70 opacity-80 dark:border-dark-border/60 dark:bg-dark-surface/70'
-                              : 'border-light-border bg-light-surface transition-colors hover:bg-light-hover dark:border-dark-border dark:bg-dark-surface dark:hover:bg-dark-hover'
-                      }`;
-
-                      if (isLocked) {
-                        return (
-                          <article
-                            key={card.chapter.id}
-                            className={commonClassName}
-                            aria-label={`${card.chapter.title} locked`}
-                          >
-                            {cardBody}
-                          </article>
-                        );
-                      }
-
-                      return (
-                        <Link
-                          key={card.chapter.id}
-                          href={card.href}
-                          className={commonClassName}
-                          aria-current={isActive ? 'step' : undefined}
-                        >
-                          {cardBody}
+                    {/* Right: card */}
+                    <div className="flex-1 pb-3">
+                      {isLocked ? (
+                        <article aria-label={`${card.chapter.title} locked`}>
+                          {cardContent}
+                        </article>
+                      ) : (
+                        <Link href={card.href} aria-current={isActive ? 'step' : undefined}>
+                          {cardContent}
                         </Link>
-                      );
-                    })}
+                      )}
+                    </div>
                   </div>
-                </section>
+                </div>
               );
             })}
           </div>
+
         </div>
       </div>
     </div>

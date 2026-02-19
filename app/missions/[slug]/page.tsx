@@ -36,13 +36,13 @@ export function generateMetadata({ params }: MissionPageProps): Metadata {
   const mission = MISSIONS.find((item) => item.slug === params.slug);
   if (!mission) {
     return {
-      title: 'Mission Not Found | stablegrid.io',
+      title: 'StableGrid.io',
       description: 'Mission detail page.'
     };
   }
 
   return {
-    title: `${mission.codename} | Missions | stablegrid.io`,
+    title: 'StableGrid.io',
     description: mission.summary
   };
 }
