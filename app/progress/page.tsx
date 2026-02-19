@@ -54,6 +54,10 @@ interface UserMissionRow {
   xp_awarded: number;
 }
 
+interface DashboardLayoutRow {
+  layout: unknown;
+}
+
 const learnTopics: Topic[] = ['pyspark', 'sql', 'python', 'fabric'];
 
 const TOPIC_DEFAULTS: Record<
@@ -125,20 +129,20 @@ const toTopicProgressModel = (row: TopicProgressRow): TopicProgressModel => {
     userId: row.user_id,
     topic: row.topic,
     theoryChaptersTotal: row.theory_chapters_total || defaults.theoryChaptersTotal,
-  theoryChaptersCompleted: row.theory_chapters_completed,
+    theoryChaptersCompleted: row.theory_chapters_completed,
     theorySectionsTotal: row.theory_sections_total || defaults.theorySectionsTotal,
-  theorySectionsRead: row.theory_sections_read,
-  theoryTotalMinutesRead: row.theory_total_minutes_read,
+    theorySectionsRead: row.theory_sections_read,
+    theoryTotalMinutesRead: row.theory_total_minutes_read,
     practiceQuestionsTotal: row.practice_questions_total || defaults.practiceTotal,
-  practiceQuestionsAttempted: row.practice_questions_attempted,
-  practiceQuestionsCorrect: row.practice_questions_correct,
+    practiceQuestionsAttempted: row.practice_questions_attempted,
+    practiceQuestionsCorrect: row.practice_questions_correct,
     functionsTotal: row.functions_total || defaults.functionsTotal,
-  functionsViewed: row.functions_viewed,
-  functionsBookmarked: row.functions_bookmarked,
-  overallCompletionPct: row.overall_completion_pct,
-  firstActivityAt: row.first_activity_at,
-  lastActivityAt: row.last_activity_at,
-  updatedAt: row.updated_at
+    functionsViewed: row.functions_viewed,
+    functionsBookmarked: row.functions_bookmarked,
+    overallCompletionPct: row.overall_completion_pct,
+    firstActivityAt: row.first_activity_at,
+    lastActivityAt: row.last_activity_at,
+    updatedAt: row.updated_at
   };
 };
 
@@ -186,8 +190,12 @@ export default async function ProgressPage() {
     redirect('/login');
   }
 
-  const [topicProgressResult, readingSessionsResult, userMissionsResult] =
-    await Promise.all([
+  const [
+    topicProgressResult,
+    readingSessionsResult,
+    userMissionsResult,
+    dashboardLayoutResult
+  ] = await Promise.all([
     supabase
       .from('topic_progress')
       .select(
@@ -203,15 +211,17 @@ export default async function ProgressPage() {
       .eq('user_id', user.id)
       .order('started_at', { ascending: false })
       .limit(50),
-      supabase
-        .from('user_missions')
-        .select('mission_slug,state,unlocked,started_at,completed_at,xp_awarded')
-        .eq('user_id', user.id)
-    ]);
+    supabase
+      .from('user_missions')
+      .select('mission_slug,state,unlocked,started_at,completed_at,xp_awarded')
+      .eq('user_id', user.id),
+    supabase.from('dashboard_layouts').select('layout').eq('user_id', user.id).maybeSingle()
+  ]);
 
   const topicRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
   const readingRows = (readingSessionsResult.data ?? []) as ReadingSessionRow[];
   const userMissionRows = (userMissionsResult.data ?? []) as UserMissionRow[];
+  const dashboardLayout = (dashboardLayoutResult.data ?? null) as DashboardLayoutRow | null;
 
   const mappedTopicProgress = topicRows.map(toTopicProgressModel);
   const byTopic = new Map(mappedTopicProgress.map((row) => [row.topic, row]));
@@ -224,10 +234,13 @@ export default async function ProgressPage() {
 
   return (
     <ProgressDashboard
+      userId={user.id}
+      userEmail={user.email ?? ''}
       topicProgress={topicProgress}
       readingSessions={readingSessions}
       practiceHistory={[]}
       missionProgress={missionProgress}
+      initialDashboardLayout={dashboardLayout?.layout ?? null}
     />
   );
 }

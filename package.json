@@ -37,6 +37,7 @@
     "react": "18.3.0",
     "react-confetti": "^6.4.0",
     "react-dom": "18.3.0",
+    "react-grid-layout": "^2.2.2",
     "react-resizable-panels": "2.0.19",
     "react-use": "^17.6.0",
     "recharts": "^3.7.0",
