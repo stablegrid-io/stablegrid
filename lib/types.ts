@@ -1,6 +1,4 @@
 export type PracticeTopic =
-  | 'sql'
-  | 'python'
   | 'pyspark'
   | 'fabric';
 

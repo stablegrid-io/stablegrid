@@ -4,7 +4,7 @@ import type { Question } from '@/lib/types';
 
 const baseQuestion: Question = {
   id: 'q-1',
-  topic: 'sql',
+  topic: 'pyspark',
   difficulty: 'easy',
   type: 'free-text',
   question: 'What clause groups rows?',

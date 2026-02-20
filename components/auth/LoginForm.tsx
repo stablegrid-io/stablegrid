@@ -36,8 +36,8 @@ const GITHUB_ICON = (
 
 const LEFT_FEATURES = [
   {
-    label: 'Structured curriculum',
-    description: 'PySpark, SQL, Python, and Microsoft Fabric'
+    label: 'PySpark & Microsoft Fabric',
+    description: 'Deep-dive curriculum for the modern data engineering stack'
   },
   {
     label: 'Function reference',
@@ -67,9 +67,9 @@ export function LoginForm() {
     if (typeof router.prefetch !== 'function') {
       return;
     }
-    router.prefetch('/flashcards');
+    router.prefetch('/onboarding');
+    router.prefetch('/');
     router.prefetch('/learn');
-    router.prefetch('/missions');
   }, [router]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -79,7 +79,8 @@ export function LoginForm() {
 
     try {
       await signIn(email.trim(), password);
-      router.push('/flashcards');
+      // /onboarding will redirect returning users to / automatically
+      router.push('/onboarding');
     } catch (err: any) {
       setError(err?.message ?? 'Failed to login.');
     } finally {

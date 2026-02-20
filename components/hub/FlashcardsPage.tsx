@@ -7,7 +7,7 @@ import { TopicSelector } from '@/components/TopicSelector';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import type { TopicInfo, PracticeTopic } from '@/lib/types';
 
-const ALLOWED_TOPICS: PracticeTopic[] = ['pyspark', 'sql', 'python', 'fabric'];
+const ALLOWED_TOPICS: PracticeTopic[] = ['pyspark', 'fabric'];
 type FlashcardFilter = 'all' | 'available' | 'completed';
 
 const FILTERS: Array<{ id: FlashcardFilter; label: string }> = [

@@ -38,8 +38,8 @@ const GITHUB_ICON = (
 
 const LEFT_FEATURES = [
   {
-    label: 'Structured curriculum',
-    description: 'PySpark, SQL, Python, and Microsoft Fabric'
+    label: 'PySpark & Microsoft Fabric',
+    description: 'Deep-dive curriculum for the modern data engineering stack'
   },
   {
     label: 'Function reference',
@@ -99,7 +99,7 @@ export function SignupForm() {
 
       const data = await signUp(email.trim(), password, name.trim(), captchaToken);
       if (data?.session) {
-        router.push('/flashcards');
+        router.push('/onboarding');
         return;
       }
 

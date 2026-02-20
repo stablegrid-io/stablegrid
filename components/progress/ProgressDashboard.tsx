@@ -111,12 +111,10 @@ const SIZE_PRESETS: Record<WidgetSize, { w: number; h: number; label: string }> 
 
 const TOPIC_META: Record<Topic, { label: string }> = {
   pyspark: { label: 'PySpark' },
-  sql: { label: 'SQL' },
-  python: { label: 'Python' },
   fabric: { label: 'Fabric' }
 };
 
-const TOPIC_ORDER: Topic[] = ['pyspark', 'sql', 'python', 'fabric'];
+const TOPIC_ORDER: Topic[] = ['pyspark', 'fabric'];
 const TOPIC_COLORS = ['#10b981', '#34d399', '#2dd4bf', '#6ee7b7'];
 const DRAWER_WIDTH_PX = 340;
 
@@ -586,9 +584,15 @@ function buildDefaultLayouts(): GridLayouts {
   };
 }
 
+const EMPTY_LAYOUTS: GridLayouts = { lg: [], md: [], sm: [] };
+
 function normalizeLoadedLayouts(raw: unknown): GridLayouts {
   const defaults = buildDefaultLayouts();
-  if (!raw || typeof raw !== 'object') {
+  // New user — no saved layout yet: start with a blank canvas.
+  if (raw === null || raw === undefined) {
+    return EMPTY_LAYOUTS;
+  }
+  if (typeof raw !== 'object') {
     return defaults;
   }
 
@@ -1454,14 +1458,27 @@ const WidgetBody = memo(function WidgetBody({
   widgetId: WidgetId;
   data: ReturnType<typeof useWidgetData>;
 }) {
-  const metricCard = (value: string, sub: string) => (
-    <div className="flex h-full flex-col justify-center">
-      <p className="text-3xl font-semibold text-text-light-primary dark:text-text-dark-primary">
-        {value}
-      </p>
-      <p className="mt-1 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">{sub}</p>
-    </div>
-  );
+  const metricCard = (value: string, sub: string) => {
+    // Split value into number + unit for typographic hierarchy
+    const match = value.match(/^([0-9.,]+)\s*(.*)$/);
+    const numPart = match ? match[1] : value;
+    const unitPart = match ? match[2] : '';
+    return (
+      <div className="flex h-full flex-col justify-center gap-1">
+        <p className="flex items-baseline gap-1.5 leading-none">
+          <span className="text-4xl font-black tracking-tight text-text-light-primary dark:text-text-dark-primary">
+            {numPart}
+          </span>
+          {unitPart ? (
+            <span className="text-sm font-medium text-text-light-tertiary dark:text-text-dark-tertiary">
+              {unitPart}
+            </span>
+          ) : null}
+        </p>
+        <p className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">{sub}</p>
+      </div>
+    );
+  };
 
   if (widgetId === 'total_kwh' || widgetId === 'kwh_this_week' || widgetId === 'kwh_this_month') {
     const metric = data as { value: string; sub: string };
@@ -1655,31 +1672,43 @@ const WidgetBody = memo(function WidgetBody({
 
   if (widgetId === 'overall_accuracy') {
     const accuracy = data as number;
-    const radius = 42;
+    const radius = 52;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference * (1 - clamp(accuracy, 0, 100) / 100);
+    // Derive attempted/correct from metrics passed via data being accuracy number
+    // Show a supportive breakdown in the card footer
+    const accuracyColor = accuracy >= 80 ? '#10b981' : accuracy >= 50 ? '#f59e0b' : '#ef4444';
 
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="relative h-28 w-28">
-          <svg viewBox="0 0 104 104" className="h-full w-full -rotate-90">
-            <circle cx="52" cy="52" r={radius} stroke="rgba(31,41,55,0.95)" strokeWidth="8" fill="none" />
+      <div className="flex h-full flex-col items-center justify-center gap-3">
+        <div className="relative h-36 w-36 shrink-0">
+          <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+            <circle cx="60" cy="60" r={radius} stroke="rgba(148,163,184,0.15)" strokeWidth="10" fill="none" />
             <circle
-              cx="52"
-              cy="52"
+              cx="60"
+              cy="60"
               r={radius}
-              stroke="#10b981"
-              strokeWidth="8"
+              stroke={accuracyColor}
+              strokeWidth="10"
               fill="none"
               strokeDasharray={circumference}
               strokeDashoffset={offset}
               strokeLinecap="round"
+              style={{ transition: 'stroke-dashoffset 0.6s ease' }}
             />
           </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-3xl font-semibold text-text-light-primary dark:text-text-dark-primary">{accuracy}%</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-3xl font-black tracking-tight text-text-light-primary dark:text-text-dark-primary">
+              {accuracy}%
+            </span>
+            <span className="text-[10px] uppercase tracking-widest text-text-light-tertiary dark:text-text-dark-tertiary">
+              accuracy
+            </span>
           </div>
         </div>
+        <p className="text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+          {accuracy >= 80 ? 'Excellent performance' : accuracy >= 50 ? 'Keep practising' : 'Start practising to improve'}
+        </p>
       </div>
     );
   }
@@ -1793,10 +1822,20 @@ const WidgetBody = memo(function WidgetBody({
   if (widgetId === 'current_streak' || widgetId === 'longest_streak') {
     const streakValue = data as number;
     return (
-      <div className="flex h-full flex-col justify-center">
-        <p className="text-3xl font-semibold text-emerald-500">{formatDayCount(streakValue)}</p>
-        <p className="mt-1 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-          consecutive activity days
+      <div className="flex h-full flex-col justify-center gap-1">
+        <div className="flex items-center gap-2">
+          <Flame className="h-6 w-6 shrink-0 text-emerald-500" />
+          <p className="flex items-baseline gap-1.5 leading-none">
+            <span className="text-4xl font-black tracking-tight text-emerald-500">
+              {streakValue}
+            </span>
+            <span className="text-sm font-medium text-text-light-tertiary dark:text-text-dark-tertiary">
+              days
+            </span>
+          </p>
+        </div>
+        <p className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+          {widgetId === 'current_streak' ? 'current streak' : 'longest streak'}
         </p>
       </div>
     );
@@ -2120,6 +2159,13 @@ export const ProgressDashboard = ({
   const [isEditMode, setIsEditMode] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeBreakpoint, setActiveBreakpoint] = useState<BreakpointKey>('lg');
+  const [dashboardName, setDashboardName] = useState(() => {
+    if (typeof window === 'undefined') return 'Progress Dashboard';
+    return localStorage.getItem(`dashboard-name-${userId}`) ?? 'Progress Dashboard';
+  });
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(dashboardName);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveToastOpen, setSaveToastOpen] = useState(false);
   const [layouts, setLayouts] = useState<GridLayouts>(() =>
@@ -2333,6 +2379,14 @@ export const ProgressDashboard = ({
     void persistLayouts(layoutsRef.current);
   }, [persistLayouts]);
 
+  const commitName = useCallback(() => {
+    const trimmed = nameInput.trim() || 'Progress Dashboard';
+    setDashboardName(trimmed);
+    setNameInput(trimmed);
+    setIsEditingName(false);
+    localStorage.setItem(`dashboard-name-${userId}`, trimmed);
+  }, [nameInput, userId]);
+
   useEffect(() => {
     if (!didHydrateRef.current) return;
     if (!userId) return;
@@ -2399,31 +2453,7 @@ export const ProgressDashboard = ({
         }
       >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Progress Dashboard</h1>
-            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-              {dashboardSummary}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {isEditMode ? (
-              <>
-                <button type="button" className="btn btn-secondary" onClick={resetToDefault}>
-                  <RefreshCcw className="h-4 w-4" />
-                  Reset to Default
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setDrawerOpen((open) => !open)}
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Widgets
-                </button>
-              </>
-            ) : null}
-
+          <div className="flex items-center gap-3">
             <button
               type="button"
               className={isEditMode ? 'btn btn-primary' : 'btn btn-secondary'}
@@ -2436,6 +2466,63 @@ export const ProgressDashboard = ({
               <Pencil className="h-4 w-4" />
               {isEditMode ? 'Done' : 'Customize'}
             </button>
+
+            {isEditMode ? (
+              <>
+                <button type="button" className="btn btn-secondary" onClick={resetToDefault}>
+                  <RefreshCcw className="h-4 w-4" />
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setDrawerOpen((open) => !open)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Widgets
+                </button>
+              </>
+            ) : null}
+          </div>
+
+          <div className="text-right">
+            {isEditingName ? (
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={nameInput}
+                maxLength={48}
+                onChange={(e) => setNameInput(e.target.value)}
+                onBlur={commitName}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitName();
+                  if (e.key === 'Escape') {
+                    setNameInput(dashboardName);
+                    setIsEditingName(false);
+                  }
+                }}
+                className="w-64 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xl font-bold text-neutral-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white dark:focus:border-emerald-400"
+                autoFocus
+              />
+            ) : (
+              <button
+                type="button"
+                className="group flex items-center gap-2 text-right"
+                onClick={() => {
+                  setNameInput(dashboardName);
+                  setIsEditingName(true);
+                  setTimeout(() => nameInputRef.current?.select(), 0);
+                }}
+              >
+                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
+                  {dashboardName}
+                </h1>
+                <Pencil className="h-3.5 w-3.5 text-neutral-400 opacity-0 transition group-hover:opacity-100 dark:text-neutral-500" />
+              </button>
+            )}
+            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+              {dashboardSummary}
+            </p>
           </div>
         </div>
 
@@ -2468,7 +2555,32 @@ export const ProgressDashboard = ({
               isEditMode ? 'progress-dashboard-editing' : 'bg-transparent'
             }`}
           >
-            {isMobile ? (
+            {activeWidgetIds.size === 0 && !isEditMode ? (
+              <div className="flex flex-col items-center justify-center gap-6 py-24 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900">
+                  <LayoutGrid className="h-8 w-8 text-neutral-400 dark:text-neutral-500" />
+                </div>
+                <div className="max-w-sm">
+                  <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                    Your dashboard is empty
+                  </h2>
+                  <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+                    Start tracking your progress by adding widgets. Choose metrics, charts, and streaks that matter most to you.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setIsEditMode(true);
+                    setDrawerOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add your first widget
+                </button>
+              </div>
+            ) : isMobile ? (
               <div className="space-y-3">
                 {mobileOrderedWidgets.map((widgetId, index) => (
                   <div key={widgetId} className="min-h-[230px]">

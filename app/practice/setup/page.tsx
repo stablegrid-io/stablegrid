@@ -8,7 +8,7 @@ import { useQuestionFilters } from '@/lib/hooks/useQuestionFilters';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import type { PracticeTopic, Question, QuestionDifficulty } from '@/lib/types';
 
-const TOPICS: PracticeTopic[] = ['sql', 'python', 'pyspark', 'fabric'];
+const TOPICS: PracticeTopic[] = ['pyspark', 'fabric'];
 
 export default function PracticeSetupPage() {
   const router = useRouter();

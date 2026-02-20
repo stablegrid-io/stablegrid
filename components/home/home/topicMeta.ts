@@ -22,26 +22,6 @@ export const HOME_TOPICS: Record<Topic, HomeTopicMeta> = {
     fallbackChapters: 13,
     fallbackQuestions: 45
   },
-  sql: {
-    id: 'sql',
-    label: 'SQL',
-    icon: '🗄️',
-    color: '#6b7fff',
-    softBg: 'rgba(107, 127, 255, 0.10)',
-    softBorder: 'rgba(107, 127, 255, 0.25)',
-    fallbackChapters: 10,
-    fallbackQuestions: 60
-  },
-  python: {
-    id: 'python',
-    label: 'Python',
-    icon: '🐍',
-    color: '#10b981',
-    softBg: 'rgba(16, 185, 129, 0.10)',
-    softBorder: 'rgba(16, 185, 129, 0.25)',
-    fallbackChapters: 9,
-    fallbackQuestions: 50
-  },
   fabric: {
     id: 'fabric',
     label: 'Microsoft Fabric',
@@ -54,7 +34,7 @@ export const HOME_TOPICS: Record<Topic, HomeTopicMeta> = {
   }
 };
 
-export const HOME_TOPIC_ORDER: Topic[] = ['pyspark', 'sql', 'python', 'fabric'];
+export const HOME_TOPIC_ORDER: Topic[] = ['pyspark', 'fabric'];
 
 export const getHomeTopicMeta = (topic: string): HomeTopicMeta =>
-  HOME_TOPICS[(topic as Topic) ?? 'sql'] ?? HOME_TOPICS.sql;
+  HOME_TOPICS[(topic as Topic) ?? 'pyspark'] ?? HOME_TOPICS.pyspark;

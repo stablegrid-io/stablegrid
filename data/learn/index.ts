@@ -1,14 +1,10 @@
 import type { CheatSheet } from '@/types/learn';
 import { fabricData } from '@/data/learn/fabric';
 import { pysparkData } from '@/data/learn/pyspark';
-import { pythonData } from '@/data/learn/python';
-import { sqlData } from '@/data/learn/sql';
 import { getTheoryMeta } from '@/data/learn/theory';
 
 export const cheatSheets: Record<string, CheatSheet> = {
   pyspark: pysparkData,
-  sql: sqlData,
-  python: pythonData,
   fabric: fabricData
 };
 

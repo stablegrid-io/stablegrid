@@ -57,10 +57,7 @@ export async function validateAnswer(
     return false;
   }
 
-  if (question.topic === 'python' && runPython) {
-    const result = await runPython(answer);
-    return result.success;
-  }
+  // Python topic removed from MVP scope
 
   return true;
 }

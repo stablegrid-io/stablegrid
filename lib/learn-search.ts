@@ -1,8 +1,7 @@
 import { cheatSheets } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
 import pysparkQuestions from '@/data/questions/pyspark.json';
-import pythonQuestions from '@/data/questions/python.json';
-import sqlQuestions from '@/data/questions/sql.json';
+import fabricQuestions from '@/data/questions/fabric.json';
 import type { HomeSearchItem } from '@/types/home-search';
 import type { Topic } from '@/types/progress';
 
@@ -19,7 +18,7 @@ interface QuestionSearchPayload {
   questions?: QuestionSearchRow[];
 }
 
-const LEARN_TOPICS: Topic[] = ['pyspark', 'sql', 'python', 'fabric'];
+const LEARN_TOPICS: Topic[] = ['pyspark', 'fabric'];
 
 const QUESTION_BANKS: Array<{ topic: Topic; payload: QuestionSearchPayload }> = [
   {
@@ -27,12 +26,8 @@ const QUESTION_BANKS: Array<{ topic: Topic; payload: QuestionSearchPayload }> = 
     payload: pysparkQuestions as QuestionSearchPayload
   },
   {
-    topic: 'sql',
-    payload: sqlQuestions as QuestionSearchPayload
-  },
-  {
-    topic: 'python',
-    payload: pythonQuestions as QuestionSearchPayload
+    topic: 'fabric',
+    payload: fabricQuestions as QuestionSearchPayload
   }
 ];
 

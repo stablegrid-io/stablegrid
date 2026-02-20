@@ -58,7 +58,7 @@ interface DashboardLayoutRow {
   layout: unknown;
 }
 
-const learnTopics: Topic[] = ['pyspark', 'sql', 'python', 'fabric'];
+const learnTopics: Topic[] = ['pyspark', 'fabric'];
 
 const TOPIC_DEFAULTS: Record<
   Topic,
@@ -74,18 +74,6 @@ const TOPIC_DEFAULTS: Record<
     theorySectionsTotal: 39,
     practiceTotal: 45,
     functionsTotal: 91
-  },
-  sql: {
-    theoryChaptersTotal: 10,
-    theorySectionsTotal: 30,
-    practiceTotal: 60,
-    functionsTotal: 60
-  },
-  python: {
-    theoryChaptersTotal: 9,
-    theorySectionsTotal: 27,
-    practiceTotal: 50,
-    functionsTotal: 50
   },
   fabric: {
     theoryChaptersTotal: 5,

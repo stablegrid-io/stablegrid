@@ -6,47 +6,13 @@ import { ChevronRight } from 'lucide-react';
 
 const TOPICS = [
   {
-    id: 'sql',
-    icon: 'D',
-    label: 'SQL for Grid Ops',
-    version: 'PostgreSQL dialect',
-    chapters: 3,
-    functions: 28,
-    questions: 18,
-    highlights: [
-      'CTEs and window functions',
-      'Peak-load pattern detection',
-      'Dispatch and balancing queries',
-      'Operational KPI rollups'
-    ],
-    color: '#64a0dc',
-    plan: 'Free'
-  },
-  {
-    id: 'python',
-    icon: 'P',
-    label: 'Python for Analysis',
-    version: 'Python 3.11+',
-    chapters: 3,
-    functions: 24,
-    questions: 16,
-    highlights: [
-      'Time-series transformations',
-      'Load and generation profiling',
-      'Data quality guardrails',
-      'Statistical sanity checks'
-    ],
-    color: '#4ade80',
-    plan: 'Free'
-  },
-  {
     id: 'pyspark',
-    icon: 'S',
+    icon: '⚡',
     label: 'PySpark at Scale',
     version: 'Spark 3.4+',
-    chapters: 3,
+    chapters: 13,
     functions: 32,
-    questions: 16,
+    questions: 45,
     highlights: [
       'Partition strategy and shuffles',
       'Streaming anomaly pipelines',
@@ -54,24 +20,24 @@ const TOPICS = [
       'Cost-aware optimization'
     ],
     color: '#f0a032',
-    plan: 'Pro'
+    plan: 'Included'
   },
   {
     id: 'fabric',
-    icon: 'F',
+    icon: '🏗️',
     label: 'Microsoft Fabric',
     version: 'Lakehouse + Pipelines',
-    chapters: 3,
+    chapters: 5,
     functions: 16,
-    questions: 0,
+    questions: 40,
     highlights: [
       'Pipeline orchestration',
-      'Warehouse operations',
-      'Realtime analytics basics',
+      'Lakehouse and warehouse ops',
+      'Realtime analytics',
       'Governance and permissions'
     ],
     color: '#78b8f3',
-    plan: 'Pro'
+    plan: 'Included'
   }
 ] as const;
 
@@ -84,7 +50,7 @@ export const TopicsSection = () => {
             Curriculum engineered for the StableGrid loop
           </h2>
           <p className="text-[#9ab8a9]">
-            Start free with SQL + Python. Unlock full PySpark and Fabric tracks in Pro.
+            Master the modern data engineering stack — PySpark and Microsoft Fabric.
           </p>
         </div>
 

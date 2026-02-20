@@ -5,8 +5,6 @@ import type { PracticeTopic, Question } from '@/lib/types';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { validateAnswer } from '@/lib/validators/answerValidator';
 import { getPracticeRewardUnits } from '@/lib/energy';
-import sqlQuestionsData from '@/data/questions/sql.json';
-import pythonQuestionsData from '@/data/questions/python.json';
 import pysparkQuestionsData from '@/data/questions/pyspark.json';
 import fabricQuestionsData from '@/data/questions/fabric.json';
 
@@ -24,8 +22,6 @@ interface QuestionPayload {
 }
 
 const QUESTION_BANKS: Record<PracticeTopic, Question[]> = {
-  sql: (sqlQuestionsData as QuestionPayload).questions ?? [],
-  python: (pythonQuestionsData as QuestionPayload).questions ?? [],
   pyspark: (pysparkQuestionsData as QuestionPayload).questions ?? [],
   fabric: (fabricQuestionsData as QuestionPayload).questions ?? []
 };

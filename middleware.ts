@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@/lib/supabase/middleware';
 
 const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/update-password'];
-const PROTECTED_ROUTES = ['/hub', '/missions', '/practice', '/workspace'];
+const PROTECTED_ROUTES = ['/hub', '/missions', '/practice', '/workspace', '/onboarding'];
 
 export async function middleware(request: NextRequest) {
   const { supabase, response } = createMiddlewareClient(request);
@@ -33,6 +33,8 @@ export const config = {
     '/missions/:path*',
     '/practice/:path*',
     '/workspace/:path*',
+    '/onboarding/:path*',
+    '/onboarding',
     '/login',
     '/signup',
     '/reset-password',

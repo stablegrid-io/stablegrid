@@ -104,8 +104,6 @@ interface ProgressState {
 }
 
 const defaultTopicStats: Record<PracticeTopic, TopicStats> = {
-  sql: { correct: 0, total: 0, lastAttempted: null },
-  python: { correct: 0, total: 0, lastAttempted: null },
   pyspark: { correct: 0, total: 0, lastAttempted: null },
   fabric: { correct: 0, total: 0, lastAttempted: null }
 };

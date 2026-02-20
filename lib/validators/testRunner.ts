@@ -18,9 +18,7 @@ export async function runCodeTests({
     return { success: true };
   }
 
-  if (question.topic === 'python' && runPython) {
-    return runPython(answer);
-  }
+  // Python topic removed from MVP scope
 
   return { success: true };
 }

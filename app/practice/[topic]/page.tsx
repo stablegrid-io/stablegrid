@@ -10,7 +10,7 @@ import { SessionComplete } from '@/components/practice/SessionComplete';
 import { useQuestionSession } from '@/lib/hooks/useQuestionSession';
 import { Card } from '@/components/ui/Card';
 
-const ALLOWED_TOPICS: PracticeTopic[] = ['sql', 'python', 'pyspark', 'fabric'];
+const ALLOWED_TOPICS: PracticeTopic[] = ['pyspark', 'fabric'];
 
 export default function PracticePage({
   params
@@ -19,7 +19,7 @@ export default function PracticePage({
 }) {
   const topic = params.topic as PracticeTopic;
   const isAllowedTopic = ALLOWED_TOPICS.includes(topic);
-  const sessionTopic = isAllowedTopic ? topic : 'sql';
+  const sessionTopic = isAllowedTopic ? topic : 'pyspark';
 
   const {
     currentQuestion,

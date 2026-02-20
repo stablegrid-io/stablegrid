@@ -5,9 +5,7 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   ChevronRight,
-  Code2,
   Cpu,
-  Database,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -36,17 +34,13 @@ interface TopicEntry {
   depth: Exclude<DepthFilter, 'all'>;
 }
 
-const TOPIC_ICON_MAP: Record<string, typeof Database> = {
-  sql: Database,
+const TOPIC_ICON_MAP: Record<string, typeof Sparkles> = {
   pyspark: Sparkles,
-  python: Code2,
   fabric: Cpu
 };
 
 const TOPIC_STYLE_MAP: Record<string, { iconClass: string; badgeClass: string }> = {
-  sql:     { iconClass: 'text-brand-600 dark:text-brand-400',   badgeClass: 'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300' },
   pyspark: { iconClass: 'text-warning-600 dark:text-warning-400', badgeClass: 'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-800 dark:bg-warning-900/20 dark:text-warning-300' },
-  python:  { iconClass: 'text-success-600 dark:text-success-400', badgeClass: 'border-success-200 bg-success-50 text-success-700 dark:border-success-800 dark:bg-success-900/20 dark:text-success-300' },
   fabric:  { iconClass: 'text-fuchsia-600 dark:text-fuchsia-400', badgeClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-800 dark:bg-fuchsia-900/20 dark:text-fuchsia-300' },
 };
 
@@ -292,8 +286,8 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
             {filteredTopics.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {filteredTopics.map((topic) => {
-                  const Icon = TOPIC_ICON_MAP[topic.id] ?? Database;
-                  const style = TOPIC_STYLE_MAP[topic.id] ?? TOPIC_STYLE_MAP.sql;
+                  const Icon = TOPIC_ICON_MAP[topic.id] ?? Sparkles;
+                  const style = TOPIC_STYLE_MAP[topic.id] ?? TOPIC_STYLE_MAP.pyspark;
                   const depthLabel =
                     topic.depth === 'starter'
                       ? 'Starter'

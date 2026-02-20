@@ -68,7 +68,7 @@ export function QuestionCard({
           <CodeEditor
             value={userAnswer}
             onChange={setUserAnswer}
-            language={question.topic === 'sql' ? 'sql' : 'python'}
+            language="python"
           />
         ) : null}
 
