@@ -55,7 +55,9 @@ const loadModelAvailabilityByUrl = async () => {
 interface GridSceneCanvasProps {
   state: GridOpsComputedState;
   highlightedAssetId: string | null;
+  selectedAssetId: string | null;
   deployingAssetId: string | null;
+  onAssetSelect: (assetId: string | null) => void;
   className?: string;
 }
 
@@ -84,6 +86,14 @@ interface CameraPose {
   fov: number;
 }
 
+interface CameraControlLimits {
+  rotateSpeed: number;
+  minDistance: number;
+  maxDistance: number;
+  minPolarAngle: number;
+  maxPolarAngle: number;
+}
+
 const resolveCameraPose = (width: number): CameraPose => {
   if (width < 860) {
     return {
@@ -108,7 +118,57 @@ const resolveCameraPose = (width: number): CameraPose => {
   };
 };
 
-function OrbitCameraRig({ pose }: { pose: CameraPose }) {
+const resolveFocusedCameraPose = ({
+  width,
+  nodePosition,
+  modelScale
+}: {
+  width: number;
+  nodePosition: { x: number; y: number; z: number };
+  modelScale: number;
+}): CameraPose => {
+  const clampedScale = Math.min(1.6, Math.max(0.42, modelScale));
+  const widthBoost = width < 860 ? 1.2 : width < 1200 ? 1.08 : 1;
+  const orbitDistance = (1.9 + clampedScale * 0.95) * widthBoost;
+  const lateralOffset = orbitDistance * 0.68;
+  const lookAtY = nodePosition.y + 0.28 + clampedScale * 0.18;
+  const cameraY = nodePosition.y + 0.72 + clampedScale * 0.42;
+
+  return {
+    position: [
+      nodePosition.x + lateralOffset,
+      cameraY,
+      nodePosition.z + lateralOffset
+    ],
+    lookAt: [nodePosition.x, lookAtY, nodePosition.z],
+    fov: width < 860 ? 33 : width < 1200 ? 30 : 27
+  };
+};
+
+const resolveCameraControlLimits = ({
+  width,
+  focused
+}: {
+  width: number;
+  focused: boolean;
+}): CameraControlLimits =>
+  focused
+    ? {
+        rotateSpeed: 0.7,
+        minDistance: width < 860 ? 1.9 : 1.6,
+        maxDistance: width < 860 ? 9 : 7.2,
+        minPolarAngle: 0.12,
+        maxPolarAngle: 1.58
+      }
+    : {
+        rotateSpeed: 0.58,
+        minDistance: 6.4,
+        maxDistance: 24,
+        minPolarAngle: 0.25,
+        maxPolarAngle: 1.46
+      };
+
+function OrbitCameraRig({ pose, controls }: { pose: CameraPose; controls: CameraControlLimits }) {
   const { camera } = useThree();
 
   useEffect(() => {
@@ -131,12 +191,12 @@ function OrbitCameraRig({ pose }: { pose: CameraPose }) {
       enablePan={false}
       enableDamping
       dampingFactor={0.08}
-      rotateSpeed={0.58}
+      rotateSpeed={controls.rotateSpeed}
       zoomSpeed={0.9}
-      minDistance={6.4}
-      maxDistance={24}
-      minPolarAngle={0.25}
-      maxPolarAngle={1.46}
+      minDistance={controls.minDistance}
+      maxDistance={controls.maxDistance}
+      minPolarAngle={controls.minPolarAngle}
+      maxPolarAngle={controls.maxPolarAngle}
       target={pose.lookAt}
     />
   );
@@ -185,7 +245,9 @@ function DevFpsSampler() {
 export function GridSceneCanvas({
   state,
   highlightedAssetId,
+  selectedAssetId,
   deployingAssetId,
+  onAssetSelect,
   className
 }: GridSceneCanvasProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -280,8 +342,6 @@ export function GridSceneCanvas({
     [deviceMemory, reducedMotion, viewportWidth]
   );
 
-  const cameraPose = useMemo(() => resolveCameraPose(viewportWidth), [viewportWidth]);
-
   const detailLevel: 0 | 1 | 2 = viewportWidth < 900 ? 0 : viewportWidth < 1220 ? 1 : 2;
 
   const nodeById = useMemo(
@@ -312,7 +372,28 @@ export function GridSceneCanvas({
   );
 
   const recommendedAssetId = state.recommendation.next_best_action.target_asset_id;
-  const focusNodeId = hoveredNodeId ?? highlightedAssetId;
+  const selectedNodeId =
+    selectedAssetId && nodeById.has(selectedAssetId) ? selectedAssetId : null;
+  const focusNodeId = selectedNodeId ?? hoveredNodeId ?? highlightedAssetId;
+  const selectedNodePosition = selectedNodeId ? sceneLayout[selectedNodeId] ?? null : null;
+  const selectedNodeDescriptor = selectedNodeId ? resolveSceneAssetDescriptor(selectedNodeId) : null;
+  const selectedNodeScale = selectedNodeDescriptor?.scale ?? 0.8;
+  const cameraPose = useMemo(() => {
+    const defaultPose = resolveCameraPose(viewportWidth);
+    if (!selectedNodePosition) {
+      return defaultPose;
+    }
+
+    return resolveFocusedCameraPose({
+      width: viewportWidth,
+      nodePosition: selectedNodePosition,
+      modelScale: selectedNodeScale
+    });
+  }, [selectedNodePosition, selectedNodeScale, viewportWidth]);
+  const cameraControlLimits = useMemo(
+    () => resolveCameraControlLimits({ width: viewportWidth, focused: Boolean(selectedNodePosition) }),
+    [selectedNodePosition, viewportWidth]
+  );
   const animatedEdgeIds = useMemo(() => {
     const activeIds = state.map.edges
       .filter((edge) => edge.energized)
@@ -380,6 +461,7 @@ export function GridSceneCanvas({
         const asset = assetById.get(node.id);
         let score = 0;
 
+        if (selectedNodeId === node.id) score += 160;
         if (deployingAssetId === node.id) score += 120;
         if (focusNodeId === node.id) score += 90;
         if (recommendedAssetId === node.id) score += 60;
@@ -403,6 +485,7 @@ export function GridSceneCanvas({
     modelAvailabilityByNodeId,
     qualityCaps.maxModelRenders,
     recommendedAssetId,
+    selectedNodeId,
     state.map.nodes
   ]);
 
@@ -491,6 +574,10 @@ export function GridSceneCanvas({
         shadows={qualityCaps.enableShadows}
         dpr={qualityCaps.dpr}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        onPointerMissed={() => {
+          setHoveredNodeId(null);
+          onAssetSelect(null);
+        }}
         onCreated={({ gl }) => {
           gl.toneMappingExposure = 1.18;
         }}
@@ -501,7 +588,7 @@ export function GridSceneCanvas({
           position: cameraPose.position
         }}
       >
-        <OrbitCameraRig pose={cameraPose} />
+        <OrbitCameraRig pose={cameraPose} controls={cameraControlLimits} />
 
         <ambientLight intensity={0.62} color="#ffffff" />
         <hemisphereLight intensity={0.48} color="#f6f8ff" groundColor="#263126" />
@@ -579,6 +666,7 @@ export function GridSceneCanvas({
                 deploying={deployingAssetId === node.id}
                 recommended={recommendedAssetId === node.id}
                 onHoverChange={setHoveredNodeId}
+                onSelect={onAssetSelect}
               />
             );
           })}
@@ -634,7 +722,10 @@ export function GridSceneCanvas({
             type="button"
             onFocus={() => setHoveredNodeId(node.id)}
             onBlur={() => setHoveredNodeId(null)}
-            onClick={() => setHoveredNodeId(node.id)}
+            onClick={() => {
+              setHoveredNodeId(node.id);
+              onAssetSelect(node.id);
+            }}
           >
             Focus {node.name}
           </button>

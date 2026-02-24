@@ -6,20 +6,24 @@ interface TechDeckDockProps {
   assets: GridOpsAssetView[];
   recommendedAssetId: string | null;
   pendingAssetId: string | null;
+  selectedAssetId: string | null;
   open: boolean;
   onToggle: () => void;
   onDeploy: (assetId: string) => void;
   onAssetHover: (assetId: string | null) => void;
+  onAssetSelect: (assetId: string | null) => void;
 }
 
 export function TechDeckDock({
   assets,
   recommendedAssetId,
   pendingAssetId,
+  selectedAssetId,
   open,
   onToggle,
   onDeploy,
-  onAssetHover
+  onAssetHover,
+  onAssetSelect
 }: TechDeckDockProps) {
   return (
     <section className="rounded-2xl border border-[#224235] bg-[radial-gradient(circle_at_60%_0%,rgba(16,185,129,0.1),transparent_52%),linear-gradient(180deg,rgba(7,17,14,0.97),rgba(5,12,10,0.96))] p-2.5 text-[#d3e9dc] shadow-[0_16px_44px_rgba(0,0,0,0.34)]">
@@ -50,8 +54,10 @@ export function TechDeckDock({
           assets={assets}
           recommendedAssetId={recommendedAssetId}
           pendingAssetId={pendingAssetId}
+          selectedAssetId={selectedAssetId}
           onDeploy={onDeploy}
           onAssetHover={onAssetHover}
+          onAssetSelect={onAssetSelect}
           layout="dock"
           showHeader={false}
         />

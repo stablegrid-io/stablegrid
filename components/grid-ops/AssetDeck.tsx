@@ -8,8 +8,10 @@ interface AssetDeckProps {
   assets: GridOpsAssetView[];
   recommendedAssetId: string | null;
   pendingAssetId: string | null;
+  selectedAssetId: string | null;
   onDeploy: (assetId: string) => void;
   onAssetHover: (assetId: string | null) => void;
+  onAssetSelect: (assetId: string | null) => void;
   layout?: 'panel' | 'dock';
   className?: string;
   showHeader?: boolean;
@@ -19,8 +21,10 @@ export function AssetDeck({
   assets,
   recommendedAssetId,
   pendingAssetId,
+  selectedAssetId,
   onDeploy,
   onAssetHover,
+  onAssetSelect,
   layout = 'panel',
   className,
   showHeader = true
@@ -48,6 +52,7 @@ export function AssetDeck({
         {assets.map((asset) => {
           const isRecommended = recommendedAssetId === asset.id;
           const isPending = pendingAssetId === asset.id;
+          const isSelected = selectedAssetId === asset.id;
 
           return (
             <article
@@ -60,9 +65,17 @@ export function AssetDeck({
                   : panelMode
                     ? 'border-[#c8dbd1] bg-white dark:border-[#2a4438] dark:bg-[#111b16]'
                     : 'border-[#245542] bg-[#07130f]/85'
-              }`}
+              } ${isSelected ? 'border-cyan-300/70 shadow-[0_0_0_1px_rgba(125,211,252,0.35),0_18px_34px_rgba(10,52,64,0.25)]' : ''} cursor-pointer`}
               onMouseEnter={() => onAssetHover(asset.id)}
               onMouseLeave={() => onAssetHover(null)}
+              onClick={() => onAssetSelect(asset.id)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onAssetSelect(asset.id);
+                }
+              }}
+              tabIndex={0}
             >
               <div className="flex items-start justify-between gap-2">
                 <div>

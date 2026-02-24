@@ -38,6 +38,7 @@ export function GridOpsExperience() {
   const [error, setError] = useState<string | null>(null);
   const [pendingAssetId, setPendingAssetId] = useState<string | null>(null);
   const [highlightedAssetId, setHighlightedAssetId] = useState<string | null>(null);
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [deployingAssetId, setDeployingAssetId] = useState<string | null>(null);
   const [delta, setDelta] = useState<{
     stability: number;
@@ -137,11 +138,32 @@ export function GridOpsExperience() {
 
   const recommendedAssetId = state?.recommendation.next_best_action.target_asset_id ?? null;
 
+  const handleAssetSelect = useCallback((assetId: string | null) => {
+    setSelectedAssetId((previous) => {
+      if (assetId === null) {
+        return null;
+      }
+
+      return previous === assetId ? null : assetId;
+    });
+  }, []);
+
   useEffect(() => {
     if (!techDeckOpen) {
       setHighlightedAssetId(null);
     }
   }, [techDeckOpen]);
+
+  useEffect(() => {
+    if (!state || !selectedAssetId) {
+      return;
+    }
+
+    const selectedAssetStillExists = state.assets.some((asset) => asset.id === selectedAssetId);
+    if (!selectedAssetStillExists) {
+      setSelectedAssetId(null);
+    }
+  }, [selectedAssetId, state]);
 
   return (
     <main className="min-h-screen bg-light-bg px-4 pb-12 pt-8 text-text-light-primary dark:bg-[#060b09] dark:text-[#e5efe9] sm:px-6">
@@ -190,7 +212,9 @@ export function GridOpsExperience() {
                     <GridSceneCanvas
                       state={state}
                       highlightedAssetId={highlightedAssetId}
+                      selectedAssetId={selectedAssetId}
                       deployingAssetId={deployingAssetId}
+                      onAssetSelect={handleAssetSelect}
                     />
                   </GridSceneErrorBoundary>
                 ) : (
@@ -209,6 +233,8 @@ export function GridOpsExperience() {
                   onToggle={() => setTechDeckOpen((previous) => !previous)}
                   onDeploy={handleDeploy}
                   onAssetHover={setHighlightedAssetId}
+                  selectedAssetId={selectedAssetId}
+                  onAssetSelect={handleAssetSelect}
                 />
               </div>
 

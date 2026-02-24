@@ -1,5 +1,5 @@
 import { Billboard, Clone, Html, useGLTF } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import {
   Activity,
   ArrowLeftRight,
@@ -47,6 +47,7 @@ interface NodeActorProps {
   deploying: boolean;
   recommended: boolean;
   onHoverChange: (nodeId: string | null) => void;
+  onSelect: (nodeId: string) => void;
 }
 
 function ModelCore({
@@ -173,7 +174,8 @@ export function NodeActor({
   highlighted,
   deploying,
   recommended,
-  onHoverChange
+  onHoverChange,
+  onSelect
 }: NodeActorProps) {
   const outerRingRef = useRef<Mesh>(null);
   const categoryRingRef = useRef<Mesh>(null);
@@ -197,6 +199,33 @@ export function NodeActor({
 
     return 0.42;
   }, [node.importance]);
+
+  // Use a camera-facing interaction plane so the visible projected area is easy to hover/click.
+  const interactionHitArea = useMemo(() => {
+    if (node.id === 'battery-storage') {
+      return {
+        width: 3.45,
+        height: 3.05,
+        y: 0.52
+      };
+    }
+
+    if (assetDescriptor && modelAvailable && renderModel) {
+      return {
+        width: 1.95,
+        height: 1.76,
+        y: 0.44
+      };
+    }
+
+    return {
+      width: Math.max(1.5, (baseRadius + 0.42) * 2),
+      height: 1.48,
+      y: 0.34
+    };
+  }, [assetDescriptor, baseRadius, modelAvailable, node.id, renderModel]);
+
+  const interactionScale = highlighted ? 1.14 : 1;
 
   useFrame((clock) => {
     const elapsed = clock.clock.getElapsedTime();
@@ -235,10 +264,37 @@ export function NodeActor({
   return (
     <group
       position={[position.x, 0.08, position.z]}
-      onPointerOver={() => onHoverChange(node.id)}
-      onPointerOut={() => onHoverChange(null)}
+      onClick={(event: ThreeEvent<MouseEvent>) => {
+        event.stopPropagation();
+        onSelect(node.id);
+      }}
       scale={dimmed ? 0.93 : 1}
     >
+      <Billboard follow position={[0, interactionHitArea.y, 0]}>
+        <mesh
+          onPointerOver={(event: ThreeEvent<PointerEvent>) => {
+            event.stopPropagation();
+            onHoverChange(node.id);
+          }}
+          onPointerOut={(event: ThreeEvent<PointerEvent>) => {
+            event.stopPropagation();
+            onHoverChange(null);
+          }}
+          onClick={(event: ThreeEvent<MouseEvent>) => {
+            event.stopPropagation();
+            onSelect(node.id);
+          }}
+        >
+          <planeGeometry
+            args={[
+              interactionHitArea.width * interactionScale,
+              interactionHitArea.height * interactionScale
+            ]}
+          />
+          <meshBasicMaterial transparent opacity={0.001} depthWrite={false} />
+        </mesh>
+      </Billboard>
+
       <mesh ref={outerRingRef} rotation={[-Math.PI / 2, 0, 0]}>
         <torusGeometry args={[baseRadius + 0.14, 0.032, 18, 64]} />
         <meshStandardMaterial

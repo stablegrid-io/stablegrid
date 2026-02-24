@@ -19,7 +19,7 @@ function ControlCenterModelMesh() {
     const sphere = new Sphere();
     bounds.getBoundingSphere(sphere);
 
-    const targetRadius = 0.9;
+    const targetRadius = 0.74;
     const scaleFactor = targetRadius / Math.max(0.001, sphere.radius);
     scene.traverse((object) => {
       const mesh = object as Mesh;
@@ -55,7 +55,7 @@ function ControlCenterModelMesh() {
   });
 
   return (
-    <group ref={wrapperRef} position={[0, -0.04, 0]}>
+    <group ref={wrapperRef} position={[0, 0.02, 0]}>
       <Clone
         object={normalizedModel.scene}
         position={normalizedModel.position}
@@ -123,7 +123,7 @@ export function ControlCenterModelPreview({ className }: { className?: string })
         shadows={false}
         dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-        camera={{ position: [0, 0.18, 2.24], fov: 30, near: 0.1, far: 30 }}
+        camera={{ position: [0, 0.2, 2.44], fov: 31, near: 0.1, far: 30 }}
       >
         <ambientLight intensity={0.58} color="#ffffff" />
         <directionalLight intensity={0.62} color="#ffffff" position={[3.2, 4.2, 2.2]} />
