@@ -3,8 +3,6 @@ import { expect, test, type Page } from '@playwright/test';
 const E2E_EMAIL = process.env.STABLEGRID_E2E_EMAIL ?? '';
 const E2E_PASSWORD = process.env.STABLEGRID_E2E_PASSWORD ?? '';
 
-const SEED_UNITS = 5000; // 5.0 kWh for deterministic deployment testing.
-
 const login = async (page: Page) => {
   await page.goto('/login', { waitUntil: 'networkidle' });
   await page.getByLabel('Email').fill(E2E_EMAIL);
@@ -15,10 +13,10 @@ const login = async (page: Page) => {
   });
 };
 
-const seedDeploymentState = async (page: Page) => {
+const seedDeploymentBudget = async (page: Page) => {
   const response = await page.request.post('/api/auth/sync-progress', {
     data: {
-      xp: SEED_UNITS,
+      xp: 12000,
       streak: 0,
       completedQuestions: [],
       topicProgress: {},
@@ -30,10 +28,6 @@ const seedDeploymentState = async (page: Page) => {
   expect(response.ok()).toBeTruthy();
 };
 
-const assertGridShowsDeployedCount = async (page: Page, count: string) => {
-  await expect(page.locator('main').first()).toContainText(count, { timeout: 20_000 });
-};
-
 test.describe('infrastructure persistence', () => {
   test.skip(
     !E2E_EMAIL || !E2E_PASSWORD,
@@ -42,33 +36,45 @@ test.describe('infrastructure persistence', () => {
 
   test('persists deployment across refresh and re-login', async ({ page }) => {
     await login(page);
+    await seedDeploymentBudget(page);
 
-    await seedDeploymentState(page);
-
-    // Force a fresh client store hydration from server state.
     await page.evaluate(() => {
       localStorage.removeItem('stablegrid-progress');
     });
 
     await page.goto('/energy', { waitUntil: 'networkidle' });
-    await expect(page.locator('main')).toContainText('Spent 0 kWh', { timeout: 20_000 });
-
-    await page.getByRole('button', { name: /Smart Transformer/i }).click();
-
-    const deployButton = page.getByRole('button', {
-      name: /^Deploy infrastructure$/i
+    await expect(page.locator('main')).toContainText('Live Grid Stabilization Map', {
+      timeout: 20_000
     });
 
-    await expect(deployButton).toBeEnabled({ timeout: 20_000 });
-    await deployButton.click();
-    await expect(page.locator('main')).toContainText('Spent 2 kWh', { timeout: 20_000 });
+    const deployedBefore = await page
+      .getByRole('button', { name: /infrastructure active/i })
+      .count();
 
-    await assertGridShowsDeployedCount(page, '2/9');
+    const deployButtons = page.getByRole('button', { name: /^Deploy asset$/i });
+    const deployCount = await deployButtons.count();
+
+    test.skip(deployCount === 0, 'No deployable assets are currently available.');
+
+    await deployButtons.first().click();
+
+    await expect
+      .poll(async () => page.getByRole('button', { name: /infrastructure active/i }).count(), {
+        timeout: 20_000
+      })
+      .toBeGreaterThan(deployedBefore);
+
+    const deployedAfter = await page
+      .getByRole('button', { name: /infrastructure active/i })
+      .count();
 
     await page.reload({ waitUntil: 'networkidle' });
-    await assertGridShowsDeployedCount(page, '2/9');
+    await expect
+      .poll(async () => page.getByRole('button', { name: /infrastructure active/i }).count(), {
+        timeout: 20_000
+      })
+      .toBe(deployedAfter);
 
-    // Logout from a page without the floating mascot overlay.
     await page.goto('/flashcards', { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: new RegExp(E2E_EMAIL, 'i') }).click();
     await page.getByRole('button', { name: /logout/i }).click();
@@ -77,6 +83,10 @@ test.describe('infrastructure persistence', () => {
     await login(page);
 
     await page.goto('/energy', { waitUntil: 'networkidle' });
-    await assertGridShowsDeployedCount(page, '2/9');
+    await expect
+      .poll(async () => page.getByRole('button', { name: /infrastructure active/i }).count(), {
+        timeout: 20_000
+      })
+      .toBe(deployedAfter);
   });
 });

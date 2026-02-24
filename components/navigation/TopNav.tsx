@@ -12,6 +12,7 @@ import {
   NotebookPen,
   ShieldAlert,
   Swords,
+  Zap,
   WalletCards,
   type LucideIcon
 } from 'lucide-react';
@@ -53,6 +54,7 @@ const navItems: Array<{
       { href: '/missions', icon: ShieldAlert, label: 'Missions' }
     ]
   },
+  { href: '/energy', icon: Zap, label: 'Grid' },
   { href: '/progress', icon: BarChart3, label: 'Progress' }
 ];
 
@@ -95,11 +97,6 @@ export const TopNav = () => {
       href: '/learn/theory',
       icon: BookOpen,
       label: 'Theory'
-    },
-    {
-      href: '/learn/functions',
-      icon: WalletCards,
-      label: 'Functions'
     }
   ];
 
@@ -123,7 +120,6 @@ export const TopNav = () => {
   const prefetchLearnRoutes = useCallback(() => {
     prefetchRoute('/learn');
     prefetchRoute('/learn/theory');
-    prefetchRoute('/learn/functions');
   }, [prefetchRoute]);
 
   useEffect(() => {

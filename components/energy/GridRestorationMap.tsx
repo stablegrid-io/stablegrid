@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import {
   DEFAULT_DEPLOYED_NODE_IDS,
@@ -14,6 +15,7 @@ import {
   unitsToKwh,
   type InfrastructureNode
 } from '@/lib/energy';
+import { InfrastructureCard } from '@/components/energy/InfrastructureCard';
 
 type DeploymentToast = {
   nodeId: string;
@@ -32,10 +34,10 @@ const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 420;
 
 const MAP_COLORS = {
-  textPrimary: '#e5efe9',
-  textSecondary: '#95ab9e',
-  textMuted: '#7f9f8d',
-  textStrong: '#cde0d5',
+  textPrimary: '#f0f7f2',
+  textSecondary: '#b8d4c4',
+  textMuted: '#8fb09d',
+  textStrong: '#e2f0e8',
   border: 'rgba(36,55,45,0.58)',
   borderSoft: 'rgba(47,79,65,0.45)',
   panel: 'rgba(10,18,14,0.94)',
@@ -45,7 +47,8 @@ const MAP_COLORS = {
   active: '#34d399',
   success: '#4ade80',
   warning: '#f0a032',
-  locked: '#6f9380',
+  locked: '#5a7a6a',
+  lockedBadgeBg: 'rgba(90,122,106,0.95)',
   lockedBorder: '#2f4f41',
   grid: 'rgba(74,222,128,0.28)',
   gridGlow: 'rgba(74,222,128,0.14)',
@@ -85,6 +88,93 @@ const buildForecastPath = (offset = 0, width = 220, height = 52) => {
   return points.join(' ');
 };
 
+const NodeTooltip = memo(function NodeTooltip({
+  node,
+  availableKwh,
+  onUnlock,
+  left,
+  top,
+  placement = 'top'
+}: {
+  node: MapNodeState;
+  availableKwh: number;
+  onUnlock: () => void;
+  left: string;
+  top: string;
+  placement?: 'top' | 'bottom';
+}) {
+  const statusLabel = node.active ? 'Unlocked' : node.ready ? 'Ready to unlock' : 'Locked';
+  const statusColor = node.active ? MAP_COLORS.success : node.ready ? MAP_COLORS.warning : MAP_COLORS.lockedBadgeBg;
+  const shortfall = node.kwhRequired - availableKwh;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.12 }}
+      className="absolute z-30 min-w-[240px] max-w-[300px] rounded-xl border-2 px-4 py-3 shadow-2xl"
+      style={{
+        left,
+        top,
+        transform: placement === 'top' ? 'translate(-50%, calc(-100% - 14px))' : 'translate(-50%, 14px)',
+        borderColor: statusColor,
+        background: 'rgba(8,16,12,0.98)',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06)',
+        color: MAP_COLORS.textPrimary
+      }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h4 className="text-base font-bold leading-tight" style={{ color: MAP_COLORS.textPrimary }}>{node.name}</h4>
+        <span
+          className="shrink-0 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider"
+          style={{
+            color: node.active || node.ready ? '#0a1210' : MAP_COLORS.textStrong,
+            background: statusColor
+          }}
+        >
+          {statusLabel}
+        </span>
+      </div>
+      <p className="mt-2 text-[12px] leading-relaxed" style={{ color: MAP_COLORS.textSecondary }}>{node.function}</p>
+      <div className="mt-2.5 flex flex-wrap items-center gap-3 text-[11px]">
+        <span style={{ color: MAP_COLORS.textSecondary }}>
+          Cost: <strong style={{ color: MAP_COLORS.textPrimary }}>{formatKwh(node.kwhRequired, 1)}</strong>
+        </span>
+        <span style={{ color: MAP_COLORS.textSecondary }}>
+          Stability: <strong style={{ color: MAP_COLORS.success }}>+{node.stabilityImpactPct}%</strong>
+        </span>
+      </div>
+      {!node.active && (
+        <>
+          {node.ready ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onUnlock();
+              }}
+              className="mt-2 w-full rounded-lg py-2 text-xs font-bold uppercase tracking-wider transition hover:opacity-90"
+              style={{ background: MAP_COLORS.active, color: '#0a1210' }}
+            >
+              Unlock for {formatKwh(node.kwhRequired, 1)}
+            </button>
+          ) : !node.affordable ? (
+            <p className="mt-2 text-[11px]" style={{ color: MAP_COLORS.warning }}>
+              Need {formatKwh(shortfall, 2)} more to unlock
+            </p>
+          ) : (
+            <p className="mt-2 text-[11px]" style={{ color: MAP_COLORS.textMuted }}>
+              Complete prerequisites to unlock
+            </p>
+          )}
+        </>
+      )}
+    </motion.div>
+  );
+});
+
 const IndicatorTile = memo(function IndicatorTile({
   title,
   value,
@@ -122,30 +212,49 @@ const IndicatorTile = memo(function IndicatorTile({
   );
 });
 
-const DeploymentToastBanner = memo(function DeploymentToastBanner({
-  toast
+const DeploymentCardReveal = memo(function DeploymentCardReveal({
+  toast,
+  onDismiss
 }: {
   toast: DeploymentToast | null;
+  onDismiss?: () => void;
 }) {
-  if (!toast) {
-    return null;
-  }
-
-  const node = INFRASTRUCTURE_BY_ID[toast.nodeId];
-  if (!node) {
-    return null;
-  }
+  const node = toast ? INFRASTRUCTURE_BY_ID[toast.nodeId] : null;
 
   return (
-    <div className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-xl border px-4 py-3 shadow-xl backdrop-blur-sm" style={{ borderColor: 'rgba(74,222,128,0.45)', background: 'rgba(10,18,14,0.95)' }}>
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: MAP_COLORS.textStrong }}>
-        Infrastructure deployed
-      </p>
-      <p className="mt-1 text-sm font-semibold" style={{ color: MAP_COLORS.textPrimary }}>{node.name}</p>
-      <p className="mt-1 text-[11px]" style={{ color: MAP_COLORS.textSecondary }}>
-        Grid stability: {toast.previousStability}% -&gt; {toast.nextStability}%
-      </p>
-    </div>
+    <AnimatePresence>
+      {toast && node ? (
+        <motion.div
+          key={toast.nodeId}
+          initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: 'rgba(5,12,9,0.88)' }}
+      >
+        <button
+          type="button"
+          className="absolute inset-0 cursor-default focus:outline-none"
+          onClick={onDismiss}
+          aria-label="Dismiss card"
+        />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+          className="relative z-10 w-full max-w-sm"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <InfrastructureCard node={node} animate />
+          <p className="mt-4 text-center text-[11px] font-semibold" style={{ color: MAP_COLORS.textSecondary }}>
+            Grid stability: {toast.previousStability}% → {toast.nextStability}%
+          </p>
+        </motion.div>
+      </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 });
 
@@ -158,6 +267,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
   const deployedNodeIds = storeNodeIds.length > 0 ? storeNodeIds : DEFAULT_DEPLOYED_NODE_IDS;
   const [tick, setTick] = useState(0);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [toast, setToast] = useState<DeploymentToast | null>(null);
   const previousStabilityRef = useRef(getGridStabilityPct(deployedNodeIds));
 
@@ -194,11 +304,6 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
       };
     });
   }, [availableKwh, deployedNodeIds]);
-
-  const selectedNode = useMemo(() => {
-    if (!selectedNodeId) return null;
-    return nodes.find((node) => node.id === selectedNodeId) ?? null;
-  }, [nodes, selectedNodeId]);
 
   useEffect(() => {
     if (selectedNodeId && nodes.some((node) => node.id === selectedNodeId)) {
@@ -250,14 +355,6 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
     ? 50 + Math.sin(tick * 2.2) * 0.04
     : 50;
 
-  const handleDeploy = () => {
-    if (!selectedNode || !selectedNode.ready) {
-      return;
-    }
-
-    deployInfrastructure(selectedNode.id);
-  };
-
   return (
     <article
       className="rounded-2xl border p-5"
@@ -285,8 +382,8 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-xl border shadow-[0_12px_34px_rgba(0,0,0,0.45)]" style={{ borderColor: MAP_COLORS.borderSoft, background: `radial-gradient(circle at 24% 16%, ${MAP_COLORS.gridGlow}, transparent 42%), linear-gradient(180deg, #0c1410, #0a1210)` }}>
-        <DeploymentToastBanner toast={toast} />
+      <div className="relative overflow-visible rounded-xl border shadow-[0_12px_34px_rgba(0,0,0,0.45)]" style={{ borderColor: MAP_COLORS.borderSoft, background: `radial-gradient(circle at 24% 16%, ${MAP_COLORS.gridGlow}, transparent 42%), linear-gradient(180deg, #0c1410, #0a1210)` }}>
+        <DeploymentCardReveal toast={toast} onDismiss={() => setToast(null)} />
 
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.08]"
@@ -333,7 +430,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
           </div>
         </div>
 
-        <div className="relative aspect-[2.35/1] w-full overflow-hidden">
+        <div className="relative aspect-[2.35/1] w-full overflow-visible">
           <svg
             className="absolute inset-0 h-full w-full"
             viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
@@ -348,6 +445,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
                 const active = node.active && deployedNodeIds.includes(targetId);
                 return (
                   <g key={`${node.id}-${targetId}`}>
+                    <title>{active ? `${node.name} ↔ ${target.name} (active)` : `${node.name} → ${target.name}`}</title>
                     <line
                       x1={node.position.x}
                       y1={node.position.y}
@@ -412,123 +510,85 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
 
           {nodes.map((node) => {
             const isSelected = selectedNodeId === node.id;
+            const isHovered = hoveredNodeId === node.id;
+            const centerX = (node.position.x / MAP_WIDTH) * 100;
+            const centerY = (node.position.y / MAP_HEIGHT) * 100;
+            const placement = node.position.y < MAP_HEIGHT * 0.4 ? 'bottom' : 'top';
+
             return (
-              <button
+              <div
                 key={node.id}
-                type="button"
-                onClick={() => setSelectedNodeId(node.id)}
-                className="absolute z-10 h-[56px] w-[56px] -translate-x-1/2 -translate-y-1/2 rounded-full border text-[22px] font-bold transition-all duration-200"
+                className="absolute z-10"
                 style={{
-                  left: `${(node.position.x / MAP_WIDTH) * 100}%`,
-                  top: `${(node.position.y / MAP_HEIGHT) * 100}%`,
-                  borderColor: node.active
-                    ? MAP_COLORS.active
-                    : node.ready
-                      ? MAP_COLORS.warning
-                      : MAP_COLORS.lockedBorder,
-                  color: node.active ? MAP_COLORS.textPrimary : node.ready ? MAP_COLORS.warning : MAP_COLORS.locked,
-                  background: node.active
-                    ? 'rgba(15,45,30,0.92)'
-                    : 'rgba(10,18,14,0.94)',
-                  boxShadow: node.active
-                    ? '0 0 0 6px rgba(74,222,128,0.18), 0 10px 22px rgba(0,0,0,0.4)'
-                    : node.ready
-                      ? '0 0 0 6px rgba(240,160,50,0.18), 0 8px 18px rgba(0,0,0,0.45)'
-                      : '0 8px 18px rgba(0,0,0,0.42)',
-                  transform: `translate(-50%, -50%) scale(${isSelected ? 1.08 : 1})`
+                  left: `${centerX}%`,
+                  top: `${centerY}%`,
+                  transform: 'translate(-50%, -50%)'
                 }}
-                aria-label={node.name}
+                onMouseEnter={() => setHoveredNodeId(node.id)}
+                onMouseLeave={() => setHoveredNodeId(null)}
               >
-                {node.icon}
-                {node.active ? (
-                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#4ade80] shadow-[0_0_8px_rgba(74,222,128,0.95)]" />
-                ) : null}
-                {node.ready ? (
-                  <span className="absolute -right-1 -top-1 h-4 w-4 rounded-full border border-[#5b3508] bg-[#f0a032] text-[9px] font-bold text-[#2f1a04]">
-                    !
-                  </span>
-                ) : null}
-              </button>
+                <AnimatePresence>
+                  {isHovered ? (
+                    <NodeTooltip
+                      key={`tooltip-${node.id}`}
+                      node={node}
+                      availableKwh={availableKwh}
+                      onUnlock={() => {
+                        if (node.ready) deployInfrastructure(node.id);
+                      }}
+                      left="50%"
+                      top="50%"
+                      placement={placement}
+                    />
+                  ) : null}
+                </AnimatePresence>
+                <button
+                  type="button"
+                  onClick={() => setSelectedNodeId(node.id)}
+                  className="h-[56px] w-[56px] -translate-x-1/2 -translate-y-1/2 rounded-full border text-[22px] font-bold transition-all duration-200"
+                  style={{
+                    borderColor: node.active
+                      ? MAP_COLORS.active
+                      : node.ready
+                        ? MAP_COLORS.warning
+                        : MAP_COLORS.lockedBorder,
+                    color: node.active ? MAP_COLORS.textPrimary : node.ready ? MAP_COLORS.warning : MAP_COLORS.locked,
+                    background: node.active
+                      ? 'rgba(15,45,30,0.92)'
+                      : 'rgba(10,18,14,0.94)',
+                    boxShadow: node.active
+                      ? '0 0 0 6px rgba(74,222,128,0.18), 0 10px 22px rgba(0,0,0,0.4)'
+                      : node.ready
+                        ? '0 0 0 6px rgba(240,160,50,0.18), 0 8px 18px rgba(0,0,0,0.45)'
+                        : '0 8px 18px rgba(0,0,0,0.42)',
+                    transform: `translate(-50%, -50%) scale(${isSelected ? 1.08 : 1})`
+                  }}
+                  aria-label={node.name}
+                >
+                  {node.icon}
+                  {node.active ? (
+                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#4ade80] shadow-[0_0_8px_rgba(74,222,128,0.95)]" />
+                  ) : null}
+                  {node.ready ? (
+                    <span className="absolute -right-1 -top-1 h-4 w-4 rounded-full border border-[#5b3508] bg-[#f0a032] text-[9px] font-bold text-[#2f1a04]">
+                      !
+                    </span>
+                  ) : null}
+                </button>
+              </div>
             );
           })}
         </div>
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_280px]">
-        <div className="rounded-xl border p-4" style={{ borderColor: MAP_COLORS.borderSoft, background: 'rgba(12,22,17,0.72)' }}>
-          {selectedNode ? (
-            <>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: MAP_COLORS.textMuted }}>
-                    Selected infrastructure
-                  </p>
-                  <h3 className="mt-1 text-base font-semibold" style={{ color: MAP_COLORS.textPrimary }}>{selectedNode.name}</h3>
-                </div>
-                <div
-                  className="rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em]"
-                  style={{
-                    borderColor: selectedNode.active
-                      ? 'rgba(74,222,128,0.4)'
-                      : selectedNode.ready
-                        ? 'rgba(240,160,50,0.4)'
-                        : MAP_COLORS.borderSoft,
-                    color: selectedNode.active
-                      ? MAP_COLORS.success
-                      : selectedNode.ready
-                        ? MAP_COLORS.warning
-                        : MAP_COLORS.locked
-                  }}
-                >
-                  {selectedNode.active ? 'deployed' : selectedNode.ready ? 'ready' : 'locked'}
-                </div>
-              </div>
-
-              <p className="mt-2 text-sm" style={{ color: MAP_COLORS.textSecondary }}>{selectedNode.function}</p>
-              <p className="mt-1 text-[12px]" style={{ color: MAP_COLORS.textMuted }}>Unlocks: {selectedNode.unlocks}</p>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <MetricCell label="Cost" value={formatKwh(selectedNode.kwhRequired, 1)} />
-                <MetricCell
-                  label="Stability"
-                  value={`+${selectedNode.stabilityImpactPct}%`}
-                />
-                <MetricCell
-                  label="Budget left"
-                  value={formatKwh(Math.max(0, availableKwh - selectedNode.kwhRequired), 2)}
-                />
-              </div>
-
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleDeploy}
-                  disabled={!selectedNode.ready}
-                  className="rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition disabled:cursor-not-allowed"
-                  style={{
-                    background: selectedNode.ready ? MAP_COLORS.active : MAP_COLORS.lockedBorder,
-                    color: selectedNode.ready ? '#0a1210' : MAP_COLORS.textMuted
-                  }}
-                >
-                  {selectedNode.active ? 'Already deployed' : 'Deploy infrastructure'}
-                </button>
-                {!selectedNode.active && !selectedNode.affordable ? (
-                  <span className="text-[11px]" style={{ color: MAP_COLORS.warning }}>
-                    Need {formatKwh(Math.max(0, selectedNode.kwhRequired - availableKwh), 2)} more
-                  </span>
-                ) : null}
-              </div>
-            </>
-          ) : null}
-        </div>
-
-        <div className="rounded-xl border p-4 text-right" style={{ borderColor: MAP_COLORS.borderSoft, background: 'rgba(12,22,17,0.72)' }}>
+      <div className="mt-3">
+        <div className="rounded-xl border p-4 text-right" style={{ borderColor: MAP_COLORS.borderSoft, background: 'rgba(12,22,17,0.88)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: MAP_COLORS.textMuted }}>
             Deployment budget
           </p>
           <p className="text-2xl font-black" style={{ color: MAP_COLORS.textPrimary }}>{formatKwh(availableKwh, 2)}</p>
-          <p className="mt-1 text-[11px]" style={{ color: MAP_COLORS.textMuted }}>Earned {formatKwh(totalEarnedKwh, 2)} · Spent {formatKwh(spentKwh, 2)}</p>
-          <p className="mt-2 text-[11px]" style={{ color: MAP_COLORS.textSecondary }}>
+          <p className="mt-1.5 text-[12px]" style={{ color: MAP_COLORS.textSecondary }}>Earned {formatKwh(totalEarnedKwh, 2)} · Spent {formatKwh(spentKwh, 2)}</p>
+          <p className="mt-2 text-[12px] leading-relaxed" style={{ color: MAP_COLORS.textSecondary }}>
             {nextNode
               ? `Next target: ${nextNode.name} (${formatKwh(nextNode.kwhRequired, 1)})`
               : 'All infrastructure deployed'}
@@ -623,18 +683,27 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
           </div>
         </IndicatorTile>
       </div>
+
+      {/* Deployed infrastructure cards — physical collectibles */}
+      {activeCount > 0 ? (
+        <div className="mt-6 rounded-xl border p-4" style={{ borderColor: MAP_COLORS.borderSoft, background: 'rgba(12,22,17,0.72)' }}>
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: MAP_COLORS.textMuted }}>
+            Infrastructure deck — {activeCount} deployed
+          </p>
+          <div className="scrollbar-slim flex gap-3 overflow-x-auto pb-2">
+            {nodes
+              .filter((n) => n.active)
+              .map((n) => (
+                <div key={n.id} className="min-w-[260px] shrink-0 sm:min-w-[280px]">
+                  <InfrastructureCard node={n} compact animate={false} />
+                </div>
+              ))}
+          </div>
+        </div>
+      ) : null}
     </article>
   );
 });
-
-const MetricCell = ({ label, value }: { label: string; value: string }) => {
-  return (
-    <div className="rounded-lg border px-3 py-2" style={{ borderColor: MAP_COLORS.borderSoft, background: 'rgba(11,20,15,0.94)' }}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: MAP_COLORS.textMuted }}>{label}</p>
-      <p className="mt-0.5 text-sm font-semibold" style={{ color: MAP_COLORS.textPrimary }}>{value}</p>
-    </div>
-  );
-};
 
 const LoadRow = ({
   label,

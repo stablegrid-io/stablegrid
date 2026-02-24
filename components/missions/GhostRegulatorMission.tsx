@@ -3,9 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import { PulseMascot } from '@/components/mascot/PulseMascot';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import { usePulseMascotStore } from '@/lib/stores/usePulseMascotStore';
 import type { MissionState } from '@/types/missions';
 
 const MISSION_SLUG = 'ghost-regulator';
@@ -884,9 +882,6 @@ const EnergyToast = memo(function EnergyToast({
 
 export function GhostRegulatorMission() {
   const addXP = useProgressStore((state) => state.addXP);
-  const pulseMood = usePulseMascotStore((state) => state.mood);
-  const pulseMotion = usePulseMascotStore((state) => state.motion);
-  const pulseAction = usePulseMascotStore((state) => state.action);
   const { resolvedTheme } = useTheme();
 
   const [act, setAct] = useState(0);
@@ -2232,34 +2227,28 @@ export function GhostRegulatorMission() {
                     border: `1px solid ${theme.successBorder}`,
                     background: theme.isDark
                       ? 'rgba(16, 185, 129, 0.08)'
-                      : 'rgba(16, 185, 129, 0.06)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12
+                      : 'rgba(16, 185, 129, 0.06)'
                   }}
                 >
-                  <PulseMascot mood={pulseMood} motion={pulseMotion} action={pulseAction} size={74} />
-                  <div>
-                    <p
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: theme.textPrimary,
-                        marginBottom: 4
-                      }}
-                    >
-                      Pulse stabilized the mission timeline
-                    </p>
-                    <p
-                      style={{
-                        fontSize: 11,
-                        color: theme.textTertiary,
-                        fontFamily: 'system-ui,sans-serif'
-                      }}
-                    >
-                      Completion energy was committed and the waveform state is now synced to your profile.
-                    </p>
-                  </div>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: theme.textPrimary,
+                      marginBottom: 4
+                    }}
+                  >
+                    Mission timeline stabilized
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: theme.textTertiary,
+                      fontFamily: 'system-ui,sans-serif'
+                    }}
+                  >
+                    Completion energy was committed and the waveform state is now synced to your profile.
+                  </p>
                 </div>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                   {[

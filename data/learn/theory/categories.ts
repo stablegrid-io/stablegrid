@@ -59,6 +59,11 @@ const CATEGORY_ORDER: TheoryCategorySlug[] = [
 ];
 
 const PYSPARK_OVERRIDES: Record<string, TheoryCategorySlug> = {
+  'module-01': 'history',
+  'module-02': 'fundamentals',
+  'module-03': 'architecture',
+  'module-04': 'optimization',
+  'module-05': 'advanced',
   'what-is-spark': 'history',
   architecture: 'architecture',
   'execution-model': 'architecture',
@@ -134,7 +139,7 @@ export const getTheoryCategories = (doc: TheoryDoc): TheoryCategorySummary[] => 
     grouped.set(slug, bucket);
   });
 
-  return CATEGORY_ORDER.map((slug) => {
+  const categoryRows = CATEGORY_ORDER.map((slug) => {
     const chapters = grouped.get(slug) ?? [];
     const meta = CATEGORY_CONFIG[slug];
     return {
@@ -146,6 +151,13 @@ export const getTheoryCategories = (doc: TheoryDoc): TheoryCategorySummary[] => 
       chapters
     };
   }).filter((category) => category.chapterCount > 0);
+
+  // Keep display order aligned with module progression (M1 -> M2 -> ...).
+  return categoryRows.sort((left, right) => {
+    const leftMin = Math.min(...left.chapters.map((chapter) => chapter.number));
+    const rightMin = Math.min(...right.chapters.map((chapter) => chapter.number));
+    return leftMin - rightMin;
+  });
 };
 
 export const filterTheoryDocByCategory = (
@@ -175,8 +187,8 @@ export const getTheoryCategoryMeta = (slug: TheoryCategorySlug | 'all') => {
   if (slug === 'all') {
     return {
       slug,
-      label: 'All Chapters',
-      description: 'Browse the complete chapter list for this topic.'
+      label: 'All Modules',
+      description: 'Browse the complete module list for this topic.'
     };
   }
 

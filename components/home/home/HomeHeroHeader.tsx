@@ -169,7 +169,7 @@ export const HomeHeroHeader = ({
                 data-pulse-target="home-energy-lab"
                 className="rounded-md border border-emerald-400/30 px-2 py-1 text-[11px] font-medium text-emerald-200 transition hover:bg-emerald-500/20"
               >
-                Open Infrastructure Map
+                Open Grid
               </Link>
             </div>
           </div>

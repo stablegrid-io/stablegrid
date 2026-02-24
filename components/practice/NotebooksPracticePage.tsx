@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -87,6 +88,139 @@ interface NumberedLine {
   issueId?: string;
   lineNumber: number;
 }
+
+const IMPORT_LINE_PATTERN = /^(from\s+\S+\s+import|import\s+)/;
+const DISPLAY_LINE_PATTERN = /^(display|print)\s*\(|\.\s*show\s*\(/;
+const ASSIGNMENT_LINE_PATTERN = /^[A-Za-z_][\w.]*\s*=/;
+const CONTROL_LINE_PATTERN =
+  /^(if|elif|else|for|while|try|except|finally|with|def|class)\b/;
+const COMMENT_LINE_PATTERN = /^#/;
+
+const trimLine = (line: string) => line.trim();
+
+const isImportLine = (line: string) => IMPORT_LINE_PATTERN.test(trimLine(line));
+const isDisplayLine = (line: string) => DISPLAY_LINE_PATTERN.test(trimLine(line));
+const isAssignmentLine = (line: string) =>
+  ASSIGNMENT_LINE_PATTERN.test(trimLine(line));
+const isControlLine = (line: string) => CONTROL_LINE_PATTERN.test(trimLine(line));
+const isCommentLine = (line: string) => COMMENT_LINE_PATTERN.test(trimLine(line));
+
+const shouldAddVisualGap = (previousLine: string, currentLine: string) => {
+  const previous = trimLine(previousLine);
+  const current = trimLine(currentLine);
+
+  if (!previous || !current) return false;
+
+  if (isImportLine(previous) && !isImportLine(current)) return true;
+  if (isDisplayLine(previous) && isAssignmentLine(current)) return true;
+  if (isCommentLine(current) && !isCommentLine(previous)) return true;
+  if (isControlLine(current) && !isControlLine(previous)) return true;
+
+  return false;
+};
+
+const NOTEBOOK_PYTHON_KEYWORDS = [
+  'import',
+  'from',
+  'as',
+  'def',
+  'class',
+  'return',
+  'if',
+  'elif',
+  'else',
+  'for',
+  'while',
+  'try',
+  'except',
+  'finally',
+  'with',
+  'in',
+  'is',
+  'not',
+  'and',
+  'or',
+  'lambda',
+  'yield',
+  'await',
+  'async',
+  'True',
+  'False',
+  'None',
+  'pass',
+  'break',
+  'continue'
+];
+
+const buildNotebookTokenRegex = (keywords: string[]) =>
+  new RegExp(
+    [
+      '(?<comment>#.*$)',
+      '(?<string>"(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\')',
+      '(?<number>\\b\\d+(?:\\.\\d+)?\\b)',
+      '(?<decorator>@[A-Za-z_]\\w*)',
+      `(?<keyword>\\b(?:${keywords.join('|')})\\b)`,
+      '(?<function>\\b[A-Za-z_]\\w*(?=\\s*\\())'
+    ].join('|'),
+    'g'
+  );
+
+const NOTEBOOK_PYTHON_REGEX = buildNotebookTokenRegex(NOTEBOOK_PYTHON_KEYWORDS);
+
+const notebookTokenClass = (type: string) => {
+  if (type === 'comment') {
+    return 'text-slate-500 dark:text-slate-500';
+  }
+  if (type === 'string') {
+    return 'text-emerald-700 dark:text-emerald-300';
+  }
+  if (type === 'number') {
+    return 'text-slate-600 dark:text-slate-300';
+  }
+  if (type === 'decorator') {
+    return 'text-violet-700 dark:text-violet-300';
+  }
+  if (type === 'keyword') {
+    return 'font-medium text-violet-700 dark:text-violet-300';
+  }
+  if (type === 'function') {
+    return 'text-slate-600 dark:text-slate-300';
+  }
+  return 'text-slate-900 dark:text-slate-200';
+};
+
+const highlightNotebookLine = (line: string, lineKey: string): ReactNode[] => {
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  NOTEBOOK_PYTHON_REGEX.lastIndex = 0;
+
+  for (const match of line.matchAll(NOTEBOOK_PYTHON_REGEX)) {
+    const index = match.index ?? 0;
+    const token = match[0];
+
+    if (index > lastIndex) {
+      parts.push(line.slice(lastIndex, index));
+    }
+
+    const groups = match.groups ?? {};
+    const type =
+      Object.keys(groups).find((key) => Boolean(groups[key])) ?? 'plain';
+
+    parts.push(
+      <span key={`${lineKey}-${index}`} className={notebookTokenClass(type)}>
+        {token}
+      </span>
+    );
+
+    lastIndex = index + token.length;
+  }
+
+  if (lastIndex < line.length) {
+    parts.push(line.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [line];
+};
 
 export function NotebooksPracticePage() {
   const [view, setView] = useState<NotebookView>('catalog');
@@ -585,7 +719,7 @@ export function NotebooksPracticePage() {
           </section>
         ) : null}
 
-        <section className="space-y-3">
+        <section className="space-y-4">
           {activeNotebook.cells.map((cell, cellIndex) => {
             if (cell.type === 'markdown') {
               return (
@@ -623,11 +757,22 @@ export function NotebooksPracticePage() {
             const lines = cell.lines ?? [];
 
             return (
-              <article key={cell.id} className="card overflow-hidden">
-                <div className="flex items-center justify-between border-b border-light-border bg-light-surface px-4 py-2 dark:border-dark-border dark:bg-dark-surface">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                    Python Cell {cellIndex + 1}
-                  </p>
+              <article
+                key={cell.id}
+                className="overflow-hidden rounded-2xl border border-slate-300/70 bg-[#f8fafc] shadow-sm dark:border-[rgba(148,163,184,0.1)] dark:bg-[#0d1117]"
+              >
+                <div className="flex items-center justify-between border-b border-slate-300/70 bg-slate-100 px-4 py-2.5 dark:border-[rgba(148,163,184,0.1)] dark:bg-[rgba(148,163,184,0.05)]">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                      Python Cell {cellIndex + 1}
+                    </p>
+                    <span className="rounded-full border border-slate-400/60 bg-slate-200/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600 dark:border-slate-500/40 dark:bg-slate-500/15 dark:text-slate-300">
+                      PySpark
+                    </span>
+                    <span className="rounded-full border border-slate-300/70 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:border-[rgba(148,163,184,0.15)] dark:bg-[#0d1117] dark:text-slate-400">
+                      {lines.length} lines
+                    </span>
+                  </div>
                   {isResults ? (
                     <p className="text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
                       {
@@ -639,9 +784,11 @@ export function NotebooksPracticePage() {
                   ) : null}
                 </div>
 
-                <div className="bg-[#0b1220] py-1.5 dark:bg-[#050913]">
-                  {lines.map((line) => {
+                <div className="bg-[#f8fafc] py-2.5 dark:bg-[#0d1117]">
+                  {lines.map((line, lineIndex) => {
                     renderedLineCount += 1;
+                    const previousLine = lineIndex > 0 ? lines[lineIndex - 1]?.text ?? '' : '';
+                    const addGroupGap = shouldAddVisualGap(previousLine, line.text);
                     const flagged = flaggedLineIds.has(line.id);
                     const hasIssue = Boolean(line.issueId);
                     const correctFlag = isResults && flagged && hasIssue;
@@ -649,18 +796,22 @@ export function NotebooksPracticePage() {
                     const falseFlag = isResults && flagged && !hasIssue;
 
                     let rowClass =
-                      'border-l-2 border-transparent bg-transparent hover:bg-white/[0.04]';
+                      'border-l-2 border-transparent bg-transparent hover:bg-slate-900/[0.04] dark:hover:bg-white/[0.05]';
                     if (isReview && flagged) {
-                      rowClass = 'border-l-2 border-error-400 bg-error-500/12';
+                      rowClass =
+                        'border-l-2 border-error-500 bg-error-50/70 dark:border-error-400 dark:bg-error-500/14';
                     }
                     if (correctFlag) {
-                      rowClass = 'border-l-2 border-success-400 bg-success-500/12';
+                      rowClass =
+                        'border-l-2 border-success-500 bg-success-50/70 dark:border-success-400 dark:bg-success-500/14';
                     }
                     if (missedIssue) {
-                      rowClass = 'border-l-2 border-warning-400 bg-warning-500/14';
+                      rowClass =
+                        'border-l-2 border-warning-500 bg-warning-50/75 dark:border-warning-400 dark:bg-warning-500/16';
                     }
                     if (falseFlag) {
-                      rowClass = 'border-l-2 border-error-400 bg-error-500/12';
+                      rowClass =
+                        'border-l-2 border-error-500 bg-error-50/70 dark:border-error-400 dark:bg-error-500/14';
                     }
 
                     const clickable = isReview && Boolean(line.flaggable);
@@ -680,17 +831,17 @@ export function NotebooksPracticePage() {
                             toggleLineFlag(line.id);
                           }
                         }}
-                        className={`group flex items-start gap-3 px-3 py-0.5 ${rowClass} ${
-                          clickable ? 'cursor-pointer' : 'cursor-default'
-                        }`}
+                        className={`group relative grid grid-cols-[2.25rem_minmax(0,1fr)_1rem] items-start gap-3 px-3 py-1 ${rowClass} ${
+                          addGroupGap ? 'mt-2' : ''
+                        } ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
                       >
-                        <span className="w-8 pt-0.5 text-right text-[11px] text-text-dark-tertiary">
+                        <span className="w-8 pt-1 text-right font-mono text-[11px] leading-7 text-slate-500 dark:text-slate-500">
                           {renderedLineCount}
                         </span>
-                        <code className="flex-1 whitespace-pre text-[13px] leading-6 text-[#d8e4ff]">
-                          {line.text || ' '}
+                        <code className="flex-1 whitespace-pre font-mono text-[13px] leading-7 tracking-[0.01em] text-slate-900 dark:text-slate-200">
+                          {highlightNotebookLine(line.text || ' ', `line-${line.id}`)}
                         </code>
-                        <span className="pt-1 text-[11px] text-[#9fb4d8]">
+                        <span className="pt-2 text-[11px] text-slate-500 dark:text-slate-400">
                           {isReview && flagged ? <Flag className="h-3.5 w-3.5" /> : null}
                           {correctFlag ? <CheckCircle2 className="h-3.5 w-3.5 text-success-400" /> : null}
                           {missedIssue ? <AlertTriangle className="h-3.5 w-3.5 text-warning-400" /> : null}

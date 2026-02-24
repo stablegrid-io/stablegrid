@@ -6,7 +6,8 @@ import {
   BarChart3,
   BookOpen,
   Home,
-  Swords
+  Swords,
+  Zap
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 
@@ -27,6 +28,7 @@ const navItems: NavItem[] = [
     label: 'Practice',
     matchPrefixes: ['/flashcards', '/hub', '/missions', '/practice']
   },
+  { href: '/energy', icon: Zap, label: 'Grid' },
   { href: '/progress', icon: BarChart3, label: 'Progress' }
 ];
 

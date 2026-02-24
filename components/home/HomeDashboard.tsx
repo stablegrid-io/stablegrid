@@ -5,13 +5,9 @@ import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import type { User } from '@supabase/supabase-js';
 import type { ReadingSession, TopicProgress } from '@/types/progress';
-import { ContinueReading } from '@/components/home/home/ContinueReading';
 import { DailyPracticeCard } from '@/components/home/home/DailyPracticeCard';
 import { HomeHeroHeader } from '@/components/home/home/HomeHeroHeader';
-import {
-  WeeklyActivityCard,
-  type ReadingSignal
-} from '@/components/home/home/WeeklyActivityCard';
+import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { HOME_TOPIC_ORDER, getHomeTopicMeta } from '@/components/home/home/topicMeta';
 
@@ -101,7 +97,6 @@ export const HomeDashboard = ({
     return Math.max(0, Math.min(100, combined));
   }, [stats.questionsCompleted, topicProgress]);
 
-  const hasInProgress = recentSessions.length > 0;
   return (
     <div className="min-h-screen bg-neutral-50 pb-24 dark:bg-neutral-950 lg:pb-8">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6">
@@ -117,41 +112,17 @@ export const HomeDashboard = ({
           overallProgress={overallProgress}
         />
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px] lg:items-start">
-          <div className="space-y-5">
-            {hasInProgress ? (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.08, duration: 0.4 }}
-              >
-                <ContinueReading sessions={recentSessions} />
-              </motion.div>
-            ) : null}
-          </div>
-
-          <div className="space-y-5">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.12, duration: 0.4 }}
-            >
-              <DailyPracticeCard
-                questionsToday={questionsToday}
-                goalPerDay={10}
-                topicProgress={topicProgress}
-              />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.18, duration: 0.4 }}
-            >
-              <WeeklyActivityCard readingSignals={readingSignals} />
-            </motion.div>
-          </div>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12, duration: 0.4 }}
+        >
+          <DailyPracticeCard
+            questionsToday={questionsToday}
+            goalPerDay={10}
+            topicProgress={topicProgress}
+          />
+        </motion.div>
       </div>
     </div>
   );

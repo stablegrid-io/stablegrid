@@ -58,7 +58,7 @@ describe('SignupForm', () => {
     expect(submit).toBeEnabled();
   });
 
-  it('submits and redirects when session is returned', async () => {
+  it('submits and redirects to onboarding when session is returned', async () => {
     const user = userEvent.setup();
     signUpMock.mockResolvedValueOnce({ session: { user: { id: 'u1' } } });
 
@@ -75,7 +75,7 @@ describe('SignupForm', () => {
         'Nedas',
         ''
       );
-      expect(pushMock).toHaveBeenCalledWith('/flashcards');
+      expect(pushMock).toHaveBeenCalledWith('/onboarding');
     });
   });
 

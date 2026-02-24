@@ -4,9 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { Check, ChevronLeft, ChevronRight, Play, Terminal } from 'lucide-react';
-import { PulseMascot } from '@/components/mascot/PulseMascot';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import { usePulseMascotStore } from '@/lib/stores/usePulseMascotStore';
 import type { MissionState } from '@/types/missions';
 import type { MissionDefinition } from '@/data/missions';
 
@@ -169,9 +167,6 @@ function TaskEditor({
 
 export function UnifiedMissionExperience({ mission }: { mission: MissionDefinition }) {
   const addXP = useProgressStore((state) => state.addXP);
-  const pulseMood = usePulseMascotStore((state) => state.mood);
-  const pulseMotion = usePulseMascotStore((state) => state.motion);
-  const pulseAction = usePulseMascotStore((state) => state.action);
   const { resolvedTheme } = useTheme();
 
   const [act, setAct] = useState(0);
@@ -608,16 +603,13 @@ export function UnifiedMissionExperience({ mission }: { mission: MissionDefiniti
                   Evidence accepted. Remediation shipped. Incident moved to monitoring.
                 </p>
 
-                <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-white/75 p-3 dark:border-emerald-700/40 dark:bg-emerald-950/20">
-                  <PulseMascot mood={pulseMood} motion={pulseMotion} action={pulseAction} size={84} />
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                      Pulse confirmed mission stabilization
-                    </p>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">
-                      Grid waveform telemetry is now synced with your completion profile.
-                    </p>
-                  </div>
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-white/75 p-3 dark:border-emerald-700/40 dark:bg-emerald-950/20">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    Mission stabilization confirmed
+                  </p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    Grid waveform telemetry is now synced with your completion profile.
+                  </p>
                 </div>
               </div>
             ) : null}

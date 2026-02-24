@@ -130,14 +130,44 @@ const detectLanguage = (
   return 'text';
 };
 
+const IMPORT_LINE_PATTERN = /^(from\s+\S+\s+import|import\s+)/;
+const DISPLAY_LINE_PATTERN = /^(display|print)\s*\(|\.\s*show\s*\(/;
+const ASSIGNMENT_LINE_PATTERN = /^[A-Za-z_][\w.]*\s*=/;
+const CONTROL_LINE_PATTERN =
+  /^(if|elif|else|for|while|try|except|finally|with|def|class)\b/;
+const COMMENT_LINE_PATTERN = /^#/;
+
+const trimCodeLine = (line: string) => line.trim();
+
+const shouldAddVisualGap = (previousLine: string, currentLine: string) => {
+  const previous = trimCodeLine(previousLine);
+  const current = trimCodeLine(currentLine);
+
+  if (!previous || !current) return false;
+  if (IMPORT_LINE_PATTERN.test(previous) && !IMPORT_LINE_PATTERN.test(current)) {
+    return true;
+  }
+  if (DISPLAY_LINE_PATTERN.test(previous) && ASSIGNMENT_LINE_PATTERN.test(current)) {
+    return true;
+  }
+  if (COMMENT_LINE_PATTERN.test(current) && !COMMENT_LINE_PATTERN.test(previous)) {
+    return true;
+  }
+  if (CONTROL_LINE_PATTERN.test(current) && !CONTROL_LINE_PATTERN.test(previous)) {
+    return true;
+  }
+
+  return false;
+};
+
 const tokenClass = (type: string) => {
-  if (type === 'comment') return 'text-slate-500';
-  if (type === 'string') return 'text-amber-300';
-  if (type === 'number') return 'text-cyan-300';
-  if (type === 'decorator') return 'text-violet-300';
-  if (type === 'keyword') return 'text-fuchsia-300 font-medium';
-  if (type === 'function') return 'text-emerald-300';
-  return 'text-slate-100';
+  if (type === 'comment') return 'text-slate-500 dark:text-slate-500';
+  if (type === 'string') return 'text-emerald-700 dark:text-emerald-300';
+  if (type === 'number') return 'text-slate-600 dark:text-slate-300';
+  if (type === 'decorator') return 'text-violet-700 dark:text-violet-300';
+  if (type === 'keyword') return 'font-medium text-violet-700 dark:text-violet-300';
+  if (type === 'function') return 'text-slate-600 dark:text-slate-300';
+  return 'text-slate-900 dark:text-slate-200';
 };
 
 const highlightLine = (
@@ -180,6 +210,7 @@ const highlightLine = (
 export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => {
   const [copied, setCopied] = useState(false);
   const detectedLanguage = detectLanguage(code, label, language);
+  const codeLines = code.split('\n');
   const highlightRegex =
     detectedLanguage === 'sql'
       ? SQL_REGEX
@@ -198,14 +229,17 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-light-border dark:border-dark-border">
-      <div className="flex items-center justify-between border-b border-light-border bg-light-surface px-4 py-2 dark:border-dark-border dark:bg-dark-surface">
+    <div className="overflow-hidden rounded-xl border border-slate-300/70 bg-[#f8fafc] shadow-sm dark:border-[rgba(148,163,184,0.1)] dark:bg-[#0d1117]">
+      <div className="flex items-center justify-between border-b border-slate-300/70 bg-slate-100 px-4 py-2.5 dark:border-[rgba(148,163,184,0.1)] dark:bg-[rgba(148,163,184,0.05)]">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">
             <span className="h-3 w-3 rounded-full bg-error-400" />
             <span className="h-3 w-3 rounded-full bg-warning-400" />
             <span className="h-3 w-3 rounded-full bg-success-400" />
           </div>
+          <span className="ml-1 rounded-full border border-slate-400/60 bg-slate-200/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600 dark:border-slate-500/40 dark:bg-slate-500/15 dark:text-slate-300">
+            {detectedLanguage}
+          </span>
           {label ? (
             <span className="ml-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
               {label}
@@ -231,29 +265,44 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
         </button>
       </div>
 
-      <div className="overflow-x-auto bg-slate-950 p-4">
-        <pre className="text-sm leading-relaxed text-slate-100">
+      <div className="overflow-x-auto bg-[#f8fafc] px-3 py-3 dark:bg-[#0d1117]">
+        <pre className="font-mono text-sm text-slate-900 dark:text-slate-200">
           <code>
-            {code.split('\n').map((line, index) => (
-              <span key={`${index}-${line.slice(0, 10)}`} className="block">
-                {highlightRegex
-                  ? highlightLine(line, highlightRegex, `line-${index}`)
-                  : line}
-              </span>
-            ))}
+            {codeLines.map((line, index) => {
+              const previousLine = index > 0 ? codeLines[index - 1] : '';
+              const addGroupGap = shouldAddVisualGap(previousLine, line);
+
+              return (
+                <span
+                  key={`${index}-${line.slice(0, 10)}`}
+                  className={`grid grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-4 px-1 ${
+                    addGroupGap ? 'mt-2' : ''
+                  }`}
+                >
+                  <span className="select-none text-right text-[11px] leading-7 text-slate-500 dark:text-slate-500">
+                    {index + 1}
+                  </span>
+                  <span className="block whitespace-pre text-[13px] leading-7 tracking-[0.01em] text-slate-900 dark:text-slate-200">
+                    {highlightRegex
+                      ? highlightLine(line, highlightRegex, `line-${index}`)
+                      : line}
+                  </span>
+                </span>
+              );
+            })}
           </code>
         </pre>
       </div>
 
       {output ? (
-        <div className="border-t border-light-border dark:border-dark-border">
-          <div className="bg-success-50 px-4 py-1.5 dark:bg-success-900/10">
-            <span className="text-xs font-medium text-success-700 dark:text-success-400">
+        <div className="border-t border-slate-300/70 dark:border-[rgba(148,163,184,0.1)]">
+          <div className="bg-slate-100 px-4 py-1.5 dark:bg-slate-800/30">
+            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
               Output
             </span>
           </div>
-          <div className="overflow-x-auto bg-light-bg p-4 dark:bg-dark-bg">
-            <pre className="text-xs text-text-light-secondary dark:text-text-dark-secondary">
+          <div className="overflow-x-auto bg-[#f8fafc] p-4 dark:bg-[#0d1117]">
+            <pre className="text-xs text-slate-700 dark:text-slate-300">
               {output}
             </pre>
           </div>

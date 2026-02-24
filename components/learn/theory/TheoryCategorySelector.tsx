@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, BookOpen, Check, Lock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Lock } from 'lucide-react';
 import type { TheoryDoc } from '@/types/theory';
 import type {
   TheoryCategorySlug,
@@ -11,6 +11,17 @@ interface ChapterProgressSnapshot {
   sectionsTotal: number;
   isCompleted: boolean;
   lastActiveAt: string | null;
+  currentLessonId?: string | null;
+  lastVisitedRoute?: string | null;
+}
+
+interface ModuleProgressSnapshot {
+  moduleOrder: number;
+  isUnlocked: boolean;
+  isCompleted: boolean;
+  currentLessonId?: string | null;
+  lastVisitedRoute?: string | null;
+  updatedAt?: string | null;
 }
 
 interface TheoryCategorySelectorProps {
@@ -18,6 +29,7 @@ interface TheoryCategorySelectorProps {
   categories: TheoryCategorySummary[];
   completedChapterIds: string[];
   chapterProgressById?: Record<string, ChapterProgressSnapshot>;
+  moduleProgressById?: Record<string, ModuleProgressSnapshot>;
 }
 
 type ChapterStatus = 'completed' | 'active' | 'locked' | 'available';
@@ -31,14 +43,65 @@ const CATEGORY_EMOJI: Record<TheoryCategorySlug, string> = {
   advanced: '✨'
 };
 
+const parseRouteQuery = (route: string) => {
+  const [path, query = ''] = route.split('?');
+  return { path, params: new URLSearchParams(query) };
+};
+
+const buildModuleHref = ({
+  topic,
+  chapterId,
+  currentLessonId,
+  lastVisitedRoute
+}: {
+  topic: string;
+  chapterId: string;
+  currentLessonId: string | null;
+  lastVisitedRoute: string | null;
+}) => {
+  const fallbackParams = new URLSearchParams();
+  fallbackParams.set('chapter', chapterId);
+  if (currentLessonId) {
+    fallbackParams.set('lesson', currentLessonId);
+  }
+  const fallbackHref = `/learn/${topic}/theory/all?${fallbackParams.toString()}`;
+
+  if (typeof lastVisitedRoute !== 'string') {
+    return fallbackHref;
+  }
+
+  const topicTheoryPrefix = `/learn/${topic}/theory/`;
+  if (!lastVisitedRoute.startsWith(topicTheoryPrefix)) {
+    return fallbackHref;
+  }
+
+  const { path, params } = parseRouteQuery(lastVisitedRoute);
+  if (params.get('chapter') !== chapterId) {
+    return fallbackHref;
+  }
+
+  const lessonFromRoute = params.get('lesson');
+  if (!lessonFromRoute && currentLessonId) {
+    params.set('lesson', currentLessonId);
+  }
+
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
+};
+
 export const TheoryCategorySelector = ({
   doc,
   categories,
   completedChapterIds,
-  chapterProgressById = {}
+  chapterProgressById = {},
+  moduleProgressById = {}
 }: TheoryCategorySelectorProps) => {
   const completedSet = new Set(completedChapterIds);
-  const totalMinutes = doc.chapters.reduce((sum, chapter) => sum + chapter.totalMinutes, 0);
+  const hasAuthoritativeModuleProgress = Object.keys(moduleProgressById).length > 0;
+  const totalMinutes = doc.chapters.reduce(
+    (sum, chapter) => sum + chapter.totalMinutes,
+    0
+  );
 
   const chapterCategoryById = new Map<
     string,
@@ -58,30 +121,80 @@ export const TheoryCategorySelector = ({
     .map((chapter) => {
       const categoryMeta = chapterCategoryById.get(chapter.id);
       const sessionProgress = chapterProgressById[chapter.id];
+      const moduleProgress = moduleProgressById[chapter.id];
       const lessonsTotalFallback = Math.max(1, chapter.sections.length);
-      const lessonsTotalRaw = Number(sessionProgress?.sectionsTotal ?? lessonsTotalFallback);
+      const lessonsTotalRaw = Number(
+        sessionProgress?.sectionsTotal ?? lessonsTotalFallback
+      );
       const lessonsTotal = lessonsTotalRaw > 0 ? lessonsTotalRaw : lessonsTotalFallback;
       const baselineDone = completedSet.has(chapter.id) ? lessonsTotal : 0;
       const lessonsDoneRaw = Number(sessionProgress?.sectionsRead ?? baselineDone);
       const lessonsDone = Math.max(0, Math.min(lessonsTotal, lessonsDoneRaw));
-      const isCompleted =
-        Boolean(sessionProgress?.isCompleted) ||
-        completedSet.has(chapter.id) ||
-        lessonsDone >= lessonsTotal;
+      const isCompleted = moduleProgress
+        ? moduleProgress.isCompleted
+        : Boolean(sessionProgress?.isCompleted) ||
+          completedSet.has(chapter.id) ||
+          lessonsDone >= lessonsTotal;
+      const currentLessonCandidate =
+        typeof moduleProgress?.currentLessonId === 'string'
+          ? moduleProgress.currentLessonId
+          : typeof sessionProgress?.currentLessonId === 'string'
+            ? sessionProgress.currentLessonId
+            : null;
+      const currentLessonId =
+        currentLessonCandidate &&
+        chapter.sections.some((section) => section.id === currentLessonCandidate)
+          ? currentLessonCandidate
+          : null;
+      const lastVisitedRoute =
+        typeof moduleProgress?.lastVisitedRoute === 'string'
+          ? moduleProgress.lastVisitedRoute
+          : typeof sessionProgress?.lastVisitedRoute === 'string'
+            ? sessionProgress.lastVisitedRoute
+          : null;
 
       return {
         chapter,
         categorySlug: categoryMeta?.slug ?? null,
-        categoryLabel: categoryMeta?.label ?? 'All Chapters',
+        categoryLabel: categoryMeta?.label ?? 'All Modules',
         lessonsDone,
         lessonsTotal,
         isCompleted,
-        lastActiveAt: sessionProgress?.lastActiveAt ?? null
+        hasAnyProgress:
+          lessonsDone > 0 || Boolean(currentLessonId) || Boolean(lastVisitedRoute),
+        lastActiveAt: moduleProgress?.updatedAt ?? sessionProgress?.lastActiveAt ?? null,
+        currentLessonId,
+        lastVisitedRoute,
+        isUnlocked: moduleProgress?.isUnlocked ?? null
       };
     });
 
+  const unlockedChapterIds = hasAuthoritativeModuleProgress
+    ? chapterRows.reduce<Set<string>>((set, row, index) => {
+        if (row.isUnlocked === true || (row.isUnlocked === null && index === 0)) {
+          set.add(row.chapter.id);
+        }
+        return set;
+      }, new Set<string>())
+    : chapterRows.reduce<Set<string>>((set, row, index, rows) => {
+        if (index === 0) {
+          set.add(row.chapter.id);
+          return set;
+        }
+
+        const previousRow = rows[index - 1];
+        const unlockedBySequence = Boolean(previousRow?.isCompleted);
+        if (unlockedBySequence || row.isCompleted || row.hasAnyProgress) {
+          set.add(row.chapter.id);
+        }
+        return set;
+      }, new Set<string>());
+
   const activeFromProgress = chapterRows
-    .filter((row) => !row.isCompleted && row.lessonsDone > 0)
+    .filter(
+      (row) =>
+        unlockedChapterIds.has(row.chapter.id) && !row.isCompleted && row.hasAnyProgress
+    )
     .sort((left, right) => {
       const leftTs = left.lastActiveAt ? new Date(left.lastActiveAt).getTime() : 0;
       const rightTs = right.lastActiveAt ? new Date(right.lastActiveAt).getTime() : 0;
@@ -90,30 +203,30 @@ export const TheoryCategorySelector = ({
 
   const activeChapterId =
     activeFromProgress ??
-    chapterRows.find((row) => !row.isCompleted)?.chapter.id ??
+    chapterRows.find((row) => unlockedChapterIds.has(row.chapter.id) && !row.isCompleted)
+      ?.chapter.id ??
+    chapterRows.find((row) => unlockedChapterIds.has(row.chapter.id))?.chapter.id ??
     null;
-  const activeIndex = chapterRows.findIndex((row) => row.chapter.id === activeChapterId);
 
-  const chapterCards = chapterRows.map((row, index) => {
-    const shouldLock =
-      activeIndex >= 0 &&
-      index > activeIndex &&
-      !row.isCompleted &&
-      row.lessonsDone === 0;
+  const chapterCards = chapterRows.map((row) => {
+    const isUnlocked = unlockedChapterIds.has(row.chapter.id);
     const status: ChapterStatus = row.isCompleted
       ? 'completed'
       : row.chapter.id === activeChapterId
         ? 'active'
-        : shouldLock
+        : !isUnlocked
           ? 'locked'
           : 'available';
 
     const chapterProgressPct =
       row.lessonsTotal > 0 ? Math.round((row.lessonsDone / row.lessonsTotal) * 100) : 0;
     const chapterIcon = row.categorySlug ? CATEGORY_EMOJI[row.categorySlug] : '📘';
-    const href = row.categorySlug
-      ? `/learn/${doc.topic}/theory/${row.categorySlug}?chapter=${row.chapter.id}`
-      : `/learn/${doc.topic}/theory/all?chapter=${row.chapter.id}`;
+    const href = buildModuleHref({
+      topic: doc.topic,
+      chapterId: row.chapter.id,
+      currentLessonId: row.currentLessonId,
+      lastVisitedRoute: row.lastVisitedRoute
+    });
 
     return {
       ...row,
@@ -187,7 +300,6 @@ export const TheoryCategorySelector = ({
     <div className="min-h-screen bg-light-bg pb-24 dark:bg-dark-bg lg:pb-8">
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-3xl">
-
           <Link
             href="/learn"
             className="mb-8 inline-flex items-center gap-2 text-sm text-text-light-tertiary transition-colors hover:text-brand-500 dark:text-text-dark-tertiary"
@@ -204,7 +316,7 @@ export const TheoryCategorySelector = ({
               {doc.title}
             </h1>
             <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
-              {doc.chapters.length} chapters · {totalMinutes} min total
+              {doc.chapters.length} modules · {totalMinutes} min total
             </p>
           </header>
 
@@ -251,7 +363,7 @@ export const TheoryCategorySelector = ({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                          Ch. {card.chapter.number}
+                          M{card.chapter.number}
                         </span>
                         {isActive && (
                           <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-500">
@@ -259,17 +371,21 @@ export const TheoryCategorySelector = ({
                           </span>
                         )}
                       </div>
-                      <h2 className={`mt-0.5 text-base font-semibold leading-snug ${
-                        isLocked
-                          ? 'text-text-light-tertiary/60 dark:text-text-dark-tertiary/60'
-                          : 'text-text-light-primary dark:text-text-dark-primary'
-                      }`}>
+                      <h2
+                        className={`mt-0.5 text-base font-semibold leading-snug ${
+                          isLocked
+                            ? 'text-text-light-tertiary/60 dark:text-text-dark-tertiary/60'
+                            : 'text-text-light-primary dark:text-text-dark-primary'
+                        }`}
+                      >
                         {card.chapter.title}
                       </h2>
                     </div>
                     <div className="shrink-0 text-right text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
                       <div>{card.chapter.totalMinutes} min</div>
-                      <div className="mt-0.5">{card.lessonsDone}/{card.lessonsTotal}</div>
+                      <div className="mt-0.5">
+                        {card.lessonsDone}/{card.lessonsTotal} lessons
+                      </div>
                     </div>
                   </div>
 
@@ -299,7 +415,7 @@ export const TheoryCategorySelector = ({
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-500">
-                        Open chapter <ArrowRight className="h-3.5 w-3.5" />
+                        Open module <ArrowRight className="h-3.5 w-3.5" />
                       </span>
                     )}
                   </div>
@@ -319,7 +435,7 @@ export const TheoryCategorySelector = ({
                           {group.category.label}
                         </span>
                         <span className="text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
-                          {group.completedCount}/{group.cards.length} chapters
+                          {group.completedCount}/{group.cards.length} modules
                         </span>
                       </div>
                     </div>
@@ -352,7 +468,10 @@ export const TheoryCategorySelector = ({
                           {cardContent}
                         </article>
                       ) : (
-                        <Link href={card.href} aria-current={isActive ? 'step' : undefined}>
+                        <Link
+                          href={card.href}
+                          aria-current={isActive ? 'step' : undefined}
+                        >
                           {cardContent}
                         </Link>
                       )}
@@ -362,7 +481,6 @@ export const TheoryCategorySelector = ({
               );
             })}
           </div>
-
         </div>
       </div>
     </div>

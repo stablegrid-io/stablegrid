@@ -37,19 +37,21 @@ const GITHUB_ICON = (
 const LEFT_FEATURES = [
   {
     label: 'PySpark & Microsoft Fabric',
-    description: 'Deep-dive curriculum for the modern data engineering stack'
+    description:
+      'Deep curriculum for distributed compute, Lakehouse patterns, and performance.'
   },
   {
     label: 'Function reference',
-    description: 'Searchable API docs with mastery tracking'
+    description: 'Searchable API guidance with examples and common failure modes.'
   },
   {
-    label: 'Practice questions',
-    description: 'Difficulty-graded with completion and accuracy metrics'
+    label: 'Practice sets',
+    description: 'Difficulty-tiered questions with accuracy and speed tracking.'
   },
   {
     label: 'Classified missions',
-    description: 'Story-driven incidents with production-style debugging'
+    description:
+      'Incident-driven debugging: shuffles, skew, broken pipelines, failed SLAs.'
   }
 ];
 
@@ -128,13 +130,13 @@ export function LoginForm() {
               StableGrid Operations
             </p>
             <h1 className="font-display text-[42px] font-bold leading-[1.06] tracking-tight text-[#f0f0f0]">
-              Learn data engineering.
+              Build data engineering that holds under load.
               <br />
               <span className="text-[#4ade80]">Stabilize the grid.</span>
             </h1>
             <p className="mt-5 max-w-[390px] text-sm leading-7 text-[#7d8f84]">
-              Correct answers generate deployment kWh you can spend on infrastructure.
-              Continue where you left off across practice, theory, and mission operations.
+              Practice the modern stack through production-grade scenarios.
+              Earn deployment kWh from correct solutions and allocate it to infrastructure upgrades as you progress.
             </p>
 
             <div className="mt-9">
@@ -156,7 +158,7 @@ export function LoginForm() {
           </div>
 
           <p className="relative z-10 border-t border-[#16261f] pt-4 text-xs text-[#5f7a6a]">
-            Free tier available · SQL and Python included · No credit card required
+            Free tier available · SQL + Python included · No card required
           </p>
         </aside>
 

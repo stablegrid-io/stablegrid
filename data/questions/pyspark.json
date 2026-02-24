@@ -1,254 +1,329 @@
 {
   "questions": [
     {
-      "id": "spark-001",
+      "id": "pyspark-m1-001",
       "topic": "pyspark",
       "difficulty": "easy",
       "type": "multiple-choice",
-      "question": "What's the main difference between transformations and actions in PySpark?",
+      "question": "What was the main limitation of vertical scaling for big-data workloads?",
       "options": [
-        "Transformations are faster than actions",
-        "Transformations are lazy (not executed immediately), actions trigger execution",
-        "Actions create DataFrames, transformations don't",
-        "No difference, they're interchangeable"
+        "It required Python instead of SQL",
+        "It eventually hit physical and financial limits",
+        "It prevented schema evolution",
+        "It only worked with streaming data"
       ],
-      "correctAnswer": "Transformations are lazy (not executed immediately), actions trigger execution",
-      "explanation": "Transformations build a plan; actions trigger execution.",
+      "correctAnswer": "It eventually hit physical and financial limits",
+      "explanation": "Single-machine upgrades cannot keep up with exponential data growth.",
       "xpReward": 30,
-      "tags": ["fundamentals", "lazy-evaluation", "transformations"]
+      "tags": ["module-1", "fundamentals", "scaling"]
     },
     {
-      "id": "spark-002",
+      "id": "pyspark-m1-002",
       "topic": "pyspark",
       "difficulty": "easy",
       "type": "multiple-choice",
-      "question": "How do you read a CSV into a DataFrame with header and inferred schema?",
+      "question": "Which combination correctly describes the 3Vs of big data?",
       "options": [
-        "df = spark.read.csv('data.csv', header=True, inferSchema=True)",
-        "df = spark.read.json('data.csv', header=True, inferSchema=True)",
-        "df = spark.csv.read('data.csv', header=True, inferSchema=True)",
-        "df = spark.read.csv('data.csv')"
+        "Volume, Velocity, Variety",
+        "Value, Veracity, Validation",
+        "Vector, Version, Variance",
+        "Volume, Versioning, Visualization"
       ],
-      "correctAnswer": "df = spark.read.csv('data.csv', header=True, inferSchema=True)",
-      "explanation": "Use spark.read.csv with both header and inferSchema options when needed.",
-      "xpReward": 25,
-      "tags": ["io", "dataframe", "basics"]
+      "correctAnswer": "Volume, Velocity, Variety",
+      "explanation": "The canonical 3Vs are volume, velocity, and variety.",
+      "xpReward": 30,
+      "tags": ["module-1", "3v", "fundamentals"]
     },
     {
-      "id": "spark-003",
+      "id": "pyspark-m1-003",
       "topic": "pyspark",
       "difficulty": "medium",
       "type": "multiple-choice",
-      "question": "Choose the correct expression to filter age > 30 and salary >= 50000, then select name and department.",
+      "question": "Why did Spark outperform classic MapReduce for iterative analytics?",
       "options": [
-        "df.filter((F.col('age') > 30) & (F.col('salary') >= 50000)).select('name', 'department')",
-        "df.filter(F.col('age') > 30 && F.col('salary') >= 50000).select('name', 'department')",
-        "df.select('name', 'department').filter('age > 30 OR salary >= 50000')",
-        "df.where('age > 30').where('salary').select('name', 'department')"
+        "Spark always uses GPUs",
+        "Spark avoids repeated disk writes between steps when possible",
+        "Spark disables shuffles",
+        "Spark requires fewer columns"
       ],
-      "correctAnswer": "df.filter((F.col('age') > 30) & (F.col('salary') >= 50000)).select('name', 'department')",
-      "explanation": "Use & with parentheses for AND logic and then select required columns.",
-      "xpReward": 40,
-      "tags": ["filtering", "selection", "operators"]
-    },
-    {
-      "id": "spark-004",
-      "topic": "pyspark",
-      "difficulty": "easy",
-      "type": "multiple-choice",
-      "question": "Which of these is an action (not a transformation)?",
-      "options": ["filter()", "groupBy()", "collect()", "join()"],
-      "correctAnswer": "collect()",
-      "explanation": "collect() triggers execution and returns data to the driver.",
-      "xpReward": 25,
-      "tags": ["fundamentals", "actions", "transformations"]
-    },
-    {
-      "id": "spark-005",
-      "topic": "pyspark",
-      "difficulty": "hard",
-      "type": "multiple-choice",
-      "question": "You need running total of sales partitioned by store_id and ordered by date. Which setup is correct?",
-      "options": [
-        "window_spec = Window.partitionBy('store_id').orderBy('date'); df = df.withColumn('running_total', F.sum('sales').over(window_spec))",
-        "window_spec = Window.orderBy('store_id').partitionBy('date'); df = df.withColumn('running_total', F.avg('sales').over(window_spec))",
-        "window_spec = Window.partitionBy('date').orderBy('store_id'); df = df.withColumn('running_total', F.sum('sales'))",
-        "window_spec = Window.partitionBy('store_id'); df = df.withColumn('running_total', F.sum('sales'))"
-      ],
-      "correctAnswer": "window_spec = Window.partitionBy('store_id').orderBy('date'); df = df.withColumn('running_total', F.sum('sales').over(window_spec))",
-      "explanation": "Running totals require both partition and ordered window, then sum over that window.",
-      "xpReward": 75,
-      "tags": ["window-functions", "analytics", "advanced"]
-    },
-    {
-      "id": "spark-006",
-      "topic": "pyspark",
-      "difficulty": "medium",
-      "type": "multiple-choice",
-      "question": "What's the difference between cache() and persist()?",
-      "options": [
-        "No difference, they're aliases",
-        "cache() stores in memory only, persist() allows storage level configuration",
-        "persist() is always faster",
-        "cache() is for RDDs only, persist() is for DataFrames only"
-      ],
-      "correctAnswer": "cache() stores in memory only, persist() allows storage level configuration",
-      "explanation": "cache() is equivalent to persist(MEMORY_ONLY).",
+      "correctAnswer": "Spark avoids repeated disk writes between steps when possible",
+      "explanation": "In-memory execution reduces repeated disk I/O costs for iterative workloads.",
       "xpReward": 45,
-      "tags": ["caching", "performance", "optimization"]
+      "tags": ["module-1", "spark", "mapreduce"]
     },
     {
-      "id": "spark-007",
-      "topic": "pyspark",
-      "difficulty": "medium",
-      "type": "multiple-choice",
-      "question": "How do you left join df1 and df2 on customer_id?",
-      "options": [
-        "result = df1.join(df2, on='customer_id', how='left')",
-        "result = df1.merge(df2, on='customer_id', how='left')",
-        "result = df1.joinLeft(df2, 'customer_id')",
-        "result = left_join(df1, df2, 'customer_id')"
-      ],
-      "correctAnswer": "result = df1.join(df2, on='customer_id', how='left')",
-      "explanation": "DataFrame joins in PySpark use join(other, on=..., how=...).",
-      "xpReward": 50,
-      "tags": ["joins", "dataframe", "operations"]
-    },
-    {
-      "id": "spark-008",
-      "topic": "pyspark",
-      "difficulty": "hard",
-      "type": "multiple-choice",
-      "question": "You have a highly skewed join where 80% of records share one key. Best optimization?",
-      "options": [
-        "Increase executor memory",
-        "Use broadcast join",
-        "Use salting technique to distribute skewed keys",
-        "Add more partitions only"
-      ],
-      "correctAnswer": "Use salting technique to distribute skewed keys",
-      "explanation": "Salting splits hot keys across buckets and reduces skewed partition bottlenecks.",
-      "xpReward": 80,
-      "tags": ["performance", "skew", "optimization", "advanced"]
-    },
-    {
-      "id": "spark-009",
+      "id": "pyspark-m2-001",
       "topic": "pyspark",
       "difficulty": "easy",
       "type": "multiple-choice",
-      "question": "How do you group by department and compute average salary?",
+      "question": "What is the role of SparkSession in a PySpark app?",
       "options": [
-        "result = df.groupBy('department').agg(F.avg('salary'))",
-        "result = df.groupby('department').mean('salary').collectAll()",
-        "result = df.select('department').avg('salary')",
-        "result = avg(df, 'salary', by='department')"
+        "It stores all partitions on executors",
+        "It is the driver-side entry point that builds plans",
+        "It replaces DataFrames",
+        "It writes only Parquet outputs"
       ],
-      "correctAnswer": "result = df.groupBy('department').agg(F.avg('salary'))",
-      "explanation": "groupBy + agg with avg is the standard DataFrame API pattern.",
+      "correctAnswer": "It is the driver-side entry point that builds plans",
+      "explanation": "SparkSession lives on the driver and coordinates query planning.",
       "xpReward": 30,
-      "tags": ["groupby", "aggregation", "basics"]
+      "tags": ["module-2", "sparksession", "driver"]
     },
     {
-      "id": "spark-010",
-      "topic": "pyspark",
-      "difficulty": "medium",
-      "type": "multiple-choice",
-      "question": "When should you use broadcast joins?",
-      "options": [
-        "Always, they are always faster",
-        "When one DataFrame is small enough to fit in executor memory",
-        "Only for outer joins",
-        "Only when both DataFrames are huge"
-      ],
-      "correctAnswer": "When one DataFrame is small enough to fit in executor memory",
-      "explanation": "Broadcast avoids a large shuffle by sending the small table to all executors.",
-      "xpReward": 55,
-      "tags": ["joins", "broadcast", "performance"]
-    },
-    {
-      "id": "spark-011",
-      "topic": "pyspark",
-      "difficulty": "hard",
-      "type": "multiple-choice",
-      "question": "Which temperature categorization logic matches: <0 Freezing, 0-19 Cold, 20-30 Warm, >30 Hot?",
-      "options": [
-        "if temp < 0: 'Freezing'; elif temp < 20: 'Cold'; elif temp <= 30: 'Warm'; else: 'Hot'",
-        "if temp <= 0: 'Freezing'; elif temp <= 20: 'Cold'; elif temp < 30: 'Warm'; else: 'Hot'",
-        "if temp < 0: 'Cold'; elif temp <= 30: 'Warm'; else: 'Hot'",
-        "if temp > 30: 'Freezing'; else: 'Warm'"
-      ],
-      "correctAnswer": "if temp < 0: 'Freezing'; elif temp < 20: 'Cold'; elif temp <= 30: 'Warm'; else: 'Hot'",
-      "explanation": "Boundaries must map exactly to the requested ranges.",
-      "xpReward": 70,
-      "tags": ["udf", "functions", "custom-logic"]
-    },
-    {
-      "id": "spark-012",
-      "topic": "pyspark",
-      "difficulty": "medium",
-      "type": "multiple-choice",
-      "question": "How do you fill nulls with median_age for age and 'Unknown' for city?",
-      "options": [
-        "df_clean = df.fillna({'age': median_age, 'city': 'Unknown'})",
-        "df_clean = df.fillna(median_age, 'age', 'Unknown', 'city')",
-        "df_clean = df.na.drop({'age': median_age, 'city': 'Unknown'})",
-        "df_clean = fill_nulls(df, age=median_age, city='Unknown')"
-      ],
-      "correctAnswer": "df_clean = df.fillna({'age': median_age, 'city': 'Unknown'})",
-      "explanation": "fillna accepts a dictionary for per-column replacement values.",
-      "xpReward": 50,
-      "tags": ["null-handling", "data-cleaning", "missing-data"]
-    },
-    {
-      "id": "spark-013",
+      "id": "pyspark-m2-002",
       "topic": "pyspark",
       "difficulty": "easy",
       "type": "multiple-choice",
-      "question": "What does repartition() do?",
-      "options": [
-        "Sorts the DataFrame",
-        "Redistributes data across partitions with a shuffle",
-        "Removes duplicate rows",
-        "Caches the DataFrame"
-      ],
-      "correctAnswer": "Redistributes data across partitions with a shuffle",
-      "explanation": "repartition triggers a full shuffle to rebalance data.",
-      "xpReward": 35,
-      "tags": ["partitioning", "optimization", "fundamentals"]
+      "question": "Which format is generally preferred for production analytics reads in Spark?",
+      "options": ["XML", "CSV", "Parquet", "TXT"],
+      "correctAnswer": "Parquet",
+      "explanation": "Parquet provides columnar layout, compression, and pushdown benefits.",
+      "xpReward": 25,
+      "tags": ["module-2", "io", "parquet"]
     },
     {
-      "id": "spark-014",
-      "topic": "pyspark",
-      "difficulty": "hard",
-      "type": "multiple-choice",
-      "question": "How do you keep the top 3 products by sales in each category?",
-      "options": [
-        "window_spec = Window.partitionBy('category').orderBy(F.desc('sales')); df_ranked = df.withColumn('rank', F.row_number().over(window_spec)); result = df_ranked.filter(F.col('rank') <= 3)",
-        "window_spec = Window.orderBy('category'); result = df.withColumn('rank', F.rank()).filter(F.col('rank') <= 3)",
-        "result = df.groupBy('category').agg(F.max('sales')).limit(3)",
-        "result = df.orderBy(F.desc('sales')).limit(3)"
-      ],
-      "correctAnswer": "window_spec = Window.partitionBy('category').orderBy(F.desc('sales')); df_ranked = df.withColumn('rank', F.row_number().over(window_spec)); result = df_ranked.filter(F.col('rank') <= 3)",
-      "explanation": "Top-N per group requires a partitioned window and then filtering by rank.",
-      "xpReward": 85,
-      "tags": ["window-functions", "ranking", "top-n", "advanced"]
-    },
-    {
-      "id": "spark-015",
+      "id": "pyspark-m2-003",
       "topic": "pyspark",
       "difficulty": "medium",
       "type": "multiple-choice",
-      "question": "What's the recommended way to write Parquet for better filtered query performance?",
+      "question": "Which statement about Spark transformations is correct?",
       "options": [
-        "df.write.parquet('output.parquet')",
-        "df.write.partitionBy('date_column').parquet('output.parquet')",
-        "df.coalesce(1).write.parquet('output.parquet')",
-        "df.repartition(1000).write.parquet('output.parquet')"
+        "They always execute immediately",
+        "They are lazy and build execution plans",
+        "They run only on the driver",
+        "They cannot be chained"
       ],
-      "correctAnswer": "df.write.partitionBy('date_column').parquet('output.parquet')",
-      "explanation": "Partitioning enables partition pruning for selective reads.",
-      "xpReward": 60,
-      "tags": ["io", "parquet", "partitioning", "performance"]
+      "correctAnswer": "They are lazy and build execution plans",
+      "explanation": "Spark delays execution until an action is called.",
+      "xpReward": 45,
+      "tags": ["module-2", "lazy-evaluation", "dag"]
+    },
+    {
+      "id": "pyspark-m2-004",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the primary risk of calling collect() on very large datasets?",
+      "options": [
+        "It disables Catalyst",
+        "It can overload driver memory",
+        "It repartitions data automatically",
+        "It forces CSV output"
+      ],
+      "correctAnswer": "It can overload driver memory",
+      "explanation": "collect() moves all selected data to the driver process.",
+      "xpReward": 50,
+      "tags": ["module-2", "actions", "driver-oom"]
+    },
+    {
+      "id": "pyspark-m2-005",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "When reducing partitions before writing output files, which operation is typically cheaper?",
+      "options": ["repartition()", "coalesce()", "collect()", "cache()"],
+      "correctAnswer": "coalesce()",
+      "explanation": "coalesce() can reduce partitions without a full shuffle in common cases.",
+      "xpReward": 70,
+      "tags": ["module-2", "partitioning", "performance"]
+    },
+    {
+      "id": "pyspark-m3-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Which Catalyst phase applies rules like predicate pushdown and projection pruning?",
+      "options": [
+        "Unresolved logical plan",
+        "Resolved logical plan",
+        "Optimized logical plan",
+        "Code generation stage"
+      ],
+      "correctAnswer": "Optimized logical plan",
+      "explanation": "Catalyst optimization rules are applied in the optimized logical plan phase.",
+      "xpReward": 50,
+      "tags": ["module-3", "catalyst", "optimization"]
+    },
+    {
+      "id": "pyspark-m3-002",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What creates a new stage in Spark execution?",
+      "options": [
+        "Each transformation",
+        "Each executor",
+        "A shuffle boundary (wide dependency)",
+        "Calling printSchema()"
+      ],
+      "correctAnswer": "A shuffle boundary (wide dependency)",
+      "explanation": "Stages split where Spark must redistribute data.",
+      "xpReward": 50,
+      "tags": ["module-3", "dag", "stages"]
+    },
+    {
+      "id": "pyspark-m3-003",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "If a stage has 500 partitions, how many tasks are generally created for that stage?",
+      "options": ["5", "50", "500", "Depends only on driver RAM"],
+      "correctAnswer": "500",
+      "explanation": "Spark commonly maps one task per partition per stage.",
+      "xpReward": 75,
+      "tags": ["module-3", "tasks", "parallelism"]
+    },
+    {
+      "id": "pyspark-m3-004",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Which issue is most directly associated with data skew?",
+      "options": [
+        "Even task durations across executors",
+        "One long-running straggler task dominates stage completion",
+        "Automatic partition coalescing",
+        "Elimination of shuffle"
+      ],
+      "correctAnswer": "One long-running straggler task dominates stage completion",
+      "explanation": "Skewed keys concentrate work in a subset of partitions.",
+      "xpReward": 80,
+      "tags": ["module-3", "skew", "shuffle"]
+    },
+    {
+      "id": "pyspark-m4-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Which Spark UI metrics most directly indicate spill pressure?",
+      "options": [
+        "Executor CPU % and JVM version",
+        "Memory Bytes Spilled and Disk Bytes Spilled",
+        "Rows Read and Rows Written",
+        "Task IDs and DAG IDs"
+      ],
+      "correctAnswer": "Memory Bytes Spilled and Disk Bytes Spilled",
+      "explanation": "These metrics quantify spill activity due to memory pressure.",
+      "xpReward": 55,
+      "tags": ["module-4", "spill", "monitoring"]
+    },
+    {
+      "id": "pyspark-m4-002",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does Exchange hashpartitioning in an explain plan signal?",
+      "options": [
+        "A guaranteed broadcast join",
+        "A shuffle/repartition step",
+        "A cache hit",
+        "A local-only transformation"
+      ],
+      "correctAnswer": "A shuffle/repartition step",
+      "explanation": "Exchange indicates data movement across partitions.",
+      "xpReward": 75,
+      "tags": ["module-4", "execution-plan", "shuffle"]
+    },
+    {
+      "id": "pyspark-m4-003",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "For a 1 TB fact table joined to a 5 MB dimension, the best first optimization is:",
+      "options": [
+        "Force collect() on dimension and fact",
+        "Broadcast the small dimension table",
+        "coalesce(1) the fact table",
+        "Disable adaptive execution"
+      ],
+      "correctAnswer": "Broadcast the small dimension table",
+      "explanation": "Broadcasting avoids shuffling the massive fact table.",
+      "xpReward": 80,
+      "tags": ["module-4", "broadcast", "joins"]
+    },
+    {
+      "id": "pyspark-m4-004",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the primary goal of salting skewed keys?",
+      "options": [
+        "Encrypt join columns",
+        "Split hot keys into multiple pseudo-keys to spread workload",
+        "Reduce schema width",
+        "Force all data into one partition"
+      ],
+      "correctAnswer": "Split hot keys into multiple pseudo-keys to spread workload",
+      "explanation": "Salting redistributes dominant-key records across partitions.",
+      "xpReward": 85,
+      "tags": ["module-4", "skew", "salting"]
+    },
+    {
+      "id": "pyspark-m5-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "In a shuffle join, what usually gets repartitioned by join key?",
+      "options": [
+        "Only the smaller table",
+        "Only the larger table",
+        "Both sides of the join",
+        "Neither side"
+      ],
+      "correctAnswer": "Both sides of the join",
+      "explanation": "Spark generally redistributes both datasets so matching keys align.",
+      "xpReward": 55,
+      "tags": ["module-5", "joins", "shuffle"]
+    },
+    {
+      "id": "pyspark-m5-002",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Broadcast joins are most appropriate when:",
+      "options": [
+        "Both tables are multi-terabyte",
+        "One table is small enough to replicate across executors",
+        "There is no join key",
+        "You need to force a sort-merge join"
+      ],
+      "correctAnswer": "One table is small enough to replicate across executors",
+      "explanation": "The strategy relies on replicating a small side efficiently.",
+      "xpReward": 55,
+      "tags": ["module-5", "broadcast", "performance"]
+    },
+    {
+      "id": "pyspark-m5-003",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why can window functions outperform self-joins for prior-row analytics?",
+      "options": [
+        "They avoid partition-level ordering",
+        "They often avoid full dataset reshuffle for row-context calculations",
+        "They run only on the driver",
+        "They disable Catalyst"
+      ],
+      "correctAnswer": "They often avoid full dataset reshuffle for row-context calculations",
+      "explanation": "Window operations can run within partition boundaries with ordered context.",
+      "xpReward": 80,
+      "tags": ["module-5", "windows", "joins"]
+    },
+    {
+      "id": "pyspark-m5-004",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does a left_anti join return?",
+      "options": [
+        "Rows that match in both tables",
+        "Rows in left table with no match in right table",
+        "Rows in right table with no match in left table",
+        "All rows with null keys"
+      ],
+      "correctAnswer": "Rows in left table with no match in right table",
+      "explanation": "left_anti is ideal for orphan detection and integrity checks.",
+      "xpReward": 50,
+      "tags": ["module-5", "anti-join", "data-quality"]
     }
   ]
 }

@@ -54,10 +54,6 @@ interface UserMissionRow {
   xp_awarded: number;
 }
 
-interface DashboardLayoutRow {
-  layout: unknown;
-}
-
 const learnTopics: Topic[] = ['pyspark', 'fabric'];
 
 const TOPIC_DEFAULTS: Record<
@@ -178,12 +174,7 @@ export default async function ProgressPage() {
     redirect('/login');
   }
 
-  const [
-    topicProgressResult,
-    readingSessionsResult,
-    userMissionsResult,
-    dashboardLayoutResult
-  ] = await Promise.all([
+  const [topicProgressResult, readingSessionsResult, userMissionsResult] = await Promise.all([
     supabase
       .from('topic_progress')
       .select(
@@ -202,14 +193,12 @@ export default async function ProgressPage() {
     supabase
       .from('user_missions')
       .select('mission_slug,state,unlocked,started_at,completed_at,xp_awarded')
-      .eq('user_id', user.id),
-    supabase.from('dashboard_layouts').select('layout').eq('user_id', user.id).maybeSingle()
+      .eq('user_id', user.id)
   ]);
 
   const topicRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
   const readingRows = (readingSessionsResult.data ?? []) as ReadingSessionRow[];
   const userMissionRows = (userMissionsResult.data ?? []) as UserMissionRow[];
-  const dashboardLayout = (dashboardLayoutResult.data ?? null) as DashboardLayoutRow | null;
 
   const mappedTopicProgress = topicRows.map(toTopicProgressModel);
   const byTopic = new Map(mappedTopicProgress.map((row) => [row.topic, row]));
@@ -228,7 +217,6 @@ export default async function ProgressPage() {
       readingSessions={readingSessions}
       practiceHistory={[]}
       missionProgress={missionProgress}
-      initialDashboardLayout={dashboardLayout?.layout ?? null}
     />
   );
 }

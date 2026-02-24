@@ -53,7 +53,7 @@ describe('LoginForm', () => {
     expect(input).toHaveAttribute('type', 'password');
   });
 
-  it('submits credentials and redirects to flashcards', async () => {
+  it('submits credentials and redirects to onboarding', async () => {
     const user = userEvent.setup();
     signInMock.mockResolvedValueOnce({});
 
@@ -64,7 +64,7 @@ describe('LoginForm', () => {
 
     await waitFor(() => {
       expect(signInMock).toHaveBeenCalledWith('user@example.com', 'SecurePass1!');
-      expect(pushMock).toHaveBeenCalledWith('/flashcards');
+      expect(pushMock).toHaveBeenCalledWith('/onboarding');
     });
   });
 

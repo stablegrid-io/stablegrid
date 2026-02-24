@@ -79,7 +79,7 @@ export function generateMetadata({
   if (!doc) {
     return {
       title: 'StableGrid.io',
-      description: 'Chapter-based theory documentation.'
+      description: 'Module-based theory documentation.'
     };
   }
 

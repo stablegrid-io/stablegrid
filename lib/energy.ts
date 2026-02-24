@@ -72,7 +72,7 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     stabilityImpactPct: 5,
     function: 'Base monitoring operations',
     unlocks: 'Infrastructure telemetry',
-    position: { x: 80, y: 220 },
+    position: { x: 180, y: 210 },
     connects: ['smart-transformer']
   },
   {
@@ -83,7 +83,7 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     stabilityImpactPct: 8,
     function: 'Regulates prosumer injection',
     unlocks: 'Mission 003: Prosumer Swarm',
-    position: { x: 210, y: 145 },
+    position: { x: 320, y: 100 },
     connects: ['solar-forecasting-array']
   },
   {
@@ -94,7 +94,7 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     stabilityImpactPct: 10,
     function: 'Predicts solar output 6h ahead',
     unlocks: 'Mission 001: Solar Surge',
-    position: { x: 340, y: 90 },
+    position: { x: 460, y: 55 },
     connects: ['battery-storage', 'hvdc-interconnector']
   },
   {
@@ -105,7 +105,7 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     stabilityImpactPct: 15,
     function: 'Absorbs surges and discharges on peaks',
     unlocks: 'Mission 002: Evening Peak',
-    position: { x: 480, y: 170 },
+    position: { x: 580, y: 165 },
     connects: ['frequency-controller', 'grid-flywheel']
   },
   {
@@ -116,7 +116,7 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     stabilityImpactPct: 12,
     function: 'Maintains 50 Hz +/-0.5',
     unlocks: 'Mission 004: Frequency Drop',
-    position: { x: 620, y: 250 },
+    position: { x: 720, y: 120 },
     connects: ['demand-response-system', 'ai-grid-optimizer']
   },
   {
@@ -127,7 +127,7 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     stabilityImpactPct: 18,
     function: 'Shifts EV charging to off-peak windows',
     unlocks: 'Advanced load balancing missions',
-    position: { x: 760, y: 320 },
+    position: { x: 860, y: 220 },
     connects: ['ai-grid-optimizer']
   },
   {
@@ -138,7 +138,7 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     stabilityImpactPct: 14,
     function: 'Instant mechanical frequency response',
     unlocks: 'Fast transient damping scenarios',
-    position: { x: 620, y: 330 },
+    position: { x: 620, y: 310 },
     connects: ['demand-response-system']
   },
   {
@@ -149,7 +149,7 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     stabilityImpactPct: 20,
     function: 'Cross-border power import/export',
     unlocks: 'Cross-region balancing operations',
-    position: { x: 760, y: 110 },
+    position: { x: 580, y: 355 },
     connects: ['ai-grid-optimizer']
   },
   {
@@ -160,7 +160,7 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     stabilityImpactPct: 25,
     function: 'Autonomous predictive balancing',
     unlocks: 'Mission 005: The Ghost Regulator',
-    position: { x: 910, y: 210 },
+    position: { x: 900, y: 180 },
     connects: []
   }
 ];

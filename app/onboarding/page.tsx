@@ -22,14 +22,18 @@ export default async function OnboardingPage() {
     .limit(1)
     .maybeSingle();
 
-  // Also check dashboard_layouts as another signal of returning user
-  const { data: layout } = await supabase
-    .from('dashboard_layouts')
-    .select('user_id')
+  // Practice-only users may have user_progress activity before topic_progress.
+  const { data: userProgress } = await supabase
+    .from('user_progress')
+    .select('xp,completed_questions')
     .eq('user_id', user.id)
     .maybeSingle();
 
-  const isReturningUser = Boolean(progress || layout);
+  const hasPracticeActivity =
+    Number(userProgress?.xp ?? 0) > 0 ||
+    (Array.isArray(userProgress?.completed_questions) &&
+      userProgress.completed_questions.length > 0);
+  const isReturningUser = Boolean(progress || hasPracticeActivity);
   if (isReturningUser) {
     redirect('/');
   }

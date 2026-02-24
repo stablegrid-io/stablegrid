@@ -15,7 +15,7 @@ import { getLearnTopicMeta, learnTopics } from '@/data/learn';
 import { getChapterCompletions } from '@/lib/progress';
 import type { Topic } from '@/types/progress';
 
-type LearnMode = 'theory' | 'functions';
+type LearnMode = 'theory';
 type DepthFilter = 'all' | 'starter' | 'standard' | 'deep';
 type SortOption = 'recommended' | 'name-asc' | 'workload-desc' | 'workload-asc';
 
@@ -51,7 +51,7 @@ const MODE_META: Record<
     title: string;
     description: string;
     cta: string;
-    statLabel: 'chapters' | 'functions';
+    statLabel: 'chapters';
     workloadLabel: string;
   }
 > = {
@@ -63,15 +63,6 @@ const MODE_META: Record<
     cta: 'Open Theory',
     statLabel: 'chapters',
     workloadLabel: 'chapter depth'
-  },
-  functions: {
-    badge: 'Function Library',
-    title: 'Pick a functions topic',
-    description:
-      'Filter topics and open curated function references with examples.',
-    cta: 'Open Functions',
-    statLabel: 'functions',
-    workloadLabel: 'function density'
   }
 };
 
@@ -115,20 +106,14 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
     return learnTopics.map((topic) => {
       const topicMeta = getLearnTopicMeta(topic.id);
       const chapterMinutes = topicMeta?.chapterMinutes ?? 0;
-      const workload = mode === 'theory' ? topic.chapterCount : topic.functionCount;
+      const workload = topic.chapterCount;
 
       const depth =
-        mode === 'theory'
-          ? workload <= 3
-            ? 'starter'
-            : workload <= 8
-              ? 'standard'
-              : 'deep'
-          : workload <= 45
-            ? 'starter'
-            : workload <= 80
-              ? 'standard'
-              : 'deep';
+        workload <= 3
+          ? 'starter'
+          : workload <= 8
+            ? 'standard'
+            : 'deep';
 
       return {
         ...topic,
@@ -251,22 +236,12 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
               </button>
 
               <div className="flex flex-wrap items-center gap-4">
-                {mode === 'theory' ? (
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
                     <span>Showing {filteredTopics.length} of {topics.length}</span>
                     <span>·</span>
                     <span>{visibleWorkload}/{totalWorkload} {meta.statLabel}</span>
                   </div>
-                ) : (
-                  <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
-                    Showing <span className="font-semibold">{filteredTopics.length}</span> of{' '}
-                    <span className="font-semibold">{topics.length}</span> topics · workload{' '}
-                    <span className="font-semibold">{visibleWorkload}/{totalWorkload}</span>{' '}
-                    {meta.statLabel}
-                  </p>
-                )}
-                {mode === 'theory' ? (
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3">
                     <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
                       {completedChapters} of {totalChapters} chapters completed
                     </p>
@@ -277,7 +252,6 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
                       />
                     </div>
                   </div>
-                ) : null}
               </div>
             </div>
           </section>
@@ -318,15 +292,9 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
                           <span className="rounded-full border border-light-border bg-light-bg px-2 py-0.5 text-[10px] font-medium text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
                             {topic.workload} {meta.statLabel}
                           </span>
-                          {mode === 'theory' ? (
-                            <span className="rounded-full border border-light-border bg-light-bg px-2 py-0.5 text-[10px] font-medium text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+                          <span className="rounded-full border border-light-border bg-light-bg px-2 py-0.5 text-[10px] font-medium text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
                               {topic.chapterMinutes} min
                             </span>
-                          ) : (
-                            <span className="rounded-full border border-light-border bg-light-bg px-2 py-0.5 text-[10px] font-medium text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
-                              {topic.functionCount} refs
-                            </span>
-                          )}
                         </div>
                       </div>
 
