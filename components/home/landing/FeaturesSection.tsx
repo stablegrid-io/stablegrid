@@ -7,47 +7,47 @@ const FEATURES = [
   {
     icon: BookOpen,
     label: 'Curriculum',
-    headline: 'Theory with operational context',
+    headline: 'Flagship PySpark depth with grid context',
     description:
-      'Chapter-based learning for SQL, Python, PySpark, statistics, and Fabric with production-style examples and progressive prerequisites.',
+      'The deepest path focuses on distributed data engineering with utility-scale examples: shuffles, skew, streaming, telemetry quality, governance, and platform design.',
     preview: [
-      '3 core chapters per subject in MVP',
-      'Inline code and architecture diagrams',
-      'Completion tracking across all topics',
+      '20 PySpark chapters live today',
+      'Production-style examples and diagrams',
+      'Interview and system design framing',
       'Prerequisite-gated progression'
     ],
     color: '#4ade80',
-    footer: 'Learn the concepts behind reliable grid analytics'
+    footer: 'Built for practitioners who need judgment, not surface coverage'
   },
   {
     icon: Zap,
-    label: 'Practice',
-    headline: 'kWh-based competency scoring',
+    label: 'Progression',
+    headline: 'Progression with consequences, not vanity XP',
     description:
-      'Every solved question and mission awards kWh credits that act as deployment authority for grid infrastructure.',
+      'kWh is an earned deployment budget. Progress changes what users can deploy next and makes analytical skill visible inside the simulation.',
     preview: [
-      '+0.04-0.12 kWh per question',
-      '+0.15 kWh per chapter',
-      '+0.4-2.4 kWh per mission',
-      'Instant feedback and answer rationale'
+      'Questions and missions award kWh',
+      'Chapters expand deployment authority',
+      'Higher stability unlocks harder scenarios',
+      'Dashboard tracks momentum and accuracy'
     ],
     color: '#f0a032',
-    footer: 'Not points for fun. Credits for real deployment decisions.'
+    footer: 'Your progress changes the system instead of ending at a completion bar'
   },
   {
     icon: Network,
-    label: 'Infrastructure',
-    headline: 'Live stability map',
+    label: 'Missions',
+    headline: 'Incident-style missions for infrastructure-heavy domains',
     description:
-      'Deploy smart transformers, battery storage, frequency controllers, and AI optimization to stabilize renewable variability in simulation.',
+      'Mission briefs are written like real incidents: event-order inversions, schema regressions, telemetry storms, dispatch windows, and renewable volatility.',
     preview: [
-      'Locked / Ready / Deployed node states',
-      'Animated power-flow connections',
-      'Battery, forecast, and frequency indicators',
-      'Stability tiers from Critical to Optimal'
+      'Ghost events and telemetry loss',
+      'Streaming lag and watermark recovery',
+      'Storage dispatch under price spikes',
+      'Forensics-style incident debriefs'
     ],
     color: '#64a0dc',
-    footer: 'Your learning directly changes system outcomes'
+    footer: 'That scenario framing is the differentiator, not decoration'
   }
 ] as const;
 
@@ -57,10 +57,10 @@ export const FeaturesSection = () => {
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
-            Built for data engineers in infrastructure-heavy domains
+            The moat is the loop, not a bigger content library
           </h2>
           <p className="mx-auto max-w-2xl text-[#9ab8a9]">
-            StableGrid combines technical learning, deployment economics, and a live grid simulation into one progression system.
+            StableGrid ties deep PySpark learning, domain pressure, and visible system state into one progression model. That is what makes it harder to substitute with another course or quiz app.
           </p>
         </div>
 

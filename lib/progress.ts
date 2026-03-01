@@ -1,6 +1,7 @@
 'use client';
 
 import { createClient } from '@/lib/supabase/client';
+import { summarizeTheoryProgressFromSessions } from '@/lib/learn/theoryProgress';
 import type { Topic } from '@/types/progress';
 
 const safeWarn = (scope: string, error: unknown) => {
@@ -42,17 +43,18 @@ export async function getChapterCompletions(topic: Topic): Promise<Set<string>> 
 
   const { data, error } = await supabase
     .from('reading_sessions')
-    .select('chapter_id')
+    .select(
+      'chapter_id,is_completed,active_seconds,sections_read,last_active_at,completed_at'
+    )
     .eq('user_id', user.id)
-    .eq('topic', topic)
-    .eq('is_completed', true);
+    .eq('topic', topic);
 
   if (error) {
     safeWarn('getChapterCompletions', error);
     return new Set();
   }
 
-  return new Set((data ?? []).map((row) => row.chapter_id as string));
+  return summarizeTheoryProgressFromSessions(topic, data ?? []).completedChapterIds;
 }
 
 export async function trackFunctionView(topic: Topic, functionId: string) {

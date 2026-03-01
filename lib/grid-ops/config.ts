@@ -63,13 +63,15 @@ const FORECAST_EFFECT_BY_ID: Record<string, number> = {
 };
 
 const POSITION_OVERRIDES: Record<string, { x: number; y: number }> = {
-  'solar-forecasting-array': { x: 470, y: 64 },
-  'battery-storage': { x: 595, y: 172 },
-  'frequency-controller': { x: 770, y: 96 },
-  'demand-response-system': { x: 922, y: 274 },
-  'grid-flywheel': { x: 678, y: 304 },
-  'hvdc-interconnector': { x: 700, y: 352 },
-  'ai-grid-optimizer': { x: 944, y: 152 }
+  'control-center': { x: 132, y: 330 },
+  'solar-forecasting-array': { x: 150, y: 78 },
+  'smart-transformer': { x: 334, y: 194 },
+  'frequency-controller': { x: 500, y: 86 },
+  'ai-grid-optimizer': { x: 634, y: 192 },
+  'hvdc-interconnector': { x: 776, y: 188 },
+  'grid-flywheel': { x: 786, y: 332 },
+  'battery-storage': { x: 892, y: 328 },
+  'demand-response-system': { x: 922, y: 90 }
 };
 
 export const GRID_OPS_ASSETS: GridOpsAssetDefinition[] = INFRASTRUCTURE_NODES.map(

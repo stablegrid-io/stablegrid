@@ -52,17 +52,6 @@ export function GridGround({ activationRatio }: GridGroundProps) {
         position={[0, -0.099, 0]}
       />
 
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.105, 0]}
-      >
-        <ringGeometry args={[3.4, 7.4, 72]} />
-        <meshBasicMaterial
-          color={GRID_VISUAL_TOKENS.accentBlue}
-          transparent
-          opacity={0.08}
-        />
-      </mesh>
     </group>
   );
 }

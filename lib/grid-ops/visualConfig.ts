@@ -25,25 +25,25 @@ export const GRID_MAP_DIMENSIONS = {
 } as const;
 
 const EVEN_LAYOUT_BOUNDS = {
-  left: 120,
-  right: 900,
-  top: 96,
-  bottom: 318
+  left: 82,
+  right: 932,
+  top: 82,
+  bottom: 336
 } as const;
 
-const EVEN_LAYOUT_COLUMNS = 6;
-const EVEN_LAYOUT_ROWS = 4;
+const EVEN_LAYOUT_COLUMNS = 7;
+const EVEN_LAYOUT_ROWS = 5;
 
 const GRID_SLOT_BY_ASSET_ID: Record<string, { col: number; row: number }> = {
-  'control-center': { col: 0, row: 2 },
-  'smart-transformer': { col: 1, row: 1 },
-  'solar-forecasting-array': { col: 2, row: 1 },
-  'battery-storage': { col: 3, row: 2 },
-  'frequency-controller': { col: 4, row: 1 },
-  'ai-grid-optimizer': { col: 5, row: 2 },
-  'demand-response-system': { col: 5, row: 3 },
-  'grid-flywheel': { col: 3, row: 3 },
-  'hvdc-interconnector': { col: 4, row: 3 }
+  'control-center': { col: 0, row: 4 },
+  'solar-forecasting-array': { col: 0, row: 0 },
+  'smart-transformer': { col: 2, row: 2 },
+  'frequency-controller': { col: 3, row: 0 },
+  'ai-grid-optimizer': { col: 4, row: 2 },
+  'hvdc-interconnector': { col: 5, row: 2 },
+  'grid-flywheel': { col: 5, row: 4 },
+  'battery-storage': { col: 6, row: 4 },
+  'demand-response-system': { col: 6, row: 0 }
 };
 
 const VISUAL_CATEGORY_BY_ASSET_CATEGORY: Record<GridOpsAssetCategory, GridOpsVisualCategory> = {
@@ -193,7 +193,7 @@ export const resolveEdgeTier = ({
 export const toSceneCoordinates = ({
   mapX,
   mapY,
-  width = 15.5,
+  width = 16.7,
   height = 8
 }: {
   mapX: number;

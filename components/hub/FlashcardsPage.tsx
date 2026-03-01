@@ -1,9 +1,16 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import { useMemo, useState } from 'react';
-import { SlidersHorizontal, X } from 'lucide-react';
+import Link from 'next/link';
+import {
+  ArrowRight,
+  Layers3,
+  SlidersHorizontal,
+  X
+} from 'lucide-react';
 import questionsData from '@/data/questions/index.json';
-import { TopicSelector } from '@/components/TopicSelector';
+import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import type { TopicInfo, PracticeTopic } from '@/lib/types';
 
@@ -18,10 +25,7 @@ const FILTERS: Array<{ id: FlashcardFilter; label: string }> = [
 
 const topics: TopicInfo[] = ALLOWED_TOPICS.flatMap((id) => {
   const value = (
-    questionsData.topics as Record<
-      string,
-      Omit<TopicInfo, 'id'> | undefined
-    >
+    questionsData.topics as Record<string, Omit<TopicInfo, 'id'> | undefined>
   )[id];
   if (!value) {
     return [];
@@ -43,80 +47,101 @@ export default function FlashcardsPage() {
   const [filter, setFilter] = useState<FlashcardFilter>('all');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
-  const topicStatuses = useMemo(() => {
+  const topicRows = useMemo(() => {
     return topics.map((topic) => {
-      const attempts = topicProgress[topic.id]?.total ?? 0;
-      const completionRatio = topic.totalQuestions > 0
-        ? attempts / topic.totalQuestions
-        : 0;
-      const completed = completionRatio >= 1;
-      const active = attempts > 0 && !completed;
+      const stats = topicProgress[topic.id] ?? {
+        correct: 0,
+        total: 0,
+        lastAttempted: null
+      };
+      const attempted = stats.total;
+      const correct = stats.correct;
+      const isEmpty = topic.totalQuestions === 0;
+      const completionPct =
+        topic.totalQuestions > 0
+          ? Math.min(100, Math.round((attempted / topic.totalQuestions) * 100))
+          : 0;
+      const accuracyPct =
+        attempted > 0 ? Math.round((correct / Math.max(attempted, 1)) * 100) : null;
+      const completed = !isEmpty && completionPct >= 100;
+      const active = attempted > 0 && !completed;
 
       return {
         topic,
+        attempted,
+        correct,
+        isEmpty,
+        completionPct,
+        accuracyPct,
         completed,
         active
       };
     });
   }, [topicProgress]);
 
-  const filteredTopics = useMemo(() => {
-    return topicStatuses
-      .filter((entry) => {
-        if (filter === 'available') {
-          return !entry.completed;
-        }
-        if (filter === 'completed') {
-          return entry.completed;
-        }
-        return true;
-      })
-      .map((entry) => entry.topic);
-  }, [filter, topicStatuses]);
+  const filteredTopicRows = useMemo(() => {
+    return topicRows.filter((entry) => {
+      if (filter === 'available') {
+        return !entry.completed;
+      }
+      if (filter === 'completed') {
+        return entry.completed;
+      }
+      return true;
+    });
+  }, [filter, topicRows]);
 
   const stats = useMemo(() => {
-    const total = topicStatuses.length;
-    const completed = topicStatuses.filter((entry) => entry.completed).length;
-    const active = topicStatuses.filter((entry) => entry.active).length;
-    const fresh = topicStatuses.filter(
-      (entry) => !entry.completed && !entry.active
-    ).length;
-    const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const total = topicRows.length;
+    const completed = topicRows.filter((entry) => entry.completed).length;
+    const active = topicRows.filter((entry) => entry.active).length;
+    const empty = topicRows.filter((entry) => entry.isEmpty).length;
+    const totalCards = topicRows.reduce(
+      (sum, entry) => sum + entry.topic.totalQuestions,
+      0
+    );
+    const attemptedCards = topicRows.reduce((sum, entry) => sum + entry.attempted, 0);
+    const completionPct =
+      totalCards > 0 ? Math.round((attemptedCards / totalCards) * 100) : 0;
 
     return {
       total,
       completed,
       active,
-      fresh,
+      empty,
+      totalCards,
+      attemptedCards,
       completionPct
     };
-  }, [topicStatuses]);
+  }, [topicRows]);
+
+  const filterLabel = FILTERS.find((option) => option.id === filter)?.label ?? 'All';
 
   return (
     <main className="min-h-screen bg-light-bg px-6 pb-16 pt-10 dark:bg-dark-bg">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-7">
-        <header className="flex flex-col gap-3">
-          <p className="data-mono text-xs uppercase tracking-[0.35em] text-brand-500/80">
-            stablegrid.io Flashcard Deck
+        <header className="max-w-4xl">
+          <p className="data-mono mb-2 text-xs uppercase tracking-[0.32em] text-brand-500/80">
+            Flashcard Gallery
           </p>
           <h1 className="text-4xl font-semibold text-text-light-primary dark:text-text-dark-primary md:text-5xl font-display">
             Flashcards
           </h1>
-          <p className="max-w-2xl text-sm text-text-light-secondary dark:text-text-dark-secondary md:text-base">
-            Topic-based drills for SQL, Python, PySpark, and Microsoft Fabric.
-            Build consistency with focused question sessions.
+          <p className="mt-3 max-w-3xl text-sm leading-8 text-text-light-secondary dark:text-text-dark-secondary md:text-base">
+            Choose a deck before you start a session. Each topic keeps its own
+            progress, completion state, and resume point.
           </p>
         </header>
 
-        <section className="card flex flex-col gap-4 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+        <section className="rounded-2xl border border-light-border bg-light-surface p-3 dark:border-dark-border dark:bg-dark-surface">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={() => setIsFilterPanelOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-light-border bg-light-surface px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-light-border bg-light-bg px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
             >
               <SlidersHorizontal className="h-4 w-4 text-brand-500" />
-              Filter Panel
+              Filters
               {filter !== 'all' ? (
                 <span className="rounded-full border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-500">
                   1 active
@@ -124,24 +149,35 @@ export default function FlashcardsPage() {
               ) : null}
             </button>
 
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                <span>{stats.active} active</span>
-                <span>•</span>
-                <span>{stats.fresh} new</span>
-                <span>•</span>
-                <span>Showing {filteredTopics.length} of {topics.length}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-                  {stats.completed} of {stats.total} completed
-                </p>
-                <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                  <div
-                    className="h-full rounded-full bg-brand-500"
-                    style={{ width: `${stats.completionPct}%` }}
-                  />
-                </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                Showing {filteredTopicRows.length} of {stats.total} decks
+              </span>
+              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                {stats.active} active
+              </span>
+              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                {stats.empty} empty
+              </span>
+              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                Filter: {filterLabel}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              {stats.attemptedCards}/{stats.totalCards} flashcards attempted
+            </div>
+            <div className="flex items-center gap-3">
+              <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                {stats.completed} of {stats.total} decks completed
+              </p>
+              <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+                <div
+                  className="h-full rounded-full bg-brand-500 transition-all duration-500"
+                  style={{ width: `${stats.completionPct}%` }}
+                />
               </div>
             </div>
           </div>
@@ -183,7 +219,10 @@ export default function FlashcardsPage() {
               </div>
               <button
                 type="button"
-                onClick={() => { setFilter('all'); setIsFilterPanelOpen(false); }}
+                onClick={() => {
+                  setFilter('all');
+                  setIsFilterPanelOpen(false);
+                }}
                 className="inline-flex items-center gap-1 rounded-md border border-light-border px-2.5 py-1.5 text-xs font-medium text-text-light-secondary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-400 dark:hover:text-brand-300"
               >
                 <X className="h-3.5 w-3.5" />
@@ -200,9 +239,9 @@ export default function FlashcardsPage() {
                   {FILTERS.map((option) => {
                     const selected = filter === option.id;
                     const descriptions: Record<FlashcardFilter, string> = {
-                      all: 'Show all flashcard topics regardless of progress.',
-                      available: 'Only topics you haven\'t fully completed.',
-                      completed: 'Topics where you\'ve answered all questions.'
+                      all: 'Show every flashcard deck regardless of progress.',
+                      available: 'Only decks that are still in progress or untouched.',
+                      completed: 'Decks where every card has already been attempted.'
                     };
                     return (
                       <button
@@ -244,12 +283,146 @@ export default function FlashcardsPage() {
           </section>
         </aside>
 
-        {filteredTopics.length > 0 ? (
-          <TopicSelector topics={filteredTopics} />
+        {filteredTopicRows.length > 0 ? (
+          <section className="grid grid-cols-1 gap-6">
+            {filteredTopicRows.map((entry, index) => {
+              const style = getTheoryTopicStyle(entry.topic.id);
+              const cardVars = {
+                '--deck-accent': style.accentRgb
+              } as CSSProperties;
+              const statusCopy = entry.isEmpty
+                ? 'No flashcards are published for this deck yet.'
+                : entry.active
+                  ? `Resume after ${entry.attempted} of ${entry.topic.totalQuestions} cards attempted.`
+                  : entry.completed
+                    ? 'Deck completed. Reopen anytime for spaced repetition.'
+                    : 'Start your first flashcard session.'
+              const ctaLabel = entry.isEmpty
+                ? 'Deck coming soon'
+                : entry.completed
+                  ? 'Review deck'
+                  : entry.active
+                    ? 'Continue deck'
+                    : 'Open deck';
+              const bottomChips = [
+                `${entry.topic.totalQuestions} cards`,
+                entry.attempted > 0
+                  ? `${entry.attempted}/${entry.topic.totalQuestions} attempted`
+                  : null,
+                entry.accuracyPct !== null ? `${entry.accuracyPct}% accuracy` : null
+              ].filter((value): value is string => Boolean(value));
+
+              const cardInner = (
+                <>
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(var(--deck-accent),0.18),transparent_32%),linear-gradient(180deg,rgba(var(--deck-accent),0.08),transparent_46%)]" />
+                  <div className="pointer-events-none absolute -right-12 top-10 h-44 w-44 rounded-full bg-[rgba(var(--deck-accent),0.1)] blur-3xl" />
+
+                  <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+                    <div className="max-w-3xl">
+                      <div
+                        className={`mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${style.badgeClass}`}
+                      >
+                        <Layers3 className="h-3.5 w-3.5" />
+                        Deck {String(index + 1).padStart(2, '0')}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h2 className="text-3xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+                          {entry.topic.name}
+                        </h2>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${style.badgeClass}`}
+                        >
+                          {entry.topic.totalQuestions} cards
+                        </span>
+                      </div>
+
+                      <p className="mt-4 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+                        {entry.topic.description}
+                      </p>
+
+                      <div className="mt-5 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+                          {entry.correct} correct
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-full max-w-sm rounded-3xl border border-[rgba(var(--deck-accent),0.18)] bg-light-bg/85 p-5 dark:bg-dark-bg/70">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                          Deck Progress
+                        </span>
+                        <span className="text-xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+                          {entry.completionPct}%
+                        </span>
+                      </div>
+
+                      <div className="h-2 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+                        <div
+                          className="h-full rounded-full bg-[rgb(var(--deck-accent))] transition-all duration-500"
+                          style={{ width: `${entry.completionPct}%` }}
+                        />
+                      </div>
+
+                      <p className="mt-4 text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+                        {statusCopy}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-light-border/80 pt-5 dark:border-dark-border">
+                    <div className="flex flex-wrap gap-2">
+                      {bottomChips.map((chip) => (
+                        <span
+                          key={`${entry.topic.id}-${chip}`}
+                          className="rounded-full border border-light-border bg-light-bg px-3 py-1 text-xs text-text-light-tertiary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-tertiary"
+                        >
+                          {chip}
+                        </span>
+                      ))}
+                    </div>
+
+                    <span className="inline-flex items-center gap-2 text-sm font-medium text-text-light-primary transition-transform group-hover:translate-x-0.5 dark:text-text-dark-primary">
+                      {ctaLabel}
+                      {!entry.isEmpty ? <ArrowRight className="h-4 w-4" /> : null}
+                    </span>
+                  </div>
+                </>
+              );
+
+              if (entry.isEmpty) {
+                return (
+                  <article
+                    key={entry.topic.id}
+                    className="group relative overflow-hidden rounded-[32px] border border-light-border bg-light-surface p-6 dark:border-dark-border dark:bg-dark-surface"
+                    style={cardVars}
+                  >
+                    {cardInner}
+                  </article>
+                );
+              }
+
+              return (
+                <Link
+                  key={entry.topic.id}
+                  href={`/practice/${entry.topic.id}`}
+                  aria-label={`Open ${entry.topic.name} flashcards`}
+                  className="group relative overflow-hidden rounded-[32px] border border-light-border bg-light-surface p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(var(--deck-accent),0.4)] hover:shadow-[0_30px_90px_-44px_rgba(var(--deck-accent),0.42)] dark:border-dark-border dark:bg-dark-surface"
+                  style={cardVars}
+                >
+                  {cardInner}
+                </Link>
+              );
+            })}
+          </section>
         ) : (
-          <section className="card p-10 text-center">
-            <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
-              No flashcard topics match this filter.
+          <section className="rounded-[28px] border border-light-border bg-light-surface p-10 text-center dark:border-dark-border dark:bg-dark-surface">
+            <p className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
+              No flashcard decks match this filter
+            </p>
+            <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              Adjust the status filter to widen the gallery.
             </p>
           </section>
         )}

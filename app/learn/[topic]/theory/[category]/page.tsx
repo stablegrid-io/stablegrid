@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { TheoryLayout } from '@/components/learn/theory/TheoryLayout';
+import { TheoryTrackPath } from '@/components/learn/theory/TheoryTrackPath';
 import { learnTopics } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
 import {
@@ -9,6 +10,8 @@ import {
   getTheoryCategoryMeta,
   type TheoryCategorySlug
 } from '@/data/learn/theory/categories';
+import { getTheoryTrackBySlug, getTheoryTracks } from '@/data/learn/theory/tracks';
+import { loadServerTheoryProgress } from '@/lib/learn/serverTheoryProgress';
 
 interface LearnTopicTheoryCategoryPageProps {
   params: {
@@ -19,7 +22,7 @@ interface LearnTopicTheoryCategoryPageProps {
 
 const ALL_CATEGORY = 'all';
 
-export default function LearnTopicTheoryCategoryPage({
+export default async function LearnTopicTheoryCategoryPage({
   params
 }: LearnTopicTheoryCategoryPageProps) {
   const doc = theoryDocs[params.topic];
@@ -28,6 +31,22 @@ export default function LearnTopicTheoryCategoryPage({
   }
 
   const categoryParam = params.category.toLowerCase();
+  const track = getTheoryTrackBySlug(doc, categoryParam);
+  if (track) {
+    const { completedChapterIds, chapterProgressById, moduleProgressById } =
+      await loadServerTheoryProgress(params.topic);
+
+    return (
+      <TheoryTrackPath
+        doc={doc}
+        track={track}
+        completedChapterIds={completedChapterIds}
+        chapterProgressById={chapterProgressById}
+        moduleProgressById={moduleProgressById}
+      />
+    );
+  }
+
   const categories = getTheoryCategories(doc);
   const validSlugs = categories.map((item) => item.slug);
   const isAllCategory = categoryParam === ALL_CATEGORY;
@@ -46,7 +65,8 @@ export default function LearnTopicTheoryCategoryPage({
   }
 
   const categoryMeta = getTheoryCategoryMeta(
-    (isAllCategory ? ALL_CATEGORY : categoryParam) as TheoryCategorySlug | 'all'
+    (isAllCategory ? ALL_CATEGORY : categoryParam) as TheoryCategorySlug | 'all',
+    doc.topic
   );
 
   return (
@@ -65,10 +85,14 @@ export function generateStaticParams() {
     const doc = theoryDocs[topic.id];
     if (!doc) return [];
 
+    const tracks = getTheoryTracks(doc).map((track) => ({
+      topic: topic.id,
+      category: track.slug
+    }));
     const slugs = getTheoryCategories(doc).map((category) => category.slug);
-    return [{ topic: topic.id, category: ALL_CATEGORY }].concat(
-      slugs.map((category) => ({ topic: topic.id, category }))
-    );
+    return [{ topic: topic.id, category: ALL_CATEGORY }]
+      .concat(tracks)
+      .concat(slugs.map((category) => ({ topic: topic.id, category })));
   });
 }
 
@@ -84,10 +108,19 @@ export function generateMetadata({
   }
 
   const categoryParam = params.category.toLowerCase();
+  const track = getTheoryTrackBySlug(doc, categoryParam);
+  if (track) {
+    return {
+      title: 'StableGrid.io',
+      description: track.description
+    };
+  }
+
   const categoryMeta = getTheoryCategoryMeta(
     (categoryParam === ALL_CATEGORY
       ? ALL_CATEGORY
-      : categoryParam) as TheoryCategorySlug | 'all'
+      : categoryParam) as TheoryCategorySlug | 'all',
+    doc.topic
   );
 
   return {

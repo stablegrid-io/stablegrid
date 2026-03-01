@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import {
   AlertTriangle,
+  ArrowRight,
   ArrowLeft,
   CheckCircle2,
   Clock3,
@@ -27,19 +28,25 @@ const FILTERS: Array<{ id: NotebookFilter; label: string }> = [
 
 const DIFFICULTY_STYLES: Record<
   NotebookDefinition['difficulty'],
-  { badge: string }
+  { badge: string; accentRgb: string; eyebrow: string }
 > = {
   Beginner: {
     badge:
-      'border-success-200 bg-success-50 text-success-700 dark:border-success-700/60 dark:bg-success-900/30 dark:text-success-300'
+      'border-success-300/70 bg-success-500/10 text-success-600 dark:border-success-500/30 dark:bg-success-500/15 dark:text-success-300',
+    accentRgb: '16,185,129',
+    eyebrow: 'Starter review'
   },
   Intermediate: {
     badge:
-      'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-700/60 dark:bg-warning-900/30 dark:text-warning-300'
+      'border-warning-300/70 bg-warning-500/10 text-warning-600 dark:border-warning-500/30 dark:bg-warning-500/15 dark:text-warning-300',
+    accentRgb: '245,158,11',
+    eyebrow: 'Operations review'
   },
   Advanced: {
     badge:
-      'border-error-200 bg-error-50 text-error-700 dark:border-error-700/60 dark:bg-error-900/30 dark:text-error-300'
+      'border-error-300/70 bg-error-500/10 text-error-600 dark:border-error-500/30 dark:bg-error-500/15 dark:text-error-300',
+    accentRgb: '239,68,68',
+    eyebrow: 'Critical review'
   }
 };
 
@@ -370,28 +377,29 @@ export function NotebooksPracticePage() {
     return (
       <main className="min-h-screen bg-light-bg px-6 pb-16 pt-10 dark:bg-dark-bg">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-7">
-          <header className="flex flex-col gap-3">
-            <p className="data-mono text-xs uppercase tracking-[0.35em] text-brand-500/80">
-              Practice · Notebook Reviews
+          <header className="max-w-4xl">
+            <p className="data-mono mb-2 text-xs uppercase tracking-[0.32em] text-brand-500/80">
+              Notebook Gallery
             </p>
             <h1 className="text-4xl font-semibold text-text-light-primary dark:text-text-dark-primary md:text-5xl font-display">
               Notebooks
             </h1>
-            <p className="max-w-3xl text-sm text-text-light-secondary dark:text-text-dark-secondary md:text-base">
-              Review production-style Fabric notebooks and flag risky lines before
-              they hit pipeline reliability.
+            <p className="mt-3 max-w-3xl text-sm leading-8 text-text-light-secondary dark:text-text-dark-secondary md:text-base">
+              Review production-style notebooks before they hit operations. Each
+              notebook opens into the same line-by-line audit flow, with progress
+              tracked separately once you submit it.
             </p>
           </header>
 
-          <section className="card flex flex-col gap-4 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+          <section className="rounded-2xl border border-light-border bg-light-surface p-3 dark:border-dark-border dark:bg-dark-surface">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <button
                 type="button"
                 onClick={() => setIsFilterPanelOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-light-border bg-light-surface px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-light-border bg-light-bg px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
               >
                 <SlidersHorizontal className="h-4 w-4 text-brand-500" />
-                Filter Panel
+                Filters
                 {filter !== 'all' ? (
                   <span className="rounded-full border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-500">
                     1 active
@@ -399,21 +407,39 @@ export function NotebooksPracticePage() {
                 ) : null}
               </button>
 
-              <div className="flex flex-wrap items-center gap-4">
-                <span className="text-xs uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                  Showing {filteredNotebooks.length} of {NOTEBOOKS.length}
+              <div className="flex flex-wrap items-center gap-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                  Showing {filteredNotebooks.length} of {NOTEBOOKS.length} notebooks
                 </span>
-                <div className="flex items-center gap-3">
-                  <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-                    {completionStats.completed} of {completionStats.total} completed
-                  </p>
-                  <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                    <div
-                      className="h-full rounded-full bg-brand-500"
-                      style={{ width: `${completionStats.completionPct}%` }}
-                    />
-                  </div>
+                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                  {completionStats.completed} completed
+                </span>
+                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                  {completionStats.total - completionStats.completed} pending
+                </span>
+                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                  Filter: {FILTERS.find((option) => option.id === filter)?.label ?? 'All'}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+                {completionStats.completed}/{completionStats.total} notebook reviews submitted
+              </div>
+              <div className="flex items-center gap-3">
+                <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                  Completion
+                </p>
+                <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+                  <div
+                    className="h-full rounded-full bg-brand-500 transition-all duration-500"
+                    style={{ width: `${completionStats.completionPct}%` }}
+                  />
                 </div>
+                <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                  {completionStats.completionPct}%
+                </p>
               </div>
             </div>
           </section>
@@ -516,73 +542,117 @@ export function NotebooksPracticePage() {
           </aside>
 
           {filteredNotebooks.length > 0 ? (
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <section className="grid grid-cols-1 gap-6">
               {filteredNotebooks.map((notebook) => {
                 const difficultyStyle = DIFFICULTY_STYLES[notebook.difficulty];
                 const completed = completedNotebookIds.has(notebook.id);
+                const completionPct = completed ? 100 : 0;
+                const cardVars = {
+                  '--notebook-accent': difficultyStyle.accentRgb
+                } as CSSProperties;
+                const statusCopy = completed
+                  ? 'Review submitted. Reopen the notebook anytime to audit it again from scratch.'
+                  : `Flag ${notebook.totalIssues} risky lines across the notebook before it reaches production.`;
+                const ctaLabel = completed ? 'Review again' : 'Open review';
+                const bottomChips = [
+                  `${notebook.totalIssues} issues`,
+                  `~${notebook.estimatedMinutes} min`,
+                  ...notebook.tags.slice(0, 2)
+                ];
 
                 return (
                   <button
                     key={notebook.id}
                     type="button"
                     onClick={() => startNotebook(notebook.id)}
-                    className="group card card-hover flex h-full flex-col items-start gap-4 p-5 text-left"
+                    className="group relative overflow-hidden rounded-[32px] border border-light-border bg-light-surface p-6 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(var(--notebook-accent),0.42)] hover:shadow-[0_30px_90px_-44px_rgba(var(--notebook-accent),0.42)] dark:border-dark-border dark:bg-dark-surface"
+                    style={cardVars}
                   >
-                    <div className="flex w-full items-start justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-brand-200 bg-brand-50 text-brand-600 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300">
-                          <NotebookPen className="h-4.5 w-4.5" />
-                        </span>
-                        <span className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
-                          {notebook.title}
-                        </span>
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(var(--notebook-accent),0.18),transparent_32%),linear-gradient(180deg,rgba(var(--notebook-accent),0.08),transparent_46%)]" />
+                    <div className="pointer-events-none absolute -right-12 top-10 h-44 w-44 rounded-full bg-[rgba(var(--notebook-accent),0.1)] blur-3xl" />
+
+                    <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+                      <div className="max-w-3xl">
+                        <div
+                          className={`mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${difficultyStyle.badge}`}
+                        >
+                          <NotebookPen className="h-3.5 w-3.5" />
+                          {difficultyStyle.eyebrow}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                          <h2 className="text-3xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+                            {notebook.title}
+                          </h2>
+                          <span
+                            className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${difficultyStyle.badge}`}
+                          >
+                            {notebook.difficulty}
+                          </span>
+                        </div>
+
+                        <p className="mt-4 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+                          {notebook.context}
+                        </p>
+
+                        <div className="mt-5 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+                            {completed ? 'Submitted' : 'Ready for review'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="w-full max-w-sm rounded-3xl border border-[rgba(var(--notebook-accent),0.18)] bg-light-bg/85 p-5 dark:bg-dark-bg/70">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                            Review Status
+                          </span>
+                          <span className="text-xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+                            {completionPct}%
+                          </span>
+                        </div>
+
+                        <div className="h-2 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+                          <div
+                            className="h-full rounded-full bg-[rgb(var(--notebook-accent))] transition-all duration-500"
+                            style={{ width: `${completionPct}%` }}
+                          />
+                        </div>
+
+                        <p className="mt-4 text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+                          {statusCopy}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${difficultyStyle.badge}`}
-                      >
-                        {notebook.difficulty}
-                      </span>
-                      {notebook.tags.slice(0, 2).map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full border border-light-border px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-text-light-tertiary dark:border-dark-border dark:text-text-dark-tertiary"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+                    <div className="relative mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-light-border/80 pt-5 dark:border-dark-border">
+                      <div className="flex flex-wrap gap-2">
+                        {bottomChips.map((chip) => (
+                          <span
+                            key={`${notebook.id}-${chip}`}
+                            className="rounded-full border border-light-border bg-light-bg px-3 py-1 text-xs text-text-light-tertiary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-tertiary"
+                          >
+                            {chip}
+                          </span>
+                        ))}
+                      </div>
 
-                    <p className="line-clamp-3 text-sm text-text-light-secondary dark:text-text-dark-secondary">
-                      {notebook.context}
-                    </p>
-
-                    <div className="mt-auto flex w-full items-center justify-between border-t border-light-border/80 pt-3 text-xs text-text-light-tertiary dark:border-dark-border dark:text-text-dark-tertiary">
-                      <span className="inline-flex items-center gap-1">
-                        <AlertTriangle className="h-3.5 w-3.5 text-error-500" />
-                        {notebook.totalIssues} issues
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Clock3 className="h-3.5 w-3.5 text-brand-500" />~{notebook.estimatedMinutes} min
+                      <span className="inline-flex items-center gap-2 text-sm font-medium text-text-light-primary transition-transform group-hover:translate-x-0.5 dark:text-text-dark-primary">
+                        {ctaLabel}
+                        <ArrowRight className="h-4 w-4" />
                       </span>
                     </div>
-
-                    {completed ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success-600 dark:text-success-400">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        Completed
-                      </span>
-                    ) : null}
                   </button>
                 );
               })}
             </section>
           ) : (
-            <section className="card p-10 text-center">
-              <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
-                No notebooks match this filter.
+            <section className="rounded-[28px] border border-light-border bg-light-surface p-10 text-center dark:border-dark-border dark:bg-dark-surface">
+              <p className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
+                No notebook reviews match this filter
+              </p>
+              <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+                Adjust the status filter to widen the gallery.
               </p>
             </section>
           )}

@@ -26,7 +26,7 @@ export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAsset
   'control-center': {
     key: 'control-center',
     url: '/grid-assets/models/control-center.glb?v=map-natural-2',
-    scale: 1.06,
+    scale: 2.12,
     yaw: 0.4,
     yOffset: 0.06,
     emissiveColor: '#00D084',

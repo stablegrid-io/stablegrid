@@ -10,7 +10,7 @@ import { formatUnitsAsKwh } from '@/lib/energy';
 
 export function UserMenu() {
   const { user, signOut } = useAuth();
-  const { xp, streak } = useProgressStore();
+  const { getAvailableBudgetUnits } = useProgressStore();
   const { resolvedTheme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -60,6 +60,7 @@ export function UserMenu() {
         .slice(0, 2)
         .toUpperCase()
     : 'GL';
+  const remainingUnits = getAvailableBudgetUnits();
 
   return (
     <div className="relative" ref={menuRef}>
@@ -92,15 +93,9 @@ export function UserMenu() {
 
           <div className="space-y-2 py-3 text-sm">
             <div className="flex items-center justify-between text-text-light-tertiary dark:text-text-dark-tertiary">
-              <span>Energy Balance</span>
+              <span>Remaining amount</span>
               <span className="font-semibold text-success-600 dark:text-success-400">
-                {formatUnitsAsKwh(xp)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-text-light-tertiary dark:text-text-dark-tertiary">
-              <span>Current streak</span>
-              <span className="font-semibold text-warning-600 dark:text-warning-400">
-                {streak}
+                {formatUnitsAsKwh(remainingUnits)}
               </span>
             </div>
           </div>

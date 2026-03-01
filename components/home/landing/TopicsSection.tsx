@@ -7,37 +7,43 @@ import { ChevronRight } from 'lucide-react';
 const TOPICS = [
   {
     id: 'pyspark',
+    href: '/learn/pyspark/theory',
     icon: '⚡',
-    label: 'PySpark at Scale',
-    version: 'Spark 3.4+',
-    chapters: 13,
-    functions: 32,
-    questions: 45,
+    label: 'Flagship PySpark path',
+    version: '20 chapters live',
+    stats: [
+      { label: 'chapters', value: '20' },
+      { label: 'questions', value: '60' },
+      { label: 'focus', value: 'Grid ops' }
+    ],
     highlights: [
-      'Partition strategy and shuffles',
-      'Streaming anomaly pipelines',
-      'Skew mitigation under bursts',
-      'Cost-aware optimization'
+      'Shuffles, skew, and partition strategy',
+      'Streaming anomalies and watermarking',
+      'Quality, governance, and Delta operations',
+      'Interview, system design, and portfolio framing'
     ],
     color: '#f0a032',
-    plan: 'Included'
+    plan: 'Core path'
   },
   {
-    id: 'fabric',
-    icon: '🏗️',
-    label: 'Microsoft Fabric',
-    version: 'Lakehouse + Pipelines',
-    chapters: 5,
-    functions: 16,
-    questions: 40,
+    id: 'missions',
+    href: '/missions',
+    icon: '🛰️',
+    label: 'Grid incident missions',
+    version: '8 operations available',
+    stats: [
+      { label: 'missions', value: '8' },
+      { label: 'acts', value: '4' },
+      { label: 'difficulty', value: 'Hard+' }
+    ],
     highlights: [
-      'Pipeline orchestration',
-      'Lakehouse and warehouse ops',
-      'Realtime analytics',
-      'Governance and permissions'
+      'Event-order inversion and replay forensics',
+      'Storage dispatch under price spikes',
+      'Telemetry storms and lag recovery',
+      'Renewable volatility and system tradeoffs'
     ],
     color: '#78b8f3',
-    plan: 'Included'
+    plan: 'Mission layer'
   }
 ] as const;
 
@@ -47,10 +53,10 @@ export const TopicsSection = () => {
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
-            Curriculum engineered for the StableGrid loop
+            Where the product is hardest to replace
           </h2>
           <p className="text-[#9ab8a9]">
-            Master the modern data engineering stack — PySpark and Microsoft Fabric.
+            StableGrid is strongest where generic learning tools are weakest: distributed data systems and mission pressure.
           </p>
         </div>
 
@@ -64,7 +70,7 @@ export const TopicsSection = () => {
               transition={{ delay: index * 0.08 }}
             >
               <Link
-                href={`/learn/${topic.id}/theory`}
+                href={topic.href}
                 className="group block rounded-xl border border-[#1f3629] bg-[#0d1410] p-5 transition-all hover:border-[#2b4f3a]"
               >
                 <div className="mb-4 flex items-start justify-between">
@@ -100,11 +106,7 @@ export const TopicsSection = () => {
                 </div>
 
                 <div className="mb-4 flex gap-4 border-b border-[#1f3629] pb-4">
-                  {[
-                    { label: 'chapters', value: topic.chapters },
-                    { label: 'functions', value: topic.functions },
-                    { label: 'questions', value: topic.questions }
-                  ].map((stat) => (
+                  {topic.stats.map((stat) => (
                     <div key={stat.label}>
                       <div className="text-base font-bold" style={{ color: topic.color }}>
                         {stat.value}

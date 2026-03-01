@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getCanonicalTheoryStats } from '@/lib/learn/theoryProgress';
 import { ProgressDashboard } from '@/components/progress/ProgressDashboard';
 import type {
   ReadingSession,
@@ -59,35 +60,38 @@ const learnTopics: Topic[] = ['pyspark', 'fabric'];
 const TOPIC_DEFAULTS: Record<
   Topic,
   {
-    theoryChaptersTotal: number;
-    theorySectionsTotal: number;
     practiceTotal: number;
     functionsTotal: number;
   }
 > = {
   pyspark: {
-    theoryChaptersTotal: 13,
-    theorySectionsTotal: 39,
     practiceTotal: 45,
     functionsTotal: 91
   },
   fabric: {
-    theoryChaptersTotal: 5,
-    theorySectionsTotal: 15,
     practiceTotal: 40,
     functionsTotal: 40
   }
 };
 
 const ZERO_TOPIC_DEFAULT = {
-  theoryChaptersTotal: 0,
-  theorySectionsTotal: 0,
   practiceTotal: 0,
   functionsTotal: 0
 };
 
 const getTopicDefaults = (topic: Topic | string) => {
-  return TOPIC_DEFAULTS[topic as Topic] ?? ZERO_TOPIC_DEFAULT;
+  const theoryStats =
+    topic === 'pyspark' || topic === 'fabric'
+      ? getCanonicalTheoryStats(topic)
+      : { chapterTotal: 0, sectionTotal: 0 };
+  const defaults = TOPIC_DEFAULTS[topic as Topic] ?? ZERO_TOPIC_DEFAULT;
+
+  return {
+    theoryChaptersTotal: theoryStats.chapterTotal,
+    theorySectionsTotal: theoryStats.sectionTotal,
+    practiceTotal: defaults.practiceTotal,
+    functionsTotal: defaults.functionsTotal
+  };
 };
 
 const toReadingSessionModel = (row: ReadingSessionRow): ReadingSession => ({
@@ -108,14 +112,22 @@ const toReadingSessionModel = (row: ReadingSessionRow): ReadingSession => ({
 
 const toTopicProgressModel = (row: TopicProgressRow): TopicProgressModel => {
   const defaults = getTopicDefaults(row.topic);
+  const theoryChaptersCompleted = Math.min(
+    defaults.theoryChaptersTotal,
+    Math.max(0, row.theory_chapters_completed ?? 0)
+  );
+  const theorySectionsRead = Math.min(
+    defaults.theorySectionsTotal,
+    Math.max(0, row.theory_sections_read ?? 0)
+  );
   return {
     id: row.id,
     userId: row.user_id,
     topic: row.topic,
-    theoryChaptersTotal: row.theory_chapters_total || defaults.theoryChaptersTotal,
-    theoryChaptersCompleted: row.theory_chapters_completed,
-    theorySectionsTotal: row.theory_sections_total || defaults.theorySectionsTotal,
-    theorySectionsRead: row.theory_sections_read,
+    theoryChaptersTotal: defaults.theoryChaptersTotal,
+    theoryChaptersCompleted,
+    theorySectionsTotal: defaults.theorySectionsTotal,
+    theorySectionsRead,
     theoryTotalMinutesRead: row.theory_total_minutes_read,
     practiceQuestionsTotal: row.practice_questions_total || defaults.practiceTotal,
     practiceQuestionsAttempted: row.practice_questions_attempted,

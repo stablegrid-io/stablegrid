@@ -431,16 +431,11 @@ export function GridSceneCanvas({
   }, [focusNodeId, state.map.edges]);
 
   const modelRenderNodeIds = useMemo(() => {
-    if (qualityCaps.maxModelRenders <= 0) {
-      return new Set<string>();
-    }
-
     const candidates = state.map.nodes.filter((node) => {
       const hasDescriptor = Boolean(resolveSceneAssetDescriptor(node.id));
-      const modelAvailability = modelAvailabilityByNodeId[node.id];
-      const modelKnownUnavailable = modelAvailability === false;
+      const modelAvailable = modelAvailabilityByNodeId[node.id] === true;
 
-      if (!hasDescriptor || modelKnownUnavailable) {
+      if (!hasDescriptor || !modelAvailable) {
         return false;
       }
 
@@ -449,14 +444,17 @@ export function GridSceneCanvas({
         return false;
       }
 
-      // "Unlocked" includes assets with prerequisites met but temporary kWh shortfall.
-      const unlockedByProgress =
-        asset.status !== 'locked' || asset.locked_reason?.startsWith('Need ') === true;
-
-      return unlockedByProgress;
+      return asset.status !== 'locked';
     });
 
-    const scored = candidates
+    const deployedModelNodeIds = candidates
+      .filter((node) => node.isDeployed)
+      .map((node) => node.id);
+
+    const extraModelSlots = Math.max(0, qualityCaps.maxModelRenders - deployedModelNodeIds.length);
+
+    const scoredNonDeployed = candidates
+      .filter((node) => !node.isDeployed)
       .map((node) => {
         const asset = assetById.get(node.id);
         let score = 0;
@@ -465,7 +463,6 @@ export function GridSceneCanvas({
         if (deployingAssetId === node.id) score += 120;
         if (focusNodeId === node.id) score += 90;
         if (recommendedAssetId === node.id) score += 60;
-        if (node.isDeployed) score += 35;
         if (asset?.status === 'available') score += 10;
 
         return {
@@ -474,10 +471,10 @@ export function GridSceneCanvas({
         };
       })
       .sort((left, right) => right.score - left.score)
-      .slice(0, qualityCaps.maxModelRenders)
+      .slice(0, extraModelSlots)
       .map((entry) => entry.nodeId);
 
-    return new Set(scored);
+    return new Set([...deployedModelNodeIds, ...scoredNonDeployed]);
   }, [
     assetById,
     deployingAssetId,
@@ -657,8 +654,8 @@ export function GridSceneCanvas({
                 showMicro={detailLevel > 1 && (focused || node.id === hoveredNodeId)}
                 qualityCaps={qualityCaps}
                 assetDescriptor={sceneAsset}
-                modelAvailable={modelAvailabilityByNodeId[node.id] !== false}
-                renderModel={modelRenderNodeIds.has(node.id)}
+                modelAvailable={modelAvailabilityByNodeId[node.id] === true}
+                renderModel={modelRenderNodeIds.has(node.id) && modelAvailabilityByNodeId[node.id] === true}
                 reducedMotion={reducedMotion}
                 focused={focused}
                 connected={connectedNodeIds.has(node.id)}

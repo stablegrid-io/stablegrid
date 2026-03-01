@@ -380,6 +380,8 @@ const resolveRecommendation = ({
   };
 };
 
+const isAssetVisibleOnMap = (asset: GridOpsAssetView) => asset.status === 'deployed';
+
 export const ensureStateRowShape = ({
   userId,
   row,
@@ -484,7 +486,11 @@ export const computeGridOpsState = ({
     availableUnits
   });
 
-  const nodes = GRID_OPS_ASSETS.map((asset) => {
+  const mapVisibleAssetIds = new Set(
+    assetViews.filter((asset) => isAssetVisibleOnMap(asset)).map((asset) => asset.id)
+  );
+
+  const nodes = GRID_OPS_ASSETS.filter((asset) => mapVisibleAssetIds.has(asset.id)).map((asset) => {
     const visualHints = resolveNodeVisualHints(asset);
 
     return {
@@ -525,7 +531,7 @@ export const computeGridOpsState = ({
         })
       };
     })
-  );
+  ).filter((edge) => mapVisibleAssetIds.has(edge.from) && mapVisibleAssetIds.has(edge.to));
 
   const regions = GRID_OPS_REGIONS.map((region) => ({
     id: region.id,

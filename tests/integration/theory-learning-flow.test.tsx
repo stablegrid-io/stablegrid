@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TheoryCategorySelector } from '@/components/learn/theory/TheoryCategorySelector';
 import { TheoryContent } from '@/components/learn/theory/TheoryContent';
@@ -92,11 +92,7 @@ describe('Theory learning flow', () => {
         onNavigate={onNavigate}
         onSelectLesson={onSelectLesson}
         onCompleteCourse={onCompleteCourse}
-        isCompleted={false}
         isNextModuleUnlocked
-        onCompletionAction={vi.fn()}
-        completionActionPending={false}
-        completionRewardLabel="0.15 kWh"
       />
     );
 
@@ -121,17 +117,38 @@ describe('Theory learning flow', () => {
         onNavigate={onNavigate}
         onSelectLesson={onSelectLesson}
         onCompleteCourse={onCompleteCourse}
-        isCompleted={false}
         isNextModuleUnlocked
-        onCompletionAction={vi.fn()}
-        completionActionPending={false}
-        completionRewardLabel="0.15 kWh"
       />
     );
 
     await user.click(screen.getByRole('button', { name: /next module/i }));
 
     expect(onNavigate).toHaveBeenCalledWith(chapterTwo);
+    expect(onSelectLesson).not.toHaveBeenCalled();
+    expect(onCompleteCourse).not.toHaveBeenCalled();
+  });
+
+  it('moves to the final lesson of the previous module from the first lesson of a module', async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const onSelectLesson = vi.fn();
+    const onCompleteCourse = vi.fn();
+
+    render(
+      <TheoryContent
+        chapter={chapterTwo}
+        allChapters={allChapters}
+        activeLessonId="module-02-lesson-01"
+        onNavigate={onNavigate}
+        onSelectLesson={onSelectLesson}
+        onCompleteCourse={onCompleteCourse}
+        isNextModuleUnlocked
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /previous module/i }));
+
+    expect(onNavigate).toHaveBeenCalledWith(chapterOne, 'module-01-lesson-03');
     expect(onSelectLesson).not.toHaveBeenCalled();
     expect(onCompleteCourse).not.toHaveBeenCalled();
   });
@@ -150,11 +167,7 @@ describe('Theory learning flow', () => {
         onNavigate={onNavigate}
         onSelectLesson={onSelectLesson}
         onCompleteCourse={onCompleteCourse}
-        isCompleted={false}
         isNextModuleUnlocked
-        onCompletionAction={vi.fn()}
-        completionActionPending={false}
-        completionRewardLabel="0.15 kWh"
       />
     );
 
@@ -165,7 +178,7 @@ describe('Theory learning flow', () => {
     expect(onSelectLesson).not.toHaveBeenCalled();
   });
 
-  it('renders a single lesson prefix and only shows lessons for the active module', async () => {
+  it('renders neutral lesson navigation and only shows lessons for the active module', async () => {
     const user = userEvent.setup();
     const onSelectLesson = vi.fn();
 
@@ -181,17 +194,14 @@ describe('Theory learning flow', () => {
     expect(screen.getByText('Lesson 1: Intro to Spark')).toBeInTheDocument();
     expect(screen.queryByText(/Lesson 1:\s*Lesson 1:/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Lesson 1: DataFrame Reads')).not.toBeInTheDocument();
-    expect(screen.getByText('✓')).toBeInTheDocument();
+    expect(screen.queryByText('✓')).not.toBeInTheDocument();
     expect(screen.getAllByText('20 min')).toHaveLength(3);
 
     await user.click(screen.getByRole('button', { name: /lesson 3: lazy evaluation/i }));
     expect(onSelectLesson).toHaveBeenCalledWith('module-01-lesson-03');
   });
 
-  it('calls completion action from module completion card', async () => {
-    const user = userEvent.setup();
-    const onCompletionAction = vi.fn();
-
+  it('does not render manual module completion controls', () => {
     render(
       <TheoryContent
         chapter={chapterOne}
@@ -200,16 +210,13 @@ describe('Theory learning flow', () => {
         onNavigate={vi.fn()}
         onSelectLesson={vi.fn()}
         onCompleteCourse={vi.fn()}
-        isCompleted={false}
         isNextModuleUnlocked
-        onCompletionAction={onCompletionAction}
-        completionActionPending={false}
-        completionRewardLabel="0.15 kWh"
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /i have read this module/i }));
-    expect(onCompletionAction).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole('button', { name: /i have read this module/i })
+    ).not.toBeInTheDocument();
   });
 
   it('keeps next module locked until current module completion', async () => {
@@ -224,19 +231,12 @@ describe('Theory learning flow', () => {
         onNavigate={onNavigate}
         onSelectLesson={vi.fn()}
         onCompleteCourse={vi.fn()}
-        isCompleted={false}
         isNextModuleUnlocked={false}
-        onCompletionAction={vi.fn()}
-        completionActionPending={false}
-        completionRewardLabel="0.15 kWh"
       />
     );
 
     const lockedButton = screen.getByRole('button', { name: /module locked/i });
     expect(lockedButton).toBeDisabled();
-    expect(
-      screen.getAllByText(/complete this module to unlock/i).length
-    ).toBeGreaterThan(0);
 
     await user.click(lockedButton);
     expect(onNavigate).not.toHaveBeenCalled();
@@ -399,5 +399,43 @@ describe('Theory learning flow', () => {
     );
 
     expect(screen.getByLabelText('Module 2: DataFrames locked')).toBeInTheDocument();
+  });
+
+  it('shows completion meta only inside the completed module card', () => {
+    render(
+      <TheoryCategorySelector
+        doc={doc}
+        categories={categories}
+        completedChapterIds={['module-01']}
+        chapterProgressById={{
+          'module-01': {
+            sectionsRead: 3,
+            sectionsTotal: 3,
+            isCompleted: true,
+            lastActiveAt: '2026-02-23T10:00:00.000Z',
+            currentLessonId: 'module-01-lesson-03',
+            lastVisitedRoute:
+              '/learn/pyspark/theory/history?chapter=module-01&lesson=module-01-lesson-03'
+          },
+          'module-02': {
+            sectionsRead: 0,
+            sectionsTotal: 2,
+            isCompleted: false,
+            lastActiveAt: null,
+            currentLessonId: null,
+            lastVisitedRoute: null
+          }
+        }}
+      />
+    );
+
+    const completedCard = screen
+      .getByText('Module 1: The Dawn of PySpark')
+      .closest('a');
+
+    expect(completedCard).not.toBeNull();
+    expect(screen.queryByText('1/2 complete · 60%')).not.toBeInTheDocument();
+    expect(within(completedCard as HTMLElement).getByText('Completed')).toBeInTheDocument();
+    expect(within(completedCard as HTMLElement).getByText('100%')).toBeInTheDocument();
   });
 });

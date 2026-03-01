@@ -3,8 +3,8 @@
     "pyspark": {
       "name": "PySpark Modules",
       "icon": "🔥",
-      "description": "Module-aligned drills for distributed PySpark engineering",
-      "totalQuestions": 20
+      "description": "Twenty-module practice bank for distributed PySpark engineering",
+      "totalQuestions": 60
     },
     "sql": {
       "name": "SQL Mastery",
@@ -21,430 +21,1331 @@
     "fabric": {
       "name": "Microsoft Fabric Modules",
       "icon": "🏗️",
-      "description": "Curriculum reset for modules and lessons",
+      "description": "The category remains visible, but no flashcards are published yet",
       "totalQuestions": 0
     }
   },
   "questions": {
     "pyspark": [
       {
-        "id": "pyspark-m1-001",
+        "id": "pyspark-m01-001",
         "topic": "pyspark",
         "difficulty": "easy",
         "type": "multiple-choice",
-        "question": "What was the main limitation of vertical scaling for big-data workloads?",
+        "question": "Why did vertical scaling stop being a reliable answer for big-data workloads?",
         "options": [
-          "It required Python instead of SQL",
           "It eventually hit physical and financial limits",
-          "It prevented schema evolution",
-          "It only worked with streaming data"
+          "It only worked for Python jobs",
+          "It prevented SQL joins",
+          "It required streaming-only architectures"
         ],
         "correctAnswer": "It eventually hit physical and financial limits",
-        "explanation": "Single-machine upgrades cannot keep up with exponential data growth.",
-        "xpReward": 30,
+        "explanation": "Single-machine upgrades became too expensive and still could not keep up with exponential data growth.",
+        "xpReward": 40,
         "tags": [
-          "module-1",
-          "fundamentals",
-          "scaling"
-        ]
-      },
-      {
-        "id": "pyspark-m1-002",
-        "topic": "pyspark",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "Which combination correctly describes the 3Vs of big data?",
-        "options": [
-          "Volume, Velocity, Variety",
-          "Value, Veracity, Validation",
-          "Vector, Version, Variance",
-          "Volume, Versioning, Visualization"
-        ],
-        "correctAnswer": "Volume, Velocity, Variety",
-        "explanation": "The canonical 3Vs are volume, velocity, and variety.",
-        "xpReward": 30,
-        "tags": [
-          "module-1",
-          "3v",
+          "module-01",
+          "history",
+          "scaling",
           "fundamentals"
         ]
       },
       {
-        "id": "pyspark-m1-003",
+        "id": "pyspark-m01-002",
         "topic": "pyspark",
         "difficulty": "medium",
         "type": "multiple-choice",
-        "question": "Why did Spark outperform classic MapReduce for iterative analytics?",
+        "question": "Why is veracity especially important in a smart-grid data platform?",
         "options": [
-          "Spark always uses GPUs",
-          "Spark avoids repeated disk writes between steps when possible",
-          "Spark disables shuffles",
-          "Spark requires fewer columns"
+          "Bad readings can trigger wrong operational decisions at scale",
+          "It removes the need for schema design",
+          "It guarantees every dataset fits in memory",
+          "It eliminates the need for feature engineering"
         ],
-        "correctAnswer": "Spark avoids repeated disk writes between steps when possible",
-        "explanation": "In-memory execution reduces repeated disk I/O costs for iterative workloads.",
-        "xpReward": 45,
+        "correctAnswer": "Bad readings can trigger wrong operational decisions at scale",
+        "explanation": "At utility scale, missing or corrupted readings can lead to false alerts, bad forecasts, or even harmful automated actions.",
+        "xpReward": 80,
         "tags": [
-          "module-1",
-          "spark",
-          "mapreduce"
+          "module-01",
+          "veracity",
+          "smart-grid",
+          "data-quality"
         ]
       },
       {
-        "id": "pyspark-m2-001",
-        "topic": "pyspark",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "What is the role of SparkSession in a PySpark app?",
-        "options": [
-          "It stores all partitions on executors",
-          "It is the driver-side entry point that builds plans",
-          "It replaces DataFrames",
-          "It writes only Parquet outputs"
-        ],
-        "correctAnswer": "It is the driver-side entry point that builds plans",
-        "explanation": "SparkSession lives on the driver and coordinates query planning.",
-        "xpReward": 30,
-        "tags": [
-          "module-2",
-          "sparksession",
-          "driver"
-        ]
-      },
-      {
-        "id": "pyspark-m2-002",
-        "topic": "pyspark",
-        "difficulty": "easy",
-        "type": "multiple-choice",
-        "question": "Which format is generally preferred for production analytics reads in Spark?",
-        "options": [
-          "XML",
-          "CSV",
-          "Parquet",
-          "TXT"
-        ],
-        "correctAnswer": "Parquet",
-        "explanation": "Parquet provides columnar layout, compression, and pushdown benefits.",
-        "xpReward": 25,
-        "tags": [
-          "module-2",
-          "io",
-          "parquet"
-        ]
-      },
-      {
-        "id": "pyspark-m2-003",
-        "topic": "pyspark",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "Which statement about Spark transformations is correct?",
-        "options": [
-          "They always execute immediately",
-          "They are lazy and build execution plans",
-          "They run only on the driver",
-          "They cannot be chained"
-        ],
-        "correctAnswer": "They are lazy and build execution plans",
-        "explanation": "Spark delays execution until an action is called.",
-        "xpReward": 45,
-        "tags": [
-          "module-2",
-          "lazy-evaluation",
-          "dag"
-        ]
-      },
-      {
-        "id": "pyspark-m2-004",
-        "topic": "pyspark",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "What is the primary risk of calling collect() on very large datasets?",
-        "options": [
-          "It disables Catalyst",
-          "It can overload driver memory",
-          "It repartitions data automatically",
-          "It forces CSV output"
-        ],
-        "correctAnswer": "It can overload driver memory",
-        "explanation": "collect() moves all selected data to the driver process.",
-        "xpReward": 50,
-        "tags": [
-          "module-2",
-          "actions",
-          "driver-oom"
-        ]
-      },
-      {
-        "id": "pyspark-m2-005",
+        "id": "pyspark-m01-003",
         "topic": "pyspark",
         "difficulty": "hard",
         "type": "multiple-choice",
-        "question": "When reducing partitions before writing output files, which operation is typically cheaper?",
+        "question": "What made Spark fundamentally faster than classic MapReduce for iterative analytics?",
         "options": [
-          "repartition()",
-          "coalesce()",
-          "collect()",
-          "cache()"
+          "It could keep working data in memory and avoid repeated disk writes",
+          "It automatically removed all shuffle operations",
+          "It always executed on GPUs",
+          "It stored every dataset as a single partition"
         ],
-        "correctAnswer": "coalesce()",
-        "explanation": "coalesce() can reduce partitions without a full shuffle in common cases.",
-        "xpReward": 70,
+        "correctAnswer": "It could keep working data in memory and avoid repeated disk writes",
+        "explanation": "Spark’s in-memory execution model reduces repeated disk I/O, which is the main reason it outperformed MapReduce on iterative workloads.",
+        "xpReward": 120,
         "tags": [
-          "module-2",
-          "partitioning",
+          "module-01",
+          "spark",
+          "mapreduce",
           "performance"
         ]
       },
       {
-        "id": "pyspark-m3-001",
+        "id": "pyspark-m02-001",
         "topic": "pyspark",
-        "difficulty": "medium",
+        "difficulty": "easy",
         "type": "multiple-choice",
-        "question": "Which Catalyst phase applies rules like predicate pushdown and projection pruning?",
+        "question": "What is the main role of `SparkSession` in a PySpark application?",
         "options": [
-          "Unresolved logical plan",
-          "Resolved logical plan",
-          "Optimized logical plan",
-          "Code generation stage"
+          "It is the driver-side entry point that builds and coordinates plans",
+          "It stores all partitions directly on executors",
+          "It replaces the need for DataFrames",
+          "It writes output files automatically after every transformation"
         ],
-        "correctAnswer": "Optimized logical plan",
-        "explanation": "Catalyst optimization rules are applied in the optimized logical plan phase.",
-        "xpReward": 50,
+        "correctAnswer": "It is the driver-side entry point that builds and coordinates plans",
+        "explanation": "SparkSession lives on the driver and serves as the entry point for creating DataFrames and submitting work.",
+        "xpReward": 40,
         "tags": [
-          "module-3",
-          "catalyst",
-          "optimization"
+          "module-02",
+          "sparksession",
+          "driver",
+          "dataframes"
         ]
       },
       {
-        "id": "pyspark-m3-002",
+        "id": "pyspark-m02-002",
         "topic": "pyspark",
         "difficulty": "medium",
         "type": "multiple-choice",
-        "question": "What creates a new stage in Spark execution?",
+        "question": "What is the biggest risk of calling `collect()` on a very large dataset?",
         "options": [
-          "Each transformation",
-          "Each executor",
-          "A shuffle boundary (wide dependency)",
-          "Calling printSchema()"
+          "It can overwhelm driver memory",
+          "It disables the Catalyst optimizer",
+          "It forces Spark to write CSV output",
+          "It prevents lazy evaluation from working"
         ],
-        "correctAnswer": "A shuffle boundary (wide dependency)",
-        "explanation": "Stages split where Spark must redistribute data.",
-        "xpReward": 50,
+        "correctAnswer": "It can overwhelm driver memory",
+        "explanation": "collect() moves data to the driver process, so it becomes dangerous when the result is too large to fit comfortably in driver memory.",
+        "xpReward": 80,
         "tags": [
-          "module-3",
-          "dag",
-          "stages"
+          "module-02",
+          "actions",
+          "driver",
+          "collect"
         ]
       },
       {
-        "id": "pyspark-m3-003",
+        "id": "pyspark-m02-003",
         "topic": "pyspark",
         "difficulty": "hard",
         "type": "multiple-choice",
-        "question": "If a stage has 500 partitions, how many tasks are generally created for that stage?",
+        "question": "When reducing the number of output partitions before a write, which operation is usually cheaper?",
         "options": [
-          "5",
-          "50",
+          "coalesce()",
+          "repartition()",
+          "collect()",
+          "cache()"
+        ],
+        "correctAnswer": "coalesce()",
+        "explanation": "coalesce() can often reduce partitions without paying for a full shuffle, making it the cheaper option in common write-down scenarios.",
+        "xpReward": 120,
+        "tags": [
+          "module-02",
+          "partitioning",
+          "coalesce",
+          "performance"
+        ]
+      },
+      {
+        "id": "pyspark-m03-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "In which Catalyst phase are rules like predicate pushdown and projection pruning applied?",
+        "options": [
+          "Optimized logical plan",
+          "Unresolved logical plan",
+          "Python parsing stage",
+          "Shuffle write stage"
+        ],
+        "correctAnswer": "Optimized logical plan",
+        "explanation": "Catalyst applies optimization rules after analysis, producing the optimized logical plan.",
+        "xpReward": 40,
+        "tags": [
+          "module-03",
+          "catalyst",
+          "optimizer",
+          "execution-plan"
+        ]
+      },
+      {
+        "id": "pyspark-m03-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "What usually creates a new stage in Spark execution?",
+        "options": [
+          "A shuffle boundary caused by a wide dependency",
+          "Every single transformation",
+          "Every executor heartbeat",
+          "Any call to printSchema()"
+        ],
+        "correctAnswer": "A shuffle boundary caused by a wide dependency",
+        "explanation": "Spark splits stages where data must be redistributed across partitions, which is the hallmark of a wide dependency.",
+        "xpReward": 80,
+        "tags": [
+          "module-03",
+          "stages",
+          "shuffle",
+          "dag"
+        ]
+      },
+      {
+        "id": "pyspark-m03-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "If a stage has 500 partitions, how many tasks will Spark generally create for that stage?",
+        "options": [
           "500",
-          "Depends only on driver RAM"
+          "50",
+          "5",
+          "It depends only on driver memory"
         ],
         "correctAnswer": "500",
-        "explanation": "Spark commonly maps one task per partition per stage.",
-        "xpReward": 75,
+        "explanation": "Spark commonly schedules one task per partition for a given stage.",
+        "xpReward": 120,
         "tags": [
-          "module-3",
+          "module-03",
           "tasks",
+          "partitions",
           "parallelism"
         ]
       },
       {
-        "id": "pyspark-m3-004",
+        "id": "pyspark-m04-001",
         "topic": "pyspark",
-        "difficulty": "hard",
+        "difficulty": "easy",
         "type": "multiple-choice",
-        "question": "Which issue is most directly associated with data skew?",
+        "question": "Which Spark UI metrics most directly reveal spill pressure?",
         "options": [
-          "Even task durations across executors",
-          "One long-running straggler task dominates stage completion",
-          "Automatic partition coalescing",
-          "Elimination of shuffle"
-        ],
-        "correctAnswer": "One long-running straggler task dominates stage completion",
-        "explanation": "Skewed keys concentrate work in a subset of partitions.",
-        "xpReward": 80,
-        "tags": [
-          "module-3",
-          "skew",
-          "shuffle"
-        ]
-      },
-      {
-        "id": "pyspark-m4-001",
-        "topic": "pyspark",
-        "difficulty": "medium",
-        "type": "multiple-choice",
-        "question": "Which Spark UI metrics most directly indicate spill pressure?",
-        "options": [
-          "Executor CPU % and JVM version",
           "Memory Bytes Spilled and Disk Bytes Spilled",
-          "Rows Read and Rows Written",
-          "Task IDs and DAG IDs"
+          "Application name and Spark version",
+          "Executor CPU model and hostname",
+          "Rows Written and SQL text only"
         ],
         "correctAnswer": "Memory Bytes Spilled and Disk Bytes Spilled",
-        "explanation": "These metrics quantify spill activity due to memory pressure.",
-        "xpReward": 55,
+        "explanation": "Those metrics show that Spark had to spill intermediate data because memory pressure was too high.",
+        "xpReward": 40,
         "tags": [
-          "module-4",
+          "module-04",
+          "spark-ui",
           "spill",
           "monitoring"
         ]
       },
       {
-        "id": "pyspark-m4-002",
-        "topic": "pyspark",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "What does Exchange hashpartitioning in an explain plan signal?",
-        "options": [
-          "A guaranteed broadcast join",
-          "A shuffle/repartition step",
-          "A cache hit",
-          "A local-only transformation"
-        ],
-        "correctAnswer": "A shuffle/repartition step",
-        "explanation": "Exchange indicates data movement across partitions.",
-        "xpReward": 75,
-        "tags": [
-          "module-4",
-          "execution-plan",
-          "shuffle"
-        ]
-      },
-      {
-        "id": "pyspark-m4-003",
-        "topic": "pyspark",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "For a 1 TB fact table joined to a 5 MB dimension, the best first optimization is:",
-        "options": [
-          "Force collect() on dimension and fact",
-          "Broadcast the small dimension table",
-          "coalesce(1) the fact table",
-          "Disable adaptive execution"
-        ],
-        "correctAnswer": "Broadcast the small dimension table",
-        "explanation": "Broadcasting avoids shuffling the massive fact table.",
-        "xpReward": 80,
-        "tags": [
-          "module-4",
-          "broadcast",
-          "joins"
-        ]
-      },
-      {
-        "id": "pyspark-m4-004",
-        "topic": "pyspark",
-        "difficulty": "hard",
-        "type": "multiple-choice",
-        "question": "What is the primary goal of salting skewed keys?",
-        "options": [
-          "Encrypt join columns",
-          "Split hot keys into multiple pseudo-keys to spread workload",
-          "Reduce schema width",
-          "Force all data into one partition"
-        ],
-        "correctAnswer": "Split hot keys into multiple pseudo-keys to spread workload",
-        "explanation": "Salting redistributes dominant-key records across partitions.",
-        "xpReward": 85,
-        "tags": [
-          "module-4",
-          "skew",
-          "salting"
-        ]
-      },
-      {
-        "id": "pyspark-m5-001",
+        "id": "pyspark-m04-002",
         "topic": "pyspark",
         "difficulty": "medium",
         "type": "multiple-choice",
-        "question": "In a shuffle join, what usually gets repartitioned by join key?",
+        "question": "For a 1 TB fact table joined to a 5 MB dimension table, what is usually the best first optimization to try?",
         "options": [
-          "Only the smaller table",
-          "Only the larger table",
-          "Both sides of the join",
-          "Neither side"
+          "Broadcast the small dimension table",
+          "Force both tables into one partition",
+          "Disable adaptive execution",
+          "Call collect() on the dimension first"
         ],
-        "correctAnswer": "Both sides of the join",
-        "explanation": "Spark generally redistributes both datasets so matching keys align.",
-        "xpReward": 55,
+        "correctAnswer": "Broadcast the small dimension table",
+        "explanation": "Broadcasting the tiny side avoids shuffling the massive fact table and is often the highest-leverage first move.",
+        "xpReward": 80,
         "tags": [
-          "module-5",
+          "module-04",
+          "broadcast",
+          "joins",
+          "fact-dimension"
+        ]
+      },
+      {
+        "id": "pyspark-m04-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "What is the goal of salting a skewed join key?",
+        "options": [
+          "Split a hot key into multiple pseudo-keys so the workload spreads across partitions",
+          "Encrypt the join column before shuffling",
+          "Reduce every partition to one row",
+          "Guarantee that Spark chooses a broadcast join"
+        ],
+        "correctAnswer": "Split a hot key into multiple pseudo-keys so the workload spreads across partitions",
+        "explanation": "Salting breaks up dominant keys so they no longer concentrate almost all work in a single partition.",
+        "xpReward": 120,
+        "tags": [
+          "module-04",
+          "salting",
+          "skew",
+          "performance"
+        ]
+      },
+      {
+        "id": "pyspark-m05-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "Which join type should you use to find rows from the left dataset that have no match on the right?",
+        "options": [
+          "LEFT ANTI JOIN",
+          "INNER JOIN",
+          "CROSS JOIN",
+          "LEFT SEMI JOIN"
+        ],
+        "correctAnswer": "LEFT ANTI JOIN",
+        "explanation": "A left anti join returns only the unmatched rows from the left side, which makes it useful for orphan detection and data quality checks.",
+        "xpReward": 40,
+        "tags": [
+          "module-05",
+          "joins",
+          "anti-join",
+          "data-quality"
+        ]
+      },
+      {
+        "id": "pyspark-m05-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "Why are window functions often preferable to self-joins for tasks like ranking and lagging within groups?",
+        "options": [
+          "They often avoid the extra shuffle and duplication costs of self-joins",
+          "They force all rows into a single executor",
+          "They work only in local mode",
+          "They automatically cache every intermediate result"
+        ],
+        "correctAnswer": "They often avoid the extra shuffle and duplication costs of self-joins",
+        "explanation": "Window functions can express per-group calculations directly, often with less data movement than a separate self-join pattern.",
+        "xpReward": 80,
+        "tags": [
+          "module-05",
+          "window-functions",
           "joins",
           "shuffle"
         ]
       },
       {
-        "id": "pyspark-m5-002",
+        "id": "pyspark-m05-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "When is a broadcast hash join a strong candidate?",
+        "options": [
+          "When one side is small enough to fit in executor memory and broadcasting avoids shuffling the large side",
+          "When both sides are far too large to move over the network",
+          "Only when the join key is always unique",
+          "Only when using Python UDFs on the join condition"
+        ],
+        "correctAnswer": "When one side is small enough to fit in executor memory and broadcasting avoids shuffling the large side",
+        "explanation": "Broadcast joins shine when one table is genuinely small, because Spark can send it to executors and keep the large table in place.",
+        "xpReward": 120,
+        "tags": [
+          "module-05",
+          "broadcast-hash-join",
+          "executor-memory",
+          "optimization"
+        ]
+      },
+      {
+        "id": "pyspark-m06-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What is the scope of `createOrReplaceTempView()`?",
+        "options": [
+          "The current SparkSession",
+          "Every Spark cluster in the company",
+          "Only the current executor",
+          "Only notebook cells that run after a cache() call"
+        ],
+        "correctAnswer": "The current SparkSession",
+        "explanation": "A temporary view created this way is visible inside the current SparkSession and disappears when that session ends.",
+        "xpReward": 40,
+        "tags": [
+          "module-06",
+          "spark-sql",
+          "temp-view",
+          "catalog"
+        ]
+      },
+      {
+        "id": "pyspark-m06-002",
         "topic": "pyspark",
         "difficulty": "medium",
         "type": "multiple-choice",
-        "question": "Broadcast joins are most appropriate when:",
+        "question": "What does `spark.sql(...)` return?",
         "options": [
-          "Both tables are multi-terabyte",
-          "One table is small enough to replicate across executors",
-          "There is no join key",
-          "You need to force a sort-merge join"
+          "A DataFrame",
+          "A Python list of rows",
+          "A JDBC connection",
+          "A permanent table definition"
         ],
-        "correctAnswer": "One table is small enough to replicate across executors",
-        "explanation": "The strategy relies on replicating a small side efficiently.",
-        "xpReward": 55,
+        "correctAnswer": "A DataFrame",
+        "explanation": "Spark SQL queries return DataFrames, so you can continue chaining DataFrame operations after a SQL statement.",
+        "xpReward": 80,
         "tags": [
-          "module-5",
-          "broadcast",
+          "module-06",
+          "spark-sql",
+          "dataframe",
+          "api"
+        ]
+      },
+      {
+        "id": "pyspark-m06-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "What is the key architectural relationship between Spark SQL and the DataFrame API?",
+        "options": [
+          "They are two interfaces to the same engine and optimizer",
+          "SQL always bypasses Catalyst while DataFrames use it",
+          "DataFrames can run on executors but SQL can only run on the driver",
+          "SQL is faster only because it disables Tungsten"
+        ],
+        "correctAnswer": "They are two interfaces to the same engine and optimizer",
+        "explanation": "Both Spark SQL and DataFrames converge on Catalyst and the same physical execution machinery.",
+        "xpReward": 120,
+        "tags": [
+          "module-06",
+          "catalyst",
+          "spark-sql",
+          "dataframes"
+        ]
+      },
+      {
+        "id": "pyspark-m07-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "In the medallion architecture, which layer should contain cleaned, standardized, analytics-ready base records?",
+        "options": [
+          "Silver",
+          "Bronze",
+          "Gold",
+          "Archive"
+        ],
+        "correctAnswer": "Silver",
+        "explanation": "Silver is where raw data is cleaned, typed, deduplicated, and standardized before business-ready modeling happens in gold.",
+        "xpReward": 40,
+        "tags": [
+          "module-07",
+          "medallion",
+          "silver",
+          "data-cleaning"
+        ]
+      },
+      {
+        "id": "pyspark-m07-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "What is a common distributed pattern for deterministic deduplication when you want to keep the latest record per business key?",
+        "options": [
+          "Use `row_number()` over a partitioned window ordered by recency, then keep rank 1",
+          "Use `collect()` and deduplicate locally on the driver",
+          "Sort the whole dataset into one partition and overwrite it",
+          "Replace every duplicate with NULL values"
+        ],
+        "correctAnswer": "Use `row_number()` over a partitioned window ordered by recency, then keep rank 1",
+        "explanation": "A windowed row_number pattern is a standard, scalable way to keep the latest or best row per key.",
+        "xpReward": 80,
+        "tags": [
+          "module-07",
+          "deduplication",
+          "window-functions",
+          "silver"
+        ]
+      },
+      {
+        "id": "pyspark-m07-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "What should a quality gate do when a transformed dataset fails critical validation rules?",
+        "options": [
+          "Block promotion to the next layer and surface the failure clearly",
+          "Silently write the bad data to gold anyway",
+          "Retry forever until the rules pass automatically",
+          "Delete the raw data that caused the failure"
+        ],
+        "correctAnswer": "Block promotion to the next layer and surface the failure clearly",
+        "explanation": "A quality gate exists to stop bad data from contaminating downstream layers while making the failure visible for investigation.",
+        "xpReward": 120,
+        "tags": [
+          "module-07",
+          "quality-gates",
+          "validation",
+          "medallion"
+        ]
+      },
+      {
+        "id": "pyspark-m08-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What does `explode()` do to an array column?",
+        "options": [
+          "Turns each element into its own row",
+          "Converts the array into a map",
+          "Drops the array column entirely",
+          "Sends the array back to the driver"
+        ],
+        "correctAnswer": "Turns each element into its own row",
+        "explanation": "explode() expands one array-valued row into many rows, one per element.",
+        "xpReward": 40,
+        "tags": [
+          "module-08",
+          "arrays",
+          "explode",
+          "nested-data"
+        ]
+      },
+      {
+        "id": "pyspark-m08-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "What is a Spark `struct` best understood as?",
+        "options": [
+          "A single column that groups named nested fields together",
+          "A storage format that replaces Parquet",
+          "A table-level partitioning strategy",
+          "A command that caches every row in memory"
+        ],
+        "correctAnswer": "A single column that groups named nested fields together",
+        "explanation": "Structs model nested records, letting one column contain multiple named fields such as address.city and address.zip.",
+        "xpReward": 80,
+        "tags": [
+          "module-08",
+          "structs",
+          "nested-data",
+          "schema"
+        ]
+      },
+      {
+        "id": "pyspark-m08-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "What is a major risk when exploding nested collections too early in a pipeline?",
+        "options": [
+          "You can multiply row counts dramatically and create unnecessary shuffle cost",
+          "Spark stops supporting schema evolution",
+          "Executors can no longer read JSON",
+          "The DataFrame API becomes SQL-only"
+        ],
+        "correctAnswer": "You can multiply row counts dramatically and create unnecessary shuffle cost",
+        "explanation": "Exploding arrays or maps too early can blow up the dataset size, which then makes every downstream operation more expensive.",
+        "xpReward": 120,
+        "tags": [
+          "module-08",
+          "explode",
+          "performance",
+          "nested-json"
+        ]
+      },
+      {
+        "id": "pyspark-m09-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "Why should you prefer built-in Spark functions over Python UDFs when possible?",
+        "options": [
+          "Built-ins stay inside Spark’s optimized engine and avoid Python serialization overhead",
+          "Python UDFs can only run on the driver",
+          "Built-ins are the only functions allowed in notebooks",
+          "Python UDFs always disable partitioning"
+        ],
+        "correctAnswer": "Built-ins stay inside Spark’s optimized engine and avoid Python serialization overhead",
+        "explanation": "Built-in expressions remain visible to Catalyst and avoid the Python/JVM crossing costs that make UDFs slower.",
+        "xpReward": 40,
+        "tags": [
+          "module-09",
+          "udf",
+          "performance",
+          "built-ins"
+        ]
+      },
+      {
+        "id": "pyspark-m09-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "What is the main benefit of a pandas UDF compared with a row-at-a-time Python UDF?",
+        "options": [
+          "It processes data in vectorized Arrow-backed batches",
+          "It removes the need for executors",
+          "It guarantees zero serialization cost",
+          "It only works on a single partition at a time"
+        ],
+        "correctAnswer": "It processes data in vectorized Arrow-backed batches",
+        "explanation": "pandas UDFs use vectorized batches and Arrow, which makes them much more efficient than one-row-at-a-time Python UDFs.",
+        "xpReward": 80,
+        "tags": [
+          "module-09",
+          "pandas-udf",
+          "arrow",
+          "vectorization"
+        ]
+      },
+      {
+        "id": "pyspark-m09-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "When is a grouped map UDF justified?",
+        "options": [
+          "When you need custom per-group logic that built-in functions cannot express cleanly",
+          "Whenever a simple `groupBy().agg()` is available",
+          "Only when the dataset fits on the driver",
+          "Only for joins with broadcast hints"
+        ],
+        "correctAnswer": "When you need custom per-group logic that built-in functions cannot express cleanly",
+        "explanation": "Grouped map UDFs are a more expensive escape hatch, so they are best reserved for genuinely custom per-group logic.",
+        "xpReward": 120,
+        "tags": [
+          "module-09",
+          "grouped-map-udf",
+          "custom-logic",
+          "tradeoffs"
+        ]
+      },
+      {
+        "id": "pyspark-m10-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What makes a dataset “unbounded” in Structured Streaming?",
+        "options": [
+          "New records keep arriving continuously over time",
+          "It has more than one partition",
+          "It cannot be written to Parquet",
+          "It uses SQL instead of DataFrames"
+        ],
+        "correctAnswer": "New records keep arriving continuously over time",
+        "explanation": "An unbounded dataset has no fixed final size because events continue to arrive.",
+        "xpReward": 40,
+        "tags": [
+          "module-10",
+          "streaming",
+          "unbounded-data",
+          "structured-streaming"
+        ]
+      },
+      {
+        "id": "pyspark-m10-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "Why is a checkpoint location essential in Structured Streaming?",
+        "options": [
+          "It stores offsets and state so the stream can recover correctly after failures",
+          "It converts the stream into a batch job",
+          "It permanently disables watermarking",
+          "It avoids the need for output sinks"
+        ],
+        "correctAnswer": "It stores offsets and state so the stream can recover correctly after failures",
+        "explanation": "Checkpoints preserve the stream’s progress and state so restarts can resume safely instead of duplicating or losing work.",
+        "xpReward": 80,
+        "tags": [
+          "module-10",
+          "checkpointing",
+          "fault-tolerance",
+          "streaming"
+        ]
+      },
+      {
+        "id": "pyspark-m10-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "When is append mode a good fit for a streaming sink?",
+        "options": [
+          "When emitted rows will not need to be revised later",
+          "When every aggregation must update historical output rows repeatedly",
+          "When the sink cannot accept any new data after startup",
+          "When you want to materialize a global sort every micro-batch"
+        ],
+        "correctAnswer": "When emitted rows will not need to be revised later",
+        "explanation": "Append mode works best when records can be written once and left alone, rather than updated after more late data arrives.",
+        "xpReward": 120,
+        "tags": [
+          "module-10",
+          "append-mode",
+          "output-modes",
+          "watermarking"
+        ]
+      },
+      {
+        "id": "pyspark-m11-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What does Delta Lake add on top of a regular data lake?",
+        "options": [
+          "ACID transactions and reliable table semantics",
+          "A requirement to store everything as CSV",
+          "Automatic GPU acceleration",
+          "A ban on schema evolution"
+        ],
+        "correctAnswer": "ACID transactions and reliable table semantics",
+        "explanation": "Delta Lake brings transactionality, consistency, and other database-like guarantees to lake storage.",
+        "xpReward": 40,
+        "tags": [
+          "module-11",
+          "delta-lake",
+          "acid",
+          "lakehouse"
+        ]
+      },
+      {
+        "id": "pyspark-m11-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "Which Delta Lake command pattern is commonly used for upserts?",
+        "options": [
+          "MERGE",
+          "collect()",
+          "cache()",
+          "describe()"
+        ],
+        "correctAnswer": "MERGE",
+        "explanation": "MERGE lets you match existing rows and then update or insert as needed, which is the core upsert pattern in Delta Lake.",
+        "xpReward": 80,
+        "tags": [
+          "module-11",
+          "merge",
+          "upsert",
+          "delta-lake"
+        ]
+      },
+      {
+        "id": "pyspark-m11-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "What does Delta Lake time travel allow you to do?",
+        "options": [
+          "Query an earlier version of the table",
+          "Recover deleted driver logs only",
+          "Broadcast a table automatically to every executor",
+          "Convert all historical files into a single partition"
+        ],
+        "correctAnswer": "Query an earlier version of the table",
+        "explanation": "Time travel lets you inspect or restore earlier table states, which is useful for debugging, audits, and rollback workflows.",
+        "xpReward": 120,
+        "tags": [
+          "module-11",
+          "time-travel",
+          "versioning",
+          "delta"
+        ]
+      },
+      {
+        "id": "pyspark-m12-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What is the purpose of a unit test in a data pipeline codebase?",
+        "options": [
+          "Validate a small transformation or helper in isolation",
+          "Benchmark an entire production cluster",
+          "Replace observability and alerting",
+          "Guarantee that source data is always clean"
+        ],
+        "correctAnswer": "Validate a small transformation or helper in isolation",
+        "explanation": "Unit tests target focused logic so bugs can be caught quickly without needing the whole pipeline to run.",
+        "xpReward": 40,
+        "tags": [
+          "module-12",
+          "testing",
+          "unit-tests",
+          "quality"
+        ]
+      },
+      {
+        "id": "pyspark-m12-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "What does an integration test usually add beyond unit tests in a Spark project?",
+        "options": [
+          "It exercises multiple pipeline pieces together against realistic data slices",
+          "It proves that no schema will ever change",
+          "It removes the need for production monitoring",
+          "It guarantees zero runtime cost"
+        ],
+        "correctAnswer": "It exercises multiple pipeline pieces together against realistic data slices",
+        "explanation": "Integration tests verify that several components work together, often in a local Spark runtime with representative inputs.",
+        "xpReward": 80,
+        "tags": [
+          "module-12",
+          "integration-tests",
+          "spark-local",
+          "pipeline"
+        ]
+      },
+      {
+        "id": "pyspark-m12-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "What does observability give you that a one-time test suite cannot?",
+        "options": [
+          "Continuous visibility into freshness, volume, failures, and anomalies in production",
+          "A guarantee that every future schema change is harmless",
+          "Automatic elimination of all bad source data",
+          "A way to avoid writing alerts entirely"
+        ],
+        "correctAnswer": "Continuous visibility into freshness, volume, failures, and anomalies in production",
+        "explanation": "Tests validate expected behavior ahead of time; observability tells you what is happening in the live system right now.",
+        "xpReward": 120,
+        "tags": [
+          "module-12",
+          "observability",
+          "freshness",
+          "monitoring"
+        ]
+      },
+      {
+        "id": "pyspark-m13-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "In `spark-submit --deploy-mode cluster`, where does the driver run?",
+        "options": [
+          "Inside the cluster",
+          "Only on your laptop",
+          "Inside every executor at once",
+          "In the metadata catalog"
+        ],
+        "correctAnswer": "Inside the cluster",
+        "explanation": "Cluster mode moves the driver off the submitting machine and into the cluster environment.",
+        "xpReward": 40,
+        "tags": [
+          "module-13",
+          "spark-submit",
+          "cluster-mode",
+          "driver"
+        ]
+      },
+      {
+        "id": "pyspark-m13-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "What is an Airflow DAG primarily used to model?",
+        "options": [
+          "Task dependencies, scheduling, and retries across a workflow",
+          "The physical layout of parquet files on disk",
+          "Python virtual environment resolution only",
+          "Spark executor JVM memory pages"
+        ],
+        "correctAnswer": "Task dependencies, scheduling, and retries across a workflow",
+        "explanation": "An Airflow DAG describes what tasks exist, how they depend on each other, and how they should be scheduled and retried.",
+        "xpReward": 80,
+        "tags": [
+          "module-13",
+          "airflow",
+          "orchestration",
+          "dag"
+        ]
+      },
+      {
+        "id": "pyspark-m13-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "Why package a PySpark project as a wheel or zip for `--py-files`?",
+        "options": [
+          "To ship versioned application code and dependencies to the cluster consistently",
+          "To force Spark to use only local mode",
+          "To disable retries after task failure",
+          "To remove the need for configuration files"
+        ],
+        "correctAnswer": "To ship versioned application code and dependencies to the cluster consistently",
+        "explanation": "Packaging makes deployments repeatable and avoids the fragile “copy files around manually” pattern.",
+        "xpReward": 120,
+        "tags": [
+          "module-13",
+          "packaging",
+          "py-files",
+          "deployment"
+        ]
+      },
+      {
+        "id": "pyspark-m14-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What does the principle of least privilege mean in a data platform?",
+        "options": [
+          "Give each user or service only the access it genuinely needs",
+          "Grant admin rights to everyone for simplicity",
+          "Store all data in one unrestricted bucket",
+          "Disable audit logging to improve performance"
+        ],
+        "correctAnswer": "Give each user or service only the access it genuinely needs",
+        "explanation": "Least privilege reduces blast radius by ensuring identities have only the permissions required for their role.",
+        "xpReward": 40,
+        "tags": [
+          "module-14",
+          "security",
+          "least-privilege",
+          "governance"
+        ]
+      },
+      {
+        "id": "pyspark-m14-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "Which control is most appropriate when analysts need a dataset but should not see raw PII values?",
+        "options": [
+          "Column masking or tokenization",
+          "Broadcast joins",
+          "coalesce(1)",
+          "Disabling the metastore"
+        ],
+        "correctAnswer": "Column masking or tokenization",
+        "explanation": "Masking or tokenization preserves utility while reducing exposure of sensitive information.",
+        "xpReward": 80,
+        "tags": [
+          "module-14",
+          "pii",
+          "masking",
+          "access-control"
+        ]
+      },
+      {
+        "id": "pyspark-m14-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "Why is lineage especially valuable before making a breaking schema change?",
+        "options": [
+          "It reveals which downstream jobs, dashboards, and consumers will be affected",
+          "It automatically fixes incompatible data types",
+          "It eliminates the need for access reviews",
+          "It guarantees that no pipeline will fail"
+        ],
+        "correctAnswer": "It reveals which downstream jobs, dashboards, and consumers will be affected",
+        "explanation": "Lineage gives you impact awareness, which is essential before changing schemas, contracts, or access patterns.",
+        "xpReward": 120,
+        "tags": [
+          "module-14",
+          "lineage",
+          "schema-change",
+          "impact-analysis"
+        ]
+      },
+      {
+        "id": "pyspark-m15-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What does `partitionBy(...)` do in a window specification?",
+        "options": [
+          "Defines the logical groups over which the window calculation resets",
+          "Physically repartitions the entire table on disk",
+          "Broadcasts each group to every executor",
+          "Caches the window output automatically"
+        ],
+        "correctAnswer": "Defines the logical groups over which the window calculation resets",
+        "explanation": "partitionBy groups rows for the window function so calculations restart within each partition key.",
+        "xpReward": 40,
+        "tags": [
+          "module-15",
+          "window-functions",
+          "partitionBy",
+          "analytics"
+        ]
+      },
+      {
+        "id": "pyspark-m15-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "How does `dense_rank()` differ from `rank()` when there are ties?",
+        "options": [
+          "dense_rank() does not leave gaps after ties",
+          "dense_rank() ignores ordering completely",
+          "rank() can only be used with strings",
+          "rank() always runs faster because it skips sorting"
+        ],
+        "correctAnswer": "dense_rank() does not leave gaps after ties",
+        "explanation": "rank() can leave gaps after ties, while dense_rank() keeps the numbering compact.",
+        "xpReward": 80,
+        "tags": [
+          "module-15",
+          "dense-rank",
+          "rank",
+          "window-functions"
+        ]
+      },
+      {
+        "id": "pyspark-m15-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "Which window function is the most direct way to compare a row with the previous row in the same ordered group?",
+        "options": [
+          "lag()",
+          "explode()",
+          "collect_list()",
+          "broadcast()"
+        ],
+        "correctAnswer": "lag()",
+        "explanation": "lag() lets you access prior rows without needing a separate self-join, which makes it a core building block for sequential analysis.",
+        "xpReward": 120,
+        "tags": [
+          "module-15",
+          "lag",
+          "time-series",
+          "window-functions"
+        ]
+      },
+      {
+        "id": "pyspark-m16-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What is one of Adaptive Query Execution’s main benefits?",
+        "options": [
+          "It can adjust strategies like shuffle partition counts or join choices at runtime",
+          "It permanently removes all shuffles from a query",
+          "It moves every job into streaming mode",
+          "It stores every DataFrame in memory automatically"
+        ],
+        "correctAnswer": "It can adjust strategies like shuffle partition counts or join choices at runtime",
+        "explanation": "AQE uses runtime information to improve the plan instead of relying only on static estimates.",
+        "xpReward": 40,
+        "tags": [
+          "module-16",
+          "aqe",
+          "runtime-optimization",
+          "spark"
+        ]
+      },
+      {
+        "id": "pyspark-m16-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "What does a long tail of one or two very slow tasks usually suggest?",
+        "options": [
+          "Skew or straggler behavior",
+          "Perfectly balanced partitions",
+          "A successful broadcast of every table",
+          "That the driver has already cached the result"
+        ],
+        "correctAnswer": "Skew or straggler behavior",
+        "explanation": "A long tail in task duration is a classic signal that one partition or one node is doing disproportionately more work.",
+        "xpReward": 80,
+        "tags": [
+          "module-16",
+          "skew",
+          "stragglers",
+          "spark-ui"
+        ]
+      },
+      {
+        "id": "pyspark-m16-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "When is caching a DataFrame most justified?",
+        "options": [
+          "When the same expensive dataset will be reused multiple times",
+          "When the dataset is used once and immediately discarded",
+          "Whenever a DataFrame contains fewer than ten columns",
+          "Only after collecting the DataFrame to the driver"
+        ],
+        "correctAnswer": "When the same expensive dataset will be reused multiple times",
+        "explanation": "Caching is a tradeoff, so it pays off when recomputation would otherwise be repeated and expensive.",
+        "xpReward": 120,
+        "tags": [
+          "module-16",
+          "cache",
+          "reuse",
           "performance"
         ]
       },
       {
-        "id": "pyspark-m5-003",
+        "id": "pyspark-m17-001",
         "topic": "pyspark",
-        "difficulty": "hard",
+        "difficulty": "easy",
         "type": "multiple-choice",
-        "question": "Why can window functions outperform self-joins for prior-row analytics?",
+        "question": "In dimensional modeling, what does a fact table primarily store?",
         "options": [
-          "They avoid partition-level ordering",
-          "They often avoid full dataset reshuffle for row-context calculations",
-          "They run only on the driver",
-          "They disable Catalyst"
+          "Measurable business events at a defined grain",
+          "Only free-form text fields",
+          "Security roles and permissions",
+          "One row per ETL job"
         ],
-        "correctAnswer": "They often avoid full dataset reshuffle for row-context calculations",
-        "explanation": "Window operations can run within partition boundaries with ordered context.",
-        "xpReward": 80,
+        "correctAnswer": "Measurable business events at a defined grain",
+        "explanation": "Fact tables store the measurable events or transactions, while dimensions provide descriptive context.",
+        "xpReward": 40,
         "tags": [
-          "module-5",
-          "windows",
-          "joins"
+          "module-17",
+          "fact-table",
+          "dimensional-modeling",
+          "lakehouse"
         ]
       },
       {
-        "id": "pyspark-m5-004",
+        "id": "pyspark-m17-002",
         "topic": "pyspark",
         "difficulty": "medium",
         "type": "multiple-choice",
-        "question": "What does a left_anti join return?",
+        "question": "What is the defining property of an SCD Type 2 dimension?",
         "options": [
-          "Rows that match in both tables",
-          "Rows in left table with no match in right table",
-          "Rows in right table with no match in left table",
-          "All rows with null keys"
+          "It preserves full history by adding new rows for changes",
+          "It overwrites history in place and keeps only the latest value",
+          "It stores every field as a nested array",
+          "It can only be used in streaming pipelines"
         ],
-        "correctAnswer": "Rows in left table with no match in right table",
-        "explanation": "left_anti is ideal for orphan detection and integrity checks.",
-        "xpReward": 50,
+        "correctAnswer": "It preserves full history by adding new rows for changes",
+        "explanation": "SCD Type 2 tracks historical changes with new records, often using effective dates and a current-row indicator.",
+        "xpReward": 80,
         "tags": [
-          "module-5",
-          "anti-join",
-          "data-quality"
+          "module-17",
+          "scd-type-2",
+          "dimensions",
+          "history"
+        ]
+      },
+      {
+        "id": "pyspark-m17-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "Where do dimensional models most naturally belong in a medallion-style lakehouse?",
+        "options": [
+          "Gold, because they are curated for business-facing analytics",
+          "Bronze, because they should remain raw and unmodeled",
+          "Checkpoint storage, because they are part of streaming state",
+          "Executor local disks, because they are temporary only"
+        ],
+        "correctAnswer": "Gold, because they are curated for business-facing analytics",
+        "explanation": "Dimensional models are usually a gold-layer concern because they reflect curated, stable analytics structures rather than raw ingestion.",
+        "xpReward": 120,
+        "tags": [
+          "module-17",
+          "gold-layer",
+          "star-schema",
+          "medallion"
+        ]
+      },
+      {
+        "id": "pyspark-m18-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What is the pandas API on Spark designed to provide?",
+        "options": [
+          "Pandas-like syntax backed by Spark’s distributed engine",
+          "A replacement for all SQL capabilities",
+          "A way to run every job on the driver only",
+          "A storage format that replaces Delta Lake"
+        ],
+        "correctAnswer": "Pandas-like syntax backed by Spark’s distributed engine",
+        "explanation": "The pandas API on Spark aims to make distributed work more approachable for teams familiar with pandas syntax.",
+        "xpReward": 40,
+        "tags": [
+          "module-18",
+          "pandas-api-on-spark",
+          "migration",
+          "spark"
+        ]
+      },
+      {
+        "id": "pyspark-m18-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "What is the main danger of calling `to_pandas()` on a large distributed DataFrame?",
+        "options": [
+          "It collects the data to driver memory",
+          "It permanently disables Arrow",
+          "It turns the dataset into streaming state",
+          "It forces Spark to drop nested columns"
+        ],
+        "correctAnswer": "It collects the data to driver memory",
+        "explanation": "to_pandas() materializes the data locally, so it is only safe when the result is genuinely small enough for the driver.",
+        "xpReward": 80,
+        "tags": [
+          "module-18",
+          "to-pandas",
+          "driver-memory",
+          "pandas"
+        ]
+      },
+      {
+        "id": "pyspark-m18-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "When is the pandas API on Spark a particularly good fit?",
+        "options": [
+          "When a pandas-heavy workflow has outgrown one machine but the team wants a familiar API surface",
+          "When you need the absolute minimum abstraction over JVM internals",
+          "Only when the dataset already fits easily in local RAM",
+          "Only when every transformation must be expressed in SQL"
+        ],
+        "correctAnswer": "When a pandas-heavy workflow has outgrown one machine but the team wants a familiar API surface",
+        "explanation": "It is especially useful as a migration bridge for pandas users who need scale without abandoning familiar idioms immediately.",
+        "xpReward": 120,
+        "tags": [
+          "module-18",
+          "migration",
+          "pandas",
+          "distributed-compute"
+        ]
+      },
+      {
+        "id": "pyspark-m19-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What is the standard medallion flow for moving data toward business use?",
+        "options": [
+          "Bronze → Silver → Gold",
+          "Gold → Bronze → Silver",
+          "Silver → Bronze → Archive",
+          "Gold → Checkpoint → Bronze"
+        ],
+        "correctAnswer": "Bronze → Silver → Gold",
+        "explanation": "Bronze captures raw inputs, silver cleans and standardizes them, and gold serves curated business-ready outputs.",
+        "xpReward": 40,
+        "tags": [
+          "module-19",
+          "medallion",
+          "bronze",
+          "silver",
+          "gold"
+        ]
+      },
+      {
+        "id": "pyspark-m19-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "Which Spark capability is the natural fit for near-real-time anomaly detection in a capstone data platform?",
+        "options": [
+          "Structured Streaming",
+          "collect()",
+          "coalesce(1)",
+          "Static repartition hints only"
+        ],
+        "correctAnswer": "Structured Streaming",
+        "explanation": "Structured Streaming is designed for continuously arriving event data and near-real-time reactions like alerting.",
+        "xpReward": 80,
+        "tags": [
+          "module-19",
+          "structured-streaming",
+          "anomaly-detection",
+          "capstone"
+        ]
+      },
+      {
+        "id": "pyspark-m19-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "Which capstone design best signals senior data-engineering judgment?",
+        "options": [
+          "An end-to-end architecture with layered data, quality gates, observability, and clear operational tradeoffs",
+          "A notebook that prints sample rows and nothing else",
+          "A single script that rewrites every table in one partition nightly",
+          "A dashboard mockup without ingestion or validation logic"
+        ],
+        "correctAnswer": "An end-to-end architecture with layered data, quality gates, observability, and clear operational tradeoffs",
+        "explanation": "Senior-level work is visible in system boundaries, quality controls, operations, and explicit tradeoffs, not just in a working notebook demo.",
+        "xpReward": 120,
+        "tags": [
+          "module-19",
+          "capstone",
+          "architecture",
+          "senior-engineering"
+        ]
+      },
+      {
+        "id": "pyspark-m20-001",
+        "topic": "pyspark",
+        "difficulty": "easy",
+        "type": "multiple-choice",
+        "question": "What makes a performance-improvement story stronger in an interview?",
+        "options": [
+          "Specific before-and-after metrics tied to the diagnosed root cause",
+          "Saying the pipeline became “much faster” without numbers",
+          "Avoiding any mention of tradeoffs or measurement",
+          "Focusing only on the UI theme of the dashboard"
+        ],
+        "correctAnswer": "Specific before-and-after metrics tied to the diagnosed root cause",
+        "explanation": "Interviewers look for measurement discipline: what was slow, how you proved it, what changed, and what the new result was.",
+        "xpReward": 40,
+        "tags": [
+          "module-20",
+          "interviews",
+          "performance-story",
+          "career"
+        ]
+      },
+      {
+        "id": "pyspark-m20-002",
+        "topic": "pyspark",
+        "difficulty": "medium",
+        "type": "multiple-choice",
+        "question": "What should a strong data-platform system-design answer usually cover?",
+        "options": [
+          "Scale, SLAs, failure handling, data quality, and operational tradeoffs",
+          "Only syntax details from one API",
+          "Only the color palette of the UI",
+          "Only the exact Spark version number"
+        ],
+        "correctAnswer": "Scale, SLAs, failure handling, data quality, and operational tradeoffs",
+        "explanation": "Good system-design answers show that you can think about reliability, scale, contracts, and operations together.",
+        "xpReward": 80,
+        "tags": [
+          "module-20",
+          "system-design",
+          "interviews",
+          "architecture"
+        ]
+      },
+      {
+        "id": "pyspark-m20-003",
+        "topic": "pyspark",
+        "difficulty": "hard",
+        "type": "multiple-choice",
+        "question": "Which portfolio project is most likely to convince a hiring manager that you understand distributed data engineering?",
+        "options": [
+          "A project that explains data volume, architecture, testing, observability, and business impact with evidence",
+          "A repository with screenshots but no code or design notes",
+          "A local notebook that never touches realistic scale or failure cases",
+          "A slide deck with no runnable assets or metrics"
+        ],
+        "correctAnswer": "A project that explains data volume, architecture, testing, observability, and business impact with evidence",
+        "explanation": "The strongest portfolio work demonstrates how you reasoned about distributed constraints and operational quality, not just that you produced outputs.",
+        "xpReward": 120,
+        "tags": [
+          "module-20",
+          "portfolio",
+          "career",
+          "distributed-systems"
         ]
       }
     ],

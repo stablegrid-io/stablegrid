@@ -29,6 +29,19 @@ const syncModuleProgress = async (
   expect(response.ok()).toBeTruthy();
 };
 
+const advanceToModuleBoundary = async (page: Page) => {
+  for (let step = 0; step < 40; step += 1) {
+    const nextModuleButton = page.getByRole('button', { name: /next module/i });
+    if ((await nextModuleButton.count()) > 0 && (await nextModuleButton.first().isVisible())) {
+      return;
+    }
+
+    await page.getByRole('button', { name: /next lesson/i }).click();
+  }
+
+  throw new Error('Timed out before reaching the next-module boundary.');
+};
+
 test.describe('theory module completion', () => {
   test.skip(
     !E2E_EMAIL || !E2E_PASSWORD,
@@ -46,32 +59,43 @@ test.describe('theory module completion', () => {
     });
 
     await page.goto('/learn/pyspark/theory', { waitUntil: 'networkidle' });
-    await expect(
-      page.getByLabel('Module 2: Up and Running with DataFrames locked')
-    ).toBeVisible({ timeout: 20_000 });
-
-    await page
-      .getByRole('link', { name: /Module 1: The Dawn of PySpark/i })
-      .first()
-      .click();
-
-    await expect(
-      page.getByRole('button', { name: /I have read this module/i })
-    ).toBeVisible({ timeout: 20_000 });
-    await page.getByRole('button', { name: /I have read this module/i }).click();
-
-    await expect(page.locator('body')).toContainText('Module completed', {
+    await expect(page.getByLabel(/Module 2: .* locked/i)).toBeVisible({
       timeout: 20_000
     });
 
-    await page.getByRole('link', { name: /Back to modules/i }).click();
+    await page.goto(
+      '/learn/pyspark/theory/all?chapter=module-01&lesson=module-01-lesson-01',
+      { waitUntil: 'networkidle' }
+    );
+
+    await advanceToModuleBoundary(page);
+
+    await expect
+      .poll(async () => {
+        const response = await page.request.get('/api/learn/module-progress?topic=pyspark');
+        if (!response.ok()) {
+          return false;
+        }
+
+        const payload = (await response.json()) as {
+          data?: Array<{ module_id: string; is_completed: boolean }>;
+        };
+
+        return payload.data?.some(
+          (moduleProgress) =>
+            moduleProgress.module_id === 'module-01' && moduleProgress.is_completed
+        );
+      }, {
+      timeout: 20_000
+    })
+      .toBe(true);
+
+    await page.getByRole('link', { name: /All Modules/i }).click();
     await page.waitForURL('**/learn/pyspark/theory', { timeout: 20_000 });
 
+    await expect(page.getByLabel(/Module 2: .* locked/i)).toHaveCount(0);
     await expect(
-      page.getByLabel('Module 2: Up and Running with DataFrames locked')
-    ).toHaveCount(0);
-    await expect(
-      page.getByRole('link', { name: /Module 2: Up and Running with DataFrames/i }).first()
+      page.getByRole('link', { name: /Module 2:/i }).first()
     ).toBeVisible();
   });
 });

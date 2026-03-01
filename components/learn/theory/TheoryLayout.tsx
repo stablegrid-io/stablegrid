@@ -2,26 +2,31 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { CheckCircle2, Clock, LockOpen, Menu, Sparkles, X } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
+import { Clock3, Menu, X } from 'lucide-react';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import type { Topic } from '@/types/progress';
 import { useReadingSession } from '@/lib/hooks/useReadingSession';
+import { useTheorySessionTimer } from '@/lib/hooks/useTheorySessionTimer';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import { formatUnitsAsKwh, getChapterCompletionRewardUnits } from '@/lib/energy';
+import {
+  resolveTheorySessionMethodConfigs,
+  useTheorySessionPreferencesStore
+} from '@/lib/stores/useTheorySessionPreferencesStore';
 import { TheorySidebar } from '@/components/learn/theory/TheorySidebar';
 import { TheoryContent } from '@/components/learn/theory/TheoryContent';
-import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
+import { TheorySessionPicker } from '@/components/learn/theory/TheorySessionPicker';
+import { TheorySessionTopbar } from '@/components/learn/theory/TheorySessionTopbar';
+import { TheoryBreakOverlay } from '@/components/learn/theory/TheoryBreakOverlay';
+import { TheorySessionSummary } from '@/components/learn/theory/TheorySessionSummary';
+import {
+  getDisplayLessonTitle,
+  sortLessonsByOrder,
+  sortModulesByOrder
+} from '@/lib/learn/freezeTheoryDoc';
 
 interface TheoryLayoutProps {
   doc: TheoryDoc;
-}
-
-interface ChapterCompletionBurstProps {
-  visible: boolean;
-  burstKey: number;
-  rewardLabel: string;
-  unlockedModuleTitle: string | null;
 }
 
 interface ResumeTarget {
@@ -57,90 +62,6 @@ const parseLessonFromRoute = (route: string | null) => {
   return lessonId && lessonId.trim().length > 0 ? lessonId : null;
 };
 
-const BURST_PARTICLES: Array<{ x: number; y: number; delay: number }> = [
-  { x: 0, y: -44, delay: 0 },
-  { x: 34, y: -32, delay: 0.02 },
-  { x: 46, y: -2, delay: 0.04 },
-  { x: 34, y: 30, delay: 0.06 },
-  { x: 0, y: 44, delay: 0.08 },
-  { x: -34, y: 30, delay: 0.1 },
-  { x: -46, y: -2, delay: 0.12 },
-  { x: -34, y: -32, delay: 0.14 }
-];
-
-const ChapterCompletionBurst = ({
-  visible,
-  burstKey,
-  rewardLabel,
-  unlockedModuleTitle
-}: ChapterCompletionBurstProps) => (
-  <AnimatePresence>
-    {visible ? (
-      <motion.div
-        key={burstKey}
-        initial={{ opacity: 0, y: -18, scale: 0.8 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -14, scale: 0.84 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-        className="pointer-events-none fixed right-3 top-20 z-[90] sm:right-6"
-      >
-        <div className="relative flex w-[18rem] items-center justify-center overflow-visible rounded-2xl border border-brand-300/60 bg-gradient-to-b from-brand-50 to-teal-50 px-4 py-5 shadow-xl dark:border-brand-700/40 dark:from-[#0f1c2e] dark:to-[#0d1b1d] sm:w-[20rem]">
-          {[0, 1, 2].map((ring) => (
-            <motion.span
-              key={`chapter-ring-${burstKey}-${ring}`}
-              className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-success-400/60"
-              initial={{ scale: 0.3, opacity: 0 }}
-              animate={{ scale: [0.3, 1.8 + ring * 0.38], opacity: [0.45, 0] }}
-              transition={{ duration: 0.85, delay: ring * 0.1, ease: 'easeOut' }}
-            />
-          ))}
-
-          {BURST_PARTICLES.map((particle, index) => (
-            <motion.span
-              key={`chapter-spark-${burstKey}-${index}`}
-              className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-success-400"
-              initial={{ x: 0, y: 0, opacity: 0, scale: 0.9 }}
-              animate={{
-                x: particle.x,
-                y: particle.y,
-                opacity: [0.95, 0],
-                scale: [1.2, 0.28]
-              }}
-              transition={{ duration: 0.52, delay: particle.delay, ease: 'easeOut' }}
-            />
-          ))}
-
-          <motion.div
-            className="absolute inset-0 z-10 flex items-center justify-center"
-            animate={{
-              rotate: [0, -8, 6, 0],
-              x: [0, -5, 9, 0],
-              y: [0, 1, -3, 0],
-              scale: [1, 1.03, 1.08, 1]
-            }}
-            transition={{ duration: 1.2, ease: 'easeInOut' }}
-          >
-            <div className="w-full max-w-[16rem] rounded-xl border border-emerald-300/70 bg-emerald-50/90 px-3 py-3 text-center dark:border-emerald-700/50 dark:bg-emerald-900/30">
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">
-                Module Completed
-              </div>
-              <div className="mt-2 flex items-center justify-center gap-1 text-sm font-semibold text-emerald-700 dark:text-emerald-200">
-                <Sparkles className="h-3.5 w-3.5" />+{rewardLabel}
-              </div>
-              <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-400/60 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:border-emerald-500/50 dark:text-emerald-200">
-                <LockOpen className="h-3 w-3" />
-                {unlockedModuleTitle
-                  ? `Unlocked: ${unlockedModuleTitle}`
-                  : 'Course Complete'}
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </motion.div>
-    ) : null}
-  </AnimatePresence>
-);
-
 export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -169,36 +90,31 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const [resumeTarget, setResumeTarget] = useState<ResumeTarget | null | undefined>(
     undefined
   );
+  const [routeReady, setRouteReady] = useState(false);
   const [completionActionPending, setCompletionActionPending] = useState(false);
-  const [completionSyncStatus, setCompletionSyncStatus] = useState<{
-    type: 'success' | 'warning' | 'error';
-    message: string;
-  } | null>(null);
-  const [pulseVisible, setPulseVisible] = useState(false);
-  const [completionBurstKey, setCompletionBurstKey] = useState(0);
-  const [recentlyUnlockedModuleTitle, setRecentlyUnlockedModuleTitle] = useState<
-    string | null
-  >(null);
+  const [sessionPickerVisible, setSessionPickerVisible] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const lastTouchedRouteRef = useRef<string>('');
+  const sessionPickerInitializedRef = useRef(false);
   const addXP = useProgressStore((state) => state.addXP);
-  const chapterCompletionRewardUnits = getChapterCompletionRewardUnits(
-    activeChapter.durationMinutes ?? activeChapter.totalMinutes
+  const { methodConfigs: sessionMethodConfigs, hasHydrated: sessionDefaultsHydrated } =
+    useTheorySessionPreferencesStore((state) => ({
+      methodConfigs: state.methodConfigs,
+      hasHydrated: state.hasHydrated
+    }));
+  const resolvedSessionMethodConfigs = useMemo(
+    () => resolveTheorySessionMethodConfigs(sessionMethodConfigs),
+    [sessionMethodConfigs]
   );
-  const chapterCompletionRewardLabel = formatUnitsAsKwh(chapterCompletionRewardUnits, 2);
+  const theorySession = useTheorySessionTimer();
+  const startTheorySession = theorySession.start;
+  const resetTheorySession = theorySession.reset;
   const applyModuleProgressRows = useCallback((rows: ModuleProgressApiRow[]) => {
     setCompletedChapterIds(
-      new Set(
-        rows
-          .filter((row) => row.is_completed)
-          .map((row) => row.module_id)
-      )
+      new Set(rows.filter((row) => row.is_completed).map((row) => row.module_id))
     );
     setUnlockedChapterIds(
-      new Set(
-        rows
-          .filter((row) => row.is_unlocked)
-          .map((row) => row.module_id)
-      )
+      new Set(rows.filter((row) => row.is_unlocked).map((row) => row.module_id))
     );
     setCompletionsLoaded(true);
   }, []);
@@ -216,6 +132,20 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const isUpcomingModuleUnlocked = upcomingModule
     ? unlockedModuleIds.has(upcomingModule.id)
     : true;
+  const orderedActiveLessons = useMemo(
+    () => sortLessonsByOrder(activeChapter.sections),
+    [activeChapter.sections]
+  );
+  const activeLessonIndex = orderedActiveLessons.findIndex(
+    (section) => section.id === activeLessonId
+  );
+  const activeLesson =
+    activeLessonIndex >= 0
+      ? orderedActiveLessons[activeLessonIndex]
+      : orderedActiveLessons[0];
+  const activeLessonLabel = activeLesson
+    ? getDisplayLessonTitle(activeLesson, Math.max(activeLessonIndex + 1, 1))
+    : null;
   const buildLessonRoute = useCallback(
     (chapterId: string, lessonId: string | null) => {
       const params = new URLSearchParams();
@@ -230,6 +160,11 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const persistedRoute = useMemo(() => {
     return buildLessonRoute(activeChapter.id, activeLessonId);
   }, [activeChapter.id, activeLessonId, buildLessonRoute]);
+  const activeLessonDurationMinutes =
+    activeLesson?.durationMinutes ??
+    activeLesson?.estimatedMinutes ??
+    activeChapter.durationMinutes ??
+    activeChapter.totalMinutes;
   const contentRef = useRef<HTMLDivElement | null>(null);
   const handleChapterComplete = useCallback(() => {
     setCompletedChapterIds((prev) => new Set([...prev, activeChapter.id]));
@@ -241,9 +176,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     if (nextModule) {
       setUnlockedChapterIds((prev) => new Set([...prev, nextModule.id]));
     }
-    setRecentlyUnlockedModuleTitle(nextModule?.title ?? null);
-    setPulseVisible(true);
-    setCompletionBurstKey((value) => value + 1);
   }, [activeChapter.id, modules]);
   const handleChapterIncomplete = useCallback(() => {
     setCompletedChapterIds((prev) => {
@@ -251,38 +183,37 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       next.delete(activeChapter.id);
       return next;
     });
-    setRecentlyUnlockedModuleTitle(null);
   }, [activeChapter.id]);
 
-  const {
-    isCompleted,
-    activeSeconds,
-    completedLessonIds,
-    markChapterComplete,
-    markChapterIncomplete
-  } = useReadingSession({
-    topic: doc.topic as Topic,
-    chapter: activeChapter,
-    currentLessonId: activeLessonId,
-    lastVisitedRoute: persistedRoute,
-    onChapterComplete: handleChapterComplete,
-    onChapterIncomplete: handleChapterIncomplete,
-    onFirstCompletionEnergyUnits: (units) =>
-      addXP(units, {
-        source: 'chapter-complete',
-        topic: doc.topic as Topic,
-        label: `Completed ${activeChapter.title}`
-      })
-  });
+  const { isCompleted, completedLessonIds, markChapterComplete } =
+    useReadingSession({
+      topic: doc.topic as Topic,
+      chapter: activeChapter,
+      currentLessonId: activeLessonId,
+      lastVisitedRoute: persistedRoute,
+      onChapterComplete: handleChapterComplete,
+      onChapterIncomplete: handleChapterIncomplete,
+      onFirstCompletionEnergyUnits: (units) =>
+        addXP(units, {
+          source: 'chapter-complete',
+          topic: doc.topic as Topic,
+          label: `Completed ${activeChapter.title}`
+        })
+    });
 
   useEffect(() => {
     lastTouchedRouteRef.current = '';
-  }, [doc.topic]);
+    sessionPickerInitializedRef.current = false;
+    setRouteReady(false);
+    setSessionPickerVisible(false);
+    resetTheorySession();
+  }, [doc.topic, resetTheorySession]);
 
   useEffect(() => {
     let mounted = true;
     setCompletionsLoaded(false);
     setResumeTarget(undefined);
+    setRouteReady(false);
 
     const loadModuleProgress = async () => {
       try {
@@ -320,10 +251,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             return rightTs - leftTs;
           })
           .find(
-            (row) =>
-              row.last_visited_route ||
-              row.current_lesson_id ||
-              row.is_completed
+            (row) => row.last_visited_route || row.current_lesson_id || row.is_completed
           );
 
         if (!candidateRow) {
@@ -374,10 +302,27 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   }, [applyModuleProgressRows, doc.topic, modules, requestedChapterId]);
 
   useEffect(() => {
-    if (!pulseVisible) return;
-    const timeout = window.setTimeout(() => setPulseVisible(false), 2600);
-    return () => window.clearTimeout(timeout);
-  }, [pulseVisible]);
+    const element = contentRef.current;
+    if (!element) {
+      setScrollProgress(0);
+      return;
+    }
+
+    const handleScroll = () => {
+      const scrollableHeight = element.scrollHeight - element.clientHeight;
+      if (scrollableHeight <= 0) {
+        setScrollProgress(0);
+        return;
+      }
+
+      const progress = (element.scrollTop / scrollableHeight) * 100;
+      setScrollProgress(Math.max(0, Math.min(100, progress)));
+    };
+
+    handleScroll();
+    element.addEventListener('scroll', handleScroll, { passive: true });
+    return () => element.removeEventListener('scroll', handleScroll);
+  }, [activeChapter.id, activeLessonId]);
 
   const updateQueryRoute = useCallback(
     (chapterId: string, lessonId: string | null) => {
@@ -443,6 +388,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       setActiveChapter(targetChapter);
       setActiveLessonId(targetLessonId);
       updateQueryRoute(targetChapter.id, targetLessonId);
+      setRouteReady(true);
       return;
     }
 
@@ -452,6 +398,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       const fallbackLessonId = resolveLessonId(firstUnlockedChapter, requestedLessonId);
       setActiveLessonId(fallbackLessonId);
       updateQueryRoute(firstUnlockedChapter.id, fallbackLessonId);
+      setRouteReady(true);
       return;
     }
 
@@ -459,6 +406,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     const resolvedLessonId = resolveLessonId(targetChapter, requestedLessonId);
     setActiveLessonId(resolvedLessonId);
     updateQueryRoute(targetChapter.id, resolvedLessonId);
+    setRouteReady(true);
   }, [
     modules,
     requestedChapterId,
@@ -468,17 +416,24 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     updateQueryRoute
   ]);
 
-  const handleSelectChapter = (chapter: TheoryChapter) => {
+  const handleSelectChapter = (
+    chapter: TheoryChapter,
+    preferredLessonId: string | null = null
+  ) => {
     const targetChapter = modules.find((module) => module.id === chapter.id) ?? chapter;
     if (!unlockedModuleIds.has(targetChapter.id)) {
       return;
     }
-    const firstLessonId = targetChapter.sections[0]?.id ?? null;
+    const resolvedLessonId =
+      preferredLessonId &&
+      targetChapter.sections.some((section) => section.id === preferredLessonId)
+        ? preferredLessonId
+        : targetChapter.sections[0]?.id ?? null;
     setActiveChapter(targetChapter);
-    setActiveLessonId(firstLessonId);
-    updateQueryRoute(targetChapter.id, firstLessonId);
+    setActiveLessonId(resolvedLessonId);
+    updateQueryRoute(targetChapter.id, resolvedLessonId);
     setSidebarOpen(false);
-    contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    contentRef.current?.scrollTo?.({ top: 0, behavior: 'smooth' });
   };
 
   const handleSelectLesson = (lessonId: string) => {
@@ -488,7 +443,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     setActiveLessonId(lessonId);
     updateQueryRoute(activeChapter.id, lessonId);
     setSidebarOpen(false);
-    contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    contentRef.current?.scrollTo?.({ top: 0, behavior: 'smooth' });
   };
 
   const syncModuleProgress = useCallback(
@@ -517,7 +472,9 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         })
       });
 
-      const payload = (await response.json().catch(() => ({}))) as ModuleProgressApiPayload;
+      const payload = (await response
+        .json()
+        .catch(() => ({}))) as ModuleProgressApiPayload;
 
       if (!response.ok) {
         throw new Error(payload.error ?? 'Failed to sync module progress.');
@@ -566,110 +523,138 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     router.push(`/learn/${doc.topic}/theory`);
   };
 
-  const handleCompletionAction = async () => {
+  const openSessionPicker = useCallback(() => {
+    if (!sessionDefaultsHydrated) {
+      return;
+    }
+    setSessionPickerVisible(true);
+  }, [sessionDefaultsHydrated]);
+
+  useEffect(() => {
+    if (!routeReady || !sessionDefaultsHydrated || theorySession.hasActiveSession) {
+      return;
+    }
+
+    if (sessionPickerInitializedRef.current) {
+      return;
+    }
+
+    sessionPickerInitializedRef.current = true;
+    setSessionPickerVisible(true);
+  }, [
+    routeReady,
+    sessionDefaultsHydrated,
+    theorySession.hasActiveSession
+  ]);
+
+  const completeCurrentModule = useCallback(async () => {
     if (completionActionPending) return;
     setCompletionActionPending(true);
-    setCompletionSyncStatus(null);
     try {
-      if (isCompleted) {
-        await markChapterIncomplete();
-        const syncResult = await syncModuleProgress({
-          action: 'incomplete',
-          moduleId: activeChapter.id
-        });
-        setCompletionSyncStatus({
-          type: syncResult.warning ? 'warning' : 'success',
-          message: syncResult.warning ?? 'Completion state saved.'
-        });
-      } else {
+      if (!isCompleted) {
         if (!unlockedModuleIds.has(activeChapter.id)) {
           throw new Error('Cannot complete a locked module.');
         }
         await markChapterComplete();
-        const syncResult = await syncModuleProgress({
+        await syncModuleProgress({
           action: 'complete',
           moduleId: activeChapter.id
-        });
-        setCompletionSyncStatus({
-          type: syncResult.warning ? 'warning' : 'success',
-          message: syncResult.warning ?? 'Module completion saved.'
         });
       }
     } catch (error) {
       console.warn('Failed to sync completion state:', error);
-      const fallbackMessage =
-        error instanceof Error && /unauthorized/i.test(error.message)
-          ? 'Sign in to save module completion and unlock progress.'
-          : error instanceof Error
-            ? error.message
-            : 'Failed to save completion state.';
-      setCompletionSyncStatus({
-        type: 'error',
-        message: fallbackMessage
-      });
     } finally {
       setCompletionActionPending(false);
     }
-  };
+  }, [
+    activeChapter.id,
+    completionActionPending,
+    isCompleted,
+    markChapterComplete,
+    syncModuleProgress,
+    unlockedModuleIds
+  ]);
 
-  const readingMinutes = Math.floor(activeSeconds / 60);
+  useEffect(() => {
+    if (!completionsLoaded || isCompleted || completionActionPending) {
+      return;
+    }
+
+    const lessonCount = orderedActiveLessons.length;
+    if (lessonCount === 0 || completedLessonIds.length < lessonCount) {
+      return;
+    }
+
+    void completeCurrentModule();
+  }, [
+    completeCurrentModule,
+    completedLessonIds,
+    completionActionPending,
+    completionsLoaded,
+    isCompleted,
+    orderedActiveLessons.length
+  ]);
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden">
-      <ChapterCompletionBurst
-        visible={pulseVisible}
-        burstKey={completionBurstKey}
-        rewardLabel={chapterCompletionRewardLabel}
-        unlockedModuleTitle={recentlyUnlockedModuleTitle}
-      />
-
-      {isCompleted ? (
-        <div className="flex flex-shrink-0 items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-4 py-2 dark:border-emerald-800 dark:bg-emerald-900/20">
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-            Module completed
-          </span>
-          <div className="ml-auto flex items-center gap-3">
-            <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-              <Clock className="h-3 w-3" />
-              {readingMinutes}m active reading
-            </span>
-            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-300">
-              +{chapterCompletionRewardLabel} earned
-            </span>
-            {upcomingModule && isUpcomingModuleUnlocked ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/50 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                <LockOpen className="h-3 w-3" />
-                {upcomingModule.title} unlocked
-              </span>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="flex h-14 flex-shrink-0 items-center gap-4 border-b border-light-border bg-light-bg px-4 dark:border-dark-border dark:bg-dark-bg">
+    <div className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-light-bg dark:bg-dark-bg">
+      <div className="flex h-11 flex-shrink-0 items-center gap-3 border-b border-light-border bg-light-bg px-4 dark:border-dark-border dark:bg-dark-bg">
         <button
           type="button"
           onClick={() => setSidebarOpen((value) => !value)}
-          className="btn btn-ghost h-9 w-9 p-0 lg:hidden"
+          className="btn btn-ghost h-8 w-8 p-0 lg:hidden"
           aria-label="Toggle module navigation"
         >
-          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </button>
-        <div className="truncate text-sm font-medium">{doc.title}</div>
-        <div className="ml-auto flex items-center gap-3 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-          <span>
-            M. {activeChapter.order ?? activeChapter.number} / {modules.length}
-          </span>
-          <span className="hidden sm:inline">
-            ~{activeChapter.durationMinutes ?? activeChapter.totalMinutes} min
-          </span>
-        </div>
+
+        {theorySession.hasActiveSession ? (
+          <TheorySessionTopbar session={theorySession} />
+        ) : (
+          <>
+            <div className="min-w-0 truncate text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+              M{activeChapter.order ?? activeChapter.number}
+              <span className="mx-1 text-light-border dark:text-dark-border">/</span>
+              <span className="text-text-light-secondary dark:text-text-dark-secondary">
+                Lesson {Math.max(activeLessonIndex + 1, 1)} of {orderedActiveLessons.length}
+              </span>
+            </div>
+
+            <div className="ml-auto flex items-center gap-3 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+              <button
+                type="button"
+                onClick={openSessionPicker}
+                disabled={!sessionDefaultsHydrated}
+                className="inline-flex items-center gap-1 rounded-full border border-light-border px-2.5 py-1 text-xs font-medium text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-text-dark-primary dark:hover:text-text-dark-primary"
+              >
+                <Clock3 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Session</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/settings?tab=reading')}
+                className="hidden rounded-full border border-light-border px-2.5 py-1 text-xs font-medium text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-text-dark-primary dark:hover:text-text-dark-primary sm:inline-flex"
+              >
+                Settings
+              </button>
+              <span className="hidden sm:inline truncate max-w-[16rem]">
+                {activeLessonLabel ?? doc.title}
+              </span>
+              <span>~{activeLessonDurationMinutes} min</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="h-1 flex-shrink-0 bg-light-border dark:bg-dark-border">
+        <div
+          className="h-full bg-brand-500 transition-[width] duration-100"
+          style={{ width: `${scrollProgress}%` }}
+        />
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
-          className={`absolute inset-y-0 left-0 z-50 w-80 border-r border-light-border bg-light-bg transition-transform duration-300 dark:border-dark-border dark:bg-dark-bg lg:relative lg:translate-x-0 ${
+          className={`absolute inset-y-0 left-0 z-50 w-[16.25rem] border-r border-light-border bg-light-surface transition-transform duration-300 dark:border-dark-border dark:bg-dark-surface lg:relative lg:translate-x-0 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
@@ -677,7 +662,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             doc={doc}
             activeChapterId={activeChapter.id}
             activeLessonId={activeLessonId}
-            completedLessonIds={completedLessonIds}
             onSelectLesson={handleSelectLesson}
           />
         </aside>
@@ -686,12 +670,15 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
             aria-label="Close module navigation"
           />
         ) : null}
 
-        <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          ref={contentRef}
+          className="min-h-0 flex-1 overflow-y-auto bg-light-bg dark:bg-dark-bg"
+        >
           <TheoryContent
             chapter={activeChapter}
             allChapters={modules}
@@ -699,15 +686,64 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             onNavigate={handleSelectChapter}
             onSelectLesson={handleSelectLesson}
             onCompleteCourse={handleCompleteCourse}
-            isCompleted={isCompleted}
             isNextModuleUnlocked={isUpcomingModuleUnlocked}
-            onCompletionAction={handleCompletionAction}
-            completionActionPending={completionActionPending}
-            completionRewardLabel={chapterCompletionRewardLabel}
-            completionSyncStatus={completionSyncStatus}
           />
         </div>
       </div>
+
+      <TheorySessionPicker
+        isOpen={sessionPickerVisible && !theorySession.hasActiveSession}
+        configsByMethod={resolvedSessionMethodConfigs}
+        lessonTitle={activeLessonLabel ?? doc.title}
+        lessonDurationMinutes={activeLessonDurationMinutes}
+        onStart={(config) => {
+          setSessionPickerVisible(false);
+          startTheorySession(config);
+        }}
+        onOpenSettings={() => {
+          setSessionPickerVisible(false);
+          router.push('/settings?tab=reading');
+        }}
+        onDismiss={() => {
+          setSessionPickerVisible(false);
+        }}
+      />
+
+      <AnimatePresence>
+        {theorySession.isOnBreak &&
+        theorySession.phaseDurationSeconds &&
+        theorySession.remainingSeconds !== null ? (
+          <TheoryBreakOverlay
+            remainingSeconds={theorySession.remainingSeconds}
+            totalSeconds={theorySession.phaseDurationSeconds}
+            currentRound={theorySession.activeRound}
+            totalRounds={theorySession.roundCount}
+            tip={theorySession.breakTip ?? 'Let your focus rest for a moment.'}
+            isPaused={theorySession.phase === 'paused'}
+            onPause={theorySession.pause}
+            onResume={theorySession.resume}
+            onSkip={theorySession.skipBreak}
+          />
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {theorySession.phase === 'complete' && theorySession.summary ? (
+          <TheorySessionSummary
+            lessonTitle={activeLessonLabel ?? doc.title}
+            totalElapsedSeconds={theorySession.summary.totalElapsedSeconds}
+            focusElapsedSeconds={theorySession.summary.focusElapsedSeconds}
+            breakElapsedSeconds={theorySession.summary.breakElapsedSeconds}
+            onNewSession={() => {
+              theorySession.reset();
+              setSessionPickerVisible(true);
+            }}
+            onDone={() => {
+              theorySession.reset();
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 };

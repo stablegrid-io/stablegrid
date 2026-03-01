@@ -12,6 +12,7 @@ import {
   X
 } from 'lucide-react';
 import { getLearnTopicMeta, learnTopics } from '@/data/learn';
+import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { getChapterCompletions } from '@/lib/progress';
 import type { Topic } from '@/types/progress';
 
@@ -39,28 +40,14 @@ const TOPIC_ICON_MAP: Record<string, typeof Sparkles> = {
   fabric: Cpu
 };
 
-const TOPIC_STYLE_MAP: Record<string, { iconClass: string; badgeClass: string }> = {
-  pyspark: { iconClass: 'text-warning-600 dark:text-warning-400', badgeClass: 'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-800 dark:bg-warning-900/20 dark:text-warning-300' },
-  fabric:  { iconClass: 'text-fuchsia-600 dark:text-fuchsia-400', badgeClass: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-800 dark:bg-fuchsia-900/20 dark:text-fuchsia-300' },
-};
-
 const MODE_META: Record<
   LearnMode,
   {
-    badge: string;
-    title: string;
-    description: string;
-    cta: string;
     statLabel: 'chapters';
     workloadLabel: string;
   }
 > = {
   theory: {
-    badge: 'Theory Library',
-    title: 'Pick a theory topic',
-    description:
-      'Choose a topic, filter by depth, and jump into chapter categories.',
-    cta: 'Open Theory',
     statLabel: 'chapters',
     workloadLabel: 'chapter depth'
   }
@@ -100,29 +87,23 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
   const [depthFilter, setDepthFilter] = useState<DepthFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('recommended');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [completedChapters, setCompletedChapters] = useState(0);
+  const [completedChapterCountByTopic, setCompletedChapterCountByTopic] = useState<
+    Record<string, number>
+  >({});
 
   const topics = useMemo<TopicEntry[]>(() => {
     return learnTopics.map((topic) => {
       const topicMeta = getLearnTopicMeta(topic.id);
-      const chapterMinutes = topicMeta?.chapterMinutes ?? 0;
       const workload = topic.chapterCount;
-
-      const depth =
-        workload <= 3
-          ? 'starter'
-          : workload <= 8
-            ? 'standard'
-            : 'deep';
 
       return {
         ...topic,
-        chapterMinutes,
+        chapterMinutes: topicMeta?.chapterMinutes ?? 0,
         workload,
-        depth
+        depth: workload <= 3 ? 'starter' : workload <= 8 ? 'standard' : 'deep'
       };
     });
-  }, [mode]);
+  }, []);
 
   const filteredTopics = useMemo(() => {
     const loweredQuery = query.trim().toLowerCase();
@@ -137,8 +118,7 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
       return matchesQuery && matchesDepth;
     });
 
-    const sorted = [...filtered];
-    sorted.sort((left, right) => {
+    return [...filtered].sort((left, right) => {
       if (sortBy === 'name-asc') {
         return left.title.localeCompare(right.title);
       }
@@ -148,45 +128,48 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
       if (sortBy === 'workload-desc') {
         return right.workload - left.workload;
       }
-
-      // Recommended: deeper topics first, then alphabetical.
       if (left.workload !== right.workload) {
         return right.workload - left.workload;
       }
       return left.title.localeCompare(right.title);
     });
-
-    return sorted;
   }, [depthFilter, query, sortBy, topics]);
 
   const totalWorkload = topics.reduce((sum, topic) => sum + topic.workload, 0);
   const visibleWorkload = filteredTopics.reduce((sum, topic) => sum + topic.workload, 0);
-  const maxWorkload = Math.max(...topics.map((topic) => topic.workload), 1);
   const activeFilterCount = [
     query.trim().length > 0,
     depthFilter !== 'all',
     sortBy !== 'recommended'
   ].filter(Boolean).length;
 
-  const totalChapters = useMemo(
-    () => topics.reduce((sum, topic) => sum + topic.chapterCount, 0),
-    [topics]
-  );
-  const completionPct = totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0;
-
   useEffect(() => {
     if (mode !== 'theory') return;
     let cancelled = false;
+
     const load = async () => {
       const results = await Promise.all(
-        learnTopics.map((topic) => getChapterCompletions(topic.id as Topic))
+        learnTopics.map(async (topic) => {
+          const completions = await getChapterCompletions(topic.id as Topic);
+          return [topic.id, completions.size] as const;
+        })
       );
+
       if (cancelled) return;
-      const total = results.reduce((sum, set) => sum + set.size, 0);
-      setCompletedChapters(total);
+
+      setCompletedChapterCountByTopic(
+        results.reduce<Record<string, number>>((accumulator, [topicId, count]) => {
+          accumulator[topicId] = count;
+          return accumulator;
+        }, {})
+      );
     };
+
     void load();
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+    };
   }, [mode]);
 
   const resetFilters = () => {
@@ -207,122 +190,188 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
             All Topics
           </Link>
 
-          <header className="mb-7 max-w-2xl">
-            <p className="mb-2 text-xs font-medium uppercase tracking-[0.24em] text-brand-500">
-              {meta.badge}
-            </p>
-            <h1 className="mb-3 text-3xl font-bold text-text-light-primary dark:text-text-dark-primary">
-              {meta.title}
-            </h1>
-            <p className="text-text-light-secondary dark:text-text-dark-secondary">
-              {meta.description}
-            </p>
-          </header>
+          <section className="mb-5 rounded-2xl border border-light-border bg-light-surface p-3 dark:border-dark-border dark:bg-dark-surface">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <label className="relative block flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-light-tertiary dark:text-text-dark-tertiary" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search theory topics"
+                  className="input pl-9"
+                />
+              </label>
 
-          <section className="card mb-4 flex flex-col gap-4 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-4">
               <button
                 type="button"
                 onClick={() => setIsFilterPanelOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-light-border bg-light-surface px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-light-border bg-light-bg px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
               >
                 <SlidersHorizontal className="h-4 w-4 text-brand-500" />
-                Filter Panel
+                Filters
                 {activeFilterCount > 0 ? (
                   <span className="rounded-full border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-500">
                     {activeFilterCount} active
                   </span>
                 ) : null}
               </button>
+            </div>
 
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                    <span>Showing {filteredTopics.length} of {topics.length}</span>
-                    <span>·</span>
-                    <span>{visibleWorkload}/{totalWorkload} {meta.statLabel}</span>
-                  </div>
-                <div className="flex items-center gap-3">
-                    <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-                      {completedChapters} of {totalChapters} chapters completed
-                    </p>
-                    <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                      <div
-                        className="h-full rounded-full bg-brand-500"
-                        style={{ width: `${completionPct}%` }}
-                      />
-                    </div>
-                  </div>
-              </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                Showing {filteredTopics.length} of {topics.length} topics
+              </span>
+              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                {visibleWorkload}/{totalWorkload} {meta.statLabel}
+              </span>
+              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                Depth:{' '}
+                {DEPTH_FILTER_OPTIONS.find((option) => option.id === depthFilter)?.label}
+              </span>
+              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                Sort: {SORT_OPTIONS.find((option) => option.id === sortBy)?.label}
+              </span>
+              {activeFilterCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="rounded-full border border-brand-500/30 bg-brand-500/10 px-2.5 py-1 font-medium text-brand-600 transition-colors hover:bg-brand-500/15 dark:text-brand-300"
+                >
+                  Reset filters
+                </button>
+              ) : null}
             </div>
           </section>
 
           <section>
             {filteredTopics.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
                 {filteredTopics.map((topic) => {
                   const Icon = TOPIC_ICON_MAP[topic.id] ?? Sparkles;
-                  const style = TOPIC_STYLE_MAP[topic.id] ?? TOPIC_STYLE_MAP.pyspark;
+                  const style = getTheoryTopicStyle(topic.id);
                   const depthLabel =
                     topic.depth === 'starter'
                       ? 'Starter'
                       : topic.depth === 'standard'
                         ? 'Standard'
                         : 'Deep';
-                  const workloadPct = Math.max(
-                    6,
-                    Math.round((topic.workload / maxWorkload) * 100)
-                  );
+                  const completedTopicChapters =
+                    completedChapterCountByTopic[topic.id] ?? 0;
+                  const topicProgressPct =
+                    topic.chapterCount > 0
+                      ? Math.round((completedTopicChapters / topic.chapterCount) * 100)
+                      : 0;
 
                   return (
                     <Link
                       key={`${mode}-${topic.id}`}
                       href={`/learn/${topic.id}/${mode}`}
-                      className="group card card-hover flex flex-col gap-4 p-5"
+                      className="group relative overflow-hidden rounded-[28px] border border-light-border bg-light-surface p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(var(--topic-accent),0.4)] hover:shadow-[0_24px_70px_-36px_rgba(var(--topic-accent),0.45)] dark:border-dark-border dark:bg-dark-surface"
+                      style={{ '--topic-accent': style.accentRgb } as React.CSSProperties}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${style.badgeClass}`}>
-                            <Icon className={`h-4 w-4 ${style.iconClass}`} />
-                          </span>
-                          <span className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
-                            {topic.title}
-                          </span>
-                        </div>
-                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                          <span className="rounded-full border border-light-border bg-light-bg px-2 py-0.5 text-[10px] font-medium text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
-                            {topic.workload} {meta.statLabel}
-                          </span>
-                          <span className="rounded-full border border-light-border bg-light-bg px-2 py-0.5 text-[10px] font-medium text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
-                              {topic.chapterMinutes} min
+                      <div
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                          background: `radial-gradient(circle at 100% 0%, rgba(${style.accentRgb}, 0.18), transparent 34%), linear-gradient(180deg, rgba(${style.accentRgb}, 0.1), transparent 54%)`
+                        }}
+                      />
+                      <div
+                        className="pointer-events-none absolute -right-10 top-16 h-40 w-40 rounded-full blur-3xl"
+                        style={{ backgroundColor: `rgba(${style.accentRgb}, 0.12)` }}
+                      />
+
+                      <div className="relative flex h-full flex-col">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex min-w-0 items-start gap-4">
+                            <span
+                              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border ${style.iconWrapClass}`}
+                            >
+                              <Icon className={`h-6 w-6 ${style.iconClass}`} />
                             </span>
-                        </div>
-                      </div>
 
-                      <p className="line-clamp-3 text-sm text-text-light-secondary dark:text-text-dark-secondary">
-                        {topic.description}
-                      </p>
+                            <div className="min-w-0">
+                              <p
+                                className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${style.accentTextClass}`}
+                              >
+                                {style.eyebrow}
+                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span className="truncate text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+                                  {topic.title}
+                                </span>
+                                <span
+                                  className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${style.badgeClass}`}
+                                >
+                                  {depthLabel}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
 
-                      <div className="mt-auto">
-                        <div className="mb-1 flex items-center justify-between text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
-                          <span>{depthLabel} workload</span>
-                          <span>{topic.workload}</span>
+                          <div className="shrink-0 text-right">
+                            <div className="text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+                              {topicProgressPct}%
+                            </div>
+                            <div className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+                              {completedTopicChapters}/{topic.chapterCount} read
+                            </div>
+                          </div>
                         </div>
-                        <div className="h-1 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                          <div
-                            className="h-full rounded-full bg-brand-500"
-                            style={{ width: `${workloadPct}%` }}
-                          />
-                        </div>
-                      </div>
 
-                      <div className="flex items-center justify-between border-t border-light-border/80 pt-3 dark:border-dark-border">
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] ${style.badgeClass}`}>
-                          {depthLabel}
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 dark:text-brand-400">
-                          {meta.cta}
-                          <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                        </span>
+                        <p className="mt-5 max-w-xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+                          {topic.description}
+                        </p>
+
+                        <div className="mt-5 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+                            {topic.chapterCount} chapters
+                          </span>
+                          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+                            {topic.chapterMinutes} min
+                          </span>
+                          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+                            {topic.functionCount} reference entries
+                          </span>
+                        </div>
+
+                        <div className="mt-6 grid gap-2.5 sm:grid-cols-3">
+                          {style.highlights.map((highlight) => (
+                            <div
+                              key={`${topic.id}-${highlight}`}
+                              className="rounded-2xl border border-light-border/80 bg-light-bg/80 px-3.5 py-3 text-xs leading-5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg/60 dark:text-text-dark-secondary"
+                            >
+                              {highlight}
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-6 border-t border-light-border/80 pt-5 dark:border-dark-border">
+                          <div className="mb-3 flex items-center justify-between gap-3 text-sm">
+                            <span className="text-text-light-secondary dark:text-text-dark-secondary">
+                              Category gallery and chapter progression
+                            </span>
+                            <span className="font-medium text-text-light-primary dark:text-text-dark-primary">
+                              {completedTopicChapters}/{topic.chapterCount}
+                            </span>
+                          </div>
+
+                          <div className="h-1.5 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${style.progressClass}`}
+                              style={{ width: `${topicProgressPct}%` }}
+                            />
+                          </div>
+
+                          <div className="mt-5 flex items-center justify-between gap-3">
+                            <span className="text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
+                              Open the topic gallery
+                            </span>
+                            <span className="inline-flex items-center gap-2 text-sm font-medium text-text-light-primary transition-transform group-hover:translate-x-0.5 dark:text-text-dark-primary">
+                              Browse categories
+                              <ChevronRight className="h-4 w-4" />
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </Link>
                   );
@@ -351,7 +400,9 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
 
           <aside
             className={`fixed inset-y-0 left-0 z-50 w-[420px] max-w-[94vw] border-r border-light-border bg-light-bg/95 p-4 shadow-2xl backdrop-blur-md transition-transform duration-300 ease-in-out dark:border-dark-border dark:bg-[#02060f]/95 ${
-              isFilterPanelOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
+              isFilterPanelOpen
+                ? 'translate-x-0'
+                : '-translate-x-full pointer-events-none'
             }`}
           >
             <div className="mb-3 flex items-center justify-between gap-2">

@@ -1,5 +1,6 @@
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/server';
+import { getCanonicalTheoryStats } from '@/lib/learn/theoryProgress';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 
@@ -60,26 +61,38 @@ interface ReadingSignalRow {
   is_completed: boolean;
 }
 
-const mapTopicProgressRow = (row: TopicProgressRow): TopicProgress => ({
-  id: row.id,
-  userId: row.user_id,
-  topic: row.topic,
-  theoryChaptersTotal: row.theory_chapters_total ?? 0,
-  theoryChaptersCompleted: row.theory_chapters_completed ?? 0,
-  theorySectionsTotal: row.theory_sections_total ?? 0,
-  theorySectionsRead: row.theory_sections_read ?? 0,
-  theoryTotalMinutesRead: row.theory_total_minutes_read ?? 0,
-  practiceQuestionsTotal: row.practice_questions_total ?? 0,
-  practiceQuestionsAttempted: row.practice_questions_attempted ?? 0,
-  practiceQuestionsCorrect: row.practice_questions_correct ?? 0,
-  functionsTotal: row.functions_total ?? 0,
-  functionsViewed: row.functions_viewed ?? 0,
-  functionsBookmarked: row.functions_bookmarked ?? 0,
-  overallCompletionPct: Number(row.overall_completion_pct ?? 0),
-  firstActivityAt: row.first_activity_at,
-  lastActivityAt: row.last_activity_at,
-  updatedAt: row.updated_at
-});
+const mapTopicProgressRow = (row: TopicProgressRow): TopicProgress => {
+  const theoryStats = getCanonicalTheoryStats(row.topic);
+  const theoryChaptersCompleted = Math.min(
+    theoryStats.chapterTotal,
+    Math.max(0, row.theory_chapters_completed ?? 0)
+  );
+  const theorySectionsRead = Math.min(
+    theoryStats.sectionTotal,
+    Math.max(0, row.theory_sections_read ?? 0)
+  );
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    topic: row.topic,
+    theoryChaptersTotal: theoryStats.chapterTotal,
+    theoryChaptersCompleted,
+    theorySectionsTotal: theoryStats.sectionTotal,
+    theorySectionsRead,
+    theoryTotalMinutesRead: row.theory_total_minutes_read ?? 0,
+    practiceQuestionsTotal: row.practice_questions_total ?? 0,
+    practiceQuestionsAttempted: row.practice_questions_attempted ?? 0,
+    practiceQuestionsCorrect: row.practice_questions_correct ?? 0,
+    functionsTotal: row.functions_total ?? 0,
+    functionsViewed: row.functions_viewed ?? 0,
+    functionsBookmarked: row.functions_bookmarked ?? 0,
+    overallCompletionPct: Number(row.overall_completion_pct ?? 0),
+    firstActivityAt: row.first_activity_at,
+    lastActivityAt: row.last_activity_at,
+    updatedAt: row.updated_at
+  };
+};
 
 const mapReadingSessionRow = (row: ReadingSessionRow): ReadingSession => ({
   id: row.id,

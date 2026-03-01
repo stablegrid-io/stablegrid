@@ -17,6 +17,7 @@ interface TheorySectionProps {
   section: TheorySectionType;
   lessonIndex: number;
   lessonTotal: number;
+  showHeader?: boolean;
 }
 
 const RenderList = ({ block }: { block: ListBlock }) => {
@@ -192,21 +193,26 @@ const RenderBlock = ({ block }: { block: ContentBlock }) => {
 export const TheorySection = ({
   section,
   lessonIndex,
-  lessonTotal
+  lessonTotal,
+  showHeader = true
 }: TheorySectionProps) => {
   return (
     <section id={section.id} data-section-id={section.id}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <span className="rounded-full bg-brand-500/10 px-2.5 py-1 font-semibold uppercase tracking-[0.12em] text-brand-500">
-          Lesson {lessonIndex + 1} of {lessonTotal}
-        </span>
-        <span className="text-text-light-tertiary dark:text-text-dark-tertiary">
-          ~{section.estimatedMinutes} min
-        </span>
-      </div>
-      <h2 className="mb-6 border-b border-light-border pb-3 text-xl font-semibold dark:border-dark-border">
-        {section.title}
-      </h2>
+      {showHeader ? (
+        <>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="rounded-full bg-brand-500/10 px-2.5 py-1 font-semibold uppercase tracking-[0.12em] text-brand-500">
+              Lesson {lessonIndex + 1} of {lessonTotal}
+            </span>
+            <span className="text-text-light-tertiary dark:text-text-dark-tertiary">
+              ~{section.estimatedMinutes} min
+            </span>
+          </div>
+          <h2 className="mb-6 border-b border-light-border pb-3 text-xl font-semibold dark:border-dark-border">
+            {section.title}
+          </h2>
+        </>
+      ) : null}
       <div className="space-y-5">
         {section.blocks.map((block, index) => (
           <RenderBlock key={`${section.id}-${index}`} block={block} />

@@ -26,7 +26,7 @@ describe('grid-ops visual mapping', () => {
     for (const asset of GRID_OPS_ASSETS) {
       const descriptor = resolveSceneAssetDescriptor(asset.id);
       expect(descriptor).toBeTruthy();
-      expect(descriptor?.url.endsWith('.glb')).toBe(true);
+      expect(descriptor?.url ?? '').toMatch(/\.glb(?:\?.*)?$/);
       expect(descriptor?.scale).toBeGreaterThan(0);
     }
 

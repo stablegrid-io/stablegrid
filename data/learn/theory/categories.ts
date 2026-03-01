@@ -22,7 +22,7 @@ interface CategoryConfig {
   description: string;
 }
 
-const CATEGORY_CONFIG: Record<TheoryCategorySlug, CategoryConfig> = {
+const DEFAULT_CATEGORY_CONFIG: Record<TheoryCategorySlug, CategoryConfig> = {
   fundamentals: {
     label: 'Fundamentals',
     description: 'Core concepts, mental models, and foundational theory.'
@@ -49,6 +49,39 @@ const CATEGORY_CONFIG: Record<TheoryCategorySlug, CategoryConfig> = {
   }
 };
 
+const PYSPARK_CATEGORY_CONFIG: Partial<Record<TheoryCategorySlug, CategoryConfig>> = {
+  history: {
+    label: 'Crash Course of PySpark',
+    description:
+      'Start with the big-data shift, why Spark exists, and the mental model for the full course.'
+  },
+  fundamentals: {
+    label: 'Core Workflows',
+    description:
+      'Build fluency with SparkSession, DataFrames, Spark SQL, and the everyday PySpark workflow.'
+  },
+  architecture: {
+    label: 'Engine Room',
+    description:
+      'Step inside Catalyst, DAG scheduling, and Tungsten to see how distributed work actually executes.'
+  },
+  optimization: {
+    label: 'Performance Lab',
+    description:
+      'Tune joins, window functions, AQE, skew, and diagnostic workflows for production-scale performance.'
+  },
+  data: {
+    label: 'Lakehouse Builder',
+    description:
+      'Shape raw data into reliable lakehouse assets with cleaning patterns, complex types, Delta, and modeling.'
+  },
+  advanced: {
+    label: 'Production & Career Track',
+    description:
+      'Cover streaming, testing, deployment, governance, capstones, and interview-ready engineering depth.'
+  }
+};
+
 const CATEGORY_ORDER: TheoryCategorySlug[] = [
   'fundamentals',
   'history',
@@ -63,7 +96,22 @@ const PYSPARK_OVERRIDES: Record<string, TheoryCategorySlug> = {
   'module-02': 'fundamentals',
   'module-03': 'architecture',
   'module-04': 'optimization',
-  'module-05': 'advanced',
+  'module-05': 'optimization',
+  'module-06': 'fundamentals',
+  'module-07': 'data',
+  'module-08': 'data',
+  'module-09': 'advanced',
+  'module-10': 'advanced',
+  'module-11': 'data',
+  'module-12': 'advanced',
+  'module-13': 'advanced',
+  'module-14': 'advanced',
+  'module-15': 'optimization',
+  'module-16': 'optimization',
+  'module-17': 'data',
+  'module-18': 'fundamentals',
+  'module-19': 'advanced',
+  'module-20': 'advanced',
   'what-is-spark': 'history',
   architecture: 'architecture',
   'execution-model': 'architecture',
@@ -81,6 +129,17 @@ const PYSPARK_OVERRIDES: Record<string, TheoryCategorySlug> = {
 
 const includesAny = (value: string, needles: string[]) =>
   needles.some((needle) => value.includes(needle));
+
+const getCategoryConfig = (
+  topic: string,
+  slug: TheoryCategorySlug
+): CategoryConfig => {
+  if (topic === 'pyspark' && PYSPARK_CATEGORY_CONFIG[slug]) {
+    return PYSPARK_CATEGORY_CONFIG[slug] as CategoryConfig;
+  }
+
+  return DEFAULT_CATEGORY_CONFIG[slug];
+};
 
 const inferCategory = (doc: TheoryDoc, chapter: TheoryChapter): TheoryCategorySlug => {
   if (doc.topic === 'pyspark' && PYSPARK_OVERRIDES[chapter.id]) {
@@ -108,6 +167,7 @@ const inferCategory = (doc: TheoryDoc, chapter: TheoryChapter): TheoryCategorySl
       'shuffle',
       'memory',
       'join',
+      'window',
       'skew',
       'aqe',
       'playbook'
@@ -117,16 +177,56 @@ const inferCategory = (doc: TheoryDoc, chapter: TheoryChapter): TheoryCategorySl
   }
 
   if (
-    includesAny(haystack, ['format', 'delta', 'storage', 'partition', 'modeling'])
+    includesAny(haystack, [
+      'format',
+      'delta',
+      'storage',
+      'partition',
+      'modeling',
+      'clean',
+      'json',
+      'struct',
+      'array',
+      'lakehouse'
+    ])
   ) {
     return 'data';
   }
 
-  if (includesAny(haystack, ['stream', 'udf', 'advanced', 'production'])) {
+  if (
+    includesAny(haystack, [
+      'stream',
+      'udf',
+      'advanced',
+      'production',
+      'testing',
+      'observability',
+      'security',
+      'governance',
+      'access',
+      'capstone',
+      'career',
+      'interview'
+    ])
+  ) {
     return 'advanced';
   }
 
   return 'fundamentals';
+};
+
+export const getTheoryCategoryForChapter = (
+  doc: TheoryDoc,
+  chapter: TheoryChapter
+) => {
+  const slug = inferCategory(doc, chapter);
+  const meta = getCategoryConfig(doc.topic, slug);
+
+  return {
+    slug,
+    label: meta.label,
+    description: meta.description
+  };
 };
 
 export const getTheoryCategories = (doc: TheoryDoc): TheoryCategorySummary[] => {
@@ -141,7 +241,7 @@ export const getTheoryCategories = (doc: TheoryDoc): TheoryCategorySummary[] => 
 
   const categoryRows = CATEGORY_ORDER.map((slug) => {
     const chapters = grouped.get(slug) ?? [];
-    const meta = CATEGORY_CONFIG[slug];
+    const meta = getCategoryConfig(doc.topic, slug);
     return {
       slug,
       label: meta.label,
@@ -183,7 +283,10 @@ export const filterTheoryDocByCategory = (
   };
 };
 
-export const getTheoryCategoryMeta = (slug: TheoryCategorySlug | 'all') => {
+export const getTheoryCategoryMeta = (
+  slug: TheoryCategorySlug | 'all',
+  topic?: string
+) => {
   if (slug === 'all') {
     return {
       slug,
@@ -192,7 +295,7 @@ export const getTheoryCategoryMeta = (slug: TheoryCategorySlug | 'all') => {
     };
   }
 
-  const config = CATEGORY_CONFIG[slug];
+  const config = getCategoryConfig(topic ?? '', slug);
   return {
     slug,
     label: config.label,

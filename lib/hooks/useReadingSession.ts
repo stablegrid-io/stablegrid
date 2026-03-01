@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { summarizeTheoryProgressFromSessions } from '@/lib/learn/theoryProgress';
 import type { TheoryChapter } from '@/types/theory';
 import type { Topic } from '@/types/progress';
 import { getChapterCompletionRewardUnits } from '@/lib/energy';
@@ -478,33 +479,24 @@ export function useReadingSession({
 
     const { data: sessions, error } = await supabase
       .from('reading_sessions')
-      .select('is_completed, active_seconds, sections_total, sections_read')
+      .select(
+        'chapter_id,is_completed,active_seconds,sections_read,last_active_at,completed_at'
+      )
       .eq('user_id', user.id)
       .eq('topic', topic);
 
     if (error || !sessions) return;
 
-    const completed = sessions.filter((row) => row.is_completed).length;
-    const totalSeconds = sessions.reduce(
-      (sum, row) => sum + (row.active_seconds ?? 0),
-      0
-    );
-    const sectionsTotal = sessions.reduce(
-      (sum, row) => sum + (row.sections_total ?? 0),
-      0
-    );
-    const sectionsReadCount = sessions.reduce(
-      (sum, row) => sum + (row.sections_read ?? 0),
-      0
-    );
+    const summary = summarizeTheoryProgressFromSessions(topic, sessions);
 
     await supabase
       .from('topic_progress')
       .update({
-        theory_chapters_completed: completed,
-        theory_sections_total: sectionsTotal,
-        theory_sections_read: sectionsReadCount,
-        theory_total_minutes_read: Math.round(totalSeconds / 60),
+        theory_chapters_total: summary.chapterTotal,
+        theory_chapters_completed: summary.chapterCompleted,
+        theory_sections_total: summary.sectionTotal,
+        theory_sections_read: summary.sectionRead,
+        theory_total_minutes_read: Math.round(summary.totalSeconds / 60),
         last_activity_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })

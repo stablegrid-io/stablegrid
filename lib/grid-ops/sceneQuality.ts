@@ -24,10 +24,10 @@ const DESKTOP_CAPS: GridSceneRuntimeCaps = {
   bloomRadius: 0.26,
   enableShadows: false,
   maxModelRenders: 2,
-  maxAnimatedEdges: 8,
-  maxPulseParticles: 1,
-  animationSpeedMultiplier: 0.84,
-  flowOpacity: 0.82
+  maxAnimatedEdges: 18,
+  maxPulseParticles: 8,
+  animationSpeedMultiplier: 1.75,
+  flowOpacity: 1
 };
 
 const MOBILE_REDUCED_CAPS: GridSceneRuntimeCaps = {
@@ -39,10 +39,10 @@ const MOBILE_REDUCED_CAPS: GridSceneRuntimeCaps = {
   bloomRadius: 0,
   enableShadows: false,
   maxModelRenders: 1,
-  maxAnimatedEdges: 4,
-  maxPulseParticles: 0,
-  animationSpeedMultiplier: 0.62,
-  flowOpacity: 0.72
+  maxAnimatedEdges: 10,
+  maxPulseParticles: 3,
+  animationSpeedMultiplier: 1.2,
+  flowOpacity: 0.9
 };
 
 const MOBILE_BREAKPOINT = 1280;

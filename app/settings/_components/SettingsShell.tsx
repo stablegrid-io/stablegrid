@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Bell,
+  Clock3,
   CreditCard,
   Lock,
   LogOut,
@@ -15,6 +16,7 @@ import { ProfileTab } from './ProfileTab';
 import { SecurityTab } from './SecurityTab';
 import { BillingTab } from './BillingTab';
 import { NotificationsTab } from './NotificationsTab';
+import { ReadingSessionsTab } from './ReadingSessionsTab';
 import { DangerZoneTab } from './DangerZoneTab';
 import { SettingsToast } from './ui';
 import type {
@@ -34,6 +36,7 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: typeof User; danger?
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'security', label: 'Security', icon: Lock },
   { id: 'billing', label: 'Billing', icon: CreditCard },
+  { id: 'reading', label: 'Reading Sessions', icon: Clock3 },
   { id: 'notifs', label: 'Notifications', icon: Bell },
   { id: 'danger', label: 'Danger Zone', icon: Trash2, danger: true }
 ];
@@ -123,6 +126,10 @@ export function SettingsShell({
       return <BillingTab subscription={subscription} onToast={showToast} />;
     }
 
+    if (tab === 'reading') {
+      return <ReadingSessionsTab onToast={showToast} />;
+    }
+
     if (tab === 'notifs') {
       return <NotificationsTab profile={profile} onToast={showToast} />;
     }
@@ -139,7 +146,7 @@ export function SettingsShell({
           Settings
         </h1>
         <p className="mt-1 text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
-          Manage your account, security, billing, and preferences.
+          Manage your account, security, billing, and reading preferences.
         </p>
       </div>
 

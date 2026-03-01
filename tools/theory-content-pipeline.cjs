@@ -6,7 +6,14 @@ const { execFileSync } = require('child_process');
 
 const DUPLICATE_LESSON_PREFIX_REGEX = /^lesson\s*\d+\s*:\s*lesson\s*\d+\s*:/i;
 const LESSON_PREFIX_REGEX = /^lesson\s*(\d+)\s*:\s*/i;
+const LESSON_OR_PART_PREFIX_REGEX = /^(?:lesson|part)\s*\d+\s*:\s*/i;
+const MODULE_HEADER_REGEX = /^module\s*(\d+)\s*:?\s*$/i;
 const MODULE_PREFIX_REGEX = /^module\s*(\d+)\s*:\s*/i;
+const PART_HEADER_REGEX = /^part\s*(\d+)\s*:\s*(.+)$/i;
+const WELCOME_HEADER_REGEX = /^welcome to module\s*(\d+)$/i;
+const CHECKPOINT_HEADER_REGEX = /^module\s*(\d+)\s*checkpoint$/i;
+const ESTIMATED_TIME_REGEX = /^estimated time\s*:\s*(\d+)\s*minutes?$/i;
+const MODULE_OBJECTIVE_REGEX = /^module objective\s*:\s*(.+)$/i;
 const DEFAULT_LESSON_MINUTES = 20;
 
 const decodeXmlEntities = (value) =>
@@ -99,19 +106,71 @@ const listDocxFiles = ({ input, inputDir }) => {
   return naturalSortByModule(existing);
 };
 
-const extractParagraphsFromDocx = (docxPath) => {
-  let xml = '';
-  try {
-    xml = execFileSync('unzip', ['-p', docxPath, 'word/document.xml'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Failed to extract "${docxPath}". Ensure "unzip" is installed and the file is valid DOCX.\n${message}`
-    );
-  }
+const normalizeInlineText = (value) =>
+  String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const getNormalizedLines = (value) =>
+  String(value ?? '')
+    .split('\n')
+    .map((line) => normalizeInlineText(line))
+    .filter(Boolean);
+
+const normalizeDocxText = (value) =>
+  String(value ?? '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\f/g, '\n\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\u2007/g, ' ')
+    .replace(/\t/g, '  ');
+
+const splitIntoParagraphs = (value) => {
+  const lines = normalizeDocxText(value).split('\n');
+  const paragraphs = [];
+  let current = [];
+
+  const flush = () => {
+    while (current.length > 0 && current[0].trim().length === 0) {
+      current.shift();
+    }
+    while (current.length > 0 && current[current.length - 1].trim().length === 0) {
+      current.pop();
+    }
+    if (current.length === 0) {
+      current = [];
+      return;
+    }
+
+    paragraphs.push(current.map((line) => line.replace(/\s+$/g, '')).join('\n'));
+    current = [];
+  };
+
+  lines.forEach((line) => {
+    if (line.trim().length === 0) {
+      flush();
+      return;
+    }
+    current.push(line);
+  });
+
+  flush();
+  return paragraphs;
+};
+
+const extractParagraphsFromDocxViaTextutil = (docxPath) => {
+  const text = execFileSync('textutil', ['-convert', 'txt', '-stdout', docxPath], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  return splitIntoParagraphs(text);
+};
+
+const extractParagraphsFromDocxViaXml = (docxPath) => {
+  const xml = execFileSync('unzip', ['-p', docxPath, 'word/document.xml'], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
 
   const paragraphMatches = xml.match(/<w:p\b[\s\S]*?<\/w:p>/g) ?? [];
   return paragraphMatches
@@ -124,19 +183,50 @@ const extractParagraphsFromDocx = (docxPath) => {
           )
         )
         .join('');
-      return line.replace(/\s+/g, ' ').trim();
+      return normalizeInlineText(line);
     })
     .filter((line) => line.length > 0);
 };
 
-const parseModuleOrder = (lines, filePath, fallbackOrder) => {
-  const fromLine = lines
-    .map((line) => line.match(/^module\s*(\d+)\s*:/i))
-    .find((match) => Boolean(match));
-  if (fromLine) return Number(fromLine[1]);
+const extractParagraphsFromDocx = (docxPath) => {
+  try {
+    const paragraphs = extractParagraphsFromDocxViaTextutil(docxPath);
+    if (paragraphs.length > 0) {
+      return paragraphs;
+    }
+  } catch (error) {
+    const textutilMessage = error instanceof Error ? error.message : String(error);
+    try {
+      const paragraphs = extractParagraphsFromDocxViaXml(docxPath);
+      if (paragraphs.length > 0) {
+        return paragraphs;
+      }
+    } catch (fallbackError) {
+      const unzipMessage =
+        fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      throw new Error(
+        `Failed to extract "${docxPath}". Tried textutil and unzip.\ntextutil: ${textutilMessage}\nunzip: ${unzipMessage}`
+      );
+    }
+  }
 
+  return extractParagraphsFromDocxViaXml(docxPath);
+};
+
+const parseModuleOrder = (paragraphs, filePath, fallbackOrder) => {
   const fromFile = path.basename(filePath).match(/module[\s_-]*(\d+)/i);
-  if (fromFile) return Number(fromFile[1]);
+  if (fromFile) {
+    return Number(fromFile[1]);
+  }
+
+  const fromHeader = paragraphs
+    .slice(0, 6)
+    .flatMap((paragraph) => getNormalizedLines(paragraph))
+    .map((line) => line.match(MODULE_HEADER_REGEX))
+    .find((match) => Boolean(match));
+  if (fromHeader) {
+    return Number(fromHeader[1]);
+  }
 
   return fallbackOrder;
 };
@@ -144,133 +234,578 @@ const parseModuleOrder = (lines, filePath, fallbackOrder) => {
 const stripPrefix = (title, regex) => title.replace(regex, '').trim();
 
 const normalizeLessonTitle = (rawTitle, order) => {
-  const withoutPrefix = stripPrefix(rawTitle, LESSON_PREFIX_REGEX) || rawTitle.trim();
+  const withoutPrefix =
+    stripPrefix(rawTitle, LESSON_OR_PART_PREFIX_REGEX) || normalizeInlineText(rawTitle);
   return `Lesson ${order}: ${withoutPrefix}`;
 };
 
 const parseMinutesFromLine = (line) => {
-  const match = line.match(/(\d+)\s*min\b/i);
+  const match = normalizeInlineText(line).match(/(\d+)\s*(?:min|minutes?)\b/i);
   if (!match) return null;
   const minutes = Number(match[1]);
   return Number.isFinite(minutes) && minutes > 0 ? minutes : null;
 };
 
-const parseLessonsFromLines = (moduleLines) => {
-  const lessons = [];
-  let currentLesson = null;
+const countWords = (value) => {
+  const normalized = normalizeInlineText(value);
+  if (!normalized) return 0;
+  return normalized.split(' ').filter(Boolean).length;
+};
 
-  moduleLines.forEach((line) => {
-    const lessonHeader = line.match(/^lesson\s*(\d+)\s*:\s*(.+)$/i);
-    if (lessonHeader) {
-      if (currentLesson) {
-        lessons.push(currentLesson);
+const buildModuleTitleAndDescription = ({
+  moduleOrder,
+  titleLines,
+  objective,
+  filePath
+}) => {
+  const normalizedTitleLines = titleLines
+    .map((line) => normalizeInlineText(line))
+    .filter(Boolean)
+    .map((line) => stripPrefix(line, MODULE_PREFIX_REGEX));
+
+  let titleBody = normalizedTitleLines[0] ?? `Imported Module ${moduleOrder}`;
+  let subtitle = '';
+
+  if (normalizedTitleLines.length > 1) {
+    const continuation =
+      /[&,:/-]$/.test(titleBody) || /\b(?:and|or|of|for|to|with)$/i.test(titleBody);
+    if (continuation) {
+      titleBody = normalizeInlineText(`${titleBody} ${normalizedTitleLines[1]}`);
+      subtitle = normalizedTitleLines.slice(2).join(' ');
+    } else {
+      subtitle = normalizedTitleLines.slice(1).join(' ');
+    }
+  }
+
+  const description =
+    [subtitle, objective]
+      .map((entry) => normalizeInlineText(entry))
+      .filter(Boolean)
+      .join(' ') ||
+    `${titleBody} imported from ${path.basename(filePath)}.`;
+
+  return {
+    title: `Module ${moduleOrder}: ${titleBody}`,
+    description
+  };
+};
+
+const parseSectionMarker = (paragraph, moduleOrder) => {
+  const normalized = normalizeInlineText(paragraph);
+  const partMatch = normalized.match(PART_HEADER_REGEX);
+  if (partMatch) {
+    return {
+      kind: 'part',
+      title: partMatch[2].trim()
+    };
+  }
+
+  const welcomeMatch = normalized.match(WELCOME_HEADER_REGEX);
+  if (welcomeMatch && Number(welcomeMatch[1]) === moduleOrder) {
+    return {
+      kind: 'welcome',
+      title: 'Welcome and Overview'
+    };
+  }
+
+  const checkpointMatch = normalized.match(CHECKPOINT_HEADER_REGEX);
+  if (checkpointMatch && Number(checkpointMatch[1]) === moduleOrder) {
+    return {
+      kind: 'checkpoint',
+      title: 'Module Checkpoint'
+    };
+  }
+
+  return null;
+};
+
+const splitModuleIntoSections = (paragraphs, moduleOrder) => {
+  const sections = [];
+  const introParagraphs = [];
+  let current = null;
+
+  paragraphs.forEach((paragraph) => {
+    const marker = parseSectionMarker(paragraph, moduleOrder);
+    if (marker) {
+      if (current) {
+        sections.push(current);
       }
-      const order = Number(lessonHeader[1]);
-      const title = lessonHeader[2].trim();
-      currentLesson = {
-        order,
-        title,
-        minutes: parseMinutesFromLine(line),
-        bodyLines: []
+      current = {
+        title: marker.title,
+        kind: marker.kind,
+        paragraphs: []
       };
       return;
     }
 
-    if (!currentLesson) {
+    if (current) {
+      current.paragraphs.push(paragraph);
       return;
     }
-    currentLesson.bodyLines.push(line);
-    if (currentLesson.minutes === null) {
-      const inferred = parseMinutesFromLine(line);
-      if (inferred) {
-        currentLesson.minutes = inferred;
-      }
-    }
+
+    introParagraphs.push(paragraph);
   });
 
-  if (currentLesson) {
-    lessons.push(currentLesson);
+  if (current) {
+    sections.push(current);
   }
 
-  return lessons;
+  const normalizedSections = [];
+  if (introParagraphs.length > 0) {
+    normalizedSections.push({
+      title: 'Module Overview',
+      kind: 'intro',
+      paragraphs: introParagraphs
+    });
+  }
+
+  normalizedSections.push(...sections);
+
+  const filtered = normalizedSections.filter(
+    (section) =>
+      section.paragraphs.some((paragraph) => normalizeInlineText(paragraph).length > 0) ||
+      section.kind === 'checkpoint'
+  );
+
+  if (filtered.length > 0) {
+    return filtered;
+  }
+
+  return [
+    {
+      title: 'Imported Lesson',
+      kind: 'fallback',
+      paragraphs: paragraphs.length > 0 ? paragraphs : ['Imported lesson content.']
+    }
+  ];
+};
+
+const getParagraphLines = (paragraph) =>
+  String(paragraph ?? '')
+    .split('\n')
+    .map((line) => line.replace(/\s+$/g, ''))
+    .filter((line) => line.trim().length > 0);
+
+const isBulletLine = (line) => /^[•*-]\s+/.test(line.trim());
+const isNumberedLine = (line) => /^\d+[.)]\s+/.test(line.trim());
+
+const looksLikeListParagraph = (paragraph) => {
+  const lines = getParagraphLines(paragraph);
+  if (lines.length < 2) {
+    return null;
+  }
+
+  if (lines.every(isBulletLine)) {
+    return 'bullet-list';
+  }
+  if (lines.every(isNumberedLine)) {
+    return 'numbered-list';
+  }
+
+  return null;
+};
+
+const stripListPrefix = (line) =>
+  line.trim().replace(/^(?:[•*-]|\d+[.)])\s+/, '').trim();
+
+const looksLikeHeadingParagraph = (paragraph) => {
+  const lines = getParagraphLines(paragraph);
+  if (lines.length !== 1) {
+    return false;
+  }
+
+  const text = normalizeInlineText(lines[0]);
+  if (!text) {
+    return false;
+  }
+
+  if (
+    MODULE_HEADER_REGEX.test(text) ||
+    PART_HEADER_REGEX.test(text) ||
+    WELCOME_HEADER_REGEX.test(text) ||
+    CHECKPOINT_HEADER_REGEX.test(text) ||
+    ESTIMATED_TIME_REGEX.test(text) ||
+    MODULE_OBJECTIVE_REGEX.test(text)
+  ) {
+    return false;
+  }
+
+  if (text.length > 90 || /[.!?]$/.test(text) || /^#/.test(text)) {
+    return false;
+  }
+
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length > 12) {
+    return false;
+  }
+
+  if (/:$/.test(text)) {
+    return true;
+  }
+
+  return words.every((word) => {
+    const cleaned = word.replace(/^[("']+|[)"':,.;-]+$/g, '');
+    if (!cleaned) {
+      return true;
+    }
+    if (/^(?:and|or|of|for|to|with|the|a|an|in|on|at|vs)$/i.test(cleaned)) {
+      return true;
+    }
+    return /^[A-Z0-9]/.test(cleaned);
+  });
+};
+
+const detectCodeLineType = (line) => {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (
+    /^(spark-submit|pip |python(?:3)? |cd |zip\b|mkdir\b|export |docker\b|kubectl\b|airflow\b|dbt\b|aws\b|gcloud\b|az\b)/i.test(
+      trimmed
+    ) ||
+    /^--[a-z0-9-]+/i.test(trimmed)
+  ) {
+    return 'bash';
+  }
+
+  if (
+    /^(select\b|with\b.+\bas\b|create\b|merge\b|insert\b|delete\b|update\b)/i.test(
+      trimmed
+    )
+  ) {
+    return 'sql';
+  }
+
+  if (
+    /^#/.test(trimmed) ||
+    /^(from \w|import \w|def \w+\(|class \w+|if __name__|elif\b.+:|else:|for\b.+\bin\b.+:|while\b.+:|try:|except\b|finally:|return\b|raise\b|yield\b|@[\w.]+)/.test(
+      trimmed
+    ) ||
+    /^[A-Za-z_][A-Za-z0-9_]*\s*=/.test(trimmed) ||
+    /^spark\./.test(trimmed) ||
+    /\\$/.test(trimmed)
+  ) {
+    return 'python';
+  }
+
+  return null;
+};
+
+const looksLikeCodeParagraph = (paragraph) => {
+  const lines = getParagraphLines(paragraph);
+  if (lines.length === 0) {
+    return false;
+  }
+
+  const codeTypes = lines.map(detectCodeLineType).filter(Boolean);
+  if (codeTypes.length === 0) {
+    return false;
+  }
+
+  return (
+    codeTypes.length >= Math.max(2, Math.ceil(lines.length * 0.6)) ||
+    Boolean(detectCodeLineType(lines[0]))
+  );
+};
+
+const detectCodeLanguage = (paragraphs) => {
+  const firstCodeType = paragraphs
+    .flatMap((paragraph) => getParagraphLines(paragraph))
+    .map(detectCodeLineType)
+    .find(Boolean);
+
+  return firstCodeType ?? 'text';
+};
+
+const looksLikeDiagramParagraph = (paragraph) => {
+  const lines = getParagraphLines(paragraph);
+  if (lines.length < 2) {
+    return false;
+  }
+
+  const codeLikeLines = lines.filter((line) => Boolean(detectCodeLineType(line))).length;
+  const structuralLines = lines.filter((line) => {
+    const trimmed = line.trim();
+    return (
+      /\[[^\]]+\]/.test(trimmed) ||
+      /(?:->|-->|←|→|↑|↓)/.test(trimmed) ||
+      /^[+\-|]{2,}/.test(trimmed) ||
+      /\S {2,}\S/.test(line) ||
+      /^[A-Z][A-Z0-9 _()/.-]+:\s*$/.test(trimmed)
+    );
+  }).length;
+  const shortLines = lines.filter((line) => normalizeInlineText(line).length <= 60).length;
+
+  return (
+    (structuralLines >= 2 && codeLikeLines < Math.ceil(lines.length / 2)) ||
+    (shortLines >= Math.ceil(lines.length * 0.75) &&
+      lines.some((line) => /\S {2,}\S/.test(line)) &&
+      codeLikeLines < Math.ceil(lines.length / 3))
+  );
+};
+
+const toParagraphText = (paragraph) => normalizeInlineText(paragraph.replace(/\n+/g, ' '));
+
+const buildBlocksFromParagraphs = (paragraphs) => {
+  const blocks = [];
+
+  for (let index = 0; index < paragraphs.length; ) {
+    const paragraph = paragraphs[index];
+    if (!normalizeInlineText(paragraph)) {
+      index += 1;
+      continue;
+    }
+
+    const lines = getParagraphLines(paragraph);
+    const firstListIndex = lines.findIndex(
+      (line) => isBulletLine(line) || isNumberedLine(line)
+    );
+    if (firstListIndex >= 0) {
+      const listLines = lines.slice(firstListIndex);
+      const listKind =
+        listLines.length >= 2
+          ? listLines.every(isBulletLine)
+            ? 'bullet-list'
+            : listLines.every(isNumberedLine)
+              ? 'numbered-list'
+              : null
+          : null;
+      if (listKind) {
+        const introLines = lines.slice(0, firstListIndex);
+        if (introLines.length > 0) {
+          blocks.push({
+            type: 'paragraph',
+            content: normalizeInlineText(introLines.join(' '))
+          });
+        }
+        blocks.push({
+          type: listKind,
+          items: listLines.map(stripListPrefix)
+        });
+        index += 1;
+        continue;
+      }
+    }
+
+    const listType = looksLikeListParagraph(paragraph);
+    if (listType) {
+      blocks.push({
+        type: listType,
+        items: getParagraphLines(paragraph).map(stripListPrefix)
+      });
+      index += 1;
+      continue;
+    }
+
+    if (looksLikeCodeParagraph(paragraph)) {
+      const codeParagraphs = [paragraph];
+      let nextIndex = index + 1;
+      while (nextIndex < paragraphs.length && looksLikeCodeParagraph(paragraphs[nextIndex])) {
+        codeParagraphs.push(paragraphs[nextIndex]);
+        nextIndex += 1;
+      }
+
+      blocks.push({
+        type: 'code',
+        language: detectCodeLanguage(codeParagraphs),
+        content: codeParagraphs.join('\n\n')
+      });
+      index = nextIndex;
+      continue;
+    }
+
+    if (looksLikeDiagramParagraph(paragraph)) {
+      const diagramParagraphs = [paragraph];
+      let nextIndex = index + 1;
+      while (
+        nextIndex < paragraphs.length &&
+        looksLikeDiagramParagraph(paragraphs[nextIndex]) &&
+        !looksLikeCodeParagraph(paragraphs[nextIndex])
+      ) {
+        diagramParagraphs.push(paragraphs[nextIndex]);
+        nextIndex += 1;
+      }
+
+      blocks.push({
+        type: 'diagram',
+        content: diagramParagraphs.join('\n\n')
+      });
+      index = nextIndex;
+      continue;
+    }
+
+    if (looksLikeHeadingParagraph(paragraph)) {
+      const headingText = toParagraphText(paragraph);
+      blocks.push({
+        type: countWords(headingText) <= 6 ? 'heading' : 'subheading',
+        content: headingText
+      });
+      index += 1;
+      continue;
+    }
+
+    blocks.push({
+      type: 'paragraph',
+      content: toParagraphText(paragraph)
+    });
+    index += 1;
+  }
+
+  return blocks.length > 0
+    ? blocks
+    : [
+        {
+          type: 'paragraph',
+          content: 'Imported lesson content.'
+        }
+      ];
+};
+
+const allocateLessonMinutes = (sections, totalMinutes) => {
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) {
+    return sections.map(() => DEFAULT_LESSON_MINUTES);
+  }
+
+  if (sections.length === 1) {
+    return [Math.max(1, Math.round(totalMinutes))];
+  }
+
+  const weights = sections.map((section) =>
+    Math.max(
+      1,
+      countWords(
+        section.paragraphs
+          .map((paragraph) => toParagraphText(paragraph))
+          .join(' ')
+      )
+    )
+  );
+  const minimumPerLesson = totalMinutes >= sections.length * 5 ? 5 : 1;
+  const allocations = sections.map(() => minimumPerLesson);
+  const distributable = Math.max(0, totalMinutes - minimumPerLesson * sections.length);
+  if (distributable === 0) {
+    return allocations;
+  }
+
+  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0) || sections.length;
+  const rawExtras = weights.map((weight) => (distributable * weight) / weightTotal);
+  const floored = rawExtras.map((value) => Math.floor(value));
+  let remaining = distributable - floored.reduce((sum, value) => sum + value, 0);
+
+  floored.forEach((value, index) => {
+    allocations[index] += value;
+  });
+
+  const rankedByFraction = rawExtras
+    .map((value, index) => ({ index, fraction: value - Math.floor(value) }))
+    .sort((left, right) => right.fraction - left.fraction);
+
+  for (let rank = 0; rank < rankedByFraction.length && remaining > 0; rank += 1) {
+    allocations[rankedByFraction[rank].index] += 1;
+    remaining -= 1;
+  }
+
+  return allocations;
 };
 
 const parseModuleFromParagraphs = ({ lines, filePath, fallbackOrder }) => {
-  const moduleOrder = parseModuleOrder(lines, filePath, fallbackOrder);
-  const moduleLineIndex = lines.findIndex((line) => MODULE_PREFIX_REGEX.test(line));
-  const moduleTitleLine = moduleLineIndex >= 0 ? lines[moduleLineIndex] : '';
-  const fallbackTitle = `Module ${moduleOrder}: Imported Module ${moduleOrder}`;
-  const moduleTitle = moduleTitleLine || fallbackTitle;
-  const moduleTitleWithoutPrefix = stripPrefix(moduleTitle, MODULE_PREFIX_REGEX);
+  const paragraphs = lines.filter((paragraph) => normalizeInlineText(paragraph).length > 0);
+  const moduleOrder = parseModuleOrder(paragraphs, filePath, fallbackOrder);
+  const moduleHeaderIndex = paragraphs.findIndex((paragraph) =>
+    getNormalizedLines(paragraph).some((line) => MODULE_HEADER_REGEX.test(line))
+  );
 
-  const linesAfterTitle = moduleLineIndex >= 0 ? lines.slice(moduleLineIndex + 1) : [...lines];
-  const lessons = parseLessonsFromLines(linesAfterTitle);
-
-  let normalizedLessons = lessons;
-  if (normalizedLessons.length === 0) {
-    const fallbackBody = linesAfterTitle.filter((line) => !MODULE_PREFIX_REGEX.test(line));
-    normalizedLessons = [
-      {
-        order: 1,
-        title: `Imported Lesson`,
-        minutes: null,
-        bodyLines: fallbackBody
-      }
-    ];
+  const titleLines = [];
+  let cursor = moduleHeaderIndex >= 0 ? moduleHeaderIndex : 0;
+  if (moduleHeaderIndex >= 0) {
+    const headerLines = getNormalizedLines(paragraphs[moduleHeaderIndex]);
+    const headerLineIndex = headerLines.findIndex((line) => MODULE_HEADER_REGEX.test(line));
+    titleLines.push(...headerLines.slice(headerLineIndex + 1));
+    cursor = moduleHeaderIndex + 1;
   }
 
-  const sortedLessons = [...normalizedLessons].sort((left, right) => left.order - right.order);
-  const lessonObjects = sortedLessons.map((lesson, lessonIndex) => {
-    const order = Number.isFinite(lesson.order) ? lesson.order : lessonIndex + 1;
-    const title = normalizeLessonTitle(lesson.title, order);
-    const contentLines = lesson.bodyLines.filter((line) => line.length > 0);
-    const paragraphContent =
-      contentLines.length > 0
-        ? contentLines.join('\n')
-        : `${title} content imported from ${path.basename(filePath)}.`;
-    const estimatedMinutes =
-      lesson.minutes && lesson.minutes > 0 ? lesson.minutes : DEFAULT_LESSON_MINUTES;
+  while (cursor < paragraphs.length) {
+    const paragraphLines = getNormalizedLines(paragraphs[cursor]);
+    if (
+      paragraphLines.length === 0 ||
+      paragraphLines.some((line) => ESTIMATED_TIME_REGEX.test(line)) ||
+      paragraphLines.some((line) => MODULE_OBJECTIVE_REGEX.test(line)) ||
+      paragraphLines.some((line) => parseSectionMarker(line, moduleOrder))
+    ) {
+      break;
+    }
 
-    return {
-      order,
-      title,
-      estimatedMinutes,
-      blocks: [
-        {
-          type: 'paragraph',
-          content: paragraphContent
-        }
-      ]
-    };
+    titleLines.push(...paragraphLines);
+    cursor += 1;
+  }
+
+  let moduleEstimatedMinutes = null;
+  let moduleObjective = '';
+  while (cursor < paragraphs.length) {
+    const paragraphLines = getNormalizedLines(paragraphs[cursor]);
+    const estimatedMatch = paragraphLines
+      .map((line) => line.match(ESTIMATED_TIME_REGEX))
+      .find(Boolean);
+    if (estimatedMatch) {
+      moduleEstimatedMinutes = Number(estimatedMatch[1]);
+    }
+
+    const objectiveMatch = paragraphLines
+      .map((line) => line.match(MODULE_OBJECTIVE_REGEX))
+      .find(Boolean);
+    if (objectiveMatch) {
+      moduleObjective = objectiveMatch[1].trim();
+    }
+
+    const containsOnlyMetadata =
+      paragraphLines.length > 0 &&
+      paragraphLines.every(
+        (line) => ESTIMATED_TIME_REGEX.test(line) || MODULE_OBJECTIVE_REGEX.test(line)
+      );
+    if (!containsOnlyMetadata) {
+      break;
+    }
+
+    cursor += 1;
+  }
+
+  const bodyParagraphs = paragraphs.slice(cursor);
+  const moduleMeta = buildModuleTitleAndDescription({
+    moduleOrder,
+    titleLines,
+    objective: moduleObjective,
+    filePath
   });
+  const sectionSeeds = splitModuleIntoSections(bodyParagraphs, moduleOrder);
+  const lessonMinutes = allocateLessonMinutes(
+    sectionSeeds,
+    moduleEstimatedMinutes ?? sectionSeeds.length * DEFAULT_LESSON_MINUTES
+  );
 
-  const moduleDescriptionLines = linesAfterTitle
-    .slice(0, Math.max(0, linesAfterTitle.findIndex((line) => /^lesson\s*\d+\s*:/i.test(line))))
-    .filter((line) => line.length > 0);
-  const moduleDescription =
-    moduleDescriptionLines.join(' ').trim() ||
-    `${moduleTitleWithoutPrefix} imported from DOCX source.`;
+  const lessons = sectionSeeds.map((section, lessonIndex) => ({
+    order: lessonIndex + 1,
+    title: normalizeLessonTitle(section.title, lessonIndex + 1),
+    estimatedMinutes: lessonMinutes[lessonIndex],
+    blocks: buildBlocksFromParagraphs(section.paragraphs)
+  }));
 
-  const totalMinutes = lessonObjects.reduce(
+  const totalMinutes = lessons.reduce(
     (sum, lesson) => sum + (Number(lesson.estimatedMinutes) || 0),
     0
   );
 
   return {
     order: moduleOrder,
-    title: `Module ${moduleOrder}: ${moduleTitleWithoutPrefix}`,
-    description: moduleDescription,
-    lessons: lessonObjects,
+    title: moduleMeta.title,
+    description: moduleMeta.description,
+    lessons,
     totalMinutes
   };
 };
 
-const buildNormalizedTheoryDoc = ({
-  topic,
-  title,
-  description,
-  sourceFiles
-}) => {
+const buildNormalizedTheoryDoc = ({ topic, title, description, sourceFiles }) => {
   const parsedModules = sourceFiles.map((filePath, index) => {
     const paragraphs = extractParagraphsFromDocx(filePath);
     return parseModuleFromParagraphs({
@@ -387,10 +922,7 @@ const validateNormalizedDoc = (doc) => {
         errors.push(`${lessonPath}: duplicate lesson prefix in title "${lesson.title}".`);
       }
 
-      if (
-        !Number.isFinite(lesson.estimatedMinutes) ||
-        Number(lesson.estimatedMinutes) <= 0
-      ) {
+      if (!Number.isFinite(lesson.estimatedMinutes) || Number(lesson.estimatedMinutes) <= 0) {
         errors.push(`${lessonPath}: invalid estimatedMinutes.`);
       } else {
         lessonMinutes += Number(lesson.estimatedMinutes);
@@ -603,5 +1135,6 @@ module.exports = {
   extractParagraphsFromDocx,
   normalizeLessonTitle,
   parseModuleFromParagraphs,
+  splitIntoParagraphs,
   validateNormalizedDoc
 };

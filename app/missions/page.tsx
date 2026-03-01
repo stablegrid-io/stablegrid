@@ -1,5 +1,6 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -64,79 +65,121 @@ const DIFFICULTY_BADGE: Record<string, string> = {
   Expert: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-700/60 dark:bg-fuchsia-900/30 dark:text-fuchsia-300',
 };
 
+const DRAWER_SHELL_DARK = 'dark:border-white/10 dark:bg-[#0a0a0a]';
+const DRAWER_PANEL_DARK = 'dark:border-white/10 dark:bg-[#101010]';
+const DRAWER_INSET_DARK = 'dark:border-white/10 dark:bg-[#141414]';
+const DRAWER_CARD_DARK = 'dark:border-white/10 dark:bg-[#0d0d0d]';
+
 const MissionCard = memo(function MissionCard({
   mission,
+  index,
   onOpen
 }: {
   mission: MissionDefinition;
+  index: number;
   onOpen: (mission: MissionDefinition) => void;
 }) {
   const locked = mission.status === 'locked';
+  const accentRgb = mission.accentRgb;
+  const cardVars = {
+    '--mission-accent': accentRgb
+  } as CSSProperties;
+  const progressValue = mission.completed ? 100 : 0;
+  const statusValue = locked ? 'Locked' : mission.completed ? '100%' : 'Ready';
+  const statusCopy = locked
+    ? 'This incident unlocks after earlier operations are completed.'
+    : mission.completed
+      ? 'Mission completed. Open the briefing to replay the incident anytime.'
+      : 'Mission ready. Open the briefing to review the stakes, timeline, and reward.';
+  const ctaLabel = locked
+    ? 'Locked'
+    : mission.completed
+      ? 'Replay mission'
+      : 'Open briefing';
+  const bottomChips = [
+    mission.duration,
+    mission.location,
+    formatKwh(getMissionRewardKwh(mission.difficulty), 1)
+  ];
 
   return (
     <button
       type="button"
       onClick={() => { if (!locked) onOpen(mission); }}
       disabled={locked}
-      className="group card card-hover flex w-full flex-col gap-4 p-5 text-left disabled:!cursor-not-allowed disabled:!opacity-55"
+      className="group relative overflow-hidden rounded-[32px] border border-light-border bg-light-surface p-6 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(var(--mission-accent),0.42)] hover:shadow-[0_30px_90px_-44px_rgba(var(--mission-accent),0.42)] disabled:!cursor-not-allowed disabled:!opacity-100 dark:border-dark-border dark:bg-dark-surface"
+      style={cardVars}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-light-border bg-light-muted text-lg dark:border-dark-border dark:bg-dark-muted">
-            {mission.icon}
-          </span>
-          <span className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
-            {mission.codename}
-          </span>
-        </div>
-        <div className="shrink-0">
-          {mission.completed ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-success-300 bg-success-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-success-700 dark:border-success-700/60 dark:bg-success-900/30 dark:text-success-300">
-              <CheckCircle2 className="h-3 w-3" />
-              Done
-            </span>
-          ) : locked ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
-              <Lock className="h-3 w-3" />
-              Locked
-            </span>
-          ) : (
-            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${DIFFICULTY_BADGE[mission.difficulty] ?? DIFFICULTY_BADGE.Medium}`}>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(var(--mission-accent),0.18),transparent_32%),linear-gradient(180deg,rgba(var(--mission-accent),0.08),transparent_46%)]" />
+      <div className="pointer-events-none absolute -right-12 top-10 h-44 w-44 rounded-full bg-[rgba(var(--mission-accent),0.1)] blur-3xl" />
+
+      <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+        <div className="max-w-3xl">
+          <div
+            className="mb-4 inline-flex items-center gap-2 rounded-full border border-[rgba(var(--mission-accent),0.34)] bg-[rgba(var(--mission-accent),0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[rgb(var(--mission-accent))]"
+          >
+            <span className="text-sm leading-none">{mission.icon}</span>
+            Mission {String(index + 1).padStart(2, '0')}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-3xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+              {mission.codename}
+            </h2>
+            <span className="rounded-full border border-[rgba(var(--mission-accent),0.34)] bg-[rgba(var(--mission-accent),0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[rgb(var(--mission-accent))]">
               {mission.difficulty}
             </span>
-          )}
+          </div>
+
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+            {mission.summary}
+          </p>
+
+          <div className="mt-5 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+              {mission.tagline}
+            </span>
+          </div>
+        </div>
+
+        <div className="w-full max-w-sm rounded-3xl border border-[rgba(var(--mission-accent),0.18)] bg-light-bg/85 p-5 dark:bg-dark-bg/70">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-text-light-tertiary dark:text-text-dark-tertiary">
+              Mission Status
+            </span>
+            <span className="text-xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+              {statusValue}
+            </span>
+          </div>
+
+          <div className="h-2 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+            <div
+              className="h-full rounded-full bg-[rgb(var(--mission-accent))] transition-all duration-500"
+              style={{ width: `${progressValue}%` }}
+            />
+          </div>
+
+          <p className="mt-4 text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+            {statusCopy}
+          </p>
         </div>
       </div>
 
-      <p className="line-clamp-3 text-sm text-text-light-secondary dark:text-text-dark-secondary">
-        {mission.tagline}
-      </p>
-
-      <div className="flex flex-wrap gap-1.5">
-        {mission.skills.map((skill) => (
-          <span
-            key={skill}
-            className="rounded-full border border-light-border bg-light-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.07em] text-text-light-secondary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary"
-          >
-            {skill}
-          </span>
-        ))}
-      </div>
-
-      <div className="mt-auto flex items-center justify-between border-t border-light-border/80 pt-3 text-xs text-text-light-tertiary dark:border-dark-border dark:text-text-dark-tertiary">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1">
-            <Clock3 className="h-3.5 w-3.5" />
-            {mission.duration}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5" />
-            {mission.location}
-          </span>
+      <div className="relative mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-light-border/80 pt-5 dark:border-dark-border">
+        <div className="flex flex-wrap gap-2">
+          {bottomChips.map((chip) => (
+            <span
+              key={`${mission.slug}-${chip}`}
+              className="rounded-full border border-light-border bg-light-bg px-3 py-1 text-xs text-text-light-tertiary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-tertiary"
+            >
+              {chip}
+            </span>
+          ))}
         </div>
-        <span className="inline-flex items-center gap-1 font-semibold text-brand-600 dark:text-brand-400">
-          <Zap className="h-3.5 w-3.5" />
-          {formatKwh(getMissionRewardKwh(mission.difficulty), 1)}
+
+        <span className="inline-flex items-center gap-2 text-sm font-medium text-text-light-primary transition-transform group-hover:translate-x-0.5 dark:text-text-dark-primary">
+          {ctaLabel}
+          {!locked ? <ChevronRight className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
         </span>
       </div>
     </button>
@@ -164,27 +207,27 @@ const MissionDrawer = memo(function MissionDrawer({
         className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px]"
       />
 
-      <aside className="fixed inset-y-0 left-0 z-50 w-full max-w-md overflow-y-auto border-r border-light-border bg-light-bg shadow-2xl dark:border-dark-border dark:bg-[#070d15]">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-full max-w-md overflow-y-auto border-r border-light-border bg-light-bg shadow-2xl ${DRAWER_SHELL_DARK}`}>
         <div className="h-1 bg-gradient-to-r from-brand-500 to-transparent" />
 
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-light-border bg-light-bg/95 px-5 py-4 backdrop-blur dark:border-dark-border dark:bg-[#070d15]/95">
+        <div className={`sticky top-0 z-10 flex items-center justify-between border-b border-light-border bg-light-bg/95 px-5 py-4 backdrop-blur ${DRAWER_SHELL_DARK} dark:bg-[#0a0a0a]/95`}>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
             Mission Briefing
           </p>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-light-border p-2 text-text-light-tertiary transition hover:text-text-light-primary dark:border-dark-border dark:text-text-dark-tertiary dark:hover:text-text-dark-primary"
+            className="rounded-lg border border-light-border p-2 text-text-light-tertiary transition hover:text-text-light-primary dark:border-white/10 dark:text-text-dark-tertiary dark:hover:text-text-dark-primary"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="space-y-5 p-5">
-          <section className="rounded-xl border border-light-border bg-light-surface p-4 dark:border-dark-border dark:bg-[#0c141f]">
+          <section className={`rounded-xl border border-light-border bg-light-surface p-4 ${DRAWER_PANEL_DARK}`}>
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-light-border bg-light-muted text-xl dark:border-dark-border dark:bg-dark-muted">
+                <div className={`flex h-11 w-11 items-center justify-center rounded-xl border border-light-border bg-light-muted text-xl ${DRAWER_INSET_DARK}`}>
                   {mission.icon}
                 </div>
                 <div>
@@ -205,7 +248,7 @@ const MissionDrawer = memo(function MissionDrawer({
               {mission.summary}
             </p>
 
-            <div className="mt-4 rounded-lg border border-light-border bg-light-muted p-3 dark:border-dark-border dark:bg-dark-muted">
+            <div className={`mt-4 rounded-lg border border-light-border bg-light-muted p-3 ${DRAWER_CARD_DARK}`}>
               <p className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
                 <ShieldAlert className="h-3.5 w-3.5" />
                 Stakes
@@ -216,7 +259,7 @@ const MissionDrawer = memo(function MissionDrawer({
             </div>
           </section>
 
-          <section className="rounded-xl border border-light-border bg-light-surface p-4 dark:border-dark-border dark:bg-[#0c141f]">
+          <section className={`rounded-xl border border-light-border bg-light-surface p-4 ${DRAWER_PANEL_DARK}`}>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <MetaItem label="Duration" value={mission.duration} />
               <MetaItem
@@ -228,7 +271,7 @@ const MissionDrawer = memo(function MissionDrawer({
             </div>
           </section>
 
-          <section className="rounded-xl border border-light-border bg-light-surface p-4 dark:border-dark-border dark:bg-[#0c141f]">
+          <section className={`rounded-xl border border-light-border bg-light-surface p-4 ${DRAWER_PANEL_DARK}`}>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
               Mission Flow
             </p>
@@ -236,7 +279,7 @@ const MissionDrawer = memo(function MissionDrawer({
               {ACTS.map((act, index) => (
                 <div
                   key={act.title}
-                  className="rounded-lg border border-light-border bg-light-bg p-3 dark:border-dark-border dark:bg-[#101a27]"
+                  className={`rounded-lg border border-light-border bg-light-bg p-3 ${DRAWER_INSET_DARK}`}
                 >
                   <p className="text-[10px] uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
                     Act {index + 1} · {act.duration}
@@ -252,7 +295,7 @@ const MissionDrawer = memo(function MissionDrawer({
             </div>
           </section>
 
-          <section className="rounded-xl border border-light-border bg-light-surface p-4 dark:border-dark-border dark:bg-[#0c141f]">
+          <section className={`rounded-xl border border-light-border bg-light-surface p-4 ${DRAWER_PANEL_DARK}`}>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
               Team
             </p>
@@ -260,7 +303,7 @@ const MissionDrawer = memo(function MissionDrawer({
               {TEAM.map((member) => (
                 <div
                   key={member.name}
-                  className="flex items-center justify-between rounded-lg border border-light-border bg-light-bg px-3 py-2 text-sm dark:border-dark-border dark:bg-[#101a27]"
+                  className={`flex items-center justify-between rounded-lg border border-light-border bg-light-bg px-3 py-2 text-sm ${DRAWER_INSET_DARK}`}
                 >
                   <span className="font-medium text-text-light-primary dark:text-text-dark-primary">
                     {member.name}
@@ -273,7 +316,7 @@ const MissionDrawer = memo(function MissionDrawer({
             </div>
           </section>
 
-          <section className="rounded-xl border border-light-border bg-light-surface p-4 dark:border-dark-border dark:bg-[#0c141f]">
+          <section className={`rounded-xl border border-light-border bg-light-surface p-4 ${DRAWER_PANEL_DARK}`}>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
               Rewards
             </p>
@@ -308,19 +351,6 @@ const MissionDrawer = memo(function MissionDrawer({
               </button>
             )}
 
-            {!isLocked && !mission.completed ? (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => {
-                  onUpdateMissionState(mission.slug, 'completed');
-                  onClose();
-                }}
-              >
-                Mark Complete
-              </button>
-            ) : null}
-
             <Link href={`/missions/${mission.slug}`} className="btn btn-secondary">
               Full Brief
             </Link>
@@ -333,7 +363,7 @@ const MissionDrawer = memo(function MissionDrawer({
 
 const MetaItem = memo(function MetaItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-light-border bg-light-bg px-3 py-2 dark:border-dark-border dark:bg-[#101a27]">
+    <div className={`rounded-lg border border-light-border bg-light-bg px-3 py-2 ${DRAWER_INSET_DARK}`}>
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
         {label}
       </p>
@@ -346,7 +376,7 @@ const MetaItem = memo(function MetaItem({ label, value }: { label: string; value
 
 const RewardCell = memo(function RewardCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-light-border bg-light-bg px-2 py-2 dark:border-dark-border dark:bg-[#101a27]">
+    <div className={`rounded-lg border border-light-border bg-light-bg px-2 py-2 ${DRAWER_INSET_DARK}`}>
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
         {label}
       </p>
@@ -526,57 +556,71 @@ export default function MissionsPage() {
   return (
     <main className="min-h-screen bg-light-bg px-6 pb-16 pt-10 dark:bg-dark-bg">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-7">
-        <header className="flex flex-col gap-3">
-          <p className="data-mono text-xs uppercase tracking-[0.35em] text-brand-500/80">
-            GridOS Mission Control
+        <header className="max-w-4xl">
+          <p className="data-mono mb-2 text-xs uppercase tracking-[0.32em] text-brand-500/80">
+            Mission Gallery
           </p>
           <h1 className="text-4xl font-semibold text-text-light-primary dark:text-text-dark-primary md:text-5xl font-display">
             Missions
           </h1>
-          <p className="max-w-2xl text-sm text-text-light-secondary dark:text-text-dark-secondary md:text-base">
-            Real infrastructure incidents with production-style constraints. Browse fast,
-            then open a full briefing only when you decide to run one.
+          <p className="mt-3 max-w-3xl text-sm leading-8 text-text-light-secondary dark:text-text-dark-secondary md:text-base">
+            Real infrastructure incidents with production-style constraints. Browse
+            fast, then open a full briefing only when you decide to run one.
           </p>
         </header>
 
-        <section className="card flex flex-col gap-4 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+        <section className="rounded-2xl border border-light-border bg-light-surface p-3 dark:border-dark-border dark:bg-dark-surface">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={() => setIsFilterPanelOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-light-border bg-light-surface px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-light-border bg-light-bg px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
             >
               <SlidersHorizontal className="h-4 w-4 text-brand-500" />
-              Filter Panel
+              Filters
               {filter !== 'all' ? (
                 <span className="rounded-full border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-500">
                   1 active
                 </span>
-              ) : null}
-            </button>
+                ) : null}
+              </button>
 
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                <span>{stats.active} active</span>
-                <span>•</span>
-                <span>{stats.locked} locked</span>
-                <span>•</span>
-                <span>Showing {filteredMissions.length} of {missions.length}</span>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                  Showing {filteredMissions.length} of {missions.length} missions
+                </span>
+                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                  {stats.active} available
+                </span>
+                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                  {stats.locked} locked
+                </span>
+                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                  Filter: {FILTERS.find((option) => option.id === filter)?.label ?? 'All'}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+                {stats.completed}/{stats.total} missions completed
               </div>
               <div className="flex items-center gap-3">
                 <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-                  {stats.completed} of {stats.total} completed
+                  Completion
                 </p>
                 <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
                   <div
-                    className="h-full rounded-full bg-brand-500"
+                    className="h-full rounded-full bg-brand-500 transition-all duration-500"
                     style={{ width: `${stats.completionPct}%` }}
                   />
                 </div>
+                <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                  {stats.completionPct}%
+                </p>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
         {isFilterPanelOpen ? (
           <button
@@ -676,19 +720,23 @@ export default function MissionsPage() {
         </aside>
 
         {filteredMissions.length > 0 ? (
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredMissions.map((mission) => (
+          <section className="grid grid-cols-1 gap-6">
+            {filteredMissions.map((mission, index) => (
               <MissionCard
                 key={mission.slug}
                 mission={mission}
+                index={index}
                 onOpen={handleSelectMission}
               />
             ))}
           </section>
         ) : (
-          <section className="card p-10 text-center">
-            <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
-              No missions match this filter.
+          <section className="rounded-[28px] border border-light-border bg-light-surface p-10 text-center dark:border-dark-border dark:bg-dark-surface">
+            <p className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
+              No missions match this filter
+            </p>
+            <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              Adjust the status filter to widen the gallery.
             </p>
           </section>
         )}

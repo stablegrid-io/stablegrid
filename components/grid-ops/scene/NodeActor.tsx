@@ -1,22 +1,11 @@
 import { Billboard, Clone, Html, useGLTF } from '@react-three/drei';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
-import {
-  Activity,
-  ArrowLeftRight,
-  BatteryCharging,
-  Bot,
-  Gauge,
-  PlugZap,
-  Radar,
-  RefreshCcw,
-  Sun,
-  type LucideIcon
-} from 'lucide-react';
 import { useMemo, useRef } from 'react';
 import {
   Box3,
   MeshStandardMaterial,
   Vector3,
+  type Group,
   type Mesh
 } from 'three';
 import type { GridSceneAssetDescriptor } from '@/lib/grid-ops/sceneAssets';
@@ -24,8 +13,7 @@ import type { GridSceneRuntimeCaps } from '@/lib/grid-ops/sceneQuality';
 import type {
   GridOpsAssetView,
   GridOpsNodeView,
-  GridOpsVisualCategory,
-  GridOpsVisualIcon
+  GridOpsVisualCategory
 } from '@/lib/grid-ops/types';
 import { GRID_VISUAL_TOKENS } from '@/lib/grid-ops/visualConfig';
 import { cloneSceneWithDetachedMaterials } from '@/components/grid-ops/scene/cloneSceneWithDetachedMaterials';
@@ -120,50 +108,10 @@ const STATE_COLOR: Record<GridOpsNodeView['state'], string> = {
   optimized: '#7dd3ff'
 };
 
-const ICON_BY_VISUAL: Record<GridOpsVisualIcon, LucideIcon> = {
-  radar: Radar,
-  transformer: Gauge,
-  sun: Sun,
-  battery: BatteryCharging,
-  frequency: Activity,
-  demand: PlugZap,
-  flywheel: RefreshCcw,
-  hvdc: ArrowLeftRight,
-  ai: Bot
-};
-
-const toShortLabel = (name: string) => {
-  const clean = name.replace(/\(.*?\)/g, '').replace(/\bSystem\b/gi, '').trim();
-  const words = clean.split(/\s+/).filter(Boolean);
-  return words.slice(0, 2).join(' ');
-};
-
-const toMicroLabel = (node: GridOpsNodeView, asset: GridOpsAssetView) => {
-  if (node.micro_indicator === 'forecast_pct') {
-    return `${Math.min(99, 40 + asset.effects.forecast * 2)}% FCST`;
-  }
-
-  if (node.micro_indicator === 'sync') {
-    return 'SYNC ONLINE';
-  }
-
-  if (node.micro_indicator === 'flow_route') {
-    return 'FLOW ROUTE';
-  }
-
-  if (node.micro_indicator === 'waveform') {
-    return 'WAVEFORM';
-  }
-
-  return 'BAT';
-};
-
 export function NodeActor({
   node,
   asset,
   position,
-  showLabel,
-  showMicro,
   qualityCaps,
   assetDescriptor,
   modelAvailable,
@@ -173,20 +121,18 @@ export function NodeActor({
   connected,
   highlighted,
   deploying,
-  recommended,
   onHoverChange,
   onSelect
 }: NodeActorProps) {
   const outerRingRef = useRef<Mesh>(null);
   const categoryRingRef = useRef<Mesh>(null);
   const coreRef = useRef<Mesh>(null);
+  const modelWrapperRef = useRef<Group>(null);
 
   const visualCategory = node.visual_category ?? asset.category;
-  const visualIcon = node.visual_icon ?? assetDescriptor?.fallbackIcon ?? 'transformer';
   const isBatteryNode = node.id === 'battery-storage';
   const iconColor = isBatteryNode ? GRID_VISUAL_TOKENS.accentAmber : CATEGORY_COLOR[visualCategory];
   const stateColor = STATE_COLOR[node.state];
-  const Icon = ICON_BY_VISUAL[visualIcon];
 
   const baseRadius = useMemo(() => {
     if (node.importance === 'anchor') {
@@ -226,13 +172,14 @@ export function NodeActor({
   }, [assetDescriptor, baseRadius, modelAvailable, node.id, renderModel]);
 
   const interactionScale = highlighted ? 1.14 : 1;
+  const motionMultiplier = Math.max(1, qualityCaps.animationSpeedMultiplier);
 
   useFrame((clock) => {
     const elapsed = clock.clock.getElapsedTime();
 
     if (outerRingRef.current) {
-      const pulse = reducedMotion ? 1 : 1 + Math.sin(elapsed * 2.2 + position.x) * 0.025;
-      const deployPulse = deploying ? 1.08 + Math.sin(elapsed * 9) * 0.07 : 1;
+      const pulse = reducedMotion ? 1 : 1 + Math.sin(elapsed * 3.1 * motionMultiplier + position.x) * 0.065;
+      const deployPulse = deploying ? 1.14 + Math.sin(elapsed * 12 * motionMultiplier) * 0.12 : 1;
       outerRingRef.current.scale.setScalar(pulse * deployPulse);
     }
 
@@ -242,25 +189,32 @@ export function NodeActor({
           ? 0.25
           : visualCategory === 'control'
             ? 0.18
-            : visualCategory === 'monitoring'
+          : visualCategory === 'monitoring'
               ? -0.15
               : 0.1;
-      categoryRingRef.current.rotation.z = elapsed * velocity;
+      categoryRingRef.current.rotation.z = elapsed * velocity * motionMultiplier * 1.45;
     }
 
     if (coreRef.current && !reducedMotion) {
-      const intensity = highlighted || deploying ? 0.44 : connected ? 0.28 : 0.14;
-      coreRef.current.position.y = 0.08 + Math.sin(elapsed * 2 + position.z) * 0.012;
+      const pulseBoost = 1 + Math.sin(elapsed * 9.5) * 0.14;
+      const intensityBase = highlighted || deploying ? 0.6 : connected ? 0.4 : 0.2;
+      const intensity = intensityBase * pulseBoost;
+      coreRef.current.position.y = 0.08 + Math.sin(elapsed * 3.15 * motionMultiplier + position.z) * 0.028;
       if (coreRef.current.material instanceof MeshStandardMaterial) {
         coreRef.current.material.emissiveIntensity = intensity;
       }
     }
+
+    if (modelWrapperRef.current && !reducedMotion) {
+      const bobbing = Math.sin(elapsed * 2.45 * motionMultiplier + position.x) * 0.03;
+      const tilt = Math.sin(elapsed * 1.25 * motionMultiplier + position.z) * 0.045;
+      const deployKick = deploying ? 0.025 : 0;
+      modelWrapperRef.current.position.y = bobbing + deployKick;
+      modelWrapperRef.current.rotation.y = tilt;
+    }
   });
 
   const dimmed = !focused && !highlighted;
-  const batteryFill = Math.min(96, Math.max(22, 34 + asset.effects.riskMitigation * 2));
-  const batteryBarFillColor = isBatteryNode ? '#5CA8FF' : '#9C6BFF';
-  const batteryBarBgColor = isBatteryNode ? '#273758' : '#243d35';
   return (
     <group
       position={[position.x, 0.08, position.z]}
@@ -346,63 +300,23 @@ export function NodeActor({
       ) : null}
 
       {assetDescriptor && modelAvailable && renderModel ? (
-        <ModelCore
-          descriptor={assetDescriptor}
-        />
+        <group ref={modelWrapperRef}>
+          <ModelCore
+            descriptor={assetDescriptor}
+          />
+        </group>
       ) : null}
 
       <Billboard follow position={[0, 0.23, 0]}>
         <Html center transform={false} occlude={false}>
-          <div
+          <span
             data-grid-node={node.id}
             data-node-state={node.state}
             data-node-category={visualCategory}
-            className="pointer-events-none flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-[#06110d]/90 text-white shadow-[0_8px_20px_rgba(0,0,0,0.45)]"
-            style={{
-              color: iconColor,
-              opacity: dimmed ? 0.68 : 1
-            }}
-          >
-            <Icon className="h-4 w-4" strokeWidth={2.1} />
-          </div>
+            className="pointer-events-none sr-only"
+          />
         </Html>
       </Billboard>
-
-      {showLabel || highlighted ? (
-        <Billboard follow position={[0, 0.1, 0.58]}>
-          <Html center transform={false} occlude={false}>
-            <p
-              className="pointer-events-none whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.08em]"
-              style={{
-                color: highlighted ? '#ebfff5' : '#c6ddd1',
-                opacity: dimmed ? 0.48 : 0.95
-              }}
-            >
-              {toShortLabel(asset.name)}
-            </p>
-          </Html>
-        </Billboard>
-      ) : null}
-
-      {showMicro || highlighted ? (
-        <Billboard follow position={[0, 0.06, 0.86]}>
-          <Html center transform={false} occlude={false}>
-            <div className="pointer-events-none flex items-center gap-1 text-[9px] uppercase tracking-[0.08em] text-[#9dc7b5]">
-              {node.micro_indicator === 'battery_bar' ? (
-                <>
-                  <span>BAT</span>
-                  <div className="h-1 w-10 overflow-hidden rounded-full" style={{ backgroundColor: batteryBarBgColor }}>
-                    <div className="h-full rounded-full" style={{ width: `${batteryFill}%`, backgroundColor: batteryBarFillColor }} />
-                  </div>
-                </>
-              ) : (
-                <span>{toMicroLabel(node, asset)}</span>
-              )}
-              {recommended && qualityCaps.profile === 'desktop' ? <span className="text-emerald-300">REC</span> : null}
-            </div>
-          </Html>
-        </Billboard>
-      ) : null}
     </group>
   );
 }

@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { StableGridWordmark } from '@/components/brand/StableGridLogo';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -56,7 +55,6 @@ const LEFT_FEATURES = [
 ];
 
 export function LoginForm() {
-  const router = useRouter();
   const { signIn, signInWithOAuth } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -65,15 +63,6 @@ export function LoginForm() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (typeof router.prefetch !== 'function') {
-      return;
-    }
-    router.prefetch('/onboarding');
-    router.prefetch('/');
-    router.prefetch('/learn');
-  }, [router]);
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
@@ -81,8 +70,8 @@ export function LoginForm() {
 
     try {
       await signIn(email.trim(), password);
-      // /onboarding will redirect returning users to / automatically
-      router.push('/onboarding');
+      // Force a fresh request so auth-aware server routes do not reuse stale prefetched data.
+      window.location.assign('/onboarding');
     } catch (err: any) {
       setError(err?.message ?? 'Failed to login.');
     } finally {

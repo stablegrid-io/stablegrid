@@ -17,7 +17,7 @@
     "test:e2e": "playwright test",
     "test:e2e:key": "playwright test tests/e2e/login.spec.ts tests/e2e/functions.spec.ts",
     "test:e2e:persistence": "playwright test tests/e2e/infrastructure-persistence.spec.ts",
-    "test:e2e:theory": "playwright test tests/e2e/theory-module-completion.spec.ts",
+    "test:e2e:theory": "playwright test tests/e2e/theory-module-completion.spec.ts tests/e2e/theory-session-picker.spec.ts",
     "test:e2e:ui": "playwright test --ui",
     "validate:grid-assets": "node tools/validate-grid-assets.cjs",
     "test:perf:e2e": "PERF_ASSERT=1 npm run build && PERF_ASSERT=1 playwright test -c playwright.perf.config.ts tests/e2e/performance.spec.ts",

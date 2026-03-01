@@ -5,21 +5,21 @@ import { motion } from 'framer-motion';
 const STEPS = [
   {
     number: '01',
-    title: 'Complete learning tasks',
-    body: 'Work through chapters, function drills, and mission exercises in SQL, Python, PySpark, and statistics.',
-    detail: 'Practice answers award 0.04-0.12 kWh and chapter completions award 0.15 kWh.'
+    title: 'Solve domain-specific work',
+    body: 'Work through the flagship PySpark path, supporting drills, and grid incident missions built around real operational failure modes.',
+    detail: 'The unit of progress is not content watched. It is problems reasoned through.'
   },
   {
     number: '02',
-    title: 'Earn kWh deployment budget',
-    body: 'kWh is proof of analytical competency. The more you earn, the more infrastructure you are trusted to deploy.',
-    detail: 'Mission rewards scale from 0.4 to 2.4 kWh based on complexity.'
+    title: 'Earn deployment authority',
+    body: 'kWh acts like trust inside the platform. The better you perform, the more of the grid you are allowed to shape.',
+    detail: 'Progress becomes visible capability instead of an abstract XP number.'
   },
   {
     number: '03',
-    title: 'Deploy infrastructure and stabilize the grid',
-    body: 'Spend kWh on assets like battery storage, frequency control, and demand response to raise grid stability.',
-    detail: 'Higher stability unlocks advanced content and harder operational missions.'
+    title: 'Change the system state',
+    body: 'Deploy infrastructure, raise stability, and unlock more demanding scenarios that test judgment under pressure.',
+    detail: 'Theory, practice, and simulation stay tied to the same operational outcome.'
   }
 ] as const;
 
@@ -29,9 +29,9 @@ export const HowItWorksSection = () => {
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
-            Learning -&gt; Infrastructure -&gt; Stability
+            Why the product sticks
           </h2>
-          <p className="text-[#9ab8a9]">A professional progression loop with operational consequences.</p>
+          <p className="text-[#9ab8a9]">Skill turns into authority, and authority changes the system.</p>
         </div>
 
         <div className="relative grid grid-cols-1 gap-8 md:grid-cols-3">

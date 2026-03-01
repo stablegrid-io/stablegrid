@@ -64,7 +64,7 @@ describe('grid-ops engine', () => {
     expect(turn4.events.active_event.id).toBe('wind_ramp');
     expect(turn6.events.active_event.id).toBe('cloud_cover_surge');
     expect(turn0.map.nodes[0].visual_category).toBeTruthy();
-    expect(turn0.map.edges[0].tier).toBeTruthy();
+    expect(turn0.map.edges.every((edge) => Boolean(edge.tier))).toBe(true);
   });
 
   it('applies synergy bonuses to metrics', () => {
@@ -125,6 +125,21 @@ describe('grid-ops engine', () => {
       before.milestones.current?.threshold ?? 0
     );
     expect(after.recommendation.next_best_action.action.length).toBeGreaterThan(0);
+  });
+
+  it('shows only deployed assets in map nodes and edges', () => {
+    const state = computeGridOpsState({
+      earnedUnits: 0,
+      row: {
+        ...baseRow,
+        deployed_asset_ids: ['control-center'],
+        spent_units: 0,
+        turn_index: 0
+      }
+    });
+
+    expect(state.map.nodes.map((node) => node.id)).toEqual(['control-center']);
+    expect(state.map.edges).toEqual([]);
   });
 
   it('normalizes malformed state rows', () => {

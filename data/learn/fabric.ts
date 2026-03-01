@@ -3,8 +3,9 @@ import type { CheatSheet } from '@/types/learn';
 export const fabricData: CheatSheet = {
   topic: 'fabric',
   title: 'Microsoft Fabric Modules',
-  description: 'Curriculum reset. Add module and lesson content next.',
-  version: 'Reset v1',
+  description:
+    'The Microsoft Fabric category is still listed, but its reference material has been removed.',
+  version: 'Empty v2',
   categories: [],
   functions: []
 };

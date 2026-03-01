@@ -76,6 +76,17 @@ const EDGE_STYLE: Record<EdgeState, { color: string; dash: boolean; opacity: num
   }
 };
 
+const resolveLaneOffset = (edgeId: string) => {
+  let hash = 0;
+  for (let i = 0; i < edgeId.length; i += 1) {
+    hash = (hash * 31 + edgeId.charCodeAt(i)) | 0;
+  }
+
+  const lane = ((hash % 3) + 3) % 3;
+  if (lane === 0) return 0;
+  return lane === 1 ? -1 : 1;
+};
+
 export function EdgeActor({
   edge,
   from,
@@ -98,14 +109,24 @@ export function EdgeActor({
   const curve = useMemo(() => {
     const start = new Vector3(from.x, 0.2, from.z);
     const end = new Vector3(to.x, 0.2, to.z);
+    const delta = new Vector3().subVectors(end, start);
+    const planarDistance = Math.max(0.001, Math.hypot(delta.x, delta.z));
+    const lateral = new Vector3(-delta.z, 0, delta.x).multiplyScalar(1 / planarDistance);
+    const directional = new Vector3(delta.x / planarDistance, 0, delta.z / planarDistance);
+    const laneOffset = resolveLaneOffset(edge.id);
+    const laneStrength = (edge.tier === 'backbone' ? 0.16 : 0.24) * Math.min(1.25, planarDistance / 2.2);
+    const heightBase = edge.tier === 'backbone' ? 0.44 : 0.35;
+    const spanLift = Math.min(0.12, planarDistance * 0.025);
     const midpoint = new Vector3(
       (from.x + to.x) * 0.5,
-      0.38,
+      heightBase + spanLift,
       (from.z + to.z) * 0.5
     );
+    midpoint.addScaledVector(lateral, laneOffset * laneStrength);
+    midpoint.addScaledVector(directional, 0.05);
 
     return new CatmullRomCurve3([start, midpoint, end]);
-  }, [from.x, from.z, to.x, to.z]);
+  }, [edge.id, edge.tier, from.x, from.z, to.x, to.z]);
 
   const geometry = useMemo(
     () =>
@@ -122,7 +143,7 @@ export function EdgeActor({
   const flowTexture = useTexture('/grid-assets/textures/flow-strip.svg');
   flowTexture.wrapS = RepeatWrapping;
   flowTexture.wrapT = RepeatWrapping;
-  flowTexture.repeat.set(4, 1);
+  flowTexture.repeat.set(5, 1);
 
   const style = EDGE_STYLE[edgeState];
 
@@ -139,10 +160,15 @@ export function EdgeActor({
 
       material.color.set(style.color);
       material.emissive.set(style.color);
-      material.emissiveIntensity = highlighted ? 0.86 : edgeState === 'inactive' ? 0.06 : 0.38;
+      const emissiveBase = highlighted ? 0.98 : edgeState === 'inactive' ? 0.08 : 0.5;
+      const emissivePulse =
+        !reducedMotion && animate && edgeState !== 'inactive'
+          ? Math.sin(clock.clock.elapsedTime * 6.4) * 0.12
+          : 0;
+      material.emissiveIntensity = emissiveBase + emissivePulse;
 
       if (!reducedMotion && animate && flowTexture) {
-        const velocityBase = edgeState === 'stressed' ? 0.5 : 0.32;
+        const velocityBase = edgeState === 'stressed' ? 1.1 : 0.82;
         textureOffsetRef.current -= delta * velocityBase * qualityCaps.animationSpeedMultiplier;
         flowTexture.offset.x = textureOffsetRef.current;
       }
@@ -159,17 +185,18 @@ export function EdgeActor({
       return;
     }
 
-    const speedBoost = deploying ? 0.45 : 0;
+    const speedBoost = deploying ? 0.75 : 0;
     const speed =
-      ((edgeState === 'active' ? 0.2 : 0.14) + speedBoost) *
+      ((edgeState === 'active' ? 0.55 : 0.42) + speedBoost) *
       qualityCaps.animationSpeedMultiplier;
     pulseProgress.current = (pulseProgress.current + delta * speed) % 1;
 
     const pulsePoint = curve.getPoint(pulseProgress.current);
     pulseRef.current.position.copy(pulsePoint);
 
-    const scale = edgeState === 'stressed' ? 1.3 : 1;
-    pulseRef.current.scale.setScalar(scale + (deploying ? 0.5 : 0));
+    const scale = edgeState === 'stressed' ? 1.45 : 1.1;
+    const breathing = 1 + Math.sin(clock.clock.elapsedTime * 11) * 0.1;
+    pulseRef.current.scale.setScalar((scale + (deploying ? 0.62 : 0)) * breathing);
   });
 
   return (
@@ -190,7 +217,7 @@ export function EdgeActor({
 
       {pulseEnabled && (edgeState === 'active' || edgeState === 'stressed') ? (
         <mesh ref={pulseRef}>
-          <sphereGeometry args={[0.07, 10, 10]} />
+          <sphereGeometry args={[0.08, 12, 12]} />
           <meshBasicMaterial
             color={edgeState === 'stressed' ? GRID_VISUAL_TOKENS.accentAmber : '#81fff4'}
             transparent

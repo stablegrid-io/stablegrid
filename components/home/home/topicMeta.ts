@@ -19,8 +19,8 @@ export const HOME_TOPICS: Record<Topic, HomeTopicMeta> = {
     color: '#f59e0b',
     softBg: 'rgba(245, 158, 11, 0.10)',
     softBorder: 'rgba(245, 158, 11, 0.25)',
-    fallbackChapters: 13,
-    fallbackQuestions: 45
+    fallbackChapters: 20,
+    fallbackQuestions: 60
   },
   fabric: {
     id: 'fabric',
@@ -29,7 +29,7 @@ export const HOME_TOPICS: Record<Topic, HomeTopicMeta> = {
     color: '#06b6d4',
     softBg: 'rgba(6, 182, 212, 0.10)',
     softBorder: 'rgba(6, 182, 212, 0.25)',
-    fallbackChapters: 5,
+    fallbackChapters: 1,
     fallbackQuestions: 40
   }
 };

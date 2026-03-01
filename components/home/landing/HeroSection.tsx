@@ -50,19 +50,19 @@ export const HeroSection = () => {
         >
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#4ade80]/30 bg-[#4ade80]/10 px-3 py-1.5 text-xs font-semibold text-[#9de3b5]">
             <Activity className="h-3 w-3" />
-            87% renewable grid penetration. Stability is the bottleneck.
+            Scenario-based training for infrastructure-grade data engineers.
           </div>
 
           <h1 className="mb-6 text-5xl font-bold leading-[1.04] tracking-tight text-[#e3efe8] lg:text-6xl" style={{ fontFamily: 'Georgia, serif' }}>
-            Master data engineering
+            Build data engineering judgment
             <br />
-            by balancing
+            inside
             <br />
             <span className="text-[#4ade80]">a live power grid.</span>
           </h1>
 
           <p className="mb-8 max-w-xl text-lg leading-relaxed text-[#9ab8a9]">
-            Earn kWh credits through SQL, Python, PySpark, and statistics. Deploy real infrastructure in a renewable grid simulation and watch stability climb from marginal to optimal.
+            StableGrid pairs a flagship PySpark learning path with grid incident missions and a live stability map. Instead of practicing syntax in isolation, users learn debugging, streaming, and system tradeoffs inside renewable-energy operations.
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -70,7 +70,7 @@ export const HeroSection = () => {
               href="/signup"
               className="group inline-flex items-center justify-center gap-2 rounded-xl bg-[#4ade80] px-6 py-3 font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
             >
-              Start Learning - Earn Your First kWh
+              Start the flagship path
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <a
@@ -81,7 +81,7 @@ export const HeroSection = () => {
             </a>
           </div>
 
-          <p className="mt-6 text-xs text-[#6f8f7d]">Free tier available. Pro for $9.99/mo.</p>
+          <p className="mt-6 text-xs text-[#6f8f7d]">Free tier available. Start with PySpark and grid incident missions.</p>
         </motion.div>
 
         <motion.div

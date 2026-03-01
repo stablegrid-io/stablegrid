@@ -2,6 +2,7 @@ export type SettingsTabId =
   | 'profile'
   | 'security'
   | 'billing'
+  | 'reading'
   | 'notifs'
   | 'danger';
 
