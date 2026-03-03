@@ -35,6 +35,8 @@ export async function getTopicProgress(topic: Topic) {
 }
 
 export async function getChapterCompletions(topic: Topic): Promise<Set<string>> {
+  // Keep this for analytics and legacy consumers only.
+  // Learn UI completion state should come from module_progress via loadServerTheoryProgress.
   const supabase = createClient();
   const {
     data: { user }

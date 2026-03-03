@@ -36,10 +36,37 @@ const advanceToModuleBoundary = async (page: Page) => {
       return;
     }
 
+    const startCheckpointButton = page.getByRole('button', { name: /start checkpoint/i });
+    if (
+      (await startCheckpointButton.count()) > 0 &&
+      (await startCheckpointButton.first().isVisible())
+    ) {
+      return;
+    }
+
     await page.getByRole('button', { name: /next lesson/i }).click();
   }
 
   throw new Error('Timed out before reaching the next-module boundary.');
+};
+
+const dismissSessionPickerIfOpen = async (page: Page) => {
+  const skipButton = page.getByRole('button', { name: /continue without session/i });
+  if ((await skipButton.count()) > 0 && (await skipButton.first().isVisible())) {
+    await skipButton.first().click();
+  }
+};
+
+const completeCheckpoint = async (page: Page) => {
+  await page.getByRole('button', { name: /start checkpoint/i }).click();
+
+  for (let index = 0; index < 3; index += 1) {
+    await page.getByTestId('multiple-choice-option-0').click();
+    await page.getByRole('button', { name: /submit answer/i }).click();
+    await page.getByRole('button', {
+      name: index === 2 ? /complete module/i : /next flashcard/i
+    }).click();
+  }
 };
 
 test.describe('theory module completion', () => {
@@ -68,7 +95,9 @@ test.describe('theory module completion', () => {
       { waitUntil: 'networkidle' }
     );
 
+    await dismissSessionPickerIfOpen(page);
     await advanceToModuleBoundary(page);
+    await completeCheckpoint(page);
 
     await expect
       .poll(async () => {

@@ -23,6 +23,7 @@ interface StoredReadingSessionRow {
   sections_read: number;
   sections_ids_read: string[];
   completed_lesson_ids?: string[];
+  lesson_seconds_by_id?: Record<string, number>;
   is_completed: boolean;
   completed_at: string | null;
   current_lesson_id?: string | null;
@@ -31,9 +32,14 @@ interface StoredReadingSessionRow {
 }
 
 const createClientMock = vi.fn();
+const revalidatePathMock = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: createClientMock
+}));
+
+vi.mock('next/cache', () => ({
+  revalidatePath: revalidatePathMock
 }));
 
 const makeSupabaseClient = (rowsRef: StoredModuleProgressRow[]) => ({
@@ -360,5 +366,113 @@ describe('module-progress route', () => {
       'module-01-lesson-02',
       'module-01-lesson-03'
     ]);
+  });
+
+  it('preserves resume state without counting a touched lesson as read in fallback mode', async () => {
+    const readingRows: StoredReadingSessionRow[] = [];
+    createClientMock.mockReturnValue(makeFallbackSupabaseClient(readingRows));
+
+    const response = await post({
+      topic: 'pyspark',
+      action: 'touch',
+      moduleId: 'module-01',
+      currentLessonId: 'module-01-lesson-03',
+      lastVisitedRoute:
+        '/learn/pyspark/theory/all?chapter=module-01&lesson=module-01-lesson-03'
+    });
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      data: StoredModuleProgressRow[];
+      storage: string;
+    };
+    expect(payload.storage).toBe('reading_sessions_fallback');
+
+    const savedModuleOne = readingRows.find((row) => row.chapter_id === 'module-01');
+    expect(savedModuleOne?.sections_read).toBe(0);
+    expect(savedModuleOne?.sections_ids_read).toEqual([]);
+    expect(savedModuleOne?.completed_lesson_ids).toEqual([]);
+    expect(savedModuleOne?.current_lesson_id).toBe('module-01-lesson-03');
+    expect(savedModuleOne?.last_visited_route).toContain('lesson=module-01-lesson-03');
+  });
+
+  it('preserves existing read lessons when touch updates the resume route in fallback mode', async () => {
+    const readingRows: StoredReadingSessionRow[] = [
+      {
+        user_id: 'user-1',
+        topic: 'pyspark',
+        chapter_id: 'module-01',
+        chapter_number: 1,
+        sections_total: 4,
+        sections_read: 1,
+        sections_ids_read: ['module-01-lesson-01'],
+        completed_lesson_ids: ['module-01-lesson-01'],
+        is_completed: false,
+        completed_at: null,
+        current_lesson_id: 'module-01-lesson-01',
+        last_visited_route:
+          '/learn/pyspark/theory/all?chapter=module-01&lesson=module-01-lesson-01',
+        last_active_at: '2026-02-23T12:00:00.000Z'
+      }
+    ];
+    createClientMock.mockReturnValue(makeFallbackSupabaseClient(readingRows));
+
+    const touchResponse = await post({
+      topic: 'pyspark',
+      action: 'touch',
+      moduleId: 'module-01',
+      currentLessonId: 'module-01-lesson-03',
+      lastVisitedRoute:
+        '/learn/pyspark/theory/all?chapter=module-01&lesson=module-01-lesson-03'
+    });
+    expect(touchResponse.status).toBe(200);
+
+    const savedModuleOne = readingRows.find((row) => row.chapter_id === 'module-01');
+    expect(savedModuleOne?.sections_read).toBe(1);
+    expect(savedModuleOne?.sections_ids_read).toEqual(['module-01-lesson-01']);
+    expect(savedModuleOne?.completed_lesson_ids).toEqual(['module-01-lesson-01']);
+    expect(savedModuleOne?.current_lesson_id).toBe('module-01-lesson-03');
+    expect(savedModuleOne?.last_visited_route).toContain('lesson=module-01-lesson-03');
+  });
+
+  it('preserves lesson_seconds_by_id when touch updates resume state in fallback mode', async () => {
+    const readingRows: StoredReadingSessionRow[] = [
+      {
+        user_id: 'user-1',
+        topic: 'pyspark',
+        chapter_id: 'module-01',
+        chapter_number: 1,
+        sections_total: 4,
+        sections_read: 1,
+        sections_ids_read: ['module-01-lesson-01'],
+        completed_lesson_ids: ['module-01-lesson-01'],
+        lesson_seconds_by_id: {
+          'module-01-lesson-01': 30
+        },
+        is_completed: false,
+        completed_at: null,
+        current_lesson_id: 'module-01-lesson-01',
+        last_visited_route:
+          '/learn/pyspark/theory/all?chapter=module-01&lesson=module-01-lesson-01',
+        last_active_at: '2026-02-23T12:00:00.000Z'
+      }
+    ];
+    createClientMock.mockReturnValue(makeFallbackSupabaseClient(readingRows));
+
+    const touchResponse = await post({
+      topic: 'pyspark',
+      action: 'touch',
+      moduleId: 'module-01',
+      currentLessonId: 'module-01-lesson-03',
+      lastVisitedRoute:
+        '/learn/pyspark/theory/all?chapter=module-01&lesson=module-01-lesson-03'
+    });
+    expect(touchResponse.status).toBe(200);
+
+    const savedModuleOne = readingRows.find((row) => row.chapter_id === 'module-01');
+    expect(savedModuleOne?.lesson_seconds_by_id).toEqual({
+      'module-01-lesson-01': 30
+    });
+    expect(savedModuleOne?.completed_lesson_ids).toEqual(['module-01-lesson-01']);
   });
 });

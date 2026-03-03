@@ -20,6 +20,10 @@ import { TheorySessionTopbar } from '@/components/learn/theory/TheorySessionTopb
 import { TheoryBreakOverlay } from '@/components/learn/theory/TheoryBreakOverlay';
 import { TheorySessionSummary } from '@/components/learn/theory/TheorySessionSummary';
 import {
+  getModuleCheckpointQuestions,
+  isModuleCheckpointLesson
+} from '@/lib/learn/moduleCheckpoints';
+import {
   getDisplayLessonTitle,
   sortLessonsByOrder,
   sortModulesByOrder
@@ -51,6 +55,8 @@ interface ModuleProgressApiPayload {
   storage?: 'module_progress' | 'reading_sessions_fallback';
   warning?: string;
 }
+
+const SESSION_PICKER_DISMISSED_STORAGE_PREFIX = 'theory-session-picker-dismissed';
 
 const parseLessonFromRoute = (route: string | null) => {
   if (!route || !route.includes('?')) {
@@ -93,7 +99,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const [routeReady, setRouteReady] = useState(false);
   const [completionActionPending, setCompletionActionPending] = useState(false);
   const [sessionPickerVisible, setSessionPickerVisible] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
   const lastTouchedRouteRef = useRef<string>('');
   const sessionPickerInitializedRef = useRef(false);
   const addXP = useProgressStore((state) => state.addXP);
@@ -106,9 +111,8 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     () => resolveTheorySessionMethodConfigs(sessionMethodConfigs),
     [sessionMethodConfigs]
   );
-  const theorySession = useTheorySessionTimer();
+  const theorySession = useTheorySessionTimer(pathname);
   const startTheorySession = theorySession.start;
-  const resetTheorySession = theorySession.reset;
   const applyModuleProgressRows = useCallback((rows: ModuleProgressApiRow[]) => {
     setCompletedChapterIds(
       new Set(rows.filter((row) => row.is_completed).map((row) => row.module_id))
@@ -136,6 +140,17 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     () => sortLessonsByOrder(activeChapter.sections),
     [activeChapter.sections]
   );
+  const hasActiveModuleCheckpoint = useMemo(() => {
+    const hasCheckpointLesson = activeChapter.sections.some((section) =>
+      isModuleCheckpointLesson(section.title)
+    );
+
+    if (!hasCheckpointLesson) {
+      return false;
+    }
+
+    return getModuleCheckpointQuestions(doc.topic, activeChapter.number).length > 0;
+  }, [activeChapter.number, activeChapter.sections, doc.topic]);
   const activeLessonIndex = orderedActiveLessons.findIndex(
     (section) => section.id === activeLessonId
   );
@@ -157,6 +172,34 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     },
     [pathname]
   );
+  const sessionPickerDismissedStorageKey = useMemo(
+    () => `${SESSION_PICKER_DISMISSED_STORAGE_PREFIX}:${pathname}`,
+    [pathname]
+  );
+  const hasDismissedSessionPicker = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    try {
+      return (
+        window.sessionStorage.getItem(sessionPickerDismissedStorageKey) === '1'
+      );
+    } catch {
+      return false;
+    }
+  }, [sessionPickerDismissedStorageKey]);
+  const markSessionPickerDismissed = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      window.sessionStorage.setItem(sessionPickerDismissedStorageKey, '1');
+    } catch {
+      // Ignore storage failures and fall back to the component-local guard.
+    }
+  }, [sessionPickerDismissedStorageKey]);
   const persistedRoute = useMemo(() => {
     return buildLessonRoute(activeChapter.id, activeLessonId);
   }, [activeChapter.id, activeLessonId, buildLessonRoute]);
@@ -185,7 +228,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     });
   }, [activeChapter.id]);
 
-  const { isCompleted, completedLessonIds, markChapterComplete } =
+  const { isCompleted, completedLessonIds, isHydrated, markChapterComplete } =
     useReadingSession({
       topic: doc.topic as Topic,
       chapter: activeChapter,
@@ -206,8 +249,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     sessionPickerInitializedRef.current = false;
     setRouteReady(false);
     setSessionPickerVisible(false);
-    resetTheorySession();
-  }, [doc.topic, resetTheorySession]);
+  }, [doc.topic]);
 
   useEffect(() => {
     let mounted = true;
@@ -300,29 +342,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       mounted = false;
     };
   }, [applyModuleProgressRows, doc.topic, modules, requestedChapterId]);
-
-  useEffect(() => {
-    const element = contentRef.current;
-    if (!element) {
-      setScrollProgress(0);
-      return;
-    }
-
-    const handleScroll = () => {
-      const scrollableHeight = element.scrollHeight - element.clientHeight;
-      if (scrollableHeight <= 0) {
-        setScrollProgress(0);
-        return;
-      }
-
-      const progress = (element.scrollTop / scrollableHeight) * 100;
-      setScrollProgress(Math.max(0, Math.min(100, progress)));
-    };
-
-    handleScroll();
-    element.addEventListener('scroll', handleScroll, { passive: true });
-    return () => element.removeEventListener('scroll', handleScroll);
-  }, [activeChapter.id, activeLessonId]);
 
   const updateQueryRoute = useCallback(
     (chapterId: string, lessonId: string | null) => {
@@ -531,7 +550,12 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   }, [sessionDefaultsHydrated]);
 
   useEffect(() => {
-    if (!routeReady || !sessionDefaultsHydrated || theorySession.hasActiveSession) {
+    if (
+      !routeReady ||
+      !sessionDefaultsHydrated ||
+      !theorySession.hasHydrated ||
+      theorySession.hasActiveSession
+    ) {
       return;
     }
 
@@ -540,15 +564,22 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     }
 
     sessionPickerInitializedRef.current = true;
+    // Query-param reader navigation can recreate this client subtree. Keep the
+    // dismissal for the current tab so the picker only auto-opens once per path.
+    if (hasDismissedSessionPicker()) {
+      return;
+    }
     setSessionPickerVisible(true);
   }, [
+    hasDismissedSessionPicker,
     routeReady,
     sessionDefaultsHydrated,
+    theorySession.hasHydrated,
     theorySession.hasActiveSession
   ]);
 
   const completeCurrentModule = useCallback(async () => {
-    if (completionActionPending) return;
+    if (completionActionPending) return false;
     setCompletionActionPending(true);
     try {
       if (!isCompleted) {
@@ -561,8 +592,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           moduleId: activeChapter.id
         });
       }
+      return true;
     } catch (error) {
       console.warn('Failed to sync completion state:', error);
+      return false;
     } finally {
       setCompletionActionPending(false);
     }
@@ -576,7 +609,11 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   ]);
 
   useEffect(() => {
-    if (!completionsLoaded || isCompleted || completionActionPending) {
+    if (!isHydrated || !completionsLoaded || isCompleted || completionActionPending) {
+      return;
+    }
+
+    if (hasActiveModuleCheckpoint) {
       return;
     }
 
@@ -591,6 +628,8 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     completedLessonIds,
     completionActionPending,
     completionsLoaded,
+    hasActiveModuleCheckpoint,
+    isHydrated,
     isCompleted,
     orderedActiveLessons.length
   ]);
@@ -645,13 +684,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         )}
       </div>
 
-      <div className="h-1 flex-shrink-0 bg-light-border dark:bg-dark-border">
-        <div
-          className="h-full bg-brand-500 transition-[width] duration-100"
-          style={{ width: `${scrollProgress}%` }}
-        />
-      </div>
-
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
           className={`absolute inset-y-0 left-0 z-50 w-[16.25rem] border-r border-light-border bg-light-surface transition-transform duration-300 dark:border-dark-border dark:bg-dark-surface lg:relative lg:translate-x-0 ${
@@ -662,6 +694,9 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             doc={doc}
             activeChapterId={activeChapter.id}
             activeLessonId={activeLessonId}
+            completedLessonIds={completedLessonIds}
+            isProgressLoaded={isHydrated}
+            isChapterCompleted={isCompleted}
             onSelectLesson={handleSelectLesson}
           />
         </aside>
@@ -680,6 +715,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           className="min-h-0 flex-1 overflow-y-auto bg-light-bg dark:bg-dark-bg"
         >
           <TheoryContent
+            topic={doc.topic}
             chapter={activeChapter}
             allChapters={modules}
             activeLessonId={activeLessonId}
@@ -687,6 +723,12 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             onSelectLesson={handleSelectLesson}
             onCompleteCourse={handleCompleteCourse}
             isNextModuleUnlocked={isUpcomingModuleUnlocked}
+            isChapterCompleted={isCompleted}
+            hasModuleCheckpoint={hasActiveModuleCheckpoint}
+            isProgressLoaded={isHydrated}
+            completedLessonCount={completedLessonIds.length}
+            onCompleteModule={completeCurrentModule}
+            completionActionPending={completionActionPending}
           />
         </div>
       </div>
@@ -697,14 +739,17 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         lessonTitle={activeLessonLabel ?? doc.title}
         lessonDurationMinutes={activeLessonDurationMinutes}
         onStart={(config) => {
+          markSessionPickerDismissed();
           setSessionPickerVisible(false);
           startTheorySession(config);
         }}
         onOpenSettings={() => {
+          markSessionPickerDismissed();
           setSessionPickerVisible(false);
           router.push('/settings?tab=reading');
         }}
         onDismiss={() => {
+          markSessionPickerDismissed();
           setSessionPickerVisible(false);
         }}
       />

@@ -16,6 +16,19 @@ export interface ReadingSession {
   isCompleted: boolean;
 }
 
+export interface ReadingHistoryEntry {
+  id: string;
+  userId: string;
+  topic: Topic;
+  chapterId: string;
+  chapterNumber: number;
+  chapterTitle: string;
+  lessonId: string;
+  lessonOrder: number;
+  lessonTitle: string;
+  readAt: string;
+}
+
 export interface TopicProgress {
   id: string;
   userId: string;

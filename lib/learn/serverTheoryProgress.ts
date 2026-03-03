@@ -1,5 +1,9 @@
 import 'server-only';
 
+import { theoryDocs } from '@/data/learn/theory';
+import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
+import { getReadLessonCountFromSessionSnapshot } from '@/lib/learn/readingSessionProgress';
+import { getTheoryOrderedLessonIds } from '@/lib/learn/theoryCatalog';
 import { createClient } from '@/lib/supabase/server';
 
 export interface ServerTheoryChapterProgressSnapshot {
@@ -26,6 +30,138 @@ export interface ServerTheoryProgressPayload {
   chapterProgressById: Record<string, ServerTheoryChapterProgressSnapshot>;
   moduleProgressById: Record<string, ServerTheoryModuleProgressSnapshot>;
 }
+
+interface ServerTheoryModuleProgressRow {
+  module_id: string | null;
+  module_order: number | null;
+  is_unlocked: boolean | null;
+  is_completed: boolean | null;
+  current_lesson_id: string | null;
+  last_visited_route: string | null;
+  updated_at: string | null;
+}
+
+interface CanonicalTheoryModuleEntry {
+  id: string;
+  order: number;
+}
+
+const getCanonicalTheoryModules = (topic: string): CanonicalTheoryModuleEntry[] => {
+  const doc = theoryDocs[topic];
+  if (!doc) {
+    return [];
+  }
+
+  return sortModulesByOrder(doc.modules ?? doc.chapters).map((module) => ({
+    id: module.id,
+    order: module.order ?? module.number
+  }));
+};
+
+const hasModuleRowProgress = (row: ServerTheoryModuleProgressRow | undefined) =>
+  Boolean(row?.is_completed || row?.current_lesson_id || row?.last_visited_route);
+
+const hasChapterSnapshotProgress = (
+  snapshot: ServerTheoryChapterProgressSnapshot | undefined
+) =>
+  Boolean(
+    snapshot?.isCompleted ||
+      (snapshot?.sectionsRead ?? 0) > 0 ||
+      snapshot?.currentLessonId ||
+      snapshot?.lastVisitedRoute
+  );
+
+export const normalizeServerTheoryModuleProgress = ({
+  topic,
+  chapterProgressById,
+  moduleRows
+}: {
+  topic: string;
+  chapterProgressById: Record<string, ServerTheoryChapterProgressSnapshot>;
+  moduleRows: ServerTheoryModuleProgressRow[];
+}) => {
+  const canonicalModules = getCanonicalTheoryModules(topic);
+  if (canonicalModules.length === 0 || moduleRows.length === 0) {
+    return {
+      completedChapterIds: [] as string[],
+      moduleProgressById: {} as Record<string, ServerTheoryModuleProgressSnapshot>
+    };
+  }
+
+  const moduleRowById = moduleRows.reduce<Map<string, ServerTheoryModuleProgressRow>>(
+    (accumulator, row) => {
+      if (typeof row.module_id === 'string') {
+        accumulator.set(row.module_id, row);
+      }
+      return accumulator;
+    },
+    new Map()
+  );
+
+  const evidence = canonicalModules.map((module) => {
+    const moduleRow = moduleRowById.get(module.id);
+    const chapterSnapshot = chapterProgressById[module.id];
+    const explicitCompleted = moduleRow
+      ? Boolean(moduleRow.is_completed)
+      : Boolean(chapterSnapshot?.isCompleted);
+    const hasProgress = moduleRow
+      ? hasModuleRowProgress(moduleRow)
+      : hasChapterSnapshotProgress(chapterSnapshot);
+
+    return {
+      module,
+      moduleRow,
+      chapterSnapshot,
+      explicitCompleted,
+      hasProgress
+    };
+  });
+
+  const highestExplicitCompletedIndex = evidence.reduce(
+    (highestIndex, entry, index) => (entry.explicitCompleted ? index : highestIndex),
+    -1
+  );
+  const highestProgressIndex = evidence.reduce(
+    (highestIndex, entry, index) => (entry.hasProgress ? index : highestIndex),
+    -1
+  );
+  const completedBoundaryIndex = Math.max(
+    highestExplicitCompletedIndex,
+    highestProgressIndex - 1
+  );
+
+  let previousCompleted = false;
+  const moduleProgressById = evidence.reduce<
+    Record<string, ServerTheoryModuleProgressSnapshot>
+  >((accumulator, entry, index) => {
+    const isCompleted = entry.explicitCompleted || index <= completedBoundaryIndex;
+    const isUnlocked = index === 0 || previousCompleted || isCompleted;
+    previousCompleted = isCompleted;
+
+    accumulator[entry.module.id] = {
+      moduleOrder: entry.module.order,
+      isUnlocked,
+      isCompleted,
+      currentLessonId:
+        entry.moduleRow?.current_lesson_id ?? entry.chapterSnapshot?.currentLessonId ?? null,
+      lastVisitedRoute:
+        entry.moduleRow?.last_visited_route ??
+        entry.chapterSnapshot?.lastVisitedRoute ??
+        null,
+      updatedAt:
+        entry.moduleRow?.updated_at ?? entry.chapterSnapshot?.lastActiveAt ?? null
+    };
+
+    return accumulator;
+  }, {});
+
+  return {
+    completedChapterIds: canonicalModules
+      .filter((module) => moduleProgressById[module.id]?.isCompleted)
+      .map((module) => module.id),
+    moduleProgressById
+  };
+};
 
 export const loadServerTheoryProgress = async (
   topic: string
@@ -63,7 +199,11 @@ export const loadServerTheoryProgress = async (
     }
 
     accumulator[row.chapter_id] = {
-      sectionsRead: Number(row.sections_read ?? 0),
+      sectionsRead: getReadLessonCountFromSessionSnapshot(
+        row,
+        getTheoryOrderedLessonIds(topic, row.chapter_id),
+        Number(row.sections_total ?? 0)
+      ),
       sectionsTotal: Number(row.sections_total ?? 0),
       isCompleted: Boolean(row.is_completed),
       lastActiveAt: typeof row.last_active_at === 'string' ? row.last_active_at : null,
@@ -86,34 +226,14 @@ export const loadServerTheoryProgress = async (
     .eq('topic', topic)
     .order('module_order', { ascending: true });
 
-  if (!moduleRowsError && Array.isArray(moduleRows)) {
-    moduleProgressById = moduleRows.reduce<
-      Record<string, ServerTheoryModuleProgressSnapshot>
-    >((accumulator, row) => {
-      if (typeof row.module_id !== 'string') {
-        return accumulator;
-      }
-
-      accumulator[row.module_id] = {
-        moduleOrder: Number(row.module_order ?? 0),
-        isUnlocked: Boolean(row.is_unlocked),
-        isCompleted: Boolean(row.is_completed),
-        currentLessonId:
-          typeof row.current_lesson_id === 'string' ? row.current_lesson_id : null,
-        lastVisitedRoute:
-          typeof row.last_visited_route === 'string' ? row.last_visited_route : null,
-        updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null
-      };
-
-      return accumulator;
-    }, {});
-
-    if (Object.keys(moduleProgressById).length > 0) {
-      completedChapterIds = moduleRows
-        .filter((row) => row.is_completed)
-        .map((row) => row.module_id)
-        .filter((chapterId): chapterId is string => typeof chapterId === 'string');
-    }
+  if (!moduleRowsError && Array.isArray(moduleRows) && moduleRows.length > 0) {
+    const normalizedModuleProgress = normalizeServerTheoryModuleProgress({
+      topic,
+      chapterProgressById,
+      moduleRows: moduleRows as ServerTheoryModuleProgressRow[]
+    });
+    moduleProgressById = normalizedModuleProgress.moduleProgressById;
+    completedChapterIds = normalizedModuleProgress.completedChapterIds;
   }
 
   return {

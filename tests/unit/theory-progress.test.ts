@@ -71,4 +71,27 @@ describe('theory progress summaries', () => {
     expect(summary.sectionRead).toBe(1);
     expect(summary.totalSeconds).toBe(120);
   });
+
+  it('derives lesson counts from timed lesson progress before falling back to stale section counters', () => {
+    const stats = getCanonicalTheoryStats('fabric');
+    const [firstModule] = stats.modules;
+
+    const summary = summarizeTheoryProgressFromSessions('fabric', [
+      {
+        chapter_id: firstModule.id,
+        is_completed: false,
+        active_seconds: 95,
+        sections_read: 0,
+        completed_lesson_ids: [],
+        lesson_seconds_by_id: {
+          [firstModule.lessonIds[0]]: 30
+        },
+        last_active_at: '2026-03-03T09:00:00.000Z'
+      }
+    ]);
+
+    expect(summary.chapterCompleted).toBe(0);
+    expect(summary.sectionRead).toBe(1);
+    expect(summary.totalSeconds).toBe(95);
+  });
 });

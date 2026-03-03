@@ -1,8 +1,13 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TheoryLayout } from '@/components/learn/theory/TheoryLayout';
 import { formatTheorySessionDuration } from '@/lib/learn/theorySession';
+import type {
+  TheorySessionConfig,
+  TheorySessionMethodId,
+  TheorySessionRuntime
+} from '@/lib/learn/theorySession';
 import type { TheoryDoc } from '@/types/theory';
 
 const replaceMock = vi.fn();
@@ -11,6 +16,32 @@ const addXPMock = vi.fn();
 const markChapterCompleteMock = vi.fn();
 const fetchMock = vi.fn();
 let currentSearchQuery = 'chapter=module-01&lesson=module-01-lesson-03';
+const sessionMethodConfigs = {
+  pomodoro: {
+    methodId: 'pomodoro' as const,
+    focusMinutes: 25,
+    breakMinutes: 5,
+    rounds: 4
+  },
+  'deep-focus': {
+    methodId: 'deep-focus' as const,
+    focusMinutes: 60,
+    breakMinutes: 10,
+    rounds: 2
+  },
+  sprint: {
+    methodId: 'sprint' as const,
+    focusMinutes: 20,
+    breakMinutes: 0,
+    rounds: 1
+  },
+  'free-read': {
+    methodId: 'free-read' as const,
+    focusMinutes: 0,
+    breakMinutes: 0,
+    rounds: 1
+  }
+};
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -31,6 +62,7 @@ vi.mock('@/lib/hooks/useReadingSession', () => ({
     isCompleted: false,
     activeSeconds: 0,
     completedLessonIds: [],
+    isHydrated: true,
     markChapterComplete: markChapterCompleteMock,
     markChapterIncomplete: vi.fn()
   })
@@ -41,6 +73,115 @@ vi.mock('@/lib/stores/useProgressStore', () => ({
     selector: (state: { addXP: typeof addXPMock }) => unknown
   ) => selector({ addXP: addXPMock })
 }));
+
+vi.mock('@/lib/stores/useTheorySessionPreferencesStore', () => ({
+  useTheorySessionPreferencesStore: (
+    selector: (state: {
+      methodConfigs: typeof sessionMethodConfigs;
+      hasHydrated: boolean;
+    }) => unknown
+  ) =>
+    selector({
+      methodConfigs: sessionMethodConfigs,
+      hasHydrated: true
+    }),
+  resolveTheorySessionMethodConfigs: () => sessionMethodConfigs
+}));
+
+vi.mock('@/lib/hooks/useTheorySessionTimer', async () => {
+  const React = await import('react');
+
+  const createIdleSessionState = (): TheorySessionRuntime => ({
+    config: null,
+    phase: 'idle',
+    pausedPhase: null,
+    remainingSeconds: null,
+    phaseDurationSeconds: null,
+    currentRound: 0,
+    completedRounds: 0,
+    elapsedSeconds: 0,
+    focusElapsedSeconds: 0,
+    breakElapsedSeconds: 0,
+    breakTip: null,
+    summary: null
+  });
+
+  const methodMeta: Record<
+    TheorySessionMethodId,
+    { id: TheorySessionMethodId; label: string; isTimed: boolean }
+  > = {
+    pomodoro: { id: 'pomodoro', label: 'Pomodoro', isTimed: true },
+    'deep-focus': { id: 'deep-focus', label: 'Deep Focus', isTimed: true },
+    sprint: { id: 'sprint', label: 'Sprint', isTimed: true },
+    'free-read': { id: 'free-read', label: 'Free Read', isTimed: false }
+  };
+
+  return {
+    useTheorySessionTimer: () => {
+      const [state, setState] = React.useState<TheorySessionRuntime>(createIdleSessionState);
+      const method = state.config ? methodMeta[state.config.methodId] : null;
+      const hasActiveSession =
+        state.phase === 'focus' || state.phase === 'break' || state.phase === 'paused';
+
+      return {
+        ...state,
+        method,
+        roundCount: state.config?.rounds ?? 0,
+        activeRound: state.currentRound || 1,
+        hasHydrated: true,
+        hasActiveSession,
+        isOnBreak: state.phase === 'break',
+        start: (config: TheorySessionConfig) => {
+          setState({
+            ...createIdleSessionState(),
+            config,
+            phase: 'focus',
+            remainingSeconds: config.focusMinutes * 60,
+            phaseDurationSeconds: config.focusMinutes * 60,
+            currentRound: 1
+          });
+        },
+        pause: () =>
+          setState((current) =>
+            current.config
+              ? {
+                  ...current,
+                  phase: 'paused',
+                  pausedPhase: current.phase === 'break' ? 'break' : 'focus'
+                }
+              : current
+          ),
+        resume: () =>
+          setState((current) =>
+            current.config
+              ? {
+                  ...current,
+                  phase: current.pausedPhase ?? 'focus',
+                  pausedPhase: null
+                }
+              : current
+          ),
+        stop: () =>
+          setState((current) =>
+            current.config
+              ? {
+                  ...current,
+                  phase: 'complete',
+                  pausedPhase: null,
+                  summary: {
+                    totalElapsedSeconds: current.elapsedSeconds,
+                    focusElapsedSeconds: current.focusElapsedSeconds,
+                    breakElapsedSeconds: current.breakElapsedSeconds
+                  }
+                }
+              : current
+          ),
+        skipBreak: vi.fn(),
+        reset: () => setState(createIdleSessionState())
+      };
+    }
+  };
+});
 
 const doc: TheoryDoc = {
   topic: 'pyspark',
@@ -106,6 +247,7 @@ describe('TheoryLayout session picker', () => {
     markChapterCompleteMock.mockReset();
     fetchMock.mockReset();
     currentSearchQuery = 'chapter=module-01&lesson=module-01-lesson-03';
+    window.sessionStorage.clear();
 
     vi.stubGlobal(
       'fetch',
@@ -141,6 +283,7 @@ describe('TheoryLayout session picker', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.unstubAllGlobals();
   });
 
@@ -178,7 +321,38 @@ describe('TheoryLayout session picker', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('keeps the selected session draft when the picker is reopened in the next module', async () => {
+  it('keeps the session picker dismissed after a next-lesson route remount', async () => {
+    const user = userEvent.setup();
+    const view = render(<TheoryLayout doc={doc} />);
+
+    expect(
+      await screen.findByRole('dialog', { name: /session picker/i })
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: /continue without session/i })
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('dialog', { name: /session picker/i })
+      ).not.toBeInTheDocument();
+    });
+
+    view.unmount();
+    currentSearchQuery = 'chapter=module-01&lesson=module-01-lesson-02';
+
+    render(<TheoryLayout doc={doc} />);
+
+    expect(
+      await screen.findByRole('heading', { name: /^setup$/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: /session picker/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('restores the suggested session preset when the picker is reopened in the next module', async () => {
     const user = userEvent.setup();
 
     render(<TheoryLayout doc={doc} />);
@@ -187,11 +361,10 @@ describe('TheoryLayout session picker', () => {
       await screen.findByRole('dialog', { name: /session picker/i })
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /pomodoro/i }));
-    await user.click(screen.getByRole('button', { name: /increase focus/i }));
+    await user.click(screen.getByRole('button', { name: /deep focus/i }));
 
     expect(
-      screen.getAllByText(`${formatTheorySessionDuration(135 * 60)} total`).length
+      screen.getAllByText(`${formatTheorySessionDuration(130 * 60)} total`).length
     ).toBeGreaterThan(0);
 
     await user.click(
@@ -226,8 +399,12 @@ describe('TheoryLayout session picker', () => {
       'aria-expanded',
       'true'
     );
+    expect(screen.getByRole('button', { name: /deep focus/i })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
     expect(
-      screen.getAllByText(`${formatTheorySessionDuration(135 * 60)} total`).length
+      screen.getAllByText(`${formatTheorySessionDuration(115 * 60)} total`).length
     ).toBeGreaterThan(0);
   });
 });

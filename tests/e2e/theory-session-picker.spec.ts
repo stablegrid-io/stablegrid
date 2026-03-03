@@ -47,10 +47,30 @@ const advanceToModuleBoundary = async (page: Page) => {
       return;
     }
 
+    const startCheckpointButton = page.getByRole('button', { name: /start checkpoint/i });
+    if (
+      (await startCheckpointButton.count()) > 0 &&
+      (await startCheckpointButton.first().isVisible())
+    ) {
+      return;
+    }
+
     await page.getByRole('button', { name: /next lesson/i }).click();
   }
 
   throw new Error('Timed out before reaching the next-module boundary.');
+};
+
+const completeCheckpoint = async (page: Page) => {
+  await page.getByRole('button', { name: /start checkpoint/i }).click();
+
+  for (let index = 0; index < 3; index += 1) {
+    await page.getByTestId('multiple-choice-option-0').click();
+    await page.getByRole('button', { name: /submit answer/i }).click();
+    await page.getByRole('button', {
+      name: index === 2 ? /complete module/i : /next flashcard/i
+    }).click();
+  }
 };
 
 test.describe('theory session picker', () => {
@@ -120,6 +140,31 @@ test.describe('theory session picker', () => {
     await expect(resetDialog.getByText('2h 15m total').first()).toBeVisible();
   });
 
+  test('keeps an active session visible after a full page reload', async ({ page }) => {
+    await login(page);
+    await prepareTheoryModule(page);
+
+    await page.goto(THEORY_ROUTE, { waitUntil: 'networkidle' });
+
+    const dialog = page.getByRole('dialog', { name: /session picker/i });
+    await expect(dialog).toBeVisible({ timeout: 20_000 });
+
+    await dialog.getByRole('button', { name: /start session/i }).click();
+    await expect(page.getByRole('dialog', { name: /session picker/i })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /pause session/i })).toBeVisible();
+    await expect(page.getByText('Pomodoro').first()).toBeVisible();
+
+    await page.waitForTimeout(1_500);
+    await page.reload({ waitUntil: 'networkidle' });
+
+    await expect(page.getByRole('button', { name: /pause session/i })).toBeVisible({
+      timeout: 20_000
+    });
+    await expect(page.getByRole('button', { name: /stop session/i })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: /session picker/i })).toHaveCount(0);
+    await expect(page.getByText('Pomodoro').first()).toBeVisible();
+  });
+
   test('keeps the session draft without reopening when you move to the next module', async ({ page }) => {
     await login(page);
     await prepareTheoryModule(page);
@@ -135,6 +180,7 @@ test.describe('theory session picker', () => {
     await expect(page.getByRole('dialog', { name: /session picker/i })).toHaveCount(0);
 
     await advanceToModuleBoundary(page);
+    await completeCheckpoint(page);
 
     await expect
       .poll(async () => {

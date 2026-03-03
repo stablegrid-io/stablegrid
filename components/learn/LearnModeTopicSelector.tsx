@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -13,8 +13,6 @@ import {
 } from 'lucide-react';
 import { getLearnTopicMeta, learnTopics } from '@/data/learn';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
-import { getChapterCompletions } from '@/lib/progress';
-import type { Topic } from '@/types/progress';
 
 type LearnMode = 'theory';
 type DepthFilter = 'all' | 'starter' | 'standard' | 'deep';
@@ -22,6 +20,7 @@ type SortOption = 'recommended' | 'name-asc' | 'workload-desc' | 'workload-asc';
 
 interface LearnModeTopicSelectorProps {
   mode: LearnMode;
+  initialCompletedChapterCountByTopic?: Record<string, number>;
 }
 
 interface TopicEntry {
@@ -81,15 +80,16 @@ const SORT_DESCRIPTION: Record<SortOption, string> = {
   'name-asc': 'Alphabetical topic ordering.'
 };
 
-export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
+export function LearnModeTopicSelector({
+  mode,
+  initialCompletedChapterCountByTopic = {}
+}: LearnModeTopicSelectorProps) {
   const meta = MODE_META[mode];
   const [query, setQuery] = useState('');
   const [depthFilter, setDepthFilter] = useState<DepthFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('recommended');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [completedChapterCountByTopic, setCompletedChapterCountByTopic] = useState<
-    Record<string, number>
-  >({});
+  const completedChapterCountByTopic = initialCompletedChapterCountByTopic;
 
   const topics = useMemo<TopicEntry[]>(() => {
     return learnTopics.map((topic) => {
@@ -143,35 +143,6 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
     sortBy !== 'recommended'
   ].filter(Boolean).length;
 
-  useEffect(() => {
-    if (mode !== 'theory') return;
-    let cancelled = false;
-
-    const load = async () => {
-      const results = await Promise.all(
-        learnTopics.map(async (topic) => {
-          const completions = await getChapterCompletions(topic.id as Topic);
-          return [topic.id, completions.size] as const;
-        })
-      );
-
-      if (cancelled) return;
-
-      setCompletedChapterCountByTopic(
-        results.reduce<Record<string, number>>((accumulator, [topicId, count]) => {
-          accumulator[topicId] = count;
-          return accumulator;
-        }, {})
-      );
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [mode]);
-
   const resetFilters = () => {
     setQuery('');
     setDepthFilter('all');
@@ -192,16 +163,6 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
 
           <section className="mb-5 rounded-2xl border border-light-border bg-light-surface p-3 dark:border-dark-border dark:bg-dark-surface">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <label className="relative block flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-light-tertiary dark:text-text-dark-tertiary" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search theory topics"
-                  className="input pl-9"
-                />
-              </label>
-
               <button
                 type="button"
                 onClick={() => setIsFilterPanelOpen(true)}
@@ -215,6 +176,16 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
                   </span>
                 ) : null}
               </button>
+
+              <label className="relative block flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-light-tertiary dark:text-text-dark-tertiary" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search theory topics"
+                  className="input pl-9"
+                />
+              </label>
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
@@ -329,43 +300,22 @@ export function LearnModeTopicSelector({ mode }: LearnModeTopicSelectorProps) {
                           <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
                             {topic.chapterMinutes} min
                           </span>
-                          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
-                            {topic.functionCount} reference entries
-                          </span>
-                        </div>
-
-                        <div className="mt-6 grid gap-2.5 sm:grid-cols-3">
-                          {style.highlights.map((highlight) => (
-                            <div
-                              key={`${topic.id}-${highlight}`}
-                              className="rounded-2xl border border-light-border/80 bg-light-bg/80 px-3.5 py-3 text-xs leading-5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg/60 dark:text-text-dark-secondary"
-                            >
-                              {highlight}
-                            </div>
-                          ))}
                         </div>
 
                         <div className="mt-6 border-t border-light-border/80 pt-5 dark:border-dark-border">
-                          <div className="mb-3 flex items-center justify-between gap-3 text-sm">
-                            <span className="text-text-light-secondary dark:text-text-dark-secondary">
-                              Category gallery and chapter progression
-                            </span>
-                            <span className="font-medium text-text-light-primary dark:text-text-dark-primary">
+                          <div className="flex items-center gap-4">
+                            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${style.progressClass}`}
+                                style={{ width: `${topicProgressPct}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
                               {completedTopicChapters}/{topic.chapterCount}
                             </span>
                           </div>
 
-                          <div className="h-1.5 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${style.progressClass}`}
-                              style={{ width: `${topicProgressPct}%` }}
-                            />
-                          </div>
-
-                          <div className="mt-5 flex items-center justify-between gap-3">
-                            <span className="text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
-                              Open the topic gallery
-                            </span>
+                          <div className="mt-4 flex items-center justify-end">
                             <span className="inline-flex items-center gap-2 text-sm font-medium text-text-light-primary transition-transform group-hover:translate-x-0.5 dark:text-text-dark-primary">
                               Browse categories
                               <ChevronRight className="h-4 w-4" />

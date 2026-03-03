@@ -1,8 +1,16 @@
+'use client';
+
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Check, Lock, Play } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Lock, Play } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
+import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
+import { getModuleCheckpointMeta } from '@/lib/learn/moduleCheckpoints';
+import {
+  clampLessonProgress,
+  summarizeTrackLessonProgress
+} from '@/lib/learn/theoryTrackProgress';
 import type { TheoryDoc } from '@/types/theory';
 import type { TheoryTrackSummary } from '@/data/learn/theory/tracks';
 import type {
@@ -66,23 +74,6 @@ const buildModuleHref = ({
   return query ? `${path}?${query}` : path;
 };
 
-const clampLessonProgress = (
-  snapshot: ServerTheoryChapterProgressSnapshot | undefined,
-  totalLessons: number,
-  isCompleted: boolean
-) => {
-  if (isCompleted) {
-    return totalLessons;
-  }
-
-  const lessonsRead = Number(snapshot?.sectionsRead ?? 0);
-  if (!Number.isFinite(lessonsRead)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.min(totalLessons, Math.round(lessonsRead)));
-};
-
 const stripModulePrefix = (title: string) =>
   title.replace(/^module\s*\d+\s*:\s*/i, '').trim();
 
@@ -93,19 +84,42 @@ export const TheoryTrackPath = ({
   chapterProgressById = {},
   moduleProgressById = {}
 }: TheoryTrackPathProps) => {
+  const {
+    completedChapterIds: liveCompletedChapterIds,
+    moduleProgressById: liveModuleProgressById
+  } = useTheoryModuleProgressSnapshots({
+    topic: doc.topic,
+    initialCompletedChapterIds: completedChapterIds,
+    initialModuleProgressById: moduleProgressById
+  });
   const modules = sortModulesByOrder(track.chapters);
   const topicStyle = getTheoryTopicStyle(doc.topic);
   const accentVars = { '--theory-accent': topicStyle.accentRgb } as CSSProperties;
-  const completedSet = new Set(completedChapterIds);
-  const hasAuthoritativeModuleProgress = Object.keys(moduleProgressById).length > 0;
+  const completedSet = new Set(liveCompletedChapterIds);
+  const trackProgress = summarizeTrackLessonProgress({
+    chapters: modules,
+    completedChapterIds: liveCompletedChapterIds,
+    chapterProgressById
+  });
+  const hasAuthoritativeModuleProgress = Object.keys(liveModuleProgressById).length > 0;
   const hasPersistedProgress =
-    completedChapterIds.length > 0 ||
+    liveCompletedChapterIds.length > 0 ||
     Object.keys(chapterProgressById).length > 0 ||
-    Object.keys(moduleProgressById).length > 0;
+    Object.keys(liveModuleProgressById).length > 0;
 
   const unlockedModuleIds = hasAuthoritativeModuleProgress
     ? modules.reduce<Set<string>>((set, module, index) => {
-        if (moduleProgressById[module.id]?.isUnlocked || index === 0) {
+        if (index === 0) {
+          set.add(module.id);
+          return set;
+        }
+
+        const previousModule = modules[index - 1];
+        const derivedUnlock =
+          Boolean(previousModule && completedSet.has(previousModule.id)) ||
+          completedSet.has(module.id);
+
+        if (liveModuleProgressById[module.id]?.isUnlocked || derivedUnlock) {
           set.add(module.id);
         }
         return set;
@@ -134,12 +148,15 @@ export const TheoryTrackPath = ({
       : new Set(modules.map((module) => module.id));
 
   const baseCards = modules.map((module) => {
-    const moduleProgress = moduleProgressById[module.id];
+    const moduleProgress = liveModuleProgressById[module.id];
     const chapterProgress = chapterProgressById[module.id];
+    const isCompleted = moduleProgress
+      ? moduleProgress.isCompleted
+      : completedSet.has(module.id);
     const lessonsDone = clampLessonProgress(
       chapterProgress,
       module.sections.length,
-      completedSet.has(module.id)
+      isCompleted
     );
     const hasAnyProgress = Boolean(
       lessonsDone > 0 ||
@@ -157,7 +174,14 @@ export const TheoryTrackPath = ({
       module,
       lessonsDone,
       lessonsTotal: module.sections.length,
-      isCompleted: completedSet.has(module.id),
+      isCompleted,
+      checkpointMeta: getModuleCheckpointMeta({
+        topic: doc.topic,
+        chapter: module,
+        lessonsRead: lessonsDone,
+        lessonsTotal: module.sections.length,
+        isCompleted
+      }),
       isUnlocked: unlockedModuleIds.has(module.id),
       hasAnyProgress,
       lastActiveAt,
@@ -203,11 +227,8 @@ export const TheoryTrackPath = ({
     };
   });
 
-  const totalLessons = moduleCards.reduce((sum, card) => sum + card.lessonsTotal, 0);
-  const completedLessons = moduleCards.reduce((sum, card) => sum + card.lessonsDone, 0);
-  const completedModules = moduleCards.filter((card) => card.status === 'completed').length;
-  const overallProgressPct =
-    totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  const { totalLessons, completedLessons, completedModules, progressPct: overallProgressPct } =
+    trackProgress;
   const topicLabel = doc.title.replace(/\s+Modules?$/i, '').trim() || doc.title;
 
   return (
@@ -402,9 +423,27 @@ export const TheoryTrackPath = ({
                       )}
 
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                        <span className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
-                          {metaLabel}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+                            {metaLabel}
+                          </span>
+                          {card.checkpointMeta.hasCheckpoint ? (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium ${
+                                card.checkpointMeta.state === 'passed'
+                                  ? 'border-brand-500/30 bg-brand-500/10 text-brand-500'
+                                  : card.checkpointMeta.state === 'ready'
+                                    ? 'border-warning-500/30 bg-warning-500/10 text-warning-600 dark:text-warning-400'
+                                    : 'border-light-border bg-light-bg text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary'
+                              }`}
+                            >
+                              {card.checkpointMeta.state === 'passed' ? (
+                                <CheckCircle2 className="h-3 w-3" />
+                              ) : null}
+                              {card.checkpointMeta.label}
+                            </span>
+                          ) : null}
+                        </div>
 
                         {card.status === 'active' ? (
                           <span className="inline-flex items-center gap-2 rounded-full bg-[rgb(var(--theory-accent))] px-4 py-2 text-sm font-semibold text-white shadow-[0_18px_40px_-28px_rgba(var(--theory-accent),0.85)]">

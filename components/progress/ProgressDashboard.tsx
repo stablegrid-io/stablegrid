@@ -21,16 +21,23 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
+import type {
+  ReadingHistoryEntry,
+  ReadingSession,
+  Topic,
+  TopicProgress
+} from '@/types/progress';
 import type { UserMissionProgress } from '@/types/missions';
 import { unitsToKwh } from '@/lib/energy';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { ReadingHistoryList } from '@/components/progress/ReadingHistoryList';
 
 interface ProgressDashboardProps {
   userId: string;
   userEmail: string;
   topicProgress: TopicProgress[];
   readingSessions: ReadingSession[];
+  readingHistory: ReadingHistoryEntry[];
   missionProgress: UserMissionProgress[];
   practiceHistory: Array<{
     topic?: string;
@@ -224,6 +231,7 @@ export const ProgressDashboard = ({
   userEmail,
   topicProgress,
   readingSessions,
+  readingHistory,
   missionProgress,
   practiceHistory
 }: ProgressDashboardProps) => {
@@ -626,6 +634,10 @@ export const ProgressDashboard = ({
             No kWh trend yet. Complete a session to start charting momentum.
           </div>
         )}
+      </section>
+
+      <section className="mt-4">
+        <ReadingHistoryList entries={readingHistory} />
       </section>
     </div>
   );

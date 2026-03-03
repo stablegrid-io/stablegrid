@@ -5,8 +5,12 @@ import { TheorySessionPicker } from '@/components/learn/theory/TheorySessionPick
 import { useTheorySessionTimer } from '@/lib/hooks/useTheorySessionTimer';
 import { formatTheorySessionDuration } from '@/lib/learn/theorySession';
 
-const SessionHarness = () => {
-  const session = useTheorySessionTimer();
+const SessionHarness = ({
+  storageScope = 'theory-session-experience'
+}: {
+  storageScope?: string;
+}) => {
+  const session = useTheorySessionTimer(storageScope);
 
   return (
     <div>
@@ -22,6 +26,12 @@ const SessionHarness = () => {
         }
       >
         Start short session
+      </button>
+      <button type="button" onClick={session.pause}>
+        Pause session
+      </button>
+      <button type="button" onClick={session.resume}>
+        Resume session
       </button>
       <button type="button" onClick={session.skipBreak}>
         Skip break
@@ -47,10 +57,12 @@ const SessionHarness = () => {
 describe('Theory session experience', () => {
   beforeEach(() => {
     vi.useRealTimers();
+    window.sessionStorage.clear();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    window.sessionStorage.clear();
   });
 
   it('lets the user choose an approach and starts it with saved settings', async () => {
@@ -95,14 +107,21 @@ describe('Theory session experience', () => {
       />
     );
 
-    expect(screen.getByRole('dialog', { name: /session tracker/i })).toBeInTheDocument();
-    expect(screen.getByText(/pomodoro/i)).toBeInTheDocument();
-    expect(screen.getByText(`${formatTheorySessionDuration(115 * 60)} total`)).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /session picker/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /pomodoro/i })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(
+      screen.getAllByText(`${formatTheorySessionDuration(115 * 60)} total`).length
+    ).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: /deep focus/i }));
 
     expect(screen.getByText(/long chapters and deep systems content/i)).toBeInTheDocument();
-    expect(screen.getByText(`${formatTheorySessionDuration(130 * 60)} total`)).toBeInTheDocument();
+    expect(
+      screen.getAllByText(`${formatTheorySessionDuration(130 * 60)} total`).length
+    ).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: /start session/i }));
 
@@ -157,6 +176,51 @@ describe('Theory session experience', () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it('suggests deep focus for long lessons when the picker opens', () => {
+    render(
+      <TheorySessionPicker
+        isOpen
+        configsByMethod={{
+          pomodoro: {
+            methodId: 'pomodoro',
+            focusMinutes: 25,
+            breakMinutes: 5,
+            rounds: 4
+          },
+          'deep-focus': {
+            methodId: 'deep-focus',
+            focusMinutes: 50,
+            breakMinutes: 10,
+            rounds: 2
+          },
+          sprint: {
+            methodId: 'sprint',
+            focusMinutes: 15,
+            breakMinutes: 0,
+            rounds: 1
+          },
+          'free-read': {
+            methodId: 'free-read',
+            focusMinutes: 0,
+            breakMinutes: 0,
+            rounds: 1
+          }
+        }}
+        lessonTitle="Lakehouse Optimization Patterns"
+        lessonDurationMinutes={50}
+        onStart={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onDismiss={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /deep focus/i })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(screen.getByText(/long chapters and deep systems content/i)).toBeInTheDocument();
+  });
+
   it('moves through focus, break, and completion phases', async () => {
     vi.useFakeTimers();
 
@@ -188,5 +252,59 @@ describe('Theory session experience', () => {
     expect(screen.getByText('Summary total: 1980')).toBeInTheDocument();
     expect(screen.getByText('Summary focus: 1800')).toBeInTheDocument();
     expect(screen.getByText('Summary break: 180')).toBeInTheDocument();
+  });
+
+  it('restores an active session after a hard refresh remount', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-03T10:00:00.000Z'));
+
+    const view = render(<SessionHarness storageScope="refresh-active" />);
+
+    fireEvent.click(screen.getByRole('button', { name: /start short session/i }));
+
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    expect(screen.getByText('Phase: focus')).toBeInTheDocument();
+    expect(screen.getByText('Remaining: 890')).toBeInTheDocument();
+
+    view.unmount();
+
+    vi.setSystemTime(new Date('2026-03-03T10:00:25.000Z'));
+    render(<SessionHarness storageScope="refresh-active" />);
+
+    expect(screen.getByText('Phase: focus')).toBeInTheDocument();
+    expect(screen.getByText('Remaining: 875')).toBeInTheDocument();
+    expect(screen.getByText('Focus elapsed: 25')).toBeInTheDocument();
+    expect(screen.getByText('Total elapsed: 25')).toBeInTheDocument();
+  });
+
+  it('restores a paused session without losing or advancing its timer', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-03T11:00:00.000Z'));
+
+    const view = render(<SessionHarness storageScope="refresh-paused" />);
+
+    fireEvent.click(screen.getByRole('button', { name: /start short session/i }));
+
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /pause session/i }));
+
+    expect(screen.getByText('Phase: paused')).toBeInTheDocument();
+    expect(screen.getByText('Remaining: 895')).toBeInTheDocument();
+
+    view.unmount();
+
+    vi.setSystemTime(new Date('2026-03-03T11:05:00.000Z'));
+    render(<SessionHarness storageScope="refresh-paused" />);
+
+    expect(screen.getByText('Phase: paused')).toBeInTheDocument();
+    expect(screen.getByText('Remaining: 895')).toBeInTheDocument();
+    expect(screen.getByText('Focus elapsed: 5')).toBeInTheDocument();
+    expect(screen.getByText('Total elapsed: 5')).toBeInTheDocument();
   });
 });

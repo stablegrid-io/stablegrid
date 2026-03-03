@@ -1,7 +1,11 @@
+'use client';
+
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Layers3 } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
+import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
+import { summarizeTrackLessonProgress } from '@/lib/learn/theoryTrackProgress';
 import type { TheoryDoc } from '@/types/theory';
 import type { TheoryTrackSummary } from '@/data/learn/theory/tracks';
 import type {
@@ -17,23 +21,6 @@ interface TheoryTrackGalleryProps {
   moduleProgressById?: Record<string, ServerTheoryModuleProgressSnapshot>;
 }
 
-const clampLessonProgress = (
-  snapshot: ServerTheoryChapterProgressSnapshot | undefined,
-  sectionCount: number,
-  isCompleted: boolean
-) => {
-  if (isCompleted) {
-    return sectionCount;
-  }
-
-  const sectionsRead = Number(snapshot?.sectionsRead ?? 0);
-  if (!Number.isFinite(sectionsRead)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.min(sectionCount, Math.round(sectionsRead)));
-};
-
 export const TheoryTrackGallery = ({
   doc,
   tracks,
@@ -41,7 +28,14 @@ export const TheoryTrackGallery = ({
   chapterProgressById = {},
   moduleProgressById = {}
 }: TheoryTrackGalleryProps) => {
-  const completedSet = new Set(completedChapterIds);
+  const {
+    completedChapterIds: liveCompletedChapterIds,
+    moduleProgressById: liveModuleProgressById
+  } = useTheoryModuleProgressSnapshots({
+    topic: doc.topic,
+    initialCompletedChapterIds: completedChapterIds,
+    initialModuleProgressById: moduleProgressById
+  });
   const topicStyle = getTheoryTopicStyle(doc.topic);
   const accentVars = { '--theory-accent': topicStyle.accentRgb } as CSSProperties;
 
@@ -74,39 +68,25 @@ export const TheoryTrackGallery = ({
 
           <div className="grid grid-cols-1 gap-6">
             {tracks.map((track) => {
-              const completedLessons = track.chapters.reduce((sum, chapter) => {
-                return (
-                  sum +
-                  clampLessonProgress(
-                    chapterProgressById[chapter.id],
-                    chapter.sections.length,
-                    completedSet.has(chapter.id)
-                  )
-                );
-              }, 0);
-              const completedModules = track.chapters.filter((chapter) =>
-                completedSet.has(chapter.id)
-              ).length;
-              const totalLessons = track.chapters.reduce(
-                (sum, chapter) => sum + chapter.sections.length,
-                0
-              );
-              const progressPct =
-                totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+              const { completedModules, progressPct } = summarizeTrackLessonProgress({
+                chapters: track.chapters,
+                completedChapterIds: liveCompletedChapterIds,
+                chapterProgressById
+              });
               const mostRecentModule = [...track.chapters]
                 .sort((left, right) => {
                   const leftUpdatedAt =
-                    moduleProgressById[left.id]?.updatedAt ??
+                    liveModuleProgressById[left.id]?.updatedAt ??
                     chapterProgressById[left.id]?.lastActiveAt ??
                     '';
                   const rightUpdatedAt =
-                    moduleProgressById[right.id]?.updatedAt ??
+                    liveModuleProgressById[right.id]?.updatedAt ??
                     chapterProgressById[right.id]?.lastActiveAt ??
                     '';
                   return new Date(rightUpdatedAt || 0).getTime() - new Date(leftUpdatedAt || 0).getTime();
                 })
                 .find((chapter) => {
-                  const moduleProgress = moduleProgressById[chapter.id];
+                  const moduleProgress = liveModuleProgressById[chapter.id];
                   const chapterProgress = chapterProgressById[chapter.id];
                   return Boolean(
                     moduleProgress?.lastVisitedRoute ||

@@ -1,5 +1,8 @@
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { theoryDocs } from '@/data/learn/theory';
+import { getTheoryCategories } from '@/data/learn/theory/categories';
+import { getTheoryTracks } from '@/data/learn/theory/tracks';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import {
   mutateModuleProgressRows,
@@ -37,6 +40,7 @@ interface ExistingReadingSessionProgress {
   sections_read: number | null;
   sections_ids_read: string[] | null;
   completed_lesson_ids: string[] | null;
+  lesson_seconds_by_id?: Record<string, unknown> | null;
   current_lesson_id: string | null;
   last_visited_route: string | null;
 }
@@ -70,7 +74,8 @@ const isMissingModuleProgressTableError = (error: unknown) => {
 const READING_SESSIONS_OPTIONAL_COLUMNS = [
   'current_lesson_id',
   'completed_lesson_ids',
-  'last_visited_route'
+  'last_visited_route',
+  'lesson_seconds_by_id'
 ];
 
 const hasMissingReadingSessionsColumnError = (error: unknown) => {
@@ -100,6 +105,25 @@ const getCanonicalModuleContext = (topic: Topic): CanonicalModuleContextEntry[] 
     lessonIds: module.sections.map((section) => section.id),
     sectionsTotal: module.sections.length
   }));
+};
+
+const revalidateTheoryProgressViews = (topic: Topic) => {
+  revalidatePath('/learn/theory');
+  revalidatePath(`/learn/${topic}/theory`);
+  revalidatePath(`/learn/${topic}/theory/all`);
+
+  const doc = theoryDocs[topic];
+  if (!doc) {
+    return;
+  }
+
+  getTheoryTracks(doc).forEach((track) => {
+    revalidatePath(`/learn/${topic}/theory/${track.slug}`);
+  });
+
+  getTheoryCategories(doc).forEach((category) => {
+    revalidatePath(`/learn/${topic}/theory/${category.slug}`);
+  });
 };
 
 const fetchModuleProgressRows = async ({
@@ -228,7 +252,7 @@ const persistFallbackReadingSessionAction = async ({
   const { data: existingWithOptional, error: existingError } = await supabase
     .from('reading_sessions')
     .select(
-      'sections_read,sections_ids_read,completed_lesson_ids,current_lesson_id,last_visited_route'
+      'sections_read,sections_ids_read,completed_lesson_ids,lesson_seconds_by_id,current_lesson_id,last_visited_route'
     )
     .eq('user_id', userId)
     .eq('topic', topic)
@@ -274,15 +298,10 @@ const persistFallbackReadingSessionAction = async ({
     : Array.isArray(existingProgress?.sections_ids_read)
       ? existingProgress?.sections_ids_read.filter((lessonId) => lessonIdSet.has(lessonId))
       : [];
-  const lessonProgressIndex = sanitizedLessonId
-    ? targetModule.lessonIds.findIndex((lessonId) => lessonId === sanitizedLessonId)
-    : -1;
-  const touchedLessonIdsInOrder =
-    lessonProgressIndex >= 0
-      ? targetModule.lessonIds.slice(0, lessonProgressIndex + 1)
-      : [];
-  const mergedTouchedLessonIds = targetModule.lessonIds.filter((lessonId) =>
-    new Set([...existingCompletedLessonIds, ...touchedLessonIdsInOrder]).has(lessonId)
+  // Fallback storage tracks lesson completion from the reading session timer, not route changes.
+  // Touch requests should only preserve resume state so opening a lesson never counts as reading it.
+  const persistedCompletedLessonIds = targetModule.lessonIds.filter((lessonId) =>
+    new Set(existingCompletedLessonIds).has(lessonId)
   );
 
   const basePayload: Record<string, unknown> = {
@@ -296,6 +315,12 @@ const persistFallbackReadingSessionAction = async ({
 
   const fullPayload: Record<string, unknown> = {
     ...basePayload,
+    lesson_seconds_by_id:
+      existingProgress?.lesson_seconds_by_id &&
+      typeof existingProgress.lesson_seconds_by_id === 'object' &&
+      !Array.isArray(existingProgress.lesson_seconds_by_id)
+        ? existingProgress.lesson_seconds_by_id
+        : {},
     current_lesson_id:
       action === 'complete'
         ? sanitizedLessonId ?? targetModule.lessonIds[targetModule.lessonIds.length - 1] ?? null
@@ -316,22 +341,19 @@ const persistFallbackReadingSessionAction = async ({
   if (action === 'complete') {
     fullPayload.is_completed = true;
     fullPayload.completed_at = nowIso;
-    fullPayload.sections_read = mergedTouchedLessonIds.length;
-    fullPayload.sections_ids_read = mergedTouchedLessonIds;
-    fullPayload.completed_lesson_ids = mergedTouchedLessonIds;
+    fullPayload.sections_read = persistedCompletedLessonIds.length;
+    fullPayload.sections_ids_read = persistedCompletedLessonIds;
+    fullPayload.completed_lesson_ids = persistedCompletedLessonIds;
   } else if (action === 'incomplete') {
     fullPayload.is_completed = false;
     fullPayload.completed_at = null;
-    fullPayload.sections_read =
-      typeof existingProgress?.sections_read === 'number' && existingProgress.sections_read > 0
-        ? Math.min(existingProgress.sections_read, targetModule.sectionsTotal)
-        : mergedTouchedLessonIds.length;
-    fullPayload.sections_ids_read = mergedTouchedLessonIds;
-    fullPayload.completed_lesson_ids = mergedTouchedLessonIds;
+    fullPayload.sections_read = persistedCompletedLessonIds.length;
+    fullPayload.sections_ids_read = persistedCompletedLessonIds;
+    fullPayload.completed_lesson_ids = persistedCompletedLessonIds;
   } else {
-    fullPayload.sections_read = mergedTouchedLessonIds.length;
-    fullPayload.sections_ids_read = mergedTouchedLessonIds;
-    fullPayload.completed_lesson_ids = mergedTouchedLessonIds;
+    fullPayload.sections_read = persistedCompletedLessonIds.length;
+    fullPayload.sections_ids_read = persistedCompletedLessonIds;
+    fullPayload.completed_lesson_ids = persistedCompletedLessonIds;
   }
 
   const { error: upsertError } = await supabase.from('reading_sessions').upsert(fullPayload, {
@@ -631,6 +653,7 @@ export async function POST(request: Request) {
         lastVisitedRoute:
           typeof payload.lastVisitedRoute === 'string' ? payload.lastVisitedRoute : null
       });
+      revalidateTheoryProgressViews(topic);
 
       const fallbackRows = await fetchFallbackRowsFromReadingSessions({
         supabase,
@@ -653,6 +676,7 @@ export async function POST(request: Request) {
       existingRows: mutatedRows,
       nowIso
     });
+    revalidateTheoryProgressViews(topic);
 
     return NextResponse.json({ data: syncedRows, storage: 'module_progress' });
   } catch (error) {

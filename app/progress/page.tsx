@@ -1,29 +1,19 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCanonicalTheoryStats } from '@/lib/learn/theoryProgress';
+import {
+  buildTheorySummaryByTopic,
+  mapReadingHistoryRow,
+  mapReadingSessionRow,
+  type ReadingHistoryRowLike,
+  type ReadingSessionRowLike
+} from '@/lib/learn/readingProgressModels';
 import { ProgressDashboard } from '@/components/progress/ProgressDashboard';
 import type {
-  ReadingSession,
   Topic,
   TopicProgress as TopicProgressModel
 } from '@/types/progress';
 import type { MissionState, UserMissionProgress } from '@/types/missions';
-
-interface ReadingSessionRow {
-  id: string;
-  user_id: string;
-  topic: Topic;
-  chapter_id: string;
-  chapter_number: number;
-  started_at: string;
-  last_active_at: string;
-  completed_at: string | null;
-  sections_total: number;
-  sections_read: number;
-  sections_ids_read: string[];
-  active_seconds: number;
-  is_completed: boolean;
-}
 
 interface TopicProgressRow {
   id: string;
@@ -53,6 +43,12 @@ interface UserMissionRow {
   started_at: string | null;
   completed_at: string | null;
   xp_awarded: number;
+}
+
+interface TheorySummarySnapshot {
+  chapterCompleted: number;
+  sectionRead: number;
+  totalSeconds: number;
 }
 
 const learnTopics: Topic[] = ['pyspark', 'fabric'];
@@ -93,22 +89,6 @@ const getTopicDefaults = (topic: Topic | string) => {
     functionsTotal: defaults.functionsTotal
   };
 };
-
-const toReadingSessionModel = (row: ReadingSessionRow): ReadingSession => ({
-  id: row.id,
-  userId: row.user_id,
-  topic: row.topic,
-  chapterId: row.chapter_id,
-  chapterNumber: row.chapter_number,
-  startedAt: row.started_at,
-  lastActiveAt: row.last_active_at,
-  completedAt: row.completed_at,
-  sectionsTotal: row.sections_total,
-  sectionsRead: row.sections_read,
-  sectionsIdsRead: row.sections_ids_read ?? [],
-  activeSeconds: row.active_seconds,
-  isCompleted: row.is_completed
-});
 
 const toTopicProgressModel = (row: TopicProgressRow): TopicProgressModel => {
   const defaults = getTopicDefaults(row.topic);
@@ -166,6 +146,34 @@ const createEmptyTopicProgress = (userId: string, topic: Topic): TopicProgressMo
   };
 };
 
+const createTopicProgressFromSummary = (
+  userId: string,
+  topic: Topic,
+  summary: TheorySummarySnapshot
+): TopicProgressModel => {
+  const defaults = getTopicDefaults(topic);
+
+  return {
+    id: `${userId}-${topic}`,
+    userId,
+    topic,
+    theoryChaptersTotal: defaults.theoryChaptersTotal,
+    theoryChaptersCompleted: summary.chapterCompleted,
+    theorySectionsTotal: defaults.theorySectionsTotal,
+    theorySectionsRead: summary.sectionRead,
+    theoryTotalMinutesRead: Math.round(summary.totalSeconds / 60),
+    practiceQuestionsTotal: defaults.practiceTotal,
+    practiceQuestionsAttempted: 0,
+    practiceQuestionsCorrect: 0,
+    functionsTotal: defaults.functionsTotal,
+    functionsViewed: 0,
+    functionsBookmarked: 0,
+    overallCompletionPct: 0,
+    firstActivityAt: null,
+    lastActivityAt: null
+  };
+};
+
 const toUserMissionProgressModel = (row: UserMissionRow): UserMissionProgress => ({
   missionSlug: row.mission_slug,
   state: row.state,
@@ -186,7 +194,12 @@ export default async function ProgressPage() {
     redirect('/login');
   }
 
-  const [topicProgressResult, readingSessionsResult, userMissionsResult] = await Promise.all([
+  const [
+    topicProgressResult,
+    readingSessionsResult,
+    readingHistoryResult,
+    userMissionsResult
+  ] = await Promise.all([
     supabase
       .from('topic_progress')
       .select(
@@ -197,10 +210,17 @@ export default async function ProgressPage() {
     supabase
       .from('reading_sessions')
       .select(
-        'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,active_seconds,is_completed'
+        'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,completed_lesson_ids,lesson_seconds_by_id,active_seconds,is_completed'
       )
       .eq('user_id', user.id)
-      .order('started_at', { ascending: false })
+      .order('started_at', { ascending: false }),
+    supabase
+      .from('reading_lesson_history')
+      .select(
+        'id,user_id,topic,chapter_id,chapter_number,lesson_id,lesson_order,read_at'
+      )
+      .eq('user_id', user.id)
+      .order('read_at', { ascending: false })
       .limit(50),
     supabase
       .from('user_missions')
@@ -209,16 +229,38 @@ export default async function ProgressPage() {
   ]);
 
   const topicRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
-  const readingRows = (readingSessionsResult.data ?? []) as ReadingSessionRow[];
+  const readingRows = (readingSessionsResult.data ?? []) as ReadingSessionRowLike[];
+  const readingHistoryRows = (readingHistoryResult.data ?? []) as ReadingHistoryRowLike[];
   const userMissionRows = (userMissionsResult.data ?? []) as UserMissionRow[];
 
-  const mappedTopicProgress = topicRows.map(toTopicProgressModel);
+  const theorySummaryByTopic = buildTheorySummaryByTopic(readingRows);
+  const mappedTopicProgress = topicRows.map((row) => {
+    const baseProgress = toTopicProgressModel(row);
+    const theorySummary = theorySummaryByTopic.get(row.topic);
+
+    if (!theorySummary) {
+      return baseProgress;
+    }
+
+    return {
+      ...baseProgress,
+      theoryChaptersCompleted: theorySummary.chapterCompleted,
+      theorySectionsRead: theorySummary.sectionRead,
+      theoryTotalMinutesRead: Math.round(theorySummary.totalSeconds / 60)
+    };
+  });
   const byTopic = new Map(mappedTopicProgress.map((row) => [row.topic, row]));
+  theorySummaryByTopic.forEach((summary, topic) => {
+    if (!byTopic.has(topic)) {
+      byTopic.set(topic, createTopicProgressFromSummary(user.id, topic, summary));
+    }
+  });
   const topicProgress: TopicProgressModel[] = learnTopics.map((topic) => {
     return byTopic.get(topic) ?? createEmptyTopicProgress(user.id, topic);
   });
 
-  const readingSessions = readingRows.map(toReadingSessionModel);
+  const readingSessions = readingRows.map(mapReadingSessionRow);
+  const readingHistory = readingHistoryRows.map(mapReadingHistoryRow);
   const missionProgress = userMissionRows.map(toUserMissionProgressModel);
 
   return (
@@ -227,6 +269,7 @@ export default async function ProgressPage() {
       userEmail={user.email ?? ''}
       topicProgress={topicProgress}
       readingSessions={readingSessions}
+      readingHistory={readingHistory}
       practiceHistory={[]}
       missionProgress={missionProgress}
     />

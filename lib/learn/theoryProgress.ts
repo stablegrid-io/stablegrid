@@ -1,11 +1,14 @@
 import { theoryDocs } from '@/data/learn/theory';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
+import { getReadLessonCountFromSessionSnapshot } from '@/lib/learn/readingSessionProgress';
+import { getTheoryOrderedLessonIds } from '@/lib/learn/theoryCatalog';
 import type { Topic } from '@/types/progress';
 
 interface TheoryProgressModule {
   id: string;
   order: number;
   sectionCount: number;
+  lessonIds: string[];
 }
 
 export interface TheoryProgressSessionRow {
@@ -13,6 +16,9 @@ export interface TheoryProgressSessionRow {
   is_completed?: boolean | null;
   active_seconds?: number | null;
   sections_read?: number | null;
+  sections_ids_read?: string[] | null;
+  completed_lesson_ids?: string[] | null;
+  lesson_seconds_by_id?: Record<string, unknown> | null;
   last_active_at?: string | null;
   completed_at?: string | null;
 }
@@ -26,7 +32,8 @@ export const getCanonicalTheoryModules = (topic: Topic): TheoryProgressModule[] 
   return sortModulesByOrder(doc.modules ?? doc.chapters).map((module) => ({
     id: module.id,
     order: module.order ?? module.number,
-    sectionCount: module.sections.length
+    sectionCount: module.sections.length,
+    lessonIds: getTheoryOrderedLessonIds(topic, module.id)
   }));
 };
 
@@ -118,20 +125,20 @@ export const summarizeTheoryProgressFromSessions = (
       return;
     }
 
-    const module = moduleById.get(row.chapter_id);
-    if (!module) {
+    const canonicalModule = moduleById.get(row.chapter_id);
+    if (!canonicalModule) {
       return;
     }
 
-    const existing = sessionByChapterId.get(module.id);
+    const existing = sessionByChapterId.get(canonicalModule.id);
     if (!existing) {
-      sessionByChapterId.set(module.id, row);
+      sessionByChapterId.set(canonicalModule.id, row);
       return;
     }
 
     sessionByChapterId.set(
-      module.id,
-      pickPreferredRow(existing, row, module.sectionCount)
+      canonicalModule.id,
+      pickPreferredRow(existing, row, canonicalModule.sectionCount)
     );
   });
 
@@ -154,7 +161,7 @@ export const summarizeTheoryProgressFromSessions = (
 
     sectionRead += isCompleted
       ? module.sectionCount
-      : clampCount(row.sections_read, module.sectionCount);
+      : getReadLessonCountFromSessionSnapshot(row, module.lessonIds, module.sectionCount);
     totalSeconds += clampSeconds(row.active_seconds);
   });
 

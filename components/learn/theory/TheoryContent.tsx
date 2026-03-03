@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Clock3 } from 'lucide-react';
 import type { TheoryChapter } from '@/types/theory';
 import { TheorySection } from '@/components/learn/theory/TheorySection';
+import { TheoryModuleCheckpoint } from '@/components/learn/theory/TheoryModuleCheckpoint';
+import { isModuleCheckpointLesson } from '@/lib/learn/moduleCheckpoints';
 import {
   getDisplayLessonTitle,
   sortLessonsByOrder,
@@ -11,6 +13,7 @@ import {
 } from '@/lib/learn/freezeTheoryDoc';
 
 interface TheoryContentProps {
+  topic: string;
   chapter: TheoryChapter;
   allChapters: TheoryChapter[];
   activeLessonId: string | null;
@@ -18,16 +21,29 @@ interface TheoryContentProps {
   onSelectLesson: (lessonId: string) => void;
   onCompleteCourse: () => void;
   isNextModuleUnlocked: boolean;
+  isChapterCompleted: boolean;
+  hasModuleCheckpoint: boolean;
+  isProgressLoaded: boolean;
+  completedLessonCount: number;
+  onCompleteModule: () => Promise<boolean>;
+  completionActionPending: boolean;
 }
 
 export const TheoryContent = ({
+  topic,
   chapter,
   allChapters,
   activeLessonId,
   onNavigate,
   onSelectLesson,
   onCompleteCourse,
-  isNextModuleUnlocked
+  isNextModuleUnlocked,
+  isChapterCompleted,
+  hasModuleCheckpoint,
+  isProgressLoaded,
+  completedLessonCount,
+  onCompleteModule,
+  completionActionPending
 }: TheoryContentProps) => {
   const orderedModules = sortModulesByOrder(allChapters);
   const activeModule = orderedModules.find((item) => item.id === chapter.id) ?? chapter;
@@ -50,7 +66,13 @@ export const TheoryContent = ({
     activeLessonIndex >= 0 && activeLessonIndex < orderedLessons.length - 1
       ? orderedLessons[activeLessonIndex + 1]
       : null;
-  const nextModuleLocked = Boolean(nextChapter) && !isNextModuleUnlocked && !nextLesson;
+  const isCheckpointLesson =
+    Boolean(visibleLesson) &&
+    hasModuleCheckpoint &&
+    isModuleCheckpointLesson(visibleLesson?.title);
+  const checkpointPending = isCheckpointLesson && !isChapterCompleted;
+  const nextModuleLocked =
+    Boolean(nextChapter) && (!isNextModuleUnlocked || checkpointPending) && !nextLesson;
   const activeLessonTitle = visibleLesson
     ? getDisplayLessonTitle(visibleLesson, activeLessonIndex + 1)
     : activeModule.title;
@@ -58,6 +80,10 @@ export const TheoryContent = ({
     title.replace(/^lesson\s*\d+\s*:\s*/i, '').trim();
 
   const handleNext = () => {
+    if (checkpointPending) {
+      return;
+    }
+
     if (nextLesson) {
       onSelectLesson(nextLesson.id);
       return;
@@ -90,6 +116,8 @@ export const TheoryContent = ({
 
   const nextLabel = nextLesson
     ? 'Next Lesson'
+    : checkpointPending
+      ? 'Finish Checkpoint'
     : nextChapter
       ? isNextModuleUnlocked
         ? 'Next Module'
@@ -99,6 +127,8 @@ export const TheoryContent = ({
     ? normalizeLessonTitle(
         getDisplayLessonTitle(nextLesson, nextLesson.order ?? activeLessonIndex + 2)
       )
+    : checkpointPending
+      ? 'Complete the flashcards below'
     : nextChapter
       ? isNextModuleUnlocked
         ? nextChapter.title
@@ -147,6 +177,20 @@ export const TheoryContent = ({
           />
         ) : null}
 
+        {visibleLesson && isCheckpointLesson ? (
+          <TheoryModuleCheckpoint
+            topic={topic}
+            chapter={activeModule}
+            canStart={completedLessonCount >= orderedLessons.length}
+            isProgressLoaded={isProgressLoaded}
+            lessonsReadCount={completedLessonCount}
+            lessonCount={orderedLessons.length}
+            isCompleted={isChapterCompleted}
+            isCompleting={completionActionPending}
+            onCompleteModule={onCompleteModule}
+          />
+        ) : null}
+
         <div className="mt-10 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 border-t border-light-border pt-5 dark:border-dark-border">
           <button
             type="button"
@@ -175,9 +219,9 @@ export const TheoryContent = ({
           <button
             type="button"
             onClick={handleNext}
-            disabled={nextModuleLocked}
+            disabled={nextModuleLocked || checkpointPending}
             className={`shrink-0 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              nextModuleLocked
+              nextModuleLocked || checkpointPending
                 ? 'cursor-not-allowed bg-light-hover text-text-light-disabled dark:bg-dark-hover dark:text-text-dark-disabled'
                 : 'bg-text-light-primary text-white hover:bg-neutral-800 dark:bg-text-dark-primary dark:text-dark-bg dark:hover:bg-neutral-200'
             }`}

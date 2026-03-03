@@ -1,7 +1,12 @@
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/server';
 import { getCanonicalTheoryStats } from '@/lib/learn/theoryProgress';
-import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
+import {
+  buildTheorySummaryByTopic,
+  mapReadingSessionRow,
+  type ReadingSessionRowLike
+} from '@/lib/learn/readingProgressModels';
+import type { Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 
 const LandingPage = dynamic(() =>
@@ -33,22 +38,6 @@ interface TopicProgressRow {
   updated_at?: string;
 }
 
-interface ReadingSessionRow {
-  id: string;
-  user_id: string;
-  topic: Topic;
-  chapter_id: string;
-  chapter_number: number;
-  started_at: string;
-  last_active_at: string;
-  completed_at: string | null;
-  sections_total: number;
-  sections_read: number;
-  sections_ids_read: string[];
-  active_seconds: number;
-  is_completed: boolean;
-}
-
 interface UserProgressRow {
   xp: number;
   streak: number;
@@ -59,6 +48,12 @@ interface ReadingSignalRow {
   last_active_at: string;
   completed_at: string | null;
   is_completed: boolean;
+}
+
+interface TheorySummarySnapshot {
+  chapterCompleted: number;
+  sectionRead: number;
+  totalSeconds: number;
 }
 
 const mapTopicProgressRow = (row: TopicProgressRow): TopicProgress => {
@@ -94,21 +89,34 @@ const mapTopicProgressRow = (row: TopicProgressRow): TopicProgress => {
   };
 };
 
-const mapReadingSessionRow = (row: ReadingSessionRow): ReadingSession => ({
-  id: row.id,
-  userId: row.user_id,
-  topic: row.topic,
-  chapterId: row.chapter_id,
-  chapterNumber: row.chapter_number,
-  startedAt: row.started_at,
-  lastActiveAt: row.last_active_at,
-  completedAt: row.completed_at,
-  sectionsTotal: row.sections_total,
-  sectionsRead: row.sections_read,
-  sectionsIdsRead: row.sections_ids_read ?? [],
-  activeSeconds: row.active_seconds,
-  isCompleted: row.is_completed
-});
+const createTopicProgressFromSummary = (
+  userId: string,
+  topic: Topic,
+  summary: TheorySummarySnapshot
+): TopicProgress => {
+  const theoryStats = getCanonicalTheoryStats(topic);
+
+  return {
+    id: `${userId}-${topic}`,
+    userId,
+    topic,
+    theoryChaptersTotal: theoryStats.chapterTotal,
+    theoryChaptersCompleted: summary.chapterCompleted,
+    theorySectionsTotal: theoryStats.sectionTotal,
+    theorySectionsRead: summary.sectionRead,
+    theoryTotalMinutesRead: Math.round(summary.totalSeconds / 60),
+    practiceQuestionsTotal: 0,
+    practiceQuestionsAttempted: 0,
+    practiceQuestionsCorrect: 0,
+    functionsTotal: 0,
+    functionsViewed: 0,
+    functionsBookmarked: 0,
+    overallCompletionPct: 0,
+    firstActivityAt: null,
+    lastActivityAt: null,
+    updatedAt: undefined
+  };
+};
 
 export default async function RootPage() {
   const supabase = createClient();
@@ -125,6 +133,7 @@ export default async function RootPage() {
   const [
     topicProgressResult,
     recentSessionsResult,
+    allReadingSessionsResult,
     readingSignalsResult,
     userProgressResult
   ] =
@@ -138,12 +147,18 @@ export default async function RootPage() {
       supabase
         .from('reading_sessions')
         .select(
-          'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,active_seconds,is_completed'
+          'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,completed_lesson_ids,lesson_seconds_by_id,active_seconds,is_completed'
         )
         .eq('user_id', userId)
         .eq('is_completed', false)
         .order('last_active_at', { ascending: false })
         .limit(3),
+      supabase
+        .from('reading_sessions')
+        .select(
+          'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,completed_lesson_ids,lesson_seconds_by_id,active_seconds,is_completed'
+        )
+        .eq('user_id', userId),
       supabase
         .from('reading_sessions')
         .select(
@@ -164,11 +179,37 @@ export default async function RootPage() {
     ]);
 
   const topicProgressRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
-  const recentSessionRows = (recentSessionsResult.data ?? []) as ReadingSessionRow[];
+  const recentSessionRows = (recentSessionsResult.data ?? []) as ReadingSessionRowLike[];
+  const allReadingSessionRows = (allReadingSessionsResult.data ?? []) as ReadingSessionRowLike[];
   const readingSignalRows = (readingSignalsResult.data ?? []) as ReadingSignalRow[];
   const userProgress = (userProgressResult.data ?? null) as UserProgressRow | null;
 
-  const topicProgress = topicProgressRows.map(mapTopicProgressRow);
+  const theorySummaryByTopic = buildTheorySummaryByTopic(allReadingSessionRows);
+  const topicProgress = topicProgressRows.map((row) => {
+    const baseProgress = mapTopicProgressRow(row);
+    const theorySummary = theorySummaryByTopic.get(row.topic);
+
+    if (!theorySummary) {
+      return baseProgress;
+    }
+
+    return {
+      ...baseProgress,
+      theoryChaptersCompleted: theorySummary.chapterCompleted,
+      theorySectionsRead: theorySummary.sectionRead,
+      theoryTotalMinutesRead: Math.round(theorySummary.totalSeconds / 60)
+    };
+  });
+  const topicProgressByTopic = new Map(topicProgress.map((row) => [row.topic, row]));
+  theorySummaryByTopic.forEach((summary, topic) => {
+    if (!topicProgressByTopic.has(topic)) {
+      topicProgressByTopic.set(
+        topic,
+        createTopicProgressFromSummary(userId, topic, summary)
+      );
+    }
+  });
+  const resolvedTopicProgress = Array.from(topicProgressByTopic.values());
   const recentSessions = recentSessionRows.map(mapReadingSessionRow);
   const readingSignals: ReadingSignal[] = readingSignalRows.map((row) => ({
     lastActiveAt: row.last_active_at,
@@ -193,7 +234,7 @@ export default async function RootPage() {
   return (
     <HomeDashboard
       user={user}
-      topicProgress={topicProgress}
+      topicProgress={resolvedTopicProgress}
       recentSessions={recentSessions}
       readingSignals={readingSignals}
       stats={{

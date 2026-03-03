@@ -2,6 +2,7 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   BookOpen,
+  CheckCircle2,
   ChevronRight,
   Cpu,
   Database,
@@ -12,6 +13,7 @@ import {
   type LucideIcon
 } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
+import { getModuleCheckpointMeta } from '@/lib/learn/moduleCheckpoints';
 import type { TheoryDoc } from '@/types/theory';
 import type {
   TheoryCategorySlug,
@@ -223,6 +225,13 @@ export const TheoryCategorySelector = ({
         lessonsDone,
         lessonsTotal,
         isCompleted,
+        checkpointMeta: getModuleCheckpointMeta({
+          topic: doc.topic,
+          chapter,
+          lessonsRead: lessonsDone,
+          lessonsTotal,
+          isCompleted
+        }),
         hasAnyProgress:
           lessonsDone > 0 || Boolean(currentLessonId) || Boolean(lastVisitedRoute),
         lastActiveAt: moduleProgress?.updatedAt ?? sessionProgress?.lastActiveAt ?? null,
@@ -234,7 +243,16 @@ export const TheoryCategorySelector = ({
 
   const unlockedChapterIds = hasAuthoritativeModuleProgress
     ? chapterRows.reduce<Set<string>>((set, row, index) => {
-        if (row.isUnlocked === true || (row.isUnlocked === null && index === 0)) {
+        if (index === 0) {
+          set.add(row.chapter.id);
+          return set;
+        }
+
+        const previousRow = chapterRows[index - 1];
+        const derivedUnlock =
+          Boolean(previousRow?.isCompleted) || completedSet.has(row.chapter.id);
+
+        if (row.isUnlocked === true || (row.isUnlocked === null && derivedUnlock)) {
           set.add(row.chapter.id);
         }
         return set;
@@ -590,6 +608,27 @@ export const TheoryCategorySelector = ({
                                   {card.lessonsDone}/{card.lessonsTotal} lessons ·{' '}
                                   {card.chapter.totalMinutes} min
                                 </div>
+                                {card.checkpointMeta.hasCheckpoint ? (
+                                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+                                    <span
+                                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${
+                                        card.checkpointMeta.state === 'passed'
+                                          ? 'border-brand-500/30 bg-brand-500/10 text-brand-500'
+                                          : card.checkpointMeta.state === 'ready'
+                                            ? 'border-warning-500/30 bg-warning-500/10 text-warning-600 dark:text-warning-400'
+                                            : 'border-light-border bg-light-bg text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary'
+                                      }`}
+                                    >
+                                      {card.checkpointMeta.state === 'passed' ? (
+                                        <CheckCircle2 className="h-3 w-3" />
+                                      ) : null}
+                                      {card.checkpointMeta.label}
+                                    </span>
+                                    <span className="text-text-light-tertiary dark:text-text-dark-tertiary">
+                                      {card.checkpointMeta.detail}
+                                    </span>
+                                  </div>
+                                ) : null}
                               </div>
 
                               <div className="shrink-0 text-right">

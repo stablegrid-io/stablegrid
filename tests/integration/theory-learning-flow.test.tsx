@@ -77,6 +77,26 @@ const categories: TheoryCategorySummary[] = [
   }
 ];
 
+const buildTheoryContentProps = (
+  overrides: Partial<Parameters<typeof TheoryContent>[0]> = {}
+) => ({
+  topic: 'pyspark',
+  chapter: chapterOne,
+  allChapters,
+  activeLessonId: 'module-01-lesson-01',
+  onNavigate: vi.fn(),
+  onSelectLesson: vi.fn(),
+  onCompleteCourse: vi.fn(),
+  isNextModuleUnlocked: true,
+  isChapterCompleted: false,
+  hasModuleCheckpoint: false,
+  isProgressLoaded: true,
+  completedLessonCount: 0,
+  onCompleteModule: vi.fn().mockResolvedValue(true),
+  completionActionPending: false,
+  ...overrides
+});
+
 describe('Theory learning flow', () => {
   it('moves to the next lesson inside the same module', async () => {
     const user = userEvent.setup();
@@ -86,13 +106,11 @@ describe('Theory learning flow', () => {
 
     render(
       <TheoryContent
-        chapter={chapterOne}
-        allChapters={allChapters}
-        activeLessonId="module-01-lesson-01"
-        onNavigate={onNavigate}
-        onSelectLesson={onSelectLesson}
-        onCompleteCourse={onCompleteCourse}
-        isNextModuleUnlocked
+        {...buildTheoryContentProps({
+          onNavigate,
+          onSelectLesson,
+          onCompleteCourse
+        })}
       />
     );
 
@@ -111,13 +129,12 @@ describe('Theory learning flow', () => {
 
     render(
       <TheoryContent
-        chapter={chapterOne}
-        allChapters={allChapters}
-        activeLessonId="module-01-lesson-03"
-        onNavigate={onNavigate}
-        onSelectLesson={onSelectLesson}
-        onCompleteCourse={onCompleteCourse}
-        isNextModuleUnlocked
+        {...buildTheoryContentProps({
+          activeLessonId: 'module-01-lesson-03',
+          onNavigate,
+          onSelectLesson,
+          onCompleteCourse
+        })}
       />
     );
 
@@ -136,13 +153,13 @@ describe('Theory learning flow', () => {
 
     render(
       <TheoryContent
-        chapter={chapterTwo}
-        allChapters={allChapters}
-        activeLessonId="module-02-lesson-01"
-        onNavigate={onNavigate}
-        onSelectLesson={onSelectLesson}
-        onCompleteCourse={onCompleteCourse}
-        isNextModuleUnlocked
+        {...buildTheoryContentProps({
+          chapter: chapterTwo,
+          activeLessonId: 'module-02-lesson-01',
+          onNavigate,
+          onSelectLesson,
+          onCompleteCourse
+        })}
       />
     );
 
@@ -161,13 +178,13 @@ describe('Theory learning flow', () => {
 
     render(
       <TheoryContent
-        chapter={chapterTwo}
-        allChapters={allChapters}
-        activeLessonId="module-02-lesson-02"
-        onNavigate={onNavigate}
-        onSelectLesson={onSelectLesson}
-        onCompleteCourse={onCompleteCourse}
-        isNextModuleUnlocked
+        {...buildTheoryContentProps({
+          chapter: chapterTwo,
+          activeLessonId: 'module-02-lesson-02',
+          onNavigate,
+          onSelectLesson,
+          onCompleteCourse
+        })}
       />
     );
 
@@ -187,6 +204,9 @@ describe('Theory learning flow', () => {
         doc={doc}
         activeChapterId="module-01"
         activeLessonId="module-01-lesson-02"
+        completedLessonIds={['module-01-lesson-01', 'module-01-lesson-02']}
+        isProgressLoaded
+        isChapterCompleted={false}
         onSelectLesson={onSelectLesson}
       />
     );
@@ -194,23 +214,110 @@ describe('Theory learning flow', () => {
     expect(screen.getByText('Lesson 1: Intro to Spark')).toBeInTheDocument();
     expect(screen.queryByText(/Lesson 1:\s*Lesson 1:/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Lesson 1: DataFrame Reads')).not.toBeInTheDocument();
-    expect(screen.queryByText('✓')).not.toBeInTheDocument();
+    expect(screen.queryByText('Read')).not.toBeInTheDocument();
+
+    const lessonOneButton = screen.getByRole('button', {
+      name: /lesson 1: intro to spark/i
+    });
+    const lessonTwoButton = screen.getByRole('button', {
+      name: /lesson 2: sparksession basics/i
+    });
+    const lessonThreeButton = screen.getByRole('button', {
+      name: /lesson 3: lazy evaluation/i
+    });
+
+    expect(within(lessonOneButton).getByText('1')).toHaveClass('text-brand-600');
+    expect(within(lessonTwoButton).getByText('2')).toHaveClass('bg-brand-500');
+    expect(within(lessonThreeButton).getByText('3')).toHaveClass(
+      'text-text-light-tertiary'
+    );
     expect(screen.getAllByText('20 min')).toHaveLength(3);
 
     await user.click(screen.getByRole('button', { name: /lesson 3: lazy evaluation/i }));
     expect(onSelectLesson).toHaveBeenCalledWith('module-01-lesson-03');
   });
 
+  it('surfaces checkpoint readiness in the sidebar when a module has a checkpoint', () => {
+    const checkpointDoc: TheoryDoc = {
+      ...doc,
+      chapters: [
+        {
+          ...chapterOne,
+          sections: [
+            ...chapterOne.sections.slice(0, 2),
+            {
+              id: 'module-01-lesson-03',
+              title: 'Lesson 3: Module Checkpoint',
+              estimatedMinutes: 10,
+              blocks: [{ type: 'paragraph', content: 'Checkpoint intro.' }]
+            }
+          ]
+        },
+        chapterTwo
+      ]
+    };
+
+    render(
+      <TheorySidebar
+        doc={checkpointDoc}
+        activeChapterId="module-01"
+        activeLessonId="module-01-lesson-03"
+        completedLessonIds={[
+          'module-01-lesson-01',
+          'module-01-lesson-02',
+          'module-01-lesson-03'
+        ]}
+        isProgressLoaded
+        isChapterCompleted={false}
+        onSelectLesson={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Checkpoint ready')).toBeInTheDocument();
+    expect(screen.getByText('Pass 2/3')).toBeInTheDocument();
+  });
+
+  it('shows syncing progress instead of a false zero while lesson reads hydrate', () => {
+    const checkpointDoc: TheoryDoc = {
+      ...doc,
+      chapters: [
+        {
+          ...chapterOne,
+          sections: [
+            ...chapterOne.sections.slice(0, 2),
+            {
+              id: 'module-01-lesson-03',
+              title: 'Lesson 3: Module Checkpoint',
+              estimatedMinutes: 10,
+              blocks: [{ type: 'paragraph', content: 'Checkpoint intro.' }]
+            }
+          ]
+        },
+        chapterTwo
+      ]
+    };
+
+    render(
+      <TheorySidebar
+        doc={checkpointDoc}
+        activeChapterId="module-01"
+        activeLessonId="module-01-lesson-01"
+        completedLessonIds={[]}
+        isProgressLoaded={false}
+        isChapterCompleted={false}
+        onSelectLesson={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Checkpoint pending')).toBeInTheDocument();
+    expect(screen.getByText('Syncing lesson reads')).toBeInTheDocument();
+    expect(screen.queryByText('0/3 read')).not.toBeInTheDocument();
+  });
+
   it('does not render manual module completion controls', () => {
     render(
       <TheoryContent
-        chapter={chapterOne}
-        allChapters={allChapters}
-        activeLessonId="module-01-lesson-01"
-        onNavigate={vi.fn()}
-        onSelectLesson={vi.fn()}
-        onCompleteCourse={vi.fn()}
-        isNextModuleUnlocked
+        {...buildTheoryContentProps()}
       />
     );
 
@@ -225,13 +332,13 @@ describe('Theory learning flow', () => {
 
     render(
       <TheoryContent
-        chapter={chapterOne}
-        allChapters={allChapters}
-        activeLessonId="module-01-lesson-03"
-        onNavigate={onNavigate}
-        onSelectLesson={vi.fn()}
-        onCompleteCourse={vi.fn()}
-        isNextModuleUnlocked={false}
+        {...buildTheoryContentProps({
+          activeLessonId: 'module-01-lesson-03',
+          onNavigate,
+          onSelectLesson: vi.fn(),
+          onCompleteCourse: vi.fn(),
+          isNextModuleUnlocked: false
+        })}
       />
     );
 
@@ -240,6 +347,41 @@ describe('Theory learning flow', () => {
 
     await user.click(lockedButton);
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('requires the checkpoint flow before leaving a checkpoint lesson', () => {
+    const checkpointChapter: TheoryChapter = {
+      ...chapterOne,
+      sections: [
+        ...chapterOne.sections.slice(0, 2),
+        {
+          id: 'module-01-lesson-03',
+          title: 'Lesson 3: Module Checkpoint',
+          estimatedMinutes: 10,
+          blocks: [{ type: 'paragraph', content: 'Checkpoint intro.' }]
+        }
+      ]
+    };
+
+    render(
+      <TheoryContent
+        {...buildTheoryContentProps({
+          chapter: checkpointChapter,
+          allChapters: [checkpointChapter, chapterTwo],
+          activeLessonId: 'module-01-lesson-03',
+          hasModuleCheckpoint: true,
+          completedLessonCount: 3,
+          isNextModuleUnlocked: false
+        })}
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: /finish checkpoint/i })
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /start checkpoint/i })
+    ).toBeInTheDocument();
   });
 
   it('uses stored last-visited route when opening a module card', () => {
