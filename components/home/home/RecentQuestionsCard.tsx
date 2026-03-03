@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Code2 } from 'lucide-react';
+import { Code2, ExternalLink } from 'lucide-react';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { getHomeTopicMeta } from '@/components/home/home/topicMeta';
 import { formatUnitsAsKwh } from '@/lib/energy';
@@ -51,8 +51,11 @@ export const RecentQuestionsCard = () => {
       if (!active) return;
 
       const result: QuestionLookup = {};
-      const groups = (module.default as { questions?: Record<string, Array<{ id: string; question: string }>> })
-        .questions;
+      const groups = (
+        module.default as {
+          questions?: Record<string, Array<{ id: string; question: string }>>;
+        }
+      ).questions;
 
       Object.values(groups ?? {}).forEach((questions) => {
         questions.forEach((question) => {
@@ -71,27 +74,37 @@ export const RecentQuestionsCard = () => {
   }, [recentAttempts]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-neutral-100 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
-        <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-white">
-          <Code2 className="h-4 w-4 text-neutral-500" />
-          Recent Questions
+    <div className="overflow-hidden rounded-[1.75rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_18px_48px_-38px_rgba(17,24,39,0.22)] backdrop-blur dark:border-white/10 dark:bg-[rgba(10,18,14,0.74)]">
+      <div className="flex items-center justify-between border-b border-[#ece1d2] px-5 py-4 dark:border-white/8">
+        <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#121b18] dark:text-[#f2f7f4]">
+          <Code2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+          Recent practice
         </h2>
         <Link
           href="/progress"
-          className="text-xs font-medium text-brand-500 transition-colors hover:text-brand-600"
+          className="text-xs font-medium text-emerald-700 transition-colors hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
         >
-          View all
+          View progress
         </Link>
       </div>
 
       {recentAttempts.length === 0 ? (
-        <div className="px-5 py-6 text-sm text-neutral-500 dark:text-neutral-400">
-          No recent answers yet. Start a practice session to populate this panel.
+        <div className="px-5 py-6">
+          <p className="text-sm text-[#6d746f] dark:text-[#7e9589]">
+            No recent answers yet. Start a practice session and the most recent question
+            outcomes will surface here.
+          </p>
+          <Link
+            href="/practice/setup"
+            className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-emerald-700 transition-colors hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
+          >
+            Start practice
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
         </div>
       ) : (
-        <div>
-          {recentAttempts.map((attempt, index) => {
+        <div className="divide-y divide-[#ece1d2] dark:divide-white/8">
+          {recentAttempts.map((attempt) => {
             const topicMeta = getHomeTopicMeta(attempt.topic);
             const questionText =
               lookup[attempt.questionId] ?? `Question ${attempt.questionId}`;
@@ -99,11 +112,7 @@ export const RecentQuestionsCard = () => {
             return (
               <div
                 key={`${attempt.questionId}-${attempt.timestamp}`}
-                className={`flex items-start gap-3 px-5 py-3 ${
-                  index < recentAttempts.length - 1
-                    ? 'border-b border-neutral-100 dark:border-neutral-800'
-                    : ''
-                }`}
+                className="flex items-start gap-3 px-5 py-4"
               >
                 <div
                   className={`mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
@@ -116,7 +125,7 @@ export const RecentQuestionsCard = () => {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm leading-5 text-neutral-800 dark:text-neutral-200">
+                  <p className="text-sm leading-6 text-[#28312d] dark:text-[#dbe7e0]">
                     {questionText}
                   </p>
                   <div className="mt-2 flex items-center gap-2">
@@ -130,7 +139,7 @@ export const RecentQuestionsCard = () => {
                     >
                       {topicMeta.label}
                     </span>
-                    <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                    <span className="text-[11px] text-[#6d746f] dark:text-[#7e9589]">
                       {attempt.correct ? `+${formatUnitsAsKwh(attempt.xp)}` : '0 kWh'}
                     </span>
                   </div>

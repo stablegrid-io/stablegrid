@@ -3,10 +3,7 @@
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import type { TopicProgress } from '@/types/progress';
-import {
-  getHomeTopicMeta,
-  HOME_TOPIC_ORDER
-} from '@/components/home/home/topicMeta';
+import { getHomeTopicMeta, HOME_TOPIC_ORDER } from '@/components/home/home/topicMeta';
 
 interface TopicOverviewProps {
   topicProgress: TopicProgress[];
@@ -15,80 +12,128 @@ interface TopicOverviewProps {
 export const TopicOverview = ({ topicProgress }: TopicOverviewProps) => {
   const progressMap = Object.fromEntries(topicProgress.map((item) => [item.topic, item]));
 
+  const topics = HOME_TOPIC_ORDER.map((topicId) => {
+    const meta = getHomeTopicMeta(topicId);
+    const progress = progressMap[topicId];
+
+    const chaptersTotal =
+      progress?.theoryChaptersTotal && progress.theoryChaptersTotal > 0
+        ? progress.theoryChaptersTotal
+        : meta.fallbackChapters;
+    const chaptersCompleted = progress?.theoryChaptersCompleted ?? 0;
+    const theoryPct =
+      chaptersTotal > 0
+        ? Math.min(100, Math.round((chaptersCompleted / chaptersTotal) * 100))
+        : 0;
+
+    const practiceTotal =
+      progress?.practiceQuestionsTotal && progress.practiceQuestionsTotal > 0
+        ? progress.practiceQuestionsTotal
+        : meta.fallbackQuestions;
+    const practiceAttempted = progress?.practiceQuestionsAttempted ?? 0;
+    const practiceCorrect = progress?.practiceQuestionsCorrect ?? 0;
+    const practicePct =
+      practiceTotal > 0
+        ? Math.min(100, Math.round((practiceAttempted / practiceTotal) * 100))
+        : 0;
+    const accuracy =
+      practiceAttempted > 0
+        ? Math.round((practiceCorrect / practiceAttempted) * 100)
+        : null;
+    const activityScore = chaptersCompleted * 10 + practiceAttempted;
+
+    return {
+      topicId,
+      meta,
+      chaptersCompleted,
+      chaptersTotal,
+      theoryPct,
+      practiceAttempted,
+      practiceTotal,
+      practicePct,
+      accuracy,
+      activityScore
+    };
+  }).sort((left, right) => right.activityScore - left.activityScore);
+
+  const activeTopics = topics.filter(
+    (topic) => topic.theoryPct > 0 || topic.practicePct > 0
+  );
+  const visibleTopics = (activeTopics.length > 0 ? activeTopics : topics).slice(0, 4);
+
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Topics</h2>
+    <div className="overflow-hidden rounded-[1.85rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_20px_56px_-44px_rgba(17,24,39,0.25)] backdrop-blur dark:border-white/10 dark:bg-[rgba(10,18,14,0.74)]">
+      <div className="flex items-center justify-between border-b border-[#ece1d2] px-5 py-4 dark:border-white/8">
+        <div>
+          <h2 className="text-sm font-semibold text-[#121b18] dark:text-[#f2f7f4]">
+            Topic progress
+          </h2>
+          <p className="mt-0.5 text-xs text-[#6d746f] dark:text-[#7e9589]">
+            The topics with the clearest next step right now.
+          </p>
+        </div>
         <Link
           href="/progress"
-          className="text-xs font-medium text-brand-500 transition-colors hover:text-brand-600"
+          className="text-xs font-medium text-emerald-700 transition-colors hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
         >
           View progress
         </Link>
       </div>
 
-      <div className="space-y-2.5">
-        {HOME_TOPIC_ORDER.map((topicId) => {
-          const meta = getHomeTopicMeta(topicId);
-          const progress = progressMap[topicId];
-
-          const chaptersTotal =
-            progress?.theoryChaptersTotal && progress.theoryChaptersTotal > 0
-              ? progress.theoryChaptersTotal
-              : meta.fallbackChapters;
-          const chaptersCompleted = progress?.theoryChaptersCompleted ?? 0;
-          const theoryPct =
-            chaptersTotal > 0
-              ? Math.min(100, Math.round((chaptersCompleted / chaptersTotal) * 100))
-              : 0;
-
-          const practiceTotal =
-            progress?.practiceQuestionsTotal && progress.practiceQuestionsTotal > 0
-              ? progress.practiceQuestionsTotal
-              : meta.fallbackQuestions;
-          const practiceAttempted = progress?.practiceQuestionsAttempted ?? 0;
-          const practiceCorrect = progress?.practiceQuestionsCorrect ?? 0;
-          const practicePct =
-            practiceTotal > 0
-              ? Math.min(100, Math.round((practiceAttempted / practiceTotal) * 100))
-              : 0;
-          const accuracy =
-            practiceAttempted > 0
-              ? Math.round((practiceCorrect / practiceAttempted) * 100)
-              : null;
+      <div className="space-y-3 px-5 py-5">
+        {visibleTopics.map((topic) => {
+          const status =
+            topic.accuracy !== null
+              ? `${topic.accuracy}% accuracy`
+              : topic.theoryPct > 0
+                ? 'Theory in progress'
+                : 'Not started';
 
           return (
             <Link
-              key={topicId}
-              href={`/learn/${topicId}/theory`}
-              className="group block rounded-xl border border-neutral-100 bg-white p-3 transition-all hover:-translate-y-0.5 hover:border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-700"
+              key={topic.topicId}
+              href={`/learn/${topic.topicId}/theory`}
+              className="group block rounded-[1.35rem] border border-[#e4dbce] bg-[rgba(255,255,255,0.74)] p-4 transition-all hover:-translate-y-0.5 hover:border-emerald-500/30 hover:shadow-[0_18px_40px_-30px_rgba(16,185,129,0.18)] dark:border-white/8 dark:bg-[rgba(255,255,255,0.03)] dark:hover:border-white/15"
             >
-              <div className="mb-2 flex items-center justify-between">
+              <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-base">{meta.icon}</span>
-                  <span className="text-sm font-semibold text-neutral-900 dark:text-white">
-                    {meta.label}
+                  <span
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border text-base"
+                    style={{
+                      backgroundColor: topic.meta.softBg,
+                      borderColor: topic.meta.softBorder
+                    }}
+                  >
+                    {topic.meta.icon}
+                  </span>
+                  <span>
+                    <span className="block text-sm font-semibold text-[#121b18] dark:text-[#f2f7f4]">
+                      {topic.meta.label}
+                    </span>
+                    <span className="block text-xs text-[#6d746f] dark:text-[#7e9589]">
+                      {topic.chaptersCompleted}/{topic.chaptersTotal} chapters completed
+                    </span>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                    {accuracy !== null ? `${accuracy}% acc` : '—'}
+                  <span className="rounded-full bg-[#f1ede5] px-2 py-1 text-[11px] text-[#56635c] dark:bg-white/5 dark:text-[#8aa496]">
+                    {status}
                   </span>
-                  <ChevronRight className="h-3.5 w-3.5 text-neutral-400 transition-transform group-hover:translate-x-0.5" />
+                  <ChevronRight className="h-3.5 w-3.5 text-[#6d746f] transition-transform group-hover:translate-x-0.5 dark:text-[#7e9589]" />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2.5">
                 <ProgressRow
                   label="Theory"
-                  value={`${chaptersCompleted}/${chaptersTotal}`}
-                  percentage={theoryPct}
-                  color={meta.color}
+                  value={`${topic.chaptersCompleted}/${topic.chaptersTotal}`}
+                  percentage={topic.theoryPct}
+                  color={topic.meta.color}
                 />
                 <ProgressRow
                   label="Practice"
-                  value={`${practiceAttempted}/${practiceTotal}`}
-                  percentage={practicePct}
+                  value={`${topic.practiceAttempted}/${topic.practiceTotal}`}
+                  percentage={topic.practicePct}
                   color="#10b981"
                 />
               </div>
@@ -112,15 +157,15 @@ const ProgressRow = ({
   color: string;
 }) => (
   <div className="grid grid-cols-[46px_1fr_auto] items-center gap-2">
-    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400 dark:text-neutral-500">
+    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6d746f] dark:text-[#7e9589]">
       {label}
     </span>
-    <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+    <div className="h-1.5 overflow-hidden rounded-full bg-[#ece4d8] dark:bg-white/8">
       <div
         className="h-full rounded-full transition-all"
         style={{ width: `${percentage}%`, backgroundColor: color }}
       />
     </div>
-    <span className="text-[10px] text-neutral-500 dark:text-neutral-400">{value}</span>
+    <span className="text-[10px] text-[#6d746f] dark:text-[#7e9589]">{value}</span>
   </div>
 );

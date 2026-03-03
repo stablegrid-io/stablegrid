@@ -1,258 +1,124 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { BookOpen, Flame, Target, Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowRight, Layers3, Zap } from 'lucide-react';
 import Link from 'next/link';
-import {
-  formatUnitsAsKwh,
-  getAvailableBudgetUnits,
-  unitsToKwh
-} from '@/lib/energy';
-import { useProgressStore } from '@/lib/stores/useProgressStore';
 
 interface HomeHeroHeaderProps {
   firstName: string;
-  greeting: string;
-  streak: number;
-  totalEnergyUnits: number;
-  energyTodayUnits: number;
-  questionsCompleted: number;
-  overallAccuracy: number;
-  chaptersCompleted: number;
-  overallProgress: number;
+  nextLine: string;
+  riskLine: string;
+  rewardLine: string;
+  primaryActionHref: string;
+  primaryActionLabel: string;
+  practiceHref: string;
+  gridHref: string;
+  simplified: boolean;
+  onToggleSimplified: () => void;
 }
 
 export const HomeHeroHeader = ({
   firstName,
-  greeting,
-  streak,
-  totalEnergyUnits,
-  energyTodayUnits,
-  questionsCompleted,
-  overallAccuracy,
-  chaptersCompleted,
-  overallProgress
+  nextLine,
+  riskLine,
+  rewardLine,
+  primaryActionHref,
+  primaryActionLabel,
+  practiceHref,
+  gridHref,
+  simplified,
+  onToggleSimplified
 }: HomeHeroHeaderProps) => {
-  const deployedNodeIds = useProgressStore((state) => state.deployedNodeIds);
-  const availableBudgetUnits = getAvailableBudgetUnits(totalEnergyUnits, deployedNodeIds);
-  const energyBalanceKwh = unitsToKwh(availableBudgetUnits);
-  const todayKwh = unitsToKwh(energyTodayUnits);
-  const batteryPct = Math.max(8, Math.min(100, Math.round((energyBalanceKwh % 10) * 10)));
-  const [showEnergyBurst, setShowEnergyBurst] = useState(false);
-  const previousEnergyRef = useRef(totalEnergyUnits);
-
-  useEffect(() => {
-    const previous = previousEnergyRef.current;
-    previousEnergyRef.current = totalEnergyUnits;
-
-    if (totalEnergyUnits <= previous) return;
-
-    setShowEnergyBurst(true);
-    const timeoutId = window.setTimeout(() => {
-      setShowEnergyBurst(false);
-    }, 900);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [totalEnergyUnits]);
-
-  const statCards = [
-    {
-      label: 'Deployment budget',
-      value: formatUnitsAsKwh(availableBudgetUnits),
-      icon: Zap,
-      subLabel: 'available to spend'
-    },
-    {
-      label: 'Current streak',
-      value: `${streak} days`,
-      icon: Flame,
-      subLabel: 'consistency'
-    },
-    {
-      label: 'Questions done',
-      value: questionsCompleted.toLocaleString(),
-      icon: Target,
-      subLabel: `${overallAccuracy}% accuracy`
-    },
-    {
-      label: 'Chapters read',
-      value: chaptersCompleted.toLocaleString(),
-      icon: BookOpen,
-      subLabel: 'theory completion'
-    }
-  ] as const;
-
-  const progressRadius = 40;
-  const progressCircumference = 2 * Math.PI * progressRadius;
-  const progressOffset =
-    progressCircumference * (1 - overallProgress / 100);
-
   return (
     <motion.section
-      initial={{ opacity: 0, y: -12 }}
+      initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45 }}
-      className="relative overflow-hidden rounded-2xl border"
-      style={{
-        background: 'linear-gradient(135deg, #071c12 0%, #0a1a0e 100%)',
-        borderColor: 'rgba(16, 185, 129, 0.2)',
-        boxShadow: '0 0 40px rgba(16, 185, 129, 0.06)'
-      }}
+      transition={{ duration: 0.42 }}
+      data-testid="home-shift-briefing"
+      className="relative overflow-hidden rounded-[2rem] border border-[#cfd8cf] bg-[rgba(249,246,240,0.86)] shadow-[0_24px_80px_-58px_rgba(15,23,42,0.32)] backdrop-blur dark:border-white/10 dark:bg-[rgba(10,18,14,0.78)]"
     >
       <div
-        className="pointer-events-none absolute -right-12 -top-16 h-64 w-64 rounded-full opacity-10"
+        className="pointer-events-none absolute inset-0"
         style={{
-          background: 'radial-gradient(circle, #10b981, transparent 70%)'
+          background:
+            'linear-gradient(180deg, rgba(255,255,255,0.72), rgba(247,243,236,0.55)), radial-gradient(circle at 100% 0%, rgba(16,185,129,0.12), transparent 30%), linear-gradient(90deg, rgba(15,23,42,0.04) 1px, transparent 1px), linear-gradient(rgba(15,23,42,0.04) 1px, transparent 1px)',
+          backgroundSize: 'auto, auto, 36px 36px, 36px 36px'
         }}
       />
       <div
-        className="pointer-events-none absolute inset-0 opacity-50"
+        className="pointer-events-none absolute inset-0 opacity-70 dark:opacity-100"
         style={{
-          backgroundImage:
-            'radial-gradient(rgba(16,185,129,0.08) 1px, transparent 1px)',
-          backgroundSize: '20px 20px'
+          background:
+            'linear-gradient(135deg, rgba(245,158,11,0.08), transparent 28%), radial-gradient(circle at 82% 18%, rgba(16,185,129,0.15), transparent 24%)'
         }}
       />
 
-      <div className="relative z-10">
-        <div className="grid gap-5 px-5 pb-6 pt-6 sm:px-6 md:grid-cols-[1fr_auto] md:items-start lg:px-7">
+      <div className="relative z-10 px-5 py-5 sm:px-6 sm:py-6">
+        <div className="max-w-4xl">
           <div>
-            <p className="mb-2 text-sm font-medium text-emerald-500">{greeting}</p>
-            <h1 className="text-3xl font-semibold tracking-tight text-[#ecfdf5]">
-              {firstName}, continue your learning plan.
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#315847] dark:border-white/10 dark:bg-white/5 dark:text-[#8ed3af]">
+              <Zap className="h-3.5 w-3.5" />
+              Shift briefing
+            </div>
+            <h1
+              className="mt-4 text-[2.25rem] font-semibold tracking-tight text-[#101918] dark:text-[#f3f7f4] sm:text-[3rem]"
+              style={{ fontFamily: 'var(--font-serif)' }}
+            >
+              {firstName}, hold the grid steady.
             </h1>
-            <p className="mt-2 text-sm text-[#4b7a63]">
-              {streak > 0
-                ? `${streak}-day streak. Keep momentum with one focused session today.`
-                : 'Start a focused session today to establish your streak.'}
-            </p>
-            <div className="mt-4 inline-flex items-center gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2">
-              <div className="relative h-4 w-10 overflow-hidden rounded-sm border border-emerald-400/30 bg-emerald-950/40">
-                <motion.div
-                  className="absolute inset-y-0 left-0 bg-emerald-400"
-                  animate={{ width: `${batteryPct}%` }}
-                  transition={{ type: 'spring', stiffness: 220, damping: 24 }}
-                />
-                <AnimatePresence>
-                  {showEnergyBurst &&
-                    [0, 1, 2].map((index) => (
-                      <motion.span
-                        key={index}
-                        className="pointer-events-none absolute top-1/2 h-1 w-1 rounded-full bg-emerald-300"
-                        initial={{
-                          opacity: 0.8,
-                          x: 8 + index * 6,
-                          y: -2
-                        }}
-                        animate={{
-                          opacity: 0,
-                          x: 14 + index * 9,
-                          y: -8 - index * 3
-                        }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.65, delay: index * 0.06 }}
-                      />
-                    ))}
-                </AnimatePresence>
-              </div>
-              <div className="text-xs text-emerald-200">
-                Budget: <span className="font-semibold">{formatUnitsAsKwh(availableBudgetUnits)}</span>
-              </div>
-              <div className="text-xs text-emerald-300">
-                Today +{todayKwh.toLocaleString(undefined, { maximumFractionDigits: 2 })} kWh
-              </div>
-              <Link
-                href="/energy"
-                data-pulse-target="home-energy-lab"
-                className="rounded-md border border-emerald-400/30 px-2 py-1 text-[11px] font-medium text-emerald-200 transition hover:bg-emerald-500/20"
-              >
-                Open Grid
-              </Link>
-            </div>
-          </div>
-
-          <div className="flex justify-center md:justify-end md:pr-1">
-            <div className="flex flex-col items-center gap-3">
-              <div className="relative h-24 w-24">
-                <svg
-                  viewBox="0 0 96 96"
-                  width="96"
-                  height="96"
-                  className="-rotate-90"
-                  aria-label={`Overall progress ${overallProgress}%`}
-                >
-                  <circle
-                    cx="48"
-                    cy="48"
-                    r={progressRadius}
-                    fill="none"
-                    stroke="rgba(16, 185, 129, 0.15)"
-                    strokeWidth="8"
-                  />
-                  <circle
-                    cx="48"
-                    cy="48"
-                    r={progressRadius}
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth="8"
-                    strokeDasharray={progressCircumference}
-                    strokeDashoffset={progressOffset}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="text-[22px] font-bold leading-none tabular-nums text-[#ecfdf5]">
-                    {overallProgress}%
-                  </span>
-                  <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#4b7a63]">
-                    done
-                  </span>
-                </div>
-              </div>
-              <span className="mt-2 text-xs text-[#4b7a63]">Overall progress</span>
-            </div>
           </div>
         </div>
 
-        <div
-          className="grid grid-cols-2 border-t lg:grid-cols-4"
-          style={{ borderColor: 'rgba(16, 185, 129, 0.12)' }}
+        <div className="mt-5 grid gap-2 text-base leading-7 text-[#27312d] dark:text-[#d6e4dc]">
+          <BriefingLine label="Next" value={nextLine} />
+          <BriefingLine label="Risk" value={riskLine} />
+          <BriefingLine label="Reward" value={rewardLine} />
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link
+            href={primaryActionHref}
+            data-testid="home-primary-action"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#101918] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0a100e] dark:bg-emerald-400 dark:text-[#07100a] dark:hover:bg-emerald-300"
+          >
+            {primaryActionLabel}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            href={practiceHref}
+            data-testid="home-secondary-practice"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#c9d3cc] bg-white/78 px-4 py-3 text-sm font-medium text-[#1c2b24] transition-colors hover:border-emerald-500/35 hover:text-[#101918] dark:border-white/10 dark:bg-white/5 dark:text-[#d7e8de] dark:hover:border-emerald-300/35"
+          >
+            Practice
+          </Link>
+          <Link
+            href={gridHref}
+            data-testid="home-secondary-grid"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#c9d3cc] bg-white/78 px-4 py-3 text-sm font-medium text-[#1c2b24] transition-colors hover:border-emerald-500/35 hover:text-[#101918] dark:border-white/10 dark:bg-white/5 dark:text-[#d7e8de] dark:hover:border-emerald-300/35"
+          >
+            Open Grid
+          </Link>
+        </div>
+
+        <button
+          type="button"
+          onClick={onToggleSimplified}
+          data-testid="home-simplify-toggle"
+          className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#cfd8cf] bg-white/60 px-3 py-2 text-sm font-medium text-[#31453a] transition-colors hover:border-emerald-500/30 hover:text-[#152019] dark:border-white/10 dark:bg-white/5 dark:text-[#b9d0c3] dark:hover:border-emerald-300/30"
         >
-          {statCards.map((card, index) => {
-            const Icon = card.icon;
-            const cellClass = [
-              'px-5 py-4 sm:px-6 lg:px-7',
-              index % 2 === 0 ? 'border-r' : '',
-              index < 2 ? 'border-b' : '',
-              index < 3 ? 'lg:border-r' : 'lg:border-r-0',
-              'lg:border-b-0'
-            ]
-              .filter(Boolean)
-              .join(' ');
-
-            return (
-              <div
-                key={card.label}
-                className={cellClass}
-                style={{ borderColor: 'rgba(16, 185, 129, 0.10)' }}
-              >
-                <div className="mb-2 inline-flex items-center gap-1.5 text-xs text-emerald-500">
-                  <Icon className="h-3.5 w-3.5" />
-                  <span className="font-medium uppercase tracking-[0.12em]">
-                    {card.label}
-                  </span>
-                </div>
-                <div className="text-2xl font-semibold text-[#ecfdf5]">{card.value}</div>
-                <div className="text-xs text-[#4b7a63]">{card.subLabel}</div>
-              </div>
-            );
-          })}
-        </div>
+          <Layers3 className="h-4 w-4" />
+          {simplified ? 'Show full console' : 'Simplify view'}
+        </button>
       </div>
     </motion.section>
   );
 };
+
+const BriefingLine = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex gap-2 text-sm sm:text-base">
+    <span className="min-w-[64px] font-semibold text-[#101918] dark:text-[#f3f7f4]">
+      {label}:
+    </span>
+    <span>{value}</span>
+  </div>
+);

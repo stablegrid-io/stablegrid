@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Play, Zap } from 'lucide-react';
+import { Play, Target } from 'lucide-react';
 import type { TopicProgress } from '@/types/progress';
 import { getHomeTopicMeta } from '@/components/home/home/topicMeta';
 
@@ -16,7 +16,8 @@ export const DailyPracticeCard = ({
   goalPerDay,
   topicProgress
 }: DailyPracticeCardProps) => {
-  const pct = Math.min(100, Math.round((questionsToday / goalPerDay) * 100));
+  const pct =
+    goalPerDay > 0 ? Math.min(100, Math.round((questionsToday / goalPerDay) * 100)) : 0;
   const done = questionsToday >= goalPerDay;
 
   const weakestTopic = topicProgress
@@ -38,48 +39,69 @@ export const DailyPracticeCard = ({
     : '/practice/setup';
 
   return (
-    <div className="rounded-xl border border-neutral-100 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="mb-4 flex items-start justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">
-            Daily Practice
-          </h2>
-          <p className="mt-0.5 text-xs text-neutral-400">
-            {done
-              ? `Goal reached. ${questionsToday} questions today.`
-              : `${questionsToday} of ${goalPerDay} questions today`}
-          </p>
-        </div>
-        <Zap className={`h-5 w-5 ${done ? 'text-amber-400' : 'text-brand-500'}`} />
-      </div>
-
-      <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ${
-            done ? 'bg-amber-400' : 'bg-brand-500'
-          }`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-
-      {weakestTopic && !done ? (
-        <div className="mb-4 rounded-lg bg-neutral-50 p-3 text-xs dark:bg-neutral-800/50">
-          <span className="mr-1">{getHomeTopicMeta(weakestTopic.topic).icon}</span>
-          <span className="text-neutral-400">Focus area: </span>
-          <span className="font-medium capitalize text-neutral-700 dark:text-neutral-300">
-            {getHomeTopicMeta(weakestTopic.topic).label}
+    <div className="overflow-hidden rounded-[1.75rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_18px_48px_-38px_rgba(17,24,39,0.22)] backdrop-blur dark:border-white/10 dark:bg-[rgba(10,18,14,0.74)]">
+      <div className="p-5">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[#121b18] dark:text-[#f2f7f4]">
+              Practice today
+            </h2>
+            <p className="mt-0.5 text-xs text-[#6d746f] dark:text-[#7e9589]">
+              {done
+                ? `Goal reached. ${questionsToday} questions answered today.`
+                : `${questionsToday} of ${goalPerDay} questions answered today`}
+            </p>
+          </div>
+          <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+            {pct}%
           </span>
-          <span className="text-neutral-400"> — lowest accuracy</span>
         </div>
-      ) : null}
 
-      <Link
-        href={practiceHref}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-600"
-      >
-        <Play className="h-3.5 w-3.5" />
-        {done ? 'Keep practicing' : 'Start Practice'}
-      </Link>
+        <Target
+          className={`mb-4 h-5 w-5 ${
+            done ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-300'
+          }`}
+        />
+
+        <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-[#e7ddd0] dark:bg-white/8">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${
+              done ? 'bg-amber-500' : 'bg-emerald-500'
+            }`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+
+        {weakestTopic && !done ? (
+          <div className="mb-4 rounded-[1.15rem] border border-[#ebe2d5] bg-[rgba(255,255,255,0.72)] p-3 text-xs dark:border-white/8 dark:bg-[rgba(255,255,255,0.03)]">
+            <span className="mr-1">{getHomeTopicMeta(weakestTopic.topic).icon}</span>
+            <span className="text-[#6d746f] dark:text-[#7e9589]">
+              Recommended topic:{' '}
+            </span>
+            <span className="font-medium text-[#28312d] dark:text-[#dbe7e0]">
+              {getHomeTopicMeta(weakestTopic.topic).label}
+            </span>
+            <span className="text-[#6d746f] dark:text-[#7e9589]">
+              {' '}
+              because it currently has the lowest accuracy.
+            </span>
+          </div>
+        ) : (
+          <div className="mb-4 rounded-[1.15rem] border border-[#ebe2d5] bg-[rgba(255,255,255,0.72)] p-3 text-xs text-[#6d746f] dark:border-white/8 dark:bg-[rgba(255,255,255,0.03)] dark:text-[#7e9589]">
+            {done
+              ? 'You have met today’s practice goal. Run another short sprint if you want extra review.'
+              : 'A short practice sprint is enough to keep recall fresh today.'}
+          </div>
+        )}
+
+        <Link
+          href={practiceHref}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#121b18] py-3 text-sm font-medium text-white transition-colors hover:bg-[#0b120f] dark:bg-emerald-400 dark:text-[#08110b] dark:hover:bg-emerald-300"
+        >
+          <Play className="h-3.5 w-3.5" />
+          {done ? 'Practice again' : 'Start practice'}
+        </Link>
+      </div>
     </div>
   );
 };

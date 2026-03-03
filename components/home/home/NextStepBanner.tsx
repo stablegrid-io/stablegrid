@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Play } from 'lucide-react';
+import { ArrowRight, Play } from 'lucide-react';
 import type { ReadingSession } from '@/types/progress';
 import { getHomeTopicMeta } from '@/components/home/home/topicMeta';
 
@@ -22,37 +22,55 @@ export const NextStepBanner = ({ session }: NextStepBannerProps) => {
 
   return (
     <div
-      className="flex items-center gap-4 rounded-2xl border px-5 py-4"
+      className="relative overflow-hidden rounded-[1.75rem] border px-5 py-5"
       style={{
         borderColor: meta.softBorder,
-        background: `linear-gradient(135deg, ${meta.softBg}, rgba(16,185,129,0.05))`
+        background: `linear-gradient(135deg, ${meta.softBg}, rgba(255,249,242,0.82) 55%, rgba(16,185,129,0.08))`
       }}
     >
       <div
-        className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-xl text-white"
+        className="pointer-events-none absolute inset-0 opacity-70"
         style={{
-          background: `linear-gradient(135deg, ${meta.color}, #10b981)`,
-          boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)'
+          background:
+            'radial-gradient(circle at 100% 0%, rgba(16,185,129,0.12), transparent 26%), linear-gradient(90deg, rgba(245,158,11,0.1), transparent 38%)'
         }}
-      >
-        {meta.icon}
+      />
+      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center">
+        <div
+          className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-xl text-white"
+          style={{
+            background: `linear-gradient(135deg, ${meta.color}, #10b981)`,
+            boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)'
+          }}
+        >
+          {meta.icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#0f8a5c] dark:text-emerald-300">
+            Continue learning
+          </p>
+          <p className="mt-2 text-xl font-semibold tracking-tight text-[#121b18] dark:text-[#f2f7f4]">
+            Resume {meta.label} chapter {session.chapterNumber}
+          </p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5d655f] dark:text-[#8aa496]">
+            You have completed {session.sectionsRead} of {session.sectionsTotal} sections.
+            Open the chapter and finish the remaining work.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="rounded-full border border-[#d9cfbf] bg-[rgba(255,255,255,0.7)] px-3 py-2 text-xs font-medium text-[#47544f] dark:border-white/10 dark:bg-[rgba(255,255,255,0.03)] dark:text-[#8aa496]">
+            {completion}% complete
+          </div>
+          <Link
+            href={`/learn/${session.topic}/theory`}
+            className="inline-flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-[#121b18] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0b120f] dark:bg-emerald-400 dark:text-[#08110b] dark:hover:bg-emerald-300"
+          >
+            <Play className="h-3.5 w-3.5" />
+            Open chapter
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-neutral-900 dark:text-white">
-          Continue: {meta.label} · Chapter {session.chapterNumber}
-        </p>
-        <p className="mt-0.5 text-sm text-neutral-600 dark:text-neutral-300">
-          You&apos;re {completion}% through this chapter. Finish the remaining
-          sections to complete it.
-        </p>
-      </div>
-      <Link
-        href={`/learn/${session.topic}/theory`}
-        className="inline-flex flex-shrink-0 items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-600"
-      >
-        <Play className="h-3.5 w-3.5" />
-        Continue
-      </Link>
     </div>
   );
 };
