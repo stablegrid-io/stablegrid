@@ -13,7 +13,8 @@
 
 ## Budget Targets
 - Per model triangles: `<= 6,000` (target `1,500 - 4,000`)
-- File size per model: `<= 1.8 MB`
+- File size target per model: `<= 0.5 MB`
+- File size hard cap per model: `<= 1.8 MB`
 - Material count per model: `<= 3`
 - Texture set per model: optional, keep total texture payload minimal
 
@@ -33,7 +34,8 @@
 Run:
 
 ```bash
+node tools/generate-grid-placeholder-models.mjs
 node tools/validate-grid-assets.cjs
 ```
 
-CI should fail if required model files are missing or exceed size limits.
+The generator preserves the previous large source files in `high-poly-archive/` the first time it overwrites them.

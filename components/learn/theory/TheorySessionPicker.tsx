@@ -13,6 +13,27 @@ import {
   type TheorySessionMethodId
 } from '@/lib/learn/theorySession';
 
+const SESSION_METHOD_ORDER: TheorySessionMethodId[] = [
+  'sprint',
+  'pomodoro',
+  'deep-focus',
+  'free-read'
+];
+
+const getSuggestedMethodId = (
+  lessonDurationMinutes: number
+): TheorySessionMethodId => {
+  if (lessonDurationMinutes <= 18) {
+    return 'sprint';
+  }
+
+  if (lessonDurationMinutes >= 45) {
+    return 'deep-focus';
+  }
+
+  return 'pomodoro';
+};
+
 interface TheorySessionPickerProps {
   isOpen: boolean;
   configsByMethod: Record<TheorySessionMethodId, TheorySessionConfig>;
@@ -29,20 +50,6 @@ const methodIconMap = {
   sprint: Zap,
   'free-read': BookOpen
 } satisfies Record<TheorySessionMethodId, typeof Clock3>;
-
-const getSuggestedMethodId = (
-  lessonDurationMinutes: number
-): TheorySessionMethodId => {
-  if (lessonDurationMinutes <= 18) {
-    return 'sprint';
-  }
-
-  if (lessonDurationMinutes >= 45) {
-    return 'deep-focus';
-  }
-
-  return 'pomodoro';
-};
 
 const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
   const method = getTheorySessionMethod(config.methodId);
@@ -70,7 +77,7 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
     <div className="rounded-[1.25rem] border border-light-border bg-light-bg px-4 py-4 dark:border-dark-border dark:bg-dark-bg">
       <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
         <span>Rhythm</span>
-        <span>{formatTheorySessionDuration(totalMinutes * 60)}</span>
+        <span>{formatTheorySessionDuration(totalMinutes * 60)} total</span>
       </div>
 
       <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
@@ -120,13 +127,11 @@ const MetaPill = ({
 
 const MethodDetails = ({
   config,
-  isSuggested,
   onOpenSettings,
   onStart,
   onDismiss
 }: {
   config: TheorySessionConfig;
-  isSuggested: boolean;
   onOpenSettings: () => void;
   onStart: () => void;
   onDismiss: () => void;
@@ -153,11 +158,6 @@ const MethodDetails = ({
               <h3 className="text-xl font-semibold text-text-light-primary dark:text-text-dark-primary">
                 {method.label}
               </h3>
-              {isSuggested ? (
-                <span className="rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-medium text-brand-700 dark:border-brand-900/40 dark:bg-brand-900/20 dark:text-brand-200">
-                  Suggested
-                </span>
-              ) : null}
             </div>
             <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
               {method.description}
@@ -241,6 +241,13 @@ export const TheorySessionPicker = ({
   const suggestedMethodId = useMemo(
     () => getSuggestedMethodId(lessonDurationMinutes),
     [lessonDurationMinutes]
+  );
+  const orderedMethods = useMemo(
+    () =>
+      SESSION_METHOD_ORDER.map((methodId) =>
+        THEORY_SESSION_METHODS.find((method) => method.id === methodId)
+      ).filter((method): method is (typeof THEORY_SESSION_METHODS)[number] => Boolean(method)),
+    []
   );
   const [selectedMethodId, setSelectedMethodId] = useState<TheorySessionMethodId>(
     suggestedMethodId
@@ -330,7 +337,7 @@ export const TheorySessionPicker = ({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             role="dialog"
             aria-modal="true"
-            aria-label="Session tracker"
+            aria-label="Session picker"
             className="relative z-10 w-full max-w-[68rem] overflow-hidden rounded-[2rem] border border-light-border bg-light-surface shadow-[0_24px_80px_rgba(17,17,17,0.12)] dark:border-dark-border dark:bg-dark-surface dark:shadow-[0_24px_80px_rgba(0,0,0,0.4)]"
           >
             <div className="border-b border-light-border px-6 py-6 dark:border-dark-border sm:px-8">
@@ -350,7 +357,7 @@ export const TheorySessionPicker = ({
                 <button
                   ref={closeButtonRef}
                   type="button"
-                  aria-label="Dismiss session tracker"
+                  aria-label="Dismiss session picker"
                   onClick={onDismiss}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-light-border text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-text-dark-primary dark:hover:text-text-dark-primary"
                 >
@@ -372,11 +379,10 @@ export const TheorySessionPicker = ({
                   </div>
 
                   <div className="space-y-2">
-                    {THEORY_SESSION_METHODS.map((method) => {
+                    {orderedMethods.map((method) => {
                       const config = configsByMethod[method.id];
                       const totalMinutes = getTheorySessionTotalMinutes(config);
                       const isSelected = selectedMethod?.id === method.id;
-                      const isSuggested = method.id === suggestedMethodId;
                       const Icon = methodIconMap[method.id];
 
                       return (
@@ -387,6 +393,7 @@ export const TheorySessionPicker = ({
                           }}
                           type="button"
                           aria-pressed={isSelected}
+                          aria-expanded={isSelected}
                           onClick={() => setSelectedMethodId(method.id)}
                           className={`w-full rounded-[1.25rem] border px-4 py-4 text-left transition-colors ${
                             isSelected
@@ -404,11 +411,6 @@ export const TheorySessionPicker = ({
                                 <span className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
                                   {method.label}
                                 </span>
-                                {isSuggested ? (
-                                  <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-brand-700 dark:border-brand-900/40 dark:bg-brand-900/20 dark:text-brand-200">
-                                    Suggested
-                                  </span>
-                                ) : null}
                               </div>
                               <div className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
                                 {method.description}
@@ -424,7 +426,7 @@ export const TheorySessionPicker = ({
                             </span>
                             <span>
                               {method.isTimed
-                                ? formatTheorySessionDuration(totalMinutes * 60)
+                                ? `${formatTheorySessionDuration(totalMinutes * 60)} total`
                                 : 'Open'}
                             </span>
                           </div>
@@ -437,7 +439,6 @@ export const TheorySessionPicker = ({
                 {selectedConfig ? (
                   <MethodDetails
                     config={selectedConfig}
-                    isSuggested={selectedMethodId === suggestedMethodId}
                     onOpenSettings={onOpenSettings}
                     onStart={() => onStart(selectedConfig)}
                     onDismiss={onDismiss}

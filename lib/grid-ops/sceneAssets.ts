@@ -22,10 +22,12 @@ export interface GridSceneAssetDescriptor {
   fallbackIcon: GridOpsVisualIcon;
 }
 
+const MODEL_VERSION = 'placeholder-v2';
+
 export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAssetDescriptor> = {
   'control-center': {
     key: 'control-center',
-    url: '/grid-assets/models/control-center.glb?v=map-natural-2',
+    url: `/grid-assets/models/control-center.glb?v=${MODEL_VERSION}`,
     scale: 2.12,
     yaw: 0.4,
     yOffset: 0.06,
@@ -34,7 +36,7 @@ export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAsset
   },
   'smart-transformer': {
     key: 'smart-transformer',
-    url: '/grid-assets/models/smart-transformer.glb',
+    url: `/grid-assets/models/smart-transformer.glb?v=${MODEL_VERSION}`,
     scale: 0.49,
     yaw: 0.28,
     yOffset: 0.16,
@@ -43,7 +45,7 @@ export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAsset
   },
   'solar-forecasting-array': {
     key: 'solar-forecasting-array',
-    url: '/grid-assets/models/solar-forecasting-array.glb',
+    url: `/grid-assets/models/solar-forecasting-array.glb?v=${MODEL_VERSION}`,
     scale: 1.02,
     yaw: 0.2,
     yOffset: 0.05,
@@ -52,7 +54,7 @@ export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAsset
   },
   'battery-storage': {
     key: 'battery-storage',
-    url: '/grid-assets/models/battery-storage.glb',
+    url: `/grid-assets/models/battery-storage.glb?v=${MODEL_VERSION}`,
     scale: 1.35,
     yaw: 0.18,
     yOffset: 0.04,
@@ -61,7 +63,7 @@ export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAsset
   },
   'frequency-controller': {
     key: 'frequency-controller',
-    url: '/grid-assets/models/frequency-controller.glb',
+    url: `/grid-assets/models/frequency-controller.glb?v=${MODEL_VERSION}`,
     scale: 0.46,
     yaw: 0.32,
     yOffset: 0.18,
@@ -70,7 +72,7 @@ export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAsset
   },
   'demand-response-system': {
     key: 'demand-response-system',
-    url: '/grid-assets/models/demand-response-system.glb',
+    url: `/grid-assets/models/demand-response-system.glb?v=${MODEL_VERSION}`,
     scale: 0.5,
     yaw: 0.12,
     yOffset: 0.16,
@@ -79,7 +81,7 @@ export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAsset
   },
   'grid-flywheel': {
     key: 'grid-flywheel',
-    url: '/grid-assets/models/grid-flywheel.glb',
+    url: `/grid-assets/models/grid-flywheel.glb?v=${MODEL_VERSION}`,
     scale: 0.5,
     yaw: 0.24,
     yOffset: 0.16,
@@ -88,7 +90,7 @@ export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAsset
   },
   'hvdc-interconnector': {
     key: 'hvdc-interconnector',
-    url: '/grid-assets/models/hvdc-interconnector.glb',
+    url: `/grid-assets/models/hvdc-interconnector.glb?v=${MODEL_VERSION}`,
     scale: 0.5,
     yaw: 0.2,
     yOffset: 0.16,
@@ -97,7 +99,7 @@ export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAsset
   },
   'ai-grid-optimizer': {
     key: 'ai-grid-optimizer',
-    url: '/grid-assets/models/ai-grid-optimizer.glb',
+    url: `/grid-assets/models/ai-grid-optimizer.glb?v=${MODEL_VERSION}`,
     scale: 0.52,
     yaw: 0.26,
     yOffset: 0.18,

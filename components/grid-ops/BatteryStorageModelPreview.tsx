@@ -7,7 +7,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Box3, Mesh, Sphere, type Group } from 'three';
 import { cloneSceneWithDetachedMaterials } from '@/components/grid-ops/scene/cloneSceneWithDetachedMaterials';
 
-const BATTERY_MODEL_URL = '/grid-assets/models/battery-storage.glb?v=preview-natural-2';
+const BATTERY_MODEL_URL = '/grid-assets/models/battery-storage.glb?v=placeholder-v2';
 
 function BatteryModelMesh() {
   const gltf = useGLTF(BATTERY_MODEL_URL);

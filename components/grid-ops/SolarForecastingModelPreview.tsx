@@ -7,7 +7,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Box3, Mesh, Sphere, type Group } from 'three';
 import { cloneSceneWithDetachedMaterials } from '@/components/grid-ops/scene/cloneSceneWithDetachedMaterials';
 
-const SOLAR_MODEL_URL = '/grid-assets/models/solar-forecasting-array.glb?v=preview-natural-2';
+const SOLAR_MODEL_URL = '/grid-assets/models/solar-forecasting-array.glb?v=placeholder-v2';
 
 function SolarModelMesh() {
   const gltf = useGLTF(SOLAR_MODEL_URL);

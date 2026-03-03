@@ -29,6 +29,7 @@ export const MultipleChoice = ({
             key={option}
             onClick={() => (!disabled ? onSelect(option) : undefined)}
             disabled={disabled}
+            data-testid={`multiple-choice-option-${index}`}
             className={`w-full rounded-lg border p-4 text-left transition-all duration-150 ${
               isSelected
                 ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'

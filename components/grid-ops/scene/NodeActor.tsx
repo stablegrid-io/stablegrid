@@ -1,8 +1,9 @@
 import { Billboard, Clone, Html, useGLTF } from '@react-three/drei';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   Box3,
+  Object3D,
   MeshStandardMaterial,
   Vector3,
   type Group,
@@ -36,6 +37,35 @@ interface NodeActorProps {
   recommended: boolean;
   onHoverChange: (nodeId: string | null) => void;
   onSelect: (nodeId: string) => void;
+}
+
+type RotationAxis = 'x' | 'y' | 'z';
+
+interface AnimatedRotationPart {
+  axis: RotationAxis;
+  baseRotation: number;
+  direction: 1 | -1;
+  mode: 'spin' | 'sway';
+  object: Object3D;
+  phase: number;
+}
+
+interface AnimatedPulseMaterial {
+  material: MeshStandardMaterial;
+  phase: number;
+  weight: number;
+}
+
+interface ModelMotionProfile {
+  bobAmplitude: number;
+  bobSpeed: number;
+  pulseBase: number;
+  pulseBoost: number;
+  spinSpeed: number;
+  swayAmplitude: number;
+  swaySpeed: number;
+  tiltAmplitude: number;
+  tiltSpeed: number;
 }
 
 function ModelCore({
@@ -108,6 +138,109 @@ const STATE_COLOR: Record<GridOpsNodeView['state'], string> = {
   optimized: '#7dd3ff'
 };
 
+const DEFAULT_MODEL_MOTION: ModelMotionProfile = {
+  bobAmplitude: 0.028,
+  bobSpeed: 2.4,
+  pulseBase: 0.22,
+  pulseBoost: 0.22,
+  spinSpeed: 1.2,
+  swayAmplitude: 0.04,
+  swaySpeed: 1.1,
+  tiltAmplitude: 0.045,
+  tiltSpeed: 1.25
+};
+
+const MODEL_MOTION_BY_NODE_ID: Record<string, Partial<ModelMotionProfile>> = {
+  'control-center': {
+    pulseBase: 0.28,
+    pulseBoost: 0.26,
+    spinSpeed: 1.45,
+    tiltAmplitude: 0.03
+  },
+  'smart-transformer': {
+    pulseBase: 0.24,
+    pulseBoost: 0.28,
+    bobAmplitude: 0.02
+  },
+  'solar-forecasting-array': {
+    bobAmplitude: 0.018,
+    bobSpeed: 1.6,
+    pulseBase: 0.2,
+    pulseBoost: 0.18,
+    swayAmplitude: 0.055,
+    swaySpeed: 0.95,
+    tiltAmplitude: 0.024
+  },
+  'battery-storage': {
+    bobAmplitude: 0.016,
+    pulseBase: 0.26,
+    pulseBoost: 0.34,
+    tiltAmplitude: 0.02
+  },
+  'frequency-controller': {
+    bobAmplitude: 0.022,
+    pulseBase: 0.22,
+    pulseBoost: 0.24,
+    spinSpeed: 1.8,
+    tiltAmplitude: 0.03
+  },
+  'demand-response-system': {
+    bobAmplitude: 0.02,
+    pulseBase: 0.24,
+    pulseBoost: 0.26,
+    tiltAmplitude: 0.026
+  },
+  'grid-flywheel': {
+    bobAmplitude: 0.024,
+    pulseBase: 0.24,
+    pulseBoost: 0.22,
+    spinSpeed: 2.1,
+    tiltAmplitude: 0.028
+  },
+  'hvdc-interconnector': {
+    bobAmplitude: 0.014,
+    bobSpeed: 1.35,
+    pulseBase: 0.18,
+    pulseBoost: 0.16,
+    swayAmplitude: 0.02,
+    tiltAmplitude: 0.016
+  },
+  'ai-grid-optimizer': {
+    bobAmplitude: 0.024,
+    pulseBase: 0.28,
+    pulseBoost: 0.3,
+    spinSpeed: 1.55,
+    tiltAmplitude: 0.034
+  }
+};
+
+const parseAnimatedAxis = (
+  name: string,
+  mode: 'spin' | 'sway'
+): RotationAxis | null => {
+  if (name.startsWith(`${mode}-x-`)) {
+    return 'x';
+  }
+
+  if (name.startsWith(`${mode}-y-`)) {
+    return 'y';
+  }
+
+  if (name.startsWith(`${mode}-z-`)) {
+    return 'z';
+  }
+
+  return null;
+};
+
+const hashUnit = (value: string) => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 33 + value.charCodeAt(index)) >>> 0;
+  }
+  return (hash % 1000) / 1000;
+};
+
 export function NodeActor({
   node,
   asset,
@@ -128,11 +261,26 @@ export function NodeActor({
   const categoryRingRef = useRef<Mesh>(null);
   const coreRef = useRef<Mesh>(null);
   const modelWrapperRef = useRef<Group>(null);
+  const animatedModelPartsRef = useRef<{
+    pulses: AnimatedPulseMaterial[];
+    rotations: AnimatedRotationPart[];
+  }>({
+    pulses: [],
+    rotations: []
+  });
 
   const visualCategory = node.visual_category ?? asset.category;
   const isBatteryNode = node.id === 'battery-storage';
   const iconColor = isBatteryNode ? GRID_VISUAL_TOKENS.accentAmber : CATEGORY_COLOR[visualCategory];
   const stateColor = STATE_COLOR[node.state];
+  const assetDescriptorKey = assetDescriptor?.key ?? null;
+  const modelMotion = useMemo<ModelMotionProfile>(
+    () => ({
+      ...DEFAULT_MODEL_MOTION,
+      ...MODEL_MOTION_BY_NODE_ID[node.id]
+    }),
+    [node.id]
+  );
 
   const baseRadius = useMemo(() => {
     if (node.importance === 'anchor') {
@@ -174,6 +322,75 @@ export function NodeActor({
   const interactionScale = highlighted ? 1.14 : 1;
   const motionMultiplier = Math.max(1, qualityCaps.animationSpeedMultiplier);
 
+  useEffect(() => {
+    const nextParts: {
+      pulses: AnimatedPulseMaterial[];
+      rotations: AnimatedRotationPart[];
+    } = {
+      pulses: [],
+      rotations: []
+    };
+
+    if (!assetDescriptorKey || !modelAvailable || !renderModel || !modelWrapperRef.current) {
+      animatedModelPartsRef.current = nextParts;
+      return;
+    }
+
+    modelWrapperRef.current.traverse((object) => {
+      const spinAxis = parseAnimatedAxis(object.name ?? '', 'spin');
+      if (spinAxis) {
+        const direction = hashUnit(object.name) > 0.5 ? 1 : -1;
+        nextParts.rotations.push({
+          axis: spinAxis,
+          baseRotation: object.rotation[spinAxis],
+          direction,
+          mode: 'spin',
+          object,
+          phase: hashUnit(`${object.name}:spin`) * Math.PI * 2
+        });
+      }
+
+      const swayAxis = parseAnimatedAxis(object.name ?? '', 'sway');
+      if (swayAxis) {
+        nextParts.rotations.push({
+          axis: swayAxis,
+          baseRotation: object.rotation[swayAxis],
+          direction: 1,
+          mode: 'sway',
+          object,
+          phase: hashUnit(`${object.name}:sway`) * Math.PI * 2
+        });
+      }
+
+      const mesh = object as Mesh;
+      if (!mesh.isMesh || !mesh.name.startsWith('pulse-')) {
+        return;
+      }
+
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      materials.forEach((material) => {
+        if (!(material instanceof MeshStandardMaterial)) {
+          return;
+        }
+
+        nextParts.pulses.push({
+          material,
+          phase: hashUnit(`${mesh.name}:pulse`) * Math.PI * 2,
+          weight: 0.7 + hashUnit(`${mesh.name}:weight`) * 0.6
+        });
+      });
+    });
+
+    animatedModelPartsRef.current = nextParts;
+
+    return () => {
+      animatedModelPartsRef.current = {
+        pulses: [],
+        rotations: []
+      };
+    };
+  }, [assetDescriptorKey, modelAvailable, renderModel]);
+
   useFrame((clock) => {
     const elapsed = clock.clock.getElapsedTime();
 
@@ -205,12 +422,42 @@ export function NodeActor({
       }
     }
 
+    if (modelWrapperRef.current) {
+      const pulseStateBoost = deploying ? 0.24 : highlighted ? 0.18 : connected ? 0.1 : 0;
+
+      animatedModelPartsRef.current.pulses.forEach((pulse) => {
+        pulse.material.emissiveIntensity =
+          modelMotion.pulseBase +
+          pulseStateBoost +
+          pulse.weight * modelMotion.pulseBoost * (reducedMotion ? 0.35 : 0.55 + 0.45 * ((Math.sin(elapsed * 3.4 * motionMultiplier + pulse.phase) + 1) / 2));
+      });
+    }
+
     if (modelWrapperRef.current && !reducedMotion) {
-      const bobbing = Math.sin(elapsed * 2.45 * motionMultiplier + position.x) * 0.03;
-      const tilt = Math.sin(elapsed * 1.25 * motionMultiplier + position.z) * 0.045;
+      const bobbing =
+        Math.sin(elapsed * modelMotion.bobSpeed * motionMultiplier + position.x) *
+        modelMotion.bobAmplitude;
+      const tilt =
+        Math.sin(elapsed * modelMotion.tiltSpeed * motionMultiplier + position.z) *
+        modelMotion.tiltAmplitude;
       const deployKick = deploying ? 0.025 : 0;
       modelWrapperRef.current.position.y = bobbing + deployKick;
       modelWrapperRef.current.rotation.y = tilt;
+
+      animatedModelPartsRef.current.rotations.forEach((part) => {
+        if (part.mode === 'spin') {
+          part.object.rotation[part.axis] =
+            part.baseRotation +
+            elapsed * modelMotion.spinSpeed * motionMultiplier * part.direction +
+            part.phase * 0.06;
+          return;
+        }
+
+        part.object.rotation[part.axis] =
+          part.baseRotation +
+          Math.sin(elapsed * modelMotion.swaySpeed * motionMultiplier + part.phase) *
+            modelMotion.swayAmplitude;
+      });
     }
   });
 

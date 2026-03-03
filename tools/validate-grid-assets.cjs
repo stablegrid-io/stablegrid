@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const ROOT = process.cwd();
 const MODELS_DIR = path.join(ROOT, 'public', 'grid-assets', 'models');
+const TARGET_FILE_BYTES = 0.5 * 1024 * 1024;
 const MAX_FILE_BYTES = 1.8 * 1024 * 1024;
 
 const REQUIRED_MODELS = [
@@ -20,6 +21,7 @@ const REQUIRED_MODELS = [
 ];
 
 const failures = [];
+const warnings = [];
 
 for (const modelName of REQUIRED_MODELS) {
   const modelPath = path.join(MODELS_DIR, modelName);
@@ -34,6 +36,13 @@ for (const modelName of REQUIRED_MODELS) {
     failures.push(
       `Model too large: ${modelName} (${(stats.size / 1024 / 1024).toFixed(2)} MB > ${(MAX_FILE_BYTES / 1024 / 1024).toFixed(2)} MB)`
     );
+    continue;
+  }
+
+  if (stats.size > TARGET_FILE_BYTES) {
+    warnings.push(
+      `Model exceeds optimization target: ${modelName} (${(stats.size / 1024 / 1024).toFixed(2)} MB > ${(TARGET_FILE_BYTES / 1024 / 1024).toFixed(2)} MB target)`
+    );
   }
 }
 
@@ -43,6 +52,13 @@ if (failures.length > 0) {
     console.error(`- ${failure}`);
   }
   process.exit(1);
+}
+
+if (warnings.length > 0) {
+  console.warn('Grid asset validation warnings:');
+  for (const warning of warnings) {
+    console.warn(`- ${warning}`);
+  }
 }
 
 console.log('Grid asset validation passed.');

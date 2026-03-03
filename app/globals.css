@@ -3,6 +3,13 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --font-sans: 'Inter', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'DM Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+    --font-serif: 'DM Serif Display', 'Iowan Old Style', 'Palatino Linotype', Georgia,
+      serif;
+  }
+
   html,
   body {
     height: 100%;

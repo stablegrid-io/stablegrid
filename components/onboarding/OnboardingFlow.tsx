@@ -194,7 +194,7 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
               Hey, {firstName} 👋
             </h1>
             <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-text-light-secondary dark:text-text-dark-secondary">
-              You're about to start building serious data engineering skills. Let's take 60 seconds to personalise your experience before you dive in.
+              You&apos;re about to start building serious data engineering skills. Let&apos;s take 60 seconds to personalise your experience before you dive in.
             </p>
 
             <div className="mx-auto mt-10 grid max-w-sm grid-cols-3 gap-4 text-center">
@@ -281,10 +281,10 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
                 Step 2 of 3
               </p>
               <h2 className="font-display text-3xl font-bold text-text-light-primary dark:text-text-dark-primary">
-                What's your main goal?
+                What&apos;s your main goal?
               </h2>
               <p className="mt-3 text-sm text-text-light-secondary dark:text-text-dark-secondary">
-                We'll drop you straight in after this.
+                We&apos;ll drop you straight in after this.
               </p>
             </div>
 
@@ -343,7 +343,7 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
                 Step 3 of 3
               </p>
               <h2 className="font-display text-3xl font-bold text-text-light-primary dark:text-text-dark-primary">
-                What's your current level?
+                What&apos;s your current level?
               </h2>
               <p className="mt-3 text-sm text-text-light-secondary dark:text-text-dark-secondary">
                 No wrong answer — this just sets a starting point.
@@ -395,10 +395,10 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
               <Rocket className="h-8 w-8 text-brand-500" />
             </div>
             <h2 className="font-display text-4xl font-bold text-text-light-primary dark:text-text-dark-primary">
-              You're all set!
+              You&apos;re all set!
             </h2>
             <p className="mx-auto mt-4 max-w-sm text-base leading-relaxed text-text-light-secondary dark:text-text-dark-secondary">
-              Here's your plan based on your answers:
+              Here&apos;s your plan based on your answers:
             </p>
 
             <div className="mx-auto mt-8 max-w-sm space-y-3 text-left">
@@ -484,7 +484,7 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
               ) : (
                 <>
                   <Rocket className="h-4 w-4" />
-                  Let's go
+                  Let&apos;s go
                 </>
               )}
             </button>
