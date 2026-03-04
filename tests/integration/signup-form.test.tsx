@@ -39,6 +39,15 @@ describe('SignupForm', () => {
     expect(screen.getByLabelText(/full name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(getPasswordInput()).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^terms$/i })).toHaveAttribute('href', '/terms');
+    expect(screen.getByRole('link', { name: /^privacy policy$/i })).toHaveAttribute(
+      'href',
+      '/privacy'
+    );
+    expect(screen.getByRole('link', { name: /contact support/i })).toHaveAttribute(
+      'href',
+      '/support'
+    );
   });
 
   it('keeps submit disabled until all requirements are met', async () => {
@@ -75,7 +84,7 @@ describe('SignupForm', () => {
         'Nedas',
         ''
       );
-      expect(pushMock).toHaveBeenCalledWith('/onboarding');
+      expect(pushMock).toHaveBeenCalledWith('/onboarding?signup=1&method=email');
     });
   });
 

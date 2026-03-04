@@ -35,22 +35,21 @@ const GITHUB_ICON = (
 
 const LEFT_FEATURES = [
   {
-    label: 'PySpark & Microsoft Fabric',
+    label: 'Theory Beta route',
     description:
-      'Deep curriculum for distributed compute, Lakehouse patterns, and performance.'
+      'Structured PySpark modules focused on distributed compute, Lakehouse patterns, and reliability.'
   },
   {
-    label: 'Function reference',
-    description: 'Searchable API guidance with examples and common failure modes.'
+    label: 'Chapter progression',
+    description: 'Resume exactly where you stopped with module unlock tracking.'
   },
   {
-    label: 'Practice sets',
-    description: 'Difficulty-tiered questions with accuracy and speed tracking.'
+    label: 'Session controls',
+    description: 'Use Pomodoro, Deep Focus, Sprint, or Free Read while studying.'
   },
   {
-    label: 'Classified missions',
-    description:
-      'Incident-driven debugging: shuffles, skew, broken pipelines, failed SLAs.'
+    label: 'What comes next',
+    description: 'Practice, flashcards, and missions ship after the full theory catalog.'
   }
 ];
 
@@ -116,7 +115,7 @@ export function LoginForm() {
 
           <div className="relative z-10">
             <p className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#4ade80]">
-              StableGrid Operations
+              Theory Beta
             </p>
             <h1 className="font-display text-[42px] font-bold leading-[1.06] tracking-tight text-[#f0f0f0]">
               Build data engineering that holds under load.
@@ -124,8 +123,8 @@ export function LoginForm() {
               <span className="text-[#4ade80]">Stabilize the grid.</span>
             </h1>
             <p className="mt-5 max-w-[390px] text-sm leading-7 text-[#7d8f84]">
-              Practice the modern stack through production-grade scenarios.
-              Earn deployment kWh from correct solutions and allocate it to infrastructure upgrades as you progress.
+              Continue the Theory Beta curriculum and keep module progress synced across
+              sessions while we finalize the next learning layers.
             </p>
 
             <div className="mt-9">
@@ -147,7 +146,7 @@ export function LoginForm() {
           </div>
 
           <p className="relative z-10 border-t border-[#16261f] pt-4 text-xs text-[#5f7a6a]">
-            Free tier available · SQL + Python included · No card required
+            Theory Beta access · Free tier available · No card required
           </p>
         </aside>
 
@@ -155,13 +154,13 @@ export function LoginForm() {
           <div className="w-full max-w-md">
             <header className="mb-8">
               <p className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#6e8d7a]">
-                StableGrid.io Access
+                StableGrid.io Theory Beta Access
               </p>
               <h2 className="font-display text-4xl font-bold tracking-tight text-[#121212]">
                 Welcome back
               </h2>
               <p className="mt-2 text-sm text-[#6b736d]">
-                Sign in to continue your learning progress.
+                Sign in to continue your theory route.
               </p>
             </header>
 
@@ -279,6 +278,19 @@ export function LoginForm() {
               Don&apos;t have an account?{' '}
               <Link href="/signup" className="font-semibold text-[#1f7a4f] hover:underline">
                 Sign up free
+              </Link>
+            </p>
+            <p className="mt-3 text-center text-xs text-[#8f8f8f]">
+              <Link href="/privacy" className="hover:text-[#1f7a4f] hover:underline">
+                Privacy
+              </Link>
+              {' · '}
+              <Link href="/terms" className="hover:text-[#1f7a4f] hover:underline">
+                Terms
+              </Link>
+              {' · '}
+              <Link href="/support" className="hover:text-[#1f7a4f] hover:underline">
+                Support
               </Link>
             </p>
           </div>

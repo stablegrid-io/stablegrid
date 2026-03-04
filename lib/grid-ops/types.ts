@@ -56,6 +56,7 @@ export interface GridOpsAssetDefinition {
   shortLabel: string;
   category: GridOpsAssetCategory;
   description: string;
+  unlocks: string;
   costUnits: number;
   effects: GridOpsAssetEffect;
   unlockRequirements: string[];
@@ -173,6 +174,7 @@ export interface GridOpsAssetView {
   shortLabel: string;
   category: GridOpsAssetCategory;
   description: string;
+  unlocks: string;
   status: GridOpsAssetStatus;
   cost_units: number;
   cost_kwh: number;

@@ -6,16 +6,17 @@ test.describe('performance smoke', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
   test.skip(!perfEnabled, 'Set PERF_ASSERT=1 to run performance assertions.');
 
-  test('dashboard route transition stays under budget with skeleton', async ({ page }) => {
-    await page.goto('/');
+  test('theory route transition stays under budget', async ({ page }) => {
+    await page.goto('/learn/theory');
 
     await page.waitForLoadState('networkidle');
+    await expect(page.locator('a[href="/learn/pyspark/theory"]').first()).toBeVisible();
 
     const start = Date.now();
-    await page.getByRole('link', { name: /progress/i }).click();
+    await page.locator('a[href="/learn/pyspark/theory"]').first().click();
 
-    await page.waitForURL('**/progress');
-    await page.waitForSelector('h1:has-text("Progress")', { timeout: 10000 });
+    await page.waitForURL('**/learn/pyspark/theory');
+    await page.waitForLoadState('networkidle');
     const duration = Date.now() - start;
 
     expect(duration).toBeLessThan(500);

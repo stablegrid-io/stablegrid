@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import type { PracticeTopic } from '@/lib/types';
@@ -7,6 +8,7 @@ import { SessionHeader } from '@/components/practice/SessionHeader';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { FeedbackPanel } from '@/components/practice/FeedbackPanel';
 import { SessionComplete } from '@/components/practice/SessionComplete';
+import { trackProductEvent } from '@/lib/analytics/productAnalytics';
 import { useQuestionSession } from '@/lib/hooks/useQuestionSession';
 import { Card } from '@/components/ui/Card';
 
@@ -20,6 +22,7 @@ export default function PracticePage({
   const topic = params.topic as PracticeTopic;
   const isAllowedTopic = ALLOWED_TOPICS.includes(topic);
   const sessionTopic = isAllowedTopic ? topic : 'pyspark';
+  const startTrackedRef = useRef(false);
 
   const {
     currentQuestion,
@@ -40,8 +43,28 @@ export default function PracticePage({
     handleRestart,
     progress,
     questions,
-    lastXpGained
+    lastXpGained,
+    isFirstCompletedSession
   } = useQuestionSession(sessionTopic, 10, { enabled: isAllowedTopic });
+
+  useEffect(() => {
+    if (!isAllowedTopic || isLoading || sessionComplete || startTrackedRef.current) {
+      return;
+    }
+
+    startTrackedRef.current = true;
+    void trackProductEvent('practice_session_started', {
+      topic: sessionTopic,
+      questionCount: questions.length,
+      source: 'topic_drill'
+    });
+  }, [isAllowedTopic, isLoading, questions.length, sessionComplete, sessionTopic]);
+
+  useEffect(() => {
+    if (isLoading) {
+      startTrackedRef.current = false;
+    }
+  }, [isLoading]);
 
   if (!isAllowedTopic) {
     return (
@@ -74,6 +97,7 @@ export default function PracticePage({
         <SessionComplete
           stats={sessionStats}
           topic={topic}
+          isFirstCompletedSession={isFirstCompletedSession}
           onRestart={handleRestart}
         />
       </div>

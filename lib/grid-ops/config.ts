@@ -85,6 +85,7 @@ export const GRID_OPS_ASSETS: GridOpsAssetDefinition[] = INFRASTRUCTURE_NODES.ma
       shortLabel: node.icon,
       category: ASSET_CATEGORY_BY_ID[node.id] ?? 'control',
       description: ASSET_DESCRIPTION_BY_ID[node.id] ?? node.function,
+      unlocks: node.unlocks,
       costUnits: kwhToUnits(node.kwhRequired),
       effects: {
         stability: node.stabilityImpactPct,

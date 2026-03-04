@@ -1,10 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { GRID_OPS_DEFAULT_SCENARIO } from '@/lib/grid-ops/config';
 import { GRID_SCENE_ANIMATION_CONFIG } from '@/lib/grid-ops/sceneAnimationConfig';
 import type { GridOpsComputedState, GridOpsMilestone } from '@/lib/grid-ops/types';
+import {
+  trackProductEvent,
+  trackProductEventOnce
+} from '@/lib/analytics/productAnalytics';
 import { GridOpsCommandBar } from '@/components/grid-ops/GridOpsCommandBar';
 import { GridOpsHeader } from '@/components/grid-ops/GridOpsHeader';
 import { MilestoneToast } from '@/components/grid-ops/MilestoneToast';
@@ -12,6 +16,9 @@ import { MissionControlDrawer } from '@/components/grid-ops/MissionControlDrawer
 import { GridSceneErrorBoundary } from '@/components/grid-ops/scene/GridSceneErrorBoundary';
 import { GridSceneCanvas } from '@/components/grid-ops/scene/GridSceneCanvas';
 import { TechDeckDock } from '@/components/grid-ops/TechDeckDock';
+import { useAuthStore } from '@/lib/stores/useAuthStore';
+import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { detectWebGLSupport } from '@/lib/grid-ops/webglSupport';
 
 interface StateResponse {
   data: GridOpsComputedState;
@@ -19,6 +26,7 @@ interface StateResponse {
 
 interface ActionResponse {
   data: {
+    before_state: GridOpsComputedState;
     after_state: GridOpsComputedState;
     delta: {
       stability: number;
@@ -26,6 +34,7 @@ interface ActionResponse {
       budget_units: number;
     };
     milestone_unlocked: GridOpsMilestone | null;
+    activated_regions: string[];
   };
   error?: string;
 }
@@ -36,6 +45,7 @@ export function GridOpsExperience() {
   const [state, setState] = useState<GridOpsComputedState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [webglSupported, setWebglSupported] = useState(false);
   const [pendingAssetId, setPendingAssetId] = useState<string | null>(null);
   const [highlightedAssetId, setHighlightedAssetId] = useState<string | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
@@ -48,6 +58,9 @@ export function GridOpsExperience() {
   const [milestone, setMilestone] = useState<GridOpsMilestone | null>(null);
   const [missionDrawerOpen, setMissionDrawerOpen] = useState(true);
   const [techDeckOpen, setTechDeckOpen] = useState(true);
+  const hasTrackedOpenRef = useRef(false);
+  const user = useAuthStore((store) => store.user);
+  const syncProgress = useProgressStore((store) => store.syncProgress);
 
   const fetchState = useCallback(async () => {
     setLoading(true);
@@ -76,6 +89,23 @@ export function GridOpsExperience() {
   useEffect(() => {
     void fetchState();
   }, [fetchState]);
+
+  useEffect(() => {
+    setWebglSupported(detectWebGLSupport());
+  }, []);
+
+  useEffect(() => {
+    if (!state || hasTrackedOpenRef.current) {
+      return;
+    }
+
+    hasTrackedOpenRef.current = true;
+    void trackProductEvent('grid_ops_opened', {
+      availableKwh: state.resources.available_kwh,
+      stabilityPct: state.simulation.stability_pct,
+      recommendedAssetId: state.recommendation.next_best_action.target_asset_id
+    });
+  }, [state]);
 
   const handleDeploy = useCallback(
     async (assetId: string) => {
@@ -108,6 +138,29 @@ export function GridOpsExperience() {
         setDelta(payload.data.delta);
         setDeployingAssetId(assetId);
 
+        const deployedAsset =
+          payload.data.after_state.assets.find((asset) => asset.id === assetId) ?? null;
+        const isFirstGridDeploy = payload.data.before_state.map.nodes.length === 1;
+
+        void trackProductEvent('grid_asset_deployed', {
+          assetId,
+          assetName: deployedAsset?.name ?? assetId,
+          unlocks: deployedAsset?.unlocks ?? null,
+          stabilityAfter: payload.data.after_state.simulation.stability_pct,
+          riskAfter: payload.data.after_state.simulation.blackout_risk_pct
+        });
+
+        if (isFirstGridDeploy) {
+          void trackProductEventOnce('first_grid_deploy', 'first_grid_deploy', {
+            assetId,
+            assetName: deployedAsset?.name ?? assetId
+          });
+        }
+
+        if (user?.id) {
+          void syncProgress(user.id);
+        }
+
         if (payload.data.milestone_unlocked) {
           setMilestone(payload.data.milestone_unlocked);
           window.setTimeout(() => {
@@ -128,7 +181,7 @@ export function GridOpsExperience() {
         setPendingAssetId(null);
       }
     },
-    [pendingAssetId, state]
+    [pendingAssetId, state, syncProgress, user?.id]
   );
 
   const sortedAssets = useMemo(
@@ -137,6 +190,10 @@ export function GridOpsExperience() {
   );
 
   const recommendedAssetId = state?.recommendation.next_best_action.target_asset_id ?? null;
+  const sceneRuntimeEnabled = !GRID_SCENE_DISABLE && webglSupported;
+  const sceneDisabledMessage = GRID_SCENE_DISABLE
+    ? 'Grid scene is disabled by ops flag (`NEXT_PUBLIC_GRID_SCENE_DISABLE=true`).'
+    : 'WebGL is unavailable in this runtime. Scene rendering is disabled, but deployment controls remain available.';
 
   const handleAssetSelect = useCallback((assetId: string | null) => {
     setSelectedAssetId((previous) => {
@@ -207,7 +264,7 @@ export function GridOpsExperience() {
               }`}
             >
               <div className="space-y-3">
-                {!GRID_SCENE_DISABLE ? (
+                {sceneRuntimeEnabled ? (
                   <GridSceneErrorBoundary>
                     <GridSceneCanvas
                       state={state}
@@ -220,7 +277,7 @@ export function GridOpsExperience() {
                 ) : (
                   <section className="flex h-[58vh] min-h-[520px] w-full items-center justify-center rounded-2xl border border-amber-500/30 bg-[#0c1612] px-6 text-center">
                     <p className="text-sm text-[#cce1d7]">
-                      Grid scene is disabled by ops flag (`NEXT_PUBLIC_GRID_SCENE_DISABLE=true`).
+                      {sceneDisabledMessage}
                     </p>
                   </section>
                 )}
@@ -230,6 +287,7 @@ export function GridOpsExperience() {
                   recommendedAssetId={recommendedAssetId}
                   pendingAssetId={pendingAssetId}
                   open={techDeckOpen}
+                  showModelPreviews={webglSupported}
                   onToggle={() => setTechDeckOpen((previous) => !previous)}
                   onDeploy={handleDeploy}
                   onAssetHover={setHighlightedAssetId}

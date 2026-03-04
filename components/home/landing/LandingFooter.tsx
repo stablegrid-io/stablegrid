@@ -16,6 +16,9 @@ export const LandingFooter = () => {
           {[
             { label: 'Features', href: '#features' },
             { label: 'Pricing', href: '#pricing' },
+            { label: 'Privacy', href: '/privacy' },
+            { label: 'Terms', href: '/terms' },
+            { label: 'Support', href: '/support' },
             { label: 'Login', href: '/login' },
             { label: 'Sign up', href: '/signup' }
           ].map((item) => (

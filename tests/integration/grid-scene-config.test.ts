@@ -2,16 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { resolveSceneRuntimeCaps } from '@/lib/grid-ops/sceneQuality';
 
 describe('grid scene config integration', () => {
-  it('uses desktop caps by default at desktop viewport', () => {
+  it('uses desktop caps on wide higher-memory devices', () => {
     const caps = resolveSceneRuntimeCaps({
       viewportWidth: 1366,
-      deviceMemory: 8,
+      deviceMemory: 16,
       prefersReducedMotion: false
     });
 
     expect(caps.profile).toBe('desktop');
-    expect(caps.dpr[1]).toBeGreaterThan(1.3);
-    expect(caps.enableShadows).toBe(true);
+    expect(caps.dpr).toEqual([1, 1.25]);
+    expect(caps.enableShadows).toBe(false);
+    expect(caps.maxModelRenders).toBe(2);
   });
 
   it('uses mobile reduced caps when device is constrained', () => {
@@ -23,6 +24,7 @@ describe('grid scene config integration', () => {
 
     expect(caps.profile).toBe('mobileReduced');
     expect(caps.enableShadows).toBe(false);
-    expect(caps.maxAnimatedEdges).toBeLessThan(10);
+    expect(caps.maxAnimatedEdges).toBe(10);
+    expect(caps.maxModelRenders).toBe(1);
   });
 });

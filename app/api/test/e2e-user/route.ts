@@ -7,6 +7,12 @@ export async function POST() {
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   }
+  if (process.env.ALLOW_E2E_USER_CREATION !== 'true') {
+    return NextResponse.json(
+      { error: 'E2E user creation is disabled. Set ALLOW_E2E_USER_CREATION=true to enable.' },
+      { status: 403 }
+    );
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

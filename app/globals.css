@@ -59,6 +59,18 @@
     outline: none;
   }
 
+  :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus {
+    outline: none;
+  }
+
+  :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus-visible {
+    @apply ring-2 ring-emerald-500 ring-offset-2 ring-offset-light-bg;
+  }
+
+  .dark :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus-visible {
+    @apply ring-offset-dark-bg;
+  }
+
   button:focus-visible {
     @apply ring-2 ring-emerald-500 ring-offset-2;
   }

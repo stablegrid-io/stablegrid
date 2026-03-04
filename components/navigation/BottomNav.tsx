@@ -6,7 +6,6 @@ import {
   BarChart3,
   BookOpen,
   Home,
-  Swords,
   Zap
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
@@ -21,12 +20,11 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/learn', icon: BookOpen, label: 'Learn' },
   {
-    href: '/flashcards',
-    icon: Swords,
-    label: 'Practice',
-    matchPrefixes: ['/flashcards', '/hub', '/missions', '/practice']
+    href: '/learn/theory',
+    icon: BookOpen,
+    label: 'Theory',
+    matchPrefixes: ['/learn']
   },
   { href: '/energy', icon: Zap, label: 'Grid' },
   { href: '/progress', icon: BarChart3, label: 'Progress' }

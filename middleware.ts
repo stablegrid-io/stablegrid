@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && isAuthRoute) {
-    return NextResponse.redirect(new URL('/hub', request.url));
+    return NextResponse.redirect(new URL('/learn/theory', request.url));
   }
 
   return response;

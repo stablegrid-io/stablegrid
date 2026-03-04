@@ -15,6 +15,7 @@ interface AssetDeckProps {
   layout?: 'panel' | 'dock';
   className?: string;
   showHeader?: boolean;
+  showModelPreviews?: boolean;
 }
 
 export function AssetDeck({
@@ -27,7 +28,8 @@ export function AssetDeck({
   onAssetSelect,
   layout = 'panel',
   className,
-  showHeader = true
+  showHeader = true,
+  showModelPreviews = true
 }: AssetDeckProps) {
   const panelMode = layout === 'panel';
 
@@ -53,6 +55,10 @@ export function AssetDeck({
           const isRecommended = recommendedAssetId === asset.id;
           const isPending = pendingAssetId === asset.id;
           const isSelected = selectedAssetId === asset.id;
+          const hasInlinePreview =
+            asset.id === 'control-center' ||
+            asset.id === 'battery-storage' ||
+            asset.id === 'solar-forecasting-array';
 
           return (
             <article
@@ -91,12 +97,35 @@ export function AssetDeck({
 
               <p className="mt-1.5 text-xs text-[#456453] dark:text-[#9cb7a8]">{asset.description}</p>
 
-              {asset.id === 'control-center' ? (
-                <ControlCenterModelPreview className={panelMode ? 'mt-2.5 h-40' : 'mt-2.5 h-36'} />
-              ) : asset.id === 'battery-storage' ? (
-                <BatteryStorageModelPreview className={panelMode ? 'mt-2.5 h-40' : 'mt-2.5 h-36'} />
-              ) : asset.id === 'solar-forecasting-array' ? (
-                <SolarForecastingModelPreview className={panelMode ? 'mt-2.5 h-40' : 'mt-2.5 h-36'} />
+              <div className="mt-2 grid gap-2">
+                <div className="rounded-lg border border-[#d7e7de] bg-[#f5fbf7] px-2.5 py-2 dark:border-[#244638] dark:bg-[#0b1511]">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#607c6d] dark:text-[#8fa99b]">
+                    Unlocks
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-[#1a3429] dark:text-[#deede4]">
+                    {asset.unlocks}
+                  </p>
+                </div>
+
+                {asset.synergy_hint ? (
+                  <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-2 text-[11px] text-emerald-800 dark:text-emerald-300">
+                    {asset.synergy_hint}
+                  </div>
+                ) : null}
+              </div>
+
+              {showModelPreviews && hasInlinePreview ? (
+                asset.id === 'control-center' ? (
+                  <ControlCenterModelPreview className={panelMode ? 'mt-2.5 h-40' : 'mt-2.5 h-36'} />
+                ) : asset.id === 'battery-storage' ? (
+                  <BatteryStorageModelPreview className={panelMode ? 'mt-2.5 h-40' : 'mt-2.5 h-36'} />
+                ) : asset.id === 'solar-forecasting-array' ? (
+                  <SolarForecastingModelPreview className={panelMode ? 'mt-2.5 h-40' : 'mt-2.5 h-36'} />
+                ) : null
+              ) : !showModelPreviews && hasInlinePreview ? (
+                <div className="mt-2.5 rounded-lg border border-[#244638] bg-[#0b1511] px-3 py-2 text-[11px] text-[#91ab9d]">
+                  3D preview unavailable in this runtime.
+                </div>
               ) : null}
 
               <div className="mt-2.5">
@@ -124,7 +153,7 @@ export function AssetDeck({
                     ) : asset.locked_reason && asset.status !== 'available' ? (
                       <>
                         <Lock className="h-4 w-4" />
-                        <span className="truncate">{asset.locked_reason}</span>
+                        Locked asset
                       </>
                     ) : (
                       <>
@@ -135,6 +164,12 @@ export function AssetDeck({
                   </button>
                 )}
               </div>
+
+              {!isPending && asset.locked_reason && asset.status !== 'available' ? (
+                <p className="mt-2 text-[11px] text-[#5c7667] dark:text-[#93ad9e]">
+                  {asset.locked_reason}
+                </p>
+              ) : null}
             </article>
           );
         })}

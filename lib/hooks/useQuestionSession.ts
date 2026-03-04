@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PracticeTopic, Question } from '@/lib/types';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { validateAnswer } from '@/lib/validators/answerValidator';
@@ -120,6 +120,8 @@ export const useQuestionSession = (
   const [sessionStartTime, setSessionStartTime] = useState<number>(Date.now());
   const [isLoading, setIsLoading] = useState(true);
   const [sessionComplete, setSessionComplete] = useState(false);
+  const [isFirstCompletedSession, setIsFirstCompletedSession] = useState(false);
+  const initialQuestionHistoryCountRef = useRef(0);
 
   const { answerQuestion } = useProgressStore();
 
@@ -137,6 +139,8 @@ export const useQuestionSession = (
     setHintRevealed(false);
     setAnsweredQuestionIds(new Set());
     setLastXpGained(0);
+    setIsFirstCompletedSession(false);
+    initialQuestionHistoryCountRef.current = useProgressStore.getState().questionHistory.length;
 
     try {
       let allQuestions: Question[] = [];
@@ -252,10 +256,14 @@ export const useQuestionSession = (
       setLastXpGained(0);
     } else {
       const timeSpent = Math.floor((Date.now() - sessionStartTime) / 1000);
+      const answeredQuestions = sessionStats.correctAnswers + sessionStats.incorrectAnswers;
       setSessionStats((prev) => ({ ...prev, timeSpent }));
+      setIsFirstCompletedSession(
+        initialQuestionHistoryCountRef.current === 0 && answeredQuestions > 0
+      );
       setSessionComplete(true);
     }
-  }, [currentIndex, questions.length, sessionStartTime]);
+  }, [currentIndex, questions.length, sessionStartTime, sessionStats]);
 
   const handleSkip = useCallback(() => {
     setSessionStats((prev) => ({
@@ -301,6 +309,7 @@ export const useQuestionSession = (
     isLoading,
     sessionComplete,
     lastXpGained,
+    isFirstCompletedSession,
 
     setUserAnswer,
     handleSubmit,

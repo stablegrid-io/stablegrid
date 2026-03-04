@@ -1,11 +1,20 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Award, Clock, Target, TrendingUp } from 'lucide-react';
+import { Award, Clock, Target, TrendingUp, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { formatUnitsAsKwh } from '@/lib/energy';
+import {
+  INFRASTRUCTURE_NODES,
+  formatUnitsAsKwh,
+  getAvailableBudgetUnits
+} from '@/lib/energy';
+import {
+  trackProductEvent,
+  trackProductEventOnce
+} from '@/lib/analytics/productAnalytics';
+import { useProgressStore } from '@/lib/stores/useProgressStore';
 
 interface SessionStats {
   totalQuestions: number;
@@ -19,6 +28,7 @@ interface SessionStats {
 interface SessionCompleteProps {
   stats: SessionStats;
   topic: string;
+  isFirstCompletedSession: boolean;
   onRestart: () => void;
 }
 
@@ -132,8 +142,16 @@ function StatCard({ icon, label, value, delay }: StatCardProps) {
   );
 }
 
-export const SessionComplete = ({ stats, topic, onRestart }: SessionCompleteProps) => {
+export const SessionComplete = ({
+  stats,
+  topic,
+  isFirstCompletedSession,
+  onRestart
+}: SessionCompleteProps) => {
   const router = useRouter();
+  const totalEarnedUnits = useProgressStore((state) => state.xp);
+  const deployedNodeIds = useProgressStore((state) => state.deployedNodeIds);
+  const analyticsTrackedRef = useRef(false);
 
   const accuracy =
     stats.totalQuestions > 0
@@ -163,6 +181,48 @@ export const SessionComplete = ({ stats, topic, onRestart }: SessionCompleteProp
     const lowered = topic.toLowerCase();
     return lowered.includes('flash') ? 'flashcard' : 'practice';
   }, [topic]);
+
+  const availableBudgetUnits = useMemo(
+    () => getAvailableBudgetUnits(totalEarnedUnits, deployedNodeIds),
+    [deployedNodeIds, totalEarnedUnits]
+  );
+  const nextGridNode = useMemo(
+    () => INFRASTRUCTURE_NODES.find((node) => !deployedNodeIds.includes(node.id)) ?? null,
+    [deployedNodeIds]
+  );
+  const remainingUnitsForNextNode = nextGridNode
+    ? Math.max(0, Math.round(nextGridNode.kwhRequired * 1000) - availableBudgetUnits)
+    : 0;
+  const gridStatusCopy = nextGridNode
+    ? remainingUnitsForNextNode === 0
+      ? `${nextGridNode.name} is ready now. Deploy it to unlock ${nextGridNode.unlocks}.`
+      : `${formatUnitsAsKwh(remainingUnitsForNextNode)} more unlocks ${nextGridNode.name}.`
+    : 'All listed grid assets are online. Continue learning to build reserve capacity.';
+
+  useEffect(() => {
+    if (analyticsTrackedRef.current) {
+      return;
+    }
+
+    analyticsTrackedRef.current = true;
+    void trackProductEvent('practice_session_completed', {
+      topic,
+      totalQuestions: stats.totalQuestions,
+      correctAnswers: stats.correctAnswers,
+      skippedQuestions: stats.skippedQuestions,
+      totalXP: stats.totalXP,
+      timeSpent: stats.timeSpent,
+      accuracy
+    });
+
+    if (isFirstCompletedSession) {
+      void trackProductEventOnce('first_practice_completed', 'first_practice_completed', {
+        topic,
+        totalQuestions: stats.totalQuestions,
+        accuracy
+      });
+    }
+  }, [accuracy, isFirstCompletedSession, stats, topic]);
 
   return (
     <motion.div
@@ -271,11 +331,57 @@ export const SessionComplete = ({ stats, topic, onRestart }: SessionCompleteProp
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.3 }}
-        className="card p-6 text-center"
+        className="card p-6"
       >
-        <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
-          {performanceProfile.summary}
-        </p>
+        <div className="flex flex-col gap-4">
+          <div className="text-center">
+            <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              {performanceProfile.summary}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-brand-200/70 bg-brand-50/70 p-4 dark:border-brand-500/30 dark:bg-brand-900/10">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-brand-500" />
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-700 dark:text-brand-300">
+                Reward conversion
+              </p>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/80 bg-white/80 p-3 dark:border-white/10 dark:bg-[#07100d]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                  This session
+                </p>
+                <p className="mt-2 text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+                  +{formatUnitsAsKwh(stats.totalXP)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/80 bg-white/80 p-3 dark:border-white/10 dark:bg-[#07100d]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                  Available budget
+                </p>
+                <p className="mt-2 text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+                  {formatUnitsAsKwh(availableBudgetUnits)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/80 bg-white/80 p-3 dark:border-white/10 dark:bg-[#07100d]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                  Next unlock
+                </p>
+                <p className="mt-2 text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+                  {nextGridNode ? nextGridNode.name : 'Optimization phase'}
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-4 text-sm leading-6 text-text-light-secondary dark:text-text-dark-secondary">
+              {gridStatusCopy}
+            </p>
+          </div>
+        </div>
       </motion.div>
 
       <motion.div
@@ -287,8 +393,8 @@ export const SessionComplete = ({ stats, topic, onRestart }: SessionCompleteProp
         <button onClick={onRestart} className="btn btn-secondary flex-1">
           Practice Again
         </button>
-        <button onClick={() => router.push('/flashcards')} className="btn btn-primary flex-1">
-          Choose New Topic
+        <button onClick={() => router.push('/energy')} className="btn btn-primary flex-1">
+          Open Grid Ops
         </button>
       </motion.div>
     </motion.div>

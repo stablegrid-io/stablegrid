@@ -1,28 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3,
   BookOpen,
-  ChevronDown,
   Home,
-  NotebookPen,
-  ShieldAlert,
-  Swords,
   Zap,
-  WalletCards,
   type LucideIcon
 } from 'lucide-react';
 import { LearnSearchPanel } from '@/components/home/home/LearnSearchPanel';
 import { StableGridIcon } from '@/components/brand/StableGridLogo';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
-import {
-  PracticeNavDropdown,
-  type PracticeNavChild
-} from '@/components/navigation/PracticeNavDropdown';
 
 const UserMenuLazy = dynamic(
   () => import('@/components/layout/UserMenu').then((module) => module.UserMenu),
@@ -39,20 +30,13 @@ const navItems: Array<{
   icon: LucideIcon;
   label: string;
   matchPrefixes?: string[];
-  children?: PracticeNavChild[];
 }> = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/learn', icon: BookOpen, label: 'Learn' },
   {
-    href: '/flashcards',
-    icon: Swords,
-    label: 'Practice',
-    matchPrefixes: ['/flashcards', '/hub', '/missions', '/practice'],
-    children: [
-      { href: '/flashcards', icon: WalletCards, label: 'Flashcards' },
-      { href: '/practice/notebooks', icon: NotebookPen, label: 'Notebooks' },
-      { href: '/missions', icon: ShieldAlert, label: 'Missions' }
-    ]
+    href: '/learn/theory',
+    icon: BookOpen,
+    label: 'Theory',
+    matchPrefixes: ['/learn']
   },
   { href: '/energy', icon: Zap, label: 'Grid' },
   { href: '/progress', icon: BarChart3, label: 'Progress' }
@@ -83,22 +67,7 @@ export const TopNav = () => {
   const router = useRouter();
   const { user } = useAuthStore();
   const hideNav = shouldHideNav(pathname, Boolean(user));
-  const [learnMenuOpen, setLearnMenuOpen] = useState(false);
-  const [practiceMenuOpen, setPracticeMenuOpen] = useState(false);
-  const learnMenuRef = useRef<HTMLDivElement | null>(null);
-  const practiceMenuRef = useRef<HTMLDivElement | null>(null);
   const prefetchedRoutesRef = useRef<Set<string>>(new Set());
-
-  const isLearnActive =
-    pathname === '/learn' || pathname?.startsWith('/learn/');
-
-  const learnDropdownItems: PracticeNavChild[] = [
-    {
-      href: '/learn/theory',
-      icon: BookOpen,
-      label: 'Theory'
-    }
-  ];
 
   const prefetchRoute = useCallback(
     (route: string) => {
@@ -111,54 +80,9 @@ export const TopNav = () => {
     [router]
   );
 
-  const prefetchPracticeRoutes = useCallback(() => {
-    prefetchRoute('/flashcards');
-    prefetchRoute('/practice/notebooks');
-    prefetchRoute('/missions');
-  }, [prefetchRoute]);
-
-  const prefetchLearnRoutes = useCallback(() => {
-    prefetchRoute('/learn');
-    prefetchRoute('/learn/theory');
-  }, [prefetchRoute]);
-
   useEffect(() => {
-    if (!learnMenuOpen && !practiceMenuOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      const clickedInLearn = learnMenuRef.current?.contains(target);
-      const clickedInPractice = practiceMenuRef.current?.contains(target);
-      if (!clickedInLearn && !clickedInPractice) {
-        setLearnMenuOpen(false);
-        setPracticeMenuOpen(false);
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setLearnMenuOpen(false);
-        setPracticeMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [learnMenuOpen, practiceMenuOpen]);
-
-  useEffect(() => {
-    setLearnMenuOpen(false);
-    setPracticeMenuOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    const primaryRoutes = ['/learn', '/flashcards', '/progress'];
-    const secondaryRoutes = ['/practice/notebooks', '/missions', '/energy'];
+    const primaryRoutes = ['/learn/theory', '/progress', '/energy'];
+    const secondaryRoutes = ['/settings'];
 
     const prefetchPrimary = () => {
       primaryRoutes.forEach((route) => {
@@ -168,8 +92,6 @@ export const TopNav = () => {
 
     const prefetchSecondary = () => {
       void import('@/components/layout/UserMenu');
-      void import('@/components/hub/FlashcardsPage');
-      void import('@/components/practice/NotebooksPracticePage');
       void import('@/components/home/home/LearnSearchPanel');
       secondaryRoutes.forEach((route) => {
         prefetchRoute(route);
@@ -199,21 +121,33 @@ export const TopNav = () => {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-light-border bg-light-bg/80 backdrop-blur-lg dark:border-dark-border dark:bg-dark-bg/80">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
+    <nav className="sticky top-0 z-50 border-b border-[#183224] bg-[#050805]/95 backdrop-blur-xl">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-25"
+        style={{
+          backgroundImage:
+            'linear-gradient(to right, rgba(74,222,128,0.14) 1px, transparent 1px), linear-gradient(to bottom, rgba(74,222,128,0.1) 1px, transparent 1px)',
+          backgroundSize: '48px 48px'
+        }}
+      />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent" />
+      <div className="container relative mx-auto px-4">
+        <div className="flex h-[74px] items-center justify-between gap-3">
           <Link
             href="/"
-            className="flex items-center gap-3 transition-opacity hover:opacity-80"
+            className="group flex items-center gap-3 rounded-xl border border-[#1d3729] bg-[#0a120d]/75 px-3 py-2 transition-all hover:border-[#2d6e4a] hover:bg-[#0f1913]"
           >
             <StableGridIcon size="md" />
             <div className="hidden sm:block">
-              <div className="text-base font-semibold">StableGrid.io</div>
+              <div className="text-base font-semibold text-[#dff9eb]">StableGrid.io</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7ea994]">
+                Control Rail
+              </div>
             </div>
           </Link>
 
-          <div className="hidden items-center gap-1 lg:flex">
-            {navItems.map((item) => {
+          <div className="hidden items-center rounded-2xl border border-[#1b3427] bg-[#0b140f]/85 px-2 py-1 shadow-[inset_0_0_0_1px_rgba(74,222,128,0.08)] lg:flex">
+            {navItems.map((item, index) => {
               const Icon = item.icon;
               const isActive = item.matchPrefixes
                 ? item.matchPrefixes.some(
@@ -221,154 +155,67 @@ export const TopNav = () => {
                   )
                 : pathname === item.href || pathname?.startsWith(`${item.href}/`);
 
-              if (item.href === '/learn') {
-                return (
-                  <div key={item.href} ref={learnMenuRef} className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPracticeMenuOpen(false);
-                        setLearnMenuOpen((open) => !open);
-                      }}
-                      onMouseEnter={prefetchLearnRoutes}
-                      onFocus={prefetchLearnRoutes}
-                      className="relative inline-flex items-center gap-2 overflow-hidden rounded-lg px-4 py-2 transition-colors hover:bg-light-hover dark:hover:bg-dark-hover"
-                    >
-                      {(isLearnActive || learnMenuOpen) && (
-                        <div className="absolute inset-0 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" />
-                      )}
-                      <Icon
-                        className={`relative h-4 w-4 ${
-                          isLearnActive || learnMenuOpen
-                            ? 'text-emerald-500'
-                            : 'text-text-light-secondary dark:text-text-dark-secondary'
-                        }`}
-                      />
-                      <span
-                        className={`relative text-sm font-medium ${
-                          isLearnActive || learnMenuOpen
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-text-light-primary dark:text-text-dark-primary'
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                      <ChevronDown
-                        className={`relative h-3.5 w-3.5 transition-transform ${
-                          isLearnActive || learnMenuOpen
-                            ? 'text-emerald-500'
-                            : 'text-text-light-tertiary dark:text-text-dark-tertiary'
-                        } ${learnMenuOpen ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-
-                    {learnMenuOpen ? (
-                      <div className="absolute left-0 top-full z-50 w-48 pt-1">
-                        <PracticeNavDropdown
-                          items={learnDropdownItems}
-                          pathname={pathname}
-                          onSelect={() => setLearnMenuOpen(false)}
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              }
-
-              if (item.children) {
-                return (
-                  <div key={item.href} ref={practiceMenuRef} className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLearnMenuOpen(false);
-                        setPracticeMenuOpen((open) => !open);
-                      }}
-                      onMouseEnter={prefetchPracticeRoutes}
-                      onFocus={prefetchPracticeRoutes}
-                      className="relative inline-flex items-center gap-2 overflow-hidden rounded-lg px-4 py-2 transition-colors hover:bg-light-hover dark:hover:bg-dark-hover"
-                    >
-                      {(isActive || practiceMenuOpen) && (
-                        <div className="absolute inset-0 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" />
-                      )}
-                      <Icon
-                        className={`relative h-4 w-4 ${
-                          isActive || practiceMenuOpen
-                            ? 'text-emerald-500'
-                            : 'text-text-light-secondary dark:text-text-dark-secondary'
-                        }`}
-                      />
-                      <span
-                        className={`relative text-sm font-medium ${
-                          isActive || practiceMenuOpen
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-text-light-primary dark:text-text-dark-primary'
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                      <ChevronDown
-                        className={`relative h-3.5 w-3.5 transition ${
-                          isActive || practiceMenuOpen
-                            ? 'text-emerald-500'
-                            : 'text-text-light-tertiary dark:text-text-dark-tertiary'
-                        } ${practiceMenuOpen ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-
-                    {practiceMenuOpen ? (
-                      <div className="absolute left-0 top-full z-50 w-48 pt-1">
-                        <PracticeNavDropdown
-                          items={item.children}
-                          pathname={pathname}
-                          onSelect={() => setPracticeMenuOpen(false)}
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              }
-
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onMouseEnter={() => prefetchRoute(item.href)}
-                  onFocus={() => prefetchRoute(item.href)}
-                  className="relative inline-flex items-center gap-2 overflow-hidden rounded-lg px-4 py-2 transition-colors hover:bg-light-hover dark:hover:bg-dark-hover"
-                >
-                  {isActive && (
-                    <div className="absolute inset-0 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" />
-                  )}
-                  <Icon
-                    className={`relative h-4 w-4 ${
+                <div key={item.href} className="flex items-center">
+                  <Link
+                    href={item.href}
+                    onMouseEnter={() => prefetchRoute(item.href)}
+                    onFocus={() => prefetchRoute(item.href)}
+                    className={`group relative inline-flex min-w-[122px] items-center gap-2.5 overflow-hidden rounded-xl px-3 py-2 transition-all focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-0 ${
                       isActive
-                        ? 'text-emerald-500'
-                        : 'text-text-light-secondary dark:text-text-dark-secondary'
-                    }`}
-                  />
-                  <span
-                    className={`relative text-sm font-medium ${
-                      isActive
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-text-light-primary dark:text-text-dark-primary'
+                        ? 'bg-gradient-to-r from-emerald-500/20 via-emerald-400/10 to-cyan-300/15 shadow-[0_0_0_1px_rgba(74,222,128,0.35),0_0_28px_rgba(74,222,128,0.15)]'
+                        : 'hover:bg-white/[0.04]'
                     }`}
                   >
-                    {item.label}
-                  </span>
-                </Link>
+                    <span
+                      className={`relative inline-flex h-7 w-7 items-center justify-center rounded-lg border ${
+                        isActive
+                          ? 'border-emerald-300/60 bg-emerald-300/10 text-emerald-300'
+                          : 'border-white/10 bg-white/[0.02] text-[#9db9aa] group-hover:border-emerald-300/40 group-hover:text-emerald-200'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {isActive ? (
+                        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(74,222,128,0.9)]" />
+                      ) : null}
+                    </span>
+                    <span
+                      className={`text-sm font-medium ${
+                        isActive ? 'text-[#d8ffee]' : 'text-[#b9d4c6]'
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                    {isActive ? (
+                      <span className="absolute inset-x-3 bottom-0 h-px bg-gradient-to-r from-transparent via-emerald-300 to-transparent" />
+                    ) : null}
+                  </Link>
+                  {index < navItems.length - 1 ? (
+                    <span
+                      aria-hidden="true"
+                      className="mx-1 h-px w-4 bg-gradient-to-r from-emerald-300/35 to-transparent"
+                    />
+                  ) : null}
+                </div>
               );
             })}
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden xl:block xl:w-[150px]">
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-2 rounded-full border border-[#1d3729] bg-[#0b120d]/75 px-2.5 py-1 text-[11px] text-[#8fb4a2] xl:flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(74,222,128,0.75)]" />
+              Grid stable
+            </div>
+            <div className="hidden xl:block xl:w-[156px]">
               <LearnSearchPanel triggerVariant="nav" />
             </div>
             {user ? (
               <UserMenuLazy />
             ) : (
-              <Link href="/login" className="btn btn-secondary">
+              <Link
+                href="/login"
+                className="inline-flex items-center rounded-xl border border-emerald-300/35 bg-emerald-300/10 px-3 py-2 text-sm font-semibold text-emerald-200 transition-colors hover:bg-emerald-300/20"
+              >
                 Sign in
               </Link>
             )}

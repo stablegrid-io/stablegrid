@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
@@ -9,6 +9,7 @@ import { SessionHeader } from '@/components/practice/SessionHeader';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { FeedbackPanel } from '@/components/practice/FeedbackPanel';
 import { SessionComplete } from '@/components/practice/SessionComplete';
+import { trackProductEvent } from '@/lib/analytics/productAnalytics';
 import { useQuestionSession } from '@/lib/hooks/useQuestionSession';
 import type { PracticeTopic, Question } from '@/lib/types';
 
@@ -16,6 +17,7 @@ export default function PracticeSessionPage() {
   const router = useRouter();
   const [presetQuestions, setPresetQuestions] = useState<Question[]>([]);
   const [ready, setReady] = useState(false);
+  const startTrackedRef = useRef(false);
 
   useEffect(() => {
     const raw = sessionStorage.getItem('practice-questions');
@@ -70,11 +72,31 @@ export default function PracticeSessionPage() {
     handleRestart,
     progress,
     questions,
-    lastXpGained
+    lastXpGained,
+    isFirstCompletedSession
   } = useQuestionSession(fallbackTopic, presetQuestions.length, {
     presetQuestions,
     enabled: ready
   });
+
+  useEffect(() => {
+    if (!ready || isLoading || sessionComplete || startTrackedRef.current || presetQuestions.length === 0) {
+      return;
+    }
+
+    startTrackedRef.current = true;
+    void trackProductEvent('practice_session_started', {
+      topic: topicLabel,
+      questionCount: presetQuestions.length,
+      source: 'practice_setup'
+    });
+  }, [isLoading, presetQuestions.length, ready, sessionComplete, topicLabel]);
+
+  useEffect(() => {
+    if (isLoading) {
+      startTrackedRef.current = false;
+    }
+  }, [isLoading]);
 
   if (!ready || isLoading) {
     return (
@@ -95,6 +117,7 @@ export default function PracticeSessionPage() {
         <SessionComplete
           stats={sessionStats}
           topic={topicLabel}
+          isFirstCompletedSession={isFirstCompletedSession}
           onRestart={handleRestart}
         />
       </div>

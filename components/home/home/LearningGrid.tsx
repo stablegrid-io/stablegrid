@@ -13,8 +13,6 @@ import type {
 
 interface LearningGridProps {
   metrics: ConsoleMetric[];
-  primaryActionHref: string;
-  primaryActionLabel: string;
   nodes: LearningGridNode[];
   links: Array<{ from: string; to: string }>;
   recommendedNodeId: string;
@@ -142,8 +140,6 @@ const DRAWER_THEME: Record<
 
 export const LearningGrid = ({
   metrics,
-  primaryActionHref,
-  primaryActionLabel,
   nodes,
   links,
   recommendedNodeId
@@ -315,24 +311,18 @@ export const LearningGrid = ({
       className="rounded-[2rem] border border-light-border bg-light-surface p-4 shadow-[0_24px_72px_-58px_rgba(15,23,42,0.18)] dark:border-dark-border dark:bg-dark-surface dark:shadow-[0_24px_72px_-58px_rgba(0,0,0,0.55)]"
     >
       <div className="mb-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-500">
-              <Sparkles className="h-3.5 w-3.5" />
-              Learning Grid
-            </div>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">
-              See your next move at a glance.
-            </h2>
+        <div>
+          <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-500">
+            <Sparkles className="h-3.5 w-3.5" />
+            Learning Grid
           </div>
-          <Link
-            href={primaryActionHref}
-            data-testid="home-primary-action"
-            className="inline-flex items-center gap-2 self-start rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-600 dark:bg-brand-500 dark:text-dark-bg dark:hover:bg-brand-400"
-          >
-            {primaryActionLabel}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">
+            Inspect the route after you take the next step.
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-text-light-secondary dark:text-text-dark-secondary">
+            The highlighted nodes show why StableGrid is recommending this lesson, review
+            sprint, or grid deployment.
+          </p>
         </div>
         <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
           {metrics.map((metric) => (

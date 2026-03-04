@@ -1,53 +1,53 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BookOpen, Network, Zap } from 'lucide-react';
+import { BookOpen, Clock3, Compass } from 'lucide-react';
 
 const FEATURES = [
   {
     icon: BookOpen,
-    label: 'Curriculum',
-    headline: 'Flagship PySpark depth with grid context',
+    label: 'Theory route',
+    metric: '20 live chapters',
+    headline: 'A single PySpark path with real operating context',
     description:
-      'The deepest path focuses on distributed data engineering with utility-scale examples: shuffles, skew, streaming, telemetry quality, governance, and platform design.',
+      'Start with one structured route instead of a content maze. The flagship path focuses on distributed data engineering inside utility-scale scenarios.',
     preview: [
-      '20 PySpark chapters live today',
       'Production-style examples and diagrams',
-      'Interview and system design framing',
-      'Prerequisite-gated progression'
+      'Shuffles, skew, streaming, and telemetry quality',
+      'System design framing that stays grounded in operations'
     ],
     color: '#4ade80',
-    footer: 'Built for practitioners who need judgment, not surface coverage'
+    footer: 'Best first move: open the PySpark route and finish chapter 1.'
   },
   {
-    icon: Zap,
-    label: 'Progression',
-    headline: 'Progression with consequences, not vanity XP',
+    icon: Clock3,
+    label: 'Session layer',
+    metric: '4 study modes',
+    headline: 'Session controls built directly into the theory flow',
     description:
-      'kWh is an earned deployment budget. Progress changes what users can deploy next and makes analytical skill visible inside the simulation.',
+      'Pick Pomodoro, Deep Focus, Sprint, or Free Read and keep your reading rhythm consistent without leaving the chapter view.',
     preview: [
-      'Questions and missions award kWh',
-      'Chapters expand deployment authority',
-      'Higher stability unlocks harder scenarios',
-      'Dashboard tracks momentum and accuracy'
+      'Session picker opens in-line from theory',
+      'Break overlays and completion summaries',
+      'Settings-driven defaults per user'
     ],
     color: '#f0a032',
-    footer: 'Your progress changes the system instead of ending at a completion bar'
+    footer: 'Best first move: choose one session mode before you start reading.'
   },
   {
-    icon: Network,
-    label: 'Missions',
-    headline: 'Incident-style missions for infrastructure-heavy domains',
+    icon: Compass,
+    label: 'Beta scope',
+    metric: 'Theory-only launch',
+    headline: 'What is shipping now vs what is intentionally next',
     description:
-      'Mission briefs are written like real incidents: event-order inversions, schema regressions, telemetry storms, dispatch windows, and renewable volatility.',
+      'This release is intentionally scoped to Theory Beta. Practice, flashcards, and mission layers stay out of primary navigation until they are production-ready.',
     preview: [
-      'Ghost events and telemetry loss',
-      'Streaming lag and watermark recovery',
-      'Storage dispatch under price spikes',
-      'Forensics-style incident debriefs'
+      'No dead-end primary navigation',
+      'Explicit launch copy across landing and auth',
+      'Clear expectation setting before signup'
     ],
     color: '#64a0dc',
-    footer: 'That scenario framing is the differentiator, not decoration'
+    footer: 'Best first move: complete Theory Beta before enabling new mode surfaces.'
   }
 ] as const;
 
@@ -56,11 +56,18 @@ export const FeaturesSection = () => {
     <section id="features" className="border-t border-[#1a2a22] py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
-          <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
-            The moat is the loop, not a bigger content library
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7fb99a]">
+            What you can use today
+          </p>
+          <h2
+            className="mb-4 text-3xl font-bold text-[#e3efe8]"
+            style={{ fontFamily: 'Georgia, serif' }}
+          >
+            Theory Beta ships one clear route.
           </h2>
           <p className="mx-auto max-w-2xl text-[#9ab8a9]">
-            StableGrid ties deep PySpark learning, domain pressure, and visible system state into one progression model. That is what makes it harder to substitute with another course or quiz app.
+            The current release focuses on reliable theory progression and study sessions.
+            Additional learning modes will be enabled after this scope is fully complete.
           </p>
         </div>
 
@@ -92,12 +99,19 @@ export const FeaturesSection = () => {
                 >
                   {feature.label}
                 </div>
+                <p className="mb-2 text-sm font-semibold" style={{ color: feature.color }}>
+                  {feature.metric}
+                </p>
                 <h3 className="mb-3 text-base font-semibold text-[#e3efe8]">{feature.headline}</h3>
                 <p className="mb-5 text-sm leading-relaxed text-[#9ab8a9]">{feature.description}</p>
 
                 <div className="mb-5 flex-1 space-y-2">
                   {feature.preview.map((item) => (
-                    <div key={item} className="text-xs text-[#6f8f7d]">
+                    <div key={item} className="flex items-start gap-2 text-xs text-[#9ab8a9]">
+                      <span
+                        className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full"
+                        style={{ backgroundColor: feature.color }}
+                      />
                       {item}
                     </div>
                   ))}
@@ -107,6 +121,11 @@ export const FeaturesSection = () => {
               </motion.div>
             );
           })}
+        </div>
+
+        <div className="mt-8 rounded-2xl border border-[#1f3629] bg-[#0d1410] px-5 py-4 text-sm text-[#9ab8a9]">
+          Start simple: open the route, finish one chapter, and keep a steady reading rhythm.
+          Practice and mission layers are intentionally staged for later rollout.
         </div>
       </div>
     </section>

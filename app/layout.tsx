@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { ProductAnalyticsBootstrap } from '@/components/analytics/ProductAnalyticsBootstrap';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { Navigation } from '@/components/navigation/Navigation';
@@ -29,6 +30,7 @@ export default function RootLayout({
           enableSystem
           storageKey="stablegrid-theme"
         >
+          <ProductAnalyticsBootstrap />
           <AuthProvider>
             <Navigation />
             <div className="pb-16 lg:pb-0">{children}</div>

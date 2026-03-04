@@ -5,9 +5,9 @@
       "url": [
         "http://localhost:3000/",
         "http://localhost:3000/learn",
-        "http://localhost:3000/flashcards",
-        "http://localhost:3000/missions",
-        "http://localhost:3000/progress"
+        "http://localhost:3000/learn/theory",
+        "http://localhost:3000/learn/pyspark/theory",
+        "http://localhost:3000/login"
       ],
       "startServerCommand": "npm run start",
       "startServerReadyPattern": "Local:",

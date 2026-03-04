@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { DEFAULT_DEPLOYED_NODE_IDS, INFRASTRUCTURE_BY_ID } from '@/lib/energy';
+import { GRID_OPS_DEFAULT_SCENARIO } from '@/lib/grid-ops/config';
 
 const INFRASTRUCTURE_NODE_ID_SET = new Set(Object.keys(INFRASTRUCTURE_BY_ID));
 
@@ -34,14 +35,23 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data, error } = await supabase
-    .from('user_progress')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle();
+  const [{ data, error }, { data: gridOpsState, error: gridOpsError }] =
+    await Promise.all([
+      supabase.from('user_progress').select('*').eq('user_id', user.id).maybeSingle(),
+      supabase
+        .from('grid_ops_state')
+        .select('deployed_asset_ids,last_deployed_asset_id')
+        .eq('user_id', user.id)
+        .eq('scenario_id', GRID_OPS_DEFAULT_SCENARIO)
+        .maybeSingle()
+    ]);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (gridOpsError) {
+    return NextResponse.json({ error: gridOpsError.message }, { status: 500 });
   }
 
   if (!data) {
@@ -58,7 +68,15 @@ export async function GET() {
     return NextResponse.json({ data: created });
   }
 
-  return NextResponse.json({ data });
+  const resolvedData = gridOpsState
+    ? {
+        ...data,
+        deployed_node_ids: gridOpsState.deployed_asset_ids,
+        last_deployed_node_id: gridOpsState.last_deployed_asset_id
+      }
+    : data;
+
+  return NextResponse.json({ data: resolvedData });
 }
 
 export async function POST(request: Request) {

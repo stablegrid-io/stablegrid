@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowRight,
   BookOpen,
@@ -16,6 +16,10 @@ import {
   Target,
   Zap
 } from 'lucide-react';
+import {
+  trackProductEvent,
+  trackProductEventOnce
+} from '@/lib/analytics/productAnalytics';
 
 interface OnboardingFlowProps {
   displayName: string;
@@ -99,11 +103,13 @@ type Step = (typeof STEPS)[number];
 
 export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>('welcome');
   const [selectedTopics, setSelectedTopics] = useState<Set<Topic>>(new Set());
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
+  const signupTrackedRef = useRef(false);
 
   const stepIndex = STEPS.indexOf(step);
   const progress = (stepIndex / (STEPS.length - 1)) * 100;
@@ -135,9 +141,30 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
     }
   };
 
+  useEffect(() => {
+    if (signupTrackedRef.current) {
+      return;
+    }
+
+    if (searchParams.get('signup') !== '1') {
+      return;
+    }
+
+    signupTrackedRef.current = true;
+    void trackProductEventOnce('signup_completed', 'signup_completed', {
+      method: searchParams.get('method') ?? 'unknown'
+    });
+  }, [searchParams]);
+
   const finish = async () => {
     setIsFinishing(true);
     const destination = selectedGoal ? FIRST_STEP_DESTINATIONS[selectedGoal] : '/learn/theory';
+    await trackProductEvent('onboarding_completed', {
+      selectedTopics: Array.from(selectedTopics),
+      selectedGoal,
+      selectedLevel,
+      destination
+    });
     router.push(destination);
   };
 

@@ -13,6 +13,10 @@ export function GridOpsCommandBar({
   onToggleMission
 }: GridOpsCommandBarProps) {
   const activeEvent = state.events.active_event;
+  const recommendedAsset =
+    state.assets.find(
+      (asset) => asset.id === state.recommendation.next_best_action.target_asset_id
+    ) ?? null;
 
   return (
     <section className="rounded-[18px] border border-[#1f3f34] bg-[linear-gradient(180deg,rgba(6,16,13,0.98),rgba(4,12,10,0.97))] px-3 py-2 shadow-[0_14px_38px_rgba(0,0,0,0.36)]">
@@ -43,11 +47,38 @@ export function GridOpsCommandBar({
           </span>
         </div>
 
+      </div>
+
+      <div className="mt-2 grid gap-2 border-t border-[#214234] pt-2 text-[0.78rem] text-[#b9d5c8] lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto]">
+        <div className="rounded-2xl border border-[#234636] bg-[#09120f] px-3 py-2">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.13em] text-[#7fae97]">
+            Next move
+          </p>
+          <p className="mt-1 text-sm font-semibold text-[#e0f0e7]">
+            {recommendedAsset ? recommendedAsset.name : 'Continue earning kWh'}
+          </p>
+          <p className="mt-1 text-[#9fbcaf]">{state.recommendation.next_best_action.action}</p>
+        </div>
+
+        <div className="rounded-2xl border border-[#234636] bg-[#09120f] px-3 py-2">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.13em] text-[#7fae97]">
+            What this changes
+          </p>
+          <p className="mt-1 text-sm font-semibold text-[#e0f0e7]">
+            {recommendedAsset?.unlocks ?? 'Higher grid stability margins'}
+          </p>
+          <p className="mt-1 text-[#9fbcaf]">
+            {recommendedAsset
+              ? `Deploying this asset improves stability by ${recommendedAsset.effects.stability}% and deepens the simulation route.`
+              : 'Continue the loop to expose the next infrastructure outcome.'}
+          </p>
+        </div>
+
         {!missionOpen ? (
           <button
             type="button"
             onClick={onToggleMission}
-            className="ml-auto inline-flex items-center gap-1 rounded-full border border-[#355f4f] bg-[#0d1d17] px-2.5 py-1 text-[0.75rem] font-semibold text-[#d2ece0] transition hover:border-emerald-400/60"
+            className="inline-flex items-center justify-center gap-1 self-center rounded-full border border-[#355f4f] bg-[#0d1d17] px-2.5 py-1 text-[0.75rem] font-semibold text-[#d2ece0] transition hover:border-emerald-400/60"
           >
             <RefreshCcw className="h-3 w-3" />
             Show Mission

@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const E2E_EMAIL = process.env.STABLEGRID_E2E_EMAIL ?? '';
 const E2E_PASSWORD = process.env.STABLEGRID_E2E_PASSWORD ?? '';
+const HAS_E2E_CREDENTIALS = Boolean(E2E_EMAIL && E2E_PASSWORD);
 const DESKTOP_SCREENSHOT_PATH = 'test-results/home-operator-console-desktop.png';
 const MOBILE_SCREENSHOT_PATH = 'test-results/home-operator-console-mobile.png';
 
@@ -20,30 +21,10 @@ const login = async (page: Page, credentials: E2ECredentials) => {
   });
 };
 
-const provisionLocalE2EUser = async (page: Page): Promise<E2ECredentials> => {
-  const response = await page.request.post('/api/test/e2e-user');
-  expect(response.ok()).toBeTruthy();
-
-  const payload = (await response.json()) as Partial<E2ECredentials>;
-  expect(typeof payload.email).toBe('string');
-  expect(typeof payload.password).toBe('string');
-
-  return {
-    email: payload.email as string,
-    password: payload.password as string
-  };
-};
-
-const getCredentials = async (page: Page): Promise<E2ECredentials> => {
-  if (E2E_EMAIL && E2E_PASSWORD) {
-    return {
-      email: E2E_EMAIL,
-      password: E2E_PASSWORD
-    };
-  }
-
-  return provisionLocalE2EUser(page);
-};
+const getCredentials = (): E2ECredentials => ({
+  email: E2E_EMAIL,
+  password: E2E_PASSWORD
+});
 
 const buildLocalProgressSnapshot = () => {
   const now = new Date();
@@ -129,10 +110,15 @@ const hydrateLocalProgress = async (page: Page) => {
 };
 
 test.describe('home operator console', () => {
+  test.skip(
+    !HAS_E2E_CREDENTIALS,
+    'Set STABLEGRID_E2E_EMAIL and STABLEGRID_E2E_PASSWORD to run without creating test users.'
+  );
+
   test('keeps the next action reachable from the console in under 10 seconds', async ({
     page
   }) => {
-    const credentials = await getCredentials(page);
+    const credentials = getCredentials();
     await login(page, credentials);
     await page.goto('/', { waitUntil: 'networkidle' });
 
@@ -209,7 +195,7 @@ test.describe('home operator console', () => {
   });
 
   test('captures desktop and mobile operator console references', async ({ page }) => {
-    const credentials = await provisionLocalE2EUser(page);
+    const credentials = getCredentials();
     await login(page, credentials);
     await page.waitForLoadState('networkidle');
     await hydrateLocalProgress(page);

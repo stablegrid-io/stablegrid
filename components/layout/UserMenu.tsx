@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { LogOut, Moon, Settings, Sun } from 'lucide-react';
+import { FileText, LifeBuoy, LogOut, Moon, Settings, Shield, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
@@ -125,6 +125,30 @@ export function UserMenu() {
                 {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
               </button>
             )}
+            <Link
+              href="/privacy"
+              onClick={() => setIsOpen(false)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
+            >
+              <Shield className="h-4 w-4" />
+              Privacy
+            </Link>
+            <Link
+              href="/terms"
+              onClick={() => setIsOpen(false)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
+            >
+              <FileText className="h-4 w-4" />
+              Terms
+            </Link>
+            <Link
+              href="/support"
+              onClick={() => setIsOpen(false)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
+            >
+              <LifeBuoy className="h-4 w-4" />
+              Support
+            </Link>
           </div>
 
           <button

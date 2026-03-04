@@ -273,6 +273,7 @@ const resolveAssetViews = ({
       shortLabel: asset.shortLabel,
       category: asset.category,
       description: asset.description,
+      unlocks: asset.unlocks,
       status: isDeployed
         ? 'deployed'
         : lockedReason

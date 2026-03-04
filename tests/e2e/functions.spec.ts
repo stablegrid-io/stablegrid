@@ -1,37 +1,30 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('function reference', () => {
+test.describe('theory topics page', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/learn/pyspark/functions');
+    await page.goto('/learn/theory', { waitUntil: 'networkidle' });
   });
 
-  test('loads function list and opens detail drawer', async ({ page }) => {
-    await expect(page.getByPlaceholder('Search functions...')).toBeVisible();
+  test('loads topics and opens a topic route', async ({ page }) => {
+    await expect(page.getByPlaceholder('Search theory topics')).toBeVisible();
 
-    const rows = page.locator('button:has(code)');
-    await expect(rows.first()).toBeVisible();
-    const firstFunctionName = (await rows.first().locator('code').textContent())?.trim() ?? '';
+    const pysparkCard = page.locator('a[href="/learn/pyspark/theory"]').first();
+    await expect(pysparkCard).toBeVisible();
 
-    await rows.first().click();
-    await expect(
-      page.getByRole('heading', {
-        name: new RegExp(firstFunctionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
-      })
-    ).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Back to list' })).toBeVisible();
+    await pysparkCard.click();
+    await page.waitForURL('**/learn/pyspark/theory');
+    await expect(page).toHaveURL(/\/learn\/pyspark\/theory/);
   });
 
-  test('search narrows the list', async ({ page }) => {
-    const rows = page.locator('button:has(code)');
-    await expect(rows.first()).toBeVisible();
-    const before = await rows.count();
-    expect(before).toBeGreaterThan(0);
+  test('search narrows visible topics', async ({ page }) => {
+    const pysparkCard = page.locator('a[href="/learn/pyspark/theory"]');
+    const fabricCard = page.locator('a[href="/learn/fabric/theory"]');
 
-    await page.getByPlaceholder('Search functions...').fill('sparksession');
-    await page.waitForTimeout(150);
+    await expect(pysparkCard.first()).toBeVisible();
+    await expect(fabricCard.first()).toBeVisible();
 
-    const after = await rows.count();
-    expect(after).toBeLessThanOrEqual(before);
-    await expect(rows.first()).toContainText(/sparksession/i);
+    await page.getByPlaceholder('Search theory topics').fill('fabric');
+    await expect(fabricCard.first()).toBeVisible();
+    await expect(pysparkCard).toHaveCount(0);
   });
 });

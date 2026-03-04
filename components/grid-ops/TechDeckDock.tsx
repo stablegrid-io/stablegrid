@@ -8,6 +8,7 @@ interface TechDeckDockProps {
   pendingAssetId: string | null;
   selectedAssetId: string | null;
   open: boolean;
+  showModelPreviews: boolean;
   onToggle: () => void;
   onDeploy: (assetId: string) => void;
   onAssetHover: (assetId: string | null) => void;
@@ -20,6 +21,7 @@ export function TechDeckDock({
   pendingAssetId,
   selectedAssetId,
   open,
+  showModelPreviews,
   onToggle,
   onDeploy,
   onAssetHover,
@@ -60,6 +62,7 @@ export function TechDeckDock({
           onAssetSelect={onAssetSelect}
           layout="dock"
           showHeader={false}
+          showModelPreviews={showModelPreviews}
         />
       ) : (
         <div className="rounded-xl border border-[#2a4d3f] bg-[#0a1813]/90 px-3 py-2 text-sm text-[#c4dbce]">

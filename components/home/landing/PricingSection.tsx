@@ -3,26 +3,24 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Check, X } from 'lucide-react';
+import { trackProductEvent } from '@/lib/analytics/productAnalytics';
 
 const FREE_FEATURES = [
-  { text: 'Full SQL + basic Python curriculum', included: true },
-  { text: 'Limited PySpark (first 3 chapters)', included: true },
-  { text: '50 practice questions', included: true },
-  { text: 'First 2 missions', included: true },
-  { text: 'Deploy up to 5 infrastructure nodes', included: true },
-  { text: 'Grid stability cap: 75%', included: true },
-  { text: 'Advanced analytics and certificates', included: false },
-  { text: 'All missions and full node set', included: false }
+  { text: 'Preview the flagship PySpark route', included: true },
+  { text: 'Use Theory session modes (Pomodoro, Deep Focus, Sprint, Free Read)', included: true },
+  { text: 'Track chapter completion and resume state', included: true },
+  { text: 'Create an account without a card', included: true },
+  { text: 'Open the home console and progress views after signup', included: true },
+  { text: 'Billing controls and upgrade path', included: false },
+  { text: 'Expanded premium access surfaces', included: false }
 ];
 
 const PRO_FEATURES = [
   { text: 'Everything in Free' },
-  { text: 'Full PySpark curriculum (20+ chapters)' },
-  { text: 'All 290 practice questions' },
-  { text: 'All missions and full infrastructure map' },
-  { text: 'Advanced performance analytics + skill gaps' },
-  { text: 'Priority execution sandbox' },
-  { text: 'Downloadable completion certificates' }
+  { text: '20 live PySpark chapters' },
+  { text: 'Priority access to new chapters and theory features' },
+  { text: 'Early access for future practice and mission rollouts' },
+  { text: 'Billing and plan management in settings' }
 ];
 
 export const PricingSection = () => {
@@ -33,7 +31,7 @@ export const PricingSection = () => {
           <h2 className="mb-3 text-2xl font-bold text-[#e3efe8] md:text-3xl" style={{ fontFamily: 'Georgia, serif' }}>
             Pricing built for focused individual growth
           </h2>
-          <p className="text-sm text-[#9ab8a9] md:text-base">Start free. Upgrade when you need full infrastructure deployment depth.</p>
+          <p className="text-sm text-[#9ab8a9] md:text-base">Start free. Inspect the full Theory Beta route before you decide to upgrade.</p>
         </div>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -60,6 +58,11 @@ export const PricingSection = () => {
 
             <Link
               href="/signup"
+              onClick={() => {
+                void trackProductEvent('landing_cta', {
+                  source: 'pricing_free'
+                });
+              }}
               className="block w-full rounded-lg border border-[#2b4f3a] py-2.5 text-center text-sm font-medium text-[#9ab8a9] transition-all hover:border-[#4ade80] hover:text-[#e3efe8]"
             >
               Get started free
@@ -97,11 +100,34 @@ export const PricingSection = () => {
 
             <Link
               href="/signup?plan=pro"
+              onClick={() => {
+                void trackProductEvent('landing_cta', {
+                  source: 'pricing_pro'
+                });
+              }}
               className="relative block w-full rounded-lg bg-[#4ade80] py-2.5 text-center text-sm font-semibold text-[#08110b] transition-all hover:bg-[#6fe89a]"
             >
               Start Pro
             </Link>
           </motion.div>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-3 rounded-xl border border-[#1f3629] bg-[#0d1410] px-5 py-4 text-sm text-[#9ab8a9] sm:flex-row sm:items-center sm:justify-between">
+          <p>Inspect the real product surfaces before you create an account.</p>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/learn/pyspark/theory"
+              className="font-medium text-[#e3efe8] transition-colors hover:text-[#4ade80]"
+            >
+              Preview PySpark path
+            </Link>
+            <Link
+              href="/learn/theory"
+              className="font-medium text-[#e3efe8] transition-colors hover:text-[#4ade80]"
+            >
+              Open Theory topics
+            </Link>
+          </div>
         </div>
       </div>
     </section>

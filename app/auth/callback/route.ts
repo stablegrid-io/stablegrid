@@ -27,7 +27,8 @@ export async function GET(request: Request) {
           .maybeSingle();
 
         const isNewUser = !progress;
-        return NextResponse.redirect(`${origin}${isNewUser ? '/onboarding' : '/'}`);
+        const destination = isNewUser ? '/onboarding?signup=1&method=oauth' : '/';
+        return NextResponse.redirect(`${origin}${destination}`);
       }
 
       return NextResponse.redirect(`${origin}/`);

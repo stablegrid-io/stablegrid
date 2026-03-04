@@ -339,13 +339,103 @@ describe('TheoryLayout navigation', () => {
     expect(screen.getAllByText('Lesson 1: Intro').length).toBeGreaterThan(0);
   });
 
+  it('shows a recovery banner when progress load fails and clears it after retry', async () => {
+    const user = userEvent.setup();
+    let getAttempts = 0;
+
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const requestMethod =
+        init?.method ??
+        (typeof input === 'object' && 'method' in input ? input.method : 'GET');
+      const method = requestMethod.toUpperCase();
+
+      if (method === 'GET') {
+        getAttempts += 1;
+        if (getAttempts === 1) {
+          return {
+            ok: false,
+            json: async () => ({ error: 'progress unavailable' })
+          };
+        }
+
+        return {
+          ok: true,
+          json: async () => ({
+            data: moduleProgressRows
+          })
+        };
+      }
+
+      return {
+        ok: true,
+        json: async () => ({
+          data: moduleProgressRows
+        })
+      };
+    });
+
+    render(<TheoryLayout doc={doc} />);
+
+    expect(await screen.findByTestId('theory-progress-recovery')).toBeInTheDocument();
+    await user.click(
+      await screen.findByRole('button', { name: /continue without session/i })
+    );
+    await user.click(screen.getByRole('button', { name: /retry progress sync/i }));
+
+    await waitFor(() => {
+      expect(getAttempts).toBeGreaterThanOrEqual(2);
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId('theory-progress-recovery')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows a recovery banner when progress sync fails', async () => {
+    const user = userEvent.setup();
+    let postAttempts = 0;
+
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const requestMethod =
+        init?.method ??
+        (typeof input === 'object' && 'method' in input ? input.method : 'GET');
+      const method = requestMethod.toUpperCase();
+
+      if (method === 'POST') {
+        postAttempts += 1;
+        return {
+          ok: false,
+          json: async () => ({ error: 'touch sync failed' })
+        };
+      }
+
+      return {
+        ok: true,
+        json: async () => ({
+          data: moduleProgressRows
+        })
+      };
+    });
+
+    render(<TheoryLayout doc={doc} />);
+
+    await user.click(
+      await screen.findByRole('button', { name: /continue without session/i })
+    );
+    await user.click(screen.getByRole('button', { name: /next lesson/i }));
+
+    await waitFor(() => {
+      expect(postAttempts).toBeGreaterThanOrEqual(1);
+    });
+    expect(await screen.findByTestId('theory-progress-recovery')).toBeInTheDocument();
+  });
+
   it('moves to the final lesson of the previous module from the first lesson of the current module', async () => {
     const user = userEvent.setup();
     currentSearchQuery = 'chapter=module-02&lesson=module-02-lesson-01';
 
     render(<TheoryLayout doc={doc} />);
 
-    expect(await screen.findByRole('heading', { name: /^reads$/i })).toBeInTheDocument();
+    expect((await screen.findAllByText(/Lesson 1: Reads/i)).length).toBeGreaterThan(0);
 
     await user.click(
       screen.getByRole('button', { name: /continue without session/i })
@@ -359,9 +449,7 @@ describe('TheoryLayout navigation', () => {
 
     await user.click(screen.getByRole('button', { name: /previous module/i }));
 
-    expect(
-      await screen.findByRole('heading', { name: /^wrap$/i })
-    ).toBeInTheDocument();
+    expect((await screen.findAllByText(/Lesson 3: Wrap/i)).length).toBeGreaterThan(0);
 
     await waitFor(() => {
       expect(replaceMock).toHaveBeenLastCalledWith(

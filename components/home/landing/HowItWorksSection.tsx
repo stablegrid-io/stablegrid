@@ -5,21 +5,21 @@ import { motion } from 'framer-motion';
 const STEPS = [
   {
     number: '01',
-    title: 'Solve domain-specific work',
-    body: 'Work through the flagship PySpark path, supporting drills, and grid incident missions built around real operational failure modes.',
-    detail: 'The unit of progress is not content watched. It is problems reasoned through.'
+    title: 'Follow one structured route',
+    body: 'Work through the flagship PySpark curriculum in sequence so every module builds on the previous one.',
+    detail: 'The unit of progress is lessons understood, not tabs opened.'
   },
   {
     number: '02',
-    title: 'Earn deployment authority',
-    body: 'kWh acts like trust inside the platform. The better you perform, the more of the grid you are allowed to shape.',
-    detail: 'Progress becomes visible capability instead of an abstract XP number.'
+    title: 'Keep continuity',
+    body: 'Resume the last chapter reliably after refresh or relogin and keep the reading loop deterministic.',
+    detail: 'Progress tracking stays tied to chapter completion and lesson resume state.'
   },
   {
     number: '03',
-    title: 'Change the system state',
-    body: 'Deploy infrastructure, raise stability, and unlock more demanding scenarios that test judgment under pressure.',
-    detail: 'Theory, practice, and simulation stay tied to the same operational outcome.'
+    title: 'Expand in phases',
+    body: 'Practice, flashcards, and missions are introduced only after the full theory catalog reaches launch quality.',
+    detail: 'Scope discipline now prevents broken expectations later.'
   }
 ] as const;
 
@@ -29,9 +29,9 @@ export const HowItWorksSection = () => {
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
-            Why the product sticks
+            How Theory Beta works
           </h2>
-          <p className="text-[#9ab8a9]">Skill turns into authority, and authority changes the system.</p>
+          <p className="text-[#9ab8a9]">One stable route first, expansion layers after validation.</p>
         </div>
 
         <div className="relative grid grid-cols-1 gap-8 md:grid-cols-3">

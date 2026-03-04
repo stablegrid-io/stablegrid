@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 import { format } from 'date-fns';
-import { motion } from 'framer-motion';
 import type { User } from '@supabase/supabase-js';
 import { LearningGrid } from '@/components/home/home/LearningGrid';
 import type {
@@ -12,6 +11,7 @@ import type {
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import {
+  DEFAULT_DEPLOYED_NODE_IDS,
   formatUnitsAsKwh,
   getAvailableBudgetUnits,
   INFRASTRUCTURE_NODES
@@ -39,14 +39,8 @@ interface TopicSnapshot {
   theoryPct: number;
   theoryCompleted: number;
   theoryTotal: number;
-  practicePct: number;
-  practiceAttempted: number;
-  practiceTotal: number;
-  accuracy: number | null;
-  recentWrongCount: number;
 }
 
-const DAILY_PRACTICE_TARGET = 4;
 const FOCUS_GRID_LAYOUT: Array<{ x: number; y: number; mobileOrder: number }> = [
   { x: 16, y: 58, mobileOrder: 1 },
   { x: 37, y: 30, mobileOrder: 2 },
@@ -55,22 +49,22 @@ const FOCUS_GRID_LAYOUT: Array<{ x: number; y: number; mobileOrder: number }> = 
 ];
 
 export const HomeDashboard = ({
+  user,
   topicProgress,
   recentSessions,
   readingSignals,
   stats
 }: HomeDashboardProps) => {
-  const questionHistory = useProgressStore((state) => state.questionHistory);
   const dailyEnergy = useProgressStore((state) => state.dailyXP);
   const deployedNodeIds = useProgressStore((state) => state.deployedNodeIds);
 
   const todayKey = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
-  const questionsToday = useMemo(
+  const studySessionsToday = useMemo(
     () =>
-      questionHistory.filter(
-        (entry) => format(new Date(entry.timestamp), 'yyyy-MM-dd') === todayKey
+      recentSessions.filter(
+        (session) => format(new Date(session.lastActiveAt), 'yyyy-MM-dd') === todayKey
       ).length,
-    [questionHistory, todayKey]
+    [recentSessions, todayKey]
   );
   const energyTodayUnits = dailyEnergy[todayKey] ?? 0;
   const availableBudgetUnits = getAvailableBudgetUnits(stats.totalXp, deployedNodeIds);
@@ -93,21 +87,6 @@ export const HomeDashboard = ({
       const theoryCompleted = progress?.theoryChaptersCompleted ?? 0;
       const theoryPct =
         theoryTotal > 0 ? Math.round((theoryCompleted / theoryTotal) * 100) : 0;
-      const practiceTotal =
-        progress?.practiceQuestionsTotal && progress.practiceQuestionsTotal > 0
-          ? progress.practiceQuestionsTotal
-          : meta.fallbackQuestions;
-      const practiceAttempted = progress?.practiceQuestionsAttempted ?? 0;
-      const practiceCorrect = progress?.practiceQuestionsCorrect ?? 0;
-      const practicePct =
-        practiceTotal > 0 ? Math.round((practiceAttempted / practiceTotal) * 100) : 0;
-      const accuracy =
-        practiceAttempted > 0
-          ? Math.round((practiceCorrect / practiceAttempted) * 100)
-          : null;
-      const recentWrongCount = questionHistory
-        .slice(-16)
-        .filter((attempt) => attempt.topic === topicId && !attempt.correct).length;
 
       return {
         topicId,
@@ -115,15 +94,10 @@ export const HomeDashboard = ({
         icon: meta.icon,
         theoryPct,
         theoryCompleted,
-        theoryTotal,
-        practicePct,
-        practiceAttempted,
-        practiceTotal,
-        accuracy,
-        recentWrongCount
+        theoryTotal
       };
     });
-  }, [questionHistory, topicProgress]);
+  }, [topicProgress]);
 
   const primarySession = recentSessions[0] ?? null;
   const recommendedTopic =
@@ -132,21 +106,10 @@ export const HomeDashboard = ({
       : null) ??
     [...topicSnapshots]
       .sort((left, right) => {
-        const leftScore =
-          left.recentWrongCount * 10 + left.practiceAttempted + left.theoryCompleted;
-        const rightScore =
-          right.recentWrongCount * 10 + right.practiceAttempted + right.theoryCompleted;
-        return rightScore - leftScore;
+        return left.theoryPct - right.theoryPct;
       })
-      .find((snapshot) => snapshot.theoryPct < 100 || snapshot.recentWrongCount > 0) ??
+      .find((snapshot) => snapshot.theoryPct < 100) ??
     topicSnapshots[0];
-
-  const weakestTopic =
-    [...topicSnapshots]
-      .filter((snapshot) => snapshot.accuracy !== null)
-      .sort((left, right) => (left.accuracy ?? 100) - (right.accuracy ?? 100))[0] ?? null;
-  const reviewTopic =
-    topicSnapshots.find((snapshot) => snapshot.recentWrongCount > 0) ?? weakestTopic;
 
   const overallProgress = useMemo(() => {
     const theoryTotal = topicSnapshots.reduce(
@@ -157,19 +120,20 @@ export const HomeDashboard = ({
       (sum, snapshot) => sum + snapshot.theoryCompleted,
       0
     );
-    const practiceTotal = topicSnapshots.reduce(
-      (sum, snapshot) => sum + snapshot.practiceTotal,
-      0
-    );
-    const practiceAttempted = topicSnapshots.reduce(
-      (sum, snapshot) => sum + snapshot.practiceAttempted,
-      0
-    );
-
     const theoryPct = theoryTotal > 0 ? (theoryCompleted / theoryTotal) * 100 : 0;
-    const practicePct = practiceTotal > 0 ? (practiceAttempted / practiceTotal) * 100 : 0;
-    return Math.round((theoryPct + practicePct) / 2);
+    return Math.round(theoryPct);
   }, [topicSnapshots]);
+  const rawDisplayName =
+    (user.user_metadata?.full_name as string | undefined) ??
+    (user.user_metadata?.name as string | undefined) ??
+    user.email?.split('@')[0] ??
+    'Operator';
+  const firstName = rawDisplayName.split(' ')[0] || 'Operator';
+  const isFirstSession =
+    !primarySession &&
+    stats.questionsCompleted === 0 &&
+    overallProgress === 0 &&
+    readingSignals.length === 0;
 
   const recommendedNodeMeta = (() => {
     if (primarySession) {
@@ -177,14 +141,6 @@ export const HomeDashboard = ({
         type: 'chapter' as const,
         topicId: primarySession.topic,
         nodeId: `${primarySession.topic}-chapter`
-      };
-    }
-
-    if (reviewTopic && reviewTopic.recentWrongCount > 0) {
-      return {
-        type: 'review' as const,
-        topicId: reviewTopic.topicId,
-        nodeId: `${reviewTopic.topicId}-review`
       };
     }
 
@@ -203,10 +159,57 @@ export const HomeDashboard = ({
     };
   })();
 
-  const primaryActionHref = primarySession
-    ? `/learn/${primarySession.topic}/theory`
-    : `/learn/${recommendedTopic.topicId}/theory`;
-  const primaryActionLabel = primarySession ? 'Resume route' : 'Open route';
+  const primaryAction = (() => {
+    if (recommendedNodeMeta.type === 'chapter' && primarySession) {
+      const remainingSections = Math.max(
+        primarySession.sectionsTotal - primarySession.sectionsRead,
+        0
+      );
+
+      return {
+        eyebrow: `Theory Beta route for ${firstName}`,
+        title: `Resume ${getHomeTopicMeta(primarySession.topic).label} chapter ${primarySession.chapterNumber}.`,
+        description: `You already completed ${primarySession.sectionsRead} of ${primarySession.sectionsTotal} sections. Finish the chapter while the context is fresh.`,
+        href: `/learn/${primarySession.topic}/theory`,
+        label: 'Resume chapter',
+        meta:
+          remainingSections > 0
+            ? `${remainingSections} sections left in this route`
+            : 'Only the final checkpoint remains'
+      };
+    }
+
+    if (recommendedNodeMeta.type === 'grid' && nextGridNode) {
+      return {
+        eyebrow: `Theory Beta reward ready for ${firstName}`,
+        title: `Deploy ${nextGridNode.name}.`,
+        description: `You have enough kWh to change the simulation right now. Convert the learning work into a real grid upgrade before you open another topic.`,
+        href: '/energy',
+        label: 'Open Grid Ops',
+        meta: `${formatUnitsAsKwh(availableBudgetUnits)} budget available`
+      };
+    }
+
+    return {
+      eyebrow: isFirstSession
+        ? `Theory Beta first route for ${firstName}`
+        : `Theory Beta next route for ${firstName}`,
+      title: isFirstSession
+        ? `Start with ${recommendedTopic.label}.`
+        : `Continue with ${recommendedTopic.label}.`,
+      description: isFirstSession
+        ? 'Begin with the first theory chapter, then keep a consistent reading cadence to unlock the full Theory Beta route.'
+        : 'This is the clearest next route based on what you have already finished and what remains locked.',
+      href: `/learn/${recommendedTopic.topicId}/theory`,
+      label: isFirstSession ? 'Start first chapter' : 'Open next chapter',
+      meta: isFirstSession
+        ? 'First session: chapter one, then continue chapter two'
+        : `${recommendedTopic.theoryCompleted}/${recommendedTopic.theoryTotal} chapters complete`
+    };
+  })();
+
+  const primaryActionHref = primaryAction.href;
+  const theoryRouteHref = `/learn/${recommendedTopic.topicId}/theory`;
 
   const statusMetrics: ConsoleMetric[] = [
     {
@@ -233,34 +236,32 @@ export const HomeDashboard = ({
           ? `${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}`
           : 'Inactive',
       status:
-        questionsToday > 0
+        studySessionsToday > 0
           ? 'stable'
           : stats.currentStreak > 0
             ? 'degrading'
             : 'improving',
       detail:
-        questionsToday > 0
-          ? 'Today already has momentum'
-          : 'One short sprint will stabilize it',
-      actionLabel: 'Fix streak',
-      actionHref: '/practice/setup'
+        studySessionsToday > 0
+          ? 'Today already has reading momentum'
+          : 'Open one reading session to stabilize it',
+      actionLabel: 'Open Theory',
+      actionHref: '/learn/theory'
     },
     {
       id: 'accuracy',
-      label: 'Accuracy',
-      value: stats.questionsCompleted > 0 ? `${stats.overallAccuracy}%` : 'No data',
+      label: 'Continuity',
+      value: primarySession
+        ? `${primarySession.sectionsRead}/${primarySession.sectionsTotal}`
+        : 'No route',
       status:
-        stats.questionsCompleted === 0
-          ? 'improving'
-          : stats.overallAccuracy >= 75
-            ? 'stable'
-            : 'degrading',
+        primarySession ? 'improving' : overallProgress > 0 ? 'stable' : 'degrading',
       detail:
-        reviewTopic && reviewTopic.recentWrongCount > 0
-          ? `${reviewTopic.recentWrongCount} answers need review`
-          : 'Recent practice is under control',
-      actionLabel: 'Fix accuracy',
-      actionHref: reviewTopic ? `/practice/${reviewTopic.topicId}` : '/practice/setup'
+        primarySession
+          ? 'Current chapter resume is active'
+          : 'Start the first chapter to establish continuity',
+      actionLabel: primarySession ? 'Resume chapter' : 'Open Theory',
+      actionHref: primarySession ? `/learn/${primarySession.topic}/theory` : '/learn/theory'
     },
     {
       id: 'progress',
@@ -274,8 +275,10 @@ export const HomeDashboard = ({
             : 'degrading',
       detail: primarySession
         ? `${getHomeTopicMeta(primarySession.topic).label} chapter is live`
-        : `${recommendedTopic.label} is the clearest next route`,
-      actionLabel: 'Open route',
+        : recommendedNodeMeta.type === 'grid' && nextGridNode
+            ? `${nextGridNode.name} is ready to deploy`
+            : `${recommendedTopic.label} is the clearest next route`,
+      actionLabel: primaryAction.label,
       actionHref: primaryActionHref
     }
   ];
@@ -297,9 +300,8 @@ export const HomeDashboard = ({
       actions: [
         {
           label: 'Open learning route',
-          href: `/learn/${recommendedTopic.topicId}/theory`
+          href: theoryRouteHref
         },
-        { label: 'Start practice', href: '/practice/setup', variant: 'secondary' },
         { label: 'Open Grid Ops', href: '/energy', variant: 'ghost' }
       ]
     }),
@@ -329,15 +331,14 @@ export const HomeDashboard = ({
       symbol: '⌁',
       actions: [
         { label: 'Open Grid Ops', href: '/energy' },
-        { label: 'Return to theory', href: primaryActionHref, variant: 'secondary' }
+        { label: 'Return to theory', href: theoryRouteHref, variant: 'secondary' }
       ]
     }),
     ...topicSnapshots.flatMap((snapshot) =>
       buildTopicCluster({
         snapshot,
         primarySession,
-        recommendedNodeMeta,
-        reviewTopicId: reviewTopic?.topicId ?? null
+        recommendedNodeMeta
       })
     )
   ];
@@ -402,21 +403,13 @@ export const HomeDashboard = ({
         }}
       />
 
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 pb-16 pt-6 sm:px-6 lg:gap-5 lg:pb-10 lg:pt-8">
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.42 }}
-        >
-          <LearningGrid
-            metrics={statusMetrics}
-            primaryActionHref={primaryActionHref}
-            primaryActionLabel={primaryActionLabel}
-            nodes={focusedGridNodes}
-            links={focusedGridLinks}
-            recommendedNodeId={recommendedNodeMeta.nodeId}
-          />
-        </motion.div>
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col px-4 pb-16 pt-6 sm:px-6 lg:pb-10 lg:pt-8">
+        <LearningGrid
+          metrics={statusMetrics}
+          nodes={focusedGridNodes}
+          links={focusedGridLinks}
+          recommendedNodeId={recommendedNodeMeta.nodeId}
+        />
       </div>
     </div>
   );
@@ -433,17 +426,15 @@ const buildGlobalNode = (
 const buildTopicCluster = ({
   snapshot,
   primarySession,
-  recommendedNodeMeta,
-  reviewTopicId
+  recommendedNodeMeta
 }: {
   snapshot: TopicSnapshot;
   primarySession: ReadingSession | null;
   recommendedNodeMeta: {
-    type: 'chapter' | 'review' | 'grid' | 'theory';
+    type: 'chapter' | 'grid' | 'theory';
     topicId: Topic | null;
     nodeId: string;
   };
-  reviewTopicId: Topic | null;
 }): LearningGridNode[] => {
   const meta = getHomeTopicMeta(snapshot.topicId);
   const chapterLabel =
@@ -452,11 +443,9 @@ const buildTopicCluster = ({
       : snapshot.theoryCompleted > 0
         ? `Next chapter`
         : 'Start chapter';
-  const topicStarted = snapshot.theoryCompleted > 0 || snapshot.practiceAttempted > 0;
-  const reviewAvailable =
-    snapshot.recentWrongCount > 0 || reviewTopicId === snapshot.topicId;
+  const topicStarted = snapshot.theoryCompleted > 0;
   const topicState: LearningGridNode['state'] =
-    snapshot.theoryPct >= 100 && snapshot.practicePct >= 100
+    snapshot.theoryPct >= 100
       ? 'completed'
       : topicStarted
         ? 'in_progress'
@@ -467,7 +456,7 @@ const buildTopicCluster = ({
       id: `${snapshot.topicId}-topic`,
       label: `${snapshot.label} cluster`,
       shortLabel: snapshot.label,
-      description: `${snapshot.label} theory, practice, and review routes.`,
+      description: `${snapshot.label} theory route and chapter progression.`,
       detail: topicStarted
         ? `${snapshot.theoryCompleted}/${snapshot.theoryTotal} chapters complete`
         : 'Ready to start',
@@ -481,8 +470,8 @@ const buildTopicCluster = ({
       actions: [
         { label: 'Open theory', href: `/learn/${snapshot.topicId}/theory` },
         {
-          label: 'Start practice',
-          href: `/practice/${snapshot.topicId}`,
+          label: 'Open theory topics',
+          href: '/learn/theory',
           variant: 'secondary'
         }
       ]
@@ -515,7 +504,7 @@ const buildTopicCluster = ({
           label: snapshot.theoryPct > 0 ? 'Continue theory' : 'Start theory',
           href: `/learn/${snapshot.topicId}/theory`
         },
-        { label: 'Practice', href: `/practice/${snapshot.topicId}`, variant: 'secondary' }
+        { label: 'View all topics', href: '/learn/theory', variant: 'secondary' }
       ]
     },
     {
@@ -555,76 +544,6 @@ const buildTopicCluster = ({
               ? 'Continue chapter'
               : 'Open chapter',
           href: `/learn/${snapshot.topicId}/theory`
-        },
-        {
-          label: 'Practice',
-          href: `/practice/${snapshot.topicId}`,
-          variant: 'secondary'
-        },
-        {
-          label: 'Review mistakes',
-          href: `/practice/${snapshot.topicId}`,
-          variant: 'ghost'
-        }
-      ]
-    },
-    {
-      id: `${snapshot.topicId}-practice`,
-      label: `${snapshot.label} practice`,
-      shortLabel: `${snapshot.label} practice`,
-      description: `Run focused questions for ${snapshot.label}.`,
-      detail:
-        snapshot.practiceAttempted > 0
-          ? `${snapshot.practiceAttempted}/${snapshot.practiceTotal} questions attempted`
-          : 'No sprint run yet',
-      state:
-        snapshot.practicePct >= 100 && snapshot.practiceAttempted > 0
-          ? 'completed'
-          : snapshot.practiceAttempted > 0
-            ? 'in_progress'
-            : 'available',
-      kind: 'practice',
-      topic: snapshot.topicId,
-      symbol: '△',
-      hint: 'Practice sprint',
-      position: { x: 50, y: 50 },
-      mobileOrder: 99,
-      actions: [
-        { label: 'Start practice', href: `/practice/${snapshot.topicId}` },
-        {
-          label: 'Open theory',
-          href: `/learn/${snapshot.topicId}/theory`,
-          variant: 'secondary'
-        }
-      ]
-    },
-    {
-      id: `${snapshot.topicId}-review`,
-      label: `${snapshot.label} review`,
-      shortLabel: `${snapshot.label} review`,
-      description: `Review mistakes and recover weak spots in ${snapshot.label}.`,
-      detail:
-        snapshot.recentWrongCount > 0
-          ? `${snapshot.recentWrongCount} recent miss${snapshot.recentWrongCount === 1 ? '' : 'es'}`
-          : 'No urgent review alerts',
-      state:
-        recommendedNodeMeta.nodeId === `${snapshot.topicId}-review`
-          ? 'recommended'
-          : reviewAvailable
-            ? 'available'
-            : 'locked',
-      kind: 'review',
-      topic: snapshot.topicId,
-      symbol: '✦',
-      hint: reviewAvailable ? 'Fix weak spots' : 'No review needed',
-      position: { x: 50, y: 50 },
-      mobileOrder: 99,
-      actions: [
-        { label: 'Review mistakes', href: `/practice/${snapshot.topicId}` },
-        {
-          label: 'Start practice',
-          href: `/practice/${snapshot.topicId}`,
-          variant: 'secondary'
         },
         {
           label: 'Open theory',

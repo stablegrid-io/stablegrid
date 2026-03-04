@@ -6,6 +6,7 @@ import { LoginForm } from '@/components/auth/LoginForm';
 const pushMock = vi.fn();
 const signInMock = vi.fn();
 const signInWithOAuthMock = vi.fn();
+const locationAssignMock = vi.fn();
 
 const getPasswordInput = () =>
   screen.getByLabelText(/password/i, { selector: 'input' }) as HTMLInputElement;
@@ -28,6 +29,15 @@ describe('LoginForm', () => {
     pushMock.mockReset();
     signInMock.mockReset();
     signInWithOAuthMock.mockReset();
+    locationAssignMock.mockReset();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: {
+        ...window.location,
+        assign: locationAssignMock
+      }
+    });
   });
 
   it('renders base sections', () => {
@@ -37,6 +47,18 @@ describe('LoginForm', () => {
     expect(getPasswordInput()).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^google$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^github$/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^privacy$/i })).toHaveAttribute(
+      'href',
+      '/privacy'
+    );
+    expect(screen.getByRole('link', { name: /^terms$/i })).toHaveAttribute(
+      'href',
+      '/terms'
+    );
+    expect(screen.getByRole('link', { name: /^support$/i })).toHaveAttribute(
+      'href',
+      '/support'
+    );
   });
 
   it('toggles password visibility', async () => {
@@ -64,7 +86,7 @@ describe('LoginForm', () => {
 
     await waitFor(() => {
       expect(signInMock).toHaveBeenCalledWith('user@example.com', 'SecurePass1!');
-      expect(pushMock).toHaveBeenCalledWith('/onboarding');
+      expect(locationAssignMock).toHaveBeenCalledWith('/onboarding');
     });
   });
 

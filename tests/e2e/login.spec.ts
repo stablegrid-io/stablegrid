@@ -6,7 +6,9 @@ test.describe('login page', () => {
   });
 
   test('renders split layout and form elements', async ({ page }) => {
-    await expect(page.getByText('Learn data engineering.')).toBeVisible();
+    await expect(
+      page.getByText('Build data engineering that holds under load.')
+    ).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
     await expect(page.getByLabel('Email')).toBeVisible();
     await expect(page.locator('#login-password')).toBeVisible();

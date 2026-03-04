@@ -6,6 +6,10 @@ import { AnimatePresence } from 'framer-motion';
 import { Clock3, Menu, X } from 'lucide-react';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import type { Topic } from '@/types/progress';
+import {
+  trackProductEvent,
+  trackProductEventOnce
+} from '@/lib/analytics/productAnalytics';
 import { useReadingSession } from '@/lib/hooks/useReadingSession';
 import { useTheorySessionTimer } from '@/lib/hooks/useTheorySessionTimer';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
@@ -56,6 +60,13 @@ interface ModuleProgressApiPayload {
   warning?: string;
 }
 
+type ProgressIssueKind = 'load' | 'sync';
+
+interface ProgressIssueState {
+  kind: ProgressIssueKind;
+  message: string;
+}
+
 const SESSION_PICKER_DISMISSED_STORAGE_PREFIX = 'theory-session-picker-dismissed';
 
 const parseLessonFromRoute = (route: string | null) => {
@@ -99,7 +110,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const [routeReady, setRouteReady] = useState(false);
   const [completionActionPending, setCompletionActionPending] = useState(false);
   const [sessionPickerVisible, setSessionPickerVisible] = useState(false);
+  const [progressIssue, setProgressIssue] = useState<ProgressIssueState | null>(null);
+  const [progressReloadToken, setProgressReloadToken] = useState(0);
   const lastTouchedRouteRef = useRef<string>('');
+  const lastTrackedChapterStartRef = useRef<string | null>(null);
   const sessionPickerInitializedRef = useRef(false);
   const addXP = useProgressStore((state) => state.addXP);
   const { methodConfigs: sessionMethodConfigs, hasHydrated: sessionDefaultsHydrated } =
@@ -113,6 +127,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   );
   const theorySession = useTheorySessionTimer(pathname);
   const startTheorySession = theorySession.start;
+  const retryProgressSync = useCallback(() => {
+    setProgressIssue(null);
+    setProgressReloadToken((value) => value + 1);
+  }, []);
   const applyModuleProgressRows = useCallback((rows: ModuleProgressApiRow[]) => {
     setCompletedChapterIds(
       new Set(rows.filter((row) => row.is_completed).map((row) => row.module_id))
@@ -249,6 +267,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     sessionPickerInitializedRef.current = false;
     setRouteReady(false);
     setSessionPickerVisible(false);
+    setProgressIssue(null);
   }, [doc.topic]);
 
   useEffect(() => {
@@ -274,12 +293,18 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           setUnlockedChapterIds(new Set(modules.map((module) => module.id)));
           setCompletionsLoaded(true);
           setResumeTarget(null);
+          setProgressIssue({
+            kind: 'load',
+            message:
+              'Progress service is temporarily unavailable. You can keep reading and retry sync.'
+          });
           return;
         }
 
         const payload = (await response.json()) as ModuleProgressApiPayload;
         const rows = Array.isArray(payload.data) ? payload.data : [];
         applyModuleProgressRows(rows);
+        setProgressIssue((current) => (current?.kind === 'sync' ? null : current));
 
         if (requestedChapterId) {
           setResumeTarget(null);
@@ -333,6 +358,11 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         setUnlockedChapterIds(new Set(modules.map((module) => module.id)));
         setCompletionsLoaded(true);
         setResumeTarget(null);
+        setProgressIssue({
+          kind: 'load',
+          message:
+            'Progress sync failed to load. You can keep reading and retry when ready.'
+        });
       }
     };
 
@@ -341,7 +371,13 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     return () => {
       mounted = false;
     };
-  }, [applyModuleProgressRows, doc.topic, modules, requestedChapterId]);
+  }, [
+    applyModuleProgressRows,
+    doc.topic,
+    modules,
+    progressReloadToken,
+    requestedChapterId
+  ]);
 
   const updateQueryRoute = useCallback(
     (chapterId: string, lessonId: string | null) => {
@@ -435,6 +471,47 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     updateQueryRoute
   ]);
 
+  useEffect(() => {
+    if (!routeReady || !completionsLoaded || !activeChapter.id) {
+      return;
+    }
+
+    const trackingKey = `${doc.topic}:${activeChapter.id}`;
+    if (lastTrackedChapterStartRef.current === trackingKey) {
+      return;
+    }
+
+    lastTrackedChapterStartRef.current = trackingKey;
+
+    const startMetadata = {
+      topic: doc.topic,
+      chapterId: activeChapter.id,
+      chapterTitle: activeChapter.title,
+      chapterNumber: activeChapter.number,
+      lessonId: activeLessonId
+    };
+
+    void trackProductEvent('chapter_started', startMetadata);
+
+    const isFirstChapterStart = completedChapterIds.size === 0;
+    if (isFirstChapterStart) {
+      void trackProductEventOnce(
+        'first_chapter_started',
+        'first_chapter_started',
+        startMetadata
+      );
+    }
+  }, [
+    activeChapter.id,
+    activeChapter.number,
+    activeChapter.title,
+    activeLessonId,
+    completedChapterIds.size,
+    completionsLoaded,
+    doc.topic,
+    routeReady
+  ]);
+
   const handleSelectChapter = (
     chapter: TheoryChapter,
     preferredLessonId: string | null = null
@@ -501,6 +578,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
 
       const rows = Array.isArray(payload.data) ? payload.data : [];
       applyModuleProgressRows(rows);
+      setProgressIssue((current) => (current?.kind === 'sync' ? null : current));
       return payload;
     },
     [applyModuleProgressRows, doc.topic]
@@ -528,6 +606,11 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       lastVisitedRoute: persistedRoute
     }).catch((error) => {
       console.warn('Failed to persist module route:', error);
+      setProgressIssue({
+        kind: 'sync',
+        message:
+          'Recent progress did not sync yet. Keep reading and retry to persist your latest route.'
+      });
     });
   }, [
     activeChapter.id,
@@ -591,17 +674,43 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           action: 'complete',
           moduleId: activeChapter.id
         });
+
+        const completionMetadata = {
+          topic: doc.topic,
+          chapterId: activeChapter.id,
+          chapterTitle: activeChapter.title,
+          chapterNumber: activeChapter.number
+        };
+
+        void trackProductEvent('chapter_completed', completionMetadata);
+
+        if (completedChapterIds.size === 0) {
+          void trackProductEventOnce(
+            'first_chapter_completed',
+            'first_chapter_completed',
+            completionMetadata
+          );
+        }
       }
       return true;
     } catch (error) {
       console.warn('Failed to sync completion state:', error);
+      setProgressIssue({
+        kind: 'sync',
+        message:
+          'Module completion did not sync. Retry progress sync, then complete the module again.'
+      });
       return false;
     } finally {
       setCompletionActionPending(false);
     }
   }, [
     activeChapter.id,
+    activeChapter.number,
+    activeChapter.title,
     completionActionPending,
+    completedChapterIds.size,
+    doc.topic,
     isCompleted,
     markChapterComplete,
     syncModuleProgress,
@@ -683,6 +792,23 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           </>
         )}
       </div>
+
+      {progressIssue ? (
+        <div
+          data-testid="theory-progress-recovery"
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-warning-200 bg-warning-50 px-4 py-2 text-xs text-warning-800 dark:border-warning-700/70 dark:bg-warning-900/20 dark:text-warning-200"
+          role="status"
+        >
+          <p className="max-w-3xl">{progressIssue.message}</p>
+          <button
+            type="button"
+            onClick={retryProgressSync}
+            className="inline-flex items-center rounded-full border border-warning-300 bg-white px-3 py-1 text-xs font-semibold text-warning-700 transition-colors hover:border-warning-400 hover:bg-warning-100 dark:border-warning-600/70 dark:bg-warning-900/40 dark:text-warning-100 dark:hover:border-warning-500 dark:hover:bg-warning-900/60"
+          >
+            Retry progress sync
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside

@@ -13,8 +13,8 @@ const TOPICS = [
     version: '20 chapters live',
     stats: [
       { label: 'chapters', value: '20' },
-      { label: 'questions', value: '60' },
-      { label: 'focus', value: 'Grid ops' }
+      { label: 'session modes', value: '4' },
+      { label: 'scope', value: 'Theory Beta' }
     ],
     highlights: [
       'Shuffles, skew, and partition strategy',
@@ -24,26 +24,6 @@ const TOPICS = [
     ],
     color: '#f0a032',
     plan: 'Core path'
-  },
-  {
-    id: 'missions',
-    href: '/missions',
-    icon: '🛰️',
-    label: 'Grid incident missions',
-    version: '8 operations available',
-    stats: [
-      { label: 'missions', value: '8' },
-      { label: 'acts', value: '4' },
-      { label: 'difficulty', value: 'Hard+' }
-    ],
-    highlights: [
-      'Event-order inversion and replay forensics',
-      'Storage dispatch under price spikes',
-      'Telemetry storms and lag recovery',
-      'Renewable volatility and system tradeoffs'
-    ],
-    color: '#78b8f3',
-    plan: 'Mission layer'
   }
 ] as const;
 
@@ -53,14 +33,14 @@ export const TopicsSection = () => {
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
-            Where the product is hardest to replace
+            Theory Beta coverage
           </h2>
           <p className="text-[#9ab8a9]">
-            StableGrid is strongest where generic learning tools are weakest: distributed data systems and mission pressure.
+            The current public scope is one flagship theory route. Additional mode cards will appear as each layer reaches launch quality.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-1 lg:grid-cols-1">
           {TOPICS.map((topic, index) => (
             <motion.div
               key={topic.id}
