@@ -37,24 +37,40 @@ const buildTrack = (
 };
 
 export const getTheoryTracks = (doc: TheoryDoc): TheoryTrackSummary[] => {
-  if (doc.topic !== 'pyspark') {
-    return [];
+  switch (doc.topic) {
+    case 'pyspark':
+      return [
+        buildTrack(doc, {
+          slug: 'full-stack',
+          label: 'PySpark: The Full Stack',
+          eyebrow: 'Track 01',
+          description:
+            'A single guided route through all 20 modules, from why Spark exists to optimization, lakehouse design, streaming, governance, and career readiness.',
+          highlights: [
+            'Foundations, internals, and distributed execution',
+            'Delta, modeling, quality, and performance engineering',
+            'Streaming, platform design, governance, and interview depth'
+          ]
+        })
+      ];
+    case 'fabric':
+      return [
+        buildTrack(doc, {
+          slug: 'full-stack',
+          label: 'Fabric: End-to-End Platform',
+          eyebrow: 'Track 01',
+          description:
+            'A single guided route through all 20 modules, from platform foundations and OneLake to Spark, SQL, realtime intelligence, BI, governance, and capstone delivery.',
+          highlights: [
+            'Platform architecture, OneLake, and core workloads',
+            'Data movement, Spark engineering, warehousing, and SQL analytics',
+            'Realtime intelligence, BI, governance, operations, and capstone'
+          ]
+        })
+      ];
+    default:
+      return [];
   }
-
-  return [
-    buildTrack(doc, {
-      slug: 'full-stack',
-      label: 'PySpark: The Full Stack',
-      eyebrow: 'Track 01',
-      description:
-        'A single guided route through all 20 modules, from why Spark exists to optimization, lakehouse design, streaming, governance, and career readiness.',
-      highlights: [
-        'Foundations, internals, and distributed execution',
-        'Delta, modeling, quality, and performance engineering',
-        'Streaming, platform design, governance, and interview depth'
-      ]
-    })
-  ];
 };
 
 export const getTheoryTrackBySlug = (

@@ -63,11 +63,11 @@ export function generateMetadata({ params }: LearnTopicTheoryPageProps): Metadat
     };
   }
 
+  const hasTracks = getTheoryTracks(doc).length > 0;
   return {
     title: 'StableGrid.io',
-    description:
-      params.topic === 'pyspark'
-        ? 'Choose a PySpark track before opening modules.'
-        : 'Choose a theory category before opening modules.'
+    description: hasTracks
+      ? 'Choose a guided track before opening modules.'
+      : 'Choose a theory category before opening modules.'
   };
 }
