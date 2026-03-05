@@ -27,7 +27,7 @@ const navItems: NavItem[] = [
     matchPrefixes: ['/learn']
   },
   { href: '/energy', icon: Zap, label: 'Grid' },
-  { href: '/progress', icon: BarChart3, label: 'Progress' }
+  { href: '/progress', icon: BarChart3, label: 'HRB' }
 ];
 
 const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {

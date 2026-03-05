@@ -69,3 +69,80 @@ export interface ProgressSummary {
   streakDays: number;
   recentSessions: ReadingSession[];
 }
+
+export type CareerCompetencyTrend = 'up' | 'flat' | 'down';
+
+export interface CareerRouteAction {
+  label: string;
+  route: string;
+}
+
+export interface CareerCompetencyScore {
+  id: 'knowledge' | 'incident_response' | 'consistency' | 'field_operations';
+  label: string;
+  score: number;
+  trend: CareerCompetencyTrend;
+  recommendedAction: CareerRouteAction;
+}
+
+export interface PromotionCriterion {
+  id: string;
+  label: string;
+  met: boolean;
+  progressPct: number;
+  currentValueLabel: string;
+  targetValueLabel: string;
+  route: string;
+}
+
+export interface CareerLadderStage {
+  id: string;
+  level: number;
+  role: string;
+  summary: string;
+  unlocked: boolean;
+  completed: boolean;
+  criteria: PromotionCriterion[];
+}
+
+export interface ShiftLogEntry {
+  id: string;
+  category: 'learning' | 'practice' | 'mission';
+  action: string;
+  detail: string;
+  occurredAt: string;
+  route: string;
+}
+
+export interface DevelopmentTask {
+  id: string;
+  label: string;
+  etaMinutes: number;
+  route: string;
+  sourceCriterionId: string;
+}
+
+export interface RoleAdvancementProgress {
+  kwhEarned: number;
+  tracksCompleted: number;
+  tracksTotal: number;
+  flashcardsCompleted: number;
+  missionsCompleted: number;
+  notebooksCompleted: number;
+}
+
+export interface WorkerCareerSnapshot {
+  careerLevel: number;
+  currentRole: string;
+  nextRole: string;
+  promotionReadinessPct: number;
+  tenureStartDate: string | null;
+  streakDays: number;
+  activeDaysLast30: number;
+  advancementProgress: RoleAdvancementProgress;
+  competencyScores: CareerCompetencyScore[];
+  ladderStages: CareerLadderStage[];
+  promotionCriteria: PromotionCriterion[];
+  developmentTasks: DevelopmentTask[];
+  shiftLogEntries: ShiftLogEntry[];
+}

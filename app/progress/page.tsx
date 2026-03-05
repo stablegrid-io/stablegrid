@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCanonicalTheoryStats } from '@/lib/learn/theoryProgress';
+import { buildWorkerCareerSnapshot } from '@/lib/progressCareer';
 import {
   buildTheorySummaryByTopic,
   mapReadingHistoryRow,
@@ -43,6 +44,13 @@ interface UserMissionRow {
   started_at: string | null;
   completed_at: string | null;
   xp_awarded: number;
+}
+
+interface UserProgressRow {
+  streak: number | null;
+  xp: number | null;
+  completed_questions: string[] | null;
+  topic_progress: Record<string, unknown> | null;
 }
 
 interface TheorySummarySnapshot {
@@ -198,7 +206,8 @@ export default async function ProgressPage() {
     topicProgressResult,
     readingSessionsResult,
     readingHistoryResult,
-    userMissionsResult
+    userMissionsResult,
+    userProgressResult
   ] = await Promise.all([
     supabase
       .from('topic_progress')
@@ -225,13 +234,19 @@ export default async function ProgressPage() {
     supabase
       .from('user_missions')
       .select('mission_slug,state,unlocked,started_at,completed_at,xp_awarded')
+      .eq('user_id', user.id),
+    supabase
+      .from('user_progress')
+      .select('streak,xp,completed_questions,topic_progress')
       .eq('user_id', user.id)
+      .maybeSingle()
   ]);
 
   const topicRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
   const readingRows = (readingSessionsResult.data ?? []) as ReadingSessionRowLike[];
   const readingHistoryRows = (readingHistoryResult.data ?? []) as ReadingHistoryRowLike[];
   const userMissionRows = (userMissionsResult.data ?? []) as UserMissionRow[];
+  const userProgressRow = (userProgressResult.data ?? null) as UserProgressRow | null;
 
   const theorySummaryByTopic = buildTheorySummaryByTopic(readingRows);
   const mappedTopicProgress = topicRows.map((row) => {
@@ -262,16 +277,33 @@ export default async function ProgressPage() {
   const readingSessions = readingRows.map(mapReadingSessionRow);
   const readingHistory = readingHistoryRows.map(mapReadingHistoryRow);
   const missionProgress = userMissionRows.map(toUserMissionProgressModel);
+  const practiceHistory: Array<{
+    topic?: string;
+    question_id?: string;
+    correct?: number;
+    total?: number;
+    created_at?: string;
+  }> = [];
+  const workerCareerSnapshot = buildWorkerCareerSnapshot({
+    topicProgress,
+    readingSessions,
+    readingHistory,
+    missionProgress,
+    practiceHistory,
+    streakDays: Number(userProgressRow?.streak ?? 0),
+    totalEnergyUnits: Number(userProgressRow?.xp ?? 0),
+    completedQuestionIds: Array.isArray(userProgressRow?.completed_questions)
+      ? userProgressRow.completed_questions
+      : [],
+    progressTopicStats: userProgressRow?.topic_progress ?? null
+  });
 
   return (
     <ProgressDashboard
       userId={user.id}
       userEmail={user.email ?? ''}
-      topicProgress={topicProgress}
+      workerCareerSnapshot={workerCareerSnapshot}
       readingSessions={readingSessions}
-      readingHistory={readingHistory}
-      practiceHistory={[]}
-      missionProgress={missionProgress}
     />
   );
 }
