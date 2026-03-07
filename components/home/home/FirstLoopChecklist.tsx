@@ -31,7 +31,7 @@ const STATUS_COPY: Record<FirstLoopStepStatus, string> = {
 
 const STATUS_SHELL: Record<FirstLoopStepStatus, string> = {
   complete:
-    'border-emerald-200 bg-emerald-50/90 dark:border-emerald-500/30 dark:bg-emerald-500/10',
+    'border-brand-200 bg-brand-50/90 dark:border-brand-500/30 dark:bg-brand-500/10',
   current:
     'border-brand-200 bg-brand-50/90 dark:border-brand-500/30 dark:bg-brand-500/10',
   upcoming:
@@ -40,7 +40,7 @@ const STATUS_SHELL: Record<FirstLoopStepStatus, string> = {
 
 const STATUS_BADGE: Record<FirstLoopStepStatus, string> = {
   complete:
-    'border-emerald-200 bg-white text-emerald-700 dark:border-emerald-500/30 dark:bg-[#07100d] dark:text-emerald-300',
+    'border-brand-200 bg-white text-brand-700 dark:border-brand-500/30 dark:bg-[#07100d] dark:text-brand-300',
   current:
     'border-brand-200 bg-white text-brand-700 dark:border-brand-500/30 dark:bg-[#07100d] dark:text-brand-300',
   upcoming:

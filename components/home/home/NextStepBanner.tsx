@@ -25,14 +25,14 @@ export const NextStepBanner = ({ session }: NextStepBannerProps) => {
       className="relative overflow-hidden rounded-[1.75rem] border px-5 py-5"
       style={{
         borderColor: meta.softBorder,
-        background: `linear-gradient(135deg, ${meta.softBg}, rgba(255,249,242,0.82) 55%, rgba(16,185,129,0.08))`
+        background: `linear-gradient(135deg, ${meta.softBg}, rgba(255,249,242,0.82) 55%, rgba(34,185,153,0.08))`
       }}
     >
       <div
         className="pointer-events-none absolute inset-0 opacity-70"
         style={{
           background:
-            'radial-gradient(circle at 100% 0%, rgba(16,185,129,0.12), transparent 26%), linear-gradient(90deg, rgba(245,158,11,0.1), transparent 38%)'
+            'radial-gradient(circle at 100% 0%, rgba(34,185,153,0.12), transparent 26%), linear-gradient(90deg, rgba(245,158,11,0.1), transparent 38%)'
         }}
       />
       <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center">
@@ -40,13 +40,13 @@ export const NextStepBanner = ({ session }: NextStepBannerProps) => {
           className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-xl text-white"
           style={{
             background: `linear-gradient(135deg, ${meta.color}, #10b981)`,
-            boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)'
+            boxShadow: '0 8px 20px rgba(34,185,153, 0.25)'
           }}
         >
           {meta.icon}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#0f8a5c] dark:text-emerald-300">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#0f8a5c] dark:text-brand-300">
             Continue learning
           </p>
           <p className="mt-2 text-xl font-semibold tracking-tight text-[#121b18] dark:text-[#f2f7f4]">
@@ -63,7 +63,7 @@ export const NextStepBanner = ({ session }: NextStepBannerProps) => {
           </div>
           <Link
             href={`/learn/${session.topic}/theory`}
-            className="inline-flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-[#121b18] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0b120f] dark:bg-emerald-400 dark:text-[#08110b] dark:hover:bg-emerald-300"
+            className="inline-flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-[#121b18] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0b120f] dark:bg-brand-400 dark:text-[#08110b] dark:hover:bg-brand-300"
           >
             <Play className="h-3.5 w-3.5" />
             Open chapter

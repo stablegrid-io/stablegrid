@@ -15,7 +15,7 @@ const trendIcon = {
 } as const;
 
 const trendTone = {
-  up: 'text-emerald-600 dark:text-emerald-400',
+  up: 'text-brand-700 dark:text-brand-300',
   flat: 'text-slate-500 dark:text-slate-400',
   down: 'text-amber-600 dark:text-amber-400'
 } as const;
@@ -24,7 +24,7 @@ export function CompetencyMatrix({ scores }: CompetencyMatrixProps) {
   return (
     <section
       aria-labelledby="competency-matrix-heading"
-      className="rounded-2xl border border-[#d6e5dd] bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:border-[#284739] dark:bg-[#0f1914]"
+      className="rounded-2xl border border-light-border bg-light-surface p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:border-dark-border dark:bg-dark-surface"
     >
       <h2
         id="competency-matrix-heading"
@@ -42,7 +42,7 @@ export function CompetencyMatrix({ scores }: CompetencyMatrixProps) {
           return (
             <article
               key={score.id}
-              className="rounded-lg border border-[#d8e5dd] bg-[#fbfdfc] p-3 dark:border-[#2c4a3c] dark:bg-[#14231b]"
+              className="rounded-lg border border-light-border bg-light-bg p-3 dark:border-dark-border dark:bg-dark-bg"
             >
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -59,13 +59,13 @@ export function CompetencyMatrix({ scores }: CompetencyMatrixProps) {
                 </strong>
                 <span className="mb-1 text-xs text-slate-500 dark:text-slate-400">/100</span>
               </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#e2ece7] dark:bg-[#23372d]">
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                 <div
                   className={`h-full rounded-full ${
                     score.score >= 75
-                      ? 'bg-emerald-500'
+                      ? 'bg-success-500'
                       : score.score >= 55
-                        ? 'bg-sky-500'
+                        ? 'bg-brand-500'
                         : 'bg-amber-500'
                   }`}
                   style={{ width: `${score.score}%` }}
@@ -74,7 +74,7 @@ export function CompetencyMatrix({ scores }: CompetencyMatrixProps) {
               {score.score < 60 ? (
                 <Link
                   href={score.recommendedAction.route}
-                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 transition hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-700 transition hover:text-brand-600 dark:text-brand-300 dark:hover:text-brand-200"
                 >
                   {score.recommendedAction.label}
                   <ArrowRight className="h-3 w-3" />

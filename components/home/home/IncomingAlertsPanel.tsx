@@ -11,7 +11,7 @@ interface IncomingAlertsPanelProps {
 const TONE_CLASSES: Record<ConsoleAlert['tone'], string> = {
   warning: 'border-amber-500/20 bg-amber-500/8 text-amber-800 dark:text-amber-200',
   positive:
-    'border-emerald-500/20 bg-emerald-500/8 text-emerald-800 dark:text-emerald-200',
+    'border-brand-500/20 bg-brand-500/8 text-brand-800 dark:text-brand-200',
   neutral: 'border-slate-500/15 bg-slate-500/5 text-slate-800 dark:text-slate-200'
 };
 
@@ -41,7 +41,7 @@ export const IncomingAlertsPanel = ({ alerts }: IncomingAlertsPanelProps) => {
             key={alert.id}
             href={alert.href}
             data-testid={`incoming-alert-${alert.id}`}
-            className={`block rounded-[1.15rem] border px-4 py-3 transition-colors hover:border-emerald-500/30 ${TONE_CLASSES[alert.tone]}`}
+            className={`block rounded-[1.15rem] border px-4 py-3 transition-colors hover:border-brand-500/30 ${TONE_CLASSES[alert.tone]}`}
           >
             <div className="flex items-start justify-between gap-3">
               <div>

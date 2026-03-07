@@ -17,7 +17,7 @@ interface StatCardProps {
 
 const accentClasses = {
   brand: 'border-l-brand-500',
-  success: 'border-l-emerald-500',
+  success: 'border-l-brand-500',
   warning: 'border-l-amber-500',
   violet: 'border-l-violet-500'
 };
@@ -44,7 +44,7 @@ export const StatCard = ({
           <span
             className={`rounded-full px-2 py-0.5 text-xs font-medium ${
               isPositiveTrend
-                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400'
                 : 'bg-error-50 text-error-700 dark:bg-error-900/20 dark:text-error-400'
             }`}
           >

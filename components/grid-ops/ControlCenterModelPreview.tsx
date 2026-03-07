@@ -68,7 +68,9 @@ function ControlCenterModelMesh() {
 }
 
 export function ControlCenterModelPreview({ className }: { className?: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [canvasEventSource, setCanvasEventSource] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +98,10 @@ export function ControlCenterModelPreview({ className }: { className?: string })
     };
   }, []);
 
+  useEffect(() => {
+    setCanvasEventSource(containerRef.current);
+  }, []);
+
   if (available === false) {
     return (
       <div
@@ -117,21 +123,25 @@ export function ControlCenterModelPreview({ className }: { className?: string })
 
   return (
     <div
+      ref={containerRef}
       className={`h-24 overflow-hidden rounded-lg border border-[#2b4f41] bg-[radial-gradient(circle_at_24%_18%,rgba(88,132,255,0.2),transparent_46%),linear-gradient(180deg,#0a1322,#060c15)] ${className ?? ''}`}
     >
-      <Canvas
-        shadows={false}
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-        camera={{ position: [0, 0.2, 2.44], fov: 31, near: 0.1, far: 30 }}
-      >
-        <ambientLight intensity={0.58} color="#ffffff" />
-        <directionalLight intensity={0.62} color="#ffffff" position={[3.2, 4.2, 2.2]} />
-        <directionalLight intensity={0.34} color="#b8cdfc" position={[-3, 2.2, 0.2]} />
-        <Suspense fallback={null}>
-          <ControlCenterModelMesh />
-        </Suspense>
-      </Canvas>
+      {canvasEventSource ? (
+        <Canvas
+          eventSource={canvasEventSource}
+          shadows={false}
+          dpr={[1, 1.5]}
+          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+          camera={{ position: [0, 0.2, 2.44], fov: 31, near: 0.1, far: 30 }}
+        >
+          <ambientLight intensity={0.58} color="#ffffff" />
+          <directionalLight intensity={0.62} color="#ffffff" position={[3.2, 4.2, 2.2]} />
+          <directionalLight intensity={0.34} color="#b8cdfc" position={[-3, 2.2, 0.2]} />
+          <Suspense fallback={null}>
+            <ControlCenterModelMesh />
+          </Suspense>
+        </Canvas>
+      ) : null}
     </div>
   );
 }

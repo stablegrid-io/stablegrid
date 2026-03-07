@@ -162,7 +162,7 @@ const shouldAddVisualGap = (previousLine: string, currentLine: string) => {
 
 const tokenClass = (type: string) => {
   if (type === 'comment') return 'text-slate-500 dark:text-slate-500';
-  if (type === 'string') return 'text-emerald-700 dark:text-emerald-300';
+  if (type === 'string') return 'text-brand-700 dark:text-brand-300';
   if (type === 'number') return 'text-slate-600 dark:text-slate-300';
   if (type === 'decorator') return 'text-violet-700 dark:text-violet-300';
   if (type === 'keyword') return 'font-medium text-violet-700 dark:text-violet-300';

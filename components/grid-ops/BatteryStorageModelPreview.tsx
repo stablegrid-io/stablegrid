@@ -68,7 +68,9 @@ function BatteryModelMesh() {
 }
 
 export function BatteryStorageModelPreview({ className }: { className?: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [canvasEventSource, setCanvasEventSource] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +98,10 @@ export function BatteryStorageModelPreview({ className }: { className?: string }
     };
   }, []);
 
+  useEffect(() => {
+    setCanvasEventSource(containerRef.current);
+  }, []);
+
   if (available === false) {
     return (
       <div
@@ -117,21 +123,25 @@ export function BatteryStorageModelPreview({ className }: { className?: string }
 
   return (
     <div
+      ref={containerRef}
       className={`h-24 overflow-hidden rounded-lg border border-[#2b4f41] bg-[radial-gradient(circle_at_30%_18%,rgba(92,168,255,0.24),transparent_42%),linear-gradient(180deg,#0a1220,#060c15)] ${className ?? ''}`}
     >
-      <Canvas
-        shadows={false}
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-        camera={{ position: [0, 0.12, 2.24], fov: 30, near: 0.1, far: 30 }}
-      >
-        <ambientLight intensity={0.58} color="#ffffff" />
-        <directionalLight intensity={0.62} color="#ffffff" position={[2.6, 3.8, 1.8]} />
-        <directionalLight intensity={0.34} color="#b8cdfc" position={[-2.8, 1.8, 0.2]} />
-        <Suspense fallback={null}>
-          <BatteryModelMesh />
-        </Suspense>
-      </Canvas>
+      {canvasEventSource ? (
+        <Canvas
+          eventSource={canvasEventSource}
+          shadows={false}
+          dpr={[1, 1.5]}
+          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+          camera={{ position: [0, 0.12, 2.24], fov: 30, near: 0.1, far: 30 }}
+        >
+          <ambientLight intensity={0.58} color="#ffffff" />
+          <directionalLight intensity={0.62} color="#ffffff" position={[2.6, 3.8, 1.8]} />
+          <directionalLight intensity={0.34} color="#b8cdfc" position={[-2.8, 1.8, 0.2]} />
+          <Suspense fallback={null}>
+            <BatteryModelMesh />
+          </Suspense>
+        </Canvas>
+      ) : null}
     </div>
   );
 }

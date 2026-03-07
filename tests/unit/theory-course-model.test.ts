@@ -107,4 +107,48 @@ describe('frozen course data model', () => {
       getDisplayLessonTitle({ title: 'Intro to Spark', order: 1 }, 1)
     ).toBe('Lesson 1: Intro to Spark');
   });
+
+  it('repairs malformed lesson titles that include body text', () => {
+    const malformedDoc: TheoryDoc = {
+      topic: 'fabric',
+      title: 'Fabric Modules',
+      description: 'Malformed import sample',
+      chapters: [
+        {
+          id: 'module-01',
+          number: 1,
+          title: 'Module 1: OneLake',
+          description: 'OneLake',
+          totalMinutes: 10,
+          sections: [
+            {
+              id: 'module-01-lesson-02',
+              title:
+                'Lesson 2: OneLake Architecture Deep Dive OneLake is Fabric storage.',
+              estimatedMinutes: 10,
+              blocks: [
+                {
+                  type: 'paragraph',
+                  content: 'It is provisioned automatically.'
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    const frozen = freezeTheoryDoc(malformedDoc);
+    const lesson = frozen.modules[0].sections[0];
+
+    expect(lesson.title).toBe('Lesson 2: OneLake Architecture Deep Dive');
+    expect(lesson.blocks[0]).toMatchObject({
+      type: 'paragraph',
+      content:
+        'OneLake is Fabric storage. It is provisioned automatically.'
+    });
+    expect(getDisplayLessonTitle(lesson, 2)).toBe(
+      'Lesson 2: OneLake Architecture Deep Dive'
+    );
+  });
 });

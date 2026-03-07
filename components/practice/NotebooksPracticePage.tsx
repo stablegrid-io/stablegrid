@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import {
   AlertTriangle,
@@ -16,6 +16,7 @@ import {
   X
 } from 'lucide-react';
 import { NOTEBOOKS, type NotebookDefinition, type NotebookIssue } from '@/data/notebooks';
+import { LightbulbPulseFeedback } from '@/components/feedback/LightbulbPulseFeedback';
 
 type NotebookView = 'catalog' | 'review' | 'results';
 type NotebookFilter = 'all' | 'new' | 'completed';
@@ -25,6 +26,7 @@ const FILTERS: Array<{ id: NotebookFilter; label: string }> = [
   { id: 'new', label: 'New' },
   { id: 'completed', label: 'Completed' }
 ];
+const NOTEBOOK_ID_SET = new Set(NOTEBOOKS.map((notebook) => notebook.id));
 
 const DIFFICULTY_STYLES: Record<
   NotebookDefinition['difficulty'],
@@ -179,7 +181,7 @@ const notebookTokenClass = (type: string) => {
     return 'text-slate-500 dark:text-slate-500';
   }
   if (type === 'string') {
-    return 'text-emerald-700 dark:text-emerald-300';
+    return 'text-brand-700 dark:text-brand-300';
   }
   if (type === 'number') {
     return 'text-slate-600 dark:text-slate-300';
@@ -229,6 +231,18 @@ const highlightNotebookLine = (line: string, lineKey: string): ReactNode[] => {
   return parts.length > 0 ? parts : [line];
 };
 
+const sanitizeCompletedNotebookIds = (value: unknown) => {
+  if (!Array.isArray(value)) return [] as string[];
+
+  const uniqueIds = new Set(
+    value.filter(
+      (item): item is string => typeof item === 'string' && NOTEBOOK_ID_SET.has(item)
+    )
+  );
+
+  return Array.from(uniqueIds);
+};
+
 export function NotebooksPracticePage() {
   const [view, setView] = useState<NotebookView>('catalog');
   const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null);
@@ -237,6 +251,7 @@ export function NotebooksPracticePage() {
   const [completedNotebookIds, setCompletedNotebookIds] = useState<Set<string>>(
     new Set()
   );
+  const [isLoadingCompletion, setIsLoadingCompletion] = useState(true);
   const [filter, setFilter] = useState<NotebookFilter>('all');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
@@ -263,6 +278,67 @@ export function NotebooksPracticePage() {
     const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { total, completed, completionPct };
   }, [completedNotebookIds]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadNotebookProgress = async () => {
+      try {
+        const response = await fetch('/api/practice/notebooks/progress', {
+          method: 'GET'
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          data?: { completedNotebookIds?: unknown };
+        };
+        const completedIds = sanitizeCompletedNotebookIds(
+          payload?.data?.completedNotebookIds
+        );
+
+        if (!isCancelled) {
+          setCompletedNotebookIds(new Set(completedIds));
+        }
+      } catch (error) {
+        console.error('Failed to load notebook progress:', error);
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingCompletion(false);
+        }
+      }
+    };
+
+    void loadNotebookProgress();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const persistNotebookProgress = useCallback(
+    async (nextCompletedNotebookIds: Set<string>) => {
+      try {
+        const response = await fetch('/api/practice/notebooks/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            completedNotebookIds: Array.from(nextCompletedNotebookIds)
+          })
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          console.error('Failed to save notebook progress:', payload?.error);
+        }
+      } catch (error) {
+        console.error('Failed to save notebook progress:', error);
+      }
+    },
+    []
+  );
 
   const uniqueIssues = useMemo(() => {
     if (!activeNotebook) return [];
@@ -352,13 +428,12 @@ export function NotebooksPracticePage() {
 
   const handleSubmitReview = useCallback(() => {
     if (!activeNotebook) return;
+    const nextCompletedNotebookIds = new Set(completedNotebookIds);
+    nextCompletedNotebookIds.add(activeNotebook.id);
     setView('results');
-    setCompletedNotebookIds((previous) => {
-      const next = new Set(previous);
-      next.add(activeNotebook.id);
-      return next;
-    });
-  }, [activeNotebook]);
+    setCompletedNotebookIds(nextCompletedNotebookIds);
+    void persistNotebookProgress(nextCompletedNotebookIds);
+  }, [activeNotebook, completedNotebookIds, persistNotebookProgress]);
 
   const handleRetry = useCallback(() => {
     setFlaggedLineIds(new Set());
@@ -425,7 +500,9 @@ export function NotebooksPracticePage() {
 
             <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
-                {completionStats.completed}/{completionStats.total} notebook reviews submitted
+                {isLoadingCompletion
+                  ? 'Loading notebook review history...'
+                  : `${completionStats.completed}/${completionStats.total} notebook reviews submitted`}
               </div>
               <div className="flex items-center gap-3">
                 <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
@@ -787,6 +864,14 @@ export function NotebooksPracticePage() {
               </div>
             </div>
           </section>
+        ) : null}
+
+        {isResults ? (
+          <LightbulbPulseFeedback
+            contextType="notebook"
+            contextId={activeNotebook.id}
+            prompt="Was this notebook review useful?"
+          />
         ) : null}
 
         <section className="space-y-4">

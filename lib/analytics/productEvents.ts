@@ -14,6 +14,7 @@ export const PRODUCT_EVENT_NAMES = [
   'grid_asset_deployed',
   'first_grid_deploy',
   'home_primary_action_clicked',
+  'lightbulb_feedback_submitted',
   'career_ladder_stage_viewed',
   'promotion_criterion_clicked',
   'development_task_started'

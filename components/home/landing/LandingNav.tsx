@@ -50,7 +50,7 @@ export const LandingNav = () => {
         <Link href="/" className="flex items-center gap-2.5">
           <StableGridWordmark
             size="sm"
-            titleClassName="text-[#e3efe8]"
+            titleClassName="text-brand-50"
           />
         </Link>
 
@@ -80,7 +80,7 @@ export const LandingNav = () => {
                 source: 'nav_primary'
               });
             }}
-            className="rounded-lg bg-[#4ade80] px-4 py-2 text-sm font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
+            className="rounded-lg bg-[#22b999] px-4 py-2 text-sm font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
           >
             Start free
           </Link>

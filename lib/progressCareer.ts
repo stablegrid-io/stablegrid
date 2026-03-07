@@ -137,6 +137,7 @@ const TOPIC_LABEL: Record<string, string> = {
   pyspark: 'PySpark',
   fabric: 'Microsoft Fabric'
 };
+const NOTEBOOK_ID_SET = new Set(NOTEBOOKS.map((notebook) => notebook.id));
 
 const clampPct = (value: number) =>
   Math.max(0, Math.min(100, Math.round(value)));
@@ -170,6 +171,33 @@ const extractNotebookIdsFromQuestions = (questionIds: string[]) => {
   });
 
   return notebookIds;
+};
+
+const extractNotebookIdsFromProgressStats = (value: unknown) => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return new Set<string>();
+  }
+
+  const root = value as Record<string, unknown>;
+  const notebooksValue = root.notebooks;
+  if (
+    typeof notebooksValue !== 'object' ||
+    notebooksValue === null ||
+    Array.isArray(notebooksValue)
+  ) {
+    return new Set<string>();
+  }
+
+  const notebookStats = notebooksValue as Record<string, unknown>;
+  if (!Array.isArray(notebookStats.completed_notebook_ids)) {
+    return new Set<string>();
+  }
+
+  return new Set(
+    notebookStats.completed_notebook_ids
+      .filter((item): item is string => typeof item === 'string')
+      .filter((item) => NOTEBOOK_ID_SET.has(item))
+  );
 };
 
 const collectNotebookCounters = (value: unknown, depth = 0): number[] => {
@@ -647,6 +675,7 @@ export const buildWorkerCareerSnapshot = ({
   }).length;
   const flashcardsCompleted = Math.max(flashcardsCompletedByQuestionIds, practiceAttempted);
   const notebookIdsFromQuestions = extractNotebookIdsFromQuestions(completedQuestionIdsUnique);
+  const notebookIdsFromProgress = extractNotebookIdsFromProgressStats(progressTopicStats);
   const notebookCounterCandidates = collectNotebookCounters(progressTopicStats);
   const notebookCounterFromProgress = notebookCounterCandidates.length
     ? Math.max(...notebookCounterCandidates.map((value) => Math.floor(safeNumber(value))))
@@ -654,7 +683,14 @@ export const buildWorkerCareerSnapshot = ({
   const notebooksTotal = NOTEBOOKS.length;
   const notebooksCompleted = Math.max(
     0,
-    Math.min(notebooksTotal, Math.max(notebookIdsFromQuestions.size, notebookCounterFromProgress))
+    Math.min(
+      notebooksTotal,
+      Math.max(
+        notebookIdsFromQuestions.size,
+        notebookIdsFromProgress.size,
+        notebookCounterFromProgress
+      )
+    )
   );
   const tracksTotal = topicProgress.filter(
     (entry) => safeNumber(entry.theoryChaptersTotal) > 0

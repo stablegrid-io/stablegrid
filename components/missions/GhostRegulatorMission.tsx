@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import type { MissionState } from '@/types/missions';
+import { LightbulbPulseFeedback } from '@/components/feedback/LightbulbPulseFeedback';
 
 const MISSION_SLUG = 'ghost-regulator';
 
@@ -1085,9 +1086,9 @@ export function GhostRegulatorMission() {
             warning: '#f59e0b',
             warningSoft: 'rgba(245,158,11,0.08)',
             warningBorder: 'rgba(245,158,11,0.2)',
-            success: '#4ade80',
-            successSoft: 'rgba(74,222,128,0.1)',
-            successBorder: 'rgba(74,222,128,0.28)',
+            success: '#22b999',
+            successSoft: 'rgba(34,185,153,0.1)',
+            successBorder: 'rgba(34,185,153,0.28)',
             codeBg: '#080808',
             codeOutputBg: '#0c0c0c',
             codeText: '#c0c0c0',
@@ -2179,7 +2180,7 @@ export function GhostRegulatorMission() {
                   padding: '24px 28px',
                   borderRadius: 16,
                   background: theme.isDark
-                    ? 'linear-gradient(135deg, rgba(74,222,128,0.08), rgba(229,229,229,0.07))'
+                    ? 'linear-gradient(135deg, rgba(34,185,153,0.08), rgba(229,229,229,0.07))'
                     : 'linear-gradient(135deg,rgba(77,184,122,0.08),rgba(100,160,220,0.08))',
                   border: `1px solid ${theme.successBorder}`,
                   animation: 'fadeUp 0.5s ease'
@@ -2226,8 +2227,8 @@ export function GhostRegulatorMission() {
                     borderRadius: 12,
                     border: `1px solid ${theme.successBorder}`,
                     background: theme.isDark
-                      ? 'rgba(16, 185, 129, 0.08)'
-                      : 'rgba(16, 185, 129, 0.06)'
+                      ? 'rgba(34,185,153, 0.08)'
+                      : 'rgba(34,185,153, 0.06)'
                   }}
                 >
                   <p
@@ -2290,6 +2291,13 @@ export function GhostRegulatorMission() {
                 >
                   Next fragment: who deployed it, and what were they optimising for? Mission 004 unlocked.
                 </p>
+                <div style={{ marginTop: 16 }}>
+                  <LightbulbPulseFeedback
+                    contextType="mission"
+                    contextId={MISSION_SLUG}
+                    prompt="How was this mission?"
+                  />
+                </div>
               </div>
             ) : null}
           </div>

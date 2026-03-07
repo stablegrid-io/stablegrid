@@ -73,7 +73,7 @@ export const WeeklyGoals = ({
       label: 'Questions',
       value: questionsAnswered.toString(),
       icon: Code2,
-      color: 'text-emerald-500'
+      color: 'text-brand-500'
     },
     {
       label: 'Active Days',

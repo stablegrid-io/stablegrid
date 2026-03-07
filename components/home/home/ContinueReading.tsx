@@ -36,7 +36,7 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
       <div className="overflow-hidden rounded-[1.85rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_20px_56px_-44px_rgba(17,24,39,0.25)] backdrop-blur dark:border-white/10 dark:bg-[rgba(10,18,14,0.74)]">
         <div className="border-b border-[#ece1d2] px-5 py-4 dark:border-white/8">
           <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#121b18] dark:text-[#f2f7f4]">
-            <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+            <BookOpen className="h-4 w-4 text-brand-600 dark:text-brand-300" />
             Active reading
           </h2>
         </div>
@@ -70,12 +70,12 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
     <div className="overflow-hidden rounded-[1.85rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_20px_56px_-44px_rgba(17,24,39,0.25)] backdrop-blur dark:border-white/10 dark:bg-[rgba(10,18,14,0.74)]">
       <div className="flex items-center justify-between border-b border-[#ece1d2] px-5 py-4 dark:border-white/8">
         <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#121b18] dark:text-[#f2f7f4]">
-          <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+          <BookOpen className="h-4 w-4 text-brand-600 dark:text-brand-300" />
           Active reading
         </h2>
         <Link
           href="/learn"
-          className="text-xs font-medium text-emerald-700 transition-colors hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
+          className="text-xs font-medium text-brand-700 transition-colors hover:text-brand-500 dark:text-brand-300 dark:hover:text-brand-200"
         >
           View all
         </Link>
@@ -99,7 +99,7 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
             <Link
               key={session.id}
               href={`/learn/${session.topic}/theory`}
-              className="group flex items-center gap-4 rounded-[1.4rem] border border-[#e4dbce] bg-[rgba(255,255,255,0.74)] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/30 hover:shadow-[0_18px_40px_-30px_rgba(16,185,129,0.22)] dark:border-white/8 dark:bg-[rgba(255,255,255,0.03)]"
+              className="group flex items-center gap-4 rounded-[1.4rem] border border-[#e4dbce] bg-[rgba(255,255,255,0.74)] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-500/30 hover:shadow-[0_18px_40px_-30px_rgba(34,185,153,0.22)] dark:border-white/8 dark:bg-[rgba(255,255,255,0.03)]"
               style={
                 isPrimary
                   ? {
@@ -115,7 +115,7 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
                 <div className="mb-0.5 text-xs text-[#6d746f] dark:text-[#7e9589]">
                   {meta.label} · Ch. {session.chapterNumber}
                   {isCompleted ? (
-                    <span className="ml-2 font-medium text-emerald-600 dark:text-emerald-300">
+                    <span className="ml-2 font-medium text-brand-600 dark:text-brand-300">
                       ✓ Complete
                     </span>
                   ) : null}
@@ -147,7 +147,7 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
                   </div>
                 ) : null}
                 {isPrimary ? (
-                  <span className="hidden items-center gap-2 rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white sm:inline-flex">
+                  <span className="hidden items-center gap-2 rounded-full bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white sm:inline-flex">
                     Open
                     <ArrowRight className="h-3.5 w-3.5" />
                   </span>

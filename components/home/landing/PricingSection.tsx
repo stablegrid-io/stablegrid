@@ -47,7 +47,7 @@ export const PricingSection = () => {
               {FREE_FEATURES.map((feature) => (
                 <li key={feature.text} className="flex items-start gap-2.5 text-[0.95rem]">
                   {feature.included ? (
-                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#4ade80]" />
+                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#22b999]" />
                   ) : (
                     <X className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#6f93b2]" />
                   )}
@@ -63,7 +63,7 @@ export const PricingSection = () => {
                   source: 'pricing_free'
                 });
               }}
-              className="block w-full rounded-lg border border-[#2b4f3a] py-2.5 text-center text-sm font-medium text-[#9ab8a9] transition-all hover:border-[#4ade80] hover:text-[#e3efe8]"
+              className="block w-full rounded-lg border border-[#2b4f3a] py-2.5 text-center text-sm font-medium text-[#9ab8a9] transition-all hover:border-[#22b999] hover:text-[#e3efe8]"
             >
               Get started free
             </Link>
@@ -74,11 +74,11 @@ export const PricingSection = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.08 }}
-            className="relative flex h-full flex-col overflow-hidden rounded-xl border border-[#4ade80]/45 bg-[#0f1712] p-5"
+            className="relative flex h-full flex-col overflow-hidden rounded-xl border border-[#22b999]/45 bg-[#0f1712] p-5"
           >
             <div
               className="pointer-events-none absolute right-0 top-0 h-48 w-48 rounded-full opacity-10"
-              style={{ background: 'radial-gradient(circle, #4ade80, transparent 70%)' }}
+              style={{ background: 'radial-gradient(circle, #22b999, transparent 70%)' }}
             />
 
             <PlanHeader
@@ -86,13 +86,13 @@ export const PricingSection = () => {
               price="$9.99"
               subtitle="per month"
               badge="Most popular"
-              badgeColor="#4ade80"
+              badgeColor="#22b999"
             />
 
             <ul className="relative mb-5 flex-1 space-y-2.5">
               {PRO_FEATURES.map((feature) => (
                 <li key={feature.text} className="flex items-start gap-2.5 text-[0.95rem]">
-                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#4ade80]" />
+                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#22b999]" />
                   <span className="text-[#9ab8a9]">{feature.text}</span>
                 </li>
               ))}
@@ -105,7 +105,7 @@ export const PricingSection = () => {
                   source: 'pricing_pro'
                 });
               }}
-              className="relative block w-full rounded-lg bg-[#4ade80] py-2.5 text-center text-sm font-semibold text-[#08110b] transition-all hover:bg-[#6fe89a]"
+              className="relative block w-full rounded-lg bg-[#22b999] py-2.5 text-center text-sm font-semibold text-[#08110b] transition-all hover:bg-[#6fe89a]"
             >
               Start Pro
             </Link>
@@ -117,13 +117,13 @@ export const PricingSection = () => {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/learn/pyspark/theory"
-              className="font-medium text-[#e3efe8] transition-colors hover:text-[#4ade80]"
+              className="font-medium text-[#e3efe8] transition-colors hover:text-[#22b999]"
             >
               Preview PySpark path
             </Link>
             <Link
               href="/learn/theory"
-              className="font-medium text-[#e3efe8] transition-colors hover:text-[#4ade80]"
+              className="font-medium text-[#e3efe8] transition-colors hover:text-[#22b999]"
             >
               Open Theory topics
             </Link>

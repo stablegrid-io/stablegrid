@@ -78,6 +78,17 @@ describe('theoryContentValidator', () => {
     expect(codes).toContain('invalid_link');
   });
 
+  it('flags oversized lesson titles', () => {
+    const doc = createValidDoc();
+    doc.chapters[0].sections[0].title =
+      'Lesson 1: This title is intentionally long enough to exceed the validator limit and simulate a malformed theory import where lesson body text leaked into the title field.';
+
+    const result = validateTheoryDoc(doc);
+
+    expect(result.isValid).toBe(false);
+    expect(result.errors.some((error) => error.code === 'lesson_title_too_long')).toBe(true);
+  });
+
   it('flags duplicate module/lesson titles and fenced code block content', () => {
     const doc = createValidDoc();
     doc.chapters.push({

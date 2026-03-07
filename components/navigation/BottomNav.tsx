@@ -5,6 +5,7 @@ import {
   type LucideIcon,
   BarChart3,
   BookOpen,
+  ClipboardCheck,
   Home,
   Zap
 } from 'lucide-react';
@@ -25,6 +26,12 @@ const navItems: NavItem[] = [
     icon: BookOpen,
     label: 'Theory',
     matchPrefixes: ['/learn']
+  },
+  {
+    href: '/tasks',
+    icon: ClipboardCheck,
+    label: 'Tasks',
+    matchPrefixes: ['/tasks', '/practice', '/missions', '/flashcards']
   },
   { href: '/energy', icon: Zap, label: 'Grid' },
   { href: '/progress', icon: BarChart3, label: 'HRB' }
@@ -73,14 +80,14 @@ export const BottomNav = () => {
               type="button"
             >
               {isActive && (
-                <div className="absolute left-1/2 top-0 h-1 w-12 -translate-x-1/2 rounded-full bg-emerald-500" />
+                <div className="absolute left-1/2 top-0 h-1 w-12 -translate-x-1/2 rounded-full bg-brand-500" />
               )}
 
               <div className="relative">
                 <Icon
                   className={`h-6 w-6 transition-colors ${
                     isActive
-                      ? 'text-emerald-500'
+                      ? 'text-brand-500'
                       : 'text-text-light-tertiary dark:text-text-dark-tertiary'
                   }`}
                 />
@@ -94,7 +101,7 @@ export const BottomNav = () => {
               <span
                 className={`text-xs font-medium transition-colors ${
                   isActive
-                    ? 'text-emerald-500'
+                    ? 'text-brand-500'
                     : 'text-text-light-tertiary dark:text-text-dark-tertiary'
                 }`}
               >

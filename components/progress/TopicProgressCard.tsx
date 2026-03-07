@@ -98,7 +98,7 @@ export const TopicProgressCard = ({ topic, progress }: TopicProgressCardProps) =
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
             <div
-              className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+              className="h-full rounded-full bg-brand-500 transition-all duration-700"
               style={{ width: `${practicePct}%` }}
             />
           </div>

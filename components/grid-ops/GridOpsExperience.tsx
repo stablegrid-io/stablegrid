@@ -223,14 +223,14 @@ export function GridOpsExperience() {
   }, [selectedAssetId, state]);
 
   return (
-    <main className="min-h-screen bg-light-bg px-4 pb-12 pt-8 text-text-light-primary dark:bg-[#060b09] dark:text-[#e5efe9] sm:px-6">
+    <main className="min-h-screen bg-light-bg px-4 pb-12 pt-8 text-text-light-primary dark:bg-[#090b0f] dark:text-[#e6ebf2] sm:px-6">
       <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4">
         <GridOpsHeader />
 
         {loading && !state ? (
-          <section className="rounded-xl border border-[#d3e5db] bg-[#f6fbf8] p-8 text-center dark:border-[#223c31] dark:bg-[#0f1914]">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-emerald-500" />
-            <p className="mt-2 text-sm text-[#4f6b5b] dark:text-[#98b8a7]">Loading simulation board...</p>
+          <section className="rounded-xl border border-[#d7dde5] bg-[#f7f9fc] p-8 text-center dark:border-[#2a313d] dark:bg-[#12161d]">
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand-500" />
+            <p className="mt-2 text-sm text-[#4a5768] dark:text-[#a3afbf]">Loading simulation board...</p>
           </section>
         ) : null}
 
@@ -275,8 +275,8 @@ export function GridOpsExperience() {
                     />
                   </GridSceneErrorBoundary>
                 ) : (
-                  <section className="flex h-[58vh] min-h-[520px] w-full items-center justify-center rounded-2xl border border-amber-500/30 bg-[#0c1612] px-6 text-center">
-                    <p className="text-sm text-[#cce1d7]">
+                  <section className="flex h-[58vh] min-h-[520px] w-full items-center justify-center rounded-2xl border border-amber-500/30 bg-[#11161d] px-6 text-center">
+                    <p className="text-sm text-[#c6cfdd]">
                       {sceneDisabledMessage}
                     </p>
                   </section>

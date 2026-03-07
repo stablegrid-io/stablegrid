@@ -236,8 +236,8 @@ export const SessionComplete = ({
         transition={{ duration: 0.45 }}
         className="relative overflow-hidden rounded-2xl border border-brand-300/40 bg-white p-6 dark:border-[#1f2a2f] dark:bg-[#0d1115] sm:p-8"
       >
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.05)_1px,transparent_1px)] bg-[size:34px_34px]" />
-        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(16,185,129,0.2)_0%,rgba(16,185,129,0)_70%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(34,185,153,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(34,185,153,0.05)_1px,transparent_1px)] bg-[size:34px_34px]" />
+        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(34,185,153,0.2)_0%,rgba(34,185,153,0)_70%)]" />
         <div className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(34,197,94,0.15)_0%,rgba(34,197,94,0)_72%)]" />
 
         <div className="relative z-10 text-center">

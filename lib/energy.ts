@@ -42,7 +42,7 @@ export interface StabilityTier {
 }
 
 export const STABILITY_TIERS: StabilityTier[] = [
-  { id: 'optimal', label: 'OPTIMAL', minPct: 90, maxPct: 100, color: '#4ade80' },
+  { id: 'optimal', label: 'OPTIMAL', minPct: 90, maxPct: 100, color: '#22b999' },
   { id: 'stable', label: 'STABLE', minPct: 75, maxPct: 90, color: '#22c55e' },
   { id: 'marginal', label: 'MARGINAL', minPct: 50, maxPct: 75, color: '#facc15' },
   { id: 'unstable', label: 'UNSTABLE', minPct: 25, maxPct: 50, color: '#fb923c' },

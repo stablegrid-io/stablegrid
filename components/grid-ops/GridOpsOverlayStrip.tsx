@@ -52,7 +52,7 @@ function StatChip({
 }) {
   const accentClass =
     accent === 'emerald'
-      ? 'border-emerald-500/35 bg-emerald-500/12 text-emerald-800 dark:text-emerald-200'
+      ? 'border-brand-500/35 bg-brand-500/12 text-brand-800 dark:text-brand-200'
       : accent === 'amber'
         ? 'border-amber-500/35 bg-amber-500/12 text-amber-800 dark:text-amber-200'
         : accent === 'rose'

@@ -236,7 +236,7 @@ function DevFpsSampler() {
   }
 
   return (
-    <div className="pointer-events-none absolute right-3 top-3 z-20 rounded-md border border-[#2e5448] bg-[#081510]/88 px-2 py-1 text-[11px] text-[#91beab]">
+    <div className="pointer-events-none absolute right-3 top-3 z-20 rounded-md border border-[#334154] bg-[#121926]/88 px-2 py-1 text-[11px] text-[#a8b7cf]">
       {fps} FPS
     </div>
   );
@@ -252,6 +252,7 @@ export function GridSceneCanvas({
 }: GridSceneCanvasProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [canvasEventSource, setCanvasEventSource] = useState<HTMLElement | null>(null);
   const [viewportWidth, setViewportWidth] = useState(1320);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [deviceMemory, setDeviceMemory] = useState<number | null>(null);
@@ -280,6 +281,10 @@ export function GridSceneCanvas({
 
     observer.observe(frame);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setCanvasEventSource(frameRef.current);
   }, []);
 
   useEffect(() => {
@@ -565,130 +570,133 @@ export function GridSceneCanvas({
     <section
       ref={frameRef}
       data-grid-scene="2p5d"
-      className={`relative h-[58vh] min-h-[520px] max-h-[760px] w-full overflow-hidden rounded-2xl border border-[#214236] bg-[radial-gradient(circle_at_18%_20%,rgba(0,208,132,0.18),transparent_40%),radial-gradient(circle_at_80%_76%,rgba(42,169,255,0.12),transparent_44%),linear-gradient(180deg,#071a14,#05110d)] ${className ?? ''}`}
+      className={`relative h-[58vh] min-h-[520px] max-h-[760px] w-full overflow-hidden rounded-2xl border border-[#2a3442] bg-[radial-gradient(circle_at_18%_20%,rgba(34,185,153,0.1),transparent_42%),radial-gradient(circle_at_80%_76%,rgba(56,189,248,0.08),transparent_46%),linear-gradient(180deg,#101722,#0d131d)] ${className ?? ''}`}
     >
-      <Canvas
-        shadows={qualityCaps.enableShadows}
-        dpr={qualityCaps.dpr}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-        onPointerMissed={() => {
-          setHoveredNodeId(null);
-          onAssetSelect(null);
-        }}
-        onCreated={({ gl }) => {
-          gl.toneMappingExposure = 1.18;
-        }}
-        camera={{
-          fov: cameraPose.fov,
-          near: 0.1,
-          far: 90,
-          position: cameraPose.position
-        }}
-      >
-        <OrbitCameraRig pose={cameraPose} controls={cameraControlLimits} />
+      {canvasEventSource ? (
+        <Canvas
+          eventSource={canvasEventSource}
+          shadows={qualityCaps.enableShadows}
+          dpr={qualityCaps.dpr}
+          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+          onPointerMissed={() => {
+            setHoveredNodeId(null);
+            onAssetSelect(null);
+          }}
+          onCreated={({ gl }) => {
+            gl.toneMappingExposure = 1.18;
+          }}
+          camera={{
+            fov: cameraPose.fov,
+            near: 0.1,
+            far: 90,
+            position: cameraPose.position
+          }}
+        >
+          <OrbitCameraRig pose={cameraPose} controls={cameraControlLimits} />
 
-        <ambientLight intensity={0.62} color="#ffffff" />
-        <hemisphereLight intensity={0.48} color="#f6f8ff" groundColor="#263126" />
-        <directionalLight
-          castShadow={qualityCaps.enableShadows}
-          intensity={1.04}
-          color="#ffffff"
-          position={[7.8, 12, 3.4]}
-          shadow-mapSize-width={1024}
-          shadow-mapSize-height={1024}
-        />
-        <directionalLight intensity={0.42} color="#c9d6ff" position={[-5.8, 4.4, -3.2]} />
-        <pointLight intensity={0.14} color="#7fd0ff" position={[4.6, 2.4, -1.8]} />
-        <pointLight intensity={0.1} color="#74e4b6" position={[-6.2, 1.4, 1.2]} />
+          <ambientLight intensity={0.62} color="#ffffff" />
+          <hemisphereLight intensity={0.48} color="#f6f8ff" groundColor="#263126" />
+          <directionalLight
+            castShadow={qualityCaps.enableShadows}
+            intensity={1.04}
+            color="#ffffff"
+            position={[7.8, 12, 3.4]}
+            shadow-mapSize-width={1024}
+            shadow-mapSize-height={1024}
+          />
+          <directionalLight intensity={0.42} color="#c9d6ff" position={[-5.8, 4.4, -3.2]} />
+          <pointLight intensity={0.14} color="#7fd0ff" position={[4.6, 2.4, -1.8]} />
+          <pointLight intensity={0.1} color="#74e4b6" position={[-6.2, 1.4, 1.2]} />
 
-        <GridGround activationRatio={activationRatio} />
-        <GridScenePostFX caps={qualityCaps} />
+          <GridGround activationRatio={activationRatio} />
+          <GridScenePostFX caps={qualityCaps} />
 
-        {state.map.edges.map((edge) => {
-          const from = sceneLayout[edge.from];
-          const to = sceneLayout[edge.to];
-          if (!from || !to) {
-            return null;
-          }
-
-          const isConnectedToFocus =
-            !focusNodeId || edge.from === focusNodeId || edge.to === focusNodeId;
-
-          return (
-            <EdgeActor
-              key={edge.id}
-              edge={edge}
-              from={from}
-              to={to}
-              risk={state.simulation.blackout_risk_pct}
-              focused={isConnectedToFocus}
-              highlighted={isConnectedToFocus && Boolean(focusNodeId)}
-              deploying={Boolean(deployingAssetId && (edge.from === deployingAssetId || edge.to === deployingAssetId))}
-              reducedMotion={reducedMotion}
-              animate={animatedEdgeIds.has(edge.id)}
-              pulseEnabled={pulseEdgeIds.has(edge.id)}
-              qualityCaps={qualityCaps}
-            />
-          );
-        })}
-
-        <Suspense fallback={null}>
-          {state.map.nodes.map((node) => {
-            const asset = assetById.get(node.id);
-            const scenePosition = sceneLayout[node.id];
-            const sceneAsset = resolveSceneAssetDescriptor(node.id);
-
-            if (!asset || !scenePosition) {
+          {state.map.edges.map((edge) => {
+            const from = sceneLayout[edge.from];
+            const to = sceneLayout[edge.to];
+            if (!from || !to) {
               return null;
             }
 
-            const focused = !focusNodeId || connectedNodeIds.has(node.id);
+            const isConnectedToFocus =
+              !focusNodeId || edge.from === focusNodeId || edge.to === focusNodeId;
 
             return (
-              <NodeActor
-                key={node.id}
-                node={node}
-                asset={asset}
-                position={scenePosition}
-                showLabel={labelVisibility.has(node.id)}
-                showMicro={detailLevel > 1 && (focused || node.id === hoveredNodeId)}
-                qualityCaps={qualityCaps}
-                assetDescriptor={sceneAsset}
-                modelAvailable={modelAvailabilityByNodeId[node.id] === true}
-                renderModel={modelRenderNodeIds.has(node.id) && modelAvailabilityByNodeId[node.id] === true}
+              <EdgeActor
+                key={edge.id}
+                edge={edge}
+                from={from}
+                to={to}
+                risk={state.simulation.blackout_risk_pct}
+                focused={isConnectedToFocus}
+                highlighted={isConnectedToFocus && Boolean(focusNodeId)}
+                deploying={Boolean(deployingAssetId && (edge.from === deployingAssetId || edge.to === deployingAssetId))}
                 reducedMotion={reducedMotion}
-                focused={focused}
-                connected={connectedNodeIds.has(node.id)}
-                highlighted={focusNodeId === node.id}
-                deploying={deployingAssetId === node.id}
-                recommended={recommendedAssetId === node.id}
-                onHoverChange={setHoveredNodeId}
-                onSelect={onAssetSelect}
+                animate={animatedEdgeIds.has(edge.id)}
+                pulseEnabled={pulseEdgeIds.has(edge.id)}
+                qualityCaps={qualityCaps}
               />
             );
           })}
-        </Suspense>
-      </Canvas>
+
+          <Suspense fallback={null}>
+            {state.map.nodes.map((node) => {
+              const asset = assetById.get(node.id);
+              const scenePosition = sceneLayout[node.id];
+              const sceneAsset = resolveSceneAssetDescriptor(node.id);
+
+              if (!asset || !scenePosition) {
+                return null;
+              }
+
+              const focused = !focusNodeId || connectedNodeIds.has(node.id);
+
+              return (
+                <NodeActor
+                  key={node.id}
+                  node={node}
+                  asset={asset}
+                  position={scenePosition}
+                  showLabel={labelVisibility.has(node.id)}
+                  showMicro={detailLevel > 1 && (focused || node.id === hoveredNodeId)}
+                  qualityCaps={qualityCaps}
+                  assetDescriptor={sceneAsset}
+                  modelAvailable={modelAvailabilityByNodeId[node.id] === true}
+                  renderModel={modelRenderNodeIds.has(node.id) && modelAvailabilityByNodeId[node.id] === true}
+                  reducedMotion={reducedMotion}
+                  focused={focused}
+                  connected={connectedNodeIds.has(node.id)}
+                  highlighted={focusNodeId === node.id}
+                  deploying={deployingAssetId === node.id}
+                  recommended={recommendedAssetId === node.id}
+                  onHoverChange={setHoveredNodeId}
+                  onSelect={onAssetSelect}
+                />
+              );
+            })}
+          </Suspense>
+        </Canvas>
+      ) : null}
 
       {hoveredNode && hoveredAsset ? (
-        <div className="pointer-events-none absolute left-4 top-4 z-20 w-[280px] rounded-xl border border-emerald-500/35 bg-[#0c1713]/94 p-3 text-[#ddf0e6] shadow-[0_16px_36px_rgba(0,0,0,0.45)]">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#90c4b0]">
+        <div className="pointer-events-none absolute left-4 top-4 z-20 w-[280px] rounded-xl border border-brand-500/30 bg-[#141b26]/94 p-3 text-[#e0e9f8] shadow-[0_16px_36px_rgba(0,0,0,0.45)]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9fb2cc]">
             {hoveredNode.visual_category ?? hoveredAsset.category}
           </p>
-          <p className="mt-1 text-sm font-semibold text-[#ecf9f2]">{hoveredAsset.name}</p>
-          <p className="mt-1 text-[12px] text-[#bfd6ca]">{hoveredAsset.description}</p>
+          <p className="mt-1 text-sm font-semibold text-[#edf3ff]">{hoveredAsset.name}</p>
+          <p className="mt-1 text-[12px] text-[#c4d1e5]">{hoveredAsset.description}</p>
           <div className="mt-2 grid grid-cols-2 gap-1 text-[11px]">
-            <span className="rounded border border-emerald-500/20 bg-black/25 px-2 py-1">+{hoveredAsset.effects.stability}% stability</span>
-            <span className="rounded border border-emerald-500/20 bg-black/25 px-2 py-1">+{hoveredAsset.effects.riskMitigation} risk damp</span>
-            <span className="rounded border border-emerald-500/20 bg-black/25 px-2 py-1">+{hoveredAsset.effects.forecast}% forecast</span>
-            <span className="rounded border border-emerald-500/20 bg-black/25 px-2 py-1">{hoveredAsset.cost_kwh.toFixed(2)} kWh</span>
+            <span className="rounded border border-brand-500/20 bg-black/25 px-2 py-1">+{hoveredAsset.effects.stability}% stability</span>
+            <span className="rounded border border-brand-500/20 bg-black/25 px-2 py-1">+{hoveredAsset.effects.riskMitigation} risk damp</span>
+            <span className="rounded border border-brand-500/20 bg-black/25 px-2 py-1">+{hoveredAsset.effects.forecast}% forecast</span>
+            <span className="rounded border border-brand-500/20 bg-black/25 px-2 py-1">{hoveredAsset.cost_kwh.toFixed(2)} kWh</span>
           </div>
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute bottom-4 left-4 z-20 inline-flex items-center gap-3 rounded-full border border-[#2b5245] bg-[#0a1813]/92 px-3 py-1.5 text-xs text-[#c8ded3]">
+      <div className="pointer-events-none absolute bottom-4 left-4 z-20 inline-flex items-center gap-3 rounded-full border border-[#334153] bg-[#121925]/92 px-3 py-1.5 text-xs text-[#c8d4e8]">
         <span className="inline-flex items-center gap-1">
-          <span className="h-[2px] w-4 rounded bg-[#33e4bf]" />
+          <span className="h-[2px] w-4 rounded bg-brand-400" />
           Active
         </span>
         <span className="inline-flex items-center gap-1">

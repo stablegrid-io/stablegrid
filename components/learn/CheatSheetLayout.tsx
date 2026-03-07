@@ -63,7 +63,7 @@ const SECTION_COLORS = [
   '#fb923c',
   '#f472b6',
   '#38bdf8',
-  '#4ade80',
+  '#22b999',
   '#fbbf24',
   '#e879f9',
   '#f87171',

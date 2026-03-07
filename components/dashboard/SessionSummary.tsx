@@ -58,7 +58,7 @@ export const SessionSummary = ({
       value: correctAnswers.toString(),
       sub: `${stats.overallAccuracy}% accuracy`,
       progress: clampPercent(stats.overallAccuracy),
-      color: 'bg-emerald-500'
+      color: 'bg-brand-500'
     },
     {
       label: 'Energy Generated',

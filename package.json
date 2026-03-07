@@ -16,7 +16,7 @@
     "test:cover": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:key": "playwright test tests/e2e/login.spec.ts tests/e2e/functions.spec.ts",
-    "test:e2e:persistence": "playwright test tests/e2e/infrastructure-persistence.spec.ts",
+    "test:e2e:persistence": "playwright test --workers=1 tests/e2e/infrastructure-persistence.spec.ts tests/e2e/hrb-notebook-persistence.spec.ts",
     "test:e2e:theory": "playwright test tests/e2e/theory-module-completion.spec.ts tests/e2e/theory-session-picker.spec.ts",
     "test:e2e:ui": "playwright test --ui",
     "report:funnel": "node tools/product-funnel-report.mjs",

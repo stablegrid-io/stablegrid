@@ -38,11 +38,12 @@ test.describe('infrastructure persistence', () => {
     await login(page);
     await seedDeploymentBudget(page);
 
+    await page.goto('/energy', { waitUntil: 'networkidle' });
     await page.evaluate(() => {
       localStorage.removeItem('stablegrid-progress');
     });
+    await page.reload({ waitUntil: 'networkidle' });
 
-    await page.goto('/energy', { waitUntil: 'networkidle' });
     await expect(page.locator('main')).toContainText('Live Grid Stabilization Map', {
       timeout: 20_000
     });
@@ -75,9 +76,8 @@ test.describe('infrastructure persistence', () => {
       })
       .toBe(deployedAfter);
 
-    await page.goto('/flashcards', { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: new RegExp(E2E_EMAIL, 'i') }).click();
-    await page.getByRole('button', { name: /logout/i }).click();
+    await page.goto('/settings', { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: /sign out/i }).click();
     await page.waitForURL('**/login', { timeout: 20_000 });
 
     await login(page);

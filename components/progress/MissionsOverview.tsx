@@ -10,7 +10,7 @@ import type { UserMissionProgress } from '@/types/missions';
 
 const DIFFICULTY_BADGE: Record<MissionDifficulty, string> = {
   Medium:
-    'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-900/30 dark:text-emerald-300',
+    'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-800/60 dark:bg-brand-900/30 dark:text-brand-300',
   Hard:
     'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-900/30 dark:text-amber-300',
   Expert:

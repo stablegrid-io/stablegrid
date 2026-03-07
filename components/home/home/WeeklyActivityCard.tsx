@@ -76,14 +76,14 @@ export const WeeklyActivityCard = ({ readingSignals }: WeeklyActivityCardProps) 
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#121b18] dark:text-[#f2f7f4]">
-              <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+              <BarChart3 className="h-4 w-4 text-brand-600 dark:text-brand-300" />
               This week
             </h2>
             <p className="mt-1 text-xs text-[#6d746f] dark:text-[#7e9589]">
               Questions answered and chapters completed in the last seven days.
             </p>
           </div>
-          <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+          <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-700 dark:text-brand-300">
             {summary.activeDays}/7 active
           </span>
         </div>
@@ -106,9 +106,9 @@ export const WeeklyActivityCard = ({ readingSignals }: WeeklyActivityCardProps) 
                   <div
                     className={`w-full rounded-t-[0.7rem] ${
                       isToday
-                        ? 'bg-gradient-to-t from-emerald-500 to-emerald-300'
+                        ? 'bg-gradient-to-t from-brand-500 to-brand-300'
                         : item.value > 0
-                          ? 'bg-[#accfbe] dark:bg-emerald-500/45'
+                          ? 'bg-[#accfbe] dark:bg-brand-500/45'
                           : 'bg-[#ded4c7] dark:bg-white/8'
                     }`}
                     style={{ height }}
@@ -116,7 +116,7 @@ export const WeeklyActivityCard = ({ readingSignals }: WeeklyActivityCardProps) 
                   <span
                     className={`text-[10px] font-medium ${
                       isToday
-                        ? 'text-emerald-700 dark:text-emerald-300'
+                        ? 'text-brand-700 dark:text-brand-300'
                         : 'text-[#6d746f] dark:text-[#7e9589]'
                     }`}
                   >

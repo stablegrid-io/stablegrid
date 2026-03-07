@@ -126,7 +126,7 @@ export const TheorySidebar = ({
                         ? 'bg-light-border text-text-light-tertiary dark:bg-dark-border dark:text-text-dark-tertiary'
                         : isLessonRead
                           ? isActiveLesson
-                            ? 'bg-brand-500 text-white shadow-[0_0_0_2px_rgba(16,185,129,0.18)] dark:text-dark-bg'
+                            ? 'bg-brand-500 text-white shadow-[0_0_0_2px_rgba(34,185,153,0.18)] dark:text-dark-bg'
                             : 'bg-brand-500/15 text-brand-600 ring-1 ring-brand-500/35 dark:text-brand-400'
                           : isActiveLesson
                             ? 'bg-text-light-primary text-white dark:bg-text-dark-primary dark:text-dark-bg'

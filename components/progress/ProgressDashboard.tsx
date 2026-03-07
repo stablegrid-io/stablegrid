@@ -96,11 +96,11 @@ export const ProgressDashboard = ({
 
         <CompletionHeatmap sessions={readingSessions} />
 
-        <section className="rounded-2xl border border-[#d6e5dd] bg-white p-3.5 dark:border-[#284739] dark:bg-[#0f1914]">
+        <section className="rounded-2xl border border-light-border bg-light-surface p-3.5 dark:border-dark-border dark:bg-dark-surface">
           <button
             type="button"
             onClick={() => setShowCompetencyMatrix((value) => !value)}
-            className="w-full rounded-lg border border-[#d8e6de] px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:border-emerald-500 hover:text-emerald-700 dark:border-[#2c4a3c] dark:text-slate-200 dark:hover:border-emerald-500 dark:hover:text-emerald-300"
+            className="w-full rounded-lg border border-light-border px-3 py-2 text-left text-sm font-medium text-text-light-secondary transition hover:border-brand-500 hover:text-brand-700 dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-500 dark:hover:text-brand-300"
           >
             {showCompetencyMatrix ? 'Hide competency matrix' : 'Show competency matrix'}
           </button>
@@ -111,11 +111,11 @@ export const ProgressDashboard = ({
           ) : null}
         </section>
 
-        <section className="rounded-2xl border border-[#d6e5dd] bg-white p-3.5 dark:border-[#284739] dark:bg-[#0f1914]">
+        <section className="rounded-2xl border border-light-border bg-light-surface p-3.5 dark:border-dark-border dark:bg-dark-surface">
           <button
             type="button"
             onClick={() => setShowShiftLog((value) => !value)}
-            className="w-full rounded-lg border border-[#d8e6de] px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:border-emerald-500 hover:text-emerald-700 dark:border-[#2c4a3c] dark:text-slate-200 dark:hover:border-emerald-500 dark:hover:text-emerald-300"
+            className="w-full rounded-lg border border-light-border px-3 py-2 text-left text-sm font-medium text-text-light-secondary transition hover:border-brand-500 hover:text-brand-700 dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-500 dark:hover:text-brand-300"
           >
             {showShiftLog ? 'Hide shift log' : 'Show shift log'}
           </button>

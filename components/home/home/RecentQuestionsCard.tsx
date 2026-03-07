@@ -77,12 +77,12 @@ export const RecentQuestionsCard = () => {
     <div className="overflow-hidden rounded-[1.75rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_18px_48px_-38px_rgba(17,24,39,0.22)] backdrop-blur dark:border-white/10 dark:bg-[rgba(10,18,14,0.74)]">
       <div className="flex items-center justify-between border-b border-[#ece1d2] px-5 py-4 dark:border-white/8">
         <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#121b18] dark:text-[#f2f7f4]">
-          <Code2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+          <Code2 className="h-4 w-4 text-brand-600 dark:text-brand-300" />
           Recent practice
         </h2>
         <Link
           href="/progress"
-          className="text-xs font-medium text-emerald-700 transition-colors hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
+          className="text-xs font-medium text-brand-700 transition-colors hover:text-brand-500 dark:text-brand-300 dark:hover:text-brand-200"
         >
           View progress
         </Link>
@@ -96,7 +96,7 @@ export const RecentQuestionsCard = () => {
           </p>
           <Link
             href="/practice/setup"
-            className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-emerald-700 transition-colors hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
+            className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-brand-700 transition-colors hover:text-brand-500 dark:text-brand-300 dark:hover:text-brand-200"
           >
             Start practice
             <ExternalLink className="h-3.5 w-3.5" />
@@ -117,7 +117,7 @@ export const RecentQuestionsCard = () => {
                 <div
                   className={`mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
                     attempt.correct
-                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400'
+                      ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-400'
                       : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
                   }`}
                 >

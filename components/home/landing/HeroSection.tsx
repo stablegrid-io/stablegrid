@@ -52,14 +52,14 @@ export const HeroSection = () => {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(circle at 18% 22%, rgba(74,222,128,0.19), transparent 40%), radial-gradient(circle at 84% 18%, rgba(100,160,220,0.12), transparent 36%)'
+            'radial-gradient(circle at 18% 22%, rgba(34,185,153,0.19), transparent 40%), radial-gradient(circle at 84% 18%, rgba(100,160,220,0.12), transparent 36%)'
         }}
       />
       <div
         className="absolute inset-0 opacity-[0.08]"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(74,222,128,0.32) 1px, transparent 1px), linear-gradient(90deg, rgba(74,222,128,0.32) 1px, transparent 1px)',
+            'linear-gradient(rgba(34,185,153,0.32) 1px, transparent 1px), linear-gradient(90deg, rgba(34,185,153,0.32) 1px, transparent 1px)',
           backgroundSize: '46px 46px'
         }}
       />
@@ -70,7 +70,7 @@ export const HeroSection = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#4ade80]/30 bg-[#4ade80]/10 px-3 py-1.5 text-xs font-semibold text-[#9de3b5]">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#22b999]/30 bg-[#22b999]/10 px-3 py-1.5 text-xs font-semibold text-[#9de3b5]">
             <Activity className="h-3 w-3" />
             Theory Beta for data engineers.
           </div>
@@ -83,7 +83,7 @@ export const HeroSection = () => {
             <br />
             keeping
             <br />
-            <span className="text-[#4ade80]">a live power grid stable.</span>
+            <span className="text-[#22b999]">a live power grid stable.</span>
           </h1>
 
           <p className="mb-8 max-w-xl text-lg leading-relaxed text-[#9ab8a9]">
@@ -100,14 +100,14 @@ export const HeroSection = () => {
                   source: 'hero_primary'
                 });
               }}
-              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-[#4ade80] px-6 py-3 font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
+              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-[#22b999] px-6 py-3 font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
             >
               Start free
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <a
               href="#features"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2b4f3a] px-6 py-3 font-medium text-[#9ab8a9] transition-colors hover:border-[#4ade80] hover:text-[#e3efe8]"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2b4f3a] px-6 py-3 font-medium text-[#9ab8a9] transition-colors hover:border-[#22b999] hover:text-[#e3efe8]"
             >
               See Theory Beta scope
             </a>
@@ -142,7 +142,7 @@ export const HeroSection = () => {
             <div className="flex items-center gap-2 border-b border-[#2b4f3a]/50 bg-[#0a120d] px-4 py-3">
               <div className="h-3 w-3 rounded-full bg-[#f87171]" />
               <div className="h-3 w-3 rounded-full bg-[#f0a032]" />
-              <div className="h-3 w-3 rounded-full bg-[#4ade80]" />
+              <div className="h-3 w-3 rounded-full bg-[#22b999]" />
               <span className="ml-3 font-mono text-xs text-[#7fb99a]">
                 Theory chapter excerpt - Evening Peak Dispatch
               </span>
@@ -154,7 +154,7 @@ export const HeroSection = () => {
 
             <div className="flex items-center gap-3 border-t border-[#2b4f3a]/50 px-4 py-3">
               <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#173223]">
-                <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-[#4ade80] to-[#64a0dc]" />
+                <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-[#22b999] to-[#64a0dc]" />
               </div>
               <span className="font-mono text-xs text-[#7fb99a]">Module progress checkpoint</span>
             </div>

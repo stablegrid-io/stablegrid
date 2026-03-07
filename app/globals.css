@@ -48,7 +48,7 @@
   }
 
   ::selection {
-    @apply bg-emerald-500/20 text-text-light-primary;
+    @apply bg-brand-500/20 text-text-light-primary;
   }
 
   .dark ::selection {
@@ -64,7 +64,7 @@
   }
 
   :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus-visible {
-    @apply ring-2 ring-emerald-500 ring-offset-2 ring-offset-light-bg;
+    @apply ring-2 ring-brand-500 ring-offset-2 ring-offset-light-bg;
   }
 
   .dark :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus-visible {
@@ -72,7 +72,7 @@
   }
 
   button:focus-visible {
-    @apply ring-2 ring-emerald-500 ring-offset-2;
+    @apply ring-2 ring-brand-500 ring-offset-2;
   }
 
   :disabled {
@@ -85,12 +85,12 @@
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium;
     @apply transition-all duration-150;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
   }
 
   .btn-primary {
-    @apply bg-emerald-500 text-white;
-    @apply hover:bg-emerald-600 active:bg-emerald-700;
+    @apply bg-brand-600 text-white;
+    @apply hover:bg-brand-500 active:bg-brand-700;
     @apply shadow-sm hover:shadow-md;
   }
 
@@ -130,7 +130,7 @@
     @apply px-3 py-2;
     @apply text-text-light-primary dark:text-text-dark-primary;
     @apply placeholder:text-text-light-tertiary dark:placeholder:text-text-dark-tertiary;
-    @apply focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent;
+    @apply focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
     @apply transition-all duration-150;
   }
@@ -190,7 +190,7 @@
   }
 
   .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
   }
 
   .scrollbar-slim::-webkit-scrollbar {

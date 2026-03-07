@@ -98,9 +98,8 @@ test.describe('grid ops core loop', () => {
       })
       .toBe(deployedAfterDeploy);
 
-    await page.goto('/flashcards', { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: new RegExp(E2E_EMAIL, 'i') }).click();
-    await page.getByRole('button', { name: /logout/i }).click();
+    await page.goto('/settings', { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: /sign out/i }).click();
     await page.waitForURL('**/login', { timeout: 20_000 });
 
     await login(page);

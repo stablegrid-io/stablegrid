@@ -75,9 +75,10 @@ test.describe('theory mobile accessibility baseline', () => {
 
     await page.goto('/', { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: /open profile menu/i }).click();
-    await expect(page.getByRole('link', { name: /^privacy$/i })).toBeVisible();
-    await expect(page.getByRole('link', { name: /^terms$/i })).toBeVisible();
-    await expect(page.getByRole('link', { name: /^support$/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^settings$/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^privacy$/i })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /^terms$/i })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /^support$/i })).toHaveCount(0);
     await page.keyboard.press('Escape');
 
     await page.goto(THEORY_ROUTE, { waitUntil: 'networkidle' });

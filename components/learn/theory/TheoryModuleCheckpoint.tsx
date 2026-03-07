@@ -13,6 +13,7 @@ import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { MIN_LESSON_READ_SECONDS } from '@/lib/learn/lessonReadProgress';
 import type { TheoryChapter } from '@/types/theory';
 import { validateAnswer } from '@/lib/validators/answerValidator';
+import { LightbulbPulseFeedback } from '@/components/feedback/LightbulbPulseFeedback';
 
 interface TheoryModuleCheckpointProps {
   topic: string;
@@ -227,6 +228,15 @@ export const TheoryModuleCheckpoint = ({
             Retake checkpoint
           </button>
         </div>
+
+        {correctAnswers >= requiredCorrect ? (
+          <LightbulbPulseFeedback
+            className="mt-5"
+            contextType="module"
+            contextId={`${topic}:${chapter.id}`}
+            prompt="How was this module checkpoint?"
+          />
+        ) : null}
       </section>
     );
   }

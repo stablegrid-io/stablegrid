@@ -50,7 +50,7 @@ export const ReadingHistoryList = ({ entries }: ReadingHistoryListProps) => {
               }`}
             >
               <div className="flex-shrink-0">
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                <CheckCircle2 className="h-5 w-5 text-brand-500" />
               </div>
 
               <div className="min-w-0 flex-1">

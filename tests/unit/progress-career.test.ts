@@ -169,4 +169,30 @@ describe('buildWorkerCareerSnapshot', () => {
       ])
     );
   });
+
+  it('uses persisted notebook IDs from topic_progress stats for advancement gates', () => {
+    const snapshot = buildWorkerCareerSnapshot({
+      topicProgress: [
+        makeTopicProgress({ topic: 'pyspark', id: 'progress-1' }),
+        makeTopicProgress({ topic: 'fabric', id: 'progress-2' })
+      ],
+      readingSessions: [],
+      readingHistory: [],
+      missionProgress: [],
+      practiceHistory: [],
+      streakDays: 0,
+      totalEnergyUnits: 0,
+      completedQuestionIds: [],
+      progressTopicStats: {
+        notebooks: {
+          completed_notebook_ids: ['nb-001', 'nb-002'],
+          completed_notebooks_count: 2
+        }
+      }
+    });
+
+    expect(snapshot.advancementProgress.notebooksCompleted).toBe(2);
+    expect(snapshot.promotionCriteria.find((criterion) => criterion.label === 'Notebook reviews'))
+      .toBeDefined();
+  });
 });

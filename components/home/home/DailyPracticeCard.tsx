@@ -52,21 +52,21 @@ export const DailyPracticeCard = ({
                 : `${questionsToday} of ${goalPerDay} questions answered today`}
             </p>
           </div>
-          <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+          <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-2.5 py-1 text-[11px] font-semibold text-brand-700 dark:text-brand-300">
             {pct}%
           </span>
         </div>
 
         <Target
           className={`mb-4 h-5 w-5 ${
-            done ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-300'
+            done ? 'text-amber-500' : 'text-brand-600 dark:text-brand-300'
           }`}
         />
 
         <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-[#e7ddd0] dark:bg-white/8">
           <div
             className={`h-full rounded-full transition-all duration-700 ${
-              done ? 'bg-amber-500' : 'bg-emerald-500'
+              done ? 'bg-amber-500' : 'bg-brand-500'
             }`}
             style={{ width: `${pct}%` }}
           />
@@ -96,7 +96,7 @@ export const DailyPracticeCard = ({
 
         <Link
           href={practiceHref}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#121b18] py-3 text-sm font-medium text-white transition-colors hover:bg-[#0b120f] dark:bg-emerald-400 dark:text-[#08110b] dark:hover:bg-emerald-300"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#121b18] py-3 text-sm font-medium text-white transition-colors hover:bg-[#0b120f] dark:bg-brand-400 dark:text-[#08110b] dark:hover:bg-brand-300"
         >
           <Play className="h-3.5 w-3.5" />
           {done ? 'Practice again' : 'Start practice'}

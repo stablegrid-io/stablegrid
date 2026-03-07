@@ -9,10 +9,10 @@ const MAP_COLORS = {
   textPrimary: '#f0f7f2',
   textSecondary: '#b8d4c4',
   textMuted: '#8fb09d',
-  border: 'rgba(74,222,128,0.45)',
-  glow: 'rgba(74,222,128,0.25)',
+  border: 'rgba(34,185,153,0.45)',
+  glow: 'rgba(34,185,153,0.25)',
   energyBar: '#34d399',
-  energyGlow: 'rgba(74,222,128,0.6)',
+  energyGlow: 'rgba(34,185,153,0.6)',
   cardBg: 'linear-gradient(165deg, rgba(12,28,20,0.98), rgba(8,18,14,0.99))'
 } as const;
 
@@ -106,7 +106,7 @@ export const InfrastructureCard = memo(function InfrastructureCard({
           <span
             className="rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider"
             style={{
-              borderColor: 'rgba(74,222,128,0.35)',
+              borderColor: 'rgba(34,185,153,0.35)',
               background: 'rgba(20,45,32,0.5)',
               color: MAP_COLORS.textPrimary
             }}
@@ -116,7 +116,7 @@ export const InfrastructureCard = memo(function InfrastructureCard({
           <span
             className="rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider"
             style={{
-              borderColor: 'rgba(74,222,128,0.35)',
+              borderColor: 'rgba(34,185,153,0.35)',
               background: 'rgba(20,45,32,0.5)',
               color: MAP_COLORS.energyBar
             }}

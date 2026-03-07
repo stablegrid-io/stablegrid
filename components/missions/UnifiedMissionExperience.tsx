@@ -7,6 +7,7 @@ import { Check, ChevronLeft, ChevronRight, Play, Terminal } from 'lucide-react';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import type { MissionState } from '@/types/missions';
 import type { MissionDefinition } from '@/data/missions';
+import { LightbulbPulseFeedback } from '@/components/feedback/LightbulbPulseFeedback';
 
 const ACTS = [
   { id: 0, label: 'The Alarm', icon: '🚨' },
@@ -154,7 +155,7 @@ function TaskEditor({
         <div className="border-t border-slate-200 bg-slate-950 px-4 py-3 dark:border-slate-800">
           <pre
             className={`overflow-x-auto whitespace-pre-wrap text-xs leading-6 ${
-              result.ok ? 'text-emerald-300' : 'text-rose-300'
+              result.ok ? 'text-brand-300' : 'text-rose-300'
             }`}
           >
             {result.text}
@@ -465,7 +466,7 @@ export function UnifiedMissionExperience({ mission }: { mission: MissionDefiniti
               />
 
               {currentTaskDone ? (
-                <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-700/50 dark:bg-emerald-900/20 dark:text-emerald-300">
+                <p className="mt-3 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800 dark:border-brand-700/50 dark:bg-brand-900/20 dark:text-brand-300">
                   {currentTask.reaction}
                 </p>
               ) : null}
@@ -523,7 +524,7 @@ export function UnifiedMissionExperience({ mission }: { mission: MissionDefiniti
                 <TaskEditor task={fixTask} done={fixDone} onSolved={markFixDone} />
               </div>
               {fixDone ? (
-                <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-700/50 dark:bg-emerald-900/20 dark:text-emerald-300">
+                <p className="mt-3 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800 dark:border-brand-700/50 dark:bg-brand-900/20 dark:text-brand-300">
                   {fixTask.reaction}
                 </p>
               ) : null}
@@ -578,7 +579,7 @@ export function UnifiedMissionExperience({ mission }: { mission: MissionDefiniti
                       disabled={missionComplete}
                       className={`w-full rounded-xl border px-4 py-3 text-left text-sm transition ${
                         revealed && correct
-                          ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700/50 dark:bg-emerald-900/20 dark:text-emerald-300'
+                          ? 'border-brand-300 bg-brand-50 text-brand-800 dark:border-brand-700/50 dark:bg-brand-900/20 dark:text-brand-300'
                           : revealed && selected && !correct
                             ? 'border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-700/50 dark:bg-rose-900/20 dark:text-rose-300'
                             : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700/70'
@@ -592,8 +593,8 @@ export function UnifiedMissionExperience({ mission }: { mission: MissionDefiniti
             </div>
 
             {missionComplete ? (
-              <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-5 dark:border-emerald-700/50 dark:bg-emerald-900/20">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">
+              <div className="rounded-2xl border border-brand-300 bg-brand-50 p-5 dark:border-brand-700/50 dark:bg-brand-900/20">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700 dark:text-brand-300">
                   Mission complete
                 </p>
                 <h2 className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
@@ -603,7 +604,7 @@ export function UnifiedMissionExperience({ mission }: { mission: MissionDefiniti
                   Evidence accepted. Remediation shipped. Incident moved to monitoring.
                 </p>
 
-                <div className="mt-4 rounded-xl border border-emerald-200 bg-white/75 p-3 dark:border-emerald-700/40 dark:bg-emerald-950/20">
+                <div className="mt-4 rounded-xl border border-brand-200 bg-white/75 p-3 dark:border-brand-700/40 dark:bg-brand-950/20">
                   <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                     Mission stabilization confirmed
                   </p>
@@ -611,6 +612,13 @@ export function UnifiedMissionExperience({ mission }: { mission: MissionDefiniti
                     Grid waveform telemetry is now synced with your completion profile.
                   </p>
                 </div>
+
+                <LightbulbPulseFeedback
+                  className="mt-4 border-brand-300/40 dark:border-brand-600/40 dark:bg-brand-950/10"
+                  contextType="mission"
+                  contextId={mission.slug}
+                  prompt="How was this mission?"
+                />
               </div>
             ) : null}
           </div>

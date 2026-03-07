@@ -92,10 +92,10 @@ const CATEGORY_STYLE_MAP: Record<
   data: {
     icon: Database,
     chipClass:
-      'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300',
+      'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-900/60 dark:bg-brand-900/20 dark:text-brand-300',
     iconWrapClass:
-      'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300',
-    progressClass: 'bg-emerald-500'
+      'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-900/60 dark:bg-brand-900/20 dark:text-brand-300',
+    progressClass: 'bg-brand-500'
   },
   advanced: {
     icon: Rocket,

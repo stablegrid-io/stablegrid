@@ -35,13 +35,13 @@ export const HomeHeroHeader = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42 }}
       data-testid="home-shift-briefing"
-      className="relative overflow-hidden rounded-[2rem] border border-emerald-200/70 bg-[#f4f8f5] shadow-[0_24px_80px_-58px_rgba(15,23,42,0.32)] backdrop-blur dark:border-emerald-400/25 dark:bg-[linear-gradient(140deg,#0c1a14,#09120f)]"
+      className="relative overflow-hidden rounded-[2rem] border border-brand-200/70 bg-[#f4f8f5] shadow-[0_24px_80px_-58px_rgba(15,23,42,0.32)] backdrop-blur dark:border-brand-400/25 dark:bg-[linear-gradient(140deg,#0c1a14,#09120f)]"
     >
       <div
         className="pointer-events-none absolute inset-0 dark:hidden"
         style={{
           background:
-            'linear-gradient(180deg, rgba(255,255,255,0.72), rgba(238,246,241,0.64)), radial-gradient(circle at 92% 8%, rgba(16,185,129,0.16), transparent 34%), linear-gradient(90deg, rgba(15,23,42,0.04) 1px, transparent 1px), linear-gradient(rgba(15,23,42,0.04) 1px, transparent 1px)',
+            'linear-gradient(180deg, rgba(255,255,255,0.72), rgba(238,246,241,0.64)), radial-gradient(circle at 92% 8%, rgba(34,185,153,0.16), transparent 34%), linear-gradient(90deg, rgba(15,23,42,0.04) 1px, transparent 1px), linear-gradient(rgba(15,23,42,0.04) 1px, transparent 1px)',
           backgroundSize: 'auto, auto, 32px 32px, 32px 32px'
         }}
       />
@@ -49,14 +49,14 @@ export const HomeHeroHeader = ({
         className="pointer-events-none absolute inset-0 hidden dark:block"
         style={{
           background:
-            'radial-gradient(circle at 82% 18%, rgba(16,185,129,0.22), transparent 26%), linear-gradient(180deg, rgba(8,16,13,0.08), rgba(8,16,13,0.34)), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)',
+            'radial-gradient(circle at 82% 18%, rgba(34,185,153,0.22), transparent 26%), linear-gradient(180deg, rgba(8,16,13,0.08), rgba(8,16,13,0.34)), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)',
           backgroundSize: 'auto, auto, 32px 32px, 32px 32px'
         }}
       />
 
       <div className="relative z-10 grid gap-5 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.25fr)_320px] lg:items-start">
         <div className="max-w-4xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700 dark:border-brand-400/30 dark:bg-brand-500/10 dark:text-brand-300">
             <Sparkles className="h-3.5 w-3.5" />
             {eyebrow}
           </div>
@@ -80,7 +80,7 @@ export const HomeHeroHeader = ({
                   label: primaryActionLabel
                 });
               }}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-[#072014] transition-colors hover:bg-emerald-400 dark:bg-emerald-400 dark:text-[#07100a] dark:hover:bg-emerald-300"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-[#072014] transition-colors hover:bg-brand-400 dark:bg-brand-400 dark:text-[#07100a] dark:hover:bg-brand-300"
             >
               {primaryActionLabel}
               <ArrowRight className="h-4 w-4" />
@@ -98,7 +98,7 @@ export const HomeHeroHeader = ({
           {highlights.map((item) => (
             <div
               key={item.label}
-              className="rounded-[1.35rem] border border-emerald-200/70 bg-white/78 px-4 py-3 dark:border-emerald-400/20 dark:bg-[#0f2019]/72"
+              className="rounded-[1.35rem] border border-brand-200/70 bg-white/78 px-4 py-3 dark:border-brand-400/20 dark:bg-[#0f2019]/72"
             >
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#4c6a5a] dark:text-[#89b09d]">
                 {item.label}

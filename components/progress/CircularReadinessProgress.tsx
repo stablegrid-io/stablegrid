@@ -35,7 +35,7 @@ export function CircularReadinessProgress({
           cy={size / 2}
           r={radius}
           strokeWidth={strokeWidth}
-          className="fill-none stroke-[#d8e5dd] dark:stroke-[#264436]"
+          className="fill-none stroke-slate-200 dark:stroke-dark-border"
         />
         <circle
           cx={size / 2}
@@ -45,7 +45,7 @@ export function CircularReadinessProgress({
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
-          className="fill-none stroke-emerald-500 transition-[stroke-dashoffset] duration-500"
+          className="fill-none stroke-brand-500 dark:stroke-brand-400 transition-[stroke-dashoffset] duration-500"
         />
       </svg>
 

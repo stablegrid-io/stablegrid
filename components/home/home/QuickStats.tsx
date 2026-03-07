@@ -36,8 +36,8 @@ export const QuickStats = ({
       label: 'Questions Completed',
       value: formatNumber(questionsCompleted),
       icon: CheckCircle2,
-      color: 'text-emerald-500',
-      border: 'border-l-emerald-500'
+      color: 'text-brand-500',
+      border: 'border-l-brand-500'
     },
     {
       label: 'Overall Accuracy',

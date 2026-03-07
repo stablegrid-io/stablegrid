@@ -4,6 +4,15 @@ import { DEFAULT_DEPLOYED_NODE_IDS, INFRASTRUCTURE_BY_ID } from '@/lib/energy';
 import { GRID_OPS_DEFAULT_SCENARIO } from '@/lib/grid-ops/config';
 
 const INFRASTRUCTURE_NODE_ID_SET = new Set(Object.keys(INFRASTRUCTURE_BY_ID));
+type JsonRecord = Record<string, unknown>;
+
+const toRecord = (value: unknown): JsonRecord => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as JsonRecord;
+};
 
 const sanitizeDeployedNodeIds = (value: unknown) => {
   if (!Array.isArray(value)) return null;
@@ -102,10 +111,7 @@ export async function POST(request: Request) {
   const completedQuestions = Array.isArray(payload.completedQuestions)
     ? payload.completedQuestions
     : [];
-  const topicProgress =
-    typeof payload.topicProgress === 'object' && payload.topicProgress !== null
-      ? payload.topicProgress
-      : {};
+  const incomingTopicProgress = toRecord(payload.topicProgress);
   const hasDeployedNodeIds = Object.prototype.hasOwnProperty.call(
     payload,
     'deployedNodeIds'
@@ -121,6 +127,20 @@ export async function POST(request: Request) {
     lastDeployedNodeIdRaw && deployedNodeIds?.includes(lastDeployedNodeIdRaw)
       ? lastDeployedNodeIdRaw
       : null;
+  const { data: existingProgress, error: existingProgressError } = await supabase
+    .from('user_progress')
+    .select('topic_progress')
+    .eq('user_id', user.id)
+    .maybeSingle<{ topic_progress: JsonRecord | null }>();
+
+  if (existingProgressError) {
+    return NextResponse.json({ error: existingProgressError.message }, { status: 500 });
+  }
+
+  const topicProgress = {
+    ...toRecord(existingProgress?.topic_progress),
+    ...incomingTopicProgress
+  };
 
   const updatePayload: Record<string, unknown> = {
     user_id: user.id,

@@ -22,7 +22,7 @@ export const CTASection = () => {
               source: 'final_cta'
             });
           }}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#4ade80] px-8 py-4 text-lg font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#22b999] px-8 py-4 text-lg font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
         >
           Start free
         </Link>

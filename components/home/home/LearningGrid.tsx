@@ -16,6 +16,7 @@ interface LearningGridProps {
   nodes: LearningGridNode[];
   links: Array<{ from: string; to: string }>;
   recommendedNodeId: string;
+  showRouteControls?: boolean;
 }
 
 const STATE_LABEL: Record<LearningGridNode['state'], string> = {
@@ -36,7 +37,7 @@ const STATE_CLASSES: Record<LearningGridNode['state'], string> = {
   completed:
     'border-success-200 bg-success-50/70 text-text-light-primary dark:border-success-500/30 dark:bg-dark-bg dark:text-text-dark-primary',
   recommended:
-    'border-brand-300 bg-brand-50/80 text-text-light-primary shadow-[0_0_0_1px_rgba(16,185,129,0.12),0_18px_40px_-26px_rgba(16,185,129,0.28)] dark:border-brand-500/35 dark:bg-dark-bg dark:text-text-dark-primary dark:shadow-[0_0_0_1px_rgba(16,185,129,0.18),0_20px_44px_-28px_rgba(0,0,0,0.7)]'
+    'border-brand-300 bg-brand-50/80 text-text-light-primary shadow-[0_0_0_1px_rgba(34,185,153,0.12),0_18px_40px_-26px_rgba(34,185,153,0.28)] dark:border-brand-500/35 dark:bg-dark-bg dark:text-text-dark-primary dark:shadow-[0_0_0_1px_rgba(34,185,153,0.18),0_20px_44px_-28px_rgba(0,0,0,0.7)]'
 };
 
 const SIGNAL_META: Record<LearningGridNode['state'], { label: string; tone: string }> = {
@@ -46,7 +47,7 @@ const SIGNAL_META: Record<LearningGridNode['state'], { label: string; tone: stri
   },
   available: {
     label: 'Armed',
-    tone: 'bg-emerald-400/75'
+    tone: 'bg-brand-400/75'
   },
   in_progress: {
     label: 'Tracking',
@@ -54,37 +55,12 @@ const SIGNAL_META: Record<LearningGridNode['state'], { label: string; tone: stri
   },
   completed: {
     label: 'Stable',
-    tone: 'bg-emerald-500/80'
+    tone: 'bg-brand-500/80'
   },
   recommended: {
     label: 'Priority',
-    tone: 'bg-emerald-400/90'
+    tone: 'bg-brand-400/90'
   }
-};
-
-const KIND_LABEL: Record<LearningGridNode['kind'], string> = {
-  topic: 'Current topic',
-  theory: 'Theory route',
-  chapter: 'Next lesson',
-  practice: 'Practice sprint',
-  review: 'Review lane',
-  mission: 'Command hub',
-  grid: 'Reward'
-};
-
-const METRIC_STATUS_COPY: Record<ConsoleMetric['status'], string> = {
-  stable: 'Stable',
-  improving: 'Improving',
-  degrading: 'Degrading'
-};
-
-const METRIC_STATUS_CLASSES: Record<ConsoleMetric['status'], string> = {
-  stable:
-    'border-success-200 bg-success-50 text-success-700 dark:border-success-700/60 dark:bg-success-900/20 dark:text-success-300',
-  improving:
-    'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-700/60 dark:bg-brand-900/20 dark:text-brand-300',
-  degrading:
-    'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-700/60 dark:bg-warning-900/20 dark:text-warning-300'
 };
 
 const DRAWER_THEME: Record<
@@ -142,7 +118,8 @@ export const LearningGrid = ({
   metrics,
   nodes,
   links,
-  recommendedNodeId
+  recommendedNodeId,
+  showRouteControls = true
 }: LearningGridProps) => {
   const prefersReducedMotion = useReducedMotion();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -194,6 +171,36 @@ export const LearningGrid = ({
       recommendedNodeId
     );
   }, [recommendedNodeId, selectedNode, sortedNodes]);
+
+  const recommendedNode = useMemo(
+    () => nodes.find((node) => node.id === recommendedNodeId) ?? null,
+    [nodes, recommendedNodeId]
+  );
+
+  const primaryActionHref =
+    recommendedNode?.actions[0]?.href ??
+    metrics.find((metric) => metric.id === 'progress')?.actionHref ??
+    '/learn/theory';
+  const primaryActionLabel =
+    recommendedNode?.actions[0]?.label ??
+    metrics.find((metric) => metric.id === 'progress')?.actionLabel ??
+    'Resume route';
+
+  const contextSummary = useMemo(() => {
+    const moduleNode =
+      sortedNodes.find((node) => node.kind === 'topic' && node.state !== 'completed') ??
+      sortedNodes.find((node) => node.kind === 'topic') ??
+      null;
+    const progressMetric = metrics.find((metric) => metric.id === 'progress');
+    const momentumMetric = metrics.find((metric) => metric.id === 'streak');
+
+    return {
+      current: moduleNode?.shortLabel ?? 'Learning route',
+      next: recommendedNode?.shortLabel ?? 'Next step',
+      progress: progressMetric?.value ?? '--',
+      momentum: momentumMetric?.value ?? '--'
+    };
+  }, [metrics, recommendedNode, sortedNodes]);
 
   useEffect(() => {
     if (!selectedNodeId) {
@@ -310,57 +317,36 @@ export const LearningGrid = ({
       data-testid="home-learning-grid"
       className="rounded-[2rem] border border-light-border bg-light-surface p-4 shadow-[0_24px_72px_-58px_rgba(15,23,42,0.18)] dark:border-dark-border dark:bg-dark-surface dark:shadow-[0_24px_72px_-58px_rgba(0,0,0,0.55)]"
     >
-      <div className="mb-4">
-        <div>
-          <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-500">
-            <Sparkles className="h-3.5 w-3.5" />
-            Learning Grid
-          </div>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">
-            Inspect the route after you take the next step.
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-text-light-secondary dark:text-text-dark-secondary">
-            The highlighted nodes show why StableGrid is recommending this lesson, review
-            sprint, or grid deployment.
-          </p>
-        </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-          {metrics.map((metric) => (
-            <Link
-              key={metric.id}
-              href={metric.actionHref}
-              data-testid={`system-status-metric-${metric.id}`}
-              className="group rounded-[1rem] border border-light-border bg-light-bg px-3 py-3 transition-colors hover:border-brand-500/30 hover:bg-light-surface dark:border-dark-border dark:bg-dark-bg dark:hover:border-brand-400/30 dark:hover:bg-dark-hover"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                  {metric.label}
-                </p>
-                <span
-                  className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${METRIC_STATUS_CLASSES[metric.status]}`}
-                >
-                  {METRIC_STATUS_COPY[metric.status]}
-                </span>
-              </div>
-              <div className="mt-3 flex items-end justify-between gap-2">
-                <div>
-                  <p className="text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
-                    {metric.value}
-                  </p>
-                  <p className="mt-1 text-xs text-text-light-secondary dark:text-text-dark-secondary">
-                    {metric.detail}
-                  </p>
-                </div>
-                <span className="text-sm font-medium text-text-light-secondary transition-colors group-hover:text-brand-600 dark:text-text-dark-secondary dark:group-hover:text-brand-300">
-                  {metric.actionLabel}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
       <div className="lg:hidden">
+        {showRouteControls ? (
+          <div className="mb-3 rounded-[1.2rem] border border-light-border bg-light-bg p-3 dark:border-dark-border dark:bg-dark-bg">
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-500">
+              <Sparkles className="h-3.5 w-3.5" />
+              Next-step map
+            </div>
+            <p className="mt-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              {contextSummary.current} → {contextSummary.next} · {contextSummary.progress}
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <Link
+                href={primaryActionHref}
+                data-testid="home-primary-action"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-brand-500 bg-brand-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-600 dark:text-dark-bg dark:hover:bg-brand-400"
+              >
+                {primaryActionLabel}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setSelectedNodeId(recommendedNodeId)}
+                className="inline-flex items-center justify-center rounded-xl border border-light-border bg-light-surface px-3 py-2 text-xs font-medium text-text-light-secondary transition hover:border-brand-500 hover:text-brand-700 dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-secondary dark:hover:border-brand-400 dark:hover:text-brand-300"
+              >
+                Why next
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex snap-x gap-3 overflow-x-auto pb-3">
           {mobileNodes.map((node) => (
             <button
@@ -383,7 +369,7 @@ export const LearningGrid = ({
                 </span>
               </div>
               <p className="mt-3 text-base font-semibold">{node.shortLabel}</p>
-              <p className="mt-1 text-sm opacity-80">{node.detail}</p>
+              <p className="mt-1 text-sm opacity-80">{node.hint ?? getNodeSupportCopy(node)}</p>
             </button>
           ))}
         </div>
@@ -396,9 +382,9 @@ export const LearningGrid = ({
       </div>
 
       <div ref={desktopLayerRef} className="relative hidden lg:block">
-        <div className="relative min-h-[560px] overflow-hidden rounded-[1.7rem] border border-light-border bg-light-bg dark:border-dark-border dark:bg-[#02060f]">
-          <div className="pointer-events-none absolute inset-0 dark:hidden bg-[radial-gradient(circle_at_50%_35%,rgba(16,185,129,0.12),transparent_26%),linear-gradient(180deg,rgba(16,185,129,0.04),transparent_62%)]" />
-          <div className="pointer-events-none absolute inset-0 hidden dark:block bg-[radial-gradient(circle_at_50%_35%,rgba(16,185,129,0.14),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_42%)]" />
+        <div className="relative min-h-[520px] overflow-hidden rounded-[1.7rem] border border-light-border bg-light-bg dark:border-dark-border dark:bg-[#02060f]">
+          <div className="pointer-events-none absolute inset-0 dark:hidden bg-[radial-gradient(circle_at_50%_35%,rgba(34,185,153,0.12),transparent_26%),linear-gradient(180deg,rgba(34,185,153,0.04),transparent_62%)]" />
+          <div className="pointer-events-none absolute inset-0 hidden dark:block bg-[radial-gradient(circle_at_50%_35%,rgba(34,185,153,0.14),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_42%)]" />
           <div
             className="pointer-events-none absolute inset-0 dark:hidden"
             style={{
@@ -420,7 +406,7 @@ export const LearningGrid = ({
             <defs>
               <linearGradient id="learning-grid-flow" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="rgba(115, 115, 115, 0.22)" />
-                <stop offset="45%" stopColor="rgba(16, 185, 129, 0.72)" />
+                <stop offset="45%" stopColor="rgba(34,185,153, 0.72)" />
                 <stop offset="100%" stopColor="rgba(115, 115, 115, 0.22)" />
               </linearGradient>
             </defs>
@@ -461,7 +447,7 @@ export const LearningGrid = ({
           {!prefersReducedMotion ? (
             <>
               <motion.div
-                className="pointer-events-none absolute h-2.5 w-2.5 rounded-full bg-emerald-400/75 blur-[1px]"
+                className="pointer-events-none absolute h-2.5 w-2.5 rounded-full bg-brand-400/75 blur-[1px]"
                 style={{ left: '12%', top: '48%' }}
                 animate={{
                   left: ['12%', '54%', '86%'],
@@ -539,13 +525,13 @@ export const LearningGrid = ({
                     {node.symbol ?? '•'}
                   </span>
                 </div>
-                <div className="mt-3 border-t border-current/10 pt-2 text-xs text-text-light-secondary opacity-85 dark:text-text-dark-secondary">
+                <div className="mt-3 truncate border-t border-current/10 pt-2 text-xs text-text-light-secondary opacity-85 dark:text-text-dark-secondary">
                   {getNodeSupportCopy(node)}
                 </div>
 
                 {isRecommended && !prefersReducedMotion ? (
                   <motion.span
-                    className="pointer-events-none absolute inset-0 rounded-[1.2rem] border border-emerald-400/40"
+                    className="pointer-events-none absolute inset-0 rounded-[1.2rem] border border-brand-400/40"
                     animate={{ opacity: [0.35, 0.85, 0.35] }}
                     transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
                   />
@@ -707,34 +693,34 @@ const getWhyNowCopy = (node: LearningGridNode) => {
 
 const getNodeSupportCopy = (node: LearningGridNode) => {
   if (node.kind === 'mission') {
-    return 'This is your route anchor.';
+    return 'Route anchor.';
   }
 
   if (node.kind === 'topic') {
-    return 'This is the topic you are moving through now.';
+    return 'Active module.';
   }
 
   if (node.kind === 'chapter') {
     return node.state === 'recommended'
-      ? 'This is the clearest next lesson to open.'
-      : 'This step keeps the topic moving.';
+      ? 'Best next lesson.'
+      : 'Keeps the module moving.';
   }
 
   if (node.kind === 'grid') {
     return node.state === 'locked'
-      ? 'Keep learning to unlock this reward.'
-      : 'This reward opens after the learning route.';
+      ? 'Earn more to unlock.'
+      : 'Reward is ready.';
   }
 
   if (node.kind === 'practice') {
-    return 'Use this to reinforce recall after theory.';
+    return 'Reinforce recall.';
   }
 
   if (node.kind === 'review') {
-    return 'Come here when misses start to stack up.';
+    return 'Fix weak spots.';
   }
 
-  return 'This is part of your active route.';
+  return 'Part of active route.';
 };
 
 const getDrawerSummary = (node: LearningGridNode) => {

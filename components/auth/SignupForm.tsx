@@ -137,13 +137,13 @@ export function SignupForm() {
             className="pointer-events-none absolute inset-0 opacity-[0.06]"
             style={{
               backgroundImage:
-                'linear-gradient(#4ade80 1px, transparent 1px), linear-gradient(90deg, #4ade80 1px, transparent 1px)',
+                'linear-gradient(#22b999 1px, transparent 1px), linear-gradient(90deg, #22b999 1px, transparent 1px)',
               backgroundSize: '40px 40px'
             }}
           />
           <div
             className="pointer-events-none absolute -left-16 top-20 h-72 w-72 rounded-full opacity-25"
-            style={{ background: 'radial-gradient(circle, #4ade80, transparent 70%)' }}
+            style={{ background: 'radial-gradient(circle, #22b999, transparent 70%)' }}
           />
 
           <div className="relative z-10">
@@ -156,13 +156,13 @@ export function SignupForm() {
           </div>
 
           <div className="relative z-10">
-            <p className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#4ade80]">
+            <p className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#22b999]">
               Theory Beta
             </p>
             <h1 className="font-display text-[42px] font-bold leading-[1.06] tracking-tight text-[#f0f0f0]">
               Build data engineering that holds under load.
               <br />
-              <span className="text-[#4ade80]">Stabilize the grid.</span>
+              <span className="text-[#22b999]">Stabilize the grid.</span>
             </h1>
             <p className="mt-5 max-w-[390px] text-sm leading-7 text-[#7d8f84]">
               Start the Theory Beta curriculum and keep module progress synced across
@@ -177,7 +177,7 @@ export function SignupForm() {
                     index < LEFT_FEATURES.length - 1 ? 'border-b border-[#16261f]' : ''
                   }`}
                 >
-                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#4ade80]" />
+                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#22b999]" />
                   <div>
                     <p className="text-sm font-semibold text-[#d9eee0]">{feature.label}</p>
                     <p className="mt-0.5 text-xs text-[#5f7a6a]">{feature.description}</p>
@@ -211,7 +211,7 @@ export function SignupForm() {
                 <p className="text-sm font-medium text-[#0d6b38]">{success}</p>
                 <Link
                   href="/login"
-                  className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#1f7a4f] hover:underline"
+                  className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#137763] hover:underline"
                 >
                   Continue to login
                   <ArrowRight className="h-4 w-4" />
@@ -223,7 +223,7 @@ export function SignupForm() {
                   <button
                     type="button"
                     onClick={() => handleOAuth('google')}
-                    className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#d4ddd7] bg-white px-3 py-2.5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#b7d8c4] hover:bg-[#f2fbf5]"
+                    className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#d4ddd7] bg-white px-3 py-2.5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#a7f0dc] hover:bg-[#f2fbf5]"
                   >
                     {GOOGLE_ICON}
                     Google
@@ -231,7 +231,7 @@ export function SignupForm() {
                   <button
                     type="button"
                     onClick={() => handleOAuth('github')}
-                    className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#d4ddd7] bg-white px-3 py-2.5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#b7d8c4] hover:bg-[#f2fbf5]"
+                    className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#d4ddd7] bg-white px-3 py-2.5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#a7f0dc] hover:bg-[#f2fbf5]"
                   >
                     {GITHUB_ICON}
                     GitHub
@@ -267,7 +267,7 @@ export function SignupForm() {
                       value={name}
                       onChange={(event) => setName(event.target.value)}
                       placeholder="Your name"
-                      className="w-full rounded-[10px] border border-[#d4ddd7] bg-white px-3.5 py-2.5 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#4ade80] focus:ring-2 focus:ring-[#4ade80]/20"
+                      className="w-full rounded-[10px] border border-[#d4ddd7] bg-white px-3.5 py-2.5 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#22b999] focus:ring-2 focus:ring-[#22b999]/20"
                       required
                     />
                   </div>
@@ -286,7 +286,7 @@ export function SignupForm() {
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       placeholder="you@example.com"
-                      className="w-full rounded-[10px] border border-[#d4ddd7] bg-white px-3.5 py-2.5 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#4ade80] focus:ring-2 focus:ring-[#4ade80]/20"
+                      className="w-full rounded-[10px] border border-[#d4ddd7] bg-white px-3.5 py-2.5 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#22b999] focus:ring-2 focus:ring-[#22b999]/20"
                       required
                     />
                   </div>
@@ -314,14 +314,14 @@ export function SignupForm() {
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
                         placeholder="Create a password"
-                        className="w-full rounded-[10px] border border-[#d4ddd7] bg-white px-3.5 py-2.5 pr-11 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#4ade80] focus:ring-2 focus:ring-[#4ade80]/20"
+                        className="w-full rounded-[10px] border border-[#d4ddd7] bg-white px-3.5 py-2.5 pr-11 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#22b999] focus:ring-2 focus:ring-[#22b999]/20"
                         required
                         minLength={8}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword((value) => !value)}
-                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[#b8b8b8] transition-colors hover:text-[#1f7a4f]"
+                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[#b8b8b8] transition-colors hover:text-[#137763]"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
                         {showPassword ? (
@@ -370,13 +370,13 @@ export function SignupForm() {
 
                   <p className="text-xs leading-relaxed text-[#8f8f8f]">
                     By creating an account you agree to our{' '}
-                    <Link href="/terms" className="font-medium hover:text-[#1f7a4f] hover:underline">
+                    <Link href="/terms" className="font-medium hover:text-[#137763] hover:underline">
                       Terms
                     </Link>{' '}
                     and{' '}
                     <Link
                       href="/privacy"
-                      className="font-medium hover:text-[#1f7a4f] hover:underline"
+                      className="font-medium hover:text-[#137763] hover:underline"
                     >
                       Privacy Policy
                     </Link>
@@ -406,13 +406,13 @@ export function SignupForm() {
 
             <p className="mt-5 text-center text-sm text-[#9a9a9a]">
               Already have an account?{' '}
-              <Link href="/login" className="font-semibold text-[#1f7a4f] hover:underline">
+              <Link href="/login" className="font-semibold text-[#137763] hover:underline">
                 Log in
               </Link>
             </p>
             <p className="mt-3 text-center text-xs text-[#8f8f8f]">
               Need help?{' '}
-              <Link href="/support" className="font-medium hover:text-[#1f7a4f] hover:underline">
+              <Link href="/support" className="font-medium hover:text-[#137763] hover:underline">
                 Contact support
               </Link>
             </p>

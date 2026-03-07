@@ -122,10 +122,6 @@ test.describe('home operator console', () => {
     await login(page, credentials);
     await page.goto('/', { waitUntil: 'networkidle' });
 
-    await expect(page.getByTestId('home-primary-action')).toBeVisible({
-      timeout: 10_000
-    });
-    await expect(page.locator('[data-testid^="system-status-metric-"]')).toHaveCount(4);
     await expect(page.getByTestId('home-learning-grid')).toBeVisible({ timeout: 10_000 });
 
     const recommendedNode = page
@@ -179,12 +175,14 @@ test.describe('home operator console', () => {
       page.locator('[data-testid="learning-grid-drawer"]:visible')
     ).toHaveCount(0);
 
-    const primaryHref = await page
-      .getByTestId('home-primary-action')
-      .getAttribute('href');
+    await recommendedNode.click();
+    await expect(drawer).toBeVisible({ timeout: 10_000 });
+    const drawerPrimaryAction = drawer.locator('[data-testid^="learning-grid-action-"]').first();
+    await expect(drawerPrimaryAction).toBeVisible({ timeout: 10_000 });
+    const primaryHref = await drawerPrimaryAction.getAttribute('href');
     expect(primaryHref).toBeTruthy();
 
-    await page.getByTestId('home-primary-action').click();
+    await drawerPrimaryAction.click();
     await page.waitForURL(
       (url) =>
         Boolean(primaryHref) &&

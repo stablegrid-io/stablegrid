@@ -46,7 +46,7 @@ const StatCard = ({
 }) => {
   const deltaColor =
     deltaTone === 'positive'
-      ? 'text-emerald-600 dark:text-emerald-300'
+      ? 'text-brand-600 dark:text-brand-300'
       : deltaTone === 'negative'
         ? 'text-rose-600 dark:text-rose-300'
         : 'text-[#516b5c] dark:text-[#8ba897]';

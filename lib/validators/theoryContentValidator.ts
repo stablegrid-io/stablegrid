@@ -15,6 +15,7 @@ const LESSON_PREFIX_REGEX = /^lesson\s*(\d+)\s*:/i;
 const DUPLICATE_LESSON_PREFIX_REGEX = /^lesson\s*\d+\s*:\s*lesson\s*\d+\s*:/i;
 const MARKDOWN_LINK_REGEX = /\[[^\]]+\]\(([^)]+)\)/g;
 const MARKDOWN_CODE_FENCE_REGEX = /```/;
+const MAX_LESSON_TITLE_LENGTH = 160;
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
@@ -203,6 +204,15 @@ const validateSection = (
       `${sectionPath}.title`,
       'duplicate_lesson_prefix',
       'Lesson title contains a duplicated "Lesson N:" prefix.'
+    );
+  }
+
+  if (section.title.trim().length > MAX_LESSON_TITLE_LENGTH) {
+    pushError(
+      errors,
+      `${sectionPath}.title`,
+      'lesson_title_too_long',
+      `Lesson title should be <= ${MAX_LESSON_TITLE_LENGTH} characters.`
     );
   }
 

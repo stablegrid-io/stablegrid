@@ -331,7 +331,7 @@ function NodeTooltip({
 
   return (
     <motion.div
-      className="pointer-events-none absolute z-40 w-[280px] max-w-[calc(100vw-2rem)] rounded-xl border border-emerald-500/40 bg-[#0f1d17]/97 p-3 text-emerald-50 shadow-[0_20px_44px_rgba(0,0,0,0.45)]"
+      className="pointer-events-none absolute z-40 w-[280px] max-w-[calc(100vw-2rem)] rounded-xl border border-brand-500/40 bg-[#0f1d17]/97 p-3 text-brand-50 shadow-[0_20px_44px_rgba(0,0,0,0.45)]"
       style={{
         left: toGraphPercentX(position.x),
         top: toGraphPercentY(position.y),
@@ -344,27 +344,27 @@ function NodeTooltip({
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300/90">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-300/90">
             {asset.category}
           </p>
-          <h4 className="mt-0.5 text-sm font-semibold text-emerald-50">{asset.name}</h4>
+          <h4 className="mt-0.5 text-sm font-semibold text-brand-50">{asset.name}</h4>
         </div>
-        <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-200">
+        <span className="rounded-full border border-brand-400/40 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-200">
           {asset.status}
         </span>
       </div>
 
-      <p className="mt-2 text-xs text-emerald-100/85">{asset.description}</p>
+      <p className="mt-2 text-xs text-brand-100/85">{asset.description}</p>
 
       <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-        <span className="rounded-md border border-emerald-500/20 bg-black/20 px-2 py-1">+{asset.effects.stability}% stability</span>
-        <span className="rounded-md border border-emerald-500/20 bg-black/20 px-2 py-1">+{asset.effects.riskMitigation} risk damp</span>
-        <span className="rounded-md border border-emerald-500/20 bg-black/20 px-2 py-1">+{asset.effects.forecast}% forecast</span>
-        <span className="rounded-md border border-emerald-500/20 bg-black/20 px-2 py-1">{asset.cost_kwh.toFixed(2)} kWh</span>
+        <span className="rounded-md border border-brand-500/20 bg-black/20 px-2 py-1">+{asset.effects.stability}% stability</span>
+        <span className="rounded-md border border-brand-500/20 bg-black/20 px-2 py-1">+{asset.effects.riskMitigation} risk damp</span>
+        <span className="rounded-md border border-brand-500/20 bg-black/20 px-2 py-1">+{asset.effects.forecast}% forecast</span>
+        <span className="rounded-md border border-brand-500/20 bg-black/20 px-2 py-1">{asset.cost_kwh.toFixed(2)} kWh</span>
       </div>
 
       {asset.synergy_hint ? (
-        <p className="mt-2 rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] text-emerald-100">
+        <p className="mt-2 rounded-md bg-brand-500/15 px-2 py-1 text-[11px] text-brand-100">
           {asset.synergy_hint}
         </p>
       ) : null}

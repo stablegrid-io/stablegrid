@@ -33,7 +33,7 @@ export function PracticeNavDropdown({
             onClick={onSelect}
             className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
               childActive
-                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300'
+                ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-300'
                 : 'text-text-light-secondary hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary'
             }`}
           >

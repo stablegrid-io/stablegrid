@@ -34,7 +34,7 @@ const titleSizeClassMap: Record<LogoSize, string> = {
 export function StableGridIcon({ size = 'md', className = '' }: StableGridIconProps) {
   return (
     <span
-      className={`inline-flex items-center justify-center bg-[#4ade80] text-[#052911] shadow-[0_0_0_1px_rgba(74,222,128,0.35)] ${iconSizeClassMap[size]} ${className}`.trim()}
+      className={`inline-flex items-center justify-center bg-gradient-to-br from-[#1d2634] to-[#121924] text-brand-300 shadow-[0_0_0_1px_rgba(148,163,184,0.28),0_10px_22px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.06)] ${iconSizeClassMap[size]} ${className}`.trim()}
       aria-hidden="true"
     >
       <svg

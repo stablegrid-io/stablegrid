@@ -21,6 +21,10 @@ export function CareerLadder({
   const [showAllStages, setShowAllStages] = useState(false);
   const [activeStageId, setActiveStageId] = useState<string>(() => {
     const current = stages.find((stage) => stage.level === currentLevel);
+    const nextActionable = stages.find((stage) => stage.unlocked && !stage.completed);
+    if (current?.completed && nextActionable) {
+      return nextActionable.id;
+    }
     return current?.id ?? stages[0]?.id ?? '';
   });
 
@@ -44,7 +48,10 @@ export function CareerLadder({
     if (activeVisible) {
       return;
     }
-    const fallback = stages.find((stage) => stage.level === currentLevel) ?? stages[0] ?? null;
+    const current = stages.find((stage) => stage.level === currentLevel) ?? null;
+    const nextActionable = stages.find((stage) => stage.unlocked && !stage.completed) ?? null;
+    const fallback =
+      current?.completed && nextActionable ? nextActionable : (current ?? stages[0] ?? null);
     if (fallback) {
       setActiveStageId(fallback.id);
     }
@@ -59,7 +66,7 @@ export function CareerLadder({
   return (
     <section
       aria-labelledby="career-ladder-heading"
-      className="rounded-2xl border border-[#d6e5dd] bg-[#f8fbf9] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:border-[#284739] dark:bg-[#0e1a15]"
+      className="rounded-2xl border border-light-border bg-light-surface p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:border-dark-border dark:bg-dark-surface"
     >
       <div className="mb-3">
         <h2
@@ -85,8 +92,8 @@ export function CareerLadder({
                   onClick={() => setActiveStageId(stage.id)}
                   className={`w-full rounded-lg border px-3 py-2 text-left transition ${
                     isActive
-                      ? 'border-emerald-500 bg-white shadow-sm dark:bg-[#16261f]'
-                      : 'border-[#d4e1da] bg-white hover:border-emerald-400 dark:border-[#2d4c3e] dark:bg-[#121f19] dark:hover:border-emerald-500'
+                      ? 'border-brand-500 bg-light-surface shadow-sm dark:border-brand-500 dark:bg-dark-hover'
+                      : 'border-light-border bg-light-bg hover:border-brand-400 dark:border-dark-border dark:bg-dark-bg dark:hover:border-brand-500'
                   }`}
                   aria-current={isCurrent ? 'step' : undefined}
                 >
@@ -100,9 +107,9 @@ export function CareerLadder({
                       </p>
                     </div>
                     {stage.completed ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-label="Completed stage" />
+                      <CheckCircle2 className="h-4 w-4 text-brand-500" aria-label="Completed stage" />
                     ) : stage.unlocked ? (
-                      <Milestone className="h-4 w-4 text-sky-500" aria-label="Unlocked stage" />
+                      <Milestone className="h-4 w-4 text-amber-500" aria-label="Unlocked stage" />
                     ) : (
                       <Lock className="h-4 w-4 text-slate-400" aria-label="Locked stage" />
                     )}
@@ -116,7 +123,7 @@ export function CareerLadder({
               <button
                 type="button"
                 onClick={() => setShowAllStages((value) => !value)}
-                className="w-full rounded-lg border border-dashed border-[#cddfd5] px-3 py-2 text-left text-xs font-medium text-slate-600 transition hover:border-emerald-400 hover:text-emerald-700 dark:border-[#304f41] dark:text-slate-300 dark:hover:border-emerald-500 dark:hover:text-emerald-300"
+                className="w-full rounded-lg border border-dashed border-light-border px-3 py-2 text-left text-xs font-medium text-text-light-secondary transition hover:border-brand-400 hover:text-brand-700 dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-500 dark:hover:text-brand-300"
               >
                 {showAllStages ? 'Show focused ladder' : `Show full ladder (${stages.length} levels)`}
               </button>
@@ -125,7 +132,7 @@ export function CareerLadder({
         </ol>
 
         {activeStage ? (
-          <div className="rounded-lg border border-[#d5e3db] bg-white p-3.5 dark:border-[#2d4b3d] dark:bg-[#13211a]">
+          <div className="rounded-lg border border-light-border bg-light-bg p-3.5 dark:border-dark-border dark:bg-dark-bg">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
               Role {activeStage.level}
             </p>

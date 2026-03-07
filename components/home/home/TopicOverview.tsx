@@ -74,7 +74,7 @@ export const TopicOverview = ({ topicProgress }: TopicOverviewProps) => {
         </div>
         <Link
           href="/progress"
-          className="text-xs font-medium text-emerald-700 transition-colors hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
+          className="text-xs font-medium text-brand-700 transition-colors hover:text-brand-500 dark:text-brand-300 dark:hover:text-brand-200"
         >
           View progress
         </Link>
@@ -93,7 +93,7 @@ export const TopicOverview = ({ topicProgress }: TopicOverviewProps) => {
             <Link
               key={topic.topicId}
               href={`/learn/${topic.topicId}/theory`}
-              className="group block rounded-[1.35rem] border border-[#e4dbce] bg-[rgba(255,255,255,0.74)] p-4 transition-all hover:-translate-y-0.5 hover:border-emerald-500/30 hover:shadow-[0_18px_40px_-30px_rgba(16,185,129,0.18)] dark:border-white/8 dark:bg-[rgba(255,255,255,0.03)] dark:hover:border-white/15"
+              className="group block rounded-[1.35rem] border border-[#e4dbce] bg-[rgba(255,255,255,0.74)] p-4 transition-all hover:-translate-y-0.5 hover:border-brand-500/30 hover:shadow-[0_18px_40px_-30px_rgba(34,185,153,0.18)] dark:border-white/8 dark:bg-[rgba(255,255,255,0.03)] dark:hover:border-white/15"
             >
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2.5">

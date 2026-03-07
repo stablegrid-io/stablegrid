@@ -45,14 +45,14 @@ const MAP_COLORS = {
   panelActive: 'rgba(15,28,21,0.9)',
   track: '#153427',
   active: '#34d399',
-  success: '#4ade80',
+  success: '#22b999',
   warning: '#f0a032',
   locked: '#5a7a6a',
   lockedBadgeBg: 'rgba(90,122,106,0.95)',
   lockedBorder: '#2f4f41',
-  grid: 'rgba(74,222,128,0.28)',
-  gridGlow: 'rgba(74,222,128,0.14)',
-  edgeActive: 'rgba(74,222,128,0.55)',
+  grid: 'rgba(34,185,153,0.28)',
+  gridGlow: 'rgba(34,185,153,0.14)',
+  edgeActive: 'rgba(34,185,153,0.55)',
   edgeActiveDash: 'rgba(52,211,153,0.95)',
   edgeInactive: 'rgba(47,79,65,0.42)'
 } as const;
@@ -192,7 +192,7 @@ const IndicatorTile = memo(function IndicatorTile({
     <div
       className="rounded-xl border p-3"
       style={{
-        borderColor: active ? 'rgba(74,222,128,0.36)' : MAP_COLORS.borderSoft,
+        borderColor: active ? 'rgba(34,185,153,0.36)' : MAP_COLORS.borderSoft,
         background: active ? MAP_COLORS.panelActive : MAP_COLORS.panelSoft
       }}
     >
@@ -373,7 +373,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
             Stability = 100% - 40% variability + deployed infrastructure benefits
           </p>
         </div>
-        <div className="rounded-lg border px-3 py-2 text-right" style={{ borderColor: 'rgba(74,222,128,0.3)', background: 'rgba(12,22,17,0.82)' }}>
+        <div className="rounded-lg border px-3 py-2 text-right" style={{ borderColor: 'rgba(34,185,153,0.3)', background: 'rgba(12,22,17,0.82)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: MAP_COLORS.textMuted }}>Grid stability</p>
           <p className="text-xl font-black" style={{ color: MAP_COLORS.textPrimary }}>{stabilityPct}%</p>
           <p className="text-[11px] font-semibold" style={{ color: stabilityTier.color }}>
@@ -415,12 +415,12 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
           ))}
         </svg>
 
-        <div className="absolute left-3 top-3 z-10 rounded-lg border px-3 py-2 backdrop-blur-sm" style={{ borderColor: 'rgba(74,222,128,0.28)', background: 'rgba(10,18,14,0.88)' }}>
+        <div className="absolute left-3 top-3 z-10 rounded-lg border px-3 py-2 backdrop-blur-sm" style={{ borderColor: 'rgba(34,185,153,0.28)', background: 'rgba(10,18,14,0.88)' }}>
           <p className="text-[11px] font-bold" style={{ color: MAP_COLORS.textStrong }}>Infrastructure status</p>
           <div className="mt-1 flex items-center gap-2">
             <div className="h-1.5 w-28 overflow-hidden rounded-full" style={{ background: MAP_COLORS.track }}>
               <div
-                className="h-full rounded-full bg-gradient-to-r from-[#34d399] to-[#4ade80]"
+                className="h-full rounded-full bg-gradient-to-r from-[#34d399] to-[#22b999]"
                 style={{ width: `${(activeCount / nodes.length) * 100}%` }}
               />
             </div>
@@ -557,7 +557,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
                       ? 'rgba(15,45,30,0.92)'
                       : 'rgba(10,18,14,0.94)',
                     boxShadow: node.active
-                      ? '0 0 0 6px rgba(74,222,128,0.18), 0 10px 22px rgba(0,0,0,0.4)'
+                      ? '0 0 0 6px rgba(34,185,153,0.18), 0 10px 22px rgba(0,0,0,0.4)'
                       : node.ready
                         ? '0 0 0 6px rgba(240,160,50,0.18), 0 8px 18px rgba(0,0,0,0.45)'
                         : '0 8px 18px rgba(0,0,0,0.42)',
@@ -567,7 +567,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
                 >
                   {node.icon}
                   {node.active ? (
-                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#4ade80] shadow-[0_0_8px_rgba(74,222,128,0.95)]" />
+                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#22b999] shadow-[0_0_8px_rgba(34,185,153,0.95)]" />
                   ) : null}
                   {node.ready ? (
                     <span className="absolute -right-1 -top-1 h-4 w-4 rounded-full border border-[#5b3508] bg-[#f0a032] text-[9px] font-bold text-[#2f1a04]">
@@ -626,7 +626,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
               y1={26}
               x2={220}
               y2={26}
-              stroke="rgba(74,222,128,0.28)"
+              stroke="rgba(34,185,153,0.28)"
               strokeWidth={1}
               strokeDasharray="4 6"
             />
@@ -650,7 +650,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
             <path
               d={buildForecastPath(0.04)}
               fill="none"
-              stroke="rgba(74,222,128,0.85)"
+              stroke="rgba(34,185,153,0.85)"
               strokeWidth={1.6}
             />
             <path
@@ -673,7 +673,7 @@ export const GridStabilityMap = memo(function GridStabilityMap() {
             <LoadRow
               label="Scheduled"
               pct={demandActive ? 72 : 0}
-              color="rgba(74,222,128,0.85)"
+              color="rgba(34,185,153,0.85)"
             />
             <LoadRow
               label="Actual"

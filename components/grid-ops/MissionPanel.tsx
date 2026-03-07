@@ -23,7 +23,7 @@ export function MissionPanel({ state }: MissionPanelProps) {
 
       <div className="mt-3 space-y-2 text-sm">
         <div className="flex items-start gap-2 rounded-lg border border-[#d7e7df] bg-white px-3 py-2 dark:border-[#2b4539] dark:bg-[#121d18]">
-          <Radar className="mt-0.5 h-4 w-4 text-emerald-500" />
+          <Radar className="mt-0.5 h-4 w-4 text-brand-500" />
           <div>
             <p className="font-medium text-[#1f382d] dark:text-[#deefe5]">Next Best Action</p>
             <p className="text-[#4a6757] dark:text-[#9db8a8]">{recommendation.action}</p>
@@ -51,7 +51,7 @@ export function MissionPanel({ state }: MissionPanelProps) {
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           href="/learn/pyspark/theory/all"
-          className="inline-flex items-center gap-1 rounded-lg border border-[#bcd4c7] bg-white px-3 py-2 text-sm font-medium text-[#1d352a] transition hover:border-emerald-500/60 dark:border-[#2d493b] dark:bg-[#121d18] dark:text-[#d3e9db]"
+          className="inline-flex items-center gap-1 rounded-lg border border-[#bcd4c7] bg-white px-3 py-2 text-sm font-medium text-[#1d352a] transition hover:border-brand-500/60 dark:border-[#2d493b] dark:bg-[#121d18] dark:text-[#d3e9db]"
         >
           Continue learning
           <ArrowRight className="h-4 w-4" />

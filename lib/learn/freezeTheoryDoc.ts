@@ -11,6 +11,100 @@ import type {
 
 const LESSON_PREFIX_REGEX = /^lesson\s*(\d+)\s*:/i;
 const TRAILING_NUMBER_REGEX = /(\d+)(?!.*\d)/;
+const TITLE_CONNECTORS = new Set([
+  'a',
+  'an',
+  'and',
+  'as',
+  'at',
+  'by',
+  'for',
+  'from',
+  'in',
+  'into',
+  'of',
+  'on',
+  'or',
+  'over',
+  'the',
+  'to',
+  'under',
+  'via',
+  'vs',
+  'vs.',
+  'with',
+  'without'
+]);
+const TITLE_OVERFLOW_VERBS = new Set([
+  'are',
+  'can',
+  'combine',
+  'combines',
+  'contains',
+  'define',
+  'defines',
+  'depends',
+  'do',
+  'does',
+  'enable',
+  'enables',
+  'enters',
+  'exists',
+  'exposes',
+  'follows',
+  'generate',
+  'generates',
+  'get',
+  'gets',
+  'gives',
+  'handles',
+  'has',
+  'have',
+  'includes',
+  'integrates',
+  'is',
+  'lets',
+  'lives',
+  'make',
+  'makes',
+  'maps',
+  'means',
+  'offer',
+  'offers',
+  'organizes',
+  'power',
+  'powers',
+  'prevent',
+  'prevents',
+  'provide',
+  'provides',
+  'reads',
+  'reduce',
+  'reduces',
+  'reached',
+  'reaches',
+  'runs',
+  'scale',
+  'scales',
+  'start',
+  'starts',
+  'store',
+  'stores',
+  'support',
+  'supports',
+  'track',
+  'tracks',
+  'understand',
+  'use',
+  'uses',
+  'work',
+  'works',
+  'write',
+  'writes',
+  'was',
+  'were',
+  'will'
+]);
 
 const toPositiveInteger = (value: unknown): number | null => {
   const parsed = Number(value);
@@ -20,6 +114,200 @@ const toPositiveInteger = (value: unknown): number | null => {
 };
 
 const normalizeSpaces = (value: string) => value.trim().replace(/\s+/g, ' ');
+
+const stripEdgePunctuation = (token: string) =>
+  token.replace(/^[("'[{]+|[)"'\],.:;!?]+$/g, '');
+
+const startsWithUpperOrNumber = (token: string) => /^[A-Z0-9]/.test(token);
+
+const getSentenceVerbIndex = (tokens: string[]) => {
+  const probeLength = Math.min(tokens.length, 8);
+  for (let index = 1; index < probeLength; index += 1) {
+    const cleaned = stripEdgePunctuation(tokens[index]).toLowerCase();
+    if (TITLE_OVERFLOW_VERBS.has(cleaned)) {
+      return index;
+    }
+  }
+  return null;
+};
+
+const findLessonTitleSplitIndex = (titleBody: string) => {
+  const questionBoundary = titleBody.match(/^(.{1,140}?\?)\s+/);
+  if (questionBoundary) {
+    return questionBoundary[1].length;
+  }
+
+  const checkpointBoundary = titleBody.match(/^(Module\s+\d+\s+Checkpoint)\s+/i);
+  if (checkpointBoundary) {
+    return checkpointBoundary[1].length;
+  }
+
+  const tokens = [...titleBody.matchAll(/\S+/g)].map((match) => ({
+    text: match[0],
+    index: match.index ?? 0
+  }));
+  const candidates: Array<{
+    index: number;
+    prefixWordCount: number;
+    verbIndex: number;
+  }> = [];
+
+  for (let splitAt = 1; splitAt < tokens.length; splitAt += 1) {
+    const prefixWordCount = splitAt;
+    if (prefixWordCount < 2 || prefixWordCount > 16) {
+      continue;
+    }
+
+    const lastPrefixToken = stripEdgePunctuation(tokens[splitAt - 1].text);
+    if (!lastPrefixToken) {
+      continue;
+    }
+    if (TITLE_CONNECTORS.has(lastPrefixToken.toLowerCase())) {
+      continue;
+    }
+
+    const nextTokens = tokens
+      .slice(splitAt, splitAt + 8)
+      .map(({ text }) => stripEdgePunctuation(text))
+      .filter(Boolean);
+    if (nextTokens.length < 2) {
+      continue;
+    }
+    const firstThreeTokens = nextTokens.slice(0, 3);
+    if (
+      firstThreeTokens.length === 3 &&
+      firstThreeTokens.every((token) => startsWithUpperOrNumber(token))
+    ) {
+      continue;
+    }
+    if (!startsWithUpperOrNumber(nextTokens[0])) {
+      continue;
+    }
+    const verbIndex = getSentenceVerbIndex(nextTokens);
+    if (verbIndex === null) {
+      continue;
+    }
+
+    candidates.push({
+      index: tokens[splitAt].index,
+      prefixWordCount,
+      verbIndex
+    });
+  }
+
+  if (candidates.length > 0) {
+    candidates.sort((left, right) => {
+      if (left.verbIndex !== right.verbIndex) {
+        return left.verbIndex - right.verbIndex;
+      }
+      return right.prefixWordCount - left.prefixWordCount;
+    });
+    return candidates[0].index;
+  }
+
+  if (tokens.length >= 6) {
+    const firstToken = stripEdgePunctuation(tokens[0].text).toLowerCase();
+    if (firstToken) {
+      for (let repeatAt = 2; repeatAt < tokens.length; repeatAt += 1) {
+        const repeatedToken = stripEdgePunctuation(tokens[repeatAt].text).toLowerCase();
+        if (!repeatedToken || repeatedToken !== firstToken) {
+          continue;
+        }
+
+        const prefixWordCount = repeatAt;
+        if (prefixWordCount < 2 || prefixWordCount > 16) {
+          continue;
+        }
+
+        const lastPrefixToken = stripEdgePunctuation(tokens[repeatAt - 1].text);
+        if (!lastPrefixToken) {
+          continue;
+        }
+        if (TITLE_CONNECTORS.has(lastPrefixToken.toLowerCase())) {
+          continue;
+        }
+
+        return tokens[repeatAt].index;
+      }
+    }
+  }
+
+  const sentenceBoundary = titleBody.match(/^(.{1,180}?[.!?])\s+/);
+  if (sentenceBoundary) {
+    const wordCount = sentenceBoundary[1].trim().split(/\s+/).length;
+    if (wordCount >= 3) {
+      return sentenceBoundary[1].length;
+    }
+  }
+
+  return null;
+};
+
+const splitOverflowFromLessonTitle = (rawTitle: string) => {
+  const normalizedTitle = normalizeSpaces(rawTitle);
+  const prefixMatch = normalizedTitle.match(LESSON_PREFIX_REGEX);
+  if (!prefixMatch) {
+    return { title: normalizedTitle, overflow: null as string | null };
+  }
+
+  const prefix = `Lesson ${prefixMatch[1]}: `;
+  const titleBody = normalizedTitle.slice(prefixMatch[0].length).trim();
+  if (!titleBody) {
+    return { title: normalizedTitle, overflow: null as string | null };
+  }
+
+  const splitIndex = findLessonTitleSplitIndex(titleBody);
+  if (splitIndex === null) {
+    return { title: normalizedTitle, overflow: null as string | null };
+  }
+
+  const titleOnly = titleBody.slice(0, splitIndex).trim();
+  const overflow = titleBody.slice(splitIndex).trim();
+  if (!titleOnly || !overflow) {
+    return { title: normalizedTitle, overflow: null as string | null };
+  }
+
+  return {
+    title: `${prefix}${titleOnly}`,
+    overflow
+  };
+};
+
+const prependTitleOverflowToBlocks = (
+  blocks: TheorySection['blocks'],
+  overflow: string | null
+) => {
+  if (!overflow) {
+    return blocks;
+  }
+
+  const overflowParagraph: TheorySection['blocks'][number] = {
+    type: 'paragraph',
+    content: overflow
+  };
+
+  if (!Array.isArray(blocks) || blocks.length === 0) {
+    return [overflowParagraph];
+  }
+
+  const [firstBlock, ...restBlocks] = blocks;
+  if (firstBlock.type === 'paragraph') {
+    const firstContent = normalizeSpaces(firstBlock.content);
+    if (firstContent.toLowerCase().startsWith(overflow.toLowerCase())) {
+      return blocks;
+    }
+
+    return [
+      {
+        ...firstBlock,
+        content: `${overflow} ${firstBlock.content}`.trim()
+      },
+      ...restBlocks
+    ];
+  }
+
+  return [overflowParagraph, ...blocks];
+};
 
 const slugify = (value: string) =>
   normalizeSpaces(value)
@@ -99,6 +387,11 @@ const normalizeSection = (
   usedOrders: Set<number>,
   usedSlugs: Set<string>
 ): FrozenTheorySection => {
+  const sanitizedLesson = splitOverflowFromLessonTitle(section.title);
+  const sanitizedBlocks = prependTitleOverflowToBlocks(
+    section.blocks,
+    sanitizedLesson.overflow
+  );
   const order = toUniqueOrder(
     getSectionOrderCandidate(section, fallbackIndex),
     usedOrders
@@ -110,11 +403,13 @@ const normalizeSection = (
   const slugBase =
     slugify(section.slug ?? '') ||
     slugify(section.id) ||
-    slugify(stripLessonPrefix(section.title)) ||
+    slugify(stripLessonPrefix(sanitizedLesson.title)) ||
     `lesson-${order}`;
 
   return {
     ...section,
+    title: sanitizedLesson.title,
+    blocks: sanitizedBlocks,
     slug: buildUniqueSlug(slugBase, usedSlugs),
     order,
     status: normalizeContentStatus(section.status),
@@ -230,12 +525,13 @@ export const getDisplayLessonTitle = (
   section: Pick<TheorySection, 'title' | 'order'>,
   fallbackOrder: number
 ) => {
-  const rawTitle = normalizeSpaces(section.title);
-  if (LESSON_PREFIX_REGEX.test(rawTitle)) {
-    return rawTitle;
+  const { title: normalizedTitle } = splitOverflowFromLessonTitle(section.title);
+  if (LESSON_PREFIX_REGEX.test(normalizedTitle)) {
+    return normalizedTitle;
   }
   const order = toPositiveInteger(section.order) ?? fallbackOrder;
-  const titleWithoutPrefix = stripLessonPrefix(rawTitle) || rawTitle;
+  const titleWithoutPrefix =
+    stripLessonPrefix(normalizedTitle) || normalizedTitle;
   return `Lesson ${order}: ${titleWithoutPrefix}`;
 };
 

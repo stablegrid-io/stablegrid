@@ -2,18 +2,146 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { FileText, LifeBuoy, LogOut, Moon, Settings, Shield, Sun } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import { Settings } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import { formatUnitsAsKwh } from '@/lib/energy';
+import { unitsToKwh } from '@/lib/energy';
+
+interface ShiftSummaryData {
+  careerLevel: number;
+  currentRole: string;
+  nextRole: string;
+  promotionReadinessPct: number;
+  tenureStartDate: string | null;
+  activeDaysLast30: number;
+  criteriaMet: number;
+  criteriaTotal: number;
+}
+
+type ShiftTone = 'critical' | 'focus' | 'ready' | 'neutral';
+
+const clampPct = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+
+const formatMenuDate = (value: string | null | undefined) => {
+  if (!value) return 'No shift history yet';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'No shift history yet';
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(parsed);
+};
+
+const getShiftTone = ({
+  remainingKwh,
+  readinessPct,
+  hasError
+}: {
+  remainingKwh: number;
+  readinessPct: number;
+  hasError: boolean;
+}): ShiftTone => {
+  if (hasError) return 'neutral';
+  if (remainingKwh < 2) return 'critical';
+  if (readinessPct >= 85) return 'ready';
+  if (readinessPct >= 50 || remainingKwh < 5) return 'focus';
+  return 'neutral';
+};
+
+const toneStyles: Record<
+  ShiftTone,
+  {
+    track: string;
+    progress: string;
+    status: string;
+  }
+> = {
+  critical: {
+    track: 'stroke-error-400/35',
+    progress: 'stroke-error-500 dark:stroke-error-400',
+    status:
+      'border-error-300/50 bg-error-100/80 text-error-700 dark:border-error-500/40 dark:bg-error-900/35 dark:text-error-300'
+  },
+  focus: {
+    track: 'stroke-warning-400/35',
+    progress: 'stroke-warning-500 dark:stroke-warning-400',
+    status:
+      'border-warning-300/50 bg-warning-100/80 text-warning-700 dark:border-warning-500/40 dark:bg-warning-900/35 dark:text-warning-300'
+  },
+  ready: {
+    track: 'stroke-success-400/35',
+    progress: 'stroke-success-500 dark:stroke-success-400',
+    status:
+      'border-success-300/50 bg-success-100/80 text-success-700 dark:border-success-500/40 dark:bg-success-900/35 dark:text-success-300'
+  },
+  neutral: {
+    track: 'stroke-slate-400/30',
+    progress: 'stroke-brand-500 dark:stroke-brand-300',
+    status:
+      'border-slate-300/60 bg-slate-100/70 text-slate-700 dark:border-slate-600/50 dark:bg-slate-700/30 dark:text-slate-200'
+  }
+};
+
+function ShiftStatusRing({
+  value,
+  initials,
+  tone
+}: {
+  value: number;
+  initials: string;
+  tone: ShiftTone;
+}) {
+  const normalizedValue = clampPct(value);
+  const radius = 27;
+  const strokeWidth = 6;
+  const size = 64;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference - (normalizedValue / 100) * circumference;
+
+  return (
+    <div className="relative h-16 w-16 shrink-0">
+      <svg
+        className="h-16 w-16 -rotate-90"
+        viewBox={`0 0 ${size} ${size}`}
+        aria-label={`Promotion readiness ${normalizedValue}%`}
+        role="img"
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={strokeWidth}
+          fill="none"
+          className={toneStyles[tone].track}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          className={`${toneStyles[tone].progress} transition-[stroke-dashoffset] duration-500 ease-out`}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center rounded-full border border-light-border/70 bg-light-surface/95 text-xs font-semibold text-text-light-primary dark:border-dark-border/70 dark:bg-dark-surface/95 dark:text-text-dark-primary">
+        {initials}
+      </div>
+    </div>
+  );
+}
 
 export function UserMenu() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { getAvailableBudgetUnits } = useProgressStore();
-  const { resolvedTheme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [shiftSummary, setShiftSummary] = useState<ShiftSummaryData | null>(null);
+  const [isShiftSummaryLoading, setIsShiftSummaryLoading] = useState(false);
+  const [shiftSummaryError, setShiftSummaryError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,8 +174,55 @@ export function UserMenu() {
   }, [isOpen]);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!isOpen || !user?.id) {
+      return;
+    }
+
+    const abortController = new AbortController();
+    setIsShiftSummaryLoading(true);
+    setShiftSummaryError(null);
+
+    const loadShiftSummary = async () => {
+      try {
+        const response = await fetch('/api/profile/shift-summary', {
+          method: 'GET',
+          signal: abortController.signal
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to load shift summary (${response.status}).`);
+        }
+
+        const payload = (await response.json()) as {
+          data?: ShiftSummaryData;
+        };
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        if (!payload?.data) {
+          throw new Error('Shift summary payload is missing.');
+        }
+
+        setShiftSummary(payload.data);
+      } catch (error) {
+        if (abortController.signal.aborted) {
+          return;
+        }
+        console.error('Failed to load shift summary:', error);
+        setShiftSummaryError('Could not sync shift status.');
+      } finally {
+        if (!abortController.signal.aborted) {
+          setIsShiftSummaryLoading(false);
+        }
+      }
+    };
+
+    void loadShiftSummary();
+
+    return () => {
+      abortController.abort();
+    };
+  }, [isOpen, user?.id]);
 
   if (!user) {
     return null;
@@ -61,6 +236,35 @@ export function UserMenu() {
         .toUpperCase()
     : 'GL';
   const remainingUnits = getAvailableBudgetUnits();
+  const remainingKwh = unitsToKwh(remainingUnits);
+  const readinessPct = clampPct(shiftSummary?.promotionReadinessPct ?? 0);
+  const tone = getShiftTone({
+    remainingKwh,
+    readinessPct,
+    hasError: Boolean(shiftSummaryError)
+  });
+  const statusLabel = shiftSummaryError
+    ? 'Shift status unavailable'
+    : isShiftSummaryLoading
+      ? 'Syncing shift record'
+      : readinessPct >= 90
+        ? 'Promotion review ready'
+        : remainingKwh < 2
+          ? 'Budget critical'
+          : remainingKwh < 5
+            ? 'Budget watch'
+            : 'On duty';
+  const roleLabel = shiftSummary
+    ? `Role L${shiftSummary.careerLevel}: ${shiftSummary.currentRole}`
+    : 'Role syncing...';
+  const criteriaLabel =
+    shiftSummary && shiftSummary.criteriaTotal > 0
+      ? `${shiftSummary.criteriaMet}/${shiftSummary.criteriaTotal} criteria met`
+      : 'Promotion criteria loading';
+  const memberSinceLabel = formatMenuDate(
+    shiftSummary?.tenureStartDate ?? user.created_at ?? null
+  );
+  const handleCloseMenu = () => setIsOpen(false);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -79,89 +283,46 @@ export function UserMenu() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 z-50 mt-3 w-64 rounded-lg border border-light-border bg-light-surface p-4 shadow-lg dark:border-dark-border dark:bg-dark-surface">
-          <div className="space-y-1 border-b border-light-border pb-3 dark:border-dark-border">
-            <div className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-              {email}
-            </div>
-            {user.created_at && (
-              <div className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-                Member since {new Date(user.created_at).toLocaleDateString()}
+        <div className="absolute right-0 z-50 mt-3 w-[22rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-light-border bg-light-surface shadow-[0_20px_50px_rgba(0,0,0,0.25)] dark:border-dark-border dark:bg-dark-surface">
+          <div className="relative border-b border-light-border bg-[linear-gradient(140deg,rgba(34,185,153,0.14),rgba(14,165,233,0.08))] p-4 dark:border-dark-border dark:bg-[linear-gradient(140deg,rgba(34,185,153,0.2),rgba(14,165,233,0.12))]">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,185,153,0.2),transparent_50%)]" />
+            <div className="relative flex items-start gap-3">
+              <ShiftStatusRing value={readinessPct} initials={initials} tone={tone} />
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-600 dark:text-brand-300">
+                  Shift Badge
+                </p>
+                <p className="mt-1 truncate text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
+                  {email}
+                </p>
+                <p className="mt-1 text-xs text-text-light-secondary dark:text-text-dark-secondary">
+                  {roleLabel}
+                </p>
+                <p
+                  className={`mt-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${toneStyles[tone].status}`}
+                >
+                  {statusLabel}
+                </p>
               </div>
-            )}
-          </div>
-
-          <div className="space-y-2 py-3 text-sm">
-            <div className="flex items-center justify-between text-text-light-tertiary dark:text-text-dark-tertiary">
-              <span>Remaining amount</span>
-              <span className="font-semibold text-success-600 dark:text-success-400">
-                {formatUnitsAsKwh(remainingUnits)}
-              </span>
+            </div>
+            <div className="relative mt-3 flex items-center justify-between text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+              <span>On record since {memberSinceLabel}</span>
+              <span>{criteriaLabel}</span>
             </div>
           </div>
 
-          <div className="border-t border-light-border pt-2 dark:border-dark-border">
-            <Link
-              href="/settings"
-              onClick={() => setIsOpen(false)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Link>
-            {mounted && (
-              <button
-                type="button"
-                onClick={() =>
-                  setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
-                }
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
+          <div className="space-y-3 p-3">
+            <div className="space-y-1 rounded-lg border border-light-border/80 bg-light-bg/70 p-2 dark:border-dark-border dark:bg-dark-bg/70">
+              <Link
+                href="/settings"
+                onClick={handleCloseMenu}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
               >
-                {resolvedTheme === 'dark' ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )}
-                {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
-              </button>
-            )}
-            <Link
-              href="/privacy"
-              onClick={() => setIsOpen(false)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
-            >
-              <Shield className="h-4 w-4" />
-              Privacy
-            </Link>
-            <Link
-              href="/terms"
-              onClick={() => setIsOpen(false)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
-            >
-              <FileText className="h-4 w-4" />
-              Terms
-            </Link>
-            <Link
-              href="/support"
-              onClick={() => setIsOpen(false)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
-            >
-              <LifeBuoy className="h-4 w-4" />
-              Support
-            </Link>
+                <Settings className="h-4 w-4" />
+                Settings
+              </Link>
+            </div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              signOut();
-              setIsOpen(false);
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-error-600 hover:bg-error-50 dark:text-error-400 dark:hover:bg-error-900/10"
-          >
-            <LogOut className="h-4 w-4" />
-            Logout
-          </button>
         </div>
       )}
     </div>

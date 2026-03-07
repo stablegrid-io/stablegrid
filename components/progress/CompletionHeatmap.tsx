@@ -8,7 +8,7 @@ interface CompletionHeatmapProps {
 }
 
 const levelClasses = [
-  'bg-neutral-200 dark:bg-neutral-800',
+  'bg-slate-200 dark:bg-slate-800',
   'bg-brand-200 dark:bg-brand-900/40',
   'bg-brand-300 dark:bg-brand-800/70',
   'bg-brand-400 dark:bg-brand-700/80',
@@ -113,7 +113,7 @@ export const CompletionHeatmap = ({ sessions }: CompletionHeatmapProps) => {
   }, [grid]);
 
   return (
-    <div className="rounded-2xl border border-[#d6e5dd] bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:border-[#284739] dark:bg-[#0f1914]">
+    <div className="rounded-2xl border border-light-border bg-light-surface p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:border-dark-border dark:bg-dark-surface">
       <h2 className="mb-1 text-sm font-semibold uppercase tracking-[0.11em] text-slate-700 dark:text-slate-200">
         Activity Heatmap
       </h2>

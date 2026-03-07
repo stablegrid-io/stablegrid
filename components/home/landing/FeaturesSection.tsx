@@ -16,7 +16,7 @@ const FEATURES = [
       'Shuffles, skew, streaming, and telemetry quality',
       'System design framing that stays grounded in operations'
     ],
-    color: '#4ade80',
+    color: '#22b999',
     footer: 'Best first move: open the PySpark route and finish chapter 1.'
   },
   {

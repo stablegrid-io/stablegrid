@@ -32,7 +32,7 @@ export const RecentActivityPanel = ({ items }: RecentActivityPanelProps) => {
         </div>
         <Link
           href="/progress"
-          className="inline-flex items-center gap-2 text-sm font-medium text-[#486055] transition-colors hover:text-emerald-700 dark:text-[#b0c6ba] dark:hover:text-emerald-300"
+          className="inline-flex items-center gap-2 text-sm font-medium text-[#486055] transition-colors hover:text-brand-700 dark:text-[#b0c6ba] dark:hover:text-brand-300"
         >
           View progress
           <ArrowRight className="h-4 w-4" />
@@ -59,7 +59,7 @@ export const RecentActivityPanel = ({ items }: RecentActivityPanelProps) => {
             </div>
             <Link
               href={item.href}
-              className="inline-flex shrink-0 items-center justify-center rounded-xl border border-[#cad4cd] bg-white/70 px-4 py-2 text-sm font-medium text-[#1d2d25] transition-colors hover:border-emerald-500/30 hover:text-[#101918] dark:border-white/10 dark:bg-white/5 dark:text-[#e3efe8]"
+              className="inline-flex shrink-0 items-center justify-center rounded-xl border border-[#cad4cd] bg-white/70 px-4 py-2 text-sm font-medium text-[#1d2d25] transition-colors hover:border-brand-500/30 hover:text-[#101918] dark:border-white/10 dark:bg-white/5 dark:text-[#e3efe8]"
             >
               {item.actionLabel}
             </Link>

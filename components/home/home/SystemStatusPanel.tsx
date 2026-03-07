@@ -34,7 +34,7 @@ export const SystemStatusPanel = ({
           <Link
             href={primaryActionHref}
             data-testid="home-primary-action"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#101918] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0a100e] dark:bg-emerald-400 dark:text-[#07100a] dark:hover:bg-emerald-300"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#101918] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0a100e] dark:bg-brand-400 dark:text-[#07100a] dark:hover:bg-brand-300"
           >
             {primaryActionLabel}
             <ArrowRight className="h-4 w-4" />
@@ -43,7 +43,7 @@ export const SystemStatusPanel = ({
             type="button"
             onClick={onToggleSimplified}
             data-testid="home-simplify-toggle"
-            className="inline-flex items-center gap-2 rounded-xl border border-[#cfd8cf] bg-white/64 px-3 py-2 text-sm font-medium text-[#31453a] transition-colors hover:border-emerald-500/30 hover:text-[#152019] dark:border-white/10 dark:bg-white/5 dark:text-[#b9d0c3] dark:hover:border-emerald-300/30"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#cfd8cf] bg-white/64 px-3 py-2 text-sm font-medium text-[#31453a] transition-colors hover:border-brand-500/30 hover:text-[#152019] dark:border-white/10 dark:bg-white/5 dark:text-[#b9d0c3] dark:hover:border-brand-300/30"
           >
             <Layers3 className="h-4 w-4" />
             {simplified ? 'Show grid' : 'Simplify view'}

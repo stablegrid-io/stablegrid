@@ -111,7 +111,7 @@ export function ShiftLogTimeline({ entries }: ShiftLogTimelineProps) {
     <section
       id="shift-log"
       aria-labelledby="shift-log-heading"
-      className="rounded-2xl border border-[#d6e5dd] bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:border-[#284739] dark:bg-[#0f1914]"
+      className="rounded-2xl border border-light-border bg-light-surface p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:border-dark-border dark:bg-dark-surface"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -135,8 +135,8 @@ export function ShiftLogTimeline({ entries }: ShiftLogTimelineProps) {
               onClick={() => setFilter(option.id)}
               className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                 filter === option.id
-                  ? 'border-emerald-500 bg-emerald-500 text-white'
-                  : 'border-[#cddfd5] text-slate-600 hover:border-emerald-500 hover:text-emerald-700 dark:border-[#304f41] dark:text-slate-300 dark:hover:border-emerald-500 dark:hover:text-emerald-300'
+                  ? 'border-brand-500 bg-brand-500 text-white'
+                  : 'border-slate-300 text-slate-600 hover:border-brand-500 hover:text-brand-700 dark:border-dark-border dark:text-slate-300 dark:hover:border-brand-500 dark:hover:text-brand-300'
               }`}
             >
               {option.label}
@@ -146,7 +146,7 @@ export function ShiftLogTimeline({ entries }: ShiftLogTimelineProps) {
       </div>
 
       {groupedEntries.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-[#caded1] bg-[#f6faf8] px-4 py-6 text-sm text-slate-600 dark:border-[#2f4d3f] dark:bg-[#122019] dark:text-slate-300">
+        <div className="mt-4 rounded-lg border border-dashed border-light-border bg-light-bg px-4 py-6 text-sm text-slate-600 dark:border-dark-border dark:bg-dark-bg dark:text-slate-300">
           No worker record yet. Complete a lesson, practice run, or mission to create your first shift log entry.
         </div>
       ) : (
@@ -163,9 +163,9 @@ export function ShiftLogTimeline({ entries }: ShiftLogTimelineProps) {
                     <li key={entry.id}>
                       <Link
                         href={entry.route}
-                        className="flex items-start gap-3 rounded-lg border border-[#d8e5dd] bg-[#fbfdfc] px-3 py-2.5 transition hover:border-emerald-400 dark:border-[#2c4a3c] dark:bg-[#14231b] dark:hover:border-emerald-500"
+                        className="flex items-start gap-3 rounded-lg border border-light-border bg-light-bg px-3 py-2.5 transition hover:border-brand-400 dark:border-dark-border dark:bg-dark-bg dark:hover:border-brand-500"
                       >
-                        <EntryIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <EntryIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
                             {entry.action}
@@ -195,7 +195,7 @@ export function ShiftLogTimeline({ entries }: ShiftLogTimelineProps) {
           <button
             type="button"
             onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-            className="rounded-lg border border-[#cbddd3] px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-emerald-500 hover:text-emerald-700 dark:border-[#315142] dark:text-slate-300 dark:hover:border-emerald-500 dark:hover:text-emerald-300"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-brand-500 hover:text-brand-700 dark:border-dark-border dark:text-slate-300 dark:hover:border-brand-500 dark:hover:text-brand-300"
           >
             Load more entries
           </button>
