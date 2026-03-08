@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import { StableGridWordmark } from '@/components/brand/StableGridLogo';
+import { trackProductEvent } from '@/lib/analytics/productAnalytics';
 
 export const LandingFooter = () => {
   return (
@@ -12,17 +15,27 @@ export const LandingFooter = () => {
           />
         </div>
 
-        <div className="flex items-center gap-8 text-sm text-[#6f8f7d]">
+        <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-[#6f8f7d]">
           {[
-            { label: 'Features', href: '#features' },
-            { label: 'Pricing', href: '#pricing' },
+            { label: 'Journey', href: '#grid-flow' },
             { label: 'Privacy', href: '/privacy' },
             { label: 'Terms', href: '/terms' },
             { label: 'Support', href: '/support' },
             { label: 'Login', href: '/login' },
-            { label: 'Sign up', href: '/signup' }
+            { label: 'Start free', href: '/signup' }
           ].map((item) => (
-            <Link key={item.label} href={item.href} className="transition-colors hover:text-[#9ab8a9]">
+            <Link
+              key={item.label}
+              href={item.href}
+              onClick={() => {
+                if (item.href === '/signup') {
+                  void trackProductEvent('landing_cta', {
+                    source: 'footer_primary'
+                  });
+                }
+              }}
+              className="transition-colors hover:text-[#9ab8a9]"
+            >
               {item.label}
             </Link>
           ))}

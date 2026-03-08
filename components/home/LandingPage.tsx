@@ -1,10 +1,5 @@
 import { LandingNav } from '@/components/home/landing/LandingNav';
-import { HeroSection } from '@/components/home/landing/HeroSection';
-import { FeaturesSection } from '@/components/home/landing/FeaturesSection';
-import { TopicsSection } from '@/components/home/landing/TopicsSection';
-import { HowItWorksSection } from '@/components/home/landing/HowItWorksSection';
-import { PricingSection } from '@/components/home/landing/PricingSection';
-import { CTASection } from '@/components/home/landing/CTASection';
+import { GridFlowSection } from '@/components/home/landing/GridFlowSection';
 import { LandingFooter } from '@/components/home/landing/LandingFooter';
 
 export const LandingPage = () => {
@@ -12,12 +7,7 @@ export const LandingPage = () => {
     <div className="min-h-screen bg-[#090b0a] text-[#e3efe8]">
       <LandingNav />
       <main>
-        <HeroSection />
-        <FeaturesSection />
-        <TopicsSection />
-        <HowItWorksSection />
-        <PricingSection />
-        <CTASection />
+        <GridFlowSection />
       </main>
       <LandingFooter />
     </div>
