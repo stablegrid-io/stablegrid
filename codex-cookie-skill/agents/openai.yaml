@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cookie Consent Implementer"
+  short_description: "Implement transparent cookie consent flows"
+  default_prompt: "Implement or audit cookie consent with default-deny optional categories, equal Accept/Reject prominence, consent-gated loaders, and a persistent settings entry."

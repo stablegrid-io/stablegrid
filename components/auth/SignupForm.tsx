@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Check, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, Check, Eye, EyeOff, Moon, Sun } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { trackProductEvent } from '@/lib/analytics/productAnalytics';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { getPasswordIssues, passwordRules } from '@/lib/utils/password';
@@ -37,29 +38,10 @@ const GITHUB_ICON = (
   </svg>
 );
 
-const LEFT_FEATURES = [
-  {
-    label: 'Theory Beta route',
-    description:
-      'Structured PySpark modules focused on distributed compute, Lakehouse patterns, and reliability.'
-  },
-  {
-    label: 'Chapter progression',
-    description: 'Resume exactly where you stopped with module unlock tracking.'
-  },
-  {
-    label: 'Session controls',
-    description: 'Use Pomodoro, Deep Focus, Sprint, or Free Read while studying.'
-  },
-  {
-    label: 'What comes next',
-    description: 'Practice, flashcards, and missions ship after the full theory catalog.'
-  }
-];
-
 export function SignupForm() {
   const router = useRouter();
   const { signUp, signInWithOAuth } = useAuth();
+  const { resolvedTheme, setTheme } = useTheme();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -69,6 +51,13 @@ export function SignupForm() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [themeMounted, setThemeMounted] = useState(false);
+  const isLightMode = themeMounted && resolvedTheme === 'light';
+  const gridLineColor = isLightMode ? 'rgba(22,132,103,0.2)' : '#22b999';
+
+  useEffect(() => {
+    setThemeMounted(true);
+  }, []);
 
   const passwordIssues = useMemo(() => getPasswordIssues(password), [password]);
   const passwordScore = passwordRules.length - passwordIssues.length;
@@ -79,6 +68,7 @@ export function SignupForm() {
     if (passwordScore === 4) return 'Strong';
     return 'Excellent';
   }, [password, passwordScore]);
+  const showPasswordChecklist = password.length > 0;
 
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const canSubmit =
@@ -130,208 +120,257 @@ export function SignupForm() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a]">
-      <div className="grid min-h-screen lg:grid-cols-2">
-        <aside className="relative hidden overflow-hidden border-r border-[#1a2a22] bg-[#0a0a0a] px-10 py-11 lg:flex lg:flex-col lg:justify-between xl:px-14">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.06]"
-            style={{
-              backgroundImage:
-                'linear-gradient(#22b999 1px, transparent 1px), linear-gradient(90deg, #22b999 1px, transparent 1px)',
-              backgroundSize: '40px 40px'
-            }}
-          />
-          <div
-            className="pointer-events-none absolute -left-16 top-20 h-72 w-72 rounded-full opacity-25"
-            style={{ background: 'radial-gradient(circle, #22b999, transparent 70%)' }}
-          />
-
-          <div className="relative z-10">
-            <StableGridWordmark
-              size="lg"
-              titleClassName="text-[#f0f0f0]"
-              subtitle="Data Engineering Platform"
-              subtitleClassName="text-[#6f8d79]"
-            />
-          </div>
-
-          <div className="relative z-10">
-            <p className="mb-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#22b999]">
-              Theory Beta
-            </p>
-            <h1 className="font-display text-[42px] font-bold leading-[1.06] tracking-tight text-[#f0f0f0]">
-              Build data engineering that holds under load.
-              <br />
-              <span className="text-[#22b999]">Stabilize the grid.</span>
-            </h1>
-            <p className="mt-5 max-w-[390px] text-sm leading-7 text-[#7d8f84]">
-              Start the Theory Beta curriculum and keep module progress synced across
-              sessions while we finalize the next learning layers.
-            </p>
-
-            <div className="mt-9">
-              {LEFT_FEATURES.map((feature, index) => (
-                <div
-                  key={feature.label}
-                  className={`flex gap-3.5 py-3 ${
-                    index < LEFT_FEATURES.length - 1 ? 'border-b border-[#16261f]' : ''
-                  }`}
-                >
-                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#22b999]" />
-                  <div>
-                    <p className="text-sm font-semibold text-[#d9eee0]">{feature.label}</p>
-                    <p className="mt-0.5 text-xs text-[#5f7a6a]">{feature.description}</p>
-                  </div>
-                </div>
-              ))}
+    <main
+      className={`relative min-h-screen overflow-hidden ${
+        isLightMode ? 'bg-[#edf3ef] text-[#13221a]' : 'bg-[#050807] text-[#e8f2ec]'
+      }`}
+    >
+      <div
+        className={`pointer-events-none absolute inset-0 ${isLightMode ? 'opacity-[0.06]' : 'opacity-[0.04]'}`}
+        style={{
+          backgroundImage:
+            `linear-gradient(${gridLineColor} 1px, transparent 1px), linear-gradient(90deg, ${gridLineColor} 1px, transparent 1px)`,
+          backgroundSize: '56px 56px'
+        }}
+      />
+      <div
+        className={`pointer-events-none absolute left-1/2 top-[-160px] h-[520px] w-[520px] -translate-x-1/2 rounded-full ${isLightMode ? 'opacity-25' : 'opacity-20'}`}
+        style={{
+          background: isLightMode
+            ? 'radial-gradient(circle, rgba(38,171,136,0.34), transparent 72%)'
+            : 'radial-gradient(circle, rgba(34,185,153,0.48), transparent 72%)'
+        }}
+      />
+      <section className="relative flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
+        <div
+          className={`relative w-full max-w-[480px] rounded-[20px] p-6 backdrop-blur-md sm:py-8 sm:pl-12 sm:pr-8 ${
+            isLightMode
+              ? 'border border-[#cfddd5] bg-[linear-gradient(180deg,rgba(251,255,252,0.97),rgba(244,250,246,0.96))] shadow-[0_26px_80px_rgba(16,38,28,0.18)]'
+              : 'border border-[#1a2b22] bg-[linear-gradient(180deg,rgba(8,13,11,0.95),rgba(6,10,9,0.94))] shadow-[0_26px_80px_rgba(0,0,0,0.55)]'
+          }`}
+        >
+          <div className="pointer-events-none absolute bottom-8 left-6 top-24 hidden sm:block">
+            <div
+              className={`relative h-full w-px ${
+                isLightMode
+                  ? 'bg-gradient-to-b from-[#8cb8a4] via-[#b8d1c4] to-transparent'
+                  : 'bg-gradient-to-b from-[#2b4539] via-[#1e3128] to-transparent'
+              }`}
+            >
+              <span
+                className={`absolute -left-[2px] top-[4%] h-1.5 w-1.5 rounded-full ${
+                  isLightMode
+                    ? 'bg-[#2f9f79] shadow-[0_0_8px_rgba(47,159,121,0.25)]'
+                    : 'bg-[#56ba9b] shadow-[0_0_10px_rgba(86,186,155,0.35)]'
+                }`}
+              />
+              <span className={`absolute -left-[2px] top-[44%] h-1.5 w-1.5 rounded-full ${isLightMode ? 'bg-[#6ea48e]' : 'bg-[#3a6d59]'}`} />
+              <span className={`absolute -left-[2px] top-[78%] h-1.5 w-1.5 rounded-full ${isLightMode ? 'bg-[#6ea48e]' : 'bg-[#3a6d59]'}`} />
             </div>
           </div>
 
-          <p className="relative z-10 border-t border-[#16261f] pt-4 text-xs text-[#5f7a6a]">
-            Theory Beta access · Free tier available · No card required
-          </p>
-        </aside>
-
-        <section className="flex items-center justify-center bg-[#f8fbf9] px-5 py-10 sm:px-8 lg:px-14">
-          <div className="w-full max-w-md">
-            <header className="mb-8">
-              <p className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#6e8d7a]">
-                StableGrid.io Theory Beta Access
-              </p>
-              <h2 className="font-display text-4xl font-bold tracking-tight text-[#121212]">
-                Create your account
-              </h2>
-              <p className="mt-2 text-sm text-[#6b736d]">
-                Start free and begin the Theory Beta route.
-              </p>
-            </header>
-
-            {success ? (
-              <div className="rounded-[12px] border border-[#cfe6d5] bg-[#f4fbf6] p-5">
-                <p className="text-sm font-medium text-[#0d6b38]">{success}</p>
-                <Link
-                  href="/login"
-                  className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#137763] hover:underline"
+          <header className="relative mb-9">
+            <div className="flex items-start justify-between gap-4">
+              <StableGridWordmark
+                size="md"
+                titleClassName={isLightMode ? 'text-[#13221a]' : 'text-[#f1f6f3]'}
+              />
+              <div className="flex items-center gap-2">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                    isLightMode
+                      ? 'border border-[#b7ccc2] bg-[#f0f7f3] text-[#5f7a6c]'
+                      : 'border border-[#2a4136] bg-[#0c1612] text-[#86a698]'
+                  }`}
                 >
-                  Continue to login
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+                  Beta
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setTheme(isLightMode ? 'dark' : 'light')}
+                  aria-label="Toggle color mode"
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+                    isLightMode
+                      ? 'border-[#b7ccc2] bg-[#f0f7f3] text-[#4f6a5d] hover:bg-[#e6f1eb]'
+                      : 'border-[#2a4136] bg-[#0c1612] text-[#8cab9d] hover:bg-[#11201a]'
+                  }`}
+                >
+                  {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                </button>
               </div>
-            ) : (
-              <>
-                <div className="mb-6 grid grid-cols-2 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => handleOAuth('google')}
-                    className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#d4ddd7] bg-white px-3 py-2.5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#a7f0dc] hover:bg-[#f2fbf5]"
+            </div>
+            <p className={`mt-6 text-[11px] font-semibold uppercase tracking-[0.15em] ${isLightMode ? 'text-[#4f8f74]' : 'text-[#7cb99f]'}`}>
+              HRB access
+            </p>
+            <h1 className={`mt-3 font-display text-[2rem] font-bold leading-[1.08] tracking-tight ${isLightMode ? 'text-[#13221a]' : 'text-[#f1f6f3]'}`}>
+              Create your HRB account
+            </h1>
+            <p className={`mt-2 text-sm leading-6 ${isLightMode ? 'text-[#5f786b]' : 'text-[#90a89b]'}`}>
+              Track readiness and operator progression in one place.
+            </p>
+          </header>
+
+          {success ? (
+            <div
+              className={`rounded-[12px] p-5 ${
+                isLightMode
+                  ? 'border border-[#bcd5c8] bg-[#f6fcf8]'
+                  : 'border border-[#255742] bg-[#0a1612]'
+              }`}
+            >
+              <p className={`text-sm font-medium ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#97dfbf]'}`}>{success}</p>
+              <Link
+                href="/login"
+                className={`mt-4 inline-flex items-center gap-1 text-sm font-semibold hover:underline ${
+                  isLightMode ? 'text-[#2a8d6d]' : 'text-[#9be4c4]'
+                }`}
+              >
+                Continue to login
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="mb-7 grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => handleOAuth('google')}
+                  className={`inline-flex h-12 items-center justify-center gap-2 rounded-[12px] px-3 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3fd0ab]/25 ${
+                    isLightMode
+                      ? 'border border-[#c5d8cf] bg-[#f8fcf9] text-[#13221a] hover:border-[#9fc4b4] hover:bg-[#eef7f2]'
+                      : 'border border-[#2a4136] bg-[#0b1410] text-[#e6efea] hover:border-[#3e6754] hover:bg-[#101d17]'
+                  }`}
+                >
+                  {GOOGLE_ICON}
+                  Google
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOAuth('github')}
+                  className={`inline-flex h-12 items-center justify-center gap-2 rounded-[12px] px-3 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3fd0ab]/25 ${
+                    isLightMode
+                      ? 'border border-[#c5d8cf] bg-[#f8fcf9] text-[#13221a] hover:border-[#9fc4b4] hover:bg-[#eef7f2]'
+                      : 'border border-[#2a4136] bg-[#0b1410] text-[#e6efea] hover:border-[#3e6754] hover:bg-[#101d17]'
+                  }`}
+                >
+                  {GITHUB_ICON}
+                  GitHub
+                </button>
+              </div>
+
+              <div className="mb-6 flex items-center gap-3">
+                <div className={`h-px flex-1 ${isLightMode ? 'bg-[#c9dbd2]' : 'bg-[#203228]'}`} />
+                <span className={`text-[11px] font-medium ${isLightMode ? 'text-[#668274]' : 'text-[#7f988b]'}`}>or use email</span>
+                <div className={`h-px flex-1 ${isLightMode ? 'bg-[#c9dbd2]' : 'bg-[#203228]'}`} />
+              </div>
+
+              {error ? (
+                <div
+                  className={`mb-4 rounded-[10px] px-3.5 py-2.5 text-sm ${
+                    isLightMode
+                      ? 'border border-[#e6b8b8] bg-[#fff3f3] text-[#b02a2a]'
+                      : 'border border-[#5a2a2a] bg-[#1a0e0e] text-[#f2b9b9]'
+                  }`}
+                >
+                  {error}
+                </div>
+              ) : null}
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label
+                    htmlFor="signup-name"
+                    className={`mb-1.5 block text-xs font-medium ${isLightMode ? 'text-[#567064]' : 'text-[#93a99d]'}`}
                   >
-                    {GOOGLE_ICON}
-                    Google
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOAuth('github')}
-                    className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#d4ddd7] bg-white px-3 py-2.5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#a7f0dc] hover:bg-[#f2fbf5]"
-                  >
-                    {GITHUB_ICON}
-                    GitHub
-                  </button>
+                    Full name
+                  </label>
+                  <input
+                    id="signup-name"
+                    type="text"
+                    autoComplete="name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Your name"
+                    className={`h-12 w-full rounded-[12px] px-3.5 text-sm outline-none transition-all ${
+                      isLightMode
+                        ? 'border border-[#c6d8cf] bg-[#f9fcfa] text-[#13221a] placeholder:text-[#95a89f] focus:border-[#38b38b] focus:ring-2 focus:ring-[#22b999]/20'
+                        : 'border border-[#263c31] bg-[#0a120f] text-[#eef6f2] placeholder:text-[#6f8478] focus:border-[#49dab4] focus:ring-2 focus:ring-[#22b999]/22'
+                    }`}
+                    required
+                  />
                 </div>
 
-                <div className="mb-6 flex items-center gap-3">
-                  <div className="h-px flex-1 bg-[#dbe9e0]" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9ab5a4]">
-                    Or continue with email
-                  </span>
-                  <div className="h-px flex-1 bg-[#dbe9e0]" />
+                <div>
+                  <label
+                    htmlFor="signup-email"
+                    className={`mb-1.5 block text-xs font-medium ${isLightMode ? 'text-[#567064]' : 'text-[#93a99d]'}`}
+                  >
+                    Email
+                  </label>
+                  <input
+                    id="signup-email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    className={`h-12 w-full rounded-[12px] px-3.5 text-sm outline-none transition-all ${
+                      isLightMode
+                        ? 'border border-[#c6d8cf] bg-[#f9fcfa] text-[#13221a] placeholder:text-[#95a89f] focus:border-[#38b38b] focus:ring-2 focus:ring-[#22b999]/20'
+                        : 'border border-[#263c31] bg-[#0a120f] text-[#eef6f2] placeholder:text-[#6f8478] focus:border-[#49dab4] focus:ring-2 focus:ring-[#22b999]/22'
+                    }`}
+                    required
+                  />
                 </div>
 
-                {error ? (
-                  <div className="mb-4 rounded-[10px] border border-[#f4c7c7] bg-[#fff5f5] px-3.5 py-2.5 text-sm text-[#b42318]">
-                    {error}
-                  </div>
-                ) : null}
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
                     <label
-                      htmlFor="signup-name"
-                      className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.1em] text-[#8f8f8f]"
+                      htmlFor="signup-password"
+                      className={`block text-xs font-medium ${isLightMode ? 'text-[#567064]' : 'text-[#93a99d]'}`}
                     >
-                      Full name
+                      Password
                     </label>
-                    <input
-                      id="signup-name"
-                      type="text"
-                      autoComplete="name"
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      placeholder="Your name"
-                      className="w-full rounded-[10px] border border-[#d4ddd7] bg-white px-3.5 py-2.5 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#22b999] focus:ring-2 focus:ring-[#22b999]/20"
-                      required
-                    />
+                    {passwordStrength ? (
+                      <span className={`text-xs font-semibold ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#7edab4]'}`}>
+                        {passwordStrength}
+                      </span>
+                    ) : null}
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor="signup-email"
-                      className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.1em] text-[#8f8f8f]"
-                    >
-                      Email
-                    </label>
+                  <div className="relative">
                     <input
-                      id="signup-email"
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      placeholder="you@example.com"
-                      className="w-full rounded-[10px] border border-[#d4ddd7] bg-white px-3.5 py-2.5 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#22b999] focus:ring-2 focus:ring-[#22b999]/20"
+                      id="signup-password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Create a password"
+                      className={`h-12 w-full rounded-[12px] px-3.5 pr-11 text-sm outline-none transition-all ${
+                        isLightMode
+                          ? 'border border-[#c6d8cf] bg-[#f9fcfa] text-[#13221a] placeholder:text-[#95a89f] focus:border-[#38b38b] focus:ring-2 focus:ring-[#22b999]/20'
+                          : 'border border-[#263c31] bg-[#0a120f] text-[#eef6f2] placeholder:text-[#6f8478] focus:border-[#49dab4] focus:ring-2 focus:ring-[#22b999]/22'
+                      }`}
                       required
+                      minLength={8}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((value) => !value)}
+                      className={`absolute inset-y-0 right-0 flex w-11 items-center justify-center transition-colors ${
+                        isLightMode ? 'text-[#7d9286] hover:text-[#3d5a4d]' : 'text-[#7d9286] hover:text-[#a8c0b3]'
+                      }`}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
 
-                  <div>
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <label
-                        htmlFor="signup-password"
-                        className="block text-[11px] font-bold uppercase tracking-[0.1em] text-[#8f8f8f]"
-                      >
-                        Password
-                      </label>
-                      {passwordStrength ? (
-                        <span className="text-xs font-semibold text-[#10b981]">
-                          {passwordStrength}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="relative">
-                      <input
-                        id="signup-password"
-                        type={showPassword ? 'text' : 'password'}
-                        autoComplete="new-password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="Create a password"
-                        className="w-full rounded-[10px] border border-[#d4ddd7] bg-white px-3.5 py-2.5 pr-11 text-sm text-[#111111] outline-none transition-all placeholder:text-[#acacac] focus:border-[#22b999] focus:ring-2 focus:ring-[#22b999]/20"
-                        required
-                        minLength={8}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((value) => !value)}
-                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[#b8b8b8] transition-colors hover:text-[#137763]"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-
+                  {showPasswordChecklist ? (
                     <ul className="mt-3 space-y-1.5">
                       {passwordRules.map((rule) => {
                         const isMet = !passwordIssues.includes(rule.label);
@@ -339,14 +378,24 @@ export function SignupForm() {
                           <li
                             key={rule.id}
                             className={`flex items-center gap-2 text-xs ${
-                              isMet ? 'text-[#0d6b38]' : 'text-[#8f8f8f]'
+                              isMet
+                                ? isLightMode
+                                  ? 'text-[#2a8d6d]'
+                                  : 'text-[#9be4c4]'
+                                : isLightMode
+                                  ? 'text-[#6f887b]'
+                                  : 'text-[#7a8f84]'
                             }`}
                           >
                             <span
                               className={`inline-flex h-4 w-4 items-center justify-center rounded-full border ${
                                 isMet
-                                  ? 'border-[#0d6b38] bg-[#0d6b38] text-white'
-                                  : 'border-[#dfdfdf] text-transparent'
+                                  ? isLightMode
+                                    ? 'border-[#2f9f79] bg-[#2f9f79] text-white'
+                                    : 'border-[#2b7a5a] bg-[#2b7a5a] text-white'
+                                  : isLightMode
+                                    ? 'border-[#b7ccc2] text-transparent'
+                                    : 'border-[#2f4138] text-transparent'
                               }`}
                             >
                               <Check className="h-3 w-3" />
@@ -356,69 +405,92 @@ export function SignupForm() {
                         );
                       })}
                     </ul>
-                  </div>
+                  ) : (
+                    <p className={`mt-2 text-xs ${isLightMode ? 'text-[#6f887b]' : 'text-[#7a8f84]'}`}>
+                      Use at least 8 characters with uppercase, lowercase, number, and symbol.
+                    </p>
+                  )}
+                </div>
 
-                  {siteKey ? (
-                    <div className="rounded-[10px] border border-[#ececec] bg-[#fafafa] p-3">
-                      <Captcha
-                        siteKey={siteKey}
-                        onVerify={(token) => setCaptchaToken(token)}
-                        onExpire={() => setCaptchaToken('')}
-                      />
-                    </div>
-                  ) : null}
-
-                  <p className="text-xs leading-relaxed text-[#8f8f8f]">
-                    By creating an account you agree to our{' '}
-                    <Link href="/terms" className="font-medium hover:text-[#137763] hover:underline">
-                      Terms
-                    </Link>{' '}
-                    and{' '}
-                    <Link
-                      href="/privacy"
-                      className="font-medium hover:text-[#137763] hover:underline"
-                    >
-                      Privacy Policy
-                    </Link>
-                    .
-                  </p>
-
-                  <button
-                    type="submit"
-                    disabled={!canSubmit || isSubmitting}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] border border-[#101a14] bg-gradient-to-r from-[#101312] to-[#163124] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:border-[#2c7f57] hover:from-[#0f1713] hover:to-[#1f4a34] disabled:cursor-not-allowed disabled:border-[#d4ddd7] disabled:bg-[#dfdfdf] disabled:text-[#acacac]"
+                {siteKey ? (
+                  <div
+                    className={`rounded-[12px] p-3 ${
+                      isLightMode
+                        ? 'border border-[#c6d8cf] bg-[#f6fbf8]'
+                        : 'border border-[#24392e] bg-[#09110e]'
+                    }`}
                   >
-                    {isSubmitting ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                        Creating account...
-                      </>
-                    ) : (
-                      <>
-                        Create account
-                        <ArrowRight className="h-4 w-4" />
-                      </>
-                    )}
-                  </button>
-                </form>
-              </>
-            )}
+                    <Captcha
+                      siteKey={siteKey}
+                      onVerify={(token) => setCaptchaToken(token)}
+                      onExpire={() => setCaptchaToken('')}
+                    />
+                  </div>
+                ) : null}
 
-            <p className="mt-5 text-center text-sm text-[#9a9a9a]">
-              Already have an account?{' '}
-              <Link href="/login" className="font-semibold text-[#137763] hover:underline">
-                Log in
-              </Link>
-            </p>
-            <p className="mt-3 text-center text-xs text-[#8f8f8f]">
-              Need help?{' '}
-              <Link href="/support" className="font-medium hover:text-[#137763] hover:underline">
-                Contact support
-              </Link>
-            </p>
-          </div>
-        </section>
-      </div>
+                <p className={`text-xs leading-relaxed ${isLightMode ? 'text-[#6f887b]' : 'text-[#7f9488]'}`}>
+                  By creating an account you agree to our{' '}
+                  <Link
+                    href="/terms"
+                    className={`font-medium hover:underline ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#9be4c4]'}`}
+                  >
+                    Terms
+                  </Link>{' '}
+                  and{' '}
+                  <Link
+                    href="/privacy"
+                    className={`font-medium hover:underline ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#9be4c4]'}`}
+                  >
+                    Privacy Policy
+                  </Link>
+                  .
+                </p>
+
+                <button
+                  type="submit"
+                  disabled={!canSubmit || isSubmitting}
+                  className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-[12px] border px-4 text-sm font-semibold transition-all active:translate-y-[1px] disabled:cursor-not-allowed ${
+                    isLightMode
+                      ? 'border-[#2fa279] bg-[#2fa279] text-white shadow-[0_12px_28px_-16px_rgba(47,162,121,0.6)] hover:border-[#258f69] hover:bg-[#258f69] disabled:border-[#c8d8d0] disabled:bg-[#d7e3dd] disabled:text-[#8a9b94]'
+                      : 'border-[#3aa67f] bg-[#2ba278] text-[#07120d] shadow-[0_12px_28px_-16px_rgba(62,174,131,0.85)] hover:border-[#4fd6a6] hover:bg-[#3ab58a] hover:shadow-[0_14px_32px_-16px_rgba(79,214,166,0.8)] disabled:border-[#2b3d34] disabled:bg-[#1a2420] disabled:text-[#73857d] disabled:shadow-none'
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className={`h-4 w-4 animate-spin rounded-full border-2 ${isLightMode ? 'border-white/35 border-t-white' : 'border-[#07120d]/30 border-t-[#07120d]'}`} />
+                      Creating account...
+                    </>
+                  ) : (
+                    <>
+                      Create account
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            </>
+          )}
+
+          <p className={`mt-5 text-center text-sm ${isLightMode ? 'text-[#5f786b]' : 'text-[#8ca195]'}`}>
+            Already have an account?{' '}
+            <Link
+              href="/login"
+              className={`font-semibold hover:underline ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#9be4c4]'}`}
+            >
+              Log in
+            </Link>
+          </p>
+          <p className={`mt-2 text-center text-xs ${isLightMode ? 'text-[#6f887b]' : 'text-[#74897d]'}`}>
+            Need help?{' '}
+            <Link
+              href="/support"
+              className={`font-medium hover:underline ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#8fbba8]'}`}
+            >
+              Contact support
+            </Link>
+          </p>
+        </div>
+      </section>
     </main>
   );
 }

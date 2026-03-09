@@ -23,11 +23,12 @@ export interface GridSceneAssetDescriptor {
 }
 
 const MODEL_VERSION = 'placeholder-v2';
+const HIGH_POLY_MODEL_VERSION = 'high-poly-v1';
 
 export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAssetDescriptor> = {
   'control-center': {
     key: 'control-center',
-    url: `/grid-assets/models/control-center.glb?v=${MODEL_VERSION}`,
+    url: `/grid-assets/models/high-poly-archive/control-center.glb?v=${HIGH_POLY_MODEL_VERSION}`,
     scale: 2.12,
     yaw: 0.4,
     yOffset: 0.06,
@@ -45,7 +46,7 @@ export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAsset
   },
   'solar-forecasting-array': {
     key: 'solar-forecasting-array',
-    url: `/grid-assets/models/solar-forecasting-array.glb?v=${MODEL_VERSION}`,
+    url: `/grid-assets/models/high-poly-archive/solar-forecasting-array.glb?v=${HIGH_POLY_MODEL_VERSION}`,
     scale: 1.02,
     yaw: 0.2,
     yOffset: 0.05,
@@ -54,7 +55,7 @@ export const GRID_SCENE_ASSET_REGISTRY: Record<GridSceneAssetKey, GridSceneAsset
   },
   'battery-storage': {
     key: 'battery-storage',
-    url: `/grid-assets/models/battery-storage.glb?v=${MODEL_VERSION}`,
+    url: `/grid-assets/models/high-poly-archive/battery-storage.glb?v=${HIGH_POLY_MODEL_VERSION}`,
     scale: 1.35,
     yaw: 0.18,
     yOffset: 0.04,

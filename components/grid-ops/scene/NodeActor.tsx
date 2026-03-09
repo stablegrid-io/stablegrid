@@ -2,7 +2,6 @@ import { Billboard, Clone, Html, useGLTF } from '@react-three/drei';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import {
-  Box3,
   Object3D,
   MeshStandardMaterial,
   Vector3,
@@ -18,6 +17,8 @@ import type {
 } from '@/lib/grid-ops/types';
 import { GRID_VISUAL_TOKENS } from '@/lib/grid-ops/visualConfig';
 import { cloneSceneWithDetachedMaterials } from '@/components/grid-ops/scene/cloneSceneWithDetachedMaterials';
+import { computeMeshBounds } from '@/components/grid-ops/scene/computeMeshBounds';
+import { tuneGridModelMaterials } from '@/components/grid-ops/scene/tuneGridModelMaterials';
 
 interface NodeActorProps {
   node: GridOpsNodeView;
@@ -77,7 +78,8 @@ function ModelCore({
 
   const normalizedModel = useMemo(() => {
     const scene = cloneSceneWithDetachedMaterials(gltf.scene);
-    const box = new Box3().setFromObject(scene);
+    tuneGridModelMaterials(scene, 'scene');
+    const box = computeMeshBounds(scene);
     const size = new Vector3();
     const center = new Vector3();
     box.getSize(size);

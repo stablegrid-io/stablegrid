@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { Settings } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { unitsToKwh } from '@/lib/energy';
@@ -136,12 +136,13 @@ function ShiftStatusRing({
 }
 
 export function UserMenu() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { getAvailableBudgetUnits } = useProgressStore();
   const [isOpen, setIsOpen] = useState(false);
   const [shiftSummary, setShiftSummary] = useState<ShiftSummaryData | null>(null);
   const [isShiftSummaryLoading, setIsShiftSummaryLoading] = useState(false);
   const [shiftSummaryError, setShiftSummaryError] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -265,6 +266,21 @@ export function UserMenu() {
     shiftSummary?.tenureStartDate ?? user.created_at ?? null
   );
   const handleCloseMenu = () => setIsOpen(false);
+  const handleSignOut = async () => {
+    if (isSigningOut) {
+      return;
+    }
+
+    setIsSigningOut(true);
+    setIsOpen(false);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Failed to sign out from user menu:', error);
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   return (
     <div className="relative" ref={menuRef}>
@@ -321,6 +337,17 @@ export function UserMenu() {
                 <Settings className="h-4 w-4" />
                 Settings
               </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSignOut();
+                }}
+                disabled={isSigningOut}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary disabled:cursor-not-allowed disabled:opacity-60 dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
+              >
+                <LogOut className="h-4 w-4" />
+                {isSigningOut ? 'Signing out...' : 'Sign out'}
+              </button>
             </div>
           </div>
         </div>

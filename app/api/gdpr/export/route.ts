@@ -18,7 +18,8 @@ export async function POST() {
     practiceSessions,
     functionViews,
     userProgress,
-    subscriptions
+    subscriptions,
+    cookieConsents
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
     supabase.from('topic_progress').select('*').eq('user_id', user.id),
@@ -26,7 +27,8 @@ export async function POST() {
     supabase.from('practice_sessions').select('*').eq('user_id', user.id),
     supabase.from('function_views').select('*').eq('user_id', user.id),
     supabase.from('user_progress').select('*').eq('user_id', user.id).maybeSingle(),
-    supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle()
+    supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
+    supabase.from('cookie_consents').select('*').eq('user_id', user.id).maybeSingle()
   ]);
 
   const payload = {
@@ -41,7 +43,8 @@ export async function POST() {
     practice_sessions: practiceSessions.data ?? [],
     function_views: functionViews.data ?? [],
     user_progress: userProgress.data ?? null,
-    subscription: subscriptions.data ?? null
+    subscription: subscriptions.data ?? null,
+    cookie_consents: cookieConsents.data ?? null
   };
 
   return new NextResponse(JSON.stringify(payload, null, 2), {

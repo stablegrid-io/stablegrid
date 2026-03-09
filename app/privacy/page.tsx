@@ -1,9 +1,18 @@
 import type { Metadata } from 'next';
+import { COOKIE_CATEGORY_COPY, COOKIE_SERVICE_REGISTRY } from '@/lib/cookies/cookie-config';
 
 export const metadata: Metadata = {
   title: 'Privacy · StableGrid.io',
-  description: 'How StableGrid collects, uses, and protects Theory Beta user data.'
+  description:
+    'How StableGrid collects, uses, and protects user data, including cookie consent controls and disclosures.'
 };
+
+const policyCategories = [
+  COOKIE_CATEGORY_COPY.necessary,
+  COOKIE_CATEGORY_COPY.analytics,
+  COOKIE_CATEGORY_COPY.marketing,
+  COOKIE_CATEGORY_COPY.preferences
+];
 
 export default function PrivacyPage() {
   return (
@@ -17,7 +26,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p className="text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
-            Effective date: March 4, 2026
+            Effective date: March 9, 2026
           </p>
         </header>
 
@@ -25,7 +34,7 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-semibold">What we collect</h2>
           <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
             We collect account information (name, email), reading progress, session usage,
-            and product analytics events required to operate Theory Beta.
+            and optional analytics events only after consent for the Analytics category.
           </p>
         </section>
 
@@ -43,6 +52,76 @@ export default function PrivacyPage() {
             You can request a GDPR export or permanently delete your account in
             Settings {'>'} Danger Zone. These actions require authentication.
           </p>
+          <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+            You can change cookie choices at any time from the persistent
+            {' '}
+            <span className="font-medium">Cookie settings</span>
+            {' '}
+            control shown across the site.
+          </p>
+          <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+            When you are signed in, cookie choices are also stored with your account so
+            your consent settings can follow you across sessions and devices.
+          </p>
+        </section>
+
+        <section
+          id="cookie-policy"
+          className="space-y-4 rounded-2xl border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface"
+        >
+          <h2 className="text-xl font-semibold">Cookie Policy</h2>
+          <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+            We use necessary cookies to operate the website. Analytics, marketing, and
+            preference cookies stay off by default until you opt in.
+          </p>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {policyCategories.map((category) => (
+              <article
+                key={category.label}
+                className="rounded-xl border border-light-border bg-light-bg p-3 dark:border-dark-border dark:bg-dark-bg"
+              >
+                <h3 className="text-sm font-semibold">{category.label}</h3>
+                <p className="mt-1 text-xs leading-6 text-text-light-secondary dark:text-text-dark-secondary">
+                  {category.description}
+                </p>
+              </article>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-text-light-tertiary dark:text-text-dark-tertiary">
+              Cookie and service inventory
+            </h3>
+            <div className="overflow-x-auto rounded-xl border border-light-border dark:border-dark-border">
+              <table className="min-w-full divide-y divide-light-border text-left text-sm dark:divide-dark-border">
+                <thead className="bg-light-bg text-xs uppercase tracking-wide text-text-light-tertiary dark:bg-dark-bg dark:text-text-dark-tertiary">
+                  <tr>
+                    <th className="px-3 py-2 font-semibold">Name</th>
+                    <th className="px-3 py-2 font-semibold">Provider</th>
+                    <th className="px-3 py-2 font-semibold">Category</th>
+                    <th className="px-3 py-2 font-semibold">Purpose</th>
+                    <th className="px-3 py-2 font-semibold">Expiry</th>
+                    <th className="px-3 py-2 font-semibold">Type</th>
+                    <th className="px-3 py-2 font-semibold">Legal basis</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-light-border dark:divide-dark-border">
+                  {COOKIE_SERVICE_REGISTRY.map((service) => (
+                    <tr key={service.id} className="align-top">
+                      <td className="px-3 py-2 font-medium">{service.name}</td>
+                      <td className="px-3 py-2">{service.provider}</td>
+                      <td className="px-3 py-2">{COOKIE_CATEGORY_COPY[service.category].label}</td>
+                      <td className="px-3 py-2">{service.purpose}</td>
+                      <td className="px-3 py-2">{service.expiry}</td>
+                      <td className="px-3 py-2">{service.type}</td>
+                      <td className="px-3 py-2">{service.legalBasis}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </section>
 
         <section className="space-y-3 rounded-2xl border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface">

@@ -106,10 +106,10 @@ export const HeroSection = () => {
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <a
-              href="#features"
+              href="#grid-flow"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2b4f3a] px-6 py-3 font-medium text-[#9ab8a9] transition-colors hover:border-[#22b999] hover:text-[#e3efe8]"
             >
-              See Theory Beta scope
+              Explore 330kV grid flow
             </a>
           </div>
 

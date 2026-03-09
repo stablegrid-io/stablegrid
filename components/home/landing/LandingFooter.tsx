@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { StableGridWordmark } from '@/components/brand/StableGridLogo';
 import { trackProductEvent } from '@/lib/analytics/productAnalytics';
+import { openCookiePreferencesDialog } from '@/lib/cookies/cookie-consent';
 
 export const LandingFooter = () => {
   return (
@@ -39,6 +40,13 @@ export const LandingFooter = () => {
               {item.label}
             </Link>
           ))}
+          <button
+            type="button"
+            onClick={openCookiePreferencesDialog}
+            className="transition-colors hover:text-[#9ab8a9]"
+          >
+            Cookie settings
+          </button>
         </div>
 
         <p className="text-xs text-[#6f8f7d]">(c) 2026 StableGrid.io</p>

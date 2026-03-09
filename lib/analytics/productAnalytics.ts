@@ -1,6 +1,5 @@
-'use client';
-
 import type { ProductEventName } from '@/lib/analytics/productEvents';
+import { hasCategoryConsent } from '@/lib/cookies/cookie-consent';
 
 const PRODUCT_SESSION_STORAGE_KEY = 'stablegrid-product-session-id';
 const PRODUCT_ONCE_STORAGE_PREFIX = 'stablegrid-product-event-once:';
@@ -10,9 +9,10 @@ const PRODUCT_SESSION_MAX_AGE = 60 * 60 * 24 * 365;
 type EventMetadata = Record<string, unknown>;
 
 const canUseWindow = () => typeof window !== 'undefined';
+const hasAnalyticsConsent = () => hasCategoryConsent('analytics');
 
 const persistSessionId = (sessionId: string) => {
-  if (!canUseWindow()) {
+  if (!canUseWindow() || !hasAnalyticsConsent()) {
     return;
   }
 
@@ -30,7 +30,7 @@ const persistSessionId = (sessionId: string) => {
 };
 
 export const getOrCreateProductSessionId = () => {
-  if (!canUseWindow()) {
+  if (!canUseWindow() || !hasAnalyticsConsent()) {
     return '';
   }
 
@@ -52,6 +52,37 @@ export const getOrCreateProductSessionId = () => {
   persistSessionId(nextSessionId);
   return nextSessionId;
 };
+
+export const clearProductAnalyticsData = () => {
+  if (!canUseWindow()) {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(PRODUCT_SESSION_STORAGE_KEY);
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+
+  try {
+    for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.localStorage.key(index);
+      if (key && key.startsWith(PRODUCT_ONCE_STORAGE_PREFIX)) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+
+  try {
+    document.cookie = `${PRODUCT_SESSION_COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
+  } catch {
+    // Ignore cookie cleanup failures.
+  }
+};
+
+export const primeProductAnalyticsSession = () => getOrCreateProductSessionId();
 
 const hasTrackedOnce = (onceKey: string) => {
   if (!canUseWindow()) {
@@ -84,7 +115,7 @@ export const trackProductEvent = async (
     path?: string;
   } = {}
 ) => {
-  if (!canUseWindow()) {
+  if (!canUseWindow() || !hasAnalyticsConsent()) {
     return;
   }
 
@@ -118,6 +149,10 @@ export const trackProductEventOnce = async (
     path?: string;
   } = {}
 ) => {
+  if (!hasAnalyticsConsent()) {
+    return;
+  }
+
   if (hasTrackedOnce(onceKey)) {
     return;
   }

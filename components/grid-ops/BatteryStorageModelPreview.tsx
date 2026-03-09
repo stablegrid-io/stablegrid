@@ -2,12 +2,16 @@
 
 import { Clone, useGLTF } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { BatteryCharging } from 'lucide-react';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Box3, Mesh, Sphere, type Group } from 'three';
+import { Suspense, useMemo, useRef } from 'react';
+import { Mesh, Sphere, type Group } from 'three';
 import { cloneSceneWithDetachedMaterials } from '@/components/grid-ops/scene/cloneSceneWithDetachedMaterials';
+import { computeMeshBounds } from '@/components/grid-ops/scene/computeMeshBounds';
+import { resolveSceneAssetDescriptor } from '@/lib/grid-ops/sceneAssets';
+import { tuneGridModelMaterials } from '@/components/grid-ops/scene/tuneGridModelMaterials';
 
-const BATTERY_MODEL_URL = '/grid-assets/models/battery-storage.glb?v=placeholder-v2';
+const BATTERY_MODEL_URL =
+  resolveSceneAssetDescriptor('battery-storage')?.url ??
+  '/grid-assets/models/high-poly-archive/battery-storage.glb?v=high-poly-v1';
 
 function BatteryModelMesh() {
   const gltf = useGLTF(BATTERY_MODEL_URL);
@@ -15,7 +19,8 @@ function BatteryModelMesh() {
 
   const normalizedModel = useMemo(() => {
     const scene = cloneSceneWithDetachedMaterials(gltf.scene);
-    const bounds = new Box3().setFromObject(scene);
+    tuneGridModelMaterials(scene, 'preview');
+    const bounds = computeMeshBounds(scene);
     const sphere = new Sphere();
     bounds.getBoundingSphere(sphere);
 
@@ -68,80 +73,25 @@ function BatteryModelMesh() {
 }
 
 export function BatteryStorageModelPreview({ className }: { className?: string }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [available, setAvailable] = useState<boolean | null>(null);
-  const [canvasEventSource, setCanvasEventSource] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const checkAvailability = async () => {
-      try {
-        const response = await fetch(BATTERY_MODEL_URL, {
-          method: 'HEAD',
-          cache: 'no-store'
-        });
-        if (!cancelled) {
-          setAvailable(response.ok);
-        }
-      } catch {
-        if (!cancelled) {
-          setAvailable(false);
-        }
-      }
-    };
-
-    void checkAvailability();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    setCanvasEventSource(containerRef.current);
-  }, []);
-
-  if (available === false) {
-    return (
-      <div
-        className={`flex h-24 items-center justify-center gap-2 rounded-lg border border-[#2b4f41] bg-[#08120f] text-xs font-medium text-[#8ca89a] ${className ?? ''}`}
-      >
-        <BatteryCharging className="h-4 w-4 text-[#9C6BFF]" />
-        Battery model unavailable
-      </div>
-    );
-  }
-
-  if (available === null) {
-    return (
-      <div
-        className={`h-24 animate-pulse rounded-lg border border-[#2b4f41] bg-[radial-gradient(circle_at_30%_18%,rgba(92,168,255,0.22),transparent_44%),#08120f] ${className ?? ''}`}
-      />
-    );
-  }
-
   return (
     <div
-      ref={containerRef}
       className={`h-24 overflow-hidden rounded-lg border border-[#2b4f41] bg-[radial-gradient(circle_at_30%_18%,rgba(92,168,255,0.24),transparent_42%),linear-gradient(180deg,#0a1220,#060c15)] ${className ?? ''}`}
     >
-      {canvasEventSource ? (
-        <Canvas
-          eventSource={canvasEventSource}
-          shadows={false}
-          dpr={[1, 1.5]}
-          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-          camera={{ position: [0, 0.12, 2.24], fov: 30, near: 0.1, far: 30 }}
-        >
-          <ambientLight intensity={0.58} color="#ffffff" />
-          <directionalLight intensity={0.62} color="#ffffff" position={[2.6, 3.8, 1.8]} />
-          <directionalLight intensity={0.34} color="#b8cdfc" position={[-2.8, 1.8, 0.2]} />
-          <Suspense fallback={null}>
-            <BatteryModelMesh />
-          </Suspense>
-        </Canvas>
-      ) : null}
+      <Canvas
+        shadows={false}
+        dpr={[1, 1.5]}
+        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        camera={{ position: [0, 0.12, 2.24], fov: 30, near: 0.1, far: 30 }}
+      >
+        <ambientLight intensity={0.58} color="#ffffff" />
+        <directionalLight intensity={0.62} color="#ffffff" position={[2.6, 3.8, 1.8]} />
+        <directionalLight intensity={0.34} color="#b8cdfc" position={[-2.8, 1.8, 0.2]} />
+        <Suspense fallback={null}>
+          <BatteryModelMesh />
+        </Suspense>
+      </Canvas>
     </div>
   );
 }
+
+useGLTF.preload(BATTERY_MODEL_URL);

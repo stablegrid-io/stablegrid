@@ -43,6 +43,7 @@ interface GridFlowSceneCanvasProps {
   nextScene: GridFlowSceneState;
   phaseProgress: number;
   reducedMotion: boolean;
+  performanceMode?: 'full' | 'balanced';
 }
 
 const PROJECTED_ORIGIN_X = 660;
@@ -379,7 +380,8 @@ export function GridFlowSceneCanvas({
   currentScene,
   nextScene,
   phaseProgress,
-  reducedMotion
+  reducedMotion,
+  performanceMode: _performanceMode
 }: GridFlowSceneCanvasProps) {
   const focus = sceneFocus(currentScene, nextScene, phaseProgress, reducedMotion);
 

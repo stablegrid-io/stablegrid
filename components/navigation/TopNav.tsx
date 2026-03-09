@@ -20,6 +20,11 @@ import {
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { StableGridIcon } from '@/components/brand/StableGridLogo';
+import {
+  COOKIE_CONSENT_UPDATED_EVENT,
+  hasCategoryConsent,
+  openCookiePreferencesDialog
+} from '@/lib/cookies/cookie-consent';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 
 const UserMenuLazy = dynamic(
@@ -111,6 +116,7 @@ export const TopNav = () => {
   const tasksMenuRef = useRef<HTMLDivElement>(null);
   const [tasksOpen, setTasksOpen] = useState(false);
   const [themeMounted, setThemeMounted] = useState(false);
+  const [canPersistPreferences, setCanPersistPreferences] = useState(false);
 
   const prefetchRoute = useCallback(
     (route: string) => {
@@ -168,6 +174,19 @@ export const TopNav = () => {
 
   useEffect(() => {
     setThemeMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const syncPreferencesConsent = () => {
+      setCanPersistPreferences(hasCategoryConsent('preferences'));
+    };
+
+    syncPreferencesConsent();
+    window.addEventListener(COOKIE_CONSENT_UPDATED_EVENT, syncPreferencesConsent);
+
+    return () => {
+      window.removeEventListener(COOKIE_CONSENT_UPDATED_EVENT, syncPreferencesConsent);
+    };
   }, []);
 
   useEffect(() => {
@@ -397,9 +416,27 @@ export const TopNav = () => {
             {themeMounted ? (
               <button
                 type="button"
-                onClick={() => setTheme(isDarkTheme ? 'light' : 'dark')}
-                aria-label={isDarkTheme ? 'Switch to light mode' : 'Switch to dark mode'}
-                title={isDarkTheme ? 'Light mode' : 'Dark mode'}
+                onClick={() => {
+                  if (!canPersistPreferences) {
+                    openCookiePreferencesDialog();
+                    return;
+                  }
+                  setTheme(isDarkTheme ? 'light' : 'dark');
+                }}
+                aria-label={
+                  canPersistPreferences
+                    ? isDarkTheme
+                      ? 'Switch to light mode'
+                      : 'Switch to dark mode'
+                    : 'Open cookie settings to enable preference cookies'
+                }
+                title={
+                  canPersistPreferences
+                    ? isDarkTheme
+                      ? 'Light mode'
+                      : 'Dark mode'
+                    : 'Enable preferences cookies to save theme settings'
+                }
                 className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-all ${
                   isDarkTheme
                     ? 'border-brand-500/40 bg-brand-500/10 text-brand-200 hover:bg-brand-500/16'

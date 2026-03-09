@@ -12,7 +12,7 @@ const FEATURES = [
     description:
       'Start with one structured route instead of a content maze. The flagship path focuses on distributed data engineering inside utility-scale scenarios.',
     preview: [
-      'Production-style examples and diagrams',
+      'Production-style diagrams',
       'Shuffles, skew, streaming, and telemetry quality',
       'System design framing that stays grounded in operations'
     ],

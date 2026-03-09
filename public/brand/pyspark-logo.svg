@@ -1,0 +1,14 @@
+<svg width="140" height="30" viewBox="0 0 140 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="spark-gradient" x1="4" y1="2" x2="26" y2="24" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFCB85"/>
+      <stop offset="0.52" stop-color="#FF9F53"/>
+      <stop offset="1" stop-color="#FF7A45"/>
+    </linearGradient>
+  </defs>
+  <circle cx="15" cy="15" r="11.2" fill="url(#spark-gradient)" fill-opacity="0.9"/>
+  <path d="M15 7.1L17.2 12.1L22.6 12.6L18.5 16L19.8 21.2L15 18.4L10.2 21.2L11.5 16L7.4 12.6L12.8 12.1L15 7.1Z" fill="#2A1206"/>
+  <path d="M8.1 6.4L6.2 4.2" stroke="#FFB56F" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M21.9 6.4L23.8 4.2" stroke="#FFB56F" stroke-width="1.2" stroke-linecap="round"/>
+  <text x="34" y="20.2" fill="#F4F8F6" font-family="Segoe UI, Arial, sans-serif" font-size="13.8" font-weight="650" letter-spacing="0.3">PySpark</text>
+</svg>
