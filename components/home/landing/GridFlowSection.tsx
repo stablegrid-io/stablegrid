@@ -1,11 +1,14 @@
 'use client';
 
-import { ArrowRight, Check, Play } from 'lucide-react';
+import { ArrowRight, Check, Clock3, Info, Play, Zap } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GridFlowSceneCanvas } from '@/components/home/landing/GridFlowSceneCanvas';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  TRANSMISSION_LINE_SEQUENCE_CONFIG,
+  TransmissionLineSequenceBackground
+} from '@/components/home/landing/TransmissionLineSequenceBackground';
 import {
   GRID_FLOW_CHAPTERS,
   type GridFlowChapter,
@@ -15,9 +18,21 @@ import {
 import { trackProductEvent } from '@/lib/analytics/productAnalytics';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-const JOURNEY_UPDATE_EPSILON = 0.01;
+const JOURNEY_UPDATE_EPSILON = 0.0015;
 const STORY_UPDATE_EPSILON = 0.055;
 const SCROLL_IDLE_TIMEOUT_MS = 150;
+const MAX_STORY_STEPS = 3;
+const CHAPTER_SCROLL_HEIGHT_CLASS = 'min-h-[130svh] lg:min-h-[150svh]';
+const STORY_CHAPTER_GRID_CLASS = 'lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]';
+const STORY_INTERACTIVE_COLUMN_CLASS =
+  'lg:justify-self-end lg:ml-auto lg:translate-x-[clamp(12rem,20vw,24rem)]';
+const INTRO_AUTOPLAY_START_FRAME = 1;
+const INTRO_AUTOPLAY_FINAL_FRAME = TRANSMISSION_LINE_SEQUENCE_CONFIG.frameCount;
+const INTRO_AUTOPLAY_FPS = 24;
+const INTRO_AUTOPLAY_DURATION_SECONDS =
+  (INTRO_AUTOPLAY_FINAL_FRAME - INTRO_AUTOPLAY_START_FRAME) / INTRO_AUTOPLAY_FPS;
+const HERO_DISPLAY_FONT_FAMILY =
+  "var(--font-hero), 'Inter', 'Segoe UI', system-ui, sans-serif";
 const ControlCenterModelPreviewLazy = dynamic(
   () =>
     import('@/components/grid-ops/ControlCenterModelPreview').then(
@@ -30,16 +45,21 @@ const ControlCenterModelPreviewLazy = dynamic(
     )
   }
 );
+const BatteryStorageModelPreviewLazy = dynamic(
+  () =>
+    import('@/components/grid-ops/BatteryStorageModelPreview').then(
+      (module) => module.BatteryStorageModelPreview
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-32 rounded-xl border border-[#2e5975]/45 bg-[radial-gradient(circle_at_40%_24%,rgba(77,147,255,0.24),transparent_48%),linear-gradient(180deg,#091325,#060c16)]" />
+    )
+  }
+);
 
 const getSectionHeightClass = (chapter: GridFlowChapter) => {
-  switch (chapter.variant) {
-    case 'intro':
-      return 'min-h-[124svh] lg:min-h-[144svh]';
-    case 'final':
-      return 'min-h-[24svh] lg:min-h-[28svh]';
-    default:
-      return 'min-h-[118svh] lg:min-h-[138svh]';
-  }
+  return CHAPTER_SCROLL_HEIGHT_CLASS;
 };
 
 const getSectionAlignmentClass = (chapter: GridFlowChapter) => {
@@ -68,30 +88,30 @@ const SNAPSHOT_TONE_STYLES: Record<
 > = {
   mint: {
     shell:
-      'border-[#3f9b7b]/80 bg-[linear-gradient(145deg,rgba(4,18,14,0.98),rgba(5,20,15,0.95)_45%,rgba(11,42,30,0.84)_100%)]',
-    label: 'text-[#a6f0cf]',
-    badge: 'border-[#49a686] bg-[#154a35] text-[#baf9de]',
-    dot: 'bg-[#66efbf]',
-    action: 'text-[#b0f4d5]',
-    bar: 'from-[#3de2a5] via-[#67e9d2] to-[#7fd1ff]'
+      'border-white/20 bg-[linear-gradient(145deg,rgba(7,10,11,0.98),rgba(8,12,13,0.95)_45%,rgba(12,16,17,0.9)_100%)]',
+    label: 'text-[#c3cdca]',
+    badge: 'border-white/20 bg-white/[0.06] text-[#dde6e2]',
+    dot: 'bg-[#d6dfdb]',
+    action: 'text-[#c7d0cc]',
+    bar: 'from-[#9ea8a4] via-[#bec7c3] to-[#d9e1de]'
   },
   amber: {
     shell:
-      'border-[#b27b35]/80 bg-[linear-gradient(145deg,rgba(22,15,8,0.98),rgba(24,16,8,0.94)_50%,rgba(74,50,16,0.82)_100%)]',
-    label: 'text-[#ffe0ae]',
-    badge: 'border-[#c18a3a] bg-[#432d12] text-[#ffe3b8]',
-    dot: 'bg-[#f9c261]',
-    action: 'text-[#ffe4be]',
-    bar: 'from-[#f2ad3c] via-[#f8c769] to-[#ffe09c]'
+      'border-white/20 bg-[linear-gradient(145deg,rgba(8,10,11,0.98),rgba(10,12,13,0.95)_50%,rgba(14,16,17,0.9)_100%)]',
+    label: 'text-[#c7d0cc]',
+    badge: 'border-white/20 bg-white/[0.06] text-[#e0e8e4]',
+    dot: 'bg-[#d8e1dc]',
+    action: 'text-[#c9d2ce]',
+    bar: 'from-[#a3ada9] via-[#c1cac6] to-[#dbe3df]'
   },
   sky: {
     shell:
-      'border-[#4178a6]/80 bg-[linear-gradient(145deg,rgba(7,13,18,0.98),rgba(7,16,22,0.94)_45%,rgba(15,36,56,0.82)_100%)]',
-    label: 'text-[#addcff]',
-    badge: 'border-[#4e84b3] bg-[#173148] text-[#c2e7ff]',
-    dot: 'bg-[#7ec3f6]',
-    action: 'text-[#b7e4ff]',
-    bar: 'from-[#5caedf] via-[#7fcbff] to-[#a9e6ff]'
+      'border-white/20 bg-[linear-gradient(145deg,rgba(6,9,11,0.98),rgba(8,12,14,0.95)_45%,rgba(11,16,18,0.9)_100%)]',
+    label: 'text-[#c5ceca]',
+    badge: 'border-white/20 bg-white/[0.06] text-[#dfe8e4]',
+    dot: 'bg-[#d7dfdc]',
+    action: 'text-[#c8d1cd]',
+    bar: 'from-[#a0aaa6] via-[#c0c9c5] to-[#dbe2df]'
   }
 };
 
@@ -134,23 +154,23 @@ interface SqlCodePalette {
 }
 
 const DEFAULT_SQL_CODE_PALETTE: SqlCodePalette = {
-  punctuation: 'text-[#a3c0b5]',
-  operator: 'text-[#ffd08f]',
-  number: 'text-[#e4baff]',
-  keyword: 'text-[#8fdfff]',
-  functionName: 'text-[#ffdd98]',
-  identifier: 'text-[#e2f8ee]',
-  stringLiteral: 'text-[#a8f59b]'
+  punctuation: 'text-[#9fa9a5]',
+  operator: 'text-[#ced5d2]',
+  number: 'text-[#c0c9c5]',
+  keyword: 'text-[#dde5e2]',
+  functionName: 'text-[#e7eeeb]',
+  identifier: 'text-[#edf3f0]',
+  stringLiteral: 'text-[#bdc8c3]'
 };
 
 const ALERT_SQL_CODE_PALETTE: SqlCodePalette = {
-  punctuation: 'text-[#c3a6a6]',
-  operator: 'text-[#ffb190]',
-  number: 'text-[#ffc5c1]',
-  keyword: 'text-[#ff8a8a]',
-  functionName: 'text-[#ffd2a1]',
-  identifier: 'text-[#fff0ea]',
-  stringLiteral: 'text-[#ffb2c3]'
+  punctuation: 'text-[#a9a2a2]',
+  operator: 'text-[#d4cccc]',
+  number: 'text-[#c6bebe]',
+  keyword: 'text-[#e1d8d8]',
+  functionName: 'text-[#eae0e0]',
+  identifier: 'text-[#f4ecec]',
+  stringLiteral: 'text-[#ccc4c4]'
 };
 
 const renderSqlCodeChunk = (
@@ -276,44 +296,44 @@ function StepSnapshot({
     : 0;
   const progressionRingStyle = progressionSnapshot
     ? {
-        background: `conic-gradient(#3fd6c1 ${progressionPercent * 3.6}deg, rgba(255,255,255,0.13) ${progressionPercent * 3.6}deg)`
+        background: `conic-gradient(#bfc9c5 ${progressionPercent * 3.6}deg, rgba(255,255,255,0.13) ${progressionPercent * 3.6}deg)`
       }
     : undefined;
   const sqlPalette = isAlertSnippet ? ALERT_SQL_CODE_PALETTE : DEFAULT_SQL_CODE_PALETTE;
   const codeShellClass = isAlertSnippet
-    ? 'overflow-hidden rounded-xl border border-[#933939]/70 bg-[linear-gradient(170deg,rgba(26,8,8,0.97),rgba(17,5,5,0.95))]'
-    : 'overflow-hidden rounded-xl border border-[#2d5a48]/80 bg-[#030d0a]/96';
+    ? 'overflow-hidden rounded-xl border border-white/20 bg-[linear-gradient(170deg,rgba(22,15,15,0.96),rgba(14,10,10,0.95))]'
+    : 'overflow-hidden rounded-xl border border-white/20 bg-[#070c0a]/96';
   const codeHeaderClass = isAlertSnippet
-    ? 'flex items-center justify-between border-b border-[#933939]/55 px-3 py-2'
-    : 'flex items-center justify-between border-b border-[#234938]/80 px-3 py-2';
+    ? 'flex items-center justify-between border-b border-white/15 px-3 py-2'
+    : 'flex items-center justify-between border-b border-white/15 px-3 py-2';
   const codeLabelClass = isAlertSnippet
-    ? 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#ffaaaa]'
-    : 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9be8c8]';
+    ? 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d7cccc]'
+    : 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c5d0cb]';
   const codeChipClass = isAlertSnippet
-    ? 'rounded-full border border-[#9d3d3d]/80 bg-[#4a1515]/88 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#ffb4b4]'
-    : 'rounded-full border border-[#3d9478]/80 bg-[#184936]/82 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#a6f2d3]';
+    ? 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#ddd4d4]'
+    : 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#d2dbd7]';
   const lineNumberClass = isAlertSnippet
-    ? 'select-none text-right text-[10px] text-[#b77a7a]'
-    : 'select-none text-right text-[10px] text-[#7fae99]';
+    ? 'select-none text-right text-[10px] text-[#9f9797]'
+    : 'select-none text-right text-[10px] text-[#9ca8a2]';
   const briefingShellClass = isAmberTone
-    ? 'overflow-hidden rounded-xl border border-[#ab7534]/80 bg-[linear-gradient(165deg,rgba(27,15,8,0.98),rgba(18,11,6,0.96))]'
-    : 'overflow-hidden rounded-xl border border-[#2d5a48]/80 bg-[#030d0a]/96';
+    ? 'overflow-hidden rounded-xl border border-white/20 bg-[linear-gradient(165deg,rgba(15,11,8,0.98),rgba(11,9,7,0.96))]'
+    : 'overflow-hidden rounded-xl border border-white/20 bg-[#070c0a]/96';
   const briefingHeaderClass = isAmberTone
-    ? 'flex items-center justify-between gap-2 border-b border-[#ab7534]/65 px-3 py-2'
-    : 'flex items-center justify-between gap-2 border-b border-[#234938]/80 px-3 py-2';
+    ? 'flex items-center justify-between gap-2 border-b border-white/15 px-3 py-2'
+    : 'flex items-center justify-between gap-2 border-b border-white/15 px-3 py-2';
   const briefingLabelClass = isAmberTone
-    ? 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#ffe1b3]'
-    : 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9be8c8]';
+    ? 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d9d0c6]'
+    : 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c8d1cc]';
   const briefingRegionClass = isAmberTone
-    ? 'rounded-full border border-[#b78648]/80 bg-[#4c3317]/90 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#ffe6bf]'
-    : 'rounded-full border border-[#3d9478]/70 bg-[#0f2b21]/80 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#d7efe4]';
+    ? 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#ddd4ca]'
+    : 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#d6dfdb]';
   const briefingSectionClass = isAmberTone
-    ? 'text-[10px] font-semibold uppercase tracking-[0.15em] text-[#e3b680]'
-    : 'text-[10px] font-semibold uppercase tracking-[0.15em] text-[#a9e7cd]';
+    ? 'text-[10px] font-semibold uppercase tracking-[0.15em] text-[#c8c0b8]'
+    : 'text-[10px] font-semibold uppercase tracking-[0.15em] text-[#b5c0ba]';
   const briefingTextClass = isAmberTone
-    ? 'text-[11px] leading-5 text-[#f0e1d2]'
-    : 'text-[11px] leading-5 text-[#d7ece3]';
-  const briefingBulletClass = isAmberTone ? 'bg-[#f1ae52]' : tone.dot;
+    ? 'text-[11px] leading-5 text-[#d9d1ca]'
+    : 'text-[11px] leading-5 text-[#d3ddd8]';
+  const briefingBulletClass = isAmberTone ? 'bg-[#c8beb3]' : tone.dot;
   const laneSnapshot = snapshot.laneSnapshot;
   const missionListing = snapshot.missionListing;
   const isGridOpsSnapshot = snapshot.mediaModel === 'control-center';
@@ -321,71 +341,71 @@ function StepSnapshot({
 
   if (missionListing) {
     return (
-      <div className="mt-6">
-        <div className="group relative overflow-hidden rounded-[1.75rem] border border-[#8f3636]/75 bg-[linear-gradient(150deg,rgba(24,13,14,0.98),rgba(20,12,13,0.97)_58%,rgba(70,26,30,0.88)_100%)] p-4 shadow-[0_26px_70px_-42px_rgba(0,0,0,0.7)] sm:p-5">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(255,93,93,0.18),transparent_35%),linear-gradient(180deg,rgba(255,93,93,0.09),transparent_48%)]" />
-          <div className="pointer-events-none absolute -right-10 top-8 h-36 w-36 rounded-full bg-[#ff6565]/12 blur-3xl" />
+      <div className="mt-5 origin-top scale-[0.86] [filter:saturate(0)]">
+        <div className="group relative overflow-hidden rounded-[1.6rem] border border-white/20 bg-[linear-gradient(150deg,rgba(11,12,13,0.98),rgba(10,11,12,0.97)_58%,rgba(16,17,18,0.9)_100%)] p-4 shadow-[0_26px_70px_-42px_rgba(0,0,0,0.72)] sm:p-5">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(225,234,230,0.08),transparent_35%),linear-gradient(180deg,rgba(219,228,224,0.06),transparent_48%)]" />
+          <div className="pointer-events-none absolute -right-10 top-8 h-36 w-36 rounded-full bg-[#cfd8d4]/8 blur-3xl" />
 
           <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
-              <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#9a3f3f]/80 bg-[#3b1517]/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff6d6d]">
+              <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ced8d4]">
                 <span aria-hidden="true">⚡</span>
                 {missionListing.missionId}
               </span>
 
               <div className="flex flex-wrap items-center gap-2.5">
-                <h3 className="text-3xl font-semibold uppercase tracking-[0.02em] text-[#f6e8e8] sm:text-[3rem] sm:leading-[0.95]">
+                <h3 className="text-[1.7rem] font-semibold uppercase tracking-[0.02em] text-[#edf3f0] sm:text-[2.35rem] sm:leading-[0.95]">
                   {missionListing.title}
                 </h3>
-                <span className="rounded-full border border-[#ab4242]/80 bg-[#401718]/92 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ff7e7e]">
+                <span className="rounded-full border border-white/20 bg-white/[0.08] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#d2dbd7]">
                   {missionListing.difficulty}
                 </span>
               </div>
 
-              <p className="mt-4 max-w-2xl text-base leading-8 text-[#cebcbc]">
+              <p className="mt-4 max-w-2xl text-[14px] leading-7 text-[#bcc7c2]">
                 {missionListing.description}
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full border border-[#4a3838]/75 bg-black/50 px-3 py-1.5 text-[#cabbbb]">
+                <span className="rounded-full border border-white/16 bg-black/40 px-3 py-1.5 text-[#c1ccc7]">
                   {missionListing.urgency}
                 </span>
               </div>
             </div>
 
-            <aside className="w-full max-w-sm rounded-3xl border border-[#582526]/75 bg-[linear-gradient(165deg,rgba(17,8,9,0.97),rgba(20,10,11,0.95))] p-5">
+            <aside className="w-full max-w-[18rem] rounded-3xl border border-white/16 bg-[linear-gradient(165deg,rgba(8,10,11,0.97),rgba(9,11,12,0.95))] p-4">
               <div className="mb-2 flex items-center justify-between gap-3">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a99393]">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#aab5b0]">
                   {missionListing.statusLabel}
                 </span>
-                <span className="text-[2rem] font-semibold leading-none text-[#f6ecec]">
+                <span className="text-[1.85rem] font-semibold leading-none text-[#ebf1ee]">
                   {missionListing.statusValue}
                 </span>
               </div>
 
               <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                <div className="h-full w-full rounded-full bg-gradient-to-r from-[#ff7a7a] to-[#ffbe8f]" />
+                <div className="h-full w-full rounded-full bg-gradient-to-r from-[#9fa9a5] to-[#c8d1cd]" />
               </div>
 
-              <p className="mt-4 text-sm leading-7 text-[#c9b8b8]">
+              <p className="mt-4 text-sm leading-6 text-[#c1cbc7]">
                 {missionListing.statusDescription}
               </p>
             </aside>
           </div>
 
-          <div className="relative mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[#6f2d2d]/62 pt-5">
+          <div className="relative mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-white/12 pt-4">
             <div className="flex flex-wrap gap-2">
               {missionListing.stats.map((item) => (
                 <span
                   key={item}
-                  className="rounded-full border border-[#4a3838]/75 bg-black/50 px-3 py-1 text-xs text-[#cabbbb]"
+                  className="rounded-full border border-white/16 bg-black/40 px-3 py-1 text-xs text-[#bec8c4]"
                 >
                   {item}
                 </span>
               ))}
             </div>
 
-            <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#f9d5d5] transition-transform group-hover:translate-x-0.5">
+            <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#d8e1dd] transition-transform group-hover:translate-x-0.5">
               {missionListing.primaryAction}
               <ArrowRight className="h-4 w-4" />
             </span>
@@ -396,7 +416,7 @@ function StepSnapshot({
   }
 
   return (
-    <div className={`mt-6 overflow-hidden rounded-[1.35rem] border shadow-[0_18px_45px_rgba(0,0,0,0.38)] ${tone.shell}`}>
+    <div className={`mt-5 origin-top scale-[0.88] overflow-hidden rounded-[1.2rem] border shadow-[0_18px_45px_rgba(0,0,0,0.38)] [filter:saturate(0)] ${tone.shell}`}>
       <div className="flex items-center justify-between gap-3 border-b border-white/15 px-4 py-3">
         <span className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${tone.label}`}>
           {snapshot.label}
@@ -407,17 +427,17 @@ function StepSnapshot({
       </div>
       <div className="space-y-3 px-4 py-4">
         {snapshot.title ? (
-          <p className="text-sm font-semibold leading-6 text-[#f3fbf7]">{snapshot.title}</p>
+          <p className="text-sm font-semibold leading-6 text-[#eaf0ed]">{snapshot.title}</p>
         ) : null}
         {snapshot.meta ? (
-          <p className="text-xs font-medium text-[#c4ddd1]">{snapshot.meta}</p>
+          <p className="text-xs font-medium text-[#c4cec9]">{snapshot.meta}</p>
         ) : null}
         {snapshot.highlights.length > 0 && !isGridOpsSnapshot ? (
           <div className="space-y-2">
             {snapshot.highlights.map((item) => (
               <p
                 key={item}
-                className="flex items-start gap-2 text-xs leading-5 text-[#cfe5db]"
+                className="flex items-start gap-2 text-xs leading-5 text-[#ccd6d1]"
               >
                 <span className={`mt-[0.42rem] h-1.5 w-1.5 flex-shrink-0 rounded-full ${tone.dot}`} />
                 <span>{item}</span>
@@ -426,99 +446,99 @@ function StepSnapshot({
           </div>
         ) : null}
         {isGridOpsSnapshot ? (
-          <div className="overflow-hidden rounded-xl border border-[#2d5d85]/70 bg-[linear-gradient(165deg,rgba(6,14,23,0.96),rgba(7,19,32,0.95)_55%,rgba(10,28,46,0.9)_100%)]">
-            <div className="border-b border-[#355f84]/65 px-3 py-3">
+          <div className="overflow-hidden rounded-xl border border-white/20 bg-[linear-gradient(165deg,rgba(7,11,14,0.96),rgba(9,12,15,0.95)_55%,rgba(10,15,18,0.9)_100%)]">
+            <div className="border-b border-white/15 px-3 py-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7cc2ff]">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#b6c1bc]">
                     Live operation
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-[#ecf6ff]">
+                  <p className="mt-1 text-sm font-semibold text-[#ecf2ef]">
                     Grid stabilizer challenge
                   </p>
                 </div>
-                <span className="rounded-full border border-[#3c7cb0]/80 bg-[#123357]/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9dd4ff]">
+                <span className="rounded-full border border-white/20 bg-white/[0.07] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#ccd6d2]">
                   Combo x2
                 </span>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
-                <div className="rounded-lg border border-[#2f5675]/80 bg-[#0b2238]/80 px-2 py-1.5">
-                  <p className="text-[9px] uppercase tracking-[0.14em] text-[#8faac0]">Score</p>
-                  <p className="mt-1 text-sm font-semibold text-[#e8f5ff]">2,480</p>
+                <div className="rounded-lg border border-white/15 bg-white/[0.04] px-2 py-1.5">
+                  <p className="text-[9px] uppercase tracking-[0.14em] text-[#a4b0ab]">Score</p>
+                  <p className="mt-1 text-sm font-semibold text-[#e5ece8]">2,480</p>
                 </div>
-                <div className="rounded-lg border border-[#2f5675]/80 bg-[#0b2238]/80 px-2 py-1.5">
-                  <p className="text-[9px] uppercase tracking-[0.14em] text-[#8faac0]">Risk</p>
-                  <p className="mt-1 text-sm font-semibold text-[#ffc77e]">High</p>
+                <div className="rounded-lg border border-white/15 bg-white/[0.04] px-2 py-1.5">
+                  <p className="text-[9px] uppercase tracking-[0.14em] text-[#a4b0ab]">Risk</p>
+                  <p className="mt-1 text-sm font-semibold text-[#d4dcd8]">High</p>
                 </div>
-                <div className="rounded-lg border border-[#2f5675]/80 bg-[#0b2238]/80 px-2 py-1.5">
-                  <p className="text-[9px] uppercase tracking-[0.14em] text-[#8faac0]">Time left</p>
-                  <p className="mt-1 text-sm font-semibold text-[#9ce4ff]">02:40</p>
+                <div className="rounded-lg border border-white/15 bg-white/[0.04] px-2 py-1.5">
+                  <p className="text-[9px] uppercase tracking-[0.14em] text-[#a4b0ab]">Time left</p>
+                  <p className="mt-1 text-sm font-semibold text-[#dfe7e3]">02:40</p>
                 </div>
               </div>
             </div>
             <div className="space-y-3 px-3 py-3">
               <div className="space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#8ecfff]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#b4beb9]">
                   Active objectives
                 </p>
                 {snapshot.highlights.map((item, index) => (
                   <div
                     key={item}
-                    className="flex items-start justify-between gap-2 rounded-lg border border-[#264b6a]/70 bg-[#081a2b]/78 px-2.5 py-2"
+                    className="flex items-start justify-between gap-2 rounded-lg border border-white/15 bg-white/[0.03] px-2.5 py-2"
                   >
-                    <span className="flex items-start gap-2 text-[11px] leading-5 text-[#d4e8f8]">
-                      <span className="mt-[0.3rem] inline-flex h-4 w-4 items-center justify-center rounded-full border border-[#4ea3dd]/80 bg-[#123656]/90 text-[#9fddff]">
+                    <span className="flex items-start gap-2 text-[11px] leading-5 text-[#d3ddd8]">
+                      <span className="mt-[0.3rem] inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-white/[0.08] text-[#d7e0dc]">
                         <Check className="h-3 w-3" />
                       </span>
                       <span>{item}</span>
                     </span>
-                    <span className="rounded-full border border-[#3d76a8]/75 bg-[#133553]/80 px-2 py-0.5 text-[10px] font-semibold text-[#a3d9ff]">
+                    <span className="rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 text-[10px] font-semibold text-[#d2dbd7]">
                       +{gridObjectiveRewards[index] ?? 60}
                     </span>
                   </div>
                 ))}
               </div>
-              <div className="overflow-hidden rounded-lg border border-[#2d5c84]/70">
+              <div className="overflow-hidden rounded-lg border border-white/15">
                 <ControlCenterModelPreviewLazy className="h-40 border-0" />
               </div>
-              <div className="rounded-lg border border-[#2f5578]/75 bg-[#091b2d]/85 px-2.5 py-2">
-                <div className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#94b9d6]">
+              <div className="rounded-lg border border-white/15 bg-white/[0.04] px-2.5 py-2">
+                <div className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#a7b3ae]">
                   <span>Stability meter</span>
                   <span>78%</span>
                 </div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-[#4db4ff] via-[#55c2ff] to-[#66e2ff]" />
+                  <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-[#99a4a0] via-[#b5bfbb] to-[#d1d9d5]" />
                 </div>
               </div>
             </div>
           </div>
         ) : null}
         {laneSnapshot ? (
-          <div className="relative overflow-hidden rounded-xl border border-[#2d5a48]/80 bg-[linear-gradient(155deg,rgba(8,16,13,0.96),rgba(6,13,10,0.98)_60%,rgba(4,10,8,0.98)_100%)] px-3 py-4 sm:px-4 sm:py-5">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_12%,rgba(51,208,162,0.16),transparent_36%),radial-gradient(circle_at_90%_84%,rgba(93,156,255,0.08),transparent_42%)]" />
+          <div className="relative overflow-hidden rounded-xl border border-white/20 bg-[linear-gradient(155deg,rgba(8,11,10,0.96),rgba(8,10,9,0.98)_60%,rgba(6,8,7,0.98)_100%)] px-3 py-4 sm:px-4 sm:py-5">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_12%,rgba(191,205,199,0.1),transparent_36%),radial-gradient(circle_at_90%_84%,rgba(182,192,200,0.06),transparent_42%)]" />
             <div className="relative space-y-2.5">
               <div className="relative space-y-2 pb-1">
-                <div className="pointer-events-none absolute bottom-6 left-1/2 top-6 w-px -translate-x-1/2 bg-[linear-gradient(180deg,rgba(109,230,183,0.06),rgba(109,230,183,0.55),rgba(109,230,183,0.06))]" />
+                <div className="pointer-events-none absolute bottom-6 left-1/2 top-6 w-px -translate-x-1/2 bg-[linear-gradient(180deg,rgba(177,188,183,0.06),rgba(177,188,183,0.5),rgba(177,188,183,0.06))]" />
                 {laneSnapshot.modules.map((module) => {
                   const isCurrentModule = module.state === 'current';
                   const cardClass = isCurrentModule
-                    ? 'border-[#a6782f]/75 bg-[linear-gradient(140deg,rgba(57,39,14,0.95),rgba(44,31,10,0.95))]'
-                    : 'border-[#2f7f61]/70 bg-[linear-gradient(140deg,rgba(12,20,17,0.95),rgba(9,16,13,0.95))]';
+                    ? 'border-white/20 bg-[linear-gradient(140deg,rgba(23,20,15,0.95),rgba(19,17,13,0.95))]'
+                    : 'border-white/15 bg-[linear-gradient(140deg,rgba(13,17,15,0.95),rgba(11,14,12,0.95))]';
                   const badgeClass = isCurrentModule
-                    ? 'border-[#b68434]/80 bg-[#3f2c11]/90 text-[#ffcf71]'
-                    : 'border-[#31a97f]/80 bg-[#154031]/88 text-[#80e4c2]';
+                    ? 'border-white/20 bg-white/[0.08] text-[#ddd2c5]'
+                    : 'border-white/18 bg-white/[0.07] text-[#d0d9d5]';
                   const markerClass = isCurrentModule
-                    ? 'border-[#f4b03b]/85 bg-[#f2a007] text-[#fff4dd] shadow-[0_0_0_10px_rgba(244,176,59,0.22)]'
-                    : 'border-[#66e8b8]/85 bg-[#27be60] text-[#f0fff7] shadow-[0_0_0_10px_rgba(39,190,96,0.18)]';
+                    ? 'border-white/25 bg-[#7b7f7d] text-[#f3f5f4] shadow-[0_0_0_10px_rgba(180,188,184,0.2)]'
+                    : 'border-white/22 bg-[#5f6663] text-[#eef2ef] shadow-[0_0_0_10px_rgba(122,132,127,0.16)]';
                   const card = (
                     <article className={`rounded-xl border px-2.5 py-2.5 sm:px-3 sm:py-3 ${cardClass}`}>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#90a59b]">
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#9ea9a4]">
                         {module.label}
                       </p>
-                      <h4 className="mt-1 text-sm font-semibold leading-5 text-[#e8f6ef] sm:text-base sm:leading-6">
+                      <h4 className="mt-1 text-sm font-semibold leading-5 text-[#e7eeea] sm:text-base sm:leading-6">
                         {module.title}
                       </h4>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-[#a8bdb3]">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-[#aeb9b4]">
                         <span>{module.meta}</span>
                         <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] ${badgeClass}`}>
                           {module.checkpoint}
@@ -547,38 +567,38 @@ function StepSnapshot({
           </div>
         ) : null}
         {progressionSnapshot ? (
-          <div className="overflow-hidden rounded-xl border border-[#2d5a48]/80 bg-[#030d0a]/96 p-3">
+          <div className="overflow-hidden rounded-xl border border-white/20 bg-[#070c0a]/96 p-3">
             <div className="flex items-start gap-3">
               <div
-                className="relative h-28 w-28 shrink-0 rounded-full p-2.5"
+                className="relative h-24 w-24 shrink-0 rounded-full p-2"
                 style={progressionRingStyle}
               >
-                <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-[#06100d] text-center">
-                  <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#b1cbbf]">
+                <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-[#0a0f0d] text-center">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#afbbb6]">
                     Readiness
                   </span>
-                  <span className="mt-1 text-2xl font-semibold leading-none text-[#eef6f2]">
+                  <span className="mt-1 text-[1.35rem] font-semibold leading-none text-[#edf3f0]">
                     {progressionPercent}%
                   </span>
                 </div>
               </div>
               <div className="flex-1 pt-1">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#aac6e4]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#aeb9b4]">
                   Promotion target
                 </p>
-                <p className="mt-1 text-lg font-semibold leading-6 text-[#eef6f2]">
+                <p className="mt-1 text-lg font-semibold leading-6 text-[#eaf1ed]">
                   {progressionSnapshot.promotionTarget}
                 </p>
-                <p className="mt-2 text-xs leading-5 text-[#c3dbcf]">
+                <p className="mt-2 text-xs leading-5 text-[#c5cfca]">
                   {progressionSnapshot.guidance}
                 </p>
               </div>
             </div>
-            <div className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#22b999] px-4 py-3 text-base font-semibold text-[#06120d]">
+            <div className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/22 bg-[#d4ddd9] px-4 py-2.5 text-sm font-semibold text-[#101614]">
               {progressionSnapshot.ctaLabel}
-              <ArrowRight className="h-5 w-5" />
+              <ArrowRight className="h-4 w-4" />
             </div>
-            <p className="mt-3 text-xs text-[#bfd6cb]">{progressionSnapshot.footnote}</p>
+            <p className="mt-3 text-xs text-[#bcc7c2]">{progressionSnapshot.footnote}</p>
           </div>
         ) : null}
         {snapshot.missionBriefing ? (
@@ -603,7 +623,7 @@ function StepSnapshot({
                     {snapshot.missionBriefing.constraints.map((constraint) => (
                       <li
                         key={constraint}
-                        className="flex items-start gap-2 text-[11px] leading-5 text-[#f0e1d2]"
+                        className="flex items-start gap-2 text-[11px] leading-5 text-[#d6cec6]"
                       >
                         <span className={`mt-[0.38rem] h-1.5 w-1.5 flex-shrink-0 rounded-full ${briefingBulletClass}`} />
                         <span>{constraint}</span>
@@ -617,7 +637,7 @@ function StepSnapshot({
                     {snapshot.missionBriefing.deliverables.map((deliverable) => (
                       <li
                         key={deliverable}
-                        className="flex items-start gap-2 text-[11px] leading-5 text-[#f0e1d2]"
+                        className="flex items-start gap-2 text-[11px] leading-5 text-[#d6cec6]"
                       >
                         <span className={`mt-[0.38rem] h-1.5 w-1.5 flex-shrink-0 rounded-full ${briefingBulletClass}`} />
                         <span>{deliverable}</span>
@@ -633,9 +653,9 @@ function StepSnapshot({
           <div className={codeShellClass}>
             <div className={codeHeaderClass}>
               <div className="flex items-center gap-1.5">
-                <span className={`h-2 w-2 rounded-full ${isAlertSnippet ? 'bg-[#ff6363]' : 'bg-[#2ccaa0]'}`} />
-                <span className={`h-2 w-2 rounded-full ${isAlertSnippet ? 'bg-[#ff8a63]' : 'bg-[#5bc8ff]'}`} />
-                <span className="h-2 w-2 rounded-full bg-[#f3c075]" />
+                <span className={`h-2 w-2 rounded-full ${isAlertSnippet ? 'bg-[#8a7f7f]' : 'bg-[#8f9a96]'}`} />
+                <span className={`h-2 w-2 rounded-full ${isAlertSnippet ? 'bg-[#a19a9a]' : 'bg-[#a2ada8]'}`} />
+                <span className="h-2 w-2 rounded-full bg-[#c1c9c5]" />
               </div>
               <span className={codeLabelClass}>
                 {snapshot.codeLabel ?? 'query snippet'}
@@ -691,12 +711,12 @@ function PrimaryCta({
       onClick={() => {
         void trackProductEvent('landing_cta', { source });
       }}
-      className={`group inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium transition-colors ${
+      className={`pointer-events-auto group inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium transition-colors ${
         emphasized
-          ? 'bg-[#22b999] text-[#08110b] hover:bg-[#6fe89a]'
+          ? 'border border-[#1c7f58] bg-[#22b999] text-[#08110b] hover:bg-[#6fe89a]'
           : isLightMode
-            ? 'border border-[#2f9f79]/45 bg-white/85 text-[#174132] hover:border-[#258f69] hover:bg-white'
-            : 'border border-[#62efd0]/50 bg-black/18 text-[#eafff5] hover:border-[#7af5db] hover:bg-black/28'
+            ? 'border border-[#7f8f87]/45 bg-white/85 text-[#25302c] hover:border-[#6f7d76] hover:bg-white'
+            : 'border border-white/24 bg-black/28 text-[#e4ece8] hover:border-white/34 hover:bg-black/40'
       }`}
     >
       {label}
@@ -714,19 +734,20 @@ function ScrollHint({
 }) {
   const chevronIndexes = [0, 1, 2] as const;
   const chevronTrailShellClass =
-    'absolute left-1/2 top-[calc(100%+0.25rem)] flex -translate-x-1/2 flex-col items-center -space-y-1';
+    'pointer-events-none absolute left-1/2 top-[calc(100%+0.25rem)] flex -translate-x-1/2 flex-col items-center -space-y-1';
   const shellClass = `relative flex h-[10.25rem] w-[4.75rem] items-start justify-center rounded-[2.45rem] ${
     isLightMode
       ? 'bg-white/22 shadow-[0_16px_34px_rgba(24,72,56,0.2)]'
       : 'bg-black/28 shadow-[0_20px_44px_rgba(0,0,0,0.42)]'
   }`;
+  const shellClassWithPointerGuard = `${shellClass} pointer-events-none`;
 
   const glowClass = isLightMode
-    ? 'bg-[radial-gradient(circle,rgba(47,159,121,0.28),transparent_72%)]'
-    : 'bg-[radial-gradient(circle,rgba(87,237,197,0.26),transparent_72%)]';
+    ? 'bg-[radial-gradient(circle,rgba(122,137,128,0.26),transparent_72%)]'
+    : 'bg-[radial-gradient(circle,rgba(179,192,186,0.22),transparent_72%)]';
 
   const bubbleClass = `block h-6 w-6 rounded-full ${
-    isLightMode ? 'bg-[#2f9f79]' : 'bg-[#57edc5]'
+    isLightMode ? 'bg-[#6f7e77]' : 'bg-[#a3b0aa]'
   }`;
   const chevronColorClass = isLightMode ? 'text-[#6a867b]/75' : 'text-white/40';
 
@@ -743,7 +764,7 @@ function ScrollHint({
           <svg
             viewBox="0 0 20 12"
             fill="none"
-            className="h-full w-full"
+            className="pointer-events-none h-full w-full"
           >
             <path
               d="M2 3 L10 11 L18 3"
@@ -751,6 +772,7 @@ function ScrollHint({
               strokeWidth="2.35"
               strokeLinecap="round"
               strokeLinejoin="round"
+              style={{ pointerEvents: 'none' }}
             />
           </svg>
         </span>
@@ -776,7 +798,7 @@ function ScrollHint({
           <svg
             viewBox="0 0 20 12"
             fill="none"
-            className="h-full w-full"
+            className="pointer-events-none h-full w-full"
           >
             <path
               d="M2 3 L10 11 L18 3"
@@ -784,6 +806,7 @@ function ScrollHint({
               strokeWidth="2.35"
               strokeLinecap="round"
               strokeLinejoin="round"
+              style={{ pointerEvents: 'none' }}
             />
           </svg>
         </motion.span>
@@ -793,7 +816,7 @@ function ScrollHint({
 
   if (reducedMotion) {
     return (
-      <div className={shellClass}>
+      <div className={shellClassWithPointerGuard}>
         <span
           className={`absolute inset-[0.4rem] rounded-[2.1rem] border ${
             isLightMode ? 'border-[#b8d0c5]/85' : 'border-white/28'
@@ -808,7 +831,7 @@ function ScrollHint({
   }
 
   return (
-    <div className={shellClass}>
+    <div className={shellClassWithPointerGuard}>
       <motion.span
         aria-hidden="true"
         className={`pointer-events-none absolute -inset-3 -z-[1] rounded-[3rem] blur-md ${glowClass}`}
@@ -847,6 +870,34 @@ function ScrollHint({
   );
 }
 
+function IntroCountdownWatch({
+  secondsRemaining,
+  isLightMode
+}: {
+  secondsRemaining: number;
+  isLightMode: boolean;
+}) {
+  return (
+    <div className="pointer-events-none absolute right-4 top-4 z-30 sm:right-6 sm:top-6">
+      <div
+        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 backdrop-blur-md ${
+          isLightMode
+            ? 'border-[#b8ccc2]/70 bg-white/74 text-[#2a3b34]'
+            : 'border-white/20 bg-[#050a08]/62 text-[#d9e4df]'
+        }`}
+      >
+        <Clock3 className="h-3.5 w-3.5" />
+        <span className="font-mono text-[13px] font-semibold tabular-nums">
+          {Math.max(0, secondsRemaining).toFixed(1)}
+        </span>
+        <span className={`text-[10px] uppercase tracking-[0.12em] ${isLightMode ? 'text-[#5b6f66]' : 'text-[#9eb2a9]'}`}>
+          s
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function IntroBrandedTitle({
   title,
   isLightMode
@@ -854,23 +905,34 @@ function IntroBrandedTitle({
   title: string;
   isLightMode: boolean;
 }) {
-  const highlightedTitle = title.split(/(PySpark|Grid)/i).map((part, index) => {
-    if (/^PySpark$/i.test(part)) {
+  const highlightedTitle = title.split(/(big data|grid|PySpark)/i).map((part, index) => {
+    if (/^big data$/i.test(part)) {
       return (
         <span
           key={`title-part-${index}`}
-          className="text-[#cf8b52] drop-shadow-[0_0_8px_rgba(207,139,82,0.16)]"
+          className="text-[#f4a340]"
         >
           {part}
         </span>
       );
     }
 
-    if (/^Grid$/i.test(part)) {
+    if (/^grid$/i.test(part)) {
       return (
         <span
           key={`title-part-${index}`}
-          className="text-[#67c8a5] drop-shadow-[0_0_8px_rgba(103,200,165,0.16)]"
+          className="text-[#57edc5]"
+        >
+          {part}
+        </span>
+      );
+    }
+
+    if (/^PySpark$/i.test(part)) {
+      return (
+        <span
+          key={`title-part-${index}`}
+          className="text-[#e2e8e4]"
         >
           {part}
         </span>
@@ -885,7 +947,7 @@ function IntroBrandedTitle({
       className={`mt-5 max-w-[10.8ch] text-[clamp(2.8rem,6.4vw,5.6rem)] font-semibold leading-[0.92] tracking-[-0.045em] ${
         isLightMode ? 'text-[#13221a]' : 'text-[#f3f6f3]'
       }`}
-      style={{ fontFamily: 'var(--font-serif)' }}
+      style={{ fontFamily: HERO_DISPLAY_FONT_FAMILY }}
     >
       <span className="block">{highlightedTitle}</span>
     </h1>
@@ -905,10 +967,11 @@ function IntroChapter({
 }) {
   return (
     <div
-      className="pointer-events-auto relative max-w-[34rem] pt-24 sm:pt-28 lg:pt-[15svh]"
+      className="pointer-events-auto relative max-w-[30rem] pt-24 sm:pt-28 lg:pt-[15svh]"
       style={{
         opacity: emphasis,
         transform: `translate3d(0, ${(1 - emphasis) * 16}px, 0)`,
+        pointerEvents: emphasis < 0.05 ? 'none' : 'auto',
         transition: reducedMotion
           ? 'opacity 160ms linear, transform 160ms linear'
           : 'opacity 360ms cubic-bezier(0.22, 1, 0.36, 1), transform 360ms cubic-bezier(0.22, 1, 0.36, 1)',
@@ -918,16 +981,19 @@ function IntroChapter({
       <div
         className={`absolute -inset-x-8 -inset-y-10 rounded-[3rem] blur-3xl ${
           isLightMode
-            ? 'bg-[radial-gradient(circle_at_22%_28%,rgba(38,171,136,0.24),transparent_0,transparent_48%),radial-gradient(circle_at_78%_16%,rgba(109,168,255,0.2),transparent_0,transparent_38%)]'
-            : 'bg-[radial-gradient(circle_at_22%_28%,rgba(31,190,153,0.2),transparent_0,transparent_44%),radial-gradient(circle_at_78%_16%,rgba(109,168,255,0.14),transparent_0,transparent_34%)]'
+            ? 'bg-[radial-gradient(circle_at_22%_28%,rgba(141,156,148,0.2),transparent_0,transparent_48%),radial-gradient(circle_at_78%_16%,rgba(152,164,171,0.16),transparent_0,transparent_38%)]'
+            : 'bg-[radial-gradient(circle_at_22%_28%,rgba(153,167,160,0.14),transparent_0,transparent_44%),radial-gradient(circle_at_78%_16%,rgba(145,156,163,0.1),transparent_0,transparent_34%)]'
         }`}
       />
       <div className="relative">
         <IntroBrandedTitle title={chapter.title} isLightMode={isLightMode} />
-        {chapter.body ? (
-          <p className={`mt-5 max-w-[24rem] text-[15px] leading-7 ${isLightMode ? 'text-[#48665a]' : 'text-[#c7ddd3]'}`}>{chapter.body}</p>
-        ) : null}
-        <div className="pointer-events-none absolute hidden lg:block lg:translate-x-[215%] lg:right-[-31rem] lg:top-[2.25rem] xl:right-[-28rem] xl:top-[2rem] 2xl:right-[-24rem] 2xl:top-[2rem]">
+        <div
+          className="pointer-events-none hidden lg:fixed lg:top-[10.5rem] lg:z-20 lg:block"
+          style={{
+            left: 'var(--landing-nav-cta-mid, 50vw)',
+            transform: 'translateX(-50%)'
+          }}
+        >
           <ScrollHint reducedMotion={reducedMotion} isLightMode={isLightMode} />
         </div>
         {chapter.ctaHint ? (
@@ -949,153 +1015,301 @@ function StoryChapterCard({
   isLightMode: boolean;
   chapterStepNumber: number;
 }) {
-  const usesLaneSnapshot = Boolean(chapter.snapshot?.laneSnapshot);
-  const usesMissionListing = Boolean(chapter.snapshot?.missionListing);
   const chapterStepLabel = String(chapterStepNumber).padStart(2, '0');
+  const isTheoryStep = chapter.id === 'theory';
+  const isPracticeStep = chapter.id === 'missions';
+  const isGridStep = chapter.id === 'grid-case';
+  const kwhPhrase = 'and gain kWh';
+  const practiceBodyParts = isPracticeStep ? chapter.body.split(kwhPhrase) : [chapter.body];
+  const sectionBody = isPracticeStep && practiceBodyParts.length === 2 ? (
+    <>
+      {practiceBodyParts[0]}
+      <span className={isLightMode ? 'font-semibold text-[#1f7f5f]' : 'font-semibold text-[#57d18f]'}>
+        {kwhPhrase}
+      </span>
+      {practiceBodyParts[1]}
+    </>
+  ) : (
+    chapter.body
+  );
+  const sectionCard = isTheoryStep ? (
+    <TheoryCodeSnippetCard isLightMode={isLightMode} />
+  ) : isPracticeStep ? (
+    <MissionBriefingCard isLightMode={isLightMode} />
+  ) : isGridStep ? (
+    <BatteryDeckPreviewCard isLightMode={isLightMode} />
+  ) : null;
 
   return (
+    <GridExperienceSection
+      stepLabel={chapterStepLabel}
+      eyebrow={chapter.eyebrow}
+      title={chapter.title}
+      body={sectionBody}
+      card={sectionCard}
+      emphasis={emphasis}
+      isLightMode={isLightMode}
+    />
+  );
+}
+
+function StoryInteractiveColumn({ children }: { children: React.ReactNode }) {
+  return <div className={STORY_INTERACTIVE_COLUMN_CLASS}>{children}</div>;
+}
+
+function GridExperienceSection({
+  stepLabel,
+  eyebrow,
+  title,
+  body,
+  card,
+  emphasis,
+  isLightMode
+}: {
+  stepLabel: string;
+  eyebrow: string;
+  title: string;
+  body: React.ReactNode;
+  card: React.ReactNode;
+  emphasis: number;
+  isLightMode: boolean;
+}) {
+  return (
     <div
-      className={`relative ${
-        usesLaneSnapshot || usesMissionListing
-          ? 'max-w-[44rem] lg:max-w-[52rem]'
-          : 'max-w-[26rem] lg:max-w-[28rem]'
-      }`}
+      className="relative max-w-[62rem] py-16 min-h-[34rem]"
       style={{
         opacity: emphasis,
         transform: `translate3d(0, ${(1 - emphasis) * 20}px, 0)`,
-        transition: 'opacity 360ms cubic-bezier(0.22, 1, 0.36, 1), transform 360ms cubic-bezier(0.22, 1, 0.36, 1)',
+        transition:
+          'opacity 360ms cubic-bezier(0.22, 1, 0.36, 1), transform 360ms cubic-bezier(0.22, 1, 0.36, 1)',
         willChange: 'transform, opacity'
       }}
     >
       <div
         className={`absolute -inset-x-8 -inset-y-8 rounded-[2.75rem] blur-2xl ${
           isLightMode
-            ? 'bg-[radial-gradient(circle_at_18%_24%,rgba(38,171,136,0.2),transparent_0,transparent_46%),linear-gradient(180deg,rgba(231,244,237,0.66),rgba(231,244,237,0))]'
-            : 'bg-[radial-gradient(circle_at_18%_24%,rgba(31,190,153,0.14),transparent_0,transparent_42%),linear-gradient(180deg,rgba(5,12,10,0.24),rgba(5,12,10,0))]'
+            ? 'bg-[radial-gradient(circle_at_18%_24%,rgba(146,160,153,0.16),transparent_0,transparent_46%),linear-gradient(180deg,rgba(231,244,237,0.42),rgba(231,244,237,0))]'
+            : 'bg-[radial-gradient(circle_at_18%_24%,rgba(148,162,155,0.1),transparent_0,transparent_42%),linear-gradient(180deg,rgba(5,12,10,0.24),rgba(5,12,10,0))]'
         }`}
       />
-      <div className="relative">
-        <div className="flex items-center gap-2.5">
-          <span
-            className={`relative -top-1 inline-flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-full border text-[1.55rem] font-semibold leading-none tracking-[0.01em] ${
-              isLightMode
-                ? 'border-[#2f9f79]/70 bg-[#e8f6ef] text-[#1f7a5c]'
-                : 'border-[#66d7b0]/70 bg-[#0b1f18] text-[#9de3c4]'
+      <div className={`relative grid h-full gap-6 ${STORY_CHAPTER_GRID_CLASS} lg:items-start`}>
+        <div>
+          <div className="flex items-center gap-2.5">
+            <span
+              className={`relative -top-1 inline-flex h-[3.2rem] w-[3.2rem] items-center justify-center rounded-full border text-[1.3rem] font-semibold leading-none tracking-[0.01em] ${
+                isLightMode
+                  ? 'border-[#6a7b73]/70 bg-[#eef2ef] text-[#38433f]'
+                  : 'border-[#5c6763]/70 bg-[#121715] text-[#d8e1dd]'
+              }`}
+            >
+              {stepLabel}
+            </span>
+            <p
+              className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${
+                isLightMode ? 'text-[#607069]' : 'text-[#a8b3ae]'
+              }`}
+            >
+              {eyebrow}
+            </p>
+          </div>
+          <h2
+            className={`mt-3 text-[clamp(1.3rem,2.1vw,1.95rem)] font-semibold leading-[1.05] tracking-[-0.035em] ${
+              isLightMode ? 'text-[#13221a]' : 'text-[#f2f7f3]'
             }`}
           >
-            {chapterStepLabel}
-          </span>
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${isLightMode ? 'text-[#2f9f79]' : 'text-[#9de3c4]'}`}>
-            {chapter.eyebrow}
+            {title}
+          </h2>
+          <p
+            className={`mt-3 max-w-[26rem] text-[13px] leading-6 ${
+              isLightMode ? 'text-[#48665a]' : 'text-[#cfd7d3]'
+            }`}
+          >
+            {body}
           </p>
         </div>
-        <h2 className={`mt-3 text-[clamp(1.75rem,3vw,2.6rem)] font-semibold leading-[1.02] tracking-[-0.04em] ${isLightMode ? 'text-[#13221a]' : 'text-[#f2f7f3]'}`}>
-          {chapter.title}
-        </h2>
-        <p className={`mt-4 text-[15px] leading-7 ${usesLaneSnapshot || usesMissionListing ? 'max-w-[32rem]' : 'max-w-[20rem]'} ${isLightMode ? 'text-[#48665a]' : 'text-[#c6ddd2]'}`}>
-          {chapter.body}
-        </p>
-        {chapter.snapshot ? (
-          <StepSnapshot snapshot={chapter.snapshot} />
-        ) : null}
+        <StoryInteractiveColumn>{card}</StoryInteractiveColumn>
       </div>
     </div>
   );
 }
 
-function FinalSceneOverlay({
-  chapter,
-  visible,
-  isLightMode
-}: {
-  chapter: GridFlowChapter;
-  visible: boolean;
-  isLightMode: boolean;
-}) {
-  const highlightedTitle = chapter.title.split(/(PySpark)/i).map((part, index) => {
-    if (/^PySpark$/i.test(part)) {
-      return (
-        <span
-          key={`final-title-part-${index}`}
-          className="text-[#cf8b52] drop-shadow-[0_0_10px_rgba(207,139,82,0.24)]"
-        >
-          {part}
-        </span>
-      );
-    }
-
-    return <span key={`final-title-part-${index}`}>{part}</span>;
-  });
+function TheoryCodeSnippetCard({ isLightMode }: { isLightMode: boolean }) {
+  const snippetLines = [
+    'alerts_df = spark.sql("""',
+    'WITH telemetry AS (',
+    '  SELECT zone,',
+    '         AVG(load_kw) AS avg_load_kw,',
+    '         MAX(voltage_kv) AS max_voltage_kv',
+    '  FROM grid.telemetry_events',
+    "  WHERE ts >= current_timestamp() - INTERVAL 2 HOURS",
+    '  GROUP BY zone',
+    ')',
+    'SELECT zone, avg_load_kw, max_voltage_kv',
+    'FROM telemetry',
+    'WHERE avg_load_kw >= 4200',
+    'ORDER BY avg_load_kw DESC',
+    'LIMIT 5',
+    '""")'
+  ] as const;
+  const snippetPalette: SqlCodePalette = {
+    punctuation: 'text-[#9ea4ab]',
+    operator: 'text-[#d7c18a]',
+    number: 'text-[#c8b78e]',
+    keyword: 'text-[#8ac6b5]',
+    functionName: 'text-[#c29fd4]',
+    identifier: 'text-[#d5d8dc]',
+    stringLiteral: 'text-[#a3be8c]'
+  };
 
   return (
     <div
-      className="pointer-events-auto absolute inset-x-3 bottom-5 z-20 flex justify-center sm:inset-x-6 sm:bottom-8 lg:bottom-16"
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: `translate3d(0, ${visible ? 0 : 24}px, 0)`,
-        transition: 'opacity 350ms cubic-bezier(0.22, 1, 0.36, 1), transform 350ms cubic-bezier(0.22, 1, 0.36, 1)',
-        pointerEvents: visible ? 'auto' : 'none',
-        willChange: 'transform, opacity'
-      }}
+      className={`rounded-2xl border p-4 ${
+        isLightMode
+          ? 'border-[#aab0b7]/60 bg-[#ebedf0]/92'
+          : 'border-[#555b61]/65 bg-[linear-gradient(160deg,rgba(28,30,33,0.97),rgba(21,23,26,0.96))]'
+      }`}
     >
+      <p className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${isLightMode ? 'text-[#4f5964]' : 'text-[#aeb6bf]'}`}>
+        Theory code snippet
+      </p>
+      <pre className="mt-3 rounded-xl border border-white/10 bg-black/35 p-3 text-[10.5px] leading-5">
+        <code className="block whitespace-pre-wrap break-words font-mono">
+          {snippetLines.map((line, lineIndex) => (
+            <span key={`${line}-${lineIndex}`} className="block">
+              {renderSqlSnippetLine(line, lineIndex, snippetPalette)}
+            </span>
+          ))}
+        </code>
+      </pre>
+    </div>
+  );
+}
+
+function MissionBriefingCard({ isLightMode }: { isLightMode: boolean }) {
+  const acts = [
+    {
+      label: 'Act 1 · 10-15 min',
+      title: 'The Alarm',
+      detail: 'Read the incident timeline, alerts, and constraints before touching production.'
+    },
+    {
+      label: 'Act 2 · 30-40 min',
+      title: 'The Investigation',
+      detail: 'Query operational datasets and isolate the exact fault path.'
+    },
+    {
+      label: 'Act 3 · 20-30 min',
+      title: 'The Fix',
+      detail: 'Ship the remediation and validate against strict checks.'
+    },
+    {
+      label: 'Act 4 · 10 min',
+      title: 'The Debrief',
+      detail: 'Deliver incident metrics and close out the report for leadership.'
+    }
+  ] as const;
+
+  return (
+    <div
+      className={`rounded-[1.8rem] border p-5 ${
+        isLightMode
+          ? 'border-[#aab0b7]/60 bg-[#ebedf0]/92'
+          : 'border-[#555b61]/65 bg-[linear-gradient(160deg,rgba(28,30,33,0.97),rgba(21,23,26,0.96))]'
+      }`}
+    >
+      <p className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${isLightMode ? 'text-[#4f5964]' : 'text-[#aeb6bf]'}`}>
+        Mission flow
+      </p>
       <div
-        className={`relative flex w-full max-w-[54rem] flex-col items-center justify-center overflow-hidden rounded-[2rem] px-5 py-10 text-center backdrop-blur-xl sm:min-h-[42rem] sm:px-8 sm:py-14 lg:min-h-[48rem] lg:rounded-[2.25rem] lg:px-12 lg:py-16 ${
-          isLightMode
-            ? 'border border-[#c7d9cf] bg-white/86 shadow-[0_30px_120px_rgba(16,38,28,0.2),0_0_72px_rgba(47,159,121,0.12)]'
-            : 'border border-white/18 bg-[#06100c]/88 shadow-[0_30px_120px_rgba(0,0,0,0.46),0_0_88px_rgba(72,224,185,0.2)]'
+        className={`mt-3 max-h-[22rem] overflow-y-auto rounded-xl border p-3 ${
+          isLightMode ? 'border-white/10 bg-black/10' : 'border-white/10 bg-black/35'
         }`}
       >
-        <div
-          className={`pointer-events-none absolute inset-0 ${
-            isLightMode
-              ? 'bg-[radial-gradient(circle_at_20%_8%,rgba(47,159,121,0.15),transparent_40%),radial-gradient(circle_at_82%_86%,rgba(109,168,255,0.1),transparent_48%)]'
-              : 'bg-[radial-gradient(circle_at_20%_8%,rgba(74,232,196,0.18),transparent_42%),radial-gradient(circle_at_82%_86%,rgba(109,168,255,0.12),transparent_48%)]'
-          }`}
-        />
-        <div
-          className={`pointer-events-none absolute inset-x-12 top-0 h-px ${
-            isLightMode
-              ? 'bg-gradient-to-r from-transparent via-[#46a67e]/60 to-transparent'
-              : 'bg-gradient-to-r from-transparent via-[#72f1d0]/70 to-transparent'
-          }`}
-        />
-        <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${isLightMode ? 'text-[#2f9f79]' : 'text-[#84d6b0]'}`}>
-          {chapter.eyebrow}
-        </p>
-        <h2
-          className={`mt-4 text-[clamp(2.25rem,8vw,5rem)] font-semibold leading-[0.94] tracking-[-0.05em] ${isLightMode ? 'text-[#13221a]' : 'text-[#f3f7f4]'}`}
-          style={{ fontFamily: 'var(--font-serif)' }}
-        >
-          {highlightedTitle}
-        </h2>
-        {chapter.body ? (
-          <p className={`mx-auto mt-4 max-w-[34rem] text-base leading-7 sm:text-[1.14rem] sm:leading-8 ${isLightMode ? 'text-[#48665a]' : 'text-[#c7ddd3]'}`}>
-            {chapter.body}
+        {acts.map((act) => (
+          <article
+            key={act.title}
+            className={`py-1.5 ${act.title !== 'The Debrief' ? 'border-b border-white/10' : ''}`}
+          >
+            <p className={`text-[10px] uppercase tracking-[0.14em] ${isLightMode ? 'text-[#6b737c]' : 'text-[#8f96a0]'}`}>
+              {act.label}
+            </p>
+            <h3 className={`mt-0.5 text-[10.5px] font-semibold leading-5 ${isLightMode ? 'text-[#202733]' : 'text-[#d7dce3]'}`}>
+              {act.title}
+            </h3>
+            <p className={`mt-0.5 text-[10.5px] leading-5 ${isLightMode ? 'text-[#4d5560]' : 'text-[#b8bec8]'}`}>
+              {act.detail}
+            </p>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BatteryDeckPreviewCard({ isLightMode }: { isLightMode: boolean }) {
+  return (
+    <div
+      className={`rounded-[2rem] border p-4 ${
+        isLightMode
+          ? 'border-[#9db1c9]/65 bg-[#eef4ff]/90'
+          : 'border-[#35547a]/55 bg-[linear-gradient(160deg,rgba(13,20,30,0.97),rgba(9,15,24,0.96))]'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${isLightMode ? 'text-[#4c6d95]' : 'text-[#9eb5d3]'}`}>
+            Flexibility
           </p>
-        ) : null}
-        {chapter.ctaHint ? (
-          <p className={`mx-auto mt-5 max-w-[34rem] text-sm leading-7 ${isLightMode ? 'text-[#5f7a6c]' : 'text-[#a5bfb3]'}`}>
-            {chapter.ctaHint}
-          </p>
-        ) : null}
-        <div className="relative mt-8 flex justify-center lg:mt-10">
-          {chapter.ctaSource ? (
-            <>
-              <span
-                aria-hidden="true"
-                className={`pointer-events-none absolute top-1/2 h-14 w-[20rem] -translate-y-1/2 rounded-full blur-2xl ${
-                  isLightMode ? 'bg-[#2f9f79]/22' : 'bg-[#45dfb8]/26'
-                }`}
-              />
-              <PrimaryCta
-                source={chapter.ctaSource}
-                label={chapter.ctaLabel ?? 'Start free'}
-                emphasized
-                isLightMode={isLightMode}
-              />
-            </>
-          ) : null}
+          <h3 className={`mt-1 text-sm font-semibold ${isLightMode ? 'text-[#1f3a5b]' : 'text-[#dbe8ff]'}`}>
+            Battery Storage (50 MWh)
+          </h3>
         </div>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+            isLightMode
+              ? 'border-[#95aed0] bg-[#e7eef9] text-[#375378]'
+              : 'border-[#4b6a94] bg-[#152131] text-[#b7ccec]'
+          }`}
+        >
+          <Info className="h-3.5 w-3.5" />
+          Details
+        </span>
+      </div>
+
+      <p className={`mt-2 text-[10.5px] leading-5 ${isLightMode ? 'text-[#3f5f85]' : 'text-[#a9bfde]'}`}>
+        Absorbs renewable oversupply and discharges during peak stress.
+      </p>
+
+      <div
+        className={`mt-3 rounded-2xl border px-4 py-3 ${
+          isLightMode ? 'border-[#a3b9d7]/70 bg-[#e8f1ff]/70' : 'border-[#3d5a84] bg-[#101a27]/88'
+        }`}
+      >
+        <p className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${isLightMode ? 'text-[#4b6c92]' : 'text-[#9db5d6]'}`}>
+          Unlocks
+        </p>
+        <p className={`mt-1 text-[10.5px] font-semibold leading-5 ${isLightMode ? 'text-[#244366]' : 'text-[#d9e7ff]'}`}>
+          Mission 002: Evening Peak
+        </p>
+      </div>
+
+      <div
+        className={`mt-3 rounded-2xl border ${
+          isLightMode ? 'border-[#7ca3b9] bg-[#dff1ff]/45' : 'border-[#2e745f] bg-[#07162a]/85'
+        }`}
+      >
+        <BatteryStorageModelPreviewLazy className="h-44" />
+      </div>
+
+      <div
+        className={`mt-3 flex items-center justify-center gap-2 rounded-2xl border px-4 py-2 text-[10.5px] font-semibold ${
+          isLightMode
+            ? 'border-[#84b7aa] bg-[#dff8f0] text-[#1b6a56]'
+            : 'border-[#2a7d66] bg-[#102523] text-[#63c9ac]'
+        }`}
+      >
+        <Zap className="h-4 w-4" />
+        Infrastructure active
       </div>
     </div>
   );
@@ -1126,7 +1340,60 @@ function ChapterContent({
   }
 
   if (chapter.variant === 'final') {
-    return null;
+    return (
+      <div
+        className="relative mx-auto w-full max-w-[34rem] px-4"
+        style={{
+          opacity: emphasis,
+          transform: `translate3d(0, ${(1 - emphasis) * 20}px, 0)`,
+          transition: 'opacity 360ms cubic-bezier(0.22, 1, 0.36, 1), transform 360ms cubic-bezier(0.22, 1, 0.36, 1)',
+          willChange: 'transform, opacity'
+        }}
+      >
+        <div
+          className={`rounded-[1.4rem] border px-6 py-7 text-center backdrop-blur-lg ${
+            isLightMode
+              ? 'border-[#c7d9cf] bg-white/86 shadow-[0_20px_70px_rgba(16,38,28,0.18)]'
+              : 'border-white/18 bg-[#06100c]/84 shadow-[0_20px_70px_rgba(0,0,0,0.4)]'
+          }`}
+        >
+          <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${isLightMode ? 'text-[#5f7a6c]' : 'text-[#a5bfb3]'}`}>
+            {chapter.eyebrow}
+          </p>
+          <h2
+            className={`mt-3 text-[clamp(1.7rem,5.2vw,2.8rem)] font-semibold leading-[1.02] tracking-[-0.035em] ${isLightMode ? 'text-[#13221a]' : 'text-[#f3f7f4]'}`}
+            style={{ fontFamily: HERO_DISPLAY_FONT_FAMILY }}
+          >
+            {chapter.title}
+          </h2>
+          {chapter.body ? (
+            <p className={`mx-auto mt-3 max-w-[28rem] text-[15px] leading-7 ${isLightMode ? 'text-[#48665a]' : 'text-[#c7ddd3]'}`}>
+              {chapter.body}
+            </p>
+          ) : null}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="#courses-gallery"
+              className={`pointer-events-auto inline-flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-medium transition-colors ${
+                isLightMode
+                  ? 'border-[#7f8f87]/45 bg-white/85 text-[#25302c] hover:border-[#6f7d76] hover:bg-white'
+                  : 'border-white/24 bg-black/28 text-[#e4ece8] hover:border-white/34 hover:bg-black/40'
+              }`}
+            >
+              Browse courses
+            </Link>
+            {chapter.ctaSource ? (
+              <PrimaryCta
+                source={chapter.ctaSource}
+                label={chapter.ctaLabel ?? 'Start free'}
+                emphasized
+                isLightMode={isLightMode}
+              />
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1153,8 +1420,26 @@ export const GridFlowSection = () => {
   const [storyPosition, setStoryPosition] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [performanceMode, setPerformanceMode] = useState<'full' | 'balanced'>('full');
-  const [isScrollActive, setIsScrollActive] = useState(false);
+  const [introAutoplayFrame, setIntroAutoplayFrame] = useState<number | null>(
+    INTRO_AUTOPLAY_START_FRAME
+  );
+  const [isIntroAutoplayComplete, setIsIntroAutoplayComplete] = useState(false);
+  const [introCountdownSeconds, setIntroCountdownSeconds] = useState(
+    INTRO_AUTOPLAY_DURATION_SECONDS
+  );
   const isLightMode = false;
+  const activeChapters = useMemo(() => {
+    let storyCount = 0;
+
+    return GRID_FLOW_CHAPTERS.filter((chapter) => {
+      if (chapter.variant !== 'story') {
+        return true;
+      }
+
+      storyCount += 1;
+      return storyCount <= MAX_STORY_STEPS;
+    });
+  }, []);
 
   const measureChapterCenters = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -1171,7 +1456,7 @@ export const GridFlowSection = () => {
     chapterCentersRef.current = centers;
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') {
       return undefined;
     }
@@ -1206,6 +1491,102 @@ export const GridFlowSection = () => {
   useEffect(() => {
     storyPositionRef.current = storyPosition;
   }, [storyPosition]);
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    if (reducedMotion) {
+      setIntroAutoplayFrame(null);
+      setIsIntroAutoplayComplete(true);
+      setIntroCountdownSeconds(0);
+      return undefined;
+    }
+
+    setIsIntroAutoplayComplete(false);
+    setIntroAutoplayFrame(INTRO_AUTOPLAY_START_FRAME);
+    setIntroCountdownSeconds(INTRO_AUTOPLAY_DURATION_SECONDS);
+    const frameDelta = INTRO_AUTOPLAY_FINAL_FRAME - INTRO_AUTOPLAY_START_FRAME;
+    if (frameDelta <= 0) {
+      setIntroAutoplayFrame(null);
+      setIsIntroAutoplayComplete(true);
+      setIntroCountdownSeconds(0);
+      return undefined;
+    }
+
+    const frameIntervalMs = 1000 / INTRO_AUTOPLAY_FPS;
+    let frameIndex = INTRO_AUTOPLAY_START_FRAME;
+    const intervalId = window.setInterval(() => {
+      frameIndex += 1;
+      const remainingFrames = Math.max(INTRO_AUTOPLAY_FINAL_FRAME - frameIndex, 0);
+      setIntroCountdownSeconds(remainingFrames / INTRO_AUTOPLAY_FPS);
+      if (frameIndex >= INTRO_AUTOPLAY_FINAL_FRAME) {
+        window.clearInterval(intervalId);
+        setIntroAutoplayFrame(null);
+        setIsIntroAutoplayComplete(true);
+        setIntroCountdownSeconds(0);
+        return;
+      }
+
+      setIntroAutoplayFrame(frameIndex);
+    }, frameIntervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [reducedMotion]);
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    if (reducedMotion || isIntroAutoplayComplete) {
+      return undefined;
+    }
+
+    const { body, documentElement } = document;
+    const previousHtmlOverflow = documentElement.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyTouchAction = body.style.touchAction;
+
+    documentElement.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    body.style.touchAction = 'none';
+
+    const preventScroll = (event: Event) => {
+      event.preventDefault();
+    };
+
+    const preventScrollKeys = new Set([
+      'ArrowDown',
+      'ArrowUp',
+      'PageDown',
+      'PageUp',
+      'Home',
+      'End',
+      'Space'
+    ]);
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (preventScrollKeys.has(event.code) || preventScrollKeys.has(event.key)) {
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener('wheel', preventScroll, { passive: false });
+    document.addEventListener('touchmove', preventScroll, { passive: false });
+    window.addEventListener('keydown', handleKeydown, { passive: false });
+
+    return () => {
+      document.removeEventListener('wheel', preventScroll);
+      document.removeEventListener('touchmove', preventScroll);
+      window.removeEventListener('keydown', handleKeydown);
+      documentElement.style.overflow = previousHtmlOverflow;
+      body.style.overflow = previousBodyOverflow;
+      body.style.touchAction = previousBodyTouchAction;
+    };
+  }, [isIntroAutoplayComplete, reducedMotion]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1259,7 +1640,6 @@ export const GridFlowSection = () => {
     const markScrollActive = () => {
       if (!scrollActiveRef.current) {
         scrollActiveRef.current = true;
-        setIsScrollActive(true);
       }
 
       if (scrollIdleTimeoutRef.current !== null) {
@@ -1268,7 +1648,6 @@ export const GridFlowSection = () => {
 
       scrollIdleTimeoutRef.current = window.setTimeout(() => {
         scrollActiveRef.current = false;
-        setIsScrollActive(false);
         scrollIdleTimeoutRef.current = null;
       }, SCROLL_IDLE_TIMEOUT_MS);
     };
@@ -1370,26 +1749,38 @@ export const GridFlowSection = () => {
     };
   }, [measureChapterCenters, performanceMode]);
 
-  const activeChapterIndex = Math.min(GRID_FLOW_CHAPTERS.length - 1, Math.floor(journeyPosition));
-  const phaseProgress = clamp(journeyPosition - activeChapterIndex, 0, 1);
-  const activeChapter = GRID_FLOW_CHAPTERS[activeChapterIndex];
-  const nextChapter = GRID_FLOW_CHAPTERS[Math.min(activeChapterIndex + 1, GRID_FLOW_CHAPTERS.length - 1)];
-  const finalChapter = GRID_FLOW_CHAPTERS[GRID_FLOW_CHAPTERS.length - 1];
-  const showDesktopFinalOverlay = journeyPosition >= GRID_FLOW_CHAPTERS.length - 2 + 0.05;
-  const scenePerformanceMode: 'full' | 'balanced' = isScrollActive ? 'balanced' : performanceMode;
+  const heroProgress = clamp(
+    journeyPosition / Math.max(activeChapters.length - 1, 1),
+    0,
+    1
+  );
+  const stepOnePosition = 1;
+  const finalCtaPosition = Math.max(activeChapters.length - 1, stepOnePosition + 1);
+  const darknessOverlayOpacity =
+    journeyPosition <= stepOnePosition
+      ? clamp((journeyPosition / stepOnePosition) * 0.9, 0, 0.9)
+      : clamp(
+          0.9 +
+            ((journeyPosition - stepOnePosition) /
+              Math.max(finalCtaPosition - stepOnePosition, 1)) *
+              0.1,
+          0.9,
+          1
+        );
+  const shouldLockIntroScroll = !reducedMotion && !isIntroAutoplayComplete;
+  const scenePerformanceMode: 'full' | 'balanced' = performanceMode;
   const storyArticles = useMemo(
     () => {
       let storyStepNumber = 0;
 
-      return GRID_FLOW_CHAPTERS.map((chapter, index) => {
+      return activeChapters.map((chapter, index) => {
         if (chapter.variant === 'story') {
           storyStepNumber += 1;
         }
         const chapterStepNumber = chapter.variant === 'story' ? storyStepNumber : null;
         const chapterDistance = Math.abs(storyPosition - index);
         const baseEmphasis = clamp(1 - chapterDistance * 0.56, 0.34, 1);
-        const emphasis =
-          showDesktopFinalOverlay && chapter.variant === 'story' ? 0 : baseEmphasis;
+        const emphasis = chapter.variant === 'intro' && !isIntroAutoplayComplete ? 0 : baseEmphasis;
 
         return (
           <article
@@ -1399,7 +1790,7 @@ export const GridFlowSection = () => {
             }}
             className={`relative [content-visibility:auto] ${
               chapter.variant === 'final'
-                ? '[contain-intrinsic-size:240px]'
+                ? '[contain-intrinsic-size:420px]'
                 : '[contain-intrinsic-size:1120px]'
             } ${getSectionHeightClass(chapter)}`}
           >
@@ -1415,7 +1806,7 @@ export const GridFlowSection = () => {
                 chapter.variant === 'intro'
                   ? 'pt-4'
                   : chapter.variant === 'final'
-                    ? 'items-start pb-[2svh] pt-[1svh] lg:pb-[3svh] lg:pt-[2svh]'
+                    ? 'items-start pb-[8svh] pt-[10svh] lg:pb-[10svh] lg:pt-[12svh]'
                     : 'pb-[14svh] pt-[24svh] lg:pt-[18svh]'
               }`}
             >
@@ -1431,15 +1822,22 @@ export const GridFlowSection = () => {
         );
       });
     },
-    [isLightMode, reducedMotion, showDesktopFinalOverlay, storyPosition]
+    [
+      activeChapters,
+      isIntroAutoplayComplete,
+      isLightMode,
+      reducedMotion,
+      storyPosition
+    ]
   );
 
   return (
     <section
       ref={sectionRef}
       id="grid-flow"
+      data-intro-lock={shouldLockIntroScroll ? 'true' : 'false'}
       className={`relative overflow-clip ${isLightMode ? 'bg-[#edf5ef]' : 'bg-[#040807]'}`}
-      aria-label="Theory, missions, grid, and HRB product journey"
+      aria-label="Three-step guided introduction to StableGrid core experience"
     >
       <div
         className={`sticky top-16 h-[calc(100vh-4rem)] overflow-hidden border-y ${
@@ -1447,14 +1845,20 @@ export const GridFlowSection = () => {
         }`}
       >
         <div className="pointer-events-none absolute inset-0">
-          <GridFlowSceneCanvas
-            currentScene={activeChapter.scene}
-            nextScene={nextChapter.scene}
-            phaseProgress={phaseProgress}
+          <TransmissionLineSequenceBackground
+            progress={heroProgress}
             reducedMotion={reducedMotion}
             performanceMode={scenePerformanceMode}
+            frameOverride={introAutoplayFrame}
+            minimumFrame={
+              isIntroAutoplayComplete && !reducedMotion ? INTRO_AUTOPLAY_FINAL_FRAME : undefined
+            }
           />
         </div>
+        <div
+          className="pointer-events-none absolute inset-0 bg-black"
+          style={{ opacity: darknessOverlayOpacity }}
+        />
         <div
           className={`pointer-events-none absolute inset-0 ${
             isLightMode
@@ -1469,11 +1873,12 @@ export const GridFlowSection = () => {
               : 'bg-[linear-gradient(180deg,rgba(4,8,7,0.72)_0%,rgba(4,8,7,0.16)_24%,rgba(4,8,7,0)_56%,rgba(4,8,7,0.54)_100%)]'
           }`}
         />
-        <FinalSceneOverlay
-          chapter={finalChapter}
-          visible={showDesktopFinalOverlay}
-          isLightMode={isLightMode}
-        />
+        {shouldLockIntroScroll ? (
+          <IntroCountdownWatch
+            secondsRemaining={introCountdownSeconds}
+            isLightMode={isLightMode}
+          />
+        ) : null}
       </div>
 
       <div

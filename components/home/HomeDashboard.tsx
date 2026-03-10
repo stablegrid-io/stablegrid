@@ -19,6 +19,18 @@ interface HomeDashboardProps {
   user: User;
   topicProgress: TopicProgress[];
   recentSessions: ReadingSession[];
+  latestTheorySession: ReadingSession | null;
+  lastClockedInAt: string | null;
+  latestTaskAction: {
+    title: string;
+    summary: string;
+    statLine: string;
+    actionLabel: string;
+    actionHref: string;
+    topicId: Topic;
+    accentRgb?: string;
+    progressPct?: number;
+  };
   readingSignals: ReadingSignal[];
   stats: {
     totalXp: number;
@@ -36,10 +48,20 @@ interface TopicSnapshot {
   theoryTotal: number;
 }
 
+const ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC: Record<Topic, string> = {
+  pyspark: '245,158,11',
+  fabric: '34,185,153'
+};
+
+const clampPct = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+
 export const HomeDashboard = ({
   user,
   topicProgress,
   recentSessions,
+  latestTheorySession,
+  lastClockedInAt,
+  latestTaskAction,
   readingSignals,
   stats
 }: HomeDashboardProps) => {
@@ -86,10 +108,10 @@ export const HomeDashboard = ({
     });
   }, [topicProgress]);
 
-  const primarySession = recentSessions[0] ?? null;
+  const latestSession = latestTheorySession ?? recentSessions[0] ?? null;
   const recommendedTopic =
-    (primarySession
-      ? topicSnapshots.find((snapshot) => snapshot.topicId === primarySession.topic)
+    (latestSession
+      ? topicSnapshots.find((snapshot) => snapshot.topicId === latestSession.topic)
       : null) ??
     [...topicSnapshots]
       .sort((left, right) => left.theoryPct - right.theoryPct)
@@ -107,23 +129,85 @@ export const HomeDashboard = ({
 
   const hasRecentActivity =
     stats.questionsCompleted > 0 || recentSessions.length > 0 || readingSignals.length > 0;
-  const moduleLabel = getHomeTopicMeta(primarySession?.topic ?? recommendedTopic.topicId).label;
-  const theoryRouteHref = `/learn/${recommendedTopic.topicId}/theory`;
+  const moduleTopicId = latestSession?.topic ?? recommendedTopic.topicId;
+  const moduleMeta = getHomeTopicMeta(moduleTopicId);
+  const moduleLabel = moduleMeta.label;
+  const theoryTrackLabel = moduleMeta.trackLabel;
+  const theoryAccentRgb = ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC[moduleTopicId];
+  const tasksAccentRgb = latestTaskAction.accentRgb ?? '34,185,153';
+  const theoryRouteHref = `/learn/${moduleTopicId}/theory`;
+  const inferredChapterFromTrackProgress = Math.min(
+    Math.max(1, recommendedTopic.theoryTotal),
+    Math.max(1, recommendedTopic.theoryCompleted + 1)
+  );
+  const theoryResumeChapterNumber = latestSession
+    ? latestSession.isCompleted
+      ? Math.max(
+          inferredChapterFromTrackProgress,
+          Math.min(
+            Math.max(1, recommendedTopic.theoryTotal),
+            latestSession.chapterNumber + 1
+          )
+        )
+      : Math.max(inferredChapterFromTrackProgress, latestSession.chapterNumber)
+    : inferredChapterFromTrackProgress;
+  const theoryChapterRouteHref = latestSession
+    ? `/learn/${moduleTopicId}/theory/all?chapter=${encodeURIComponent(
+        `module-${String(theoryResumeChapterNumber).padStart(2, '0')}`
+      )}`
+    : theoryRouteHref;
   const userDisplayName =
     (user.user_metadata?.full_name as string | undefined) ??
     (user.user_metadata?.name as string | undefined) ??
     user.email?.split('@')[0] ??
     'Operator';
   const firstName = userDisplayName.split(' ')[0] ?? userDisplayName;
-  const remainingSections = primarySession
-    ? Math.max(0, primarySession.sectionsTotal - primarySession.sectionsRead)
+  const lastClockedInLabel = useMemo(() => {
+    if (!lastClockedInAt) return null;
+    const clockedInDate = new Date(lastClockedInAt);
+    if (Number.isNaN(clockedInDate.getTime())) {
+      return null;
+    }
+    return `Last checkpoint: ${format(clockedInDate, 'yyyy-MM-dd HH:mm:ss')}`;
+  }, [lastClockedInAt]);
+  const remainingSections = latestSession
+    ? Math.max(0, latestSession.sectionsTotal - latestSession.sectionsRead)
     : 0;
+  const theoryProgressPct = latestSession
+    ? latestSession.sectionsTotal > 0
+      ? clampPct((latestSession.sectionsRead / latestSession.sectionsTotal) * 100)
+      : latestSession.isCompleted
+        ? 100
+        : 0
+    : clampPct(recommendedTopic.theoryPct);
+  const theoryProgressValueLabel = latestSession
+    ? `${latestSession.sectionsRead}/${latestSession.sectionsTotal} sections`
+    : `${recommendedTopic.theoryCompleted}/${recommendedTopic.theoryTotal} chapters`;
+  const tasksProgressPct =
+    typeof latestTaskAction.progressPct === 'number'
+      ? clampPct(latestTaskAction.progressPct)
+      : null;
+  const gridUnlockProgressPct = (() => {
+    if (!nextGridNode) {
+      return 100;
+    }
+    const unlockRequiredUnits = Math.max(1, Math.round(nextGridNode.kwhRequired * 1000));
+    return clampPct((Math.min(availableBudgetUnits, unlockRequiredUnits) / unlockRequiredUnits) * 100);
+  })();
 
-  const primaryAction = (() => {
-    if (primarySession) {
+  const theoryAction = (() => {
+    if (latestSession) {
+      if (latestSession.isCompleted) {
+        return {
+          label: 'Open latest chapter',
+          href: theoryChapterRouteHref,
+          progressLine: `Chapter ${latestSession.chapterNumber} completed most recently.`
+        };
+      }
+
       return {
-        label: 'Resume module',
-        href: `/learn/${primarySession.topic}/theory`,
+        label: 'Resume chapter',
+        href: theoryChapterRouteHref,
         progressLine:
           remainingSections > 0
             ? `${remainingSections} sections still open in this chapter.`
@@ -145,57 +229,61 @@ export const HomeDashboard = ({
       progressLine: `${recommendedTopic.theoryCompleted}/${recommendedTopic.theoryTotal} chapters complete.`
     };
   })();
+  const canDeployNextNode = Boolean(nextGridNode && remainingGridUnits === 0);
 
   const activationData: HomeActivationTableData = {
     greeting: {
       title: `Welcome back, ${firstName}`,
       subtitle: [
-        primarySession ? `${moduleLabel} · Chapter ${primarySession.chapterNumber}` : `${moduleLabel} route`,
+        latestSession ? `${moduleLabel} · Chapter ${latestSession.chapterNumber}` : `${moduleLabel} route`,
         `${overallProgress}% complete`,
         studySessionsToday > 0
           ? 'Active today'
           : stats.currentStreak > 0
             ? `${stats.currentStreak}-day momentum`
             : 'Momentum inactive'
-      ].join(' · ')
+      ].join(' · '),
+      lastClockedIn: lastClockedInLabel ?? undefined
     },
     categories: [
       {
         kind: 'theory',
         label: 'Theory',
-        title: moduleLabel,
-        summary: primarySession
+        title: theoryTrackLabel,
+        summary: latestSession && !latestSession.isCompleted
           ? 'Resume the active chapter and keep continuity.'
+          : latestSession && latestSession.isCompleted
+            ? 'Continue from your latest completed chapter.'
           : 'Continue the clearest theory route to maintain momentum.',
-        statLine: primaryAction.progressLine,
-        primaryAction: {
-          label: primarySession ? 'Resume chapter' : hasRecentActivity ? 'Open module' : 'Start module',
-          href: primaryAction.href
+        statLine: theoryAction.progressLine,
+        accentRgb: theoryAccentRgb,
+        progress: {
+          valuePct: theoryProgressPct,
+          label: latestSession ? 'Chapter progress' : 'Track progress',
+          valueLabel: theoryProgressValueLabel
         },
-        secondaryAction: {
-          label: 'View theory path',
-          href: theoryRouteHref
+        primaryAction: {
+          label: theoryAction.label,
+          href: theoryAction.href
         }
       },
       {
         kind: 'tasks',
         label: 'Tasks',
-        title: 'Task Deck',
-        summary:
-          stats.questionsCompleted > 0
-            ? `${stats.questionsCompleted} recall checks completed. Keep your retention active.`
-            : 'Notebooks, missions, and flashcards are ready for your next execution block.',
-        statLine:
-          readingSignals.length > 0
-            ? `${readingSignals.length} recap entries available`
-            : 'No recap entries yet',
+        title: latestTaskAction.title,
+        summary: latestTaskAction.summary,
+        statLine: latestTaskAction.statLine,
+        accentRgb: tasksAccentRgb,
+        progress:
+          tasksProgressPct !== null
+            ? {
+                valuePct: tasksProgressPct,
+                label: 'Task progress'
+              }
+            : undefined,
         primaryAction: {
-          label: 'Open tasks',
-          href: '/tasks'
-        },
-        secondaryAction: {
-          label: readingSignals.length > 0 ? 'Resume notebooks' : 'Open flashcards',
-          href: readingSignals.length > 0 ? '/practice/notebooks' : '/flashcards'
+          label: latestTaskAction.actionLabel,
+          href: latestTaskAction.actionHref
         }
       },
       {
@@ -211,14 +299,16 @@ export const HomeDashboard = ({
           energyTodayUnits > 0
             ? `${formatUnitsAsKwh(energyTodayUnits)} earned today`
             : `${formatUnitsAsKwh(availableBudgetUnits)} currently available`,
-        primaryAction: {
-          label: nextGridNode && remainingGridUnits === 0 ? 'Deploy node' : 'Open Grid Ops',
-          href: '/energy'
+        progress: {
+          valuePct: gridUnlockProgressPct,
+          label: nextGridNode ? 'Unlock progress' : 'Grid completion'
         },
-        secondaryAction: {
-          label: nextGridNode && remainingGridUnits > 0 ? 'Earn kWh in theory' : 'Review task deck',
-          href: nextGridNode && remainingGridUnits > 0 ? theoryRouteHref : '/tasks'
-        }
+        primaryAction: canDeployNextNode
+          ? {
+              label: 'Deploy node',
+              href: '/energy'
+            }
+          : undefined
       }
     ]
   };

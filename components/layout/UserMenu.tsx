@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { LogOut, Settings } from 'lucide-react';
+import { Bug, CreditCard, LifeBuoy, LogOut, Settings } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import { unitsToKwh } from '@/lib/energy';
+import { formatUnitsAsKwh, unitsToKwh } from '@/lib/energy';
 
 interface ShiftSummaryData {
   careerLevel: number;
@@ -87,11 +88,13 @@ const toneStyles: Record<
 function ShiftStatusRing({
   value,
   initials,
-  tone
+  tone,
+  level
 }: {
   value: number;
   initials: string;
   tone: ShiftTone;
+  level: number;
 }) {
   const normalizedValue = clampPct(value);
   const radius = 27;
@@ -131,6 +134,9 @@ function ShiftStatusRing({
       <div className="absolute inset-0 flex items-center justify-center rounded-full border border-light-border/70 bg-light-surface/95 text-xs font-semibold text-text-light-primary dark:border-dark-border/70 dark:bg-dark-surface/95 dark:text-text-dark-primary">
         {initials}
       </div>
+      <div className="absolute -bottom-0.5 -right-0.5 rounded-full border border-brand-300/60 bg-light-surface/95 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.08em] text-brand-700 shadow-sm dark:border-brand-400/50 dark:bg-dark-surface/95 dark:text-brand-200">
+        L{Math.max(1, level)}
+      </div>
     </div>
   );
 }
@@ -138,6 +144,7 @@ function ShiftStatusRing({
 export function UserMenu() {
   const { user, signOut } = useAuth();
   const { getAvailableBudgetUnits } = useProgressStore();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [shiftSummary, setShiftSummary] = useState<ShiftSummaryData | null>(null);
   const [isShiftSummaryLoading, setIsShiftSummaryLoading] = useState(false);
@@ -239,29 +246,16 @@ export function UserMenu() {
   const remainingUnits = getAvailableBudgetUnits();
   const remainingKwh = unitsToKwh(remainingUnits);
   const readinessPct = clampPct(shiftSummary?.promotionReadinessPct ?? 0);
+  const careerLevel = shiftSummary?.careerLevel ?? 1;
   const tone = getShiftTone({
     remainingKwh,
     readinessPct,
     hasError: Boolean(shiftSummaryError)
   });
-  const statusLabel = shiftSummaryError
-    ? 'Shift status unavailable'
-    : isShiftSummaryLoading
-      ? 'Syncing shift record'
-      : readinessPct >= 90
-        ? 'Promotion review ready'
-        : remainingKwh < 2
-          ? 'Budget critical'
-          : remainingKwh < 5
-            ? 'Budget watch'
-            : 'On duty';
   const roleLabel = shiftSummary
-    ? `Role L${shiftSummary.careerLevel}: ${shiftSummary.currentRole}`
-    : 'Role syncing...';
-  const criteriaLabel =
-    shiftSummary && shiftSummary.criteriaTotal > 0
-      ? `${shiftSummary.criteriaMet}/${shiftSummary.criteriaTotal} criteria met`
-      : 'Promotion criteria loading';
+    ? `Level ${shiftSummary.careerLevel} · ${shiftSummary.currentRole}`
+    : 'Level 1 · Trainee Operator';
+  const kwhBalanceLabel = `${formatUnitsAsKwh(remainingUnits)} balance`;
   const memberSinceLabel = formatMenuDate(
     shiftSummary?.tenureStartDate ?? user.created_at ?? null
   );
@@ -303,7 +297,12 @@ export function UserMenu() {
           <div className="relative border-b border-light-border bg-[linear-gradient(140deg,rgba(34,185,153,0.14),rgba(14,165,233,0.08))] p-4 dark:border-dark-border dark:bg-[linear-gradient(140deg,rgba(34,185,153,0.2),rgba(14,165,233,0.12))]">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,185,153,0.2),transparent_50%)]" />
             <div className="relative flex items-start gap-3">
-              <ShiftStatusRing value={readinessPct} initials={initials} tone={tone} />
+              <ShiftStatusRing
+                value={readinessPct}
+                initials={initials}
+                tone={tone}
+                level={careerLevel}
+              />
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-600 dark:text-brand-300">
                   Shift Badge
@@ -314,16 +313,11 @@ export function UserMenu() {
                 <p className="mt-1 text-xs text-text-light-secondary dark:text-text-dark-secondary">
                   {roleLabel}
                 </p>
-                <p
-                  className={`mt-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${toneStyles[tone].status}`}
-                >
-                  {statusLabel}
-                </p>
               </div>
             </div>
             <div className="relative mt-3 flex items-center justify-between text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
               <span>On record since {memberSinceLabel}</span>
-              <span>{criteriaLabel}</span>
+              <span>{kwhBalanceLabel}</span>
             </div>
           </div>
 
@@ -336,6 +330,34 @@ export function UserMenu() {
               >
                 <Settings className="h-4 w-4" />
                 Settings
+              </Link>
+              <Link
+                href="/settings?tab=billing"
+                onClick={handleCloseMenu}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
+              >
+                <CreditCard className="h-4 w-4" />
+                Manage subscription
+              </Link>
+              <Link
+                href="/support"
+                onClick={handleCloseMenu}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
+              >
+                <LifeBuoy className="h-4 w-4" />
+                Support
+              </Link>
+              <Link
+                href={
+                  pathname
+                    ? `/support/report-bug?from=${encodeURIComponent(pathname)}`
+                    : '/support/report-bug'
+                }
+                onClick={handleCloseMenu}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
+              >
+                <Bug className="h-4 w-4" />
+                Report a bug
               </Link>
               <button
                 type="button"

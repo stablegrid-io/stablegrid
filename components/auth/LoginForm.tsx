@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Eye, EyeOff, Moon, Sun } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { StableGridWordmark } from '@/components/brand/StableGridLogo';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -35,7 +35,7 @@ const GITHUB_ICON = (
 );
 
 export function LoginForm() {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const { signIn, signInWithOAuth } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -142,18 +142,6 @@ export function LoginForm() {
                 >
                   Beta
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setTheme(isLightMode ? 'dark' : 'light')}
-                  aria-label="Toggle color mode"
-                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-                    isLightMode
-                      ? 'border-[#b7ccc2] bg-[#f0f7f3] text-[#4f6a5d] hover:bg-[#e6f1eb]'
-                      : 'border-[#2a4136] bg-[#0c1612] text-[#8cab9d] hover:bg-[#11201a]'
-                  }`}
-                >
-                  {isLightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                </button>
               </div>
             </div>
             <p className={`mt-6 text-[11px] font-semibold uppercase tracking-[0.15em] ${isLightMode ? 'text-[#4f8f74]' : 'text-[#7cb99f]'}`}>

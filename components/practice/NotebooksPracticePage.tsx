@@ -175,27 +175,29 @@ const buildNotebookTokenRegex = (keywords: string[]) =>
   );
 
 const NOTEBOOK_PYTHON_REGEX = buildNotebookTokenRegex(NOTEBOOK_PYTHON_KEYWORDS);
+const NOTEBOOK_MARKDOWN_HEADING_PATTERN = /^#+\s*/;
+const NOTEBOOK_MARKDOWN_BULLET_PATTERN = /^[-*]\s+/;
 
 const notebookTokenClass = (type: string) => {
   if (type === 'comment') {
-    return 'text-slate-500 dark:text-slate-500';
+    return 'text-slate-500';
   }
   if (type === 'string') {
-    return 'text-brand-700 dark:text-brand-300';
+    return 'text-emerald-300';
   }
   if (type === 'number') {
-    return 'text-slate-600 dark:text-slate-300';
+    return 'text-sky-300';
   }
   if (type === 'decorator') {
-    return 'text-violet-700 dark:text-violet-300';
+    return 'text-amber-300';
   }
   if (type === 'keyword') {
-    return 'font-medium text-violet-700 dark:text-violet-300';
+    return 'font-medium text-violet-300';
   }
   if (type === 'function') {
-    return 'text-slate-600 dark:text-slate-300';
+    return 'text-blue-200';
   }
-  return 'text-slate-900 dark:text-slate-200';
+  return 'text-slate-200';
 };
 
 const highlightNotebookLine = (line: string, lineKey: string): ReactNode[] => {
@@ -229,6 +231,21 @@ const highlightNotebookLine = (line: string, lineKey: string): ReactNode[] => {
   }
 
   return parts.length > 0 ? parts : [line];
+};
+
+const extractNotebookMarkdownHeading = (line: string) =>
+  line.replace(NOTEBOOK_MARKDOWN_HEADING_PATTERN, '').trim();
+
+const buildRequirementBullets = (lines: string[]) => {
+  return lines
+    .map((line) => line.replace(NOTEBOOK_MARKDOWN_BULLET_PATTERN, '').trim())
+    .filter(Boolean)
+    .flatMap((line) =>
+      line
+        .split(/(?<=[.!?])\s+/)
+        .map((segment) => segment.trim())
+        .filter(Boolean)
+    );
 };
 
 const sanitizeCompletedNotebookIds = (value: unknown) => {
@@ -751,29 +768,65 @@ export function NotebooksPracticePage() {
     },
     {}
   );
+  const reviewShellMenuItems = [
+    'File',
+    'Edit',
+    'View',
+    'Insert',
+    'Cell',
+    'Kernel',
+    'Help'
+  ];
+  const difficultyChipClassByLevel: Record<NotebookDefinition['difficulty'], string> = {
+    Beginner: 'border-emerald-500/40 bg-emerald-500/12 text-emerald-200',
+    Intermediate: 'border-amber-500/40 bg-amber-500/12 text-amber-200',
+    Advanced: 'border-rose-500/40 bg-rose-500/12 text-rose-200'
+  };
+  const severityBadgeClassByLevel: Record<NotebookIssue['severity'], string> = {
+    performance: 'border-rose-500/35 bg-rose-500/15 text-rose-200',
+    practice: 'border-amber-500/35 bg-amber-500/15 text-amber-200',
+    redundant: 'border-slate-500/35 bg-slate-500/15 text-slate-200'
+  };
 
   let renderedLineCount = 0;
 
   return (
-    <main className="min-h-screen bg-light-bg px-4 pb-16 pt-6 dark:bg-dark-bg sm:px-6">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-        <section className="sticky top-16 z-20 rounded-xl border border-light-border bg-white/95 px-4 py-3 backdrop-blur dark:border-dark-border dark:bg-[#0c121d]/95">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+    <main className="dark min-h-screen bg-[#0f1117] px-4 pb-16 pt-4 text-slate-100 sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+        <section className="overflow-hidden rounded-xl border border-slate-700/60 bg-[#141923] shadow-[0_30px_70px_-46px_rgba(0,0,0,0.9)]">
+          <div className="flex items-center gap-4 border-b border-slate-700/70 px-4 py-2 text-xs text-slate-300">
+            <span className="font-semibold tracking-[0.04em] text-slate-100">
+              Jupyter Notebook
+            </span>
+            <div className="hidden items-center gap-3 sm:flex">
+              {reviewShellMenuItems.map((item) => (
+                <span key={item} className="text-slate-400">
+                  {item}
+                </span>
+              ))}
+            </div>
+            <span className="ml-auto inline-flex items-center gap-1 text-slate-400">
+              <Clock3 className="h-3.5 w-3.5" />
+              Python 3 (ipykernel)
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/70 px-4 py-2.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={handleBackToCatalog}
-                className="btn btn-ghost h-8 px-2.5 text-xs"
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-600/80 bg-[#0f1420] px-2.5 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:border-slate-500 hover:bg-[#111a2b]"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back
               </button>
-              <span className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
+              <span className="truncate text-sm font-semibold text-slate-100">
                 {activeNotebook.title}
               </span>
               <span
                 className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-                  DIFFICULTY_STYLES[activeNotebook.difficulty].badge
+                  difficultyChipClassByLevel[activeNotebook.difficulty]
                 }`}
               >
                 {activeNotebook.difficulty}
@@ -783,14 +836,16 @@ export function NotebooksPracticePage() {
             <div className="flex flex-wrap items-center gap-2">
               {isReview ? (
                 <>
-                  <span className="rounded-full border border-light-border bg-light-surface px-2.5 py-1 text-[11px] font-medium text-text-light-tertiary dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-tertiary">
+                  <span className="rounded-full border border-slate-600/70 bg-[#0f1420] px-2.5 py-1 text-[11px] font-medium text-slate-300">
                     {flaggedLineIds.size} flagged
                   </span>
                   <button
                     type="button"
                     onClick={() => setShowHint((previous) => !previous)}
-                    className={`btn h-8 px-2.5 text-xs ${
-                      showHint ? 'btn-secondary' : 'btn-ghost'
+                    className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      showHint
+                        ? 'border-cyan-400/50 bg-cyan-500/18 text-cyan-100'
+                        : 'border-slate-600/80 bg-[#0f1420] text-slate-200 hover:border-slate-500 hover:bg-[#111a2b]'
                     }`}
                   >
                     <Lightbulb className="h-3.5 w-3.5" />
@@ -800,7 +855,7 @@ export function NotebooksPracticePage() {
                     type="button"
                     disabled={flaggedLineIds.size === 0}
                     onClick={handleSubmitReview}
-                    className="btn btn-primary h-8 px-3 text-xs"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-cyan-400/55 bg-cyan-500/85 px-3 py-1.5 text-xs font-semibold text-[#031116] transition disabled:cursor-not-allowed disabled:border-slate-600/80 disabled:bg-slate-700/40 disabled:text-slate-400"
                   >
                     Submit Review
                   </button>
@@ -810,7 +865,7 @@ export function NotebooksPracticePage() {
                   <button
                     type="button"
                     onClick={handleRetry}
-                    className="btn btn-secondary h-8 px-3 text-xs"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-600/80 bg-[#0f1420] px-3 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:border-slate-500 hover:bg-[#111a2b]"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     Retry
@@ -818,7 +873,7 @@ export function NotebooksPracticePage() {
                   <button
                     type="button"
                     onClick={handleBackToCatalog}
-                    className="btn btn-primary h-8 px-3 text-xs"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-cyan-400/55 bg-cyan-500/85 px-3 py-1.5 text-xs font-semibold text-[#031116] transition hover:bg-cyan-400"
                   >
                     Back to Notebooks
                   </button>
@@ -826,40 +881,35 @@ export function NotebooksPracticePage() {
               )}
             </div>
           </div>
-        </section>
 
-        <section className="card p-4 sm:p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
-            Scenario
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-text-light-secondary dark:text-text-dark-secondary">
-            {activeNotebook.context}
-          </p>
+          <div className="px-4 py-2 text-xs text-slate-400">
+            notebook/{activeNotebook.id}.ipynb
+          </div>
         </section>
 
         {showHint && isReview ? (
-          <section className="rounded-xl border border-warning-200 bg-warning-50/50 p-4 dark:border-warning-700/50 dark:bg-warning-900/20">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-warning-700 dark:text-warning-300">
+          <section className="rounded-lg border border-amber-500/40 bg-amber-500/12 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-200">
               Hint
             </p>
-            <p className="mt-1 text-sm text-warning-700 dark:text-warning-200">
-              There are {uniqueIssues.length} unique issues. Focus on repeated
-              actions, driver-side conversions, and anti-pattern imports.
+            <p className="mt-1 text-sm text-amber-100">
+              There are {uniqueIssues.length} unique issues. Focus on repeated actions,
+              driver-side conversions, and anti-pattern imports.
             </p>
           </section>
         ) : null}
 
         {isResults ? (
-          <section className="rounded-2xl border border-brand-300 bg-brand-500/10 p-5 dark:border-brand-700/60 dark:bg-brand-900/25">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700 dark:text-brand-300">
+          <section className="rounded-lg border border-cyan-500/35 bg-cyan-500/12 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">
               Review Score
             </p>
             <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-              <div className="text-4xl font-bold leading-none text-text-light-primary dark:text-text-dark-primary">
-                {score}%
-              </div>
-              <div className="flex items-center gap-5 text-xs text-text-light-secondary dark:text-text-dark-secondary">
-                <span>Found {foundIssueIds.size}/{uniqueIssues.length}</span>
+              <div className="text-4xl font-bold leading-none text-slate-100">{score}%</div>
+              <div className="flex items-center gap-5 text-xs text-slate-300">
+                <span>
+                  Found {foundIssueIds.size}/{uniqueIssues.length}
+                </span>
                 <span>False flags {falseFlagCount}</span>
               </div>
             </div>
@@ -874,36 +924,56 @@ export function NotebooksPracticePage() {
           />
         ) : null}
 
-        <section className="space-y-4">
+        <section className="space-y-3">
           {activeNotebook.cells.map((cell, cellIndex) => {
             if (cell.type === 'markdown') {
-              return (
-                <article key={cell.id} className="card p-4 sm:p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                    Markdown Cell {cellIndex + 1}
-                  </p>
-                  <div className="mt-2 space-y-2">
-                    {(cell.content ?? '').split('\n').map((line) => {
-                      if (line.startsWith('# ')) {
-                        return (
-                          <h2
-                            key={`${cell.id}-${line}`}
-                            className="text-lg font-semibold text-text-light-primary dark:text-text-dark-primary"
-                          >
-                            {line.replace('# ', '')}
-                          </h2>
-                        );
-                      }
+              const markdownLines = (cell.content ?? '')
+                .split('\n')
+                .map((line) => line.trim())
+                .filter(Boolean);
+              const headingLine =
+                markdownLines.find((line) => line.startsWith('#')) ?? markdownLines[0] ?? '';
+              const headingText = headingLine
+                ? extractNotebookMarkdownHeading(headingLine)
+                : 'Notebook task';
+              const requirementSourceLines = markdownLines.filter(
+                (line) => line !== headingLine
+              );
+              const requirementBullets = buildRequirementBullets(requirementSourceLines);
 
-                      return (
-                        <p
-                          key={`${cell.id}-${line}`}
-                          className="text-sm leading-relaxed text-text-light-secondary dark:text-text-dark-secondary"
-                        >
-                          {line}
+              return (
+                <article
+                  key={cell.id}
+                  className="overflow-hidden rounded-lg border border-slate-700/70 bg-[#101623]"
+                >
+                  <div className="grid grid-cols-[86px_minmax(0,1fr)]">
+                    <div className="border-r border-slate-700/70 px-3 py-4 font-mono text-xs text-slate-500">
+                      Md [{cellIndex}]:
+                    </div>
+                    <div className="px-4 py-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                        Markdown Cell
+                      </p>
+                      <h2 className="mt-2 text-xl font-semibold text-slate-100">
+                        {headingText}
+                      </h2>
+                      <div className="mt-3 rounded-md border border-slate-700/70 bg-[#0b1220] p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                          Requirements
                         </p>
-                      );
-                    })}
+                        {requirementBullets.length > 0 ? (
+                          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-relaxed text-slate-300">
+                            {requirementBullets.map((bullet) => (
+                              <li key={`${cell.id}-${bullet}`}>{bullet}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                            No requirements listed in this markdown cell.
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </article>
               );
@@ -914,97 +984,105 @@ export function NotebooksPracticePage() {
             return (
               <article
                 key={cell.id}
-                className="overflow-hidden rounded-2xl border border-slate-300/70 bg-[#f8fafc] shadow-sm dark:border-[rgba(148,163,184,0.1)] dark:bg-[#0d1117]"
+                className="overflow-hidden rounded-lg border border-slate-700/70 bg-[#101623]"
               >
-                <div className="flex items-center justify-between border-b border-slate-300/70 bg-slate-100 px-4 py-2.5 dark:border-[rgba(148,163,184,0.1)] dark:bg-[rgba(148,163,184,0.05)]">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                      Python Cell {cellIndex + 1}
-                    </p>
-                    <span className="rounded-full border border-slate-400/60 bg-slate-200/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600 dark:border-slate-500/40 dark:bg-slate-500/15 dark:text-slate-300">
-                      PySpark
-                    </span>
-                    <span className="rounded-full border border-slate-300/70 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:border-[rgba(148,163,184,0.15)] dark:bg-[#0d1117] dark:text-slate-400">
-                      {lines.length} lines
-                    </span>
+                <div className="grid grid-cols-[86px_minmax(0,1fr)]">
+                  <div className="border-r border-slate-700/70 px-3 py-3 font-mono text-xs text-cyan-300">
+                    In [{cellIndex}]:
                   </div>
-                  {isResults ? (
-                    <p className="text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
-                      {
-                        cell.issues?.filter((issue) => foundIssueIds.has(issue.id))
-                          .length
-                      }
-                      /{cell.issues?.length ?? 0} found
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="bg-[#f8fafc] py-2.5 dark:bg-[#0d1117]">
-                  {lines.map((line, lineIndex) => {
-                    renderedLineCount += 1;
-                    const previousLine = lineIndex > 0 ? lines[lineIndex - 1]?.text ?? '' : '';
-                    const addGroupGap = shouldAddVisualGap(previousLine, line.text);
-                    const flagged = flaggedLineIds.has(line.id);
-                    const hasIssue = Boolean(line.issueId);
-                    const correctFlag = isResults && flagged && hasIssue;
-                    const missedIssue = isResults && !flagged && hasIssue;
-                    const falseFlag = isResults && flagged && !hasIssue;
-
-                    let rowClass =
-                      'border-l-2 border-transparent bg-transparent hover:bg-slate-900/[0.04] dark:hover:bg-white/[0.05]';
-                    if (isReview && flagged) {
-                      rowClass =
-                        'border-l-2 border-error-500 bg-error-50/70 dark:border-error-400 dark:bg-error-500/14';
-                    }
-                    if (correctFlag) {
-                      rowClass =
-                        'border-l-2 border-success-500 bg-success-50/70 dark:border-success-400 dark:bg-success-500/14';
-                    }
-                    if (missedIssue) {
-                      rowClass =
-                        'border-l-2 border-warning-500 bg-warning-50/75 dark:border-warning-400 dark:bg-warning-500/16';
-                    }
-                    if (falseFlag) {
-                      rowClass =
-                        'border-l-2 border-error-500 bg-error-50/70 dark:border-error-400 dark:bg-error-500/14';
-                    }
-
-                    const clickable = isReview && Boolean(line.flaggable);
-
-                    return (
-                      <div
-                        key={line.id}
-                        role={clickable ? 'button' : undefined}
-                        tabIndex={clickable ? 0 : undefined}
-                        onClick={() => {
-                          if (clickable) toggleLineFlag(line.id);
-                        }}
-                        onKeyDown={(event) => {
-                          if (!clickable) return;
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            toggleLineFlag(line.id);
-                          }
-                        }}
-                        className={`group relative grid grid-cols-[2.25rem_minmax(0,1fr)_1rem] items-start gap-3 px-3 py-1 ${rowClass} ${
-                          addGroupGap ? 'mt-2' : ''
-                        } ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
-                      >
-                        <span className="w-8 pt-1 text-right font-mono text-[11px] leading-7 text-slate-500 dark:text-slate-500">
-                          {renderedLineCount}
+                  <div>
+                    <div className="flex items-center justify-between border-b border-slate-700/70 bg-[#151d2b] px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                          Python Cell
+                        </p>
+                        <span className="rounded-full border border-cyan-400/35 bg-cyan-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-200">
+                          PySpark
                         </span>
-                        <code className="flex-1 whitespace-pre font-mono text-[13px] leading-7 tracking-[0.01em] text-slate-900 dark:text-slate-200">
-                          {highlightNotebookLine(line.text || ' ', `line-${line.id}`)}
-                        </code>
-                        <span className="pt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                          {isReview && flagged ? <Flag className="h-3.5 w-3.5" /> : null}
-                          {correctFlag ? <CheckCircle2 className="h-3.5 w-3.5 text-success-400" /> : null}
-                          {missedIssue ? <AlertTriangle className="h-3.5 w-3.5 text-warning-400" /> : null}
-                          {falseFlag ? <AlertTriangle className="h-3.5 w-3.5 text-error-400" /> : null}
+                        <span className="rounded-full border border-slate-600/75 bg-[#101623] px-2 py-0.5 text-[10px] font-medium text-slate-400">
+                          {lines.length} lines
                         </span>
                       </div>
-                    );
-                  })}
+                      {isResults ? (
+                        <p className="text-[11px] text-slate-400">
+                          {cell.issues?.filter((issue) => foundIssueIds.has(issue.id)).length}/
+                          {cell.issues?.length ?? 0} found
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="bg-[#0b1220] py-2.5">
+                      {lines.map((line, lineIndex) => {
+                        renderedLineCount += 1;
+                        const previousLine = lineIndex > 0 ? lines[lineIndex - 1]?.text ?? '' : '';
+                        const addGroupGap = shouldAddVisualGap(previousLine, line.text);
+                        const flagged = flaggedLineIds.has(line.id);
+                        const hasIssue = Boolean(line.issueId);
+                        const correctFlag = isResults && flagged && hasIssue;
+                        const missedIssue = isResults && !flagged && hasIssue;
+                        const falseFlag = isResults && flagged && !hasIssue;
+
+                        let rowClass =
+                          'border-l-2 border-transparent bg-transparent hover:bg-white/[0.04]';
+                        if (isReview && flagged) {
+                          rowClass = 'border-l-2 border-cyan-400 bg-cyan-500/10';
+                        }
+                        if (correctFlag) {
+                          rowClass = 'border-l-2 border-emerald-400 bg-emerald-500/12';
+                        }
+                        if (missedIssue) {
+                          rowClass = 'border-l-2 border-amber-400 bg-amber-500/14';
+                        }
+                        if (falseFlag) {
+                          rowClass = 'border-l-2 border-rose-400 bg-rose-500/16';
+                        }
+
+                        const clickable = isReview && Boolean(line.flaggable);
+
+                        return (
+                          <div
+                            key={line.id}
+                            role={clickable ? 'button' : undefined}
+                            tabIndex={clickable ? 0 : undefined}
+                            onClick={() => {
+                              if (clickable) toggleLineFlag(line.id);
+                            }}
+                            onKeyDown={(event) => {
+                              if (!clickable) return;
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                toggleLineFlag(line.id);
+                              }
+                            }}
+                            className={`group relative grid grid-cols-[2.25rem_minmax(0,1fr)_1rem] items-start gap-3 px-3 py-1 ${rowClass} ${
+                              addGroupGap ? 'mt-2' : ''
+                            } ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
+                          >
+                            <span className="w-8 pt-1 text-right font-mono text-[11px] leading-7 text-slate-500">
+                              {renderedLineCount}
+                            </span>
+                            <code className="flex-1 whitespace-pre font-mono text-[13px] leading-7 tracking-[0.01em]">
+                              {highlightNotebookLine(line.text || ' ', `line-${line.id}`)}
+                            </code>
+                            <span className="pt-2 text-[11px] text-slate-400">
+                              {isReview && flagged ? (
+                                <Flag className="h-3.5 w-3.5 text-cyan-300" />
+                              ) : null}
+                              {correctFlag ? (
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+                              ) : null}
+                              {missedIssue ? (
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-300" />
+                              ) : null}
+                              {falseFlag ? (
+                                <AlertTriangle className="h-3.5 w-3.5 text-rose-300" />
+                              ) : null}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </article>
             );
@@ -1012,10 +1090,8 @@ export function NotebooksPracticePage() {
         </section>
 
         {isResults ? (
-          <section className="card p-5">
-            <h2 className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
-              Issue Breakdown
-            </h2>
+          <section className="rounded-lg border border-slate-700/70 bg-[#101623] p-5">
+            <h2 className="text-base font-semibold text-slate-100">Issue Breakdown</h2>
             <div className="mt-4 space-y-3">
               {uniqueIssues.map((issue) => {
                 const found = foundIssueIds.has(issue.id);
@@ -1023,71 +1099,67 @@ export function NotebooksPracticePage() {
                 return (
                   <article
                     key={issue.id}
-                    className={`rounded-xl border p-4 ${
+                    className={`rounded-lg border p-4 ${
                       found
-                        ? 'border-success-200 bg-success-50/50 dark:border-success-700/50 dark:bg-success-900/20'
-                        : 'border-warning-200 bg-warning-50/50 dark:border-warning-700/50 dark:bg-warning-900/20'
+                        ? 'border-emerald-500/40 bg-emerald-500/10'
+                        : 'border-amber-500/40 bg-amber-500/10'
                     }`}
                   >
                     <div className="mb-2 flex items-center gap-2">
                       <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${severity.badge}`}
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                          severityBadgeClassByLevel[issue.severity]
+                        }`}
                       >
                         {severity.icon} {severity.label}
                       </span>
-                      <span className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
-                        {issue.title}
-                      </span>
+                      <span className="text-sm font-semibold text-slate-100">{issue.title}</span>
                       <span
                         className={`ml-auto text-[11px] font-semibold uppercase tracking-[0.1em] ${
-                          found
-                            ? 'text-success-700 dark:text-success-300'
-                            : 'text-warning-700 dark:text-warning-300'
+                          found ? 'text-emerald-300' : 'text-amber-300'
                         }`}
                       >
                         {found ? 'Found' : 'Missed'}
                       </span>
                     </div>
-                    <p className="text-sm leading-relaxed text-text-light-secondary dark:text-text-dark-secondary">
-                      {issue.explanation}
-                    </p>
+                    <p className="text-sm leading-relaxed text-slate-300">{issue.explanation}</p>
                   </article>
                 );
               })}
             </div>
           </section>
         ) : (
-          <div className="pb-8 text-center text-xs uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <div className="pb-8 text-center text-xs uppercase tracking-[0.14em] text-slate-500">
             Flag lines that contain issues, then submit your review
           </div>
         )}
 
         {isReview ? (
-          <section className="card p-4">
+          <section className="rounded-lg border border-slate-700/70 bg-[#101623] p-4">
             <div className="grid gap-3 text-xs sm:grid-cols-3">
-              <div className="rounded-lg border border-light-border bg-light-surface p-3 dark:border-dark-border dark:bg-dark-surface">
-                <p className="font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+              <div className="rounded-lg border border-slate-700/70 bg-[#141c2a] p-3">
+                <p className="font-semibold uppercase tracking-[0.12em] text-slate-400">
                   Issues
                 </p>
-                <p className="mt-1 text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+                <p className="mt-1 text-lg font-semibold text-slate-100">
                   {uniqueIssues.length}
                 </p>
               </div>
-              <div className="rounded-lg border border-light-border bg-light-surface p-3 dark:border-dark-border dark:bg-dark-surface">
-                <p className="font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+              <div className="rounded-lg border border-slate-700/70 bg-[#141c2a] p-3">
+                <p className="font-semibold uppercase tracking-[0.12em] text-slate-400">
                   Severity Mix
                 </p>
-                <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+                <p className="mt-1 text-sm text-slate-300">
                   Perf {issueCountBySeverity.performance ?? 0} · Practice{' '}
                   {issueCountBySeverity.practice ?? 0} · Redundant{' '}
                   {issueCountBySeverity.redundant ?? 0}
                 </p>
               </div>
-              <div className="rounded-lg border border-light-border bg-light-surface p-3 dark:border-dark-border dark:bg-dark-surface">
-                <p className="font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+              <div className="rounded-lg border border-slate-700/70 bg-[#141c2a] p-3">
+                <p className="font-semibold uppercase tracking-[0.12em] text-slate-400">
                   Flagged
                 </p>
-                <p className="mt-1 text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+                <p className="mt-1 text-lg font-semibold text-slate-100">
                   {flaggedLineIds.size}
                 </p>
               </div>

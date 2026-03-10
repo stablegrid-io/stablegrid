@@ -26,8 +26,9 @@ export default function RootLayout({
       <body className="min-h-screen font-sans text-text-light-primary dark:text-text-dark-primary">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
+          enableSystem={false}
+          forcedTheme="dark"
           storageKey="stablegrid-theme"
         >
           <CookieConsentManager />

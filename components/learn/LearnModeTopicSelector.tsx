@@ -1,22 +1,16 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ArrowLeft,
-  ChevronRight,
-  Cpu,
-  Search,
-  SlidersHorizontal,
-  Sparkles,
-  X
+  ChevronRight
 } from 'lucide-react';
 import { getLearnTopicMeta, learnTopics } from '@/data/learn';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 
 type LearnMode = 'theory';
-type DepthFilter = 'all' | 'starter' | 'standard' | 'deep';
-type SortOption = 'recommended' | 'name-asc' | 'workload-desc' | 'workload-asc';
 
 interface LearnModeTopicSelectorProps {
   mode: LearnMode;
@@ -31,64 +25,24 @@ interface TopicEntry {
   chapterCount: number;
   chapterMinutes: number;
   workload: number;
-  depth: Exclude<DepthFilter, 'all'>;
+  depth: 'starter' | 'standard' | 'deep';
 }
 
-const TOPIC_ICON_MAP: Record<string, typeof Sparkles> = {
-  pyspark: Sparkles,
-  fabric: Cpu
+const TRACK_ICON_SRC_BY_TOPIC: Record<string, string> = {
+  pyspark: '/brand/pyspark-track-star.svg',
+  fabric: '/brand/microsoft-fabric-track.svg'
 };
 
-const MODE_META: Record<
-  LearnMode,
-  {
-    statLabel: 'chapters';
-    workloadLabel: string;
-  }
-> = {
-  theory: {
-    statLabel: 'chapters',
-    workloadLabel: 'chapter depth'
-  }
-};
+const TRACK_LABEL = 'Track';
 
-const SORT_OPTIONS: Array<{ id: SortOption; label: string }> = [
-  { id: 'recommended', label: 'Recommended' },
-  { id: 'workload-desc', label: 'Most workload' },
-  { id: 'workload-asc', label: 'Least workload' },
-  { id: 'name-asc', label: 'Name A-Z' }
-];
-
-const DEPTH_FILTER_OPTIONS: Array<{ id: DepthFilter; label: string }> = [
-  { id: 'all', label: 'All depth' },
-  { id: 'starter', label: 'Starter' },
-  { id: 'standard', label: 'Standard' },
-  { id: 'deep', label: 'Deep' }
-];
-
-const DEPTH_FILTER_DESCRIPTION: Record<DepthFilter, string> = {
-  all: 'Show every topic regardless of workload.',
-  starter: 'Smaller paths with lighter scope.',
-  standard: 'Balanced topic depth for regular sessions.',
-  deep: 'High-volume tracks with advanced coverage.'
-};
-
-const SORT_DESCRIPTION: Record<SortOption, string> = {
-  recommended: 'Prioritizes heavier topics first.',
-  'workload-desc': 'Sort by workload from high to low.',
-  'workload-asc': 'Sort by workload from low to high.',
-  'name-asc': 'Alphabetical topic ordering.'
+const getSimpleTrackName = (title: string) => {
+  return title.replace(/\s+modules?$/i, '').trim();
 };
 
 export function LearnModeTopicSelector({
   mode,
   initialCompletedChapterCountByTopic = {}
 }: LearnModeTopicSelectorProps) {
-  const meta = MODE_META[mode];
-  const [query, setQuery] = useState('');
-  const [depthFilter, setDepthFilter] = useState<DepthFilter>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('recommended');
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const completedChapterCountByTopic = initialCompletedChapterCountByTopic;
 
   const topics = useMemo<TopicEntry[]>(() => {
@@ -105,49 +59,14 @@ export function LearnModeTopicSelector({
     });
   }, []);
 
-  const filteredTopics = useMemo(() => {
-    const loweredQuery = query.trim().toLowerCase();
-
-    const filtered = topics.filter((topic) => {
-      const matchesQuery =
-        loweredQuery.length === 0 ||
-        topic.title.toLowerCase().includes(loweredQuery) ||
-        topic.description.toLowerCase().includes(loweredQuery);
-      const matchesDepth = depthFilter === 'all' || topic.depth === depthFilter;
-
-      return matchesQuery && matchesDepth;
-    });
-
-    return [...filtered].sort((left, right) => {
-      if (sortBy === 'name-asc') {
-        return left.title.localeCompare(right.title);
-      }
-      if (sortBy === 'workload-asc') {
-        return left.workload - right.workload;
-      }
-      if (sortBy === 'workload-desc') {
-        return right.workload - left.workload;
-      }
+  const orderedTopics = useMemo(() => {
+    return [...topics].sort((left, right) => {
       if (left.workload !== right.workload) {
         return right.workload - left.workload;
       }
       return left.title.localeCompare(right.title);
     });
-  }, [depthFilter, query, sortBy, topics]);
-
-  const totalWorkload = topics.reduce((sum, topic) => sum + topic.workload, 0);
-  const visibleWorkload = filteredTopics.reduce((sum, topic) => sum + topic.workload, 0);
-  const activeFilterCount = [
-    query.trim().length > 0,
-    depthFilter !== 'all',
-    sortBy !== 'recommended'
-  ].filter(Boolean).length;
-
-  const resetFilters = () => {
-    setQuery('');
-    setDepthFilter('all');
-    setSortBy('recommended');
-  };
+  }, [topics]);
 
   return (
     <div className="min-h-screen bg-light-bg pb-20 dark:bg-dark-bg lg:pb-8">
@@ -161,71 +80,13 @@ export function LearnModeTopicSelector({
             All Topics
           </Link>
 
-          <section className="mb-5 rounded-2xl border border-light-border bg-light-surface p-3 dark:border-dark-border dark:bg-dark-surface">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={() => setIsFilterPanelOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-light-border bg-light-bg px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
-              >
-                <SlidersHorizontal className="h-4 w-4 text-brand-500" />
-                Filters
-                {activeFilterCount > 0 ? (
-                  <span className="rounded-full border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-500">
-                    {activeFilterCount} active
-                  </span>
-                ) : null}
-              </button>
-
-              <label className="relative block flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-light-tertiary dark:text-text-dark-tertiary" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search theory topics"
-                  className="input pl-9"
-                />
-              </label>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
-                Showing {filteredTopics.length} of {topics.length} topics
-              </span>
-              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
-                {visibleWorkload}/{totalWorkload} {meta.statLabel}
-              </span>
-              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
-                Depth:{' '}
-                {DEPTH_FILTER_OPTIONS.find((option) => option.id === depthFilter)?.label}
-              </span>
-              <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
-                Sort: {SORT_OPTIONS.find((option) => option.id === sortBy)?.label}
-              </span>
-              {activeFilterCount > 0 ? (
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  className="rounded-full border border-brand-500/30 bg-brand-500/10 px-2.5 py-1 font-medium text-brand-600 transition-colors hover:bg-brand-500/15 dark:text-brand-300"
-                >
-                  Reset filters
-                </button>
-              ) : null}
-            </div>
-          </section>
-
           <section>
-            {filteredTopics.length > 0 ? (
+            {orderedTopics.length > 0 ? (
               <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-                {filteredTopics.map((topic) => {
-                  const Icon = TOPIC_ICON_MAP[topic.id] ?? Sparkles;
+                {orderedTopics.map((topic) => {
+                  const trackIconSrc =
+                    TRACK_ICON_SRC_BY_TOPIC[topic.id] ?? '/brand/pyspark-track-star.svg';
                   const style = getTheoryTopicStyle(topic.id);
-                  const depthLabel =
-                    topic.depth === 'starter'
-                      ? 'Starter'
-                      : topic.depth === 'standard'
-                        ? 'Standard'
-                        : 'Deep';
                   const completedTopicChapters =
                     completedChapterCountByTopic[topic.id] ?? 0;
                   const topicProgressPct =
@@ -257,23 +118,24 @@ export function LearnModeTopicSelector({
                             <span
                               className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border ${style.iconWrapClass}`}
                             >
-                              <Icon className={`h-6 w-6 ${style.iconClass}`} />
+                              <Image
+                                src={trackIconSrc}
+                                alt={`${getSimpleTrackName(topic.title)} logo`}
+                                width={28}
+                                height={28}
+                                className="h-7 w-7 object-contain"
+                              />
                             </span>
 
                             <div className="min-w-0">
                               <p
                                 className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${style.accentTextClass}`}
                               >
-                                {style.eyebrow}
+                                {TRACK_LABEL}
                               </p>
                               <div className="mt-2 flex flex-wrap items-center gap-2">
                                 <span className="truncate text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary">
-                                  {topic.title}
-                                </span>
-                                <span
-                                  className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${style.badgeClass}`}
-                                >
-                                  {depthLabel}
+                                  {getSimpleTrackName(topic.title)}
                                 </span>
                               </div>
                             </div>
@@ -292,15 +154,6 @@ export function LearnModeTopicSelector({
                         <p className="mt-5 max-w-xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
                           {topic.description}
                         </p>
-
-                        <div className="mt-5 flex flex-wrap gap-2 text-xs">
-                          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
-                            {topic.chapterCount} chapters
-                          </span>
-                          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
-                            {topic.chapterMinutes} min
-                          </span>
-                        </div>
 
                         <div className="mt-6 border-t border-light-border/80 pt-5 dark:border-dark-border">
                           <div className="flex items-center gap-4">
@@ -330,170 +183,11 @@ export function LearnModeTopicSelector({
             ) : (
               <div className="rounded-2xl border border-dashed border-light-border bg-light-surface p-8 text-center dark:border-dark-border dark:bg-dark-surface">
                 <p className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
-                  No topics match your filters
-                </p>
-                <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
-                  Adjust search, depth, or sorting to widen the results.
+                  No theory topics available yet
                 </p>
               </div>
             )}
           </section>
-
-          {isFilterPanelOpen ? (
-            <button
-              type="button"
-              className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[1px]"
-              aria-label="Close filter panel backdrop"
-              onClick={() => setIsFilterPanelOpen(false)}
-            />
-          ) : null}
-
-          <aside
-            className={`fixed inset-y-0 left-0 z-50 w-[420px] max-w-[94vw] border-r border-light-border bg-light-bg/95 p-4 shadow-2xl backdrop-blur-md transition-transform duration-300 ease-in-out dark:border-dark-border dark:bg-[#02060f]/95 ${
-              isFilterPanelOpen
-                ? 'translate-x-0'
-                : '-translate-x-full pointer-events-none'
-            }`}
-          >
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
-                Filters
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsFilterPanelOpen(false)}
-                className="rounded-md p-1.5 text-text-light-secondary transition-colors hover:bg-light-surface hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-surface dark:hover:text-text-dark-primary"
-                aria-label="Close filter panel"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <section className="flex h-[calc(100%-2.2rem)] flex-col rounded-2xl border border-light-border bg-light-surface/95 p-4 dark:border-dark-border dark:bg-dark-surface/95">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Filter Panel
-                </div>
-
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  className="inline-flex items-center gap-1 rounded-md border border-light-border px-2.5 py-1.5 text-xs font-medium text-text-light-secondary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-400 dark:hover:text-brand-300"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Reset
-                </button>
-              </div>
-
-              <div className="space-y-3 overflow-y-auto pr-1 scrollbar-slim">
-                <section className="rounded-xl border border-light-border p-3 dark:border-dark-border">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                    Search
-                  </p>
-                  <label className="mt-2 block">
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-light-tertiary dark:text-text-dark-tertiary" />
-                      <input
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        placeholder="e.g. Spark, SQL, pipelines..."
-                        className="input pl-9"
-                      />
-                    </div>
-                  </label>
-                </section>
-
-                <section className="rounded-xl border border-light-border p-3 dark:border-dark-border">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                    {meta.workloadLabel}
-                  </p>
-                  <div className="mt-2 space-y-2">
-                    {DEPTH_FILTER_OPTIONS.map((option) => {
-                      const selected = depthFilter === option.id;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setDepthFilter(option.id)}
-                          aria-pressed={selected}
-                          className={`w-full rounded-lg border p-2.5 text-left transition ${
-                            selected
-                              ? 'border-brand-500/40 bg-brand-500/10'
-                              : 'border-light-border hover:border-brand-500/40 dark:border-dark-border'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-                                {option.label}
-                              </p>
-                              <p className="mt-0.5 text-[11px] text-text-light-secondary dark:text-text-dark-secondary">
-                                {DEPTH_FILTER_DESCRIPTION[option.id]}
-                              </p>
-                            </div>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                selected
-                                  ? 'border border-brand-500/40 bg-brand-500/10 text-brand-500'
-                                  : 'border border-light-border text-text-light-secondary dark:border-dark-border dark:text-text-dark-secondary'
-                              }`}
-                            >
-                              {selected ? 'Applied' : 'Use'}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-
-                <section className="rounded-xl border border-light-border p-3 dark:border-dark-border">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
-                    Sort by
-                  </p>
-                  <div className="mt-2 space-y-2">
-                    {SORT_OPTIONS.map((option) => {
-                      const selected = sortBy === option.id;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setSortBy(option.id)}
-                          aria-pressed={selected}
-                          className={`w-full rounded-lg border p-2.5 text-left transition ${
-                            selected
-                              ? 'border-brand-500/40 bg-brand-500/10'
-                              : 'border-light-border hover:border-brand-500/40 dark:border-dark-border'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-                                {option.label}
-                              </p>
-                              <p className="mt-0.5 text-[11px] text-text-light-secondary dark:text-text-dark-secondary">
-                                {SORT_DESCRIPTION[option.id]}
-                              </p>
-                            </div>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                selected
-                                  ? 'border border-brand-500/40 bg-brand-500/10 text-brand-500'
-                                  : 'border border-light-border text-text-light-secondary dark:border-dark-border dark:text-text-dark-secondary'
-                              }`}
-                            >
-                              {selected ? 'Applied' : 'Use'}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-              </div>
-            </section>
-          </aside>
         </div>
       </div>
     </div>

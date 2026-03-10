@@ -1,0 +1,4 @@
+interface:
+  display_name: "Landing Page Conversion"
+  short_description: "Build high-converting landing pages with clear offers"
+  default_prompt: "Use $landing-page-conversion to design or improve a landing page for stronger conversion rates with clear messaging, proof, and low-friction CTAs."

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import type { RefObject } from 'react';
+import type { CSSProperties, RefObject } from 'react';
 import { ActivationCategoryCard } from '@/components/home/activation-table/components/ActivationCategoryCard';
 import { SurfaceGlowLayer } from '@/components/home/activation-table/components/SurfaceGlowLayer';
 import type { ActivationPhase } from '@/components/home/activation-table/state/activationMachine';
@@ -29,6 +29,23 @@ const areCardsVisible = (phase: ActivationPhase) =>
   phase === 'reveal' || phase === 'ready';
 
 const categoryOrder: ActivationCategoryKind[] = ['theory', 'tasks', 'grid'];
+
+const dividerToneByKind: Record<ActivationCategoryKind, string> = {
+  theory: 'via-warning-400/44',
+  tasks: 'via-brand-400/44',
+  grid: 'via-slate-300/42'
+};
+
+const dividerGlowByKind: Record<ActivationCategoryKind, string> = {
+  theory: 'bg-warning-400/22',
+  tasks: 'bg-brand-400/24',
+  grid: 'bg-slate-300/20'
+};
+
+const buildDividerStyle = (accentRgb: string | undefined) =>
+  accentRgb
+    ? ({ '--activation-divider': accentRgb } as CSSProperties)
+    : undefined;
 
 export const TableSurface = ({
   data,
@@ -63,21 +80,28 @@ export const TableSurface = ({
           initial={false}
           animate={{ opacity: surfaceAwake ? 1 : 0, y: surfaceAwake ? 0 : -8 }}
           transition={{ duration: 0.24, ease: ACTIVATION_EASE_OUT }}
-          className="max-w-3xl"
+          className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between"
         >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-300">
-            Activation Table
-          </p>
-          <h1
-            data-testid="activation-greeting"
-            className="mt-2 text-xl font-semibold text-text-dark-primary sm:text-2xl"
-          >
-            {data.greeting.title}
-          </h1>
-          <p className="mt-1 text-sm text-text-dark-secondary">{data.greeting.subtitle}</p>
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-300">
+              Activation Table
+            </p>
+            <h1
+              data-testid="activation-greeting"
+              className="mt-2 text-xl font-semibold text-text-dark-primary sm:text-2xl"
+            >
+              {data.greeting.title}
+            </h1>
+          </div>
+
+          {data.greeting.lastClockedIn ? (
+            <p className="w-fit rounded-xl border border-slate-300/45 bg-[#0b1016]/80 px-3 py-2 text-xs font-medium text-slate-200">
+              {data.greeting.lastClockedIn}
+            </p>
+          ) : null}
         </motion.header>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3 lg:gap-4">
+        <div className="mt-4 flex flex-col gap-4 lg:gap-5">
           {visibleCategories.map((category, index) => (
             <motion.div
               key={category.kind}
@@ -88,8 +112,30 @@ export const TableSurface = ({
                 delay: cardsVisible ? 0.04 + index * 0.05 : 0,
                 ease: ACTIVATION_EASE_OUT
               }}
-              className={index === 0 ? 'md:col-span-2 xl:col-span-1' : undefined}
+              className="relative w-full"
             >
+              {index > 0 ? (
+                <>
+                  <div
+                    aria-hidden
+                    style={buildDividerStyle(category.accentRgb)}
+                    className={
+                      category.accentRgb
+                        ? 'pointer-events-none absolute -top-2.5 left-6 right-6 h-px bg-[linear-gradient(90deg,transparent,rgba(var(--activation-divider),0.46),transparent)]'
+                        : `pointer-events-none absolute -top-2.5 left-6 right-6 h-px bg-gradient-to-r from-transparent ${dividerToneByKind[category.kind]} to-transparent`
+                    }
+                  />
+                  <div
+                    aria-hidden
+                    style={buildDividerStyle(category.accentRgb)}
+                    className={
+                      category.accentRgb
+                        ? 'pointer-events-none absolute -top-5 left-1/4 right-1/4 h-6 bg-[rgba(var(--activation-divider),0.2)] blur-xl'
+                        : `pointer-events-none absolute -top-5 left-1/4 right-1/4 h-6 blur-xl ${dividerGlowByKind[category.kind]}`
+                    }
+                  />
+                </>
+              ) : null}
               <ActivationCategoryCard
                 ref={category.kind === 'theory' ? primaryActionRef : undefined}
                 data={category}

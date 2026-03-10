@@ -8,11 +8,20 @@
     --font-mono: 'DM Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
     --font-serif: 'DM Serif Display', 'Iowan Old Style', 'Palatino Linotype', Georgia,
       serif;
+    --font-hero: 'Inter', 'Avenir Next', 'Segoe UI', 'Helvetica Neue', Arial, system-ui,
+      sans-serif;
   }
 
   html,
   body {
     height: 100%;
+  }
+
+  html:has(#grid-flow[data-intro-lock='true']),
+  body:has(#grid-flow[data-intro-lock='true']) {
+    overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
   }
 
   body {

@@ -27,20 +27,20 @@ export const THEORY_TOPIC_STYLE_MAP: Record<string, TheoryTopicStyle> = {
     progressClass: 'bg-warning-500'
   },
   fabric: {
-    accentRgb: '217,70,239',
+    accentRgb: '34,185,153',
     eyebrow: 'Platform Track',
     highlights: [
       'Lakehouse and pipeline foundations',
       'Realtime and warehouse workflows',
       'Governance path ready for rebuild'
     ],
-    accentTextClass: 'text-fuchsia-600 dark:text-fuchsia-300',
-    iconClass: 'text-fuchsia-600 dark:text-fuchsia-400',
+    accentTextClass: 'text-brand-600 dark:text-brand-300',
+    iconClass: 'text-brand-600 dark:text-brand-400',
     iconWrapClass:
-      'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-800 dark:bg-fuchsia-900/20 dark:text-fuchsia-300',
+      'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300',
     badgeClass:
-      'border-fuchsia-200/80 bg-fuchsia-50/90 text-fuchsia-700 dark:border-fuchsia-800 dark:bg-fuchsia-900/20 dark:text-fuchsia-300',
-    progressClass: 'bg-fuchsia-500'
+      'border-brand-200/80 bg-brand-50/90 text-brand-700 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300',
+    progressClass: 'bg-brand-500'
   }
 };
 

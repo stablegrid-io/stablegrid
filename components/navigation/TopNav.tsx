@@ -13,18 +13,11 @@ import {
   Flag,
   Home,
   Layers3,
-  Lightbulb,
   NotebookPen,
   Zap,
   type LucideIcon
 } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import { StableGridIcon } from '@/components/brand/StableGridLogo';
-import {
-  COOKIE_CONSENT_UPDATED_EVENT,
-  hasCategoryConsent,
-  openCookiePreferencesDialog
-} from '@/lib/cookies/cookie-consent';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 
 const UserMenuLazy = dynamic(
@@ -109,14 +102,11 @@ type WindowWithIdle = Window & {
 export const TopNav = () => {
   const pathname = usePathname();
   const router = useRouter();
-  const { resolvedTheme, setTheme } = useTheme();
   const { user } = useAuthStore();
   const hideNav = shouldHideNav(pathname, Boolean(user));
   const prefetchedRoutesRef = useRef<Set<string>>(new Set());
   const tasksMenuRef = useRef<HTMLDivElement>(null);
   const [tasksOpen, setTasksOpen] = useState(false);
-  const [themeMounted, setThemeMounted] = useState(false);
-  const [canPersistPreferences, setCanPersistPreferences] = useState(false);
 
   const prefetchRoute = useCallback(
     (route: string) => {
@@ -173,23 +163,6 @@ export const TopNav = () => {
   }, [pathname]);
 
   useEffect(() => {
-    setThemeMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const syncPreferencesConsent = () => {
-      setCanPersistPreferences(hasCategoryConsent('preferences'));
-    };
-
-    syncPreferencesConsent();
-    window.addEventListener(COOKIE_CONSENT_UPDATED_EVENT, syncPreferencesConsent);
-
-    return () => {
-      window.removeEventListener(COOKIE_CONSENT_UPDATED_EVENT, syncPreferencesConsent);
-    };
-  }, []);
-
-  useEffect(() => {
     if (!tasksOpen) {
       return undefined;
     }
@@ -223,8 +196,6 @@ export const TopNav = () => {
   if (hideNav) {
     return null;
   }
-
-  const isDarkTheme = resolvedTheme === 'dark';
 
   return (
     <nav className="sticky top-0 z-50 border-b border-[#183224] bg-[#050805]/95 backdrop-blur-xl">
@@ -413,47 +384,6 @@ export const TopNav = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            {themeMounted ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (!canPersistPreferences) {
-                    openCookiePreferencesDialog();
-                    return;
-                  }
-                  setTheme(isDarkTheme ? 'light' : 'dark');
-                }}
-                aria-label={
-                  canPersistPreferences
-                    ? isDarkTheme
-                      ? 'Switch to light mode'
-                      : 'Switch to dark mode'
-                    : 'Open cookie settings to enable preference cookies'
-                }
-                title={
-                  canPersistPreferences
-                    ? isDarkTheme
-                      ? 'Light mode'
-                      : 'Dark mode'
-                    : 'Enable preferences cookies to save theme settings'
-                }
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-all ${
-                  isDarkTheme
-                    ? 'border-brand-500/40 bg-brand-500/10 text-brand-200 hover:bg-brand-500/16'
-                    : 'border-[#b7c4d8] bg-white/85 text-[#2c3b52] hover:bg-white'
-                }`}
-              >
-                <Lightbulb
-                  className={`h-4 w-4 ${isDarkTheme ? 'fill-brand-300/20' : 'fill-amber-300/40 text-amber-500'}`}
-                />
-              </button>
-            ) : (
-              <div
-                aria-hidden
-                className="h-10 w-10 rounded-xl border border-light-border bg-light-surface dark:border-dark-border dark:bg-dark-surface"
-              />
-            )}
-
             {user ? (
               <UserMenuLazy />
             ) : (

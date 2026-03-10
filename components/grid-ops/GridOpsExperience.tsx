@@ -223,8 +223,27 @@ export function GridOpsExperience() {
   }, [selectedAssetId, state]);
 
   return (
-    <main className="min-h-screen bg-light-bg px-4 pb-12 pt-8 text-text-light-primary dark:bg-[#090b0f] dark:text-[#e6ebf2] sm:px-6">
-      <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4">
+    <main className="relative min-h-screen overflow-hidden bg-light-bg px-4 pb-12 pt-8 text-text-light-primary dark:bg-dark-bg dark:text-[#e6ebf2] sm:px-6">
+      <div className="pointer-events-none absolute inset-0 dark:hidden bg-[radial-gradient(circle_at_20%_18%,rgba(10,10,10,0.06),transparent_26%),radial-gradient(circle_at_84%_12%,rgba(10,10,10,0.04),transparent_30%)]" />
+      <div className="pointer-events-none absolute inset-0 hidden dark:block bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.03),transparent_24%),radial-gradient(circle_at_84%_14%,rgba(34,185,153,0.08),transparent_30%)]" />
+      <div
+        className="pointer-events-none absolute inset-0 dark:hidden"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(10,10,10,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(10,10,10,0.04) 1px, transparent 1px)',
+          backgroundSize: '42px 42px'
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-0 hidden dark:block"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(250,250,250,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(250,250,250,0.03) 1px, transparent 1px)',
+          backgroundSize: '42px 42px'
+        }}
+      />
+
+      <div className="relative mx-auto flex w-full max-w-[1480px] flex-col gap-4">
         <GridOpsHeader />
 
         {loading && !state ? (

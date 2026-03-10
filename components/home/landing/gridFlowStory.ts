@@ -84,13 +84,13 @@ export interface GridFlowChapter {
 export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
   {
     id: 'intro',
-    eyebrow: 'PySpark missions for Microsoft Fabric',
-    title: 'Train your PySpark, stabilize the Grid',
-    body: 'For people who work with big data.',
+    eyebrow: 'Big data learning platform',
+    title: 'Learn to handle big data with guided courses.',
+    body: 'Start with theory, then apply it with flashcards, missions, notebooks, and the Grid game.',
     variant: 'intro',
     align: 'left',
     ctaSource: 'grid_flow_primary',
-    ctaLabel: 'Learn PySpark for real',
+    ctaLabel: 'Start free',
     scene: {
       stageBeat: 0.18,
       diagramOffsetX: -18,
@@ -104,9 +104,9 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
   },
   {
     id: 'theory',
-    eyebrow: 'Theory',
-    title: 'Start with one clear track.',
-    body: 'A Fabric track with short PySpark chapters and checkpoints.',
+    eyebrow: 'Theory courses',
+    title: 'Learn core big-data theory.',
+    body: 'Start with guided theory courses in PySpark and Microsoft Fabric.',
     variant: 'story',
     align: 'left',
     snapshot: {
@@ -120,7 +120,7 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
           {
             id: 'module-05',
             label: 'Module 05',
-            title: 'Advanced Joins & The Art of Distributed Relationships',
+            title: 'Distributed Joins and Partition Strategy',
             meta: '11/11 lessons • 120 min',
             checkpoint: 'Checkpoint passed',
             side: 'right',
@@ -129,7 +129,7 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
           {
             id: 'module-06',
             label: 'Module 06',
-            title: 'Spark SQL',
+            title: 'Microsoft Fabric Foundations',
             meta: '12/12 lessons • 120 min',
             checkpoint: 'Checkpoint passed',
             side: 'left',
@@ -138,7 +138,7 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
           {
             id: 'module-07',
             label: 'Module 07',
-            title: 'Data Cleaning & Transformation Patterns at Scale',
+            title: 'PySpark Data Cleaning at Scale',
             meta: '5/12 lessons • 150 min',
             checkpoint: 'Checkpoint pending',
             side: 'right',
@@ -146,7 +146,7 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
           }
         ]
       },
-      actionLabel: 'Continue module',
+      actionLabel: 'Continue course',
       tone: 'mint'
     },
     scene: {
@@ -162,11 +162,11 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
   },
   {
     id: 'missions',
-    eyebrow: 'Missions',
-    title: 'Then run one mission.',
-    body: 'Trace one route change and resolve it with PySpark.',
+    eyebrow: 'Practice tasks',
+    title: 'Practice with guided tasks.',
+    body: 'Reinforce each lesson with flashcards, missions, and notebooks, and gain kWh.',
     variant: 'story',
-    align: 'right',
+    align: 'left',
     snapshot: {
       label: 'Mission 02',
       title: '',
@@ -175,19 +175,19 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
       highlights: [],
       missionListing: {
         missionId: 'Mission 01',
-        title: 'Blackout Berlin',
+        title: 'Pipeline Surge Response',
         difficulty: 'Hard',
         description:
-          'A rogue transformer floods the platform with ghost events. You identify the hot partition, apply salting, and stabilize real-time visibility before the second cascade.',
-        urgency: '340,000 households. 6 hours to prevent the second wave.',
-        stats: ['90 min', 'Berlin', '1.4 kWh'],
+          'A traffic spike floods ingestion with duplicate events. You identify skew, rebalance partitions, and restore real-time data reliability.',
+        urgency: 'High-impact data incident. 60 minutes to stabilize.',
+        stats: ['60 min', 'Streaming', 'PySpark'],
         statusLabel: 'Mission status',
         statusValue: 'Ready',
         statusDescription:
-          'Mission ready. Open the briefing to review the stakes, timeline, and reward.',
-        primaryAction: 'Open briefing'
+          'Mission ready. Review the brief and solve the scenario using course concepts.',
+        primaryAction: 'Start mission'
       },
-      actionLabel: 'Open mission brief',
+      actionLabel: 'Start task',
       tone: 'amber'
     },
     scene: {
@@ -203,9 +203,9 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
   },
   {
     id: 'grid-case',
-    eyebrow: 'Grid case',
-    title: 'Run one live grid challenge.',
-    body: 'Make rapid dispatch decisions, earn score, and stabilize the corridor before risk cascades.',
+    eyebrow: 'Grid game experience',
+    title: 'Apply your skills in the Grid game.',
+    body: 'Use what you learned in a real-time simulation, gain kWh, then cash it out by deploying assets to stabilize the grid.',
     variant: 'story',
     align: 'left',
     snapshot: {
@@ -215,10 +215,10 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
       meta: 'Threat level elevated • 6 live nodes',
       mediaModel: 'control-center',
       highlights: [
-        'Balance feeder load before overflow trigger.',
+        'Detect risk signals before they cascade.',
         'Keep stability above 92% for one full cycle.'
       ],
-      actionLabel: 'Lock corridor stability',
+      actionLabel: 'Play grid scenario',
       tone: 'sky'
     },
     scene: {
@@ -234,9 +234,9 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
   },
   {
     id: 'hrb-layer',
-    eyebrow: 'HRB layer',
-    title: 'Review the HRB layer.',
-    body: 'Track progress, checkpoints, and the next move after each run.',
+    eyebrow: 'Progress tracking',
+    title: 'Track skills across courses and tasks.',
+    body: 'See theory completion, task progress, and your next recommended step in one place.',
     variant: 'story',
     align: 'right',
     snapshot: {
@@ -247,12 +247,12 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
       highlights: [],
       progressionSnapshot: {
         readinessPercent: 42,
-        promotionTarget: 'Junior Operator',
-        guidance: 'Keep focus on the unmet criteria below.',
-        ctaLabel: 'Advance to next role',
-        footnote: 'Review development plan'
+        promotionTarget: 'Big Data Practitioner',
+        guidance: 'Focus on remaining theory and tasks to complete your path.',
+        ctaLabel: 'Advance learning level',
+        footnote: 'Review recommended next tasks'
       },
-      actionLabel: 'Review shift log',
+      actionLabel: 'Review progress',
       tone: 'mint'
     },
     scene: {
@@ -268,13 +268,13 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
   },
   {
     id: 'cta',
-    eyebrow: 'PySpark-guided theory beta',
-    title: 'Gamified experience to study PySpark and much more.',
-    body: '',
+    eyebrow: 'Unified big data path',
+    title: 'Pick your course track. Build big-data confidence.',
+    body: 'Browse the course gallery below, choose your path, then start free and continue with tasks and the Grid game.',
     variant: 'final',
     align: 'center',
     ctaSource: 'grid_flow_final',
-    ctaLabel: 'So, are you ready to dive in?',
+    ctaLabel: 'Start free',
     scene: {
       stageBeat: 4.12,
       diagramOffsetX: 6,

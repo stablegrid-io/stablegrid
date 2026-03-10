@@ -4,20 +4,19 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   Bell,
+  Cookie,
   Clock3,
   CreditCard,
   FileText,
   LifeBuoy,
   Lock,
   LogOut,
-  Moon,
   Shield,
-  Sun,
   Trash2,
   User
 } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useTheme } from 'next-themes';
+import { openCookiePreferencesDialog } from '@/lib/cookies/cookie-consent';
 import { createClient } from '@/lib/supabase/client';
 import { ProfileTab } from './ProfileTab';
 import { SecurityTab } from './SecurityTab';
@@ -65,12 +64,10 @@ export function SettingsShell({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { resolvedTheme, setTheme } = useTheme();
 
   const initialTab = isTabId(searchParams.get('tab')) ? searchParams.get('tab') : 'profile';
   const [tab, setTab] = useState<SettingsTabId>(initialTab as SettingsTabId);
   const [toast, setToast] = useState<ToastPayload | null>(null);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     if (isTabId(searchParams.get('tab'))) {
@@ -99,10 +96,6 @@ export function SettingsShell({
 
     return () => window.clearTimeout(timeout);
   }, [toast]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const showToast = (
     message: string,
@@ -192,21 +185,6 @@ export function SettingsShell({
 
           <div className="divider my-2" />
 
-          {mounted ? (
-            <button
-              type="button"
-              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-              className="mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-text-light-secondary transition-colors hover:bg-light-hover dark:text-text-dark-secondary dark:hover:bg-dark-hover"
-            >
-              {resolvedTheme === 'dark' ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
-              {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
-            </button>
-          ) : null}
-
           <div className="mb-1 rounded-lg border border-light-border p-2 dark:border-dark-border">
             <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-light-tertiary dark:text-text-dark-tertiary">
               Policy & Help
@@ -218,6 +196,14 @@ export function SettingsShell({
               <Shield className="h-4 w-4" />
               Privacy
             </Link>
+            <button
+              type="button"
+              onClick={openCookiePreferencesDialog}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm font-medium text-text-light-secondary transition-colors hover:bg-light-hover dark:text-text-dark-secondary dark:hover:bg-dark-hover"
+            >
+              <Cookie className="h-4 w-4" />
+              Cookie settings
+            </button>
             <Link
               href="/terms"
               className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm font-medium text-text-light-secondary transition-colors hover:bg-light-hover dark:text-text-dark-secondary dark:hover:bg-dark-hover"

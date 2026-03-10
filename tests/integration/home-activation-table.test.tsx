@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HomeActivationTable } from '@/components/home/activation-table/HomeActivationTable';
 import type { HomeActivationTableProps } from '@/components/home/activation-table/HomeActivationTable';
@@ -54,8 +54,13 @@ const buildProps = (): HomeActivationTableProps => ({
         title: 'PySpark',
         summary: 'Resume the active chapter and keep continuity.',
         statLine: '4 sections still open in this chapter.',
-        primaryAction: { label: 'Resume chapter', href: '/learn/pyspark/theory' },
-        secondaryAction: { label: 'View theory path', href: '/learn/pyspark/theory' }
+        accentRgb: '245,158,11',
+        progress: {
+          valuePct: 67,
+          label: 'Chapter progress',
+          valueLabel: '8/12 sections'
+        },
+        primaryAction: { label: 'Resume chapter', href: '/learn/pyspark/theory' }
       },
       {
         kind: 'tasks',
@@ -63,8 +68,7 @@ const buildProps = (): HomeActivationTableProps => ({
         title: 'Task Deck',
         summary: 'Notebooks, missions, and flashcards are ready for your next execution block.',
         statLine: '3 recap entries available',
-        primaryAction: { label: 'Open tasks', href: '/tasks' },
-        secondaryAction: { label: 'Resume notebooks', href: '/practice/notebooks' }
+        primaryAction: { label: 'Open tasks', href: '/tasks' }
       },
       {
         kind: 'grid',
@@ -72,8 +76,11 @@ const buildProps = (): HomeActivationTableProps => ({
         title: 'Substation Relay',
         summary: 'Unlock threshold reached. Deploy this node to stabilize your grid.',
         statLine: '35.64 kWh currently available',
-        primaryAction: { label: 'Deploy node', href: '/energy' },
-        secondaryAction: { label: 'Review task deck', href: '/tasks' }
+        progress: {
+          valuePct: 84,
+          label: 'Unlock progress'
+        },
+        primaryAction: { label: 'Deploy node', href: '/energy' }
       }
     ]
   }
@@ -157,9 +164,25 @@ describe('HomeActivationTable', () => {
     await advanceThroughSequence(fullSequenceTotalMs + 260);
 
     expect(screen.getByTestId('activation-greeting')).toBeInTheDocument();
-    expect(screen.getByTestId('activation-category-theory')).toBeInTheDocument();
-    expect(screen.getByTestId('activation-category-tasks')).toBeInTheDocument();
-    expect(screen.getByTestId('activation-category-grid')).toBeInTheDocument();
+    const theoryCard = screen.getByTestId('activation-category-theory');
+    const tasksCard = screen.getByTestId('activation-category-tasks');
+    const gridCard = screen.getByTestId('activation-category-grid');
+    expect(theoryCard).toBeInTheDocument();
+    expect(tasksCard).toBeInTheDocument();
+    expect(gridCard).toBeInTheDocument();
+
+    expect(within(theoryCard).getAllByRole('link')).toHaveLength(1);
+    expect(within(tasksCard).getAllByRole('link')).toHaveLength(1);
+    expect(within(gridCard).getAllByRole('link')).toHaveLength(1);
+    expect(within(theoryCard).getByTestId('activation-progress-theory')).toHaveAttribute(
+      'aria-valuenow',
+      '67'
+    );
+    expect(within(gridCard).getByTestId('activation-progress-grid')).toHaveAttribute(
+      'aria-valuenow',
+      '84'
+    );
+    expect(within(tasksCard).queryByTestId('activation-progress-tasks')).not.toBeInTheDocument();
   });
 
   it('focuses primary CTA and keeps decorative layer non-blocking', async () => {

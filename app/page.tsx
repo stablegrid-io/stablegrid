@@ -1,5 +1,6 @@
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/server';
+import { MISSIONS } from '@/data/missions';
 import { getCanonicalTheoryStats } from '@/lib/learn/theoryProgress';
 import {
   buildTheorySummaryByTopic,
@@ -42,6 +43,15 @@ interface UserProgressRow {
   xp: number;
   streak: number;
   completed_questions: string[] | null;
+  topic_progress: Record<string, unknown> | null;
+  last_activity: string | null;
+  updated_at: string | null;
+}
+
+interface UserMissionRow {
+  mission_slug: string;
+  state: 'not_started' | 'in_progress' | 'completed';
+  updated_at: string | null;
 }
 
 interface ReadingSignalRow {
@@ -55,6 +65,275 @@ interface TheorySummarySnapshot {
   sectionRead: number;
   totalSeconds: number;
 }
+
+interface HomeLatestTaskAction {
+  title: string;
+  summary: string;
+  statLine: string;
+  actionLabel: string;
+  actionHref: string;
+  topicId: Topic;
+  accentRgb?: string;
+  progressPct?: number;
+}
+
+const TRACK_TOPICS: Topic[] = ['pyspark', 'fabric'];
+const ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC: Record<Topic, string> = {
+  pyspark: '245,158,11',
+  fabric: '34,185,153'
+};
+const DEFAULT_TASKS_ACCENT_RGB = '34,185,153';
+const MISSION_ACCENT_BY_SLUG = new Map(
+  MISSIONS.map((mission) => [mission.slug, mission.accentRgb])
+);
+
+const toRecord = (value: unknown): Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+};
+
+const toIsoTimestamp = (value: unknown) => {
+  if (typeof value !== 'string') return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? value : null;
+};
+
+const clampPct = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+
+const pickLatestIsoTimestamp = (...values: Array<string | null | undefined>) => {
+  const candidates = values.filter(
+    (value): value is string => typeof value === 'string' && Number.isFinite(Date.parse(value))
+  );
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  return candidates.sort((left, right) => Date.parse(right) - Date.parse(left))[0];
+};
+
+const extractActivityTimestampsFromNestedProgress = (value: unknown) => {
+  const visited = new Set<object>();
+  const queue: unknown[] = [value];
+  const collected: string[] = [];
+  const activityKeyPattern =
+    /(updated|attempted|activity|completed_at|last_active|lastActive|lastAttempted)/i;
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || typeof current !== 'object') {
+      continue;
+    }
+
+    if (visited.has(current)) {
+      continue;
+    }
+    visited.add(current);
+
+    if (Array.isArray(current)) {
+      current.forEach((item) => queue.push(item));
+      continue;
+    }
+
+    Object.entries(current as Record<string, unknown>).forEach(([key, nestedValue]) => {
+      if (typeof nestedValue === 'string') {
+        if (activityKeyPattern.test(key) && Number.isFinite(Date.parse(nestedValue))) {
+          collected.push(nestedValue);
+        }
+        return;
+      }
+
+      if (nestedValue && typeof nestedValue === 'object') {
+        queue.push(nestedValue);
+      }
+    });
+  }
+
+  return collected;
+};
+
+const formatMissionLabel = (slug: string) =>
+  slug
+    .split('-')
+    .map((segment) =>
+      segment.length > 0 ? `${segment[0].toUpperCase()}${segment.slice(1)}` : segment
+    )
+    .join(' ');
+
+const resolveLatestPracticeTopic = (
+  topicProgress: Record<string, unknown>
+): { topic: Topic; updatedAt: string; attempted: number; completionPct: number | undefined } | null => {
+  const candidates = TRACK_TOPICS.map((topic) => {
+    const topicStats = toRecord(topicProgress[topic]);
+    const updatedAt = toIsoTimestamp(topicStats.lastAttempted);
+    const attempted = Math.max(0, Math.floor(Number(topicStats.total ?? 0)));
+    const completionPctRaw = Number(topicStats.completionPct);
+    const completionPct = Number.isFinite(completionPctRaw)
+      ? clampPct(completionPctRaw)
+      : undefined;
+    if (!updatedAt) {
+      return null;
+    }
+    return {
+      topic,
+      updatedAt,
+      attempted,
+      completionPct
+    };
+  }).filter(
+    (
+      candidate
+    ): candidate is { topic: Topic; updatedAt: string; attempted: number; completionPct: number | undefined } =>
+      candidate !== null
+  );
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  return candidates.sort(
+    (left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)
+  )[0];
+};
+
+const buildLatestTaskAction = ({
+  latestMission,
+  userProgress,
+  fallbackTopic
+}: {
+  latestMission: UserMissionRow | null;
+  userProgress: UserProgressRow | null;
+  fallbackTopic: Topic;
+}): HomeLatestTaskAction => {
+  const topicProgress = toRecord(userProgress?.topic_progress);
+  const notebooksProgress = toRecord(topicProgress.notebooks);
+  const notebookUpdatedAt = toIsoTimestamp(notebooksProgress.updated_at);
+  const completedNotebookIds = Array.isArray(notebooksProgress.completed_notebook_ids)
+    ? notebooksProgress.completed_notebook_ids.filter(
+        (value): value is string => typeof value === 'string'
+      )
+    : [];
+  const notebookCompletedCount = Math.max(
+    completedNotebookIds.length,
+    Math.floor(Number(notebooksProgress.completed_notebooks_count ?? 0))
+  );
+  const notebookTotalCount = Math.max(
+    0,
+    Math.floor(
+      Number(
+        notebooksProgress.total_notebooks_count ??
+          notebooksProgress.notebooks_total ??
+          notebooksProgress.total
+      )
+    )
+  );
+  const notebooksProgressPct =
+    notebookTotalCount > 0
+      ? clampPct((Math.min(notebookCompletedCount, notebookTotalCount) / notebookTotalCount) * 100)
+      : undefined;
+  const latestPracticeTopic = resolveLatestPracticeTopic(topicProgress);
+
+  const missionUpdatedAt = toIsoTimestamp(latestMission?.updated_at);
+
+  const missionCandidate: (HomeLatestTaskAction & { updatedAt: string }) | null =
+    latestMission && missionUpdatedAt
+      ? {
+          title: `Mission: ${formatMissionLabel(latestMission.mission_slug)}`,
+          summary:
+            latestMission.state === 'completed'
+              ? 'Replay the latest mission incident to keep operations sharp.'
+              : 'Resume the latest mission incident and continue from your last checkpoint.',
+          statLine:
+            latestMission.state === 'completed'
+              ? 'Latest mission is completed.'
+              : 'Latest mission is in progress.',
+          actionLabel:
+            latestMission.state === 'completed' ? 'Replay mission' : 'Resume mission',
+          actionHref: `/missions/${latestMission.mission_slug}`,
+          topicId: fallbackTopic,
+          accentRgb:
+            MISSION_ACCENT_BY_SLUG.get(latestMission.mission_slug) ??
+            DEFAULT_TASKS_ACCENT_RGB,
+          progressPct: latestMission.state === 'completed' ? 100 : undefined,
+          updatedAt: missionUpdatedAt
+        }
+      : null;
+
+  const notebookCandidate: (HomeLatestTaskAction & { updatedAt: string }) | null =
+    notebookUpdatedAt
+      ? {
+          title: 'Notebooks',
+          summary:
+            notebookCompletedCount > 0
+              ? 'Resume notebook reviews and keep your audit workflow active.'
+              : 'Start notebook reviews to build applied troubleshooting reps.',
+          statLine:
+            notebookCompletedCount > 0
+              ? `${notebookCompletedCount} notebook reviews completed`
+              : 'No notebook reviews completed yet',
+          actionLabel:
+            notebookCompletedCount > 0 ? 'Resume notebooks' : 'Open notebooks',
+          actionHref: '/practice/notebooks',
+          topicId: fallbackTopic,
+          accentRgb: DEFAULT_TASKS_ACCENT_RGB,
+          progressPct: notebooksProgressPct,
+          updatedAt: notebookUpdatedAt
+        }
+      : null;
+
+  const practiceCandidate: (HomeLatestTaskAction & { updatedAt: string }) | null =
+    latestPracticeTopic
+      ? {
+          title: 'Flashcards',
+          summary: 'Resume your latest recall deck and keep retention active.',
+          statLine:
+            latestPracticeTopic.attempted > 0
+              ? `${latestPracticeTopic.attempted} flashcards attempted in this track`
+              : 'Latest flashcard track is ready to continue',
+          actionLabel: 'Resume flashcards',
+          actionHref: `/practice/${latestPracticeTopic.topic}`,
+          topicId: latestPracticeTopic.topic,
+          accentRgb: ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC[latestPracticeTopic.topic],
+          progressPct: latestPracticeTopic.completionPct,
+          updatedAt: latestPracticeTopic.updatedAt
+        }
+      : null;
+
+  const latestTimedCandidate = [missionCandidate, notebookCandidate, practiceCandidate]
+    .filter((candidate): candidate is HomeLatestTaskAction & { updatedAt: string } =>
+      Boolean(candidate)
+    )
+    .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0];
+
+  if (latestTimedCandidate) {
+    const { updatedAt: _updatedAt, ...taskAction } = latestTimedCandidate;
+    return taskAction;
+  }
+
+  const completedQuestionsCount = userProgress?.completed_questions?.length ?? 0;
+  if (completedQuestionsCount > 0) {
+    return {
+      title: 'Flashcards',
+      summary: 'Resume your latest recall deck and keep retention active.',
+      statLine: `${completedQuestionsCount} recall checks completed`,
+      actionLabel: 'Resume flashcards',
+      actionHref: `/practice/${fallbackTopic}`,
+      topicId: fallbackTopic,
+      accentRgb: ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC[fallbackTopic]
+    };
+  }
+
+  return {
+    title: 'Task Deck',
+    summary: 'Open notebooks, missions, or flashcards from one command surface.',
+    statLine: 'No recent task activity yet',
+    actionLabel: 'Open tasks',
+    actionHref: '/tasks',
+    topicId: fallbackTopic,
+    accentRgb: DEFAULT_TASKS_ACCENT_RGB
+  };
+};
 
 const mapTopicProgressRow = (row: TopicProgressRow): TopicProgress => {
   const theoryStats = getCanonicalTheoryStats(row.topic);
@@ -135,7 +414,8 @@ export default async function RootPage() {
     recentSessionsResult,
     allReadingSessionsResult,
     readingSignalsResult,
-    userProgressResult
+    userProgressResult,
+    latestMissionResult
   ] =
     await Promise.all([
       supabase
@@ -173,8 +453,16 @@ export default async function RootPage() {
         .limit(120),
       supabase
         .from('user_progress')
-        .select('xp, streak, completed_questions')
+        .select('xp, streak, completed_questions, topic_progress, last_activity, updated_at')
         .eq('user_id', userId)
+        .maybeSingle(),
+      supabase
+        .from('user_missions')
+        .select('mission_slug,state,updated_at')
+        .eq('user_id', userId)
+        .neq('state', 'not_started')
+        .order('updated_at', { ascending: false })
+        .limit(1)
         .maybeSingle()
     ]);
 
@@ -183,6 +471,7 @@ export default async function RootPage() {
   const allReadingSessionRows = (allReadingSessionsResult.data ?? []) as ReadingSessionRowLike[];
   const readingSignalRows = (readingSignalsResult.data ?? []) as ReadingSignalRow[];
   const userProgress = (userProgressResult.data ?? null) as UserProgressRow | null;
+  const latestMission = (latestMissionResult.data ?? null) as UserMissionRow | null;
 
   const theorySummaryByTopic = buildTheorySummaryByTopic(allReadingSessionRows);
   const topicProgress = topicProgressRows.map((row) => {
@@ -211,6 +500,35 @@ export default async function RootPage() {
   });
   const resolvedTopicProgress = Array.from(topicProgressByTopic.values());
   const recentSessions = recentSessionRows.map(mapReadingSessionRow);
+  const allReadingSessions = allReadingSessionRows.map(mapReadingSessionRow);
+  const latestTheorySession =
+    allReadingSessions.length > 0
+      ? [...allReadingSessions].sort(
+          (left, right) =>
+            Date.parse(right.lastActiveAt) - Date.parse(left.lastActiveAt)
+        )[0]
+      : null;
+  const latestTheoryTopic = latestTheorySession?.topic ?? 'pyspark';
+  const latestTaskAction = buildLatestTaskAction({
+    latestMission,
+    userProgress,
+    fallbackTopic: latestTheoryTopic
+  });
+  const nestedTaskActivityTimestamps = extractActivityTimestampsFromNestedProgress(
+    userProgress?.topic_progress
+  );
+  const topicProgressActivityTimestamps = topicProgressRows.flatMap((row) => [
+    row.last_activity_at,
+    row.updated_at
+  ]);
+  const lastClockedInAt = pickLatestIsoTimestamp(
+    latestTheorySession?.lastActiveAt,
+    latestMission?.updated_at,
+    userProgress?.last_activity,
+    userProgress?.updated_at,
+    ...nestedTaskActivityTimestamps,
+    ...topicProgressActivityTimestamps
+  );
   const readingSignals: ReadingSignal[] = readingSignalRows.map((row) => ({
     lastActiveAt: row.last_active_at,
     completedAt: row.completed_at,
@@ -236,6 +554,9 @@ export default async function RootPage() {
       user={user}
       topicProgress={resolvedTopicProgress}
       recentSessions={recentSessions}
+      latestTheorySession={latestTheorySession}
+      lastClockedInAt={lastClockedInAt}
+      latestTaskAction={latestTaskAction}
       readingSignals={readingSignals}
       stats={{
         totalXp: userProgress?.xp ?? 0,

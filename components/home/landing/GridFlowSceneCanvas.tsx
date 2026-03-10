@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import type { GridFlowFocusZone, GridFlowSceneState } from '@/components/home/landing/gridFlowStory';
 
 const lerp = (from: number, to: number, amount: number) => from + (to - from) * amount;
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 interface Point2D {
   x: number;
@@ -28,14 +29,6 @@ interface DiagramBox {
   width: number;
   depth: number;
   height: number;
-}
-
-interface DiagramLabel {
-  id: string;
-  text: string;
-  point: Point3D;
-  dx: number;
-  dy: number;
 }
 
 interface GridFlowSceneCanvasProps {
@@ -67,13 +60,6 @@ const STATION_BOXES: DiagramBox[] = [
   { id: 'out-c', stage: 4, x: 1.92, y: 0.18, z: 0, width: 0.24, depth: 0.24, height: 0.68 }
 ];
 
-const CALLOUTS: DiagramLabel[] = [
-  { id: 'callout-entry', text: 'TRACK', point: [-2.62, 1.18, 0.96], dx: -30, dy: -74 },
-  { id: 'callout-switch', text: 'MISSION', point: [-1.02, 0.44, 0.88], dx: -20, dy: -86 },
-  { id: 'callout-core', text: 'GRID', point: [0.88, 0.16, 1.1], dx: 28, dy: -88 },
-  { id: 'callout-output', text: 'HRB', point: [2.42, -0.46, 1.04], dx: 38, dy: -78 }
-];
-
 const PRIMARY_ROUTE: Point3D[] = [
   [-3.28, 1.06, 1.04],
   [-2.54, 0.92, 1.04],
@@ -89,31 +75,26 @@ const PRIMARY_ROUTE: Point3D[] = [
 ];
 
 const LOWER_BUS_ROUTE: Point3D[] = [
-  [-2.18, 0.18, 0.58],
-  [-1.6, 0.02, 0.58],
-  [-0.94, -0.14, 0.58],
-  [-0.24, -0.28, 0.58],
-  [0.58, -0.42, 0.58],
-  [1.38, -0.56, 0.58],
-  [2.1, -0.7, 0.58]
+  [-1.08, 0.18, 0.9],
+  [-0.84, 0.02, 0.86],
+  [-0.42, -0.2, 0.8],
+  [0.16, -0.38, 0.74],
+  [0.94, -0.56, 0.7],
+  [1.74, -0.76, 0.66],
+  [2.58, -0.96, 0.62]
 ];
 
 const UPPER_BUS_ROUTE: Point3D[] = [
-  [-2.26, 0.74, 0.74],
-  [-1.68, 0.56, 0.74],
-  [-1.04, 0.32, 0.74],
-  [-0.22, 0.08, 0.74],
-  [0.68, -0.06, 0.74],
-  [1.48, -0.24, 0.74],
-  [2.24, -0.42, 0.74]
+  [-1.08, 0.18, 0.9],
+  [-0.76, 0.34, 0.92],
+  [-0.28, 0.5, 0.9],
+  [0.34, 0.44, 0.88],
+  [1.08, 0.28, 0.86],
+  [1.88, 0.1, 0.84],
+  [2.7, -0.1, 0.82]
 ];
 
-const TIE_ROUTES: Point3D[][] = [
-  [[-1.56, 0.48, 0.84], [-1.56, 0.14, 0.6]],
-  [[-1.04, 0.22, 0.84], [-1.04, -0.1, 0.6]],
-  [[-0.46, -0.04, 0.84], [-0.46, -0.36, 0.6]],
-  [[1.02, -0.14, 0.84], [1.02, -0.48, 0.6]]
-];
+const TIE_ROUTES: Point3D[][] = [];
 
 const PULSE_COUNT = 1;
 
@@ -269,10 +250,12 @@ const sceneFocus = (
 
 const DiagramBoxShape = ({
   box,
-  stageBeat
+  stageBeat,
+  useSoftGlow
 }: {
   box: DiagramBox;
   stageBeat: number;
+  useSoftGlow: boolean;
 }) => {
   const intensity = visibleStageIntensity(stageBeat, box.stage);
   const faces = createIsoBox(box.x, box.y, box.z, box.width, box.depth, box.height);
@@ -300,78 +283,8 @@ const DiagramBoxShape = ({
       <polygon
         points={pointsToString(faces.top)}
         fill={`rgba(86, 255, 207, ${0.02 + intensity * 0.16})`}
-        filter="url(#grid-glow-soft)"
+        filter={useSoftGlow ? 'url(#grid-glow-soft)' : undefined}
       />
-    </g>
-  );
-};
-
-const calloutOpacity = (
-  labelId: string,
-  currentScene: GridFlowSceneState,
-  nextScene: GridFlowSceneState,
-  amount: number
-) => {
-  const currentOpacity = currentScene.activeCalloutId === labelId ? 1 - amount : 0;
-  const nextOpacity = nextScene.activeCalloutId === labelId ? amount : 0;
-  return Math.max(currentOpacity, nextOpacity);
-};
-
-const DiagramCallout = ({
-  label,
-  currentScene,
-  nextScene,
-  phaseProgress,
-  reducedMotion
-}: {
-  label: DiagramLabel;
-  currentScene: GridFlowSceneState;
-  nextScene: GridFlowSceneState;
-  phaseProgress: number;
-  reducedMotion: boolean;
-}) => {
-  const amount = reducedMotion ? 0 : phaseProgress;
-  const opacity = calloutOpacity(label.id, currentScene, nextScene, amount);
-  if (opacity <= 0.02) {
-    return null;
-  }
-
-  const anchor = projectPoint(label.point);
-  const labelX = anchor.x + label.dx;
-  const labelY = anchor.y + label.dy;
-  const rectWidth = label.text.length * 7.6 + 22;
-
-  return (
-    <g opacity={0.08 + opacity * 0.92}>
-      <line
-        x1={anchor.x}
-        y1={anchor.y}
-        x2={labelX + 10}
-        y2={labelY + 16}
-        stroke={`rgba(90,248,203,${0.24 + opacity * 0.56})`}
-        strokeWidth={1}
-        strokeDasharray="5 6"
-      />
-      <rect
-        x={labelX}
-        y={labelY}
-        rx={18}
-        width={rectWidth}
-        height={32}
-        fill="rgba(5, 12, 10, 0.72)"
-        stroke={`rgba(90,248,203,${0.18 + opacity * 0.48})`}
-        strokeWidth={1}
-      />
-      <text
-        x={labelX + 12}
-        y={labelY + 20}
-        fill="#dffcf2"
-        fontSize="11"
-        fontWeight={600}
-        letterSpacing="0.24em"
-      >
-        {label.text}
-      </text>
     </g>
   );
 };
@@ -381,9 +294,11 @@ export function GridFlowSceneCanvas({
   nextScene,
   phaseProgress,
   reducedMotion,
-  performanceMode: _performanceMode
+  performanceMode = 'full'
 }: GridFlowSceneCanvasProps) {
   const focus = sceneFocus(currentScene, nextScene, phaseProgress, reducedMotion);
+  const isBalancedMode = performanceMode === 'balanced';
+  const useExpensiveGlow = !isBalancedMode;
 
   const floorGrid = useMemo(() => {
     const lines: string[] = [];
@@ -414,12 +329,52 @@ export function GridFlowSceneCanvas({
   const upperBus2D = useMemo(() => UPPER_BUS_ROUTE.map(projectPoint), []);
   const tieRoutes2D = useMemo(() => TIE_ROUTES.map((route) => route.map(projectPoint)), []);
   const primaryRouteLength = useMemo(() => polylineLength(primaryRoute2D), [primaryRoute2D]);
-  const activeRouteLength = primaryRouteLength * focus.pathReveal;
+  const lowerRouteLength = useMemo(() => polylineLength(lowerBus2D), [lowerBus2D]);
+  const upperRouteLength = useMemo(() => polylineLength(upperBus2D), [upperBus2D]);
+  const branchVisibility = clamp((focus.pathReveal - 0.08) / 0.22, 0, 1);
+  const branchRaceProgress = clamp((focus.pathReveal - 0.14) / 0.68, 0, 1);
+  const finalLightingBoost = clamp((focus.pathReveal - 0.82) / 0.18, 0, 1);
+  const primaryRaceProgress = clamp(focus.pathReveal + finalLightingBoost * 0.04, 0, 1);
+  const upperRaceProgress = clamp(branchRaceProgress * 0.88 + finalLightingBoost * 0.12, 0, 1);
+  const lowerRaceProgress = clamp(branchRaceProgress * 1.03 - 0.05 + finalLightingBoost * 0.08, 0, 1);
+  const activeRouteLength = primaryRouteLength * primaryRaceProgress;
+  const activeUpperLength = upperRouteLength * upperRaceProgress;
+  const activeLowerLength = lowerRouteLength * lowerRaceProgress;
+  const primaryLineOpacity = clamp(0.22 + focus.energyStrength * 0.62 + finalLightingBoost * 0.2, 0, 1);
+  const upperLineOpacity = clamp(
+    branchVisibility * (0.18 + focus.energyStrength * 0.52) + finalLightingBoost * 0.2,
+    0,
+    1
+  );
+  const lowerLineOpacity = clamp(
+    branchVisibility * (0.2 + focus.energyStrength * 0.48) + finalLightingBoost * 0.2,
+    0,
+    1
+  );
+  const allowAnimatedPulses = !reducedMotion && !isBalancedMode;
   const pulseSamples = useMemo(() => {
     const allSamples = samplePolyline(primaryRoute2D, 12);
-    const visibleCount = Math.max(4, Math.round((allSamples.length - 1) * focus.pathReveal));
+    const visibleCount = Math.max(4, Math.round((allSamples.length - 1) * primaryRaceProgress));
     return allSamples.slice(0, visibleCount);
-  }, [focus.pathReveal, primaryRoute2D]);
+  }, [primaryRaceProgress, primaryRoute2D]);
+  const upperPulseSamples = useMemo(() => {
+    if (branchVisibility <= 0.02) {
+      return [] as Point2D[];
+    }
+
+    const allSamples = samplePolyline(upperBus2D, 10);
+    const visibleCount = Math.max(3, Math.round((allSamples.length - 1) * upperRaceProgress));
+    return allSamples.slice(0, visibleCount);
+  }, [branchVisibility, upperBus2D, upperRaceProgress]);
+  const lowerPulseSamples = useMemo(() => {
+    if (branchVisibility <= 0.02) {
+      return [] as Point2D[];
+    }
+
+    const allSamples = samplePolyline(lowerBus2D, 10);
+    const visibleCount = Math.max(3, Math.round((allSamples.length - 1) * lowerRaceProgress));
+    return allSamples.slice(0, visibleCount);
+  }, [branchVisibility, lowerBus2D, lowerRaceProgress]);
 
   const deck = createIsoBox(
     FLOOR_BOUNDS.x,
@@ -504,6 +459,46 @@ export function GridFlowSceneCanvas({
                 stopColor="#e1fff4"
               />
             </linearGradient>
+            <linearGradient
+              id="route-gradient-upper"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="0%"
+            >
+              <stop
+                offset="0%"
+                stopColor="#8cbfff"
+              />
+              <stop
+                offset="46%"
+                stopColor="#73d6ff"
+              />
+              <stop
+                offset="100%"
+                stopColor="#d8f3ff"
+              />
+            </linearGradient>
+            <linearGradient
+              id="route-gradient-lower"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="0%"
+            >
+              <stop
+                offset="0%"
+                stopColor="#5ce0b4"
+              />
+              <stop
+                offset="44%"
+                stopColor="#68ebd2"
+              />
+              <stop
+                offset="100%"
+                stopColor="#adfff0"
+              />
+            </linearGradient>
           </defs>
 
           <ellipse
@@ -512,16 +507,18 @@ export function GridFlowSceneCanvas({
             rx={focus.glowRx}
             ry={focus.glowRy}
             fill={`rgba(86,255,207,${0.04 + focus.energyStrength * 0.12})`}
-            filter="url(#grid-glow-wide)"
+            filter={useExpensiveGlow ? 'url(#grid-glow-wide)' : undefined}
           />
-          <ellipse
-            cx={focus.glowCx}
-            cy={focus.glowCy}
-            rx={focus.glowRx * 0.62}
-            ry={focus.glowRy * 0.54}
-            fill={`rgba(109,168,255,${0.03 + focus.energyStrength * 0.08})`}
-            filter="url(#grid-glow-wide)"
-          />
+          {useExpensiveGlow ? (
+            <ellipse
+              cx={focus.glowCx}
+              cy={focus.glowCy}
+              rx={focus.glowRx * 0.62}
+              ry={focus.glowRy * 0.54}
+              fill={`rgba(109,168,255,${0.03 + focus.energyStrength * 0.08})`}
+              filter="url(#grid-glow-wide)"
+            />
+          ) : null}
 
           {floorGrid.map((line, index) => (
             <polyline
@@ -555,7 +552,7 @@ export function GridFlowSceneCanvas({
           <polyline
             points={pointsToString(lowerBus2D)}
             fill="none"
-            stroke="rgba(116, 146, 135, 0.18)"
+            stroke={`rgba(116, 146, 135, ${branchVisibility * 0.18})`}
             strokeWidth={7}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -563,7 +560,7 @@ export function GridFlowSceneCanvas({
           <polyline
             points={pointsToString(upperBus2D)}
             fill="none"
-            stroke="rgba(116, 146, 135, 0.18)"
+            stroke={`rgba(116, 146, 135, ${branchVisibility * 0.18})`}
             strokeWidth={8}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -574,7 +571,7 @@ export function GridFlowSceneCanvas({
               key={`tie-${index}`}
               points={pointsToString(route)}
               fill="none"
-              stroke="rgba(119, 152, 139, 0.12)"
+              stroke={`rgba(119, 152, 139, ${branchVisibility * 0.12})`}
               strokeWidth={3}
               strokeLinecap="round"
             />
@@ -585,6 +582,7 @@ export function GridFlowSceneCanvas({
               key={box.id}
               box={box}
               stageBeat={focus.stageBeat}
+              useSoftGlow={useExpensiveGlow}
             />
           ))}
 
@@ -605,22 +603,35 @@ export function GridFlowSceneCanvas({
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeDasharray={`${activeRouteLength} ${primaryRouteLength}`}
-            filter="url(#grid-glow-soft)"
-            opacity={0.22 + focus.energyStrength * 0.62}
+            filter={useExpensiveGlow ? 'url(#grid-glow-soft)' : undefined}
+            opacity={primaryLineOpacity}
           />
 
-          {CALLOUTS.map((label) => (
-            <DiagramCallout
-              key={label.id}
-              label={label}
-              currentScene={currentScene}
-              nextScene={nextScene}
-              phaseProgress={phaseProgress}
-              reducedMotion={reducedMotion}
-            />
-          ))}
+          <polyline
+            points={pointsToString(upperBus2D)}
+            fill="none"
+            stroke="url(#route-gradient-upper)"
+            strokeWidth={5.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={`${activeUpperLength} ${upperRouteLength}`}
+            filter={useExpensiveGlow ? 'url(#grid-glow-soft)' : undefined}
+            opacity={upperLineOpacity}
+          />
 
-          {reducedMotion
+          <polyline
+            points={pointsToString(lowerBus2D)}
+            fill="none"
+            stroke="url(#route-gradient-lower)"
+            strokeWidth={5.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={`${activeLowerLength} ${lowerRouteLength}`}
+            filter={useExpensiveGlow ? 'url(#grid-glow-soft)' : undefined}
+            opacity={lowerLineOpacity}
+          />
+
+          {!allowAnimatedPulses
             ? pulseSamples
                 .filter((_, index) => index >= pulseSamples.length - 2)
                 .map((point, index) => (
@@ -631,7 +642,7 @@ export function GridFlowSceneCanvas({
                     r={7 - index * 1.1}
                     fill="#d6fff2"
                     opacity={0.24 + index * 0.18}
-                    filter="url(#grid-glow-soft)"
+                    filter={useExpensiveGlow ? 'url(#grid-glow-soft)' : undefined}
                   />
                 ))
             : Array.from({ length: PULSE_COUNT }).map((_, index) => (
@@ -639,7 +650,7 @@ export function GridFlowSceneCanvas({
                   key={`pulse-${index}`}
                   r={7 + focus.energyStrength * 1.4}
                   fill="#d8fff3"
-                  filter="url(#grid-glow-soft)"
+                  filter={useExpensiveGlow ? 'url(#grid-glow-soft)' : undefined}
                   animate={{
                     cx: pulseSamples.map((point) => point.x),
                     cy: pulseSamples.map((point) => point.y),
@@ -659,6 +670,87 @@ export function GridFlowSceneCanvas({
                   }}
                 />
               ))}
+
+          {branchVisibility > 0.04 && !allowAnimatedPulses
+            ? upperPulseSamples
+                .filter((_, index) => index >= upperPulseSamples.length - 1)
+                .map((point, index) => (
+                  <circle
+                    key={`upper-pulse-static-${index}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r={5 - index * 0.8}
+                    fill="#d7f1ff"
+                    opacity={0.36 + index * 0.16}
+                    filter={useExpensiveGlow ? 'url(#grid-glow-soft)' : undefined}
+                  />
+                ))
+            : null}
+          {branchVisibility > 0.04 && !allowAnimatedPulses
+            ? lowerPulseSamples
+                .filter((_, index) => index >= lowerPulseSamples.length - 1)
+                .map((point, index) => (
+                  <circle
+                    key={`lower-pulse-static-${index}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r={5 - index * 0.8}
+                    fill="#ddfff4"
+                    opacity={0.36 + index * 0.16}
+                    filter={useExpensiveGlow ? 'url(#grid-glow-soft)' : undefined}
+                  />
+                ))
+            : null}
+
+          {allowAnimatedPulses && upperPulseSamples.length > 2 ? (
+            <motion.circle
+              r={5.8 + focus.energyStrength * 1.2}
+              fill="#def5ff"
+              filter={useExpensiveGlow ? 'url(#grid-glow-soft)' : undefined}
+              animate={{
+                cx: upperPulseSamples.map((point) => point.x),
+                cy: upperPulseSamples.map((point) => point.y),
+                opacity: upperPulseSamples.map((_, sampleIndex) => {
+                  const isEdge = sampleIndex < 1 || sampleIndex >= upperPulseSamples.length - 1;
+                  return isEdge ? 0 : 0.18 + upperLineOpacity * 0.72;
+                }),
+                scale: upperPulseSamples.map((_, sampleIndex) =>
+                  sampleIndex < 1 || sampleIndex >= upperPulseSamples.length - 1 ? 0.74 : 1
+                )
+              }}
+              transition={{
+                duration: Math.max(2.2, 4.8 - focus.energyStrength * 1.4),
+                repeat: Infinity,
+                ease: 'linear',
+                delay: 0.18
+              }}
+            />
+          ) : null}
+
+          {allowAnimatedPulses && lowerPulseSamples.length > 2 ? (
+            <motion.circle
+              r={5.8 + focus.energyStrength * 1.2}
+              fill="#d5fff1"
+              filter={useExpensiveGlow ? 'url(#grid-glow-soft)' : undefined}
+              animate={{
+                cx: lowerPulseSamples.map((point) => point.x),
+                cy: lowerPulseSamples.map((point) => point.y),
+                opacity: lowerPulseSamples.map((_, sampleIndex) => {
+                  const isEdge = sampleIndex < 1 || sampleIndex >= lowerPulseSamples.length - 1;
+                  return isEdge ? 0 : 0.18 + lowerLineOpacity * 0.72;
+                }),
+                scale: lowerPulseSamples.map((_, sampleIndex) =>
+                  sampleIndex < 1 || sampleIndex >= lowerPulseSamples.length - 1 ? 0.74 : 1
+                )
+              }}
+              transition={{
+                duration: Math.max(2, 4.3 - focus.energyStrength * 1.5),
+                repeat: Infinity,
+                ease: 'linear',
+                delay: 0.42
+              }}
+            />
+          ) : null}
         </svg>
       </motion.div>
     </div>

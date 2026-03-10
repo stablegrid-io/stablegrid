@@ -4,7 +4,7 @@ export const fabricData: CheatSheet = {
   topic: 'fabric',
   title: 'Microsoft Fabric Modules',
   description:
-    'Microsoft Fabric is currently a preview topic with a lightweight theory placeholder while the deeper reference catalog is rebuilt.',
+    'Build Microsoft Fabric capability across platform foundations, analytics workflows, governance controls, and production delivery practices.',
   version: 'Preview v1',
   categories: [],
   functions: []

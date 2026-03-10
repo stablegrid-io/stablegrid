@@ -3,6 +3,7 @@ import type { Topic } from '@/types/progress';
 export interface HomeTopicMeta {
   id: Topic;
   label: string;
+  trackLabel: string;
   icon: string;
   color: string;
   softBg: string;
@@ -15,6 +16,7 @@ export const HOME_TOPICS: Record<Topic, HomeTopicMeta> = {
   pyspark: {
     id: 'pyspark',
     label: 'PySpark',
+    trackLabel: 'PySpark: The Full Stack',
     icon: '⚡',
     color: '#f59e0b',
     softBg: 'rgba(245, 158, 11, 0.10)',
@@ -25,6 +27,7 @@ export const HOME_TOPICS: Record<Topic, HomeTopicMeta> = {
   fabric: {
     id: 'fabric',
     label: 'Microsoft Fabric',
+    trackLabel: 'Fabric: End-to-End Platform',
     icon: '🏗️',
     color: '#06b6d4',
     softBg: 'rgba(6, 182, 212, 0.10)',

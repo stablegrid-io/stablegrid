@@ -5,19 +5,27 @@ export interface ActivationActionLink {
 
 export type ActivationCategoryKind = 'theory' | 'tasks' | 'grid';
 
+export interface ActivationProgressData {
+  valuePct: number;
+  label?: string;
+  valueLabel?: string;
+}
+
 export interface ActivationCategoryCardData {
   kind: ActivationCategoryKind;
   label: string;
   title: string;
   summary: string;
   statLine?: string;
-  primaryAction: ActivationActionLink;
-  secondaryAction?: ActivationActionLink;
+  accentRgb?: string;
+  progress?: ActivationProgressData;
+  primaryAction?: ActivationActionLink;
 }
 
 export interface ActivationGreetingData {
   title: string;
   subtitle: string;
+  lastClockedIn?: string;
 }
 
 // Legacy card interfaces kept for compatibility while the new category surface is active.
