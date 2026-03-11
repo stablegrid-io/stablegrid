@@ -387,12 +387,12 @@ export function GridFlowSceneCanvas({
 
   return (
     <div className="absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_68%_42%,rgba(26,224,177,0.16),transparent_0,transparent_34%),radial-gradient(circle_at_82%_28%,rgba(109,168,255,0.14),transparent_0,transparent_28%),linear-gradient(180deg,rgba(6,11,9,0.18),rgba(4,8,7,0.9))]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18),rgba(0,0,0,0.94))]" />
       <div
-        className="absolute inset-0 opacity-[0.04]"
+        className="absolute inset-0 opacity-[0.03]"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(105,145,255,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(86,255,207,0.14) 1px, transparent 1px)',
+            'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
           backgroundSize: '128px 128px'
         }}
       />

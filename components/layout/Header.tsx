@@ -18,7 +18,7 @@ export function Header() {
         >
           <StableGridIcon size="md" />
           <div>
-            <div className="text-base font-semibold">StableGrid.io</div>
+            <div className="text-base font-semibold">stableGrid.io</div>
           </div>
         </Link>
 

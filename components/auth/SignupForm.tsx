@@ -46,6 +46,9 @@ export function SignupForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
+  const [isConfirmPasswordFocused, setIsConfirmPasswordFocused] = useState(false);
   const [captchaToken, setCaptchaToken] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -53,7 +56,7 @@ export function SignupForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [themeMounted, setThemeMounted] = useState(false);
   const isLightMode = themeMounted && resolvedTheme === 'light';
-  const gridLineColor = isLightMode ? 'rgba(22,132,103,0.2)' : '#22b999';
+  const gridLineColor = isLightMode ? 'rgba(120,131,142,0.24)' : '#59635f';
 
   useEffect(() => {
     setThemeMounted(true);
@@ -63,18 +66,37 @@ export function SignupForm() {
   const passwordScore = passwordRules.length - passwordIssues.length;
   const passwordStrength = useMemo(() => {
     if (!password) return '';
+    if (passwordIssues.length === 0) return 'Acceptable';
     if (passwordScore <= 2) return 'Weak';
     if (passwordScore === 3) return 'Fair';
-    if (passwordScore === 4) return 'Strong';
-    return 'Excellent';
-  }, [password, passwordScore]);
-  const showPasswordChecklist = password.length > 0;
+    return 'Strong';
+  }, [password, passwordIssues.length, passwordScore]);
+  const passwordStrengthClass = useMemo(() => {
+    if (!password) {
+      return isLightMode ? 'text-[#5f6e7b]' : 'text-[#b7c3bd]';
+    }
+    if (passwordIssues.length === 0) {
+      return isLightMode ? 'text-[#2f9f79]' : 'text-[#9be4c4]';
+    }
+    if (passwordScore >= 3) {
+      return isLightMode ? 'text-[#8a6f3a]' : 'text-[#e7bf72]';
+    }
+    return isLightMode ? 'text-[#9b5f5f]' : 'text-[#efabab]';
+  }, [isLightMode, password, passwordIssues.length, passwordScore]);
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const showConfirmMismatch =
+    confirmPasswordTouched &&
+    !isConfirmPasswordFocused &&
+    confirmPassword.length > 0 &&
+    !passwordsMatch;
 
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const canSubmit =
     name.trim().length > 0 &&
     email.trim().length > 0 &&
     password.length > 0 &&
+    confirmPassword.length > 0 &&
+    passwordsMatch &&
     passwordIssues.length === 0 &&
     (!siteKey || captchaToken.length > 0);
 
@@ -82,11 +104,15 @@ export function SignupForm() {
     event.preventDefault();
     setError('');
     setSuccess('');
+    setConfirmPasswordTouched(true);
     setIsSubmitting(true);
 
     try {
       if (passwordIssues.length > 0) {
         throw new Error('Password does not meet all requirements.');
+      }
+      if (!passwordsMatch) {
+        throw new Error('Passwords do not match.');
       }
 
       await trackProductEvent('signup_started', {
@@ -122,7 +148,7 @@ export function SignupForm() {
   return (
     <main
       className={`relative min-h-screen overflow-hidden ${
-        isLightMode ? 'bg-[#edf3ef] text-[#13221a]' : 'bg-[#050807] text-[#e8f2ec]'
+        isLightMode ? 'bg-[#edf3ef] text-[#13221a]' : 'bg-[#020303] text-[#e6ede9]'
       }`}
     >
       <div
@@ -137,96 +163,84 @@ export function SignupForm() {
         className={`pointer-events-none absolute left-1/2 top-[-160px] h-[520px] w-[520px] -translate-x-1/2 rounded-full ${isLightMode ? 'opacity-25' : 'opacity-20'}`}
         style={{
           background: isLightMode
-            ? 'radial-gradient(circle, rgba(38,171,136,0.34), transparent 72%)'
-            : 'radial-gradient(circle, rgba(34,185,153,0.48), transparent 72%)'
+            ? 'radial-gradient(circle, rgba(164,174,184,0.34), transparent 72%)'
+            : 'radial-gradient(circle, rgba(101,112,106,0.34), transparent 72%)'
         }}
       />
-      <section className="relative flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
+      <section className="relative flex min-h-screen items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
         <div
-          className={`relative w-full max-w-[480px] rounded-[20px] p-6 backdrop-blur-md sm:py-8 sm:pl-12 sm:pr-8 ${
+          className={`relative w-full max-w-[456px] rounded-[18px] p-5 backdrop-blur-md sm:p-6 sm:pl-10 sm:pr-7 ${
             isLightMode
               ? 'border border-[#cfddd5] bg-[linear-gradient(180deg,rgba(251,255,252,0.97),rgba(244,250,246,0.96))] shadow-[0_26px_80px_rgba(16,38,28,0.18)]'
-              : 'border border-[#1a2b22] bg-[linear-gradient(180deg,rgba(8,13,11,0.95),rgba(6,10,9,0.94))] shadow-[0_26px_80px_rgba(0,0,0,0.55)]'
+              : 'border border-[#2b322f] bg-[linear-gradient(180deg,rgba(5,7,7,0.96),rgba(3,4,4,0.95))] shadow-[0_26px_80px_rgba(0,0,0,0.55)]'
           }`}
         >
-          <div className="pointer-events-none absolute bottom-8 left-6 top-24 hidden sm:block">
+          <div className="pointer-events-none absolute bottom-6 left-5 top-20 hidden sm:block">
             <div
               className={`relative h-full w-px ${
                 isLightMode
                   ? 'bg-gradient-to-b from-[#8cb8a4] via-[#b8d1c4] to-transparent'
-                  : 'bg-gradient-to-b from-[#2b4539] via-[#1e3128] to-transparent'
+                  : 'bg-gradient-to-b from-[#3e4a45] via-[#2a322f] to-transparent'
               }`}
             >
               <span
                 className={`absolute -left-[2px] top-[4%] h-1.5 w-1.5 rounded-full ${
                   isLightMode
-                    ? 'bg-[#2f9f79] shadow-[0_0_8px_rgba(47,159,121,0.25)]'
-                    : 'bg-[#56ba9b] shadow-[0_0_10px_rgba(86,186,155,0.35)]'
+                    ? 'bg-[#6f7f8d] shadow-[0_0_8px_rgba(111,127,141,0.25)]'
+                    : 'bg-[#9aa7a1] shadow-[0_0_10px_rgba(154,167,161,0.3)]'
                 }`}
               />
-              <span className={`absolute -left-[2px] top-[44%] h-1.5 w-1.5 rounded-full ${isLightMode ? 'bg-[#6ea48e]' : 'bg-[#3a6d59]'}`} />
-              <span className={`absolute -left-[2px] top-[78%] h-1.5 w-1.5 rounded-full ${isLightMode ? 'bg-[#6ea48e]' : 'bg-[#3a6d59]'}`} />
+              <span className={`absolute -left-[2px] top-[44%] h-1.5 w-1.5 rounded-full ${isLightMode ? 'bg-[#7f8f9c]' : 'bg-[#5d6964]'}`} />
+              <span className={`absolute -left-[2px] top-[78%] h-1.5 w-1.5 rounded-full ${isLightMode ? 'bg-[#7f8f9c]' : 'bg-[#5d6964]'}`} />
             </div>
           </div>
 
-          <header className="relative mb-9">
-            <div className="flex items-start justify-between gap-4">
+          <header className="relative mb-7">
+            <div className="flex items-start">
               <StableGridWordmark
-                size="md"
-                titleClassName={isLightMode ? 'text-[#13221a]' : 'text-[#f1f6f3]'}
+                size="sm"
+                iconClassName={
+                  isLightMode
+                    ? ''
+                    : 'bg-gradient-to-br from-[#171d1b] to-[#0d1110] text-[#79d0ab] shadow-[0_0_0_1px_rgba(121,208,171,0.22),0_10px_22px_-14px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)]'
+                }
+                titleClassName={isLightMode ? 'text-[#13221a]' : 'text-[#edf3ef]'}
               />
-              <div className="flex items-center gap-2">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
-                    isLightMode
-                      ? 'border border-[#b7ccc2] bg-[#f0f7f3] text-[#5f7a6c]'
-                      : 'border border-[#2a4136] bg-[#0c1612] text-[#86a698]'
-                  }`}
-                >
-                  Beta
-                </span>
-              </div>
             </div>
-            <p className={`mt-6 text-[11px] font-semibold uppercase tracking-[0.15em] ${isLightMode ? 'text-[#4f8f74]' : 'text-[#7cb99f]'}`}>
-              HRB access
-            </p>
-            <h1 className={`mt-3 font-display text-[2rem] font-bold leading-[1.08] tracking-tight ${isLightMode ? 'text-[#13221a]' : 'text-[#f1f6f3]'}`}>
-              Create your HRB account
+            <h1 className={`mt-4 font-display text-[1.65rem] font-semibold leading-[1.08] tracking-tight ${isLightMode ? 'text-[#13221a]' : 'text-[#edf3ef]'}`}>
+              Create account
             </h1>
-            <p className={`mt-2 text-sm leading-6 ${isLightMode ? 'text-[#5f786b]' : 'text-[#90a89b]'}`}>
-              Track readiness and operator progression in one place.
-            </p>
           </header>
 
           {success ? (
             <div
               className={`rounded-[12px] p-5 ${
                 isLightMode
-                  ? 'border border-[#bcd5c8] bg-[#f6fcf8]'
-                  : 'border border-[#255742] bg-[#0a1612]'
+                  ? 'border border-[#c6d0d8] bg-[#f9fbfd]'
+                  : 'border border-[#2f3834] bg-[#0d1110]'
               }`}
             >
-              <p className={`text-sm font-medium ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#97dfbf]'}`}>{success}</p>
+              <p className={`text-sm font-medium ${isLightMode ? 'text-[#314352]' : 'text-[#d5dfda]'}`}>{success}</p>
               <Link
                 href="/login"
                 className={`mt-4 inline-flex items-center gap-1 text-sm font-semibold hover:underline ${
-                  isLightMode ? 'text-[#2a8d6d]' : 'text-[#9be4c4]'
+                  isLightMode ? 'text-[#5f6e7b]' : 'text-[#c2cec8]'
                 }`}
               >
-                Continue to login
+                Continue to log in
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           ) : (
             <>
-              <div className="mb-7 grid grid-cols-2 gap-2.5">
+              <div className="mb-5 grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => handleOAuth('google')}
-                  className={`inline-flex h-12 items-center justify-center gap-2 rounded-[12px] px-3 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3fd0ab]/25 ${
+                  className={`inline-flex h-11 items-center justify-center gap-2 rounded-[11px] px-3 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a7b0b8]/35 ${
                     isLightMode
                       ? 'border border-[#c5d8cf] bg-[#f8fcf9] text-[#13221a] hover:border-[#9fc4b4] hover:bg-[#eef7f2]'
-                      : 'border border-[#2a4136] bg-[#0b1410] text-[#e6efea] hover:border-[#3e6754] hover:bg-[#101d17]'
+                      : 'border border-[#313835] bg-[#0b0f0f] text-[#e4ece8] hover:border-[#4c655a] hover:bg-[#111615]'
                   }`}
                 >
                   {GOOGLE_ICON}
@@ -235,10 +249,10 @@ export function SignupForm() {
                 <button
                   type="button"
                   onClick={() => handleOAuth('github')}
-                  className={`inline-flex h-12 items-center justify-center gap-2 rounded-[12px] px-3 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3fd0ab]/25 ${
+                  className={`inline-flex h-11 items-center justify-center gap-2 rounded-[11px] px-3 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a7b0b8]/35 ${
                     isLightMode
                       ? 'border border-[#c5d8cf] bg-[#f8fcf9] text-[#13221a] hover:border-[#9fc4b4] hover:bg-[#eef7f2]'
-                      : 'border border-[#2a4136] bg-[#0b1410] text-[#e6efea] hover:border-[#3e6754] hover:bg-[#101d17]'
+                      : 'border border-[#313835] bg-[#0b0f0f] text-[#e4ece8] hover:border-[#4c655a] hover:bg-[#111615]'
                   }`}
                 >
                   {GITHUB_ICON}
@@ -246,15 +260,15 @@ export function SignupForm() {
                 </button>
               </div>
 
-              <div className="mb-6 flex items-center gap-3">
-                <div className={`h-px flex-1 ${isLightMode ? 'bg-[#c9dbd2]' : 'bg-[#203228]'}`} />
-                <span className={`text-[11px] font-medium ${isLightMode ? 'text-[#668274]' : 'text-[#7f988b]'}`}>or use email</span>
-                <div className={`h-px flex-1 ${isLightMode ? 'bg-[#c9dbd2]' : 'bg-[#203228]'}`} />
+              <div className="mb-5 flex items-center gap-2.5">
+                <div className={`h-px flex-1 ${isLightMode ? 'bg-[#c9d2db]' : 'bg-[#29312e]'}`} />
+                <span className={`text-[11px] font-medium ${isLightMode ? 'text-[#667380]' : 'text-[#8c9892]'}`}>or email</span>
+                <div className={`h-px flex-1 ${isLightMode ? 'bg-[#c9d2db]' : 'bg-[#29312e]'}`} />
               </div>
 
               {error ? (
                 <div
-                  className={`mb-4 rounded-[10px] px-3.5 py-2.5 text-sm ${
+                  className={`mb-3 rounded-[10px] px-3.5 py-2.5 text-sm ${
                     isLightMode
                       ? 'border border-[#e6b8b8] bg-[#fff3f3] text-[#b02a2a]'
                       : 'border border-[#5a2a2a] bg-[#1a0e0e] text-[#f2b9b9]'
@@ -264,13 +278,13 @@ export function SignupForm() {
                 </div>
               ) : null}
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label
                     htmlFor="signup-name"
-                    className={`mb-1.5 block text-xs font-medium ${isLightMode ? 'text-[#567064]' : 'text-[#93a99d]'}`}
+                    className={`mb-1 block text-[11px] font-medium ${isLightMode ? 'text-[#5a6773]' : 'text-[#8f9a95]'}`}
                   >
-                    Full name
+                    Nickname
                   </label>
                   <input
                     id="signup-name"
@@ -278,11 +292,11 @@ export function SignupForm() {
                     autoComplete="name"
                     value={name}
                     onChange={(event) => setName(event.target.value)}
-                    placeholder="Your name"
-                    className={`h-12 w-full rounded-[12px] px-3.5 text-sm outline-none transition-all ${
+                    placeholder="Your nickname"
+                    className={`h-11 w-full rounded-[11px] px-3.5 text-sm outline-none transition-all ${
                       isLightMode
-                        ? 'border border-[#c6d8cf] bg-[#f9fcfa] text-[#13221a] placeholder:text-[#95a89f] focus:border-[#38b38b] focus:ring-2 focus:ring-[#22b999]/20'
-                        : 'border border-[#263c31] bg-[#0a120f] text-[#eef6f2] placeholder:text-[#6f8478] focus:border-[#49dab4] focus:ring-2 focus:ring-[#22b999]/22'
+                        ? 'border border-[#c6d0d8] bg-[#f9fbfd] text-[#13221a] placeholder:text-[#95a1ac] focus:border-[#7f8b97] focus:ring-2 focus:ring-[#8f99a3]/25'
+                        : 'border border-[#2f3633] bg-[#090d0c] text-[#e8f0eb] placeholder:text-[#76827c] focus:border-[#78a58f] focus:ring-2 focus:ring-[#7db39a]/25'
                     }`}
                     required
                   />
@@ -291,7 +305,7 @@ export function SignupForm() {
                 <div>
                   <label
                     htmlFor="signup-email"
-                    className={`mb-1.5 block text-xs font-medium ${isLightMode ? 'text-[#567064]' : 'text-[#93a99d]'}`}
+                    className={`mb-1 block text-[11px] font-medium ${isLightMode ? 'text-[#5a6773]' : 'text-[#8f9a95]'}`}
                   >
                     Email
                   </label>
@@ -302,25 +316,25 @@ export function SignupForm() {
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@example.com"
-                    className={`h-12 w-full rounded-[12px] px-3.5 text-sm outline-none transition-all ${
+                    className={`h-11 w-full rounded-[11px] px-3.5 text-sm outline-none transition-all ${
                       isLightMode
-                        ? 'border border-[#c6d8cf] bg-[#f9fcfa] text-[#13221a] placeholder:text-[#95a89f] focus:border-[#38b38b] focus:ring-2 focus:ring-[#22b999]/20'
-                        : 'border border-[#263c31] bg-[#0a120f] text-[#eef6f2] placeholder:text-[#6f8478] focus:border-[#49dab4] focus:ring-2 focus:ring-[#22b999]/22'
+                        ? 'border border-[#c6d0d8] bg-[#f9fbfd] text-[#13221a] placeholder:text-[#95a1ac] focus:border-[#7f8b97] focus:ring-2 focus:ring-[#8f99a3]/25'
+                        : 'border border-[#2f3633] bg-[#090d0c] text-[#e8f0eb] placeholder:text-[#76827c] focus:border-[#78a58f] focus:ring-2 focus:ring-[#7db39a]/25'
                     }`}
                     required
                   />
                 </div>
 
-                <div>
-                  <div className="mb-1.5 flex items-center justify-between">
+                <div className="group/password">
+                  <div className="mb-1 flex items-center justify-between">
                     <label
                       htmlFor="signup-password"
-                      className={`block text-xs font-medium ${isLightMode ? 'text-[#567064]' : 'text-[#93a99d]'}`}
+                      className={`block text-[11px] font-medium ${isLightMode ? 'text-[#5a6773]' : 'text-[#8f9a95]'}`}
                     >
                       Password
                     </label>
                     {passwordStrength ? (
-                      <span className={`text-xs font-semibold ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#7edab4]'}`}>
+                      <span className={`text-xs font-semibold ${passwordStrengthClass}`}>
                         {passwordStrength}
                       </span>
                     ) : null}
@@ -334,10 +348,10 @@ export function SignupForm() {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       placeholder="Create a password"
-                      className={`h-12 w-full rounded-[12px] px-3.5 pr-11 text-sm outline-none transition-all ${
+                      className={`h-11 w-full rounded-[11px] px-3.5 pr-11 text-sm outline-none transition-all ${
                         isLightMode
-                          ? 'border border-[#c6d8cf] bg-[#f9fcfa] text-[#13221a] placeholder:text-[#95a89f] focus:border-[#38b38b] focus:ring-2 focus:ring-[#22b999]/20'
-                          : 'border border-[#263c31] bg-[#0a120f] text-[#eef6f2] placeholder:text-[#6f8478] focus:border-[#49dab4] focus:ring-2 focus:ring-[#22b999]/22'
+                          ? 'border border-[#c6d0d8] bg-[#f9fbfd] text-[#13221a] placeholder:text-[#95a1ac] focus:border-[#7f8b97] focus:ring-2 focus:ring-[#8f99a3]/25'
+                          : 'border border-[#2f3633] bg-[#090d0c] text-[#e8f0eb] placeholder:text-[#76827c] focus:border-[#78a58f] focus:ring-2 focus:ring-[#7db39a]/25'
                       }`}
                       required
                       minLength={8}
@@ -346,7 +360,7 @@ export function SignupForm() {
                       type="button"
                       onClick={() => setShowPassword((value) => !value)}
                       className={`absolute inset-y-0 right-0 flex w-11 items-center justify-center transition-colors ${
-                        isLightMode ? 'text-[#7d9286] hover:text-[#3d5a4d]' : 'text-[#7d9286] hover:text-[#a8c0b3]'
+                        isLightMode ? 'text-[#7d9286] hover:text-[#3d5a4d]' : 'text-[#7d9286] hover:text-[#8fd8b6]'
                       }`}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
@@ -358,54 +372,117 @@ export function SignupForm() {
                     </button>
                   </div>
 
-                  {showPasswordChecklist ? (
-                    <ul className="mt-3 space-y-1.5">
-                      {passwordRules.map((rule) => {
-                        const isMet = !passwordIssues.includes(rule.label);
-                        return (
-                          <li
-                            key={rule.id}
-                            className={`flex items-center gap-2 text-xs ${
-                              isMet
-                                ? isLightMode
-                                  ? 'text-[#2a8d6d]'
-                                  : 'text-[#9be4c4]'
-                                : isLightMode
-                                  ? 'text-[#6f887b]'
-                                  : 'text-[#7a8f84]'
-                            }`}
-                          >
-                            <span
-                              className={`inline-flex h-4 w-4 items-center justify-center rounded-full border ${
-                                isMet
-                                  ? isLightMode
-                                    ? 'border-[#2f9f79] bg-[#2f9f79] text-white'
-                                    : 'border-[#2b7a5a] bg-[#2b7a5a] text-white'
-                                  : isLightMode
-                                    ? 'border-[#b7ccc2] text-transparent'
-                                    : 'border-[#2f4138] text-transparent'
-                              }`}
-                            >
-                              <Check className="h-3 w-3" />
-                            </span>
-                            {rule.label}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className={`mt-2 text-xs ${isLightMode ? 'text-[#6f887b]' : 'text-[#7a8f84]'}`}>
-                      Use at least 8 characters with uppercase, lowercase, number, and symbol.
+                  <div className="pointer-events-none mt-1.5 max-h-0 overflow-hidden opacity-0 transition-all duration-220 ease-out group-focus-within/password:max-h-56 group-focus-within/password:opacity-100">
+                    <div
+                      className={`rounded-[11px] border p-2 backdrop-blur-lg ${
+                        isLightMode
+                          ? 'border-[#d2d9e1] bg-[#f8fbff]/90'
+                          : 'border-[#2f3835] bg-[#0b0f0f]/92'
+                      }`}
+                    >
+                      <ul className="space-y-1">
+                        {passwordRules.map((rule) => {
+                          const isMet = !passwordIssues.includes(rule.label);
+                          return (
+                            <li key={rule.id} className="flex items-center justify-between text-[11px]">
+                              <span
+                                className={`inline-flex items-center gap-2 ${
+                                  isMet
+                                    ? isLightMode
+                                      ? 'text-[#2c6f57]'
+                                      : 'text-[#9be4c4]'
+                                    : isLightMode
+                                      ? 'text-[#6f7d89]'
+                                      : 'text-[#8c9791]'
+                                }`}
+                              >
+                                <span
+                                  className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border ${
+                                    isMet
+                                      ? isLightMode
+                                        ? 'border-[#6bb893] bg-[#6bb893] text-white'
+                                        : 'border-[#3f9a74] bg-[#3f9a74] text-white'
+                                      : isLightMode
+                                        ? 'border-[#bdc8d3] bg-white text-transparent'
+                                        : 'border-[#3f4844] bg-[#111614] text-transparent'
+                                  }`}
+                                >
+                                  <Check className="h-2.5 w-2.5" />
+                                </span>
+                                {rule.label}
+                              </span>
+                              <span
+                                className={`text-[10px] ${
+                                  isMet
+                                    ? isLightMode
+                                      ? 'text-[#2f9f79]'
+                                      : 'text-[#9be4c4]'
+                                    : isLightMode
+                                      ? 'text-[#8b97a3]'
+                                      : 'text-[#83908a]'
+                                }`}
+                              >
+                                {isMet ? 'met' : 'needed'}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="signup-password-repeat"
+                    className={`mb-1 block text-[11px] font-medium ${isLightMode ? 'text-[#5a6773]' : 'text-[#8f9a95]'}`}
+                  >
+                    Repeat password
+                  </label>
+                  <input
+                    id="signup-password-repeat"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    onFocus={() => setIsConfirmPasswordFocused(true)}
+                    onBlur={() => {
+                      setIsConfirmPasswordFocused(false);
+                      setConfirmPasswordTouched(true);
+                    }}
+                    placeholder="Repeat password"
+                    className={`h-11 w-full rounded-[11px] px-3.5 text-sm outline-none transition-all ${
+                      isLightMode
+                        ? confirmPassword.length === 0
+                          ? 'border border-[#c6d0d8] bg-[#f9fbfd] text-[#13221a] placeholder:text-[#95a1ac] focus:border-[#7f8b97] focus:ring-2 focus:ring-[#8f99a3]/25'
+                          : passwordsMatch
+                            ? 'border border-[#79c29f] bg-[#f6fcf9] text-[#13221a] placeholder:text-[#95a1ac] focus:border-[#68b28e] focus:ring-2 focus:ring-[#79c29f]/30'
+                            : showConfirmMismatch
+                              ? 'border border-[#d28a8a] bg-[#fff6f6] text-[#13221a] placeholder:text-[#95a1ac] focus:border-[#c67474] focus:ring-2 focus:ring-[#d28a8a]/30'
+                              : 'border border-[#c6d0d8] bg-[#f9fbfd] text-[#13221a] placeholder:text-[#95a1ac] focus:border-[#7f8b97] focus:ring-2 focus:ring-[#8f99a3]/25'
+                        : confirmPassword.length === 0
+                          ? 'border border-[#2f3633] bg-[#090d0c] text-[#e8f0eb] placeholder:text-[#76827c] focus:border-[#78a58f] focus:ring-2 focus:ring-[#7db39a]/25'
+                          : passwordsMatch
+                            ? 'border border-[#2f7a5c] bg-[#12211a] text-[#e8f0eb] placeholder:text-[#76827c] focus:border-[#3b9a74] focus:ring-2 focus:ring-[#3b9a74]/28'
+                            : showConfirmMismatch
+                              ? 'border border-[#7b4a4a] bg-[#1b1212] text-[#e8f0eb] placeholder:text-[#76827c] focus:border-[#9a5b5b] focus:ring-2 focus:ring-[#9a5b5b]/28'
+                              : 'border border-[#2f3633] bg-[#090d0c] text-[#e8f0eb] placeholder:text-[#76827c] focus:border-[#78a58f] focus:ring-2 focus:ring-[#7db39a]/25'
+                    }`}
+                    required
+                  />
+                  {showConfirmMismatch ? (
+                    <p className={`mt-1 text-xs ${isLightMode ? 'text-[#b55f5f]' : 'text-[#efabab]'}`}>
+                      Passwords do not match.
                     </p>
-                  )}
+                  ) : null}
                 </div>
 
                 {siteKey ? (
                   <div
-                    className={`rounded-[12px] p-3 ${
+                    className={`rounded-[11px] p-2.5 ${
                       isLightMode
-                        ? 'border border-[#c6d8cf] bg-[#f6fbf8]'
-                        : 'border border-[#24392e] bg-[#09110e]'
+                        ? 'border border-[#c6d0d8] bg-[#f9fbfd]'
+                        : 'border border-[#2f3633] bg-[#090d0c]'
                     }`}
                   >
                     <Captcha
@@ -416,20 +493,20 @@ export function SignupForm() {
                   </div>
                 ) : null}
 
-                <p className={`text-xs leading-relaxed ${isLightMode ? 'text-[#6f887b]' : 'text-[#7f9488]'}`}>
-                  By creating an account you agree to our{' '}
+                <p className={`text-[11px] leading-5 ${isLightMode ? 'text-[#6f7d89]' : 'text-[#86918d]'}`}>
+                  By continuing, you agree to{' '}
                   <Link
                     href="/terms"
-                    className={`font-medium hover:underline ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#9be4c4]'}`}
+                    className={`font-medium hover:underline ${isLightMode ? 'text-[#5f6e7b]' : 'text-[#c3cdc8]'}`}
                   >
                     Terms
                   </Link>{' '}
                   and{' '}
                   <Link
                     href="/privacy"
-                    className={`font-medium hover:underline ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#9be4c4]'}`}
+                    className={`font-medium hover:underline ${isLightMode ? 'text-[#5f6e7b]' : 'text-[#c3cdc8]'}`}
                   >
-                    Privacy Policy
+                    Privacy
                   </Link>
                   .
                 </p>
@@ -437,10 +514,10 @@ export function SignupForm() {
                 <button
                   type="submit"
                   disabled={!canSubmit || isSubmitting}
-                  className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-[12px] border px-4 text-sm font-semibold transition-all active:translate-y-[1px] disabled:cursor-not-allowed ${
+                  className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-[11px] border px-4 text-sm font-semibold transition-all active:translate-y-[1px] disabled:cursor-not-allowed ${
                     isLightMode
-                      ? 'border-[#2fa279] bg-[#2fa279] text-white shadow-[0_12px_28px_-16px_rgba(47,162,121,0.6)] hover:border-[#258f69] hover:bg-[#258f69] disabled:border-[#c8d8d0] disabled:bg-[#d7e3dd] disabled:text-[#8a9b94]'
-                      : 'border-[#3aa67f] bg-[#2ba278] text-[#07120d] shadow-[0_12px_28px_-16px_rgba(62,174,131,0.85)] hover:border-[#4fd6a6] hover:bg-[#3ab58a] hover:shadow-[0_14px_32px_-16px_rgba(79,214,166,0.8)] disabled:border-[#2b3d34] disabled:bg-[#1a2420] disabled:text-[#73857d] disabled:shadow-none'
+                      ? 'border-[#7f8b97] bg-[#7f8b97] text-white shadow-[0_12px_28px_-16px_rgba(127,139,151,0.55)] hover:border-[#6f7b87] hover:bg-[#6f7b87] disabled:border-[#c8d1da] disabled:bg-[#d9e0e6] disabled:text-[#8a96a1]'
+                      : 'border-[#98a39d] bg-[#a7b0ab] text-[#0b0f0e] shadow-[0_12px_28px_-16px_rgba(128,146,136,0.75)] hover:border-[#b5bfba] hover:bg-[#b7c1bc] hover:shadow-[0_14px_32px_-16px_rgba(157,177,166,0.64)] disabled:border-[#2a312e] disabled:bg-[#161b19] disabled:text-[#6c7671] disabled:shadow-none'
                   }`}
                 >
                   {isSubmitting ? (
@@ -459,22 +536,13 @@ export function SignupForm() {
             </>
           )}
 
-          <p className={`mt-5 text-center text-sm ${isLightMode ? 'text-[#5f786b]' : 'text-[#8ca195]'}`}>
+          <p className={`mt-4 text-center text-sm ${isLightMode ? 'text-[#5f786b]' : 'text-[#89a093]'}`}>
             Already have an account?{' '}
             <Link
               href="/login"
-              className={`font-semibold hover:underline ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#9be4c4]'}`}
+              className={`font-semibold hover:underline ${isLightMode ? 'text-[#5f6e7b]' : 'text-[#d0dbd6]'}`}
             >
               Log in
-            </Link>
-          </p>
-          <p className={`mt-2 text-center text-xs ${isLightMode ? 'text-[#6f887b]' : 'text-[#74897d]'}`}>
-            Need help?{' '}
-            <Link
-              href="/support"
-              className={`font-medium hover:underline ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#8fbba8]'}`}
-            >
-              Contact support
             </Link>
           </p>
         </div>

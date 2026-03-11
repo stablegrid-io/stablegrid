@@ -8,7 +8,7 @@ export const CTASection = () => {
     <section className="border-t border-[#1a2a22] py-24">
       <div className="mx-auto max-w-2xl px-6 text-center">
         <h2 className="mb-4 text-4xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
-          Start Theory Beta now.
+          Start your theory route now.
           <br />
           Expand later with confidence.
         </h2>

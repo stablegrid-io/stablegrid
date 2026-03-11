@@ -8,7 +8,7 @@ const GhostRegulatorMission = dynamic(() =>
 );
 
 export const metadata: Metadata = {
-  title: 'StableGrid.io',
+  title: 'stableGrid.io',
   description:
     'Play through all four acts of the Ghost Regulator incident mission with live chat, investigation queries, and final classification.'
 };

@@ -14,7 +14,7 @@ const TOPICS = [
     stats: [
       { label: 'chapters', value: '20' },
       { label: 'session modes', value: '4' },
-      { label: 'scope', value: 'Theory Beta' }
+      { label: 'scope', value: 'Theory' }
     ],
     highlights: [
       'Shuffles, skew, and partition strategy',
@@ -33,7 +33,7 @@ export const TopicsSection = () => {
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
-            Theory Beta coverage
+            Theory coverage
           </h2>
           <p className="text-[#9ab8a9]">
             The current public scope is one flagship theory route. Additional mode cards will appear as each layer reaches launch quality.

@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
 
-export const metadata = { title: 'Get Started · StableGrid.io' };
+export const metadata = { title: 'Get Started · stableGrid.io' };
 
 export default async function OnboardingPage() {
   const supabase = createClient();

@@ -85,7 +85,7 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
   {
     id: 'intro',
     eyebrow: 'Big data learning platform',
-    title: 'Learn to handle big data with guided courses.',
+    title: 'Learn to handle big data with ease.',
     body: 'Start with theory, then apply it with flashcards, missions, notebooks, and the Grid game.',
     variant: 'intro',
     align: 'left',
@@ -164,7 +164,7 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
     id: 'missions',
     eyebrow: 'Practice tasks',
     title: 'Practice with guided tasks.',
-    body: 'Reinforce each lesson with flashcards, missions, and notebooks, and gain kWh.',
+    body: 'Every module reinforced through practice.',
     variant: 'story',
     align: 'left',
     snapshot: {
@@ -205,7 +205,7 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
     id: 'grid-case',
     eyebrow: 'Grid game experience',
     title: 'Apply your skills in the Grid game.',
-    body: 'Use what you learned in a real-time simulation, gain kWh, then cash it out by deploying assets to stabilize the grid.',
+    body: 'Earn kWh, then deploy energy assets to stabilize the grid.',
     variant: 'story',
     align: 'left',
     snapshot: {
@@ -268,13 +268,13 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
   },
   {
     id: 'cta',
-    eyebrow: 'Unified big data path',
-    title: 'Pick your course track. Build big-data confidence.',
-    body: 'Browse the course gallery below, choose your path, then start free and continue with tasks and the Grid game.',
+    eyebrow: '',
+    title: 'A gamified way to learn complex big data concepts. Ready to begin?',
+    body: '',
     variant: 'final',
     align: 'center',
     ctaSource: 'grid_flow_final',
-    ctaLabel: 'Start free',
+    ctaLabel: "Yes, let's do it",
     scene: {
       stageBeat: 4.12,
       diagramOffsetX: 6,

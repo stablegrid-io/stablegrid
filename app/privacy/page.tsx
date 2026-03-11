@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { COOKIE_CATEGORY_COPY, COOKIE_SERVICE_REGISTRY } from '@/lib/cookies/cookie-config';
 
 export const metadata: Metadata = {
-  title: 'Privacy · StableGrid.io',
+  title: 'Privacy · stableGrid.io',
   description:
     'How StableGrid collects, uses, and protects user data, including cookie consent controls and disclosures.'
 };
@@ -20,7 +20,7 @@ export default function PrivacyPage() {
       <div className="mx-auto w-full max-w-3xl space-y-8">
         <header className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500">
-            StableGrid Theory Beta
+            StableGrid
           </p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             Privacy Policy

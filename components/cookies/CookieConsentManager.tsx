@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { syncConsentRecordWithServer, writeServerConsentRecord } from '@/lib/cookies/cookie-consent-sync';
 import { COOKIE_CATEGORY_COPY } from '@/lib/cookies/cookie-config';
 import {
   COOKIE_PREFERENCES_OPEN_EVENT,
+  LANDING_INTRO_COMPLETE_EVENT,
   buildAcceptAllConsentState,
   buildRejectAllConsentState,
   compareConsentRecordFreshness,
@@ -25,14 +27,18 @@ const OPTIONAL_CATEGORIES: Array<Exclude<keyof CookieConsentState, 'necessary'>>
   'marketing',
   'preferences'
 ];
+const COOKIE_BANNER_SESSION_KEY = 'stablegrid-cookie-banner-seen-session';
 
 export function CookieConsentManager() {
+  const pathname = usePathname();
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const consentRef = useRef<CookieConsentState>(buildRejectAllConsentState());
   const [ready, setReady] = useState(false);
   const [hasSavedDecision, setHasSavedDecision] = useState(false);
   const [draftConsent, setDraftConsent] = useState<CookieConsentState>(buildRejectAllConsentState());
   const [modalOpen, setModalOpen] = useState(false);
+  const [landingIntroReady, setLandingIntroReady] = useState(pathname !== '/');
+  const [bannerSeenThisSession, setBannerSeenThisSession] = useState(false);
 
   const openPreferences = useCallback(() => {
     setDraftConsent(consentRef.current);
@@ -52,6 +58,13 @@ export function CookieConsentManager() {
       setDraftConsent(record.consent);
       setHasSavedDecision(true);
       setModalOpen(false);
+      setBannerSeenThisSession(true);
+
+      try {
+        window.sessionStorage.setItem(COOKIE_BANNER_SESSION_KEY, '1');
+      } catch {
+        // Ignore sessionStorage write failures.
+      }
 
       void applyConsentGate(previousConsent, record.consent, { forceCleanup: true });
       if (currentUserId) {
@@ -92,6 +105,18 @@ export function CookieConsentManager() {
   }, [openPreferences]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      setBannerSeenThisSession(window.sessionStorage.getItem(COOKIE_BANNER_SESSION_KEY) === '1');
+    } catch {
+      setBannerSeenThisSession(false);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!ready || !currentUserId) {
       return;
     }
@@ -127,7 +152,79 @@ export function CookieConsentManager() {
     };
   }, [currentUserId, ready]);
 
-  const bannerVisible = ready && !hasSavedDecision;
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (pathname !== '/') {
+      setLandingIntroReady(true);
+      return;
+    }
+
+    setLandingIntroReady(false);
+    let pollTimeoutId: number | null = null;
+    let hardTimeoutId: number | null = null;
+    let lockObserver: MutationObserver | null = null;
+    let pollAttempts = 0;
+
+    const resolveIntroGate = () => {
+      const gridFlowSection = document.getElementById('grid-flow');
+      if (!gridFlowSection) {
+        pollAttempts += 1;
+        if (pollAttempts >= 20) {
+          setLandingIntroReady(true);
+          return;
+        }
+        pollTimeoutId = window.setTimeout(resolveIntroGate, 100);
+        return;
+      }
+
+      const introLocked = gridFlowSection.getAttribute('data-intro-lock') === 'true';
+      setLandingIntroReady(!introLocked);
+
+      if (lockObserver) {
+        lockObserver.disconnect();
+      }
+      lockObserver = new MutationObserver(() => {
+        const lockedNow = gridFlowSection.getAttribute('data-intro-lock') === 'true';
+        if (!lockedNow) {
+          setLandingIntroReady(true);
+        }
+      });
+      lockObserver.observe(gridFlowSection, {
+        attributes: true,
+        attributeFilter: ['data-intro-lock']
+      });
+    };
+
+    const handleIntroComplete = () => {
+      setLandingIntroReady(true);
+    };
+
+    hardTimeoutId = window.setTimeout(() => {
+      setLandingIntroReady(true);
+    }, 8000);
+
+    window.addEventListener(LANDING_INTRO_COMPLETE_EVENT, handleIntroComplete);
+    resolveIntroGate();
+
+    return () => {
+      window.removeEventListener(LANDING_INTRO_COMPLETE_EVENT, handleIntroComplete);
+      if (pollTimeoutId !== null) {
+        window.clearTimeout(pollTimeoutId);
+      }
+      if (hardTimeoutId !== null) {
+        window.clearTimeout(hardTimeoutId);
+      }
+      lockObserver?.disconnect();
+    };
+  }, [pathname]);
+
+  const shouldUseLandingSessionPrompt = pathname === '/';
+  const bannerVisible = shouldUseLandingSessionPrompt
+    ? ready && landingIntroReady && !bannerSeenThisSession
+    : ready && !hasSavedDecision;
 
   return (
     <>
@@ -215,7 +312,7 @@ export function CookieConsentManager() {
                     role="switch"
                     aria-checked="true"
                     disabled
-                    className="relative inline-flex h-8 w-14 items-center rounded-full border border-emerald-500/45 bg-emerald-700/80 p-1"
+                    className="relative inline-flex h-8 w-14 items-center rounded-full border border-brand-500/45 bg-brand-700/80 p-1"
                   >
                     <span className="inline-block h-6 w-6 translate-x-6 rounded-full bg-zinc-300 shadow-[0_1px_8px_rgba(0,0,0,0.35)]" />
                     <span className="sr-only">Necessary cookies always active</span>
@@ -255,7 +352,7 @@ export function CookieConsentManager() {
                       }}
                       className={`relative inline-flex h-8 w-14 items-center rounded-full border p-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
                         draftConsent[category]
-                          ? 'border-emerald-500/45 bg-emerald-700/80'
+                          ? 'border-brand-500/45 bg-brand-700/80'
                           : 'border-white/10 bg-[#2b2c31]'
                       }`}
                     >
@@ -312,7 +409,7 @@ export function CookieConsentManager() {
                 <button
                   type="button"
                   onClick={() => commitConsent(draftConsent, 'preferences_save')}
-                  className="inline-flex h-9 items-center justify-center rounded-xl border border-emerald-500/55 bg-emerald-700/85 px-5 text-sm font-medium text-white transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  className="inline-flex h-9 items-center justify-center rounded-xl border border-brand-500/55 bg-brand-700/85 px-5 text-sm font-medium text-white transition hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                 >
                   Confirm
                 </button>

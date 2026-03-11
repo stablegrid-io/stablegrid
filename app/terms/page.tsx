@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Terms · StableGrid.io',
-  description: 'Terms of use for StableGrid Theory Beta.'
+  title: 'Terms · stableGrid.io',
+  description: 'Terms of use for StableGrid.'
 };
 
 export default function TermsPage() {
@@ -11,7 +11,7 @@ export default function TermsPage() {
       <div className="mx-auto w-full max-w-3xl space-y-8">
         <header className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500">
-            StableGrid Theory Beta
+            StableGrid
           </p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             Terms of Use
@@ -24,7 +24,7 @@ export default function TermsPage() {
         <section className="space-y-3 rounded-2xl border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface">
           <h2 className="text-xl font-semibold">Service scope</h2>
           <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
-            Current release scope is Theory Beta. Features outside this scope may appear in
+            Current release scope is Theory. Features outside this scope may appear in
             product navigation only when explicitly launched.
           </p>
         </section>

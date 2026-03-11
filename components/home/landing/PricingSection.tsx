@@ -31,7 +31,7 @@ export const PricingSection = () => {
           <h2 className="mb-3 text-2xl font-bold text-[#e3efe8] md:text-3xl" style={{ fontFamily: 'Georgia, serif' }}>
             Pricing built for focused individual growth
           </h2>
-          <p className="text-sm text-[#9ab8a9] md:text-base">Start free. Inspect the full Theory Beta route before you decide to upgrade.</p>
+          <p className="text-sm text-[#9ab8a9] md:text-base">Start free. Inspect the full theory route before you decide to upgrade.</p>
         </div>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

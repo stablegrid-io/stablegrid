@@ -16,16 +16,16 @@ const config: Config = {
       },
       colors: {
         brand: {
-          50: '#ecfdf8',
-          100: '#d0f8ec',
-          200: '#a7f0dc',
-          300: '#72e2c8',
-          400: '#43cfb1',
-          500: '#22b999',
-          600: '#16967c',
-          700: '#137763',
-          800: '#135f4f',
-          900: '#124f43'
+          50: '#f4f6f8',
+          100: '#e7ebef',
+          200: '#d5dce2',
+          300: '#c0c9d1',
+          400: '#a7b0b8',
+          500: '#8f99a3',
+          600: '#78838e',
+          700: '#626d79',
+          800: '#4b5561',
+          900: '#353f4b'
         },
         success: {
           50: '#f0fdf4',
@@ -98,8 +98,8 @@ const config: Config = {
         lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
         xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
         '2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
-        focus: '0 0 0 3px rgba(34, 185, 153, 0.14)',
-        'focus-visible': '0 0 0 2px rgb(34 185 153 / 0.28)'
+        focus: '0 0 0 3px rgba(143, 153, 163, 0.22)',
+        'focus-visible': '0 0 0 2px rgb(143 153 163 / 0.36)'
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',

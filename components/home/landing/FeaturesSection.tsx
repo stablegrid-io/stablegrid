@@ -36,18 +36,18 @@ const FEATURES = [
   },
   {
     icon: Compass,
-    label: 'Beta scope',
+    label: 'Release scope',
     metric: 'Theory-only launch',
     headline: 'What is shipping now vs what is intentionally next',
     description:
-      'This release is intentionally scoped to Theory Beta. Practice, flashcards, and mission layers stay out of primary navigation until they are production-ready.',
+      'This release is intentionally scoped to Theory. Practice, flashcards, and mission layers stay out of primary navigation until they are production-ready.',
     preview: [
       'No dead-end primary navigation',
       'Explicit launch copy across landing and auth',
       'Clear expectation setting before signup'
     ],
     color: '#64a0dc',
-    footer: 'Best first move: complete Theory Beta before enabling new mode surfaces.'
+    footer: 'Best first move: complete Theory before enabling new mode surfaces.'
   }
 ] as const;
 
@@ -63,7 +63,7 @@ export const FeaturesSection = () => {
             className="mb-4 text-3xl font-bold text-[#e3efe8]"
             style={{ fontFamily: 'Georgia, serif' }}
           >
-            Theory Beta ships one clear route.
+            Theory ships one clear route.
           </h2>
           <p className="mx-auto max-w-2xl text-[#9ab8a9]">
             The current release focuses on reliable theory progression and study sessions.

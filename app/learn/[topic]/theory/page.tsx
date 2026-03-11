@@ -58,14 +58,14 @@ export function generateMetadata({ params }: LearnTopicTheoryPageProps): Metadat
   const doc = theoryDocs[params.topic];
   if (!doc) {
     return {
-      title: 'StableGrid.io',
+      title: 'stableGrid.io',
       description: 'Module-based theory documentation.'
     };
   }
 
   const hasTracks = getTheoryTracks(doc).length > 0;
   return {
-    title: 'StableGrid.io',
+    title: 'stableGrid.io',
     description: hasTracks
       ? 'Choose a guided track before opening modules.'
       : 'Choose a theory category before opening modules.'

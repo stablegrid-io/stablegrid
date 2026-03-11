@@ -102,7 +102,7 @@ export function generateMetadata({
   const doc = theoryDocs[params.topic];
   if (!doc) {
     return {
-      title: 'StableGrid.io',
+      title: 'stableGrid.io',
       description: 'Module-based theory documentation.'
     };
   }
@@ -111,7 +111,7 @@ export function generateMetadata({
   const track = getTheoryTrackBySlug(doc, categoryParam);
   if (track) {
     return {
-      title: 'StableGrid.io',
+      title: 'stableGrid.io',
       description: track.description
     };
   }
@@ -124,7 +124,7 @@ export function generateMetadata({
   );
 
   return {
-    title: 'StableGrid.io',
+    title: 'stableGrid.io',
     description: categoryMeta.description
   };
 }

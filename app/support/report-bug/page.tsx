@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { BugReportForm } from './BugReportForm';
 
 export const metadata: Metadata = {
-  title: 'Report a Bug · StableGrid.io',
+  title: 'Report a Bug · stableGrid.io',
   description: 'Report product issues to the StableGrid team.'
 };
 

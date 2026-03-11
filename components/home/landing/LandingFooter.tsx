@@ -7,16 +7,17 @@ import { openCookiePreferencesDialog } from '@/lib/cookies/cookie-consent';
 
 export const LandingFooter = () => {
   return (
-    <footer className="border-t border-[#1a2a22] py-12">
+    <footer className="border-t border-white/20 py-12">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 md:flex-row">
         <div className="flex items-center gap-2.5">
           <StableGridWordmark
             size="sm"
-            titleClassName="text-[#e3efe8]"
+            iconClassName="bg-gradient-to-br from-[#171d1b] to-[#0d1110] text-[#79d0ab] shadow-[0_0_0_1px_rgba(121,208,171,0.22),0_10px_22px_-14px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)]"
+            titleClassName="text-[#f3f7f4]"
           />
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-[#6f8f7d]">
+        <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/80">
           {[
             { label: 'Journey', href: '#grid-flow' },
             { label: 'Privacy', href: '/privacy' },
@@ -35,7 +36,7 @@ export const LandingFooter = () => {
                   });
                 }
               }}
-              className="transition-colors hover:text-[#9ab8a9]"
+              className="transition-colors hover:text-white"
             >
               {item.label}
             </Link>
@@ -43,13 +44,13 @@ export const LandingFooter = () => {
           <button
             type="button"
             onClick={openCookiePreferencesDialog}
-            className="transition-colors hover:text-[#9ab8a9]"
+            className="transition-colors hover:text-white"
           >
             Cookie settings
           </button>
         </div>
 
-        <p className="text-xs text-[#6f8f7d]">(c) 2026 StableGrid.io</p>
+        <p className="text-xs text-white/80">(c) 2026 stableGrid.io</p>
       </div>
     </footer>
   );

@@ -97,7 +97,7 @@ export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProp
           <div className="w-full max-w-md">
             <header className="mb-8">
               <p className="data-mono mb-2 text-[11px] uppercase tracking-[0.22em] text-brand-500">
-                StableGrid.io Access
+                stableGrid.io Access
               </p>
               <h1 className="mb-2 text-3xl font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">
                 {title}

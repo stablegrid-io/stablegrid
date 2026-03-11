@@ -1,46 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { StableGridWordmark } from '@/components/brand/StableGridLogo';
 import { trackProductEvent } from '@/lib/analytics/productAnalytics';
 
 export const LandingNav = () => {
-  const ctaGroupRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const applyMidpoint = () => {
-      const ctaGroup = ctaGroupRef.current;
-      if (!ctaGroup) {
-        return;
-      }
-
-      const rect = ctaGroup.getBoundingClientRect();
-      const midpoint = rect.left + rect.width / 2;
-      document.documentElement.style.setProperty('--landing-nav-cta-mid', `${midpoint}px`);
-    };
-
-    applyMidpoint();
-    window.addEventListener('resize', applyMidpoint);
-
-    const observer =
-      typeof ResizeObserver !== 'undefined'
-        ? new ResizeObserver(() => {
-            applyMidpoint();
-          })
-        : null;
-    if (observer && ctaGroupRef.current) {
-      observer.observe(ctaGroupRef.current);
-    }
-
-    return () => {
-      window.removeEventListener('resize', applyMidpoint);
-      observer?.disconnect();
-    };
-  }, []);
-
   return (
-    <nav className="fixed left-0 right-0 top-0 z-50 border-b border-[#1e3a2d] bg-[#090b0a]/92 backdrop-blur-md">
+    <nav className="fixed left-0 right-0 top-0 z-50 border-b border-[#262f37] bg-[#090b0a]/92 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2.5">
           <StableGridWordmark
@@ -49,13 +15,10 @@ export const LandingNav = () => {
           />
         </Link>
 
-        <div
-          ref={ctaGroupRef}
-          className="flex items-center gap-2 rounded-full border border-white/10 bg-[#0b110e]/88 p-1"
-        >
+        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#11151a]/88 p-1">
           <Link
             href="/login"
-            className="rounded-full px-4 py-2 text-sm text-[#9ab8a9] transition-colors hover:text-[#e3efe8]"
+            className="rounded-full px-4 py-2 text-sm text-[#aab4bf] transition-colors hover:text-[#e3efe8]"
           >
             Sign in
           </Link>
@@ -66,7 +29,7 @@ export const LandingNav = () => {
                 source: 'nav_primary'
               });
             }}
-            className="rounded-full bg-[#22b999] px-4 py-2 text-sm font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
+            className="rounded-full border border-[#edf4fa] bg-[#dbe4ec] px-4 py-2 text-sm font-medium text-[#10161c] shadow-[0_0_0_1px_rgba(255,255,255,0.35)_inset,0_8px_18px_rgba(223,232,240,0.28)] transition-colors hover:bg-[#eef4f9]"
           >
             Start free
           </Link>

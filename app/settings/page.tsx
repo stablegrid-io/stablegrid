@@ -4,7 +4,7 @@ import { SettingsShell } from './_components/SettingsShell';
 import type { ProfileRecord, SubscriptionRecord } from './_components/types';
 
 export const metadata = {
-  title: 'StableGrid.io'
+  title: 'stableGrid.io'
 };
 
 export default async function SettingsPage() {

@@ -8,6 +8,7 @@ interface StableGridIconProps {
 interface StableGridWordmarkProps {
   size?: LogoSize;
   className?: string;
+  iconClassName?: string;
   titleClassName?: string;
   subtitle?: string;
   subtitleClassName?: string;
@@ -57,18 +58,19 @@ export function StableGridIcon({ size = 'md', className = '' }: StableGridIconPr
 export function StableGridWordmark({
   size = 'md',
   className = '',
+  iconClassName = '',
   titleClassName = '',
   subtitle,
   subtitleClassName = ''
 }: StableGridWordmarkProps) {
   return (
     <span className={`inline-flex items-center gap-3 ${className}`.trim()}>
-      <StableGridIcon size={size} />
+      <StableGridIcon size={size} className={iconClassName} />
       <span className="leading-none">
         <span
           className={`block font-semibold tracking-tight ${titleSizeClassMap[size]} ${titleClassName}`.trim()}
         >
-          StableGrid.io
+          stableGrid.io
         </span>
         {subtitle ? (
           <span className={`mt-1 block text-xs ${subtitleClassName}`.trim()}>

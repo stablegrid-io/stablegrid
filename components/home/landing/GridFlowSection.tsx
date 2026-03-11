@@ -1,20 +1,34 @@
 'use client';
 
-import { ArrowRight, Check, Clock3, Info, Play, Zap } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  Clock3,
+  Flag,
+  Info,
+  Layers3,
+  Lock,
+  NotebookPen,
+  Play,
+  Zap
+} from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { motion } from 'framer-motion';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   TRANSMISSION_LINE_SEQUENCE_CONFIG,
   TransmissionLineSequenceBackground
 } from '@/components/home/landing/TransmissionLineSequenceBackground';
+import { ScrollSectionIndicator } from '@/components/home/landing/ScrollSectionIndicator';
 import {
   GRID_FLOW_CHAPTERS,
   type GridFlowChapter,
   type GridFlowSnapshotTone,
   type GridFlowStepSnapshot
 } from '@/components/home/landing/gridFlowStory';
+import { LANDING_INTRO_COMPLETE_EVENT } from '@/lib/cookies/cookie-consent';
 import { trackProductEvent } from '@/lib/analytics/productAnalytics';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -23,6 +37,7 @@ const STORY_UPDATE_EPSILON = 0.055;
 const SCROLL_IDLE_TIMEOUT_MS = 150;
 const MAX_STORY_STEPS = 3;
 const CHAPTER_SCROLL_HEIGHT_CLASS = 'min-h-[130svh] lg:min-h-[150svh]';
+const FINAL_CHAPTER_HEIGHT_CLASS = 'min-h-fit';
 const STORY_CHAPTER_GRID_CLASS = 'lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]';
 const STORY_INTERACTIVE_COLUMN_CLASS =
   'lg:justify-self-end lg:ml-auto lg:translate-x-[clamp(12rem,20vw,24rem)]';
@@ -31,6 +46,12 @@ const INTRO_AUTOPLAY_FINAL_FRAME = TRANSMISSION_LINE_SEQUENCE_CONFIG.frameCount;
 const INTRO_AUTOPLAY_FPS = 24;
 const INTRO_AUTOPLAY_DURATION_SECONDS =
   (INTRO_AUTOPLAY_FINAL_FRAME - INTRO_AUTOPLAY_START_FRAME) / INTRO_AUTOPLAY_FPS;
+const FINAL_CTA_FIRST_FRAME_PATH = (() => {
+  const { basePath, fileExtension, zeroPad, assetVersion } =
+    TRANSMISSION_LINE_SEQUENCE_CONFIG;
+  const framePath = `${basePath}/${String(INTRO_AUTOPLAY_START_FRAME).padStart(zeroPad, '0')}.${fileExtension}`;
+  return assetVersion ? `${framePath}?v=${assetVersion}` : framePath;
+})();
 const HERO_DISPLAY_FONT_FAMILY =
   "var(--font-hero), 'Inter', 'Segoe UI', system-ui, sans-serif";
 const ControlCenterModelPreviewLazy = dynamic(
@@ -57,8 +78,24 @@ const BatteryStorageModelPreviewLazy = dynamic(
     )
   }
 );
+const SolarForecastingModelPreviewLazy = dynamic(
+  () =>
+    import('@/components/grid-ops/SolarForecastingModelPreview').then(
+      (module) => module.SolarForecastingModelPreview
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-32 rounded-xl border border-[#2e5975]/45 bg-[radial-gradient(circle_at_40%_24%,rgba(77,147,255,0.24),transparent_48%),linear-gradient(180deg,#091325,#060c16)]" />
+    )
+  }
+);
 
 const getSectionHeightClass = (chapter: GridFlowChapter) => {
+  if (chapter.variant === 'final') {
+    return FINAL_CHAPTER_HEIGHT_CLASS;
+  }
+
   return CHAPTER_SCROLL_HEIGHT_CLASS;
 };
 
@@ -115,6 +152,59 @@ const SNAPSHOT_TONE_STYLES: Record<
   }
 };
 
+interface StoryStepVisualStyle {
+  halo: string;
+  stepChip: string;
+  eyebrow: string;
+  divider: string;
+}
+
+const LIGHT_STORY_STEP_VISUAL_STYLE: StoryStepVisualStyle = {
+  halo: 'bg-[radial-gradient(circle_at_18%_24%,rgba(146,160,153,0.16),transparent_0,transparent_46%),linear-gradient(180deg,rgba(231,244,237,0.42),rgba(231,244,237,0))]',
+  stepChip: 'border-[#6a7b73]/70 bg-[#eef2ef] text-[#38433f]',
+  eyebrow: 'text-[#607069]',
+  divider: 'bg-[linear-gradient(90deg,rgba(116,130,122,0.56),rgba(116,130,122,0))]'
+};
+
+const DEFAULT_DARK_STORY_STEP_VISUAL_STYLE: StoryStepVisualStyle = {
+  halo: 'bg-[radial-gradient(circle_at_18%_24%,rgba(148,162,155,0.12),transparent_0,transparent_42%),linear-gradient(180deg,rgba(0,0,0,0.3),rgba(0,0,0,0))]',
+  stepChip: 'border-[#5c6763]/70 bg-[#121715] text-[#d8e1dd]',
+  eyebrow: 'text-[#a8b3ae]',
+  divider: 'bg-[linear-gradient(90deg,rgba(173,186,180,0.48),rgba(173,186,180,0))]'
+};
+
+const DARK_STORY_STEP_VISUAL_STYLE_BY_STEP: Record<string, StoryStepVisualStyle> = {
+  '01': {
+    halo: 'bg-[radial-gradient(circle_at_18%_24%,rgba(179,193,187,0.16),transparent_0,transparent_44%),linear-gradient(180deg,rgba(0,0,0,0.34),rgba(0,0,0,0))]',
+    stepChip: 'border-[#6e7c76]/85 bg-[#121917] text-[#e3ece7]',
+    eyebrow: 'text-[#b4c2bc]',
+    divider: 'bg-[linear-gradient(90deg,rgba(180,195,188,0.6),rgba(180,195,188,0))]'
+  },
+  '02': {
+    halo: 'bg-[radial-gradient(circle_at_18%_24%,rgba(194,171,142,0.18),transparent_0,transparent_44%),linear-gradient(180deg,rgba(0,0,0,0.34),rgba(0,0,0,0))]',
+    stepChip: 'border-[#7f725f]/85 bg-[#181511] text-[#efe6db]',
+    eyebrow: 'text-[#c8bbad]',
+    divider: 'bg-[linear-gradient(90deg,rgba(198,176,150,0.64),rgba(198,176,150,0))]'
+  },
+  '03': {
+    halo: 'bg-[radial-gradient(circle_at_18%_24%,rgba(146,170,194,0.18),transparent_0,transparent_44%),linear-gradient(180deg,rgba(0,0,0,0.34),rgba(0,0,0,0))]',
+    stepChip: 'border-[#5f7389]/85 bg-[#111822] text-[#e0e9f4]',
+    eyebrow: 'text-[#b6c5d6]',
+    divider: 'bg-[linear-gradient(90deg,rgba(157,177,199,0.62),rgba(157,177,199,0))]'
+  }
+};
+
+const getStoryStepVisualStyle = (
+  stepLabel: string,
+  isLightMode: boolean
+): StoryStepVisualStyle => {
+  if (isLightMode) {
+    return LIGHT_STORY_STEP_VISUAL_STYLE;
+  }
+
+  return DARK_STORY_STEP_VISUAL_STYLE_BY_STEP[stepLabel] ?? DEFAULT_DARK_STORY_STEP_VISUAL_STYLE;
+};
+
 const SQL_KEYWORDS = new Set([
   'WITH',
   'SELECT',
@@ -142,6 +232,51 @@ const SQL_KEYWORDS = new Set([
 ]);
 
 const SQL_FUNCTIONS = new Set(['window', 'AVG', 'STDDEV_POP', 'DENSE_RANK', 'LAG']);
+
+interface LandingFaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+const LANDING_FAQ_ITEMS: readonly LandingFaqItem[] = [
+  {
+    id: 'what-is-stablegrid',
+    question: 'What is stableGrid?',
+    answer:
+      'stableGrid is a gamified learning platform for big data. You learn core concepts, practice through tasks, and apply decisions in a live energy-grid simulation.'
+  },
+  {
+    id: 'how-fast-can-i-start',
+    question: 'How quickly can I start?',
+    answer:
+      'You can start immediately. Pick a track, complete a short module, and move into flashcards, missions, and notebooks in the same session.'
+  },
+  {
+    id: 'do-i-need-prior-experience',
+    question: 'Do I need prior data engineering experience?',
+    answer:
+      'No. The journey is structured from fundamentals to applied scenarios. If you are experienced, you can still move faster by focusing on task-based practice.'
+  },
+  {
+    id: 'what-do-i-build',
+    question: 'What do I build during learning?',
+    answer:
+      'You build operational thinking. Each chapter connects theory to practical grid workflows so you can reason about data pipelines, quality, and reliability under pressure.'
+  },
+  {
+    id: 'is-this-for-teams',
+    question: 'Can teams use stableGrid together?',
+    answer:
+      'Yes. Teams can align on the same learning path and compare progress across modules, tasks, and readiness checkpoints.'
+  },
+  {
+    id: 'what-if-im-not-sure',
+    question: 'What if I am still not sure?',
+    answer:
+      'Use the "Not sure yet" page for a concise value breakdown. It explains outcomes, who this is for, and how the platform fits different learning goals.'
+  }
+] as const;
 
 interface SqlCodePalette {
   punctuation: string;
@@ -705,6 +840,11 @@ function PrimaryCta({
   emphasized: boolean;
   isLightMode: boolean;
 }) {
+  const emphasizedClass =
+    source === 'grid_flow_final'
+      ? 'border border-[#edf3f8] bg-[#d8e0e7] text-[#0f151b] shadow-[0_0_0_1px_rgba(255,255,255,0.35)_inset,0_12px_24px_rgba(222,232,240,0.24)] hover:border-[#f7fbff] hover:bg-[#edf3f8]'
+      : 'border border-[#8f99a4] bg-[#b7c0c8] text-[#11161c] hover:bg-[#d0d8df]';
+
   return (
     <Link
       href="/signup"
@@ -713,7 +853,7 @@ function PrimaryCta({
       }}
       className={`pointer-events-auto group inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium transition-colors ${
         emphasized
-          ? 'border border-[#1c7f58] bg-[#22b999] text-[#08110b] hover:bg-[#6fe89a]'
+          ? emphasizedClass
           : isLightMode
             ? 'border border-[#7f8f87]/45 bg-white/85 text-[#25302c] hover:border-[#6f7d76] hover:bg-white'
             : 'border border-white/24 bg-black/28 text-[#e4ece8] hover:border-white/34 hover:bg-black/40'
@@ -722,151 +862,6 @@ function PrimaryCta({
       {label}
       <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
     </Link>
-  );
-}
-
-function ScrollHint({
-  reducedMotion,
-  isLightMode
-}: {
-  reducedMotion: boolean;
-  isLightMode: boolean;
-}) {
-  const chevronIndexes = [0, 1, 2] as const;
-  const chevronTrailShellClass =
-    'pointer-events-none absolute left-1/2 top-[calc(100%+0.25rem)] flex -translate-x-1/2 flex-col items-center -space-y-1';
-  const shellClass = `relative flex h-[10.25rem] w-[4.75rem] items-start justify-center rounded-[2.45rem] ${
-    isLightMode
-      ? 'bg-white/22 shadow-[0_16px_34px_rgba(24,72,56,0.2)]'
-      : 'bg-black/28 shadow-[0_20px_44px_rgba(0,0,0,0.42)]'
-  }`;
-  const shellClassWithPointerGuard = `${shellClass} pointer-events-none`;
-
-  const glowClass = isLightMode
-    ? 'bg-[radial-gradient(circle,rgba(122,137,128,0.26),transparent_72%)]'
-    : 'bg-[radial-gradient(circle,rgba(179,192,186,0.22),transparent_72%)]';
-
-  const bubbleClass = `block h-6 w-6 rounded-full ${
-    isLightMode ? 'bg-[#6f7e77]' : 'bg-[#a3b0aa]'
-  }`;
-  const chevronColorClass = isLightMode ? 'text-[#6a867b]/75' : 'text-white/40';
-
-  const chevronTrail = reducedMotion ? (
-    <span className={chevronTrailShellClass}>
-      {chevronIndexes.map((index) => (
-        <span
-          key={`chevron-static-${index}`}
-          className={`h-8 w-8 ${chevronColorClass}`}
-          style={{
-            opacity: 0.84 - index * 0.18
-          }}
-        >
-          <svg
-            viewBox="0 0 20 12"
-            fill="none"
-            className="pointer-events-none h-full w-full"
-          >
-            <path
-              d="M2 3 L10 11 L18 3"
-              stroke="currentColor"
-              strokeWidth="2.35"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ pointerEvents: 'none' }}
-            />
-          </svg>
-        </span>
-      ))}
-    </span>
-  ) : (
-    <span className={chevronTrailShellClass}>
-      {chevronIndexes.map((index) => (
-        <motion.span
-          key={`chevron-motion-${index}`}
-          className={`h-8 w-8 ${chevronColorClass}`}
-          animate={{
-            y: [-1, 3, -1],
-            opacity: [0.2, 0.72, 0.2]
-          }}
-          transition={{
-            duration: 1.3,
-            ease: 'easeInOut',
-            repeat: Number.POSITIVE_INFINITY,
-            delay: index * 0.14
-          }}
-        >
-          <svg
-            viewBox="0 0 20 12"
-            fill="none"
-            className="pointer-events-none h-full w-full"
-          >
-            <path
-              d="M2 3 L10 11 L18 3"
-              stroke="currentColor"
-              strokeWidth="2.35"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ pointerEvents: 'none' }}
-            />
-          </svg>
-        </motion.span>
-      ))}
-    </span>
-  );
-
-  if (reducedMotion) {
-    return (
-      <div className={shellClassWithPointerGuard}>
-        <span
-          className={`absolute inset-[0.4rem] rounded-[2.1rem] border ${
-            isLightMode ? 'border-[#b8d0c5]/85' : 'border-white/28'
-          }`}
-        />
-        <span className="absolute left-1/2 top-4 -translate-x-1/2">
-          <span className={`${bubbleClass} opacity-85`} />
-        </span>
-        {chevronTrail}
-      </div>
-    );
-  }
-
-  return (
-    <div className={shellClassWithPointerGuard}>
-      <motion.span
-        aria-hidden="true"
-        className={`pointer-events-none absolute -inset-3 -z-[1] rounded-[3rem] blur-md ${glowClass}`}
-        animate={{
-          opacity: [0.32, 0.68, 0.32],
-          scale: [0.96, 1.08, 0.96]
-        }}
-        transition={{
-          duration: 2.8,
-          ease: 'easeInOut',
-          repeat: Number.POSITIVE_INFINITY
-        }}
-      />
-      <span
-        className={`absolute inset-[0.4rem] rounded-[2.1rem] border ${
-          isLightMode ? 'border-[#b8d0c5]/85' : 'border-white/28'
-        }`}
-      />
-      <span className="absolute left-1/2 top-4 -translate-x-1/2">
-        <motion.span
-          className={bubbleClass}
-          animate={{
-            y: [0, 58, 0],
-            opacity: [0.96, 0.82, 0.96],
-            scale: [1, 0.95, 1]
-          }}
-          transition={{
-            duration: 2.1,
-            ease: 'easeInOut',
-            repeat: Number.POSITIVE_INFINITY
-          }}
-        />
-      </span>
-      {chevronTrail}
-    </div>
   );
 }
 
@@ -910,7 +905,7 @@ function IntroBrandedTitle({
       return (
         <span
           key={`title-part-${index}`}
-          className="text-[#f4a340]"
+          className="whitespace-nowrap text-[#f4a340]"
         >
           {part}
         </span>
@@ -921,7 +916,7 @@ function IntroBrandedTitle({
       return (
         <span
           key={`title-part-${index}`}
-          className="text-[#57edc5]"
+          className="text-[#c7d0d8]"
         >
           {part}
         </span>
@@ -987,15 +982,6 @@ function IntroChapter({
       />
       <div className="relative">
         <IntroBrandedTitle title={chapter.title} isLightMode={isLightMode} />
-        <div
-          className="pointer-events-none hidden lg:fixed lg:top-[10.5rem] lg:z-20 lg:block"
-          style={{
-            left: 'var(--landing-nav-cta-mid, 50vw)',
-            transform: 'translateX(-50%)'
-          }}
-        >
-          <ScrollHint reducedMotion={reducedMotion} isLightMode={isLightMode} />
-        </div>
         {chapter.ctaHint ? (
           <p className={`mt-4 max-w-[24rem] text-xs leading-6 ${isLightMode ? 'text-[#5f7a6c]' : 'text-[#9cb8aa]'}`}>{chapter.ctaHint}</p>
         ) : null}
@@ -1019,25 +1005,14 @@ function StoryChapterCard({
   const isTheoryStep = chapter.id === 'theory';
   const isPracticeStep = chapter.id === 'missions';
   const isGridStep = chapter.id === 'grid-case';
-  const kwhPhrase = 'and gain kWh';
-  const practiceBodyParts = isPracticeStep ? chapter.body.split(kwhPhrase) : [chapter.body];
-  const sectionBody = isPracticeStep && practiceBodyParts.length === 2 ? (
-    <>
-      {practiceBodyParts[0]}
-      <span className={isLightMode ? 'font-semibold text-[#1f7f5f]' : 'font-semibold text-[#57d18f]'}>
-        {kwhPhrase}
-      </span>
-      {practiceBodyParts[1]}
-    </>
-  ) : (
-    chapter.body
-  );
-  const sectionCard = isTheoryStep ? (
-    <TheoryCodeSnippetCard isLightMode={isLightMode} />
+  const sectionBody = chapter.body;
+  const sectionCard = null;
+  const sectionInlineCard = isTheoryStep ? (
+    <TheoryTrackGallery isLightMode={isLightMode} />
   ) : isPracticeStep ? (
     <MissionBriefingCard isLightMode={isLightMode} />
   ) : isGridStep ? (
-    <BatteryDeckPreviewCard isLightMode={isLightMode} />
+    <GridItemDeckCarousel isLightMode={isLightMode} />
   ) : null;
 
   return (
@@ -1047,6 +1022,7 @@ function StoryChapterCard({
       title={chapter.title}
       body={sectionBody}
       card={sectionCard}
+      inlineCard={sectionInlineCard}
       emphasis={emphasis}
       isLightMode={isLightMode}
     />
@@ -1063,6 +1039,7 @@ function GridExperienceSection({
   title,
   body,
   card,
+  inlineCard,
   emphasis,
   isLightMode
 }: {
@@ -1071,12 +1048,16 @@ function GridExperienceSection({
   title: string;
   body: React.ReactNode;
   card: React.ReactNode;
+  inlineCard?: React.ReactNode;
   emphasis: number;
   isLightMode: boolean;
 }) {
+  const stepVisualStyle = getStoryStepVisualStyle(stepLabel, isLightMode);
+  const hasInteractiveColumn = Boolean(card);
+
   return (
     <div
-      className="relative max-w-[62rem] py-16 min-h-[34rem]"
+      className="relative max-w-6xl py-16 min-h-[34rem]"
       style={{
         opacity: emphasis,
         transform: `translate3d(0, ${(1 - emphasis) * 20}px, 0)`,
@@ -1086,28 +1067,22 @@ function GridExperienceSection({
       }}
     >
       <div
-        className={`absolute -inset-x-8 -inset-y-8 rounded-[2.75rem] blur-2xl ${
-          isLightMode
-            ? 'bg-[radial-gradient(circle_at_18%_24%,rgba(146,160,153,0.16),transparent_0,transparent_46%),linear-gradient(180deg,rgba(231,244,237,0.42),rgba(231,244,237,0))]'
-            : 'bg-[radial-gradient(circle_at_18%_24%,rgba(148,162,155,0.1),transparent_0,transparent_42%),linear-gradient(180deg,rgba(5,12,10,0.24),rgba(5,12,10,0))]'
-        }`}
+        className={`absolute -inset-x-8 -inset-y-8 rounded-[2.75rem] blur-2xl ${stepVisualStyle.halo}`}
       />
-      <div className={`relative grid h-full gap-6 ${STORY_CHAPTER_GRID_CLASS} lg:items-start`}>
+      <div
+        className={`relative z-10 grid h-full gap-6 lg:items-start ${
+          hasInteractiveColumn ? STORY_CHAPTER_GRID_CLASS : ''
+        }`}
+      >
         <div>
           <div className="flex items-center gap-2.5">
             <span
-              className={`relative -top-1 inline-flex h-[3.2rem] w-[3.2rem] items-center justify-center rounded-full border text-[1.3rem] font-semibold leading-none tracking-[0.01em] ${
-                isLightMode
-                  ? 'border-[#6a7b73]/70 bg-[#eef2ef] text-[#38433f]'
-                  : 'border-[#5c6763]/70 bg-[#121715] text-[#d8e1dd]'
-              }`}
+              className={`relative -top-1 inline-flex h-[3.2rem] w-[3.2rem] items-center justify-center rounded-full border text-[1.3rem] font-semibold leading-none tracking-[0.01em] ${stepVisualStyle.stepChip}`}
             >
               {stepLabel}
             </span>
             <p
-              className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${
-                isLightMode ? 'text-[#607069]' : 'text-[#a8b3ae]'
-              }`}
+              className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${stepVisualStyle.eyebrow}`}
             >
               {eyebrow}
             </p>
@@ -1126,190 +1101,789 @@ function GridExperienceSection({
           >
             {body}
           </p>
+          <div className={`mt-6 h-px w-28 ${stepVisualStyle.divider}`} />
+          {inlineCard ? <div className="mt-6">{inlineCard}</div> : null}
         </div>
-        <StoryInteractiveColumn>{card}</StoryInteractiveColumn>
+        {hasInteractiveColumn ? <StoryInteractiveColumn>{card}</StoryInteractiveColumn> : null}
       </div>
     </div>
   );
 }
 
-function TheoryCodeSnippetCard({ isLightMode }: { isLightMode: boolean }) {
-  const snippetLines = [
-    'alerts_df = spark.sql("""',
-    'WITH telemetry AS (',
-    '  SELECT zone,',
-    '         AVG(load_kw) AS avg_load_kw,',
-    '         MAX(voltage_kv) AS max_voltage_kv',
-    '  FROM grid.telemetry_events',
-    "  WHERE ts >= current_timestamp() - INTERVAL 2 HOURS",
-    '  GROUP BY zone',
-    ')',
-    'SELECT zone, avg_load_kw, max_voltage_kv',
-    'FROM telemetry',
-    'WHERE avg_load_kw >= 4200',
-    'ORDER BY avg_load_kw DESC',
-    'LIMIT 5',
-    '""")'
-  ] as const;
-  const snippetPalette: SqlCodePalette = {
-    punctuation: 'text-[#9ea4ab]',
-    operator: 'text-[#d7c18a]',
-    number: 'text-[#c8b78e]',
-    keyword: 'text-[#8ac6b5]',
-    functionName: 'text-[#c29fd4]',
-    identifier: 'text-[#d5d8dc]',
-    stringLiteral: 'text-[#a3be8c]'
-  };
-
-  return (
-    <div
-      className={`rounded-2xl border p-4 ${
-        isLightMode
-          ? 'border-[#aab0b7]/60 bg-[#ebedf0]/92'
-          : 'border-[#555b61]/65 bg-[linear-gradient(160deg,rgba(28,30,33,0.97),rgba(21,23,26,0.96))]'
-      }`}
-    >
-      <p className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${isLightMode ? 'text-[#4f5964]' : 'text-[#aeb6bf]'}`}>
-        Theory code snippet
-      </p>
-      <pre className="mt-3 rounded-xl border border-white/10 bg-black/35 p-3 text-[10.5px] leading-5">
-        <code className="block whitespace-pre-wrap break-words font-mono">
-          {snippetLines.map((line, lineIndex) => (
-            <span key={`${line}-${lineIndex}`} className="block">
-              {renderSqlSnippetLine(line, lineIndex, snippetPalette)}
-            </span>
-          ))}
-        </code>
-      </pre>
-    </div>
-  );
-}
-
-function MissionBriefingCard({ isLightMode }: { isLightMode: boolean }) {
-  const acts = [
+function TheoryTrackGallery({ isLightMode }: { isLightMode: boolean }) {
+  const COURSE_CAROUSEL_ROTATE_MS = 3600;
+  const COURSE_CAROUSEL_ANIMATION_MS = 980;
+  const tracks = [
     {
-      label: 'Act 1 · 10-15 min',
-      title: 'The Alarm',
-      detail: 'Read the incident timeline, alerts, and constraints before touching production.'
+      id: 'pyspark',
+      name: 'PySpark',
+      description: 'Distributed data engineering foundations and practical workflow drills.',
+      logoSrc: '/brand/pyspark-logo.svg',
+      href: '/learn/pyspark/theory',
+      badge: 'Live now',
+      locked: false
     },
     {
-      label: 'Act 2 · 30-40 min',
-      title: 'The Investigation',
-      detail: 'Query operational datasets and isolate the exact fault path.'
+      id: 'fabric',
+      name: 'Microsoft Fabric',
+      description: 'Lakehouse-first analytics patterns and orchestration in production contexts.',
+      logoSrc: '/brand/microsoft-fabric-logo.svg',
+      href: '/learn/theory',
+      badge: 'Live now',
+      locked: false
     },
     {
-      label: 'Act 3 · 20-30 min',
-      title: 'The Fix',
-      detail: 'Ship the remediation and validate against strict checks.'
-    },
-    {
-      label: 'Act 4 · 10 min',
-      title: 'The Debrief',
-      detail: 'Deliver incident metrics and close out the report for leadership.'
+      id: 'airflow',
+      name: 'Apache Airflow',
+      description: 'Pipeline scheduling, DAG design, and reliability playbooks.',
+      logoSrc: '/brand/apache-airflow-logo.svg',
+      href: '/learn/theory',
+      badge: 'Locked',
+      locked: true
     }
   ] as const;
+  const loopedTracks = [...tracks, ...tracks];
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [stepWidthPx, setStepWidthPx] = useState(0);
+  const [transitionEnabled, setTransitionEnabled] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const syncPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+    syncPreference();
+    mediaQuery.addEventListener('change', syncPreference);
+    return () => mediaQuery.removeEventListener('change', syncPreference);
+  }, []);
+
+  const measureStepWidth = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const stripNode = stripRef.current;
+    if (!stripNode) {
+      return;
+    }
+
+    const firstCard = stripNode.querySelector<HTMLElement>('[data-course-card="true"]');
+    if (!firstCard) {
+      return;
+    }
+
+    const computed = window.getComputedStyle(stripNode);
+    const gapValue = Number.parseFloat(computed.columnGap || computed.gap || '0');
+    const gap = Number.isFinite(gapValue) ? gapValue : 0;
+    setStepWidthPx(firstCard.getBoundingClientRect().width + gap);
+  }, []);
+
+  useEffect(() => {
+    measureStepWidth();
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleResize = () => measureStepWidth();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [measureStepWidth]);
+
+  useEffect(() => {
+    if (prefersReducedMotion || isPaused || tracks.length <= 1 || stepWidthPx <= 0) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setCarouselIndex((currentIndex) => currentIndex + 1);
+    }, COURSE_CAROUSEL_ROTATE_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [COURSE_CAROUSEL_ROTATE_MS, isPaused, prefersReducedMotion, stepWidthPx, tracks.length]);
+
+  const handleTrackTransitionEnd = () => {
+    if (carouselIndex < tracks.length) {
+      return;
+    }
+
+    setTransitionEnabled(false);
+    setCarouselIndex(0);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setTransitionEnabled(true));
+    });
+  };
+
+  const activeDotIndex =
+    tracks.length > 0 ? ((carouselIndex % tracks.length) + tracks.length) % tracks.length : 0;
 
   return (
     <div
-      className={`rounded-[1.8rem] border p-5 ${
-        isLightMode
-          ? 'border-[#aab0b7]/60 bg-[#ebedf0]/92'
-          : 'border-[#555b61]/65 bg-[linear-gradient(160deg,rgba(28,30,33,0.97),rgba(21,23,26,0.96))]'
-      }`}
+      className="w-full max-w-6xl"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onFocusCapture={() => setIsPaused(true)}
+      onBlurCapture={() => setIsPaused(false)}
     >
-      <p className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${isLightMode ? 'text-[#4f5964]' : 'text-[#aeb6bf]'}`}>
-        Mission flow
-      </p>
-      <div
-        className={`mt-3 max-h-[22rem] overflow-y-auto rounded-xl border p-3 ${
-          isLightMode ? 'border-white/10 bg-black/10' : 'border-white/10 bg-black/35'
-        }`}
-      >
-        {acts.map((act) => (
-          <article
-            key={act.title}
-            className={`py-1.5 ${act.title !== 'The Debrief' ? 'border-b border-white/10' : ''}`}
-          >
-            <p className={`text-[10px] uppercase tracking-[0.14em] ${isLightMode ? 'text-[#6b737c]' : 'text-[#8f96a0]'}`}>
-              {act.label}
-            </p>
-            <h3 className={`mt-0.5 text-[10.5px] font-semibold leading-5 ${isLightMode ? 'text-[#202733]' : 'text-[#d7dce3]'}`}>
-              {act.title}
-            </h3>
-            <p className={`mt-0.5 text-[10.5px] leading-5 ${isLightMode ? 'text-[#4d5560]' : 'text-[#b8bec8]'}`}>
-              {act.detail}
-            </p>
-          </article>
+      <div className="overflow-hidden rounded-2xl">
+        <div
+          ref={stripRef}
+          className={`flex gap-5 ${
+            transitionEnabled && !prefersReducedMotion
+              ? 'transition-transform ease-[cubic-bezier(0.24,1,0.34,1)]'
+              : ''
+          }`}
+          style={{
+            transform:
+              stepWidthPx > 0
+                ? `translate3d(-${carouselIndex * stepWidthPx}px, 0, 0)`
+                : 'translate3d(0, 0, 0)',
+            transitionDuration:
+              transitionEnabled && !prefersReducedMotion
+                ? `${COURSE_CAROUSEL_ANIMATION_MS}ms`
+                : undefined
+          }}
+          onTransitionEnd={handleTrackTransitionEnd}
+          role="region"
+          aria-roledescription="carousel"
+          aria-label="Theory course tracks"
+        >
+          {loopedTracks.map((track, index) => {
+            const card = (
+              <article
+                data-course-card="true"
+                className={`group relative overflow-hidden rounded-2xl border p-5 transition-colors ${
+                  isLightMode
+                    ? 'border-[#aab5bf]/65 bg-[#e7ecef]'
+                    : track.locked
+                      ? 'border-[#343c45] bg-[#0f1318]'
+                      : 'border-[#2a323a] bg-[#10151a] hover:border-[#3a434d]'
+                }`}
+              >
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,rgba(100,160,220,0.12),transparent_38%)]" />
+                <div className="relative">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                        track.locked
+                          ? 'border border-[#454f58] bg-[#1a2129] text-[#9aa6b1]'
+                          : 'border border-[#4f5b66] bg-[#232b33] text-[#c5ced6]'
+                      }`}
+                    >
+                      {track.badge}
+                    </span>
+                    {track.locked ? <Lock className="h-4 w-4 text-[#94a79a]" /> : null}
+                  </div>
+
+                  <div className="relative mt-4 rounded-xl border border-[#2f3840] bg-[#0e1318] p-4">
+                    <div className="relative h-28 w-full">
+                      <Image
+                        src={track.logoSrc}
+                        alt={`${track.name} logo`}
+                        fill
+                        className={`object-contain ${track.locked ? 'opacity-55 grayscale' : ''}`}
+                      />
+                    </div>
+                  </div>
+
+                  <h3 className={`relative mt-4 text-xl font-semibold ${isLightMode ? 'text-[#1f2a34]' : 'text-[#e3efe8]'}`}>
+                    {track.name}
+                  </h3>
+                  <p className={`relative mt-2 text-sm leading-6 ${isLightMode ? 'text-[#4b5a66]' : 'text-[#b0bac4]'}`}>
+                    {track.description}
+                  </p>
+                  <p
+                    className={`relative mt-3 text-xs font-semibold uppercase tracking-[0.12em] ${
+                      track.locked
+                        ? isLightMode
+                          ? 'text-[#6f7882]'
+                          : 'text-[#7f8a95]'
+                        : isLightMode
+                          ? 'text-[#2f3f4c]'
+                          : 'text-[#c5ced6]'
+                    }`}
+                  >
+                    {track.locked ? 'Preview track' : 'Open track'}
+                  </p>
+                </div>
+              </article>
+            );
+
+            return (
+              <Link
+                key={`${track.id}-${index}`}
+                href={track.href}
+                className="block w-full flex-none sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
+                aria-label={`${track.locked ? 'Preview' : 'Open'} ${track.name} track`}
+              >
+                {card}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-center gap-1.5">
+        {tracks.map((track, index) => (
+          <button
+            key={track.id}
+            type="button"
+            onClick={() => {
+              setTransitionEnabled(true);
+              setCarouselIndex(index);
+            }}
+            aria-label={`Show ${track.name}`}
+            aria-current={index === activeDotIndex ? 'true' : undefined}
+            className={`rounded-full transition-all duration-300 ${
+              index === activeDotIndex
+                ? 'h-1.5 w-5 bg-[#a7b0b8]'
+                : 'h-1.5 w-1.5 bg-white/30'
+            }`}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function BatteryDeckPreviewCard({ isLightMode }: { isLightMode: boolean }) {
+function MissionBriefingCard({ isLightMode }: { isLightMode: boolean }) {
+  const TASK_CAROUSEL_ROTATE_MS = 3600;
+  const TASK_CAROUSEL_ANIMATION_MS = 980;
+  const taskOptions = [
+    {
+      id: 'notebooks',
+      title: 'Notebooks',
+      description: 'Audit production notebooks and resolve line-level reliability issues.',
+      progress: '0/3 reviewed',
+      cta: 'Open notebooks',
+      href: '/tasks',
+      icon: NotebookPen,
+      tone: 'mint'
+    },
+    {
+      id: 'missions',
+      title: 'Missions',
+      description: 'Run incident scenarios and continue the latest active operations drill.',
+      progress: '0/8 completed',
+      cta: 'Resume mission',
+      href: '/missions',
+      icon: Flag,
+      tone: 'amber'
+    },
+    {
+      id: 'flashcards',
+      title: 'Flashcards',
+      description: 'Train high-speed recall and keep your latest theory track fresh.',
+      progress: '4 attempted',
+      cta: 'Resume flashcards',
+      href: '/tasks',
+      icon: Layers3,
+      tone: 'gold'
+    }
+  ] as const;
+  const loopedTasks = [...taskOptions, ...taskOptions];
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [stepWidthPx, setStepWidthPx] = useState(0);
+  const [transitionEnabled, setTransitionEnabled] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const syncPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+    syncPreference();
+    mediaQuery.addEventListener('change', syncPreference);
+    return () => mediaQuery.removeEventListener('change', syncPreference);
+  }, []);
+
+  const measureStepWidth = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const stripNode = stripRef.current;
+    if (!stripNode) {
+      return;
+    }
+
+    const firstCard = stripNode.querySelector<HTMLElement>('[data-task-card="true"]');
+    if (!firstCard) {
+      return;
+    }
+
+    const computed = window.getComputedStyle(stripNode);
+    const gapValue = Number.parseFloat(computed.columnGap || computed.gap || '0');
+    const gap = Number.isFinite(gapValue) ? gapValue : 0;
+    setStepWidthPx(firstCard.getBoundingClientRect().width + gap);
+  }, []);
+
+  useEffect(() => {
+    measureStepWidth();
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleResize = () => measureStepWidth();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [measureStepWidth]);
+
+  useEffect(() => {
+    if (prefersReducedMotion || isPaused || taskOptions.length <= 1 || stepWidthPx <= 0) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setCarouselIndex((currentIndex) => currentIndex + 1);
+    }, TASK_CAROUSEL_ROTATE_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    TASK_CAROUSEL_ROTATE_MS,
+    isPaused,
+    prefersReducedMotion,
+    stepWidthPx,
+    taskOptions.length
+  ]);
+
+  const handleTrackTransitionEnd = () => {
+    if (carouselIndex < taskOptions.length) {
+      return;
+    }
+
+    setTransitionEnabled(false);
+    setCarouselIndex(0);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setTransitionEnabled(true));
+    });
+  };
+
+  const activeDotIndex =
+    taskOptions.length > 0
+      ? ((carouselIndex % taskOptions.length) + taskOptions.length) % taskOptions.length
+      : 0;
+
+  const toneStyles: Record<
+    (typeof taskOptions)[number]['tone'],
+    {
+      shell: string;
+      badge: string;
+      iconShell: string;
+      iconColor: string;
+      dot: string;
+      glow: string;
+    }
+  > = {
+    mint: {
+      shell: 'border-[#2a4f45] bg-[#0f1514] hover:border-[#35675a]',
+      badge: 'border border-[#2f6b5e] bg-[#15302b] text-[#bce8dc]',
+      iconShell: 'border-[#2f6b5e]/85 bg-[#122824]',
+      iconColor: 'text-[#3ed3b2]',
+      dot: 'bg-[#3ed3b2]',
+      glow: 'bg-[radial-gradient(circle_at_16%_14%,rgba(62,211,178,0.12),transparent_38%)]'
+    },
+    amber: {
+      shell: 'border-[#5c4426] bg-[#16120e] hover:border-[#7b5c34]',
+      badge: 'border border-[#87622c] bg-[#2d2111] text-[#ecd1a4]',
+      iconShell: 'border-[#87622c]/85 bg-[#2a1f11]',
+      iconColor: 'text-[#f3b24a]',
+      dot: 'bg-[#f3b24a]',
+      glow: 'bg-[radial-gradient(circle_at_16%_14%,rgba(243,178,74,0.12),transparent_38%)]'
+    },
+    gold: {
+      shell: 'border-[#6d4f22] bg-[#17120d] hover:border-[#8b6630]',
+      badge: 'border border-[#91672d] bg-[#2f2212] text-[#edd4a8]',
+      iconShell: 'border-[#91672d]/85 bg-[#2d2112]',
+      iconColor: 'text-[#f4ba58]',
+      dot: 'bg-[#f4ba58]',
+      glow: 'bg-[radial-gradient(circle_at_16%_14%,rgba(244,186,88,0.13),transparent_38%)]'
+    }
+  };
+
   return (
     <div
-      className={`rounded-[2rem] border p-4 ${
-        isLightMode
-          ? 'border-[#9db1c9]/65 bg-[#eef4ff]/90'
-          : 'border-[#35547a]/55 bg-[linear-gradient(160deg,rgba(13,20,30,0.97),rgba(9,15,24,0.96))]'
-      }`}
+      className="w-full max-w-6xl"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onFocusCapture={() => setIsPaused(true)}
+      onBlurCapture={() => setIsPaused(false)}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${isLightMode ? 'text-[#4c6d95]' : 'text-[#9eb5d3]'}`}>
-            Flexibility
-          </p>
-          <h3 className={`mt-1 text-sm font-semibold ${isLightMode ? 'text-[#1f3a5b]' : 'text-[#dbe8ff]'}`}>
-            Battery Storage (50 MWh)
-          </h3>
-        </div>
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${
-            isLightMode
-              ? 'border-[#95aed0] bg-[#e7eef9] text-[#375378]'
-              : 'border-[#4b6a94] bg-[#152131] text-[#b7ccec]'
+      <div className="overflow-hidden rounded-2xl">
+        <div
+          ref={stripRef}
+          className={`flex gap-5 ${
+            transitionEnabled && !prefersReducedMotion
+              ? 'transition-transform ease-[cubic-bezier(0.24,1,0.34,1)]'
+              : ''
           }`}
+          style={{
+            transform:
+              stepWidthPx > 0
+                ? `translate3d(-${carouselIndex * stepWidthPx}px, 0, 0)`
+                : 'translate3d(0, 0, 0)',
+            transitionDuration:
+              transitionEnabled && !prefersReducedMotion
+                ? `${TASK_CAROUSEL_ANIMATION_MS}ms`
+                : undefined
+          }}
+          onTransitionEnd={handleTrackTransitionEnd}
+          role="region"
+          aria-roledescription="carousel"
+          aria-label="Practice task tracks"
         >
-          <Info className="h-3.5 w-3.5" />
-          Details
-        </span>
+          {loopedTasks.map((task, index) => {
+            const tone = toneStyles[task.tone];
+            const Icon = task.icon;
+
+            return (
+              <Link
+                key={`${task.id}-${index}`}
+                href={task.href}
+                className="block w-full flex-none sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
+                aria-label={task.cta}
+              >
+                <article
+                  data-task-card="true"
+                  className={`group relative overflow-hidden rounded-2xl border p-5 transition-colors ${tone.shell}`}
+                >
+                  <div className={`pointer-events-none absolute inset-0 ${tone.glow}`} />
+                  <div className="relative">
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${tone.badge}`}
+                      >
+                        Task
+                      </span>
+                      <p className={`text-[11px] font-medium ${isLightMode ? 'text-[#4b5a66]' : 'text-[#aeb8c2]'}`}>
+                        {task.progress}
+                      </p>
+                    </div>
+
+                    <div className="relative mt-4 rounded-xl border border-[#2f3840] bg-[#0e1318] p-4">
+                      <div className="flex h-28 items-center gap-3.5">
+                        <span
+                          className={`inline-flex h-12 w-12 flex-none items-center justify-center rounded-xl border ${tone.iconShell}`}
+                        >
+                          <Icon className={`h-6 w-6 ${tone.iconColor}`} />
+                        </span>
+                        <h3
+                          className={`text-xl font-semibold leading-tight ${
+                            isLightMode ? 'text-[#1f2a34]' : 'text-[#e3efe8]'
+                          }`}
+                        >
+                          {task.title}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <p
+                      className={`relative mt-4 text-sm leading-6 ${
+                        isLightMode ? 'text-[#4b5a66]' : 'text-[#b0bac4]'
+                      }`}
+                    >
+                      {task.description}
+                    </p>
+                    <p
+                      className={`relative mt-3 text-xs font-semibold uppercase tracking-[0.12em] ${
+                        isLightMode ? 'text-[#2f3f4c]' : 'text-[#c5ced6]'
+                      }`}
+                    >
+                      {task.cta}
+                    </p>
+                  </div>
+                </article>
+              </Link>
+            );
+          })}
+        </div>
       </div>
-
-      <p className={`mt-2 text-[10.5px] leading-5 ${isLightMode ? 'text-[#3f5f85]' : 'text-[#a9bfde]'}`}>
-        Absorbs renewable oversupply and discharges during peak stress.
-      </p>
-
-      <div
-        className={`mt-3 rounded-2xl border px-4 py-3 ${
-          isLightMode ? 'border-[#a3b9d7]/70 bg-[#e8f1ff]/70' : 'border-[#3d5a84] bg-[#101a27]/88'
-        }`}
-      >
-        <p className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${isLightMode ? 'text-[#4b6c92]' : 'text-[#9db5d6]'}`}>
-          Unlocks
-        </p>
-        <p className={`mt-1 text-[10.5px] font-semibold leading-5 ${isLightMode ? 'text-[#244366]' : 'text-[#d9e7ff]'}`}>
-          Mission 002: Evening Peak
-        </p>
+      <div className="mt-3 flex items-center justify-center gap-1.5">
+        {taskOptions.map((task, index) => (
+          <button
+            key={task.id}
+            type="button"
+            onClick={() => {
+              setTransitionEnabled(true);
+              setCarouselIndex(index);
+            }}
+            aria-label={`Show ${task.title}`}
+            aria-current={index === activeDotIndex ? 'true' : undefined}
+            className={`rounded-full transition-all duration-300 ${
+              index === activeDotIndex
+                ? `h-1.5 w-5 ${toneStyles[task.tone].dot}`
+                : 'h-1.5 w-1.5 bg-white/30'
+            }`}
+          />
+        ))}
       </div>
+    </div>
+  );
+}
 
-      <div
-        className={`mt-3 rounded-2xl border ${
-          isLightMode ? 'border-[#7ca3b9] bg-[#dff1ff]/45' : 'border-[#2e745f] bg-[#07162a]/85'
-        }`}
-      >
-        <BatteryStorageModelPreviewLazy className="h-44" />
+function GridItemDeckCarousel({ isLightMode }: { isLightMode: boolean }) {
+  const TECH_CAROUSEL_ROTATE_MS = 3600;
+  const TECH_CAROUSEL_ANIMATION_MS = 980;
+  const techItems = [
+    {
+      id: 'control-center',
+      category: 'Monitoring',
+      title: 'Control Center',
+      description: 'Restores telemetry visibility and dispatch command continuity.',
+      unlocks: 'Infrastructure telemetry',
+      href: '/missions',
+      preview: 'control'
+    },
+    {
+      id: 'smart-transformer',
+      category: 'Control',
+      title: 'Smart Transformer',
+      description: 'Stabilizes bidirectional prosumer injections at the edge.',
+      unlocks: 'Mission 003: Prosumer Swarm',
+      href: '/missions',
+      preview: 'none'
+    },
+    {
+      id: 'solar-forecasting-array',
+      category: 'Forecasting',
+      title: 'Solar Forecasting Array',
+      description: 'Improves day-ahead and intra-day irradiance dispatch estimates.',
+      unlocks: 'Mission 001: Solar Surge',
+      href: '/missions',
+      preview: 'solar'
+    },
+    {
+      id: 'battery-storage',
+      category: 'Flexibility',
+      title: 'Battery Storage (50 MWh)',
+      description: 'Absorbs renewable oversupply and discharges during peak stress.',
+      unlocks: 'Mission 002: Evening Peak',
+      href: '/missions',
+      preview: 'battery'
+    }
+  ] as const;
+  const loopedItems = [...techItems, ...techItems];
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [stepWidthPx, setStepWidthPx] = useState(0);
+  const [transitionEnabled, setTransitionEnabled] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const syncPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+    syncPreference();
+    mediaQuery.addEventListener('change', syncPreference);
+    return () => mediaQuery.removeEventListener('change', syncPreference);
+  }, []);
+
+  const measureStepWidth = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const stripNode = stripRef.current;
+    if (!stripNode) {
+      return;
+    }
+
+    const firstCard = stripNode.querySelector<HTMLElement>('[data-tech-card="true"]');
+    if (!firstCard) {
+      return;
+    }
+
+    const computed = window.getComputedStyle(stripNode);
+    const gapValue = Number.parseFloat(computed.columnGap || computed.gap || '0');
+    const gap = Number.isFinite(gapValue) ? gapValue : 0;
+    setStepWidthPx(firstCard.getBoundingClientRect().width + gap);
+  }, []);
+
+  useEffect(() => {
+    measureStepWidth();
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleResize = () => measureStepWidth();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [measureStepWidth]);
+
+  useEffect(() => {
+    if (prefersReducedMotion || isPaused || techItems.length <= 1 || stepWidthPx <= 0) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setCarouselIndex((currentIndex) => currentIndex + 1);
+    }, TECH_CAROUSEL_ROTATE_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    TECH_CAROUSEL_ROTATE_MS,
+    isPaused,
+    prefersReducedMotion,
+    stepWidthPx,
+    techItems.length
+  ]);
+
+  const handleTrackTransitionEnd = () => {
+    if (carouselIndex < techItems.length) {
+      return;
+    }
+
+    setTransitionEnabled(false);
+    setCarouselIndex(0);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setTransitionEnabled(true));
+    });
+  };
+
+  const activeDotIndex =
+    techItems.length > 0
+      ? ((carouselIndex % techItems.length) + techItems.length) % techItems.length
+      : 0;
+
+  const renderPreview = (
+    preview: (typeof techItems)[number]['preview'],
+    title: string
+  ) => {
+    if (preview === 'control') {
+      return <ControlCenterModelPreviewLazy className="h-40 border-0" />;
+    }
+
+    if (preview === 'solar') {
+      return <SolarForecastingModelPreviewLazy className="h-40 border-0" />;
+    }
+
+    if (preview === 'battery') {
+      return <BatteryStorageModelPreviewLazy className="h-40 border-0" />;
+    }
+
+    return (
+      <div className="h-40 rounded-xl border border-[#2b4f41] bg-[radial-gradient(circle_at_30%_18%,rgba(88,132,255,0.18),transparent_46%),linear-gradient(180deg,#0a1322,#060c15)]">
+        <div className="flex h-full items-center justify-center gap-2 text-[#8eb5df]">
+          <Zap className="h-5 w-5" />
+          <span className="text-sm font-medium">{title}</span>
+        </div>
       </div>
+    );
+  };
 
-      <div
-        className={`mt-3 flex items-center justify-center gap-2 rounded-2xl border px-4 py-2 text-[10.5px] font-semibold ${
-          isLightMode
-            ? 'border-[#84b7aa] bg-[#dff8f0] text-[#1b6a56]'
-            : 'border-[#2a7d66] bg-[#102523] text-[#63c9ac]'
-        }`}
-      >
-        <Zap className="h-4 w-4" />
-        Infrastructure active
+  return (
+    <div
+      className="w-full max-w-6xl"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onFocusCapture={() => setIsPaused(true)}
+      onBlurCapture={() => setIsPaused(false)}
+    >
+      <div className="overflow-hidden rounded-2xl">
+        <div
+          ref={stripRef}
+          className={`flex gap-5 ${
+            transitionEnabled && !prefersReducedMotion
+              ? 'transition-transform ease-[cubic-bezier(0.24,1,0.34,1)]'
+              : ''
+          }`}
+          style={{
+            transform:
+              stepWidthPx > 0
+                ? `translate3d(-${carouselIndex * stepWidthPx}px, 0, 0)`
+                : 'translate3d(0, 0, 0)',
+            transitionDuration:
+              transitionEnabled && !prefersReducedMotion
+                ? `${TECH_CAROUSEL_ANIMATION_MS}ms`
+                : undefined
+          }}
+          onTransitionEnd={handleTrackTransitionEnd}
+          role="region"
+          aria-roledescription="carousel"
+          aria-label="Grid tech deck"
+        >
+          {loopedItems.map((item, index) => (
+            <Link
+              key={`${item.id}-${index}`}
+              href={item.href}
+              className="block w-full flex-none sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
+              aria-label={`Open ${item.title}`}
+            >
+              <article
+                data-tech-card="true"
+                className="group relative overflow-hidden rounded-2xl border border-[#2a3e58] bg-[#0f161f] p-5 transition-colors hover:border-[#3c587b]"
+              >
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,rgba(65,130,212,0.14),transparent_42%)]" />
+                <div className="relative">
+                  <div className="flex items-center justify-between">
+                    <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${isLightMode ? 'text-[#4c6073]' : 'text-[#8ea6c2]'}`}>
+                      {item.category}
+                    </p>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3b5b84] bg-[#152335] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#b9cee8]">
+                      <Info className="h-3.5 w-3.5" />
+                      Details
+                    </span>
+                  </div>
+
+                  <h3 className={`mt-1 text-xl font-semibold ${isLightMode ? 'text-[#1f2a34]' : 'text-[#e3edf8]'}`}>
+                    {item.title}
+                  </h3>
+                  <p className={`mt-2 text-sm leading-6 ${isLightMode ? 'text-[#4b5a66]' : 'text-[#b0bfd1]'}`}>
+                    {item.description}
+                  </p>
+
+                  <div className="mt-3 rounded-xl border border-[#2f4e72] bg-[#102033] px-4 py-3">
+                    <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${isLightMode ? 'text-[#4d6378]' : 'text-[#9db5d2]'}`}>
+                      Unlocks
+                    </p>
+                    <p className={`mt-1 text-[10.5px] font-semibold leading-5 ${isLightMode ? 'text-[#26425f]' : 'text-[#d9e7ff]'}`}>
+                      {item.unlocks}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 overflow-hidden rounded-xl border border-[#2b4f41]">
+                    {renderPreview(item.preview, item.title)}
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-[#2f6b5e]/70 bg-[#122924] px-4 py-2 text-[11px] font-semibold text-[#56baa3]">
+                    <Zap className="h-4 w-4" />
+                    Infrastructure active
+                  </div>
+                </div>
+              </article>
+            </Link>
+          ))}
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-center gap-1.5">
+        {techItems.map((item, index) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => {
+              setTransitionEnabled(true);
+              setCarouselIndex(index);
+            }}
+            aria-label={`Show ${item.title}`}
+            aria-current={index === activeDotIndex ? 'true' : undefined}
+            className={`rounded-full transition-all duration-300 ${
+              index === activeDotIndex
+                ? 'h-1.5 w-5 bg-[#78a7df]'
+                : 'h-1.5 w-1.5 bg-white/30'
+            }`}
+          />
+        ))}
       </div>
     </div>
   );
@@ -1342,7 +1916,7 @@ function ChapterContent({
   if (chapter.variant === 'final') {
     return (
       <div
-        className="relative mx-auto w-full max-w-[34rem] px-4"
+        className="relative mx-auto w-full max-w-6xl"
         style={{
           opacity: emphasis,
           transform: `translate3d(0, ${(1 - emphasis) * 20}px, 0)`,
@@ -1351,47 +1925,68 @@ function ChapterContent({
         }}
       >
         <div
-          className={`rounded-[1.4rem] border px-6 py-7 text-center backdrop-blur-lg ${
+          className={`relative isolate overflow-hidden rounded-[1.5rem] border px-7 py-10 text-center backdrop-blur-lg sm:px-10 sm:py-12 lg:px-14 lg:py-14 ${
             isLightMode
               ? 'border-[#c7d9cf] bg-white/86 shadow-[0_20px_70px_rgba(16,38,28,0.18)]'
               : 'border-white/18 bg-[#06100c]/84 shadow-[0_20px_70px_rgba(0,0,0,0.4)]'
           }`}
         >
-          <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${isLightMode ? 'text-[#5f7a6c]' : 'text-[#a5bfb3]'}`}>
-            {chapter.eyebrow}
-          </p>
-          <h2
-            className={`mt-3 text-[clamp(1.7rem,5.2vw,2.8rem)] font-semibold leading-[1.02] tracking-[-0.035em] ${isLightMode ? 'text-[#13221a]' : 'text-[#f3f7f4]'}`}
-            style={{ fontFamily: HERO_DISPLAY_FONT_FAMILY }}
-          >
-            {chapter.title}
-          </h2>
-          {chapter.body ? (
-            <p className={`mx-auto mt-3 max-w-[28rem] text-[15px] leading-7 ${isLightMode ? 'text-[#48665a]' : 'text-[#c7ddd3]'}`}>
-              {chapter.body}
-            </p>
-          ) : null}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="#courses-gallery"
-              className={`pointer-events-auto inline-flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-medium transition-colors ${
+          <div className="pointer-events-none absolute inset-0">
+            <Image
+              src={FINAL_CTA_FIRST_FRAME_PATH}
+              alt=""
+              fill
+              sizes="(min-width: 1280px) 72rem, 100vw"
+              className="object-cover object-center opacity-38"
+            />
+            <div
+              className={`absolute inset-0 ${
                 isLightMode
-                  ? 'border-[#7f8f87]/45 bg-white/85 text-[#25302c] hover:border-[#6f7d76] hover:bg-white'
-                  : 'border-white/24 bg-black/28 text-[#e4ece8] hover:border-white/34 hover:bg-black/40'
+                  ? 'bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(245,252,248,0.9))]'
+                  : 'bg-[linear-gradient(180deg,rgba(0,0,0,0.44),rgba(0,0,0,0.74))]'
               }`}
-            >
-              Browse courses
-            </Link>
-            {chapter.ctaSource ? (
-              <PrimaryCta
-                source={chapter.ctaSource}
-                label={chapter.ctaLabel ?? 'Start free'}
-                emphasized
-                isLightMode={isLightMode}
-              />
+            />
+          </div>
+          <div className="relative z-10">
+            {chapter.eyebrow ? (
+              <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${isLightMode ? 'text-[#5f7a6c]' : 'text-[#a5bfb3]'}`}>
+                {chapter.eyebrow}
+              </p>
             ) : null}
+            <h2
+              className={`${chapter.eyebrow ? 'mt-3' : ''} text-[clamp(2rem,5.9vw,3.5rem)] font-semibold leading-[1.02] tracking-[-0.035em] ${isLightMode ? 'text-[#13221a]' : 'text-[#f3f7f4]'}`}
+              style={{ fontFamily: HERO_DISPLAY_FONT_FAMILY }}
+            >
+              {chapter.title}
+            </h2>
+            {chapter.body ? (
+              <p className={`mx-auto mt-4 max-w-[32rem] text-[16px] leading-8 ${isLightMode ? 'text-[#48665a]' : 'text-[#c7ddd3]'}`}>
+                {chapter.body}
+              </p>
+            ) : null}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
+              <Link
+                href="/not-sure-yet"
+                className={`pointer-events-auto inline-flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-medium transition-colors ${
+                  isLightMode
+                    ? 'border-[#7f8f87]/45 bg-white/85 text-[#25302c] hover:border-[#6f7d76] hover:bg-white'
+                    : 'border-white/24 bg-black/28 text-[#e4ece8] hover:border-white/34 hover:bg-black/40'
+                }`}
+              >
+                Not sure yet
+              </Link>
+              {chapter.ctaSource ? (
+                <PrimaryCta
+                  source={chapter.ctaSource}
+                  label={chapter.ctaLabel ?? 'Start free'}
+                  emphasized
+                  isLightMode={isLightMode}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
+        <FinalFaqSection />
       </div>
     );
   }
@@ -1403,6 +1998,75 @@ function ChapterContent({
       isLightMode={isLightMode}
       chapterStepNumber={chapterStepNumber ?? 1}
     />
+  );
+}
+
+function FinalFaqSection() {
+  const [openFaqId, setOpenFaqId] = useState<string>('');
+
+  return (
+    <section
+      aria-label="Landing page frequently asked questions"
+      className="pointer-events-auto relative left-1/2 mt-56 w-screen -translate-x-1/2 border-y border-[#d0d8df] bg-[linear-gradient(180deg,#f9fbfc,#f2f5f7)] sm:mt-64 lg:mt-80"
+    >
+      <div className="mx-auto w-full max-w-6xl px-6 py-12 sm:px-8 sm:py-14 lg:px-10 lg:py-16">
+        <div className="grid gap-9 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:gap-12">
+          <div className="max-w-[30rem]">
+            <h3
+              className="text-[clamp(1.9rem,4.1vw,3.1rem)] font-semibold leading-[1.04] tracking-[-0.03em] text-[#121b22]"
+              style={{ fontFamily: HERO_DISPLAY_FONT_FAMILY }}
+            >
+              FAQs.
+            </h3>
+            <p className="mt-4 text-[14px] leading-7 text-[#4d5c66]">
+              Big-data learning can feel dense at first. These answers keep it clear, so you know exactly what you get before you start.
+            </p>
+          </div>
+
+          <div className="divide-y divide-[#c6ced6]">
+            {LANDING_FAQ_ITEMS.map((item) => {
+              const isOpen = item.id === openFaqId;
+              const answerId = `landing-faq-answer-${item.id}`;
+
+              return (
+                <article key={item.id} className="text-[#132029]">
+                  <button
+                    type="button"
+                    className="pointer-events-auto flex w-full items-center justify-between gap-5 py-5 text-left transition-colors hover:text-[#0a141b]"
+                    aria-expanded={isOpen}
+                    aria-controls={answerId}
+                    onClick={() => {
+                      setOpenFaqId((current) => (current === item.id ? '' : item.id));
+                    }}
+                  >
+                    <span className="text-[clamp(1.05rem,1.7vw,1.34rem)] font-medium leading-tight">
+                      {item.question}
+                    </span>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-[#4f5d67] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                        isOpen
+                          ? 'rotate-180'
+                          : 'rotate-0'
+                      }`}
+                    />
+                  </button>
+                  <div
+                    id={answerId}
+                    className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                      isOpen ? 'grid-rows-[1fr] pb-5 opacity-100' : 'grid-rows-[0fr] pb-0 opacity-0'
+                    }`}
+                  >
+                    <p className="overflow-hidden text-[15px] leading-8 text-[#445460]">
+                      {item.answer}
+                    </p>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1440,6 +2104,22 @@ export const GridFlowSection = () => {
       return storyCount <= MAX_STORY_STEPS;
     });
   }, []);
+  const indicatorSections = useMemo(
+    () =>
+      activeChapters
+        .filter(
+          (chapter) =>
+            chapter.variant === 'intro' ||
+            chapter.variant === 'story' ||
+            chapter.variant === 'final'
+        )
+        .slice(0, 5)
+        .map((chapter) => ({
+          id: chapter.id,
+          label: chapter.eyebrow
+        })),
+    [activeChapters]
+  );
 
   const measureChapterCenters = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -1587,6 +2267,14 @@ export const GridFlowSection = () => {
       body.style.touchAction = previousBodyTouchAction;
     };
   }, [isIntroAutoplayComplete, reducedMotion]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isIntroAutoplayComplete) {
+      return;
+    }
+
+    window.dispatchEvent(new Event(LANDING_INTRO_COMPLETE_EVENT));
+  }, [isIntroAutoplayComplete]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1755,18 +2443,10 @@ export const GridFlowSection = () => {
     1
   );
   const stepOnePosition = 1;
-  const finalCtaPosition = Math.max(activeChapters.length - 1, stepOnePosition + 1);
   const darknessOverlayOpacity =
     journeyPosition <= stepOnePosition
-      ? clamp((journeyPosition / stepOnePosition) * 0.9, 0, 0.9)
-      : clamp(
-          0.9 +
-            ((journeyPosition - stepOnePosition) /
-              Math.max(finalCtaPosition - stepOnePosition, 1)) *
-              0.1,
-          0.9,
-          1
-        );
+      ? clamp(journeyPosition / stepOnePosition, 0, 1)
+      : 1;
   const shouldLockIntroScroll = !reducedMotion && !isIntroAutoplayComplete;
   const scenePerformanceMode: 'full' | 'balanced' = performanceMode;
   const storyArticles = useMemo(
@@ -1785,6 +2465,7 @@ export const GridFlowSection = () => {
         return (
           <article
             key={chapter.id}
+            id={chapter.id}
             ref={(node) => {
               chapterRefs.current[index] = node;
             }}
@@ -1798,7 +2479,7 @@ export const GridFlowSection = () => {
               className={`absolute inset-0 ${
                 isLightMode
                   ? 'bg-[linear-gradient(180deg,rgba(241,249,244,0)_0%,rgba(231,244,237,0.45)_22%,rgba(219,236,228,0.78)_100%)]'
-                  : 'bg-[linear-gradient(180deg,rgba(4,8,7,0)_0%,rgba(4,8,7,0.1)_22%,rgba(4,8,7,0.24)_100%)]'
+                  : 'bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.12)_22%,rgba(0,0,0,0.28)_100%)]'
               }`}
             />
             <div
@@ -1836,9 +2517,15 @@ export const GridFlowSection = () => {
       ref={sectionRef}
       id="grid-flow"
       data-intro-lock={shouldLockIntroScroll ? 'true' : 'false'}
-      className={`relative overflow-clip ${isLightMode ? 'bg-[#edf5ef]' : 'bg-[#040807]'}`}
-      aria-label="Three-step guided introduction to StableGrid core experience"
+      className={`relative overflow-clip ${isLightMode ? 'bg-[#edf5ef]' : 'bg-black'}`}
+      aria-label="Three-step guided introduction to stableGrid core experience"
     >
+      {!shouldLockIntroScroll ? (
+        <ScrollSectionIndicator
+          sections={indicatorSections}
+          className="fixed right-7 top-1/2 z-40 hidden -translate-y-1/2 lg:block"
+        />
+      ) : null}
       <div
         className={`sticky top-16 h-[calc(100vh-4rem)] overflow-hidden border-y ${
           isLightMode ? 'border-[#c7d9cf]' : 'border-[#183025]'
@@ -1863,14 +2550,14 @@ export const GridFlowSection = () => {
           className={`pointer-events-none absolute inset-0 ${
             isLightMode
               ? 'bg-[radial-gradient(circle_at_50%_46%,transparent_0,transparent_26%,rgba(219,236,228,0.45)_56%,rgba(236,245,240,0.84)_100%)]'
-              : 'bg-[radial-gradient(circle_at_50%_46%,transparent_0,transparent_26%,rgba(4,8,7,0.16)_56%,rgba(4,8,7,0.74)_100%)]'
+              : 'bg-[radial-gradient(circle_at_50%_46%,transparent_0,transparent_26%,rgba(0,0,0,0.2)_56%,rgba(0,0,0,0.86)_100%)]'
           }`}
         />
         <div
           className={`pointer-events-none absolute inset-0 ${
             isLightMode
               ? 'bg-[linear-gradient(180deg,rgba(236,245,240,0.88)_0%,rgba(241,249,244,0.44)_24%,rgba(241,249,244,0)_56%,rgba(222,238,230,0.54)_100%)]'
-              : 'bg-[linear-gradient(180deg,rgba(4,8,7,0.72)_0%,rgba(4,8,7,0.16)_24%,rgba(4,8,7,0)_56%,rgba(4,8,7,0.54)_100%)]'
+              : 'bg-[linear-gradient(180deg,rgba(0,0,0,0.8)_0%,rgba(0,0,0,0.2)_24%,rgba(0,0,0,0)_56%,rgba(0,0,0,0.64)_100%)]'
           }`}
         />
         {shouldLockIntroScroll ? (

@@ -29,7 +29,7 @@ export const HowItWorksSection = () => {
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
-            How Theory Beta works
+            How the theory route works
           </h2>
           <p className="text-[#9ab8a9]">One stable route first, expansion layers after validation.</p>
         </div>

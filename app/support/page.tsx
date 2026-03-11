@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Support · StableGrid.io',
-  description: 'Support and contact paths for StableGrid Theory Beta users.'
+  title: 'Support · stableGrid.io',
+  description: 'Support and contact paths for StableGrid users.'
 };
 
 export default function SupportPage() {
@@ -12,11 +12,11 @@ export default function SupportPage() {
       <div className="mx-auto w-full max-w-3xl space-y-8">
         <header className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500">
-            StableGrid Theory Beta
+            StableGrid
           </p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Support</h1>
           <p className="text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
-            We handle launch-blocking support requests during beta.
+            We handle launch-blocking support requests.
           </p>
         </header>
 
@@ -32,7 +32,7 @@ export default function SupportPage() {
             </a>{' '}
             with subject format:
             <span className="block font-mono text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-              [StableGrid Beta] brief issue summary
+              [StableGrid] brief issue summary
             </span>
           </p>
         </section>

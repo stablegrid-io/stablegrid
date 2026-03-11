@@ -81,15 +81,15 @@ const taskDropdownItems: Array<{
 
 const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
   if (!pathname) return false;
+  if (!isAuthenticated) {
+    return true;
+  }
   if (
     pathname.startsWith('/practice/') &&
     pathname !== '/practice/setup' &&
     pathname !== '/practice/notebooks'
   ) {
     return true;
-  }
-  if (pathname === '/') {
-    return !isAuthenticated;
   }
   return ['/login', '/signup', '/reset-password', '/update-password'].includes(pathname);
 };
@@ -216,7 +216,7 @@ export const TopNav = () => {
           >
             <StableGridIcon size="md" />
             <div className="hidden sm:block">
-              <div className="text-base font-semibold text-brand-50">StableGrid.io</div>
+              <div className="text-base font-semibold text-brand-50">stableGrid.io</div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-300/85">
                 Control Rail
               </div>

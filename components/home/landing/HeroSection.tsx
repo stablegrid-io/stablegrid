@@ -72,7 +72,7 @@ export const HeroSection = () => {
         >
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#22b999]/30 bg-[#22b999]/10 px-3 py-1.5 text-xs font-semibold text-[#9de3b5]">
             <Activity className="h-3 w-3" />
-            Theory Beta for data engineers.
+            Theory path for data engineers.
           </div>
 
           <h1
@@ -87,7 +87,7 @@ export const HeroSection = () => {
           </h1>
 
           <p className="mb-8 max-w-xl text-lg leading-relaxed text-[#9ab8a9]">
-            StableGrid is currently in Theory Beta: one structured PySpark-first route,
+            StableGrid currently focuses on one structured PySpark-first route,
             chapter progression, and session controls. Practice, flashcards, and mission
             layers are in active build and not part of this launch.
           </p>
@@ -168,7 +168,7 @@ export const HeroSection = () => {
               className="mt-3 text-2xl font-semibold tracking-tight text-[#e3efe8]"
               style={{ fontFamily: 'Georgia, serif' }}
             >
-              Theory Beta first session plan.
+              First session plan.
             </h2>
             <div className="mt-4 space-y-3">
               {FIRST_SESSION_STEPS.map((step, index) => (

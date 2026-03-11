@@ -7,7 +7,7 @@ import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { Navigation } from '@/components/navigation/Navigation';
 
 export const metadata: Metadata = {
-  title: 'StableGrid.io',
+  title: 'stableGrid.io',
   description:
     'Earn kWh deployment credits through data engineering tasks and deploy infrastructure to stabilize a renewable grid simulation.',
   icons: {

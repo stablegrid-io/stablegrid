@@ -45,7 +45,7 @@ export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [themeMounted, setThemeMounted] = useState(false);
   const isLightMode = themeMounted && resolvedTheme === 'light';
-  const gridLineColor = isLightMode ? 'rgba(22,132,103,0.2)' : '#22b999';
+  const gridLineColor = isLightMode ? 'rgba(120,131,142,0.24)' : '#59635f';
 
   useEffect(() => {
     setThemeMounted(true);
@@ -79,7 +79,7 @@ export function LoginForm() {
   return (
     <main
       className={`relative min-h-screen overflow-hidden ${
-        isLightMode ? 'bg-[#edf3ef] text-[#13221a]' : 'bg-[#050807] text-[#e8f2ec]'
+        isLightMode ? 'bg-[#edf3ef] text-[#13221a]' : 'bg-[#020303] text-[#e6ede9]'
       }`}
     >
       <div
@@ -94,75 +94,63 @@ export function LoginForm() {
         className={`pointer-events-none absolute left-1/2 top-[-160px] h-[520px] w-[520px] -translate-x-1/2 rounded-full ${isLightMode ? 'opacity-25' : 'opacity-20'}`}
         style={{
           background: isLightMode
-            ? 'radial-gradient(circle, rgba(38,171,136,0.34), transparent 72%)'
-            : 'radial-gradient(circle, rgba(34,185,153,0.48), transparent 72%)'
+            ? 'radial-gradient(circle, rgba(164,174,184,0.34), transparent 72%)'
+            : 'radial-gradient(circle, rgba(101,112,106,0.34), transparent 72%)'
         }}
       />
-      <section className="relative flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
+      <section className="relative flex min-h-screen items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
         <div
-          className={`relative w-full max-w-[480px] rounded-[20px] p-6 backdrop-blur-md sm:py-8 sm:pl-12 sm:pr-8 ${
+          className={`relative w-full max-w-[456px] rounded-[18px] p-5 backdrop-blur-md sm:p-6 sm:pl-10 sm:pr-7 ${
             isLightMode
               ? 'border border-[#cfddd5] bg-[linear-gradient(180deg,rgba(251,255,252,0.97),rgba(244,250,246,0.96))] shadow-[0_26px_80px_rgba(16,38,28,0.18)]'
-              : 'border border-[#1a2b22] bg-[linear-gradient(180deg,rgba(8,13,11,0.95),rgba(6,10,9,0.94))] shadow-[0_26px_80px_rgba(0,0,0,0.55)]'
+              : 'border border-[#2b322f] bg-[linear-gradient(180deg,rgba(5,7,7,0.96),rgba(3,4,4,0.95))] shadow-[0_26px_80px_rgba(0,0,0,0.55)]'
           }`}
         >
-          <div className="pointer-events-none absolute bottom-8 left-6 top-24 hidden sm:block">
+          <div className="pointer-events-none absolute bottom-6 left-5 top-20 hidden sm:block">
             <div
               className={`relative h-full w-px ${
                 isLightMode
                   ? 'bg-gradient-to-b from-[#8cb8a4] via-[#b8d1c4] to-transparent'
-                  : 'bg-gradient-to-b from-[#2b4539] via-[#1e3128] to-transparent'
+                  : 'bg-gradient-to-b from-[#3e4a45] via-[#2a322f] to-transparent'
               }`}
             >
               <span
                 className={`absolute -left-[2px] top-[4%] h-1.5 w-1.5 rounded-full ${
                   isLightMode
-                    ? 'bg-[#2f9f79] shadow-[0_0_8px_rgba(47,159,121,0.25)]'
-                    : 'bg-[#56ba9b] shadow-[0_0_10px_rgba(86,186,155,0.35)]'
+                    ? 'bg-[#6f7f8d] shadow-[0_0_8px_rgba(111,127,141,0.25)]'
+                    : 'bg-[#9aa7a1] shadow-[0_0_10px_rgba(154,167,161,0.3)]'
                 }`}
               />
-              <span className={`absolute -left-[2px] top-[44%] h-1.5 w-1.5 rounded-full ${isLightMode ? 'bg-[#6ea48e]' : 'bg-[#3a6d59]'}`} />
-              <span className={`absolute -left-[2px] top-[78%] h-1.5 w-1.5 rounded-full ${isLightMode ? 'bg-[#6ea48e]' : 'bg-[#3a6d59]'}`} />
+              <span className={`absolute -left-[2px] top-[44%] h-1.5 w-1.5 rounded-full ${isLightMode ? 'bg-[#7f8f9c]' : 'bg-[#5d6964]'}`} />
+              <span className={`absolute -left-[2px] top-[78%] h-1.5 w-1.5 rounded-full ${isLightMode ? 'bg-[#7f8f9c]' : 'bg-[#5d6964]'}`} />
             </div>
           </div>
 
-          <header className="relative mb-9">
-            <div className="flex items-start justify-between gap-4">
+          <header className="relative mb-7">
+            <div className="flex items-start">
               <StableGridWordmark
-                size="md"
-                titleClassName={isLightMode ? 'text-[#13221a]' : 'text-[#f1f6f3]'}
+                size="sm"
+                iconClassName={
+                  isLightMode
+                    ? ''
+                    : 'bg-gradient-to-br from-[#171d1b] to-[#0d1110] text-[#79d0ab] shadow-[0_0_0_1px_rgba(121,208,171,0.22),0_10px_22px_-14px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)]'
+                }
+                titleClassName={isLightMode ? 'text-[#13221a]' : 'text-[#edf3ef]'}
               />
-              <div className="flex items-center gap-2">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
-                    isLightMode
-                      ? 'border border-[#b7ccc2] bg-[#f0f7f3] text-[#5f7a6c]'
-                      : 'border border-[#2a4136] bg-[#0c1612] text-[#86a698]'
-                  }`}
-                >
-                  Beta
-                </span>
-              </div>
             </div>
-            <p className={`mt-6 text-[11px] font-semibold uppercase tracking-[0.15em] ${isLightMode ? 'text-[#4f8f74]' : 'text-[#7cb99f]'}`}>
-              HRB access
-            </p>
-            <h1 className={`mt-3 font-display text-[2rem] font-bold leading-[1.08] tracking-tight ${isLightMode ? 'text-[#13221a]' : 'text-[#f1f6f3]'}`}>
+            <h1 className={`mt-4 font-display text-[1.65rem] font-semibold leading-[1.08] tracking-tight ${isLightMode ? 'text-[#13221a]' : 'text-[#edf3ef]'}`}>
               Welcome back
             </h1>
-            <p className={`mt-2 text-sm leading-6 ${isLightMode ? 'text-[#5f786b]' : 'text-[#90a89b]'}`}>
-              Ready to clock in? Sign in to continue your HRB workspace.
-            </p>
           </header>
 
-          <div className="mb-7 grid grid-cols-2 gap-2.5">
+          <div className="mb-5 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => handleOAuth('google')}
-              className={`inline-flex h-12 items-center justify-center gap-2 rounded-[12px] px-3 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3fd0ab]/25 ${
+              className={`inline-flex h-11 items-center justify-center gap-2 rounded-[11px] px-3 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a7b0b8]/35 ${
                 isLightMode
                   ? 'border border-[#c5d8cf] bg-[#f8fcf9] text-[#13221a] hover:border-[#9fc4b4] hover:bg-[#eef7f2]'
-                  : 'border border-[#2a4136] bg-[#0b1410] text-[#e6efea] hover:border-[#3e6754] hover:bg-[#101d17]'
+                  : 'border border-[#313835] bg-[#0b0f0f] text-[#e4ece8] hover:border-[#4c655a] hover:bg-[#111615]'
               }`}
             >
               {GOOGLE_ICON}
@@ -171,10 +159,10 @@ export function LoginForm() {
             <button
               type="button"
               onClick={() => handleOAuth('github')}
-              className={`inline-flex h-12 items-center justify-center gap-2 rounded-[12px] px-3 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3fd0ab]/25 ${
+              className={`inline-flex h-11 items-center justify-center gap-2 rounded-[11px] px-3 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a7b0b8]/35 ${
                 isLightMode
                   ? 'border border-[#c5d8cf] bg-[#f8fcf9] text-[#13221a] hover:border-[#9fc4b4] hover:bg-[#eef7f2]'
-                  : 'border border-[#2a4136] bg-[#0b1410] text-[#e6efea] hover:border-[#3e6754] hover:bg-[#101d17]'
+                  : 'border border-[#313835] bg-[#0b0f0f] text-[#e4ece8] hover:border-[#4c655a] hover:bg-[#111615]'
               }`}
             >
               {GITHUB_ICON}
@@ -182,14 +170,14 @@ export function LoginForm() {
             </button>
           </div>
 
-          <div className="mb-6 flex items-center gap-3">
-            <div className={`h-px flex-1 ${isLightMode ? 'bg-[#c9dbd2]' : 'bg-[#203228]'}`} />
-            <span className={`text-[11px] font-medium ${isLightMode ? 'text-[#668274]' : 'text-[#7f988b]'}`}>or use email</span>
-            <div className={`h-px flex-1 ${isLightMode ? 'bg-[#c9dbd2]' : 'bg-[#203228]'}`} />
+          <div className="mb-5 flex items-center gap-2.5">
+            <div className={`h-px flex-1 ${isLightMode ? 'bg-[#c9d2db]' : 'bg-[#29312e]'}`} />
+            <span className={`text-[11px] font-medium ${isLightMode ? 'text-[#667380]' : 'text-[#8c9892]'}`}>or email</span>
+            <div className={`h-px flex-1 ${isLightMode ? 'bg-[#c9d2db]' : 'bg-[#29312e]'}`} />
           </div>
 
           {error ? (
-            <div className={`mb-4 rounded-[10px] px-3.5 py-2.5 text-sm ${
+            <div className={`mb-3 rounded-[10px] px-3.5 py-2.5 text-sm ${
               isLightMode
                 ? 'border border-[#e6b8b8] bg-[#fff3f3] text-[#b02a2a]'
                 : 'border border-[#5a2a2a] bg-[#1a0e0e] text-[#f2b9b9]'
@@ -198,11 +186,11 @@ export function LoginForm() {
             </div>
           ) : null}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label
                 htmlFor="login-email"
-                className={`mb-1.5 block text-xs font-medium ${isLightMode ? 'text-[#567064]' : 'text-[#93a99d]'}`}
+                className={`mb-1 block text-[11px] font-medium ${isLightMode ? 'text-[#5a6773]' : 'text-[#8f9a95]'}`}
               >
                 Email
               </label>
@@ -213,30 +201,30 @@ export function LoginForm() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
-                className={`h-12 w-full rounded-[12px] px-3.5 text-sm outline-none transition-all ${
+                className={`h-11 w-full rounded-[11px] px-3.5 text-sm outline-none transition-all ${
                   isLightMode
-                    ? 'border border-[#c6d8cf] bg-[#f9fcfa] text-[#13221a] placeholder:text-[#95a89f] focus:border-[#38b38b] focus:ring-2 focus:ring-[#22b999]/20'
-                    : 'border border-[#263c31] bg-[#0a120f] text-[#eef6f2] placeholder:text-[#6f8478] focus:border-[#49dab4] focus:ring-2 focus:ring-[#22b999]/22'
+                    ? 'border border-[#c6d0d8] bg-[#f9fbfd] text-[#13221a] placeholder:text-[#95a1ac] focus:border-[#7f8b97] focus:ring-2 focus:ring-[#8f99a3]/25'
+                    : 'border border-[#2f3633] bg-[#090d0c] text-[#e8f0eb] placeholder:text-[#76827c] focus:border-[#78a58f] focus:ring-2 focus:ring-[#7db39a]/25'
                 }`}
                 required
               />
             </div>
 
             <div>
-              <div className="mb-1.5 flex items-center justify-between">
+              <div className="mb-1 flex items-center justify-between">
                 <label
                   htmlFor="login-password"
-                  className={`block text-xs font-medium ${isLightMode ? 'text-[#567064]' : 'text-[#93a99d]'}`}
+                  className={`block text-[11px] font-medium ${isLightMode ? 'text-[#5a6773]' : 'text-[#8f9a95]'}`}
                 >
                   Password
                 </label>
                 <Link
                   href="/reset-password"
                   className={`text-xs font-medium underline underline-offset-2 transition-colors ${
-                    isLightMode ? 'text-[#2a8d6d] hover:text-[#1f7a5e]' : 'text-[#9be4c4] hover:text-[#c3f0dc]'
+                    isLightMode ? 'text-[#5f6e7b] hover:text-[#4d5d6a]' : 'text-[#c3cdc8] hover:text-[#d6dfda]'
                   }`}
                 >
-                  Forgot password?
+                  Forgot?
                 </Link>
               </div>
 
@@ -248,10 +236,10 @@ export function LoginForm() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Your password"
-                  className={`h-12 w-full rounded-[12px] px-3.5 pr-11 text-sm outline-none transition-all ${
+                  className={`h-11 w-full rounded-[11px] px-3.5 pr-11 text-sm outline-none transition-all ${
                     isLightMode
-                      ? 'border border-[#c6d8cf] bg-[#f9fcfa] text-[#13221a] placeholder:text-[#95a89f] focus:border-[#38b38b] focus:ring-2 focus:ring-[#22b999]/20'
-                      : 'border border-[#263c31] bg-[#0a120f] text-[#eef6f2] placeholder:text-[#6f8478] focus:border-[#49dab4] focus:ring-2 focus:ring-[#22b999]/22'
+                      ? 'border border-[#c6d0d8] bg-[#f9fbfd] text-[#13221a] placeholder:text-[#95a1ac] focus:border-[#7f8b97] focus:ring-2 focus:ring-[#8f99a3]/25'
+                      : 'border border-[#2f3633] bg-[#090d0c] text-[#e8f0eb] placeholder:text-[#76827c] focus:border-[#78a58f] focus:ring-2 focus:ring-[#7db39a]/25'
                   }`}
                   required
                 />
@@ -259,7 +247,7 @@ export function LoginForm() {
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
                   className={`absolute inset-y-0 right-0 flex w-11 items-center justify-center transition-colors ${
-                    isLightMode ? 'text-[#7d9286] hover:text-[#3d5a4d]' : 'text-[#7d9286] hover:text-[#a8c0b3]'
+                    isLightMode ? 'text-[#7d9286] hover:text-[#3d5a4d]' : 'text-[#7d9286] hover:text-[#8fd8b6]'
                   }`}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
@@ -271,10 +259,10 @@ export function LoginForm() {
             <button
               type="submit"
               disabled={!email || !password || isSubmitting}
-              className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-[12px] border px-4 text-sm font-semibold transition-all active:translate-y-[1px] disabled:cursor-not-allowed ${
+              className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-[11px] border px-4 text-sm font-semibold transition-all active:translate-y-[1px] disabled:cursor-not-allowed ${
                 isLightMode
-                  ? 'border-[#2fa279] bg-[#2fa279] text-white shadow-[0_12px_28px_-16px_rgba(47,162,121,0.6)] hover:border-[#258f69] hover:bg-[#258f69] disabled:border-[#c8d8d0] disabled:bg-[#d7e3dd] disabled:text-[#8a9b94]'
-                  : 'border-[#3aa67f] bg-[#2ba278] text-[#07120d] shadow-[0_12px_28px_-16px_rgba(62,174,131,0.85)] hover:border-[#4fd6a6] hover:bg-[#3ab58a] hover:shadow-[0_14px_32px_-16px_rgba(79,214,166,0.8)] disabled:border-[#2b3d34] disabled:bg-[#1a2420] disabled:text-[#73857d] disabled:shadow-none'
+                  ? 'border-[#7f8b97] bg-[#7f8b97] text-white shadow-[0_12px_28px_-16px_rgba(127,139,151,0.55)] hover:border-[#6f7b87] hover:bg-[#6f7b87] disabled:border-[#c8d1da] disabled:bg-[#d9e0e6] disabled:text-[#8a96a1]'
+                  : 'border-[#98a39d] bg-[#a7b0ab] text-[#0b0f0e] shadow-[0_12px_28px_-16px_rgba(128,146,136,0.75)] hover:border-[#b5bfba] hover:bg-[#b7c1bc] hover:shadow-[0_14px_32px_-16px_rgba(157,177,166,0.64)] disabled:border-[#2a312e] disabled:bg-[#161b19] disabled:text-[#6c7671] disabled:shadow-none'
               }`}
             >
               {isSubmitting ? (
@@ -291,22 +279,22 @@ export function LoginForm() {
             </button>
           </form>
 
-          <p className={`mt-5 text-center text-sm ${isLightMode ? 'text-[#5f786b]' : 'text-[#8ca195]'}`}>
-            Don&apos;t have an account?{' '}
-            <Link href="/signup" className={`font-semibold hover:underline ${isLightMode ? 'text-[#2a8d6d]' : 'text-[#9be4c4]'}`}>
-              Sign up free
+          <p className={`mt-4 text-center text-sm ${isLightMode ? 'text-[#5f786b]' : 'text-[#89a093]'}`}>
+            New here?{' '}
+            <Link href="/signup" className={`font-semibold hover:underline ${isLightMode ? 'text-[#5f6e7b]' : 'text-[#d0dbd6]'}`}>
+              Sign up
             </Link>
           </p>
-          <p className={`mt-2 text-center text-xs ${isLightMode ? 'text-[#6f887b]' : 'text-[#74897d]'}`}>
-            <Link href="/privacy" className={`hover:underline ${isLightMode ? 'hover:text-[#2a8d6d]' : 'hover:text-[#8fbba8]'}`}>
+          <p className={`mt-2 text-center text-xs ${isLightMode ? 'text-[#6f887b]' : 'text-[#798983]'}`}>
+            <Link href="/privacy" className={`hover:underline ${isLightMode ? 'hover:text-[#5f6e7b]' : 'hover:text-[#c3cdc8]'}`}>
               Privacy
             </Link>
             {' · '}
-            <Link href="/terms" className={`hover:underline ${isLightMode ? 'hover:text-[#2a8d6d]' : 'hover:text-[#8fbba8]'}`}>
+            <Link href="/terms" className={`hover:underline ${isLightMode ? 'hover:text-[#5f6e7b]' : 'hover:text-[#c3cdc8]'}`}>
               Terms
             </Link>
             {' · '}
-            <Link href="/support" className={`hover:underline ${isLightMode ? 'hover:text-[#2a8d6d]' : 'hover:text-[#8fbba8]'}`}>
+            <Link href="/support" className={`hover:underline ${isLightMode ? 'hover:text-[#5f6e7b]' : 'hover:text-[#c3cdc8]'}`}>
               Support
             </Link>
           </p>

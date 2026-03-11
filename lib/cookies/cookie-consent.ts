@@ -13,11 +13,13 @@ import {
 
 export const COOKIE_CONSENT_UPDATED_EVENT = 'consent:updated';
 export const COOKIE_PREFERENCES_OPEN_EVENT = 'consent:open-preferences';
+export const LANDING_INTRO_COMPLETE_EVENT = 'landing:intro-complete';
 
 declare global {
   interface WindowEventMap {
     'consent:updated': CustomEvent<CookieConsentRecord>;
     'consent:open-preferences': Event;
+    'landing:intro-complete': Event;
   }
 }
 

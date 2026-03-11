@@ -1,0 +1,4 @@
+interface:
+  display_name: "Apple Design"
+  short_description: "Design premium minimal Apple-like interfaces"
+  default_prompt: "Use $apple-design to design or refine a premium, minimal web interface with strong hierarchy, calm spacing, and restrained motion."

@@ -423,7 +423,7 @@ export function TransmissionLineSequenceBackground({
   return (
     <canvas
       ref={canvasRef}
-      className="h-full w-full bg-[#040807]"
+      className="h-full w-full bg-black"
       aria-hidden="true"
     />
   );
