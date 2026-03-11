@@ -41,6 +41,10 @@ export async function POST(request: Request) {
         requestedCount:
           typeof payload.requestedCount === 'number'
             ? payload.requestedCount
+            : undefined,
+        contentItemId:
+          typeof payload.contentItemId === 'string'
+            ? payload.contentItemId
             : undefined
       }
     });

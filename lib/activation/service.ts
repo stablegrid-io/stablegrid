@@ -8,6 +8,7 @@ export type ActivationScopeType = 'count' | 'all_remaining';
 export type ActivationTaskStatus = 'todo' | 'in_progress' | 'completed';
 export type ActivationItemStatus = 'todo' | 'in_progress' | 'completed';
 export type ActivationContentType = 'theory_module' | 'flashcard' | 'notebook' | 'mission';
+type ActivationTaskOptionGroup = 'flashcards' | 'notebooks' | 'missions';
 
 const TRACK_SET = new Set<Topic>(['pyspark', 'fabric']);
 const MODULE_PROGRESS_MISSING_TABLE_PATTERN =
@@ -20,6 +21,16 @@ const TASK_GROUP_TO_CONTENT_TYPE: Record<ActivationTaskGroup, ActivationContentT
   flashcards: 'flashcard',
   notebooks: 'notebook',
   missions: 'mission'
+};
+
+const CONTENT_TYPE_TO_TASK_OPTION_GROUP: Record<
+  ActivationContentType,
+  ActivationTaskOptionGroup | null
+> = {
+  theory_module: null,
+  flashcard: 'flashcards',
+  notebook: 'notebooks',
+  mission: 'missions'
 };
 
 interface TrackRow {
@@ -36,6 +47,14 @@ interface ContentItemRow {
   source_ref: string;
   title: string;
   sequence_order: number;
+}
+
+interface ContentItemCatalogRow extends ContentItemRow {
+  tracks: {
+    slug: string;
+    title: string;
+    is_active: boolean;
+  } | null;
 }
 
 interface ActivationTaskRow {
@@ -85,6 +104,7 @@ export interface CreateActivationTaskInput {
   trackSlug?: string;
   scopeType: ActivationScopeType;
   requestedCount?: number;
+  contentItemId?: string;
 }
 
 interface NormalizedActivationTaskInput {
@@ -93,6 +113,15 @@ interface NormalizedActivationTaskInput {
   scopeType: ActivationScopeType;
   requestedCount: number | null;
   trackSlug: Topic | null;
+  contentItemId: string | null;
+}
+
+export interface ActivationCatalogTaskOption {
+  id: string;
+  title: string;
+  label: string;
+  trackSlug: string | null;
+  trackTitle: string | null;
 }
 
 export interface ActivationBoardCard {
@@ -110,6 +139,7 @@ export interface ActivationBoardCard {
     completed: number;
     total: number;
   };
+  primaryContentItemId: string | null;
   statusLabel: string | null;
   actionLabel: 'Start' | 'Open' | null;
   createdAt: string;
@@ -123,6 +153,7 @@ export interface ActivationBoardData {
   completed: ActivationBoardCard[];
   catalog: {
     tracks: Array<{ slug: string; title: string }>;
+    taskOptions?: Record<ActivationTaskOptionGroup, ActivationCatalogTaskOption[]>;
   };
 }
 
@@ -282,6 +313,64 @@ const getActiveTrackCatalog = async (supabase: SupabaseClient) => {
     slug: row.slug,
     title: row.title
   }));
+};
+
+const getTaskOptionCatalog = async (
+  supabase: SupabaseClient,
+  userId: string
+): Promise<Record<ActivationTaskOptionGroup, ActivationCatalogTaskOption[]>> => {
+  const options: Record<ActivationTaskOptionGroup, ActivationCatalogTaskOption[]> = {
+    flashcards: [],
+    notebooks: [],
+    missions: []
+  };
+
+  const { data: contentItemsRaw, error: contentError } = await supabase
+    .from('content_items')
+    .select(
+      'id,track_id,content_type,source_ref,title,sequence_order,tracks:track_id(slug,title,is_active)'
+    )
+    .eq('is_active', true)
+    .in('content_type', ['flashcard', 'notebook', 'mission'])
+    .order('sequence_order', { ascending: true });
+  assertSuccess(contentError);
+
+  const completionSignals = await loadCompletionSignals(supabase, userId);
+  const activeAssignedContentIds = await loadActiveContentAssignments(supabase, userId);
+
+  (contentItemsRaw as ContentItemCatalogRow[] | null)?.forEach((item) => {
+    const taskOptionGroup = CONTENT_TYPE_TO_TASK_OPTION_GROUP[item.content_type];
+    if (!taskOptionGroup) return;
+
+    if (activeAssignedContentIds.has(item.id)) return;
+    if (completionSignals.started[item.content_type].has(item.source_ref)) return;
+    if (completionSignals.completed[item.content_type].has(item.source_ref)) return;
+
+    if (taskOptionGroup === 'missions') {
+      options.missions.push({
+        id: item.id,
+        title: item.title,
+        label: item.title,
+        trackSlug: null,
+        trackTitle: null
+      });
+      return;
+    }
+
+    if (!item.tracks || !item.tracks.is_active || !isTopic(item.tracks.slug)) {
+      return;
+    }
+
+    options[taskOptionGroup].push({
+      id: item.id,
+      title: item.title,
+      label: `${item.tracks.title}: ${item.title}`,
+      trackSlug: item.tracks.slug,
+      trackTitle: item.tracks.title
+    });
+  });
+
+  return options;
 };
 
 const loadCompletedTheorySignals = async (supabase: SupabaseClient, userId: string) => {
@@ -481,6 +570,9 @@ const normalizeCreateInput = (input: CreateActivationTaskInput): NormalizedActiv
   const scopeType = input.scopeType;
   const requestedCountRaw = input.requestedCount;
   const trackSlugRaw = typeof input.trackSlug === 'string' ? input.trackSlug : undefined;
+  const contentItemIdRaw =
+    typeof input.contentItemId === 'string' ? input.contentItemId.trim() : '';
+  const contentItemId = contentItemIdRaw.length > 0 ? contentItemIdRaw : null;
 
   if (taskType !== 'theory' && taskType !== 'task') {
     throw new ActivationServiceError('Invalid taskType.', 400);
@@ -499,18 +591,26 @@ const normalizeCreateInput = (input: CreateActivationTaskInput): NormalizedActiv
     throw new ActivationServiceError('taskGroup cannot be theory when taskType is task.', 400);
   }
 
+  const hasSpecificItemSelection = taskType === 'task' && contentItemId !== null;
+
   if (taskGroup === 'missions') {
     if (trackSlugRaw) {
       throw new ActivationServiceError('trackSlug must be omitted for missions.', 400);
     }
   } else {
     if (!trackSlugRaw || !isTopic(trackSlugRaw)) {
+      if (hasSpecificItemSelection) {
+        // For explicit task-item selection we can derive track from the selected item.
+      } else {
       throw new ActivationServiceError('trackSlug must be pyspark or fabric.', 400);
+      }
     }
   }
 
   let requestedCount: number | null = null;
-  if (scopeType === 'count') {
+  if (hasSpecificItemSelection) {
+    requestedCount = 1;
+  } else if (scopeType === 'count') {
     if (
       typeof requestedCountRaw !== 'number' ||
       !Number.isInteger(requestedCountRaw) ||
@@ -525,9 +625,13 @@ const normalizeCreateInput = (input: CreateActivationTaskInput): NormalizedActiv
   return {
     taskType,
     taskGroup,
-    scopeType,
+    scopeType: hasSpecificItemSelection ? 'count' : scopeType,
     requestedCount,
-    trackSlug: taskGroup === 'missions' ? null : (trackSlugRaw as Topic)
+    trackSlug:
+      taskGroup === 'missions' || !trackSlugRaw || !isTopic(trackSlugRaw)
+        ? null
+        : (trackSlugRaw as Topic),
+    contentItemId
   };
 };
 
@@ -544,6 +648,86 @@ const resolveTaskSelectionPlan = async ({
 }) => {
   const normalized = normalizeCreateInput(input);
   const contentType = TASK_GROUP_TO_CONTENT_TYPE[normalized.taskGroup];
+  const completionSignals = await loadCompletionSignals(supabase, userId);
+  const activeAssignedContentIds = await loadActiveContentAssignments(supabase, userId, {
+    excludeTaskId
+  });
+
+  if (normalized.contentItemId) {
+    const { data: itemRaw, error: itemError } = await supabase
+      .from('content_items')
+      .select(
+        'id,track_id,content_type,source_ref,title,sequence_order,tracks:track_id(slug,title,is_active)'
+      )
+      .eq('id', normalized.contentItemId)
+      .eq('is_active', true)
+      .maybeSingle();
+    assertSuccess(itemError);
+
+    const selectedItem = itemRaw as ContentItemCatalogRow | null;
+    if (!selectedItem || selectedItem.content_type !== contentType) {
+      throw new ActivationServiceError('Selected item is not available for this task group.', 400);
+    }
+
+    if (activeAssignedContentIds.has(selectedItem.id)) {
+      throw new ActivationServiceError('Selected item is already linked to an active task.', 422, {
+        remainingCount: 0
+      });
+    }
+
+    if (
+      completionSignals.started[selectedItem.content_type].has(selectedItem.source_ref) ||
+      completionSignals.completed[selectedItem.content_type].has(selectedItem.source_ref)
+    ) {
+      throw new ActivationServiceError('Selected item is already started or completed.', 422, {
+        remainingCount: 0
+      });
+    }
+
+    let track: TrackRow | null = null;
+    if (normalized.taskGroup === 'missions') {
+      const globalTrack = await getTrackBySlug(supabase, 'global');
+      if (globalTrack?.id && selectedItem.track_id && selectedItem.track_id !== globalTrack.id) {
+        throw new ActivationServiceError('Selected mission is not available.', 400);
+      }
+    } else {
+      if (!selectedItem.tracks || !selectedItem.tracks.is_active || !isTopic(selectedItem.tracks.slug)) {
+        throw new ActivationServiceError('Selected track is not available.', 400);
+      }
+      if (normalized.trackSlug && normalized.trackSlug !== selectedItem.tracks.slug) {
+        throw new ActivationServiceError('Selected item does not belong to the chosen subject.', 400);
+      }
+      if (!selectedItem.track_id) {
+        throw new ActivationServiceError('Selected item is missing track metadata.', 400);
+      }
+      track = {
+        id: selectedItem.track_id,
+        slug: selectedItem.tracks.slug,
+        title: selectedItem.tracks.title,
+        is_active: selectedItem.tracks.is_active
+      };
+    }
+
+    const copy = buildTaskCopy({
+      taskType: normalized.taskType,
+      taskGroup: normalized.taskGroup,
+      scopeType: 'count',
+      requestedCount: 1,
+      trackTitle: track?.title ?? null
+    });
+
+    return {
+      normalized: {
+        ...normalized,
+        scopeType: 'count',
+        requestedCount: 1,
+        trackSlug: track && isTopic(track.slug) ? track.slug : null
+      },
+      track,
+      selectedItems: [selectedItem],
+      copy
+    };
+  }
 
   const track =
     normalized.trackSlug !== null ? await getTrackBySlug(supabase, normalized.trackSlug) : null;
@@ -569,11 +753,6 @@ const resolveTaskSelectionPlan = async ({
 
   const { data: contentItems, error: contentError } = await contentQuery;
   assertSuccess(contentError);
-
-  const completionSignals = await loadCompletionSignals(supabase, userId);
-  const activeAssignedContentIds = await loadActiveContentAssignments(supabase, userId, {
-    excludeTaskId
-  });
 
   const eligibleItems = ((contentItems ?? []) as ContentItemRow[]).filter((item) => {
     if (activeAssignedContentIds.has(item.id)) {
@@ -846,7 +1025,8 @@ const loadUserTasksWithItems = async (supabase: SupabaseClient, userId: string) 
 
 const mapTaskRowsToBoardData = (
   rows: ActivationTaskRow[],
-  catalogTracks: Array<{ slug: string; title: string }>
+  catalogTracks: Array<{ slug: string; title: string }>,
+  taskOptions: Record<ActivationTaskOptionGroup, ActivationCatalogTaskOption[]>
 ): ActivationBoardData => {
   const todo: ActivationBoardCard[] = [];
   const inProgress: ActivationBoardCard[] = [];
@@ -872,6 +1052,7 @@ const mapTaskRowsToBoardData = (
         completed: completedCount,
         total
       },
+      primaryContentItemId: items[0]?.content_item_id ?? null,
       statusLabel: getStatusLabel(row.status, completedCount, total),
       actionLabel: getActionLabel(row.status),
       createdAt: row.created_at,
@@ -897,7 +1078,8 @@ const mapTaskRowsToBoardData = (
     inProgress,
     completed,
     catalog: {
-      tracks: catalogTracks
+      tracks: catalogTracks,
+      taskOptions
     }
   };
 };
@@ -1063,12 +1245,13 @@ export const getActivationBoardData = async ({
     await reconcileActivationTaskStatuses({ supabase, userId });
   }
 
-  const [tasks, catalogTracks] = await Promise.all([
+  const [tasks, catalogTracks, taskOptions] = await Promise.all([
     loadUserTasksWithItems(supabase, userId),
-    getActiveTrackCatalog(supabase)
+    getActiveTrackCatalog(supabase),
+    getTaskOptionCatalog(supabase, userId)
   ]);
 
-  return mapTaskRowsToBoardData(tasks, catalogTracks);
+  return mapTaskRowsToBoardData(tasks, catalogTracks, taskOptions);
 };
 
 export const startActivationTask = async ({

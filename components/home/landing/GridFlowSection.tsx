@@ -44,6 +44,8 @@ const STORY_INTERACTIVE_COLUMN_CLASS =
 const INTRO_AUTOPLAY_START_FRAME = 1;
 const INTRO_AUTOPLAY_FINAL_FRAME = TRANSMISSION_LINE_SEQUENCE_CONFIG.frameCount;
 const INTRO_AUTOPLAY_FPS = 24;
+const INTRO_AUTOPLAY_HOLD_MS = 300;
+const INTRO_AUTOPLAY_HOLD_SECONDS = INTRO_AUTOPLAY_HOLD_MS / 1000;
 const INTRO_AUTOPLAY_DURATION_SECONDS =
   (INTRO_AUTOPLAY_FINAL_FRAME - INTRO_AUTOPLAY_START_FRAME) / INTRO_AUTOPLAY_FPS;
 const FINAL_CTA_FIRST_FRAME_PATH = (() => {
@@ -905,7 +907,7 @@ function IntroBrandedTitle({
       return (
         <span
           key={`title-part-${index}`}
-          className="whitespace-nowrap text-[#f4a340]"
+          className="whitespace-nowrap text-[#d6a067]"
         >
           {part}
         </span>
@@ -939,7 +941,7 @@ function IntroBrandedTitle({
 
   return (
     <h1
-      className={`mt-5 max-w-[10.8ch] text-[clamp(2.8rem,6.4vw,5.6rem)] font-semibold leading-[0.92] tracking-[-0.045em] ${
+      className={`mt-1 max-w-[10.6ch] text-[clamp(2.8rem,6.4vw,5.6rem)] font-semibold leading-[0.92] tracking-[-0.045em] ${
         isLightMode ? 'text-[#13221a]' : 'text-[#f3f6f3]'
       }`}
       style={{ fontFamily: HERO_DISPLAY_FONT_FAMILY }}
@@ -962,7 +964,7 @@ function IntroChapter({
 }) {
   return (
     <div
-      className="pointer-events-auto relative max-w-[30rem] pt-24 sm:pt-28 lg:pt-[15svh]"
+      className="pointer-events-auto relative max-w-[27.5rem] pt-24 sm:pt-28 lg:pt-[15svh]"
       style={{
         opacity: emphasis,
         transform: `translate3d(0, ${(1 - emphasis) * 16}px, 0)`,
@@ -977,14 +979,31 @@ function IntroChapter({
         className={`absolute -inset-x-8 -inset-y-10 rounded-[3rem] blur-3xl ${
           isLightMode
             ? 'bg-[radial-gradient(circle_at_22%_28%,rgba(141,156,148,0.2),transparent_0,transparent_48%),radial-gradient(circle_at_78%_16%,rgba(152,164,171,0.16),transparent_0,transparent_38%)]'
-            : 'bg-[radial-gradient(circle_at_22%_28%,rgba(153,167,160,0.14),transparent_0,transparent_44%),radial-gradient(circle_at_78%_16%,rgba(145,156,163,0.1),transparent_0,transparent_34%)]'
+            : 'bg-[radial-gradient(circle_at_22%_28%,rgba(153,167,160,0.08),transparent_0,transparent_42%),radial-gradient(circle_at_78%_16%,rgba(145,156,163,0.05),transparent_0,transparent_34%)]'
         }`}
       />
-      <div className="relative">
-        <IntroBrandedTitle title={chapter.title} isLightMode={isLightMode} />
-        {chapter.ctaHint ? (
-          <p className={`mt-4 max-w-[24rem] text-xs leading-6 ${isLightMode ? 'text-[#5f7a6c]' : 'text-[#9cb8aa]'}`}>{chapter.ctaHint}</p>
-        ) : null}
+      <div
+        className={`relative overflow-hidden rounded-[1.75rem] border-[0.8px] pl-6 pr-5 py-5 backdrop-blur-[5px] sm:pl-7 sm:pr-6 sm:py-6 ${
+          isLightMode
+            ? 'border-[#c7d9cf]/58 bg-[#eaf3ee]/68 shadow-[inset_0_0.5px_0_rgba(255,255,255,0.52)]'
+            : 'border-white/[0.12] bg-[linear-gradient(150deg,rgba(10,12,13,0.54),rgba(6,8,9,0.36))] shadow-[inset_0_0.5px_0_rgba(255,255,255,0.08)]'
+        }`}
+      >
+        <div
+          className={`pointer-events-none absolute inset-0 ${
+            isLightMode
+              ? 'bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0)_42%)]'
+              : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0)_42%)]'
+          }`}
+        />
+        <div className="relative">
+          <IntroBrandedTitle title={chapter.title} isLightMode={isLightMode} />
+          {chapter.ctaHint ? (
+            <p className={`mt-4 max-w-[23rem] text-xs leading-6 ${isLightMode ? 'text-[#5f7a6c]' : 'text-[#9cb8aa]'}`}>
+              {chapter.ctaHint}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -1925,7 +1944,7 @@ function ChapterContent({
         }}
       >
         <div
-          className={`relative isolate overflow-hidden rounded-[1.5rem] border px-7 py-10 text-center backdrop-blur-lg sm:px-10 sm:py-12 lg:px-14 lg:py-14 ${
+          className={`relative isolate flex min-h-[22rem] items-center justify-center overflow-hidden rounded-[1.5rem] border px-7 py-10 text-center backdrop-blur-lg sm:min-h-[26rem] sm:px-10 sm:py-12 lg:min-h-[32rem] lg:px-14 lg:py-14 ${
             isLightMode
               ? 'border-[#c7d9cf] bg-white/86 shadow-[0_20px_70px_rgba(16,38,28,0.18)]'
               : 'border-white/18 bg-[#06100c]/84 shadow-[0_20px_70px_rgba(0,0,0,0.4)]'
@@ -1947,7 +1966,7 @@ function ChapterContent({
               }`}
             />
           </div>
-          <div className="relative z-10">
+          <div className="relative z-10 w-full">
             {chapter.eyebrow ? (
               <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${isLightMode ? 'text-[#5f7a6c]' : 'text-[#a5bfb3]'}`}>
                 {chapter.eyebrow}
@@ -2080,6 +2099,9 @@ export const GridFlowSection = () => {
   const slowScrollFramesRef = useRef(0);
   const scrollIdleTimeoutRef = useRef<number | null>(null);
   const scrollActiveRef = useRef(false);
+  const introAutoplayStartTimeoutRef = useRef<number | null>(null);
+  const introAutoplayIntervalRef = useRef<number | null>(null);
+  const introAutoplayStartedRef = useRef(false);
   const [journeyPosition, setJourneyPosition] = useState(0);
   const [storyPosition, setStoryPosition] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -2089,7 +2111,7 @@ export const GridFlowSection = () => {
   );
   const [isIntroAutoplayComplete, setIsIntroAutoplayComplete] = useState(false);
   const [introCountdownSeconds, setIntroCountdownSeconds] = useState(
-    INTRO_AUTOPLAY_DURATION_SECONDS
+    INTRO_AUTOPLAY_DURATION_SECONDS + INTRO_AUTOPLAY_HOLD_SECONDS
   );
   const isLightMode = false;
   const activeChapters = useMemo(() => {
@@ -2177,6 +2199,20 @@ export const GridFlowSection = () => {
       return undefined;
     }
 
+    const clearIntroAutoplayTimers = () => {
+      if (introAutoplayStartTimeoutRef.current !== null) {
+        window.clearTimeout(introAutoplayStartTimeoutRef.current);
+        introAutoplayStartTimeoutRef.current = null;
+      }
+      if (introAutoplayIntervalRef.current !== null) {
+        window.clearInterval(introAutoplayIntervalRef.current);
+        introAutoplayIntervalRef.current = null;
+      }
+    };
+
+    clearIntroAutoplayTimers();
+    introAutoplayStartedRef.current = false;
+
     if (reducedMotion) {
       setIntroAutoplayFrame(null);
       setIsIntroAutoplayComplete(true);
@@ -2186,7 +2222,7 @@ export const GridFlowSection = () => {
 
     setIsIntroAutoplayComplete(false);
     setIntroAutoplayFrame(INTRO_AUTOPLAY_START_FRAME);
-    setIntroCountdownSeconds(INTRO_AUTOPLAY_DURATION_SECONDS);
+    setIntroCountdownSeconds(INTRO_AUTOPLAY_DURATION_SECONDS + INTRO_AUTOPLAY_HOLD_SECONDS);
     const frameDelta = INTRO_AUTOPLAY_FINAL_FRAME - INTRO_AUTOPLAY_START_FRAME;
     if (frameDelta <= 0) {
       setIntroAutoplayFrame(null);
@@ -2197,23 +2233,35 @@ export const GridFlowSection = () => {
 
     const frameIntervalMs = 1000 / INTRO_AUTOPLAY_FPS;
     let frameIndex = INTRO_AUTOPLAY_START_FRAME;
-    const intervalId = window.setInterval(() => {
-      frameIndex += 1;
-      const remainingFrames = Math.max(INTRO_AUTOPLAY_FINAL_FRAME - frameIndex, 0);
-      setIntroCountdownSeconds(remainingFrames / INTRO_AUTOPLAY_FPS);
-      if (frameIndex >= INTRO_AUTOPLAY_FINAL_FRAME) {
-        window.clearInterval(intervalId);
-        setIntroAutoplayFrame(null);
-        setIsIntroAutoplayComplete(true);
-        setIntroCountdownSeconds(0);
+    introAutoplayStartTimeoutRef.current = window.setTimeout(() => {
+      if (introAutoplayStartedRef.current) {
         return;
       }
+      introAutoplayStartedRef.current = true;
+      setIntroCountdownSeconds(INTRO_AUTOPLAY_DURATION_SECONDS);
 
-      setIntroAutoplayFrame(frameIndex);
-    }, frameIntervalMs);
+      introAutoplayIntervalRef.current = window.setInterval(() => {
+        frameIndex += 1;
+        const remainingFrames = Math.max(INTRO_AUTOPLAY_FINAL_FRAME - frameIndex, 0);
+        setIntroCountdownSeconds(remainingFrames / INTRO_AUTOPLAY_FPS);
+        if (frameIndex >= INTRO_AUTOPLAY_FINAL_FRAME) {
+          if (introAutoplayIntervalRef.current !== null) {
+            window.clearInterval(introAutoplayIntervalRef.current);
+            introAutoplayIntervalRef.current = null;
+          }
+          setIntroAutoplayFrame(null);
+          setIsIntroAutoplayComplete(true);
+          setIntroCountdownSeconds(0);
+          return;
+        }
+
+        setIntroAutoplayFrame(frameIndex);
+      }, frameIntervalMs);
+    }, INTRO_AUTOPLAY_HOLD_MS);
 
     return () => {
-      window.clearInterval(intervalId);
+      clearIntroAutoplayTimers();
+      introAutoplayStartedRef.current = false;
     };
   }, [reducedMotion]);
 
@@ -2523,7 +2571,7 @@ export const GridFlowSection = () => {
       {!shouldLockIntroScroll ? (
         <ScrollSectionIndicator
           sections={indicatorSections}
-          className="fixed right-7 top-1/2 z-40 hidden -translate-y-1/2 lg:block"
+          className="fixed right-6 top-1/2 z-30 hidden -translate-y-1/2 lg:block"
         />
       ) : null}
       <div
@@ -2542,6 +2590,13 @@ export const GridFlowSection = () => {
             }
           />
         </div>
+        <div
+          className={`pointer-events-none absolute inset-y-0 left-0 w-[min(62vw,56rem)] ${
+            isLightMode
+              ? 'bg-[linear-gradient(90deg,rgba(236,245,240,0.86)_0%,rgba(236,245,240,0.56)_42%,rgba(236,245,240,0.22)_70%,rgba(236,245,240,0)_100%)]'
+              : 'bg-[linear-gradient(90deg,rgba(0,0,0,0.6)_0%,rgba(0,0,0,0.42)_40%,rgba(0,0,0,0.16)_72%,rgba(0,0,0,0)_100%)]'
+          }`}
+        />
         <div
           className="pointer-events-none absolute inset-0 bg-black"
           style={{ opacity: darknessOverlayOpacity }}

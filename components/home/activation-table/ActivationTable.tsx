@@ -27,8 +27,17 @@ interface ActivationBoardCard {
     completed: number;
     total: number;
   };
+  primaryContentItemId: string | null;
   statusLabel: string | null;
   actionLabel: 'Start' | 'Open' | null;
+}
+
+interface ActivationCatalogTaskOption {
+  id: string;
+  title: string;
+  label: string;
+  trackSlug: string | null;
+  trackTitle: string | null;
 }
 
 interface ActivationBoardPayload {
@@ -37,13 +46,23 @@ interface ActivationBoardPayload {
   completed: ActivationBoardCard[];
   catalog: {
     tracks: Array<{ slug: string; title: string }>;
+    taskOptions?: {
+      flashcards: ActivationCatalogTaskOption[];
+      notebooks: ActivationCatalogTaskOption[];
+      missions: ActivationCatalogTaskOption[];
+    };
   };
 }
 
 const FALLBACK_TRACKS = [
-  { slug: 'fabric', title: 'Microsoft Fabric' },
-  { slug: 'pyspark', title: 'PySpark' }
+  { slug: 'pyspark', title: 'PySpark' },
+  { slug: 'fabric', title: 'Microsoft Fabric' }
 ] as const;
+
+const SUBJECT_TRACK_OPTIONS_BY_SLUG: Record<string, Array<{ slug: string; label: string }>> = {
+  pyspark: [{ slug: 'full-stack', label: 'PySpark: The Full Stack' }],
+  fabric: [{ slug: 'full-stack', label: 'Fabric: End-to-End Platform' }]
+};
 
 const resolveCopyPreview = ({
   taskType,
@@ -147,23 +166,84 @@ export function ActivationTable() {
   const [taskType, setTaskType] = useState<ActivationTaskType>('theory');
   const [taskGroup, setTaskGroup] = useState<ActivationTaskGroup>('theory');
   const [trackSlug, setTrackSlug] = useState<string>('pyspark');
+  const [subjectTrackSlug, setSubjectTrackSlug] = useState<string>('full-stack');
+  const [selectedTaskOptionId, setSelectedTaskOptionId] = useState<string>('');
   const [scopeValue, setScopeValue] = useState<'1' | '2' | '3' | 'all'>('1');
 
-  const tracks = board?.catalog.tracks?.length ? board.catalog.tracks : [...FALLBACK_TRACKS];
+  const tracks = useMemo(() => {
+    const merged = [...(board?.catalog.tracks ?? []), ...FALLBACK_TRACKS];
+    const bySlug = new Map<string, { slug: string; title: string }>();
+    merged.forEach((track) => {
+      if (!bySlug.has(track.slug)) {
+        bySlug.set(track.slug, track);
+      }
+    });
+    return Array.from(bySlug.values());
+  }, [board?.catalog.tracks]);
   const activeTrack = tracks.find((track) => track.slug === trackSlug) ?? tracks[0] ?? null;
+  const subjectTracks = useMemo(() => {
+    const predefined = SUBJECT_TRACK_OPTIONS_BY_SLUG[trackSlug];
+    if (predefined?.length) {
+      return predefined;
+    }
+
+    const subjectTitle = activeTrack?.title ?? 'Track';
+    return [{ slug: 'full-stack', label: `${subjectTitle}: The Full Stack` }];
+  }, [activeTrack?.title, trackSlug]);
+  const taskOptionsByGroup = board?.catalog.taskOptions ?? {
+    flashcards: [],
+    notebooks: [],
+    missions: []
+  };
+  const activeTaskOptions =
+    taskType === 'task'
+      ? taskGroup === 'flashcards'
+        ? taskOptionsByGroup.flashcards
+        : taskGroup === 'notebooks'
+          ? taskOptionsByGroup.notebooks
+          : taskGroup === 'missions'
+            ? taskOptionsByGroup.missions
+            : []
+      : [];
+  const selectedTaskOption =
+    activeTaskOptions.find((option) => option.id === selectedTaskOptionId) ?? null;
   const scopeType = scopeValue === 'all' ? 'all_remaining' : 'count';
   const requestedCount = scopeValue === 'all' ? null : Number(scopeValue);
 
   const preview = useMemo(
-    () =>
+    () => {
+      if (taskType === 'task') {
+        if (selectedTaskOption) {
+          return {
+            title: `Complete ${selectedTaskOption.title}`,
+            description: 'Apply your learning through guided practical work.'
+          };
+        }
+
+        return {
+          title: 'No available items right now',
+          description: 'Complete pending or active items first, then create a new task.'
+        };
+      }
+
+      return (
       resolveCopyPreview({
         taskType,
         taskGroup,
         scopeType,
         requestedCount,
         trackTitle: taskGroup === 'missions' ? null : activeTrack?.title ?? null
-      }),
-    [activeTrack?.title, requestedCount, scopeType, taskGroup, taskType]
+      })
+      );
+    },
+    [
+      activeTrack?.title,
+      requestedCount,
+      scopeType,
+      selectedTaskOption,
+      taskGroup,
+      taskType
+    ]
   );
 
   useEffect(() => {
@@ -263,6 +343,8 @@ export function ActivationTable() {
     setTaskType('theory');
     setTaskGroup('theory');
     setTrackSlug('pyspark');
+    setSubjectTrackSlug('full-stack');
+    setSelectedTaskOptionId('');
     setScopeValue('1');
   };
 
@@ -288,6 +370,8 @@ export function ActivationTable() {
     } else if (tracks[0]) {
       setTrackSlug(tracks[0].slug);
     }
+    setSubjectTrackSlug('full-stack');
+    setSelectedTaskOptionId(card.primaryContentItemId ?? '');
     setScopeValue(
       card.scopeType === 'all_remaining'
         ? 'all'
@@ -312,14 +396,22 @@ export function ActivationTable() {
     try {
       const payload: Record<string, unknown> = {
         taskType,
-        taskGroup,
-        scopeType
+        taskGroup
       };
-      if (taskGroup !== 'missions') {
+
+      if (taskType === 'task') {
+        if (!selectedTaskOptionId) {
+          throw new Error('Select one item to continue.');
+        }
+        payload.contentItemId = selectedTaskOptionId;
+        payload.scopeType = 'count';
+        payload.requestedCount = 1;
+      } else {
+        payload.scopeType = scopeType;
         payload.trackSlug = trackSlug;
-      }
-      if (scopeType === 'count') {
-        payload.requestedCount = requestedCount;
+        if (scopeType === 'count') {
+          payload.requestedCount = requestedCount;
+        }
       }
 
       const isEditing = editingTaskId !== null;
@@ -452,6 +544,38 @@ export function ActivationTable() {
       setTaskGroup('flashcards');
     }
   }, [taskGroup, taskType]);
+
+  useEffect(() => {
+    if (taskType !== 'theory') {
+      return;
+    }
+    if (!tracks.length) return;
+    const selectedExists = tracks.some((track) => track.slug === trackSlug);
+    if (!selectedExists) {
+      setTrackSlug(tracks[0].slug);
+    }
+  }, [taskType, trackSlug, tracks]);
+
+  useEffect(() => {
+    if (taskType !== 'theory') return;
+    if (!subjectTracks.length) return;
+    const selectedExists = subjectTracks.some((track) => track.slug === subjectTrackSlug);
+    if (!selectedExists) {
+      setSubjectTrackSlug(subjectTracks[0].slug);
+    }
+  }, [subjectTrackSlug, subjectTracks, taskType]);
+
+  useEffect(() => {
+    if (taskType !== 'task') return;
+    if (!activeTaskOptions.length) {
+      setSelectedTaskOptionId('');
+      return;
+    }
+    const selectedExists = activeTaskOptions.some((item) => item.id === selectedTaskOptionId);
+    if (!selectedExists) {
+      setSelectedTaskOptionId(activeTaskOptions[0].id);
+    }
+  }, [activeTaskOptions, selectedTaskOptionId, taskType]);
 
   return (
     <section
@@ -631,9 +755,9 @@ export function ActivationTable() {
                   </label>
                 ) : null}
 
-                {taskGroup !== 'missions' ? (
+                {taskType === 'theory' ? (
                   <label className="block">
-                    <span className={MODAL_LABEL_CLASS}>Choose track</span>
+                    <span className={MODAL_LABEL_CLASS}>Choose subject</span>
                     <select
                       value={trackSlug}
                       onChange={(event) => setTrackSlug(event.target.value)}
@@ -651,21 +775,71 @@ export function ActivationTable() {
                   </label>
                 ) : null}
 
-                <label className="block">
-                  <span className={MODAL_LABEL_CLASS}>How much do you want to complete?</span>
-                  <select
-                    value={scopeValue}
-                    onChange={(event) =>
-                      setScopeValue(event.target.value as '1' | '2' | '3' | 'all')
-                    }
-                    className={MODAL_FIELD_CLASS}
-                  >
-                    <option value="1">1 item</option>
-                    <option value="2">2 items</option>
-                    <option value="3">3 items</option>
-                    <option value="all">All remaining</option>
-                  </select>
-                </label>
+                {taskType === 'theory' ? (
+                  <label className="block">
+                    <span className={MODAL_LABEL_CLASS}>Choose track</span>
+                    <select
+                      value={subjectTrackSlug}
+                      onChange={(event) => setSubjectTrackSlug(event.target.value)}
+                      className={MODAL_FIELD_CLASS}
+                    >
+                      {subjectTracks.map((subjectTrack) => (
+                        <option
+                          key={`${trackSlug}-${subjectTrack.slug}`}
+                          value={subjectTrack.slug}
+                        >
+                          {subjectTrack.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+
+                {taskType === 'task' ? (
+                  <label className="block">
+                    <span className={MODAL_LABEL_CLASS}>
+                      {taskGroup === 'notebooks'
+                        ? 'Choose notebook'
+                        : taskGroup === 'flashcards'
+                          ? 'Choose flashcard'
+                          : 'Choose mission'}
+                    </span>
+                    <select
+                      value={selectedTaskOptionId}
+                      onChange={(event) => setSelectedTaskOptionId(event.target.value)}
+                      className={MODAL_FIELD_CLASS}
+                    >
+                      {activeTaskOptions.length === 0 ? (
+                        <option value="">No available items</option>
+                      ) : (
+                        activeTaskOptions.map((option) => (
+                          <option
+                            key={option.id}
+                            value={option.id}
+                          >
+                            {option.label}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </label>
+                ) : (
+                  <label className="block">
+                    <span className={MODAL_LABEL_CLASS}>How much do you want to complete?</span>
+                    <select
+                      value={scopeValue}
+                      onChange={(event) =>
+                        setScopeValue(event.target.value as '1' | '2' | '3' | 'all')
+                      }
+                      className={MODAL_FIELD_CLASS}
+                    >
+                      <option value="1">1 module</option>
+                      <option value="2">2 modules</option>
+                      <option value="3">3 modules</option>
+                      <option value="all">All remaining modules</option>
+                    </select>
+                  </label>
+                )}
 
                 <div className="rounded-[12px] border border-[#2f3c50] bg-[#1a2436] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                   <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#95a6bf]">Preview</p>
@@ -686,7 +860,7 @@ export function ActivationTable() {
                   <button
                     type="button"
                     onClick={() => void submitTaskForm()}
-                    disabled={createSubmitting}
+                    disabled={createSubmitting || (taskType === 'task' && !selectedTaskOptionId)}
                     className="inline-flex items-center gap-1.5 rounded-[11px] border border-[#98a39d] bg-[#a7b0ab] px-3.5 py-2 text-xs font-semibold text-[#0b0f0e] shadow-[0_12px_28px_-16px_rgba(128,146,136,0.75)] transition-all hover:border-[#b5bfba] hover:bg-[#b7c1bc] hover:shadow-[0_14px_32px_-16px_rgba(157,177,166,0.64)] disabled:cursor-not-allowed disabled:border-[#2a312e] disabled:bg-[#161b19] disabled:text-[#6c7671] disabled:shadow-none"
                   >
                     {createSubmitting ? (

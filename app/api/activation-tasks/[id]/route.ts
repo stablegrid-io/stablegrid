@@ -12,7 +12,9 @@ const toCreateInput = (payload: Record<string, unknown>) => ({
   taskGroup: payload.taskGroup as 'theory' | 'flashcards' | 'notebooks' | 'missions',
   trackSlug: typeof payload.trackSlug === 'string' ? payload.trackSlug : undefined,
   scopeType: payload.scopeType as 'count' | 'all_remaining',
-  requestedCount: typeof payload.requestedCount === 'number' ? payload.requestedCount : undefined
+  requestedCount: typeof payload.requestedCount === 'number' ? payload.requestedCount : undefined,
+  contentItemId:
+    typeof payload.contentItemId === 'string' ? payload.contentItemId : undefined
 });
 
 export async function PATCH(

@@ -113,7 +113,7 @@ export const ScrollSectionIndicator = ({
       aria-label="Page sections"
       className={className}
     >
-      <ol className="flex flex-col items-center gap-3.5 rounded-full border border-white/10 bg-black/20 px-2 py-2 backdrop-blur-sm">
+      <ol className="flex flex-col items-center gap-2.5 rounded-full border border-white/[0.08] bg-black/[0.16] px-1.5 py-1.5 backdrop-blur-[4px]">
         {validSections.map((section, index) => {
           const isActive = section.id === activeSectionId;
           return (
@@ -126,10 +126,10 @@ export const ScrollSectionIndicator = ({
                   const target = document.getElementById(section.id);
                   target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
-                className={`block h-2.5 w-2.5 rounded-full transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a7b0b8]/90 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                className={`block h-2 w-2 rounded-full transition-all duration-[220ms] ease-out focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                   isActive
-                    ? 'scale-100 bg-[#a7b0b8] opacity-100'
-                    : 'scale-90 bg-[#d3d7dc] opacity-45 hover:scale-100 hover:opacity-70'
+                    ? 'scale-100 bg-[#c8d0d6] opacity-75'
+                    : 'scale-[0.92] bg-[#d8dde2] opacity-30 hover:scale-100 hover:opacity-45'
                 }`}
               />
             </li>

@@ -269,7 +269,7 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
   {
     id: 'cta',
     eyebrow: '',
-    title: 'A gamified way to learn complex big data concepts. Ready to begin?',
+    title: 'Ready to make big data feel simpler?',
     body: '',
     variant: 'final',
     align: 'center',
