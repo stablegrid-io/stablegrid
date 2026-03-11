@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { MISSIONS } from '@/data/missions';
+import { reconcileActivationTasksSafely } from '@/lib/activation/service';
 import { getMissionRewardUnits } from '@/lib/energy';
 import { createClient } from '@/lib/supabase/server';
 import type { MissionState } from '@/types/missions';
@@ -130,6 +131,8 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await reconcileActivationTasksSafely({ supabase, userId: user.id });
 
   return NextResponse.json({
     data,

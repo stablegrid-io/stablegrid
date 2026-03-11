@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { reconcileActivationTasksSafely } from '@/lib/activation/service';
 import { createClient } from '@/lib/supabase/server';
 import { DEFAULT_DEPLOYED_NODE_IDS, INFRASTRUCTURE_BY_ID } from '@/lib/energy';
 import { GRID_OPS_DEFAULT_SCENARIO } from '@/lib/grid-ops/config';
@@ -167,6 +168,8 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await reconcileActivationTasksSafely({ supabase, userId: user.id });
 
   return NextResponse.json({ success: true });
 }

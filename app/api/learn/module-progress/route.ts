@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { theoryDocs } from '@/data/learn/theory';
 import { getTheoryCategories } from '@/data/learn/theory/categories';
 import { getTheoryTracks } from '@/data/learn/theory/tracks';
+import { reconcileActivationTasksSafely } from '@/lib/activation/service';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import {
   mutateModuleProgressRows,
@@ -653,6 +654,7 @@ export async function POST(request: Request) {
         lastVisitedRoute:
           typeof payload.lastVisitedRoute === 'string' ? payload.lastVisitedRoute : null
       });
+      await reconcileActivationTasksSafely({ supabase, userId: user.id });
       revalidateTheoryProgressViews(topic);
 
       const fallbackRows = await fetchFallbackRowsFromReadingSessions({
@@ -676,6 +678,7 @@ export async function POST(request: Request) {
       existingRows: mutatedRows,
       nowIso
     });
+    await reconcileActivationTasksSafely({ supabase, userId: user.id });
     revalidateTheoryProgressViews(topic);
 
     return NextResponse.json({ data: syncedRows, storage: 'module_progress' });

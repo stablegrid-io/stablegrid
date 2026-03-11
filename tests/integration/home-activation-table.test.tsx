@@ -1,201 +1,268 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HomeActivationTable } from '@/components/home/activation-table/HomeActivationTable';
 import type { HomeActivationTableProps } from '@/components/home/activation-table/HomeActivationTable';
-import {
-  ACTIVATION_PHASE_DURATIONS_MS,
-  HOME_ACTIVATION_MODE_KEY,
-  HOME_ACTIVATION_SEEN_KEY
-} from '@/components/home/activation-table/state/activationTimings';
-
-const fullSequenceTotalMs = Object.values(ACTIVATION_PHASE_DURATIONS_MS.full).reduce(
-  (sum, value) => sum + value,
-  0
-);
-const shortSequenceTotalMs = Object.values(ACTIVATION_PHASE_DURATIONS_MS.short).reduce(
-  (sum, value) => sum + value,
-  0
-);
-
-const advanceThroughSequence = async (ms: number) => {
-  await act(async () => {
-    vi.advanceTimersByTime(ms);
-  });
-  for (let step = 0; step < 8; step += 1) {
-    await act(async () => {
-      vi.runOnlyPendingTimers();
-    });
-  }
-};
-
-const createMatchMedia = (prefersReducedMotion: boolean) =>
-  vi.fn().mockImplementation((query: string) => ({
-    matches: prefersReducedMotion && query.includes('prefers-reduced-motion'),
-    media: query,
-    onchange: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    dispatchEvent: vi.fn()
-  }));
 
 const buildProps = (): HomeActivationTableProps => ({
   featureEnabled: true,
   data: {
     greeting: {
-      title: 'Welcome back, Nedas',
-      subtitle: 'PySpark · Chapter 7 · 62% complete · Active today'
+      title: 'unused',
+      subtitle: 'unused'
     },
-    categories: [
-      {
-        kind: 'theory',
-        label: 'Theory',
-        title: 'PySpark',
-        summary: 'Resume the active chapter and keep continuity.',
-        statLine: '4 sections still open in this chapter.',
-        accentRgb: '245,158,11',
-        progress: {
-          valuePct: 67,
-          label: 'Chapter progress',
-          valueLabel: '8/12 sections'
-        },
-        primaryAction: { label: 'Resume chapter', href: '/learn/pyspark/theory' }
-      },
-      {
-        kind: 'tasks',
-        label: 'Tasks',
-        title: 'Task Deck',
-        summary: 'Notebooks, missions, and flashcards are ready for your next execution block.',
-        statLine: '3 recap entries available',
-        primaryAction: { label: 'Open tasks', href: '/tasks' }
-      },
-      {
-        kind: 'grid',
-        label: 'Grid',
-        title: 'Substation Relay',
-        summary: 'Unlock threshold reached. Deploy this node to stabilize your grid.',
-        statLine: '35.64 kWh currently available',
-        progress: {
-          valuePct: 84,
-          label: 'Unlock progress'
-        },
-        primaryAction: { label: 'Deploy node', href: '/energy' }
-      }
-    ]
+    categories: []
   }
 });
 
+const baseBoard = {
+  todo: [
+    {
+      id: 'task-1',
+      title: 'Complete 2 PySpark modules',
+      description: 'Continue through the next theory units in this track.',
+      status: 'todo',
+      taskType: 'theory',
+      taskGroup: 'theory',
+      trackSlug: 'pyspark',
+      trackTitle: 'PySpark',
+      scopeType: 'count',
+      requestedCount: 2,
+      progress: { completed: 0, total: 2 },
+      statusLabel: '2 linked items',
+      actionLabel: 'Start',
+      createdAt: '2026-03-11T10:00:00.000Z',
+      startedAt: null,
+      completedAt: null
+    }
+  ],
+  inProgress: [],
+  completed: [],
+  catalog: {
+    tracks: [
+      { slug: 'pyspark', title: 'PySpark' },
+      { slug: 'fabric', title: 'Microsoft Fabric' }
+    ]
+  }
+};
+
+const jsonResponse = (payload: unknown, status = 200) =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+
 describe('HomeActivationTable', () => {
+  const fetchMock = vi.fn();
+
   beforeEach(() => {
-    vi.useFakeTimers();
-    window.sessionStorage.clear();
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: createMatchMedia(false)
-    });
-    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
-      window.setTimeout(() => callback(performance.now()), 16)
-    );
-    vi.stubGlobal('cancelAnimationFrame', (handle: number) => {
-      window.clearTimeout(handle);
-    });
+    vi.resetModules();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
   });
 
   afterEach(() => {
-    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
-  it('runs full first-visit sequence and lands in ready', async () => {
+  it('renders API-backed board columns and task card content', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: baseBoard }));
+
     render(<HomeActivationTable {...buildProps()} />);
 
-    await act(async () => {
-      vi.advanceTimersByTime(1);
+    expect(await screen.findByRole('heading', { name: 'To Do' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'In Progress' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Completed' })).toBeInTheDocument();
+    expect(screen.getByText('Complete 2 PySpark modules')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('/api/activation-board', {
+      method: 'GET',
+      credentials: 'include'
     });
-    expect(screen.getByTestId('home-activation-table')).toHaveAttribute('data-mode', 'full');
-    expect(screen.getByTestId('home-activation-table')).toHaveAttribute('data-phase', 'loading');
-    expect(screen.getByTestId('learning-station-loader')).toBeInTheDocument();
-    expect(screen.getByTestId('learning-station-progress-fill')).toBeInTheDocument();
-
-    await advanceThroughSequence(fullSequenceTotalMs + 260);
-
-    expect(screen.getByTestId('home-activation-table')).toHaveAttribute('data-phase', 'ready');
-    expect(window.sessionStorage.getItem(HOME_ACTIVATION_SEEN_KEY)).toBe('1');
-    expect(window.sessionStorage.getItem(HOME_ACTIVATION_MODE_KEY)).toBe('short');
   });
 
-  it('uses short sequence on repeat visit in session', async () => {
-    window.sessionStorage.setItem(HOME_ACTIVATION_SEEN_KEY, '1');
-    window.sessionStorage.setItem(HOME_ACTIVATION_MODE_KEY, 'short');
+  it('submits create task flow to POST endpoint', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: baseBoard }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            board: {
+              ...baseBoard,
+              todo: [
+                ...baseBoard.todo,
+                {
+                  ...baseBoard.todo[0],
+                  id: 'task-2',
+                  title: 'Complete 1 PySpark module',
+                  progress: { completed: 0, total: 1 },
+                  statusLabel: '1 linked item'
+                }
+              ]
+            }
+          }
+        }, 201)
+      );
+
     render(<HomeActivationTable {...buildProps()} />);
+    await screen.findByText('Complete 2 PySpark modules');
 
-    await act(async () => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(screen.getByTestId('home-activation-table')).toHaveAttribute('data-mode', 'short');
+    fireEvent.click(screen.getByRole('button', { name: /create task/i }));
+    expect(screen.getByText('New activation commitment')).toBeInTheDocument();
 
-    await advanceThroughSequence(shortSequenceTotalMs + 220);
+    const createButtons = screen.getAllByRole('button', { name: /^create task$/i });
+    fireEvent.click(createButtons[createButtons.length - 1]);
 
-    expect(screen.getByTestId('home-activation-table')).toHaveAttribute('data-phase', 'ready');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const createCall = fetchMock.mock.calls[1];
+    expect(createCall[0]).toBe('/api/activation-tasks');
+    expect(createCall[1]?.method).toBe('POST');
+    expect(String(createCall[1]?.body)).toContain('"taskType":"theory"');
+    expect(String(createCall[1]?.body)).toContain('"scopeType":"count"');
   });
 
-  it('bypasses heavy motion when reduced-motion is enabled', async () => {
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: createMatchMedia(true)
-    });
+  it('starts a todo task via PATCH endpoint', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: baseBoard }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            board: {
+              ...baseBoard,
+              todo: [],
+              inProgress: [
+                {
+                  ...baseBoard.todo[0],
+                  status: 'in_progress',
+                  statusLabel: '1/2 complete',
+                  actionLabel: 'Open'
+                }
+              ]
+            }
+          }
+        })
+      );
 
     render(<HomeActivationTable {...buildProps()} />);
+    await screen.findByText('Complete 2 PySpark modules');
 
-    await act(async () => {
-      vi.advanceTimersByTime(1);
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
 
-    expect(screen.getByTestId('home-activation-table')).toHaveAttribute('data-mode', 'skip');
-    expect(screen.getByTestId('home-activation-table')).toHaveAttribute('data-phase', 'ready');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/activation-tasks/task-1/start');
+    expect(fetchMock.mock.calls[1][1]?.method).toBe('PATCH');
   });
 
-  it('renders semantic table layout cards after reveal', async () => {
+  it('supports dragging a todo task into In Progress to start it', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: baseBoard }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            board: {
+              ...baseBoard,
+              todo: [],
+              inProgress: [
+                {
+                  ...baseBoard.todo[0],
+                  status: 'in_progress',
+                  statusLabel: '1/2 complete',
+                  actionLabel: 'Open'
+                }
+              ]
+            }
+          }
+        })
+      );
+
     render(<HomeActivationTable {...buildProps()} />);
-    await act(async () => {
-      vi.advanceTimersByTime(1);
-    });
-    await advanceThroughSequence(fullSequenceTotalMs + 260);
+    await screen.findByText('Complete 2 PySpark modules');
 
-    expect(screen.getByTestId('activation-greeting')).toBeInTheDocument();
-    const theoryCard = screen.getByTestId('activation-category-theory');
-    const tasksCard = screen.getByTestId('activation-category-tasks');
-    const gridCard = screen.getByTestId('activation-category-grid');
-    expect(theoryCard).toBeInTheDocument();
-    expect(tasksCard).toBeInTheDocument();
-    expect(gridCard).toBeInTheDocument();
+    const taskCard = screen.getByText('Complete 2 PySpark modules').closest('article');
+    expect(taskCard).not.toBeNull();
 
-    expect(within(theoryCard).getAllByRole('link')).toHaveLength(1);
-    expect(within(tasksCard).getAllByRole('link')).toHaveLength(1);
-    expect(within(gridCard).getAllByRole('link')).toHaveLength(1);
-    expect(within(theoryCard).getByTestId('activation-progress-theory')).toHaveAttribute(
-      'aria-valuenow',
-      '67'
+    const dataTransfer = {
+      effectAllowed: 'move',
+      dropEffect: 'move',
+      setData: vi.fn(),
+      getData: vi.fn()
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(taskCard!, { dataTransfer });
+    fireEvent.dragOver(screen.getByTestId('activation-column-in-progress'), { dataTransfer });
+    fireEvent.drop(screen.getByTestId('activation-column-in-progress'), { dataTransfer });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/activation-tasks/task-1/start');
+    expect(fetchMock.mock.calls[1][1]?.method).toBe('PATCH');
+  });
+
+  it('edits a todo task via PATCH endpoint', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: baseBoard }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            board: {
+              ...baseBoard,
+              todo: [
+                {
+                  ...baseBoard.todo[0],
+                  title: 'Complete 1 PySpark module',
+                  requestedCount: 1,
+                  progress: { completed: 0, total: 1 },
+                  statusLabel: '1 linked item'
+                }
+              ]
+            }
+          }
+        })
+      );
+
+    render(<HomeActivationTable {...buildProps()} />);
+    await screen.findByText('Complete 2 PySpark modules');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByText('Update activation commitment')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save task' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/activation-tasks/task-1');
+    expect(fetchMock.mock.calls[1][1]?.method).toBe('PATCH');
+  });
+
+  it('deletes a task via DELETE endpoint', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: baseBoard }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            board: {
+              ...baseBoard,
+              todo: []
+            }
+          }
+        })
+      );
+
+    render(<HomeActivationTable {...buildProps()} />);
+    await screen.findByText('Complete 2 PySpark modules');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(screen.getByRole('heading', { name: 'Delete task?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete task' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/activation-tasks/task-1');
+    expect(fetchMock.mock.calls[1][1]?.method).toBe('DELETE');
+  });
+
+  it('returns null when feature flag is disabled', () => {
+    render(
+      <HomeActivationTable
+        {...buildProps()}
+        featureEnabled={false}
+      />
     );
-    expect(within(gridCard).getByTestId('activation-progress-grid')).toHaveAttribute(
-      'aria-valuenow',
-      '84'
-    );
-    expect(within(tasksCard).queryByTestId('activation-progress-tasks')).not.toBeInTheDocument();
-  });
 
-  it('focuses primary CTA and keeps decorative layer non-blocking', async () => {
-    render(<HomeActivationTable {...buildProps()} />);
-    await act(async () => {
-      vi.advanceTimersByTime(1);
-    });
-    await advanceThroughSequence(fullSequenceTotalMs + 260);
-
-    const primaryCta = screen.getByTestId('activation-primary-cta');
-    expect(primaryCta).toBeInTheDocument();
-    expect(primaryCta).toHaveFocus();
-
-    expect(screen.queryByTestId('learning-station-loader')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('home-activation-table')).not.toBeInTheDocument();
   });
 });

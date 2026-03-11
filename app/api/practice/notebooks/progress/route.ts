@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { NOTEBOOKS } from '@/data/notebooks';
+import { reconcileActivationTasksSafely } from '@/lib/activation/service';
 import { createClient } from '@/lib/supabase/server';
 
 type JsonRecord = Record<string, unknown>;
@@ -162,6 +163,8 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await reconcileActivationTasksSafely({ supabase, userId: user.id });
 
   return NextResponse.json({
     data: toNotebookProgressResponse(nextTopicProgress)

@@ -1,37 +1,18 @@
 # Home Activation Table
 
-## Structure
-- `HomeActivationTable.tsx`: top-level phase orchestrator + session/reduced-motion mode logic.
-- `state/activationMachine.ts`: typed reducer and deterministic phase transitions.
-- `state/activationTimings.ts`: centralized durations, easing, and session keys.
-- `components/LearningStationLoader.tsx`: minimal loading layer with Learning Station label + progress bar.
-- `components/TableSurface.tsx`: final responsive worktable composition.
-- `components/ActivationCategoryCard.tsx`: category card template used for Theory, Tasks, and Grid.
-- `components/SurfaceGlowLayer.tsx`: subtle activation lighting.
+## Current Surface
+- `ActivationTable.tsx`: API-backed board shell + create-task modal/drawer flow.
+- `components/BoardColumn.tsx`: section title/count + task mapping.
+- `components/TaskCard.tsx`: minimal task card with restrained status/action cues.
+- `HomeActivationTable.tsx`: compatibility wrapper for homepage wiring and feature flag.
 
-## Phases
-`loading -> reveal -> ready`
+## Interaction and Layout
+- Desktop: balanced 3-column board.
+- Tablet: horizontal snap scroll when columns need more space.
+- Mobile: vertical stacked columns with generous spacing.
+- Card hover: subtle raise, border brighten, and quiet background shift.
+- Data flow: board and catalog are fetched from `/api/activation-board`; creation posts to `/api/activation-tasks`; start action patches `/api/activation-tasks/:id/start`.
 
-`activationMachine.ts` prevents impossible backward jumps and keeps transitions deterministic.
-
-## Duration Tuning
-Update `ACTIVATION_PHASE_DURATIONS_MS` in `state/activationTimings.ts`.
-- Full first visit target: ~1.4s to 1.8s.
-- Repeat session target: ~0.6s to 0.9s.
-- Reduced motion mode resolves to `skip` (near-instant).
-
-## Repeat Visit Logic
-Session keys:
-- `homeActivationSeen`
-- `homeActivationMode`
-
-Behavior:
-- first session visit: full sequence
-- repeat in same session: short sequence
-- reduced motion / feature disabled: skip to ready
-
-## Accessibility
-- Decorative layers are `aria-hidden`.
-- Focus is moved to the primary CTA after `ready`.
-- Reduced motion users bypass travel-heavy animation.
-- Animation layer is removed from interaction flow at `ready`.
+## Legacy Motion State Files
+- `state/activationMachine.ts` and `state/activationTimings.ts` are retained for existing unit coverage.
+- Older animation-oriented UI components remain in this folder but are not part of the active homepage surface.
