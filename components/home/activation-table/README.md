@@ -11,7 +11,7 @@
 - Tablet: horizontal snap scroll when columns need more space.
 - Mobile: vertical stacked columns with generous spacing.
 - Card hover: subtle raise, border brighten, and quiet background shift.
-- Data flow: board and catalog are fetched from `/api/activation-board`; creation posts to `/api/activation-tasks`; start action patches `/api/activation-tasks/:id/start`.
+- Data flow: board and catalog are fetched from `/api/activation-board`; creation posts to `/api/activation-tasks`; drag/status transitions patch `/api/activation-tasks/:id/start`, `/api/activation-tasks/:id/todo`, and `/api/activation-tasks/:id/completed`; same-column ordering patches `/api/activation-tasks/reorder`.
 
 ## Legacy Motion State Files
 - `state/activationMachine.ts` and `state/activationTimings.ts` are retained for existing unit coverage.

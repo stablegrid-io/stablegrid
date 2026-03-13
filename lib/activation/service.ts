@@ -8,13 +8,19 @@ export type ActivationScopeType = 'count' | 'all_remaining';
 export type ActivationTaskStatus = 'todo' | 'in_progress' | 'completed';
 export type ActivationItemStatus = 'todo' | 'in_progress' | 'completed';
 export type ActivationContentType = 'theory_module' | 'flashcard' | 'notebook' | 'mission';
-type ActivationTaskOptionGroup = 'flashcards' | 'notebooks' | 'missions';
+type ActivationTaskOptionGroup =
+  | 'theory'
+  | 'theoryCompleted'
+  | 'flashcards'
+  | 'notebooks'
+  | 'missions';
 
 const TRACK_SET = new Set<Topic>(['pyspark', 'fabric']);
 const MODULE_PROGRESS_MISSING_TABLE_PATTERN =
   /module_progress.*(does not exist|42P01)/i;
 const OPTIONAL_READING_COLUMN_PATTERN =
   /(current_lesson_id|last_visited_route|sections_ids_read)/i;
+const TASK_SORT_ORDER_STEP = 1000;
 
 const TASK_GROUP_TO_CONTENT_TYPE: Record<ActivationTaskGroup, ActivationContentType> = {
   theory: 'theory_module',
@@ -27,7 +33,7 @@ const CONTENT_TYPE_TO_TASK_OPTION_GROUP: Record<
   ActivationContentType,
   ActivationTaskOptionGroup | null
 > = {
-  theory_module: null,
+  theory_module: 'theory',
   flashcard: 'flashcards',
   notebook: 'notebooks',
   mission: 'missions'
@@ -67,6 +73,7 @@ interface ActivationTaskRow {
   scope_type: ActivationScopeType;
   requested_count: number | null;
   status: ActivationTaskStatus;
+  sort_order: number | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
@@ -78,6 +85,13 @@ interface ActivationTaskRow {
     completed_at: string | null;
     content_item_id: string;
   }>;
+}
+
+interface ActivationTaskReconcileRow {
+  id: string;
+  status: ActivationTaskStatus;
+  started_at: string | null;
+  completed_at: string | null;
 }
 
 interface ActivationTaskItemRow {
@@ -104,6 +118,7 @@ export interface CreateActivationTaskInput {
   trackSlug?: string;
   scopeType: ActivationScopeType;
   requestedCount?: number;
+  contentItemIds?: string[];
   contentItemId?: string;
 }
 
@@ -113,7 +128,7 @@ interface NormalizedActivationTaskInput {
   scopeType: ActivationScopeType;
   requestedCount: number | null;
   trackSlug: Topic | null;
-  contentItemId: string | null;
+  contentItemIds: string[];
 }
 
 export interface ActivationCatalogTaskOption {
@@ -203,6 +218,49 @@ const getActionLabel = (status: ActivationTaskStatus): 'Start' | 'Open' | null =
   if (status === 'in_progress') return 'Open';
   return null;
 };
+
+const compareTaskRowsForBoard = (left: ActivationTaskRow, right: ActivationTaskRow) => {
+  const leftHasSortOrder = typeof left.sort_order === 'number';
+  const rightHasSortOrder = typeof right.sort_order === 'number';
+
+  if (leftHasSortOrder && rightHasSortOrder && left.sort_order !== right.sort_order) {
+    return left.sort_order - right.sort_order;
+  }
+
+  if (leftHasSortOrder !== rightHasSortOrder) {
+    return leftHasSortOrder ? -1 : 1;
+  }
+
+  return right.created_at.localeCompare(left.created_at);
+};
+
+const getTopSortOrderForStatus = async ({
+  supabase,
+  userId,
+  status
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  status: ActivationTaskStatus;
+}) => {
+  const { data, error } = await supabase
+    .from('user_activation_tasks')
+    .select('sort_order')
+    .eq('user_id', userId)
+    .eq('status', status)
+    .order('sort_order', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  assertSuccess(error);
+
+  if (typeof data?.sort_order !== 'number') {
+    return TASK_SORT_ORDER_STEP;
+  }
+
+  return data.sort_order - TASK_SORT_ORDER_STEP;
+};
+
+const buildSequentialSortOrder = (index: number) => (index + 1) * TASK_SORT_ORDER_STEP;
 
 const buildTaskCopy = ({
   taskType,
@@ -320,6 +378,8 @@ const getTaskOptionCatalog = async (
   userId: string
 ): Promise<Record<ActivationTaskOptionGroup, ActivationCatalogTaskOption[]>> => {
   const options: Record<ActivationTaskOptionGroup, ActivationCatalogTaskOption[]> = {
+    theory: [],
+    theoryCompleted: [],
     flashcards: [],
     notebooks: [],
     missions: []
@@ -331,16 +391,50 @@ const getTaskOptionCatalog = async (
       'id,track_id,content_type,source_ref,title,sequence_order,tracks:track_id(slug,title,is_active)'
     )
     .eq('is_active', true)
-    .in('content_type', ['flashcard', 'notebook', 'mission'])
+    .in('content_type', ['theory_module', 'flashcard', 'notebook', 'mission'])
     .order('sequence_order', { ascending: true });
   assertSuccess(contentError);
 
   const completionSignals = await loadCompletionSignals(supabase, userId);
-  const activeAssignedContentIds = await loadActiveContentAssignments(supabase, userId);
+  const activeAssignedContentIds = await loadActiveContentAssignments(supabase, userId, {
+    activeOnly: true
+  });
+  const assignedContentIds = await loadActiveContentAssignments(supabase, userId, {
+    activeOnly: false
+  });
 
   (contentItemsRaw as ContentItemCatalogRow[] | null)?.forEach((item) => {
     const taskOptionGroup = CONTENT_TYPE_TO_TASK_OPTION_GROUP[item.content_type];
     if (!taskOptionGroup) return;
+
+    if (taskOptionGroup === 'theory') {
+      if (!item.tracks || !item.tracks.is_active || !isTopic(item.tracks.slug)) {
+        return;
+      }
+
+      if (completionSignals.completed.theory_module.has(item.source_ref)) {
+        options.theoryCompleted.push({
+          id: item.id,
+          title: item.title,
+          label: `${item.tracks.title}: ${item.title}`,
+          trackSlug: item.tracks.slug,
+          trackTitle: item.tracks.title
+        });
+        return;
+      }
+
+      if (assignedContentIds.has(item.id)) return;
+      if (completionSignals.started.theory_module.has(item.source_ref)) return;
+
+      options.theory.push({
+        id: item.id,
+        title: item.title,
+        label: `${item.tracks.title}: ${item.title}`,
+        trackSlug: item.tracks.slug,
+        trackTitle: item.tracks.title
+      });
+      return;
+    }
 
     if (activeAssignedContentIds.has(item.id)) return;
     if (completionSignals.started[item.content_type].has(item.source_ref)) return;
@@ -538,13 +632,17 @@ const loadCompletionSignals = async (
 const loadActiveContentAssignments = async (
   supabase: SupabaseClient,
   userId: string,
-  options?: { excludeTaskId?: string }
+  options?: { excludeTaskId?: string; activeOnly?: boolean }
 ) => {
-  const { data: activeTasks, error: activeTaskError } = await supabase
+  let taskQuery = supabase
     .from('user_activation_tasks')
     .select('id')
-    .eq('user_id', userId)
-    .in('status', ['todo', 'in_progress']);
+    .eq('user_id', userId);
+  if (options?.activeOnly !== false) {
+    taskQuery = taskQuery.in('status', ['todo', 'in_progress']);
+  }
+
+  const { data: activeTasks, error: activeTaskError } = await taskQuery;
   assertSuccess(activeTaskError);
 
   const activeTaskIds = (activeTasks ?? [])
@@ -570,9 +668,22 @@ const normalizeCreateInput = (input: CreateActivationTaskInput): NormalizedActiv
   const scopeType = input.scopeType;
   const requestedCountRaw = input.requestedCount;
   const trackSlugRaw = typeof input.trackSlug === 'string' ? input.trackSlug : undefined;
+  const contentItemIdsRaw = Array.isArray(input.contentItemIds)
+    ? input.contentItemIds
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+    : [];
   const contentItemIdRaw =
     typeof input.contentItemId === 'string' ? input.contentItemId.trim() : '';
-  const contentItemId = contentItemIdRaw.length > 0 ? contentItemIdRaw : null;
+  const contentItemIds = Array.from(
+    new Set(
+      [
+        ...contentItemIdsRaw,
+        ...(contentItemIdRaw.length > 0 ? [contentItemIdRaw] : [])
+      ].filter((value) => value.length > 0)
+    )
+  );
 
   if (taskType !== 'theory' && taskType !== 'task') {
     throw new ActivationServiceError('Invalid taskType.', 400);
@@ -591,7 +702,10 @@ const normalizeCreateInput = (input: CreateActivationTaskInput): NormalizedActiv
     throw new ActivationServiceError('taskGroup cannot be theory when taskType is task.', 400);
   }
 
-  const hasSpecificItemSelection = taskType === 'task' && contentItemId !== null;
+  const hasSpecificItemSelection = contentItemIds.length > 0;
+  if (taskType === 'task' && contentItemIds.length > 1) {
+    throw new ActivationServiceError('Task commitments can only select one item.', 400);
+  }
 
   if (taskGroup === 'missions') {
     if (trackSlugRaw) {
@@ -602,14 +716,14 @@ const normalizeCreateInput = (input: CreateActivationTaskInput): NormalizedActiv
       if (hasSpecificItemSelection) {
         // For explicit task-item selection we can derive track from the selected item.
       } else {
-      throw new ActivationServiceError('trackSlug must be pyspark or fabric.', 400);
+        throw new ActivationServiceError('trackSlug must be pyspark or fabric.', 400);
       }
     }
   }
 
   let requestedCount: number | null = null;
   if (hasSpecificItemSelection) {
-    requestedCount = 1;
+    requestedCount = contentItemIds.length;
   } else if (scopeType === 'count') {
     if (
       typeof requestedCountRaw !== 'number' ||
@@ -631,7 +745,7 @@ const normalizeCreateInput = (input: CreateActivationTaskInput): NormalizedActiv
       taskGroup === 'missions' || !trackSlugRaw || !isTopic(trackSlugRaw)
         ? null
         : (trackSlugRaw as Topic),
-    contentItemId
+    contentItemIds
   };
 };
 
@@ -650,81 +764,126 @@ const resolveTaskSelectionPlan = async ({
   const contentType = TASK_GROUP_TO_CONTENT_TYPE[normalized.taskGroup];
   const completionSignals = await loadCompletionSignals(supabase, userId);
   const activeAssignedContentIds = await loadActiveContentAssignments(supabase, userId, {
-    excludeTaskId
+    excludeTaskId,
+    activeOnly: true
   });
+  const assignedContentIds = await loadActiveContentAssignments(supabase, userId, {
+    excludeTaskId,
+    activeOnly: false
+  });
+  const blockedAssignedContentIds =
+    normalized.taskGroup === 'theory' ? assignedContentIds : activeAssignedContentIds;
 
-  if (normalized.contentItemId) {
-    const { data: itemRaw, error: itemError } = await supabase
+  if (normalized.contentItemIds.length > 0) {
+    const { data: itemsRaw, error: itemsError } = await supabase
       .from('content_items')
       .select(
         'id,track_id,content_type,source_ref,title,sequence_order,tracks:track_id(slug,title,is_active)'
       )
-      .eq('id', normalized.contentItemId)
-      .eq('is_active', true)
-      .maybeSingle();
-    assertSuccess(itemError);
+      .in('id', normalized.contentItemIds)
+      .eq('is_active', true);
+    assertSuccess(itemsError);
 
-    const selectedItem = itemRaw as ContentItemCatalogRow | null;
-    if (!selectedItem || selectedItem.content_type !== contentType) {
+    const selectedItemsRaw = (itemsRaw ?? []) as ContentItemCatalogRow[];
+    if (selectedItemsRaw.length !== normalized.contentItemIds.length) {
+      throw new ActivationServiceError('One or more selected items are not available.', 400);
+    }
+
+    const selectedById = new Map(selectedItemsRaw.map((item) => [item.id, item]));
+    const selectedItems = normalized.contentItemIds.map((id) => {
+      const item = selectedById.get(id);
+      if (!item) {
+        throw new ActivationServiceError('One or more selected items are not available.', 400);
+      }
+      return item;
+    });
+
+    if (selectedItems.some((item) => item.content_type !== contentType)) {
       throw new ActivationServiceError('Selected item is not available for this task group.', 400);
     }
 
-    if (activeAssignedContentIds.has(selectedItem.id)) {
-      throw new ActivationServiceError('Selected item is already linked to an active task.', 422, {
-        remainingCount: 0
-      });
-    }
+    selectedItems.forEach((selectedItem) => {
+      if (blockedAssignedContentIds.has(selectedItem.id)) {
+        throw new ActivationServiceError('Selected item is already linked to an existing task.', 422, {
+          remainingCount: 0
+        });
+      }
 
-    if (
-      completionSignals.started[selectedItem.content_type].has(selectedItem.source_ref) ||
-      completionSignals.completed[selectedItem.content_type].has(selectedItem.source_ref)
-    ) {
-      throw new ActivationServiceError('Selected item is already started or completed.', 422, {
-        remainingCount: 0
-      });
-    }
+      if (
+        completionSignals.started[selectedItem.content_type].has(selectedItem.source_ref) ||
+        completionSignals.completed[selectedItem.content_type].has(selectedItem.source_ref)
+      ) {
+        throw new ActivationServiceError('Selected item is already started or completed.', 422, {
+          remainingCount: 0
+        });
+      }
+    });
 
     let track: TrackRow | null = null;
     if (normalized.taskGroup === 'missions') {
       const globalTrack = await getTrackBySlug(supabase, 'global');
-      if (globalTrack?.id && selectedItem.track_id && selectedItem.track_id !== globalTrack.id) {
+      const invalidMissionSelection = selectedItems.some(
+        (item) => globalTrack?.id && item.track_id && item.track_id !== globalTrack.id
+      );
+      if (invalidMissionSelection) {
         throw new ActivationServiceError('Selected mission is not available.', 400);
       }
     } else {
-      if (!selectedItem.tracks || !selectedItem.tracks.is_active || !isTopic(selectedItem.tracks.slug)) {
+      const firstTrack = selectedItems[0]?.tracks;
+      if (!firstTrack || !firstTrack.is_active || !isTopic(firstTrack.slug)) {
         throw new ActivationServiceError('Selected track is not available.', 400);
       }
-      if (normalized.trackSlug && normalized.trackSlug !== selectedItem.tracks.slug) {
-        throw new ActivationServiceError('Selected item does not belong to the chosen subject.', 400);
+
+      const mixedTrackSelection = selectedItems.some((item) => {
+        if (!item.tracks || !item.tracks.is_active || !isTopic(item.tracks.slug)) return true;
+        return item.tracks.slug !== firstTrack.slug;
+      });
+      if (mixedTrackSelection) {
+        throw new ActivationServiceError('Selected items must belong to the same subject.', 400);
       }
-      if (!selectedItem.track_id) {
+      if (normalized.trackSlug && normalized.trackSlug !== firstTrack.slug) {
+        throw new ActivationServiceError('Selected items do not belong to the chosen subject.', 400);
+      }
+      if (!selectedItems[0]?.track_id) {
         throw new ActivationServiceError('Selected item is missing track metadata.', 400);
       }
+
       track = {
-        id: selectedItem.track_id,
-        slug: selectedItem.tracks.slug,
-        title: selectedItem.tracks.title,
-        is_active: selectedItem.tracks.is_active
+        id: selectedItems[0].track_id,
+        slug: firstTrack.slug,
+        title: firstTrack.title,
+        is_active: firstTrack.is_active
       };
     }
 
-    const copy = buildTaskCopy({
-      taskType: normalized.taskType,
-      taskGroup: normalized.taskGroup,
-      scopeType: 'count',
-      requestedCount: 1,
-      trackTitle: track?.title ?? null
-    });
+    const copy =
+      normalized.taskType === 'theory'
+        ? selectedItems.length === 1
+          ? {
+              title: `Complete ${selectedItems[0].title}`,
+              description: 'Continue through this theory module in your track.'
+            }
+          : {
+              title: `Complete ${selectedItems.length} selected modules`,
+              description: 'Continue through these selected theory modules in your track.'
+            }
+        : buildTaskCopy({
+            taskType: normalized.taskType,
+            taskGroup: normalized.taskGroup,
+            scopeType: 'count',
+            requestedCount: selectedItems.length,
+            trackTitle: track?.title ?? null
+          });
 
     return {
       normalized: {
         ...normalized,
         scopeType: 'count',
-        requestedCount: 1,
+        requestedCount: selectedItems.length,
         trackSlug: track && isTopic(track.slug) ? track.slug : null
       },
       track,
-      selectedItems: [selectedItem],
+      selectedItems,
       copy
     };
   }
@@ -755,7 +914,7 @@ const resolveTaskSelectionPlan = async ({
   assertSuccess(contentError);
 
   const eligibleItems = ((contentItems ?? []) as ContentItemRow[]).filter((item) => {
-    if (activeAssignedContentIds.has(item.id)) {
+    if (blockedAssignedContentIds.has(item.id)) {
       return false;
     }
     if (completionSignals.started[item.content_type].has(item.source_ref)) {
@@ -820,6 +979,11 @@ export const createActivationTask = async ({
     userId,
     input
   });
+  const sortOrder = await getTopSortOrderForStatus({
+    supabase,
+    userId,
+    status: 'todo'
+  });
 
   const taskInsertPayload = {
     user_id: userId,
@@ -830,7 +994,8 @@ export const createActivationTask = async ({
     description: copy.description,
     scope_type: normalized.scopeType,
     requested_count: normalized.scopeType === 'count' ? normalized.requestedCount : null,
-    status: 'todo' as const
+    status: 'todo' as const,
+    sort_order: sortOrder
   };
 
   const { data: createdTask, error: createTaskError } = await supabase
@@ -879,7 +1044,7 @@ export const editActivationTask = async ({
 }) => {
   const { data: task, error: taskError } = await supabase
     .from('user_activation_tasks')
-    .select('id,status')
+    .select('id,status,started_at')
     .eq('id', taskId)
     .eq('user_id', userId)
     .maybeSingle();
@@ -889,9 +1054,13 @@ export const editActivationTask = async ({
     throw new ActivationServiceError('Activation task not found.', 404);
   }
 
-  if (task.status !== 'todo') {
-    throw new ActivationServiceError('Only To Do tasks can be edited.', 409);
+  if (task.status === 'completed') {
+    throw new ActivationServiceError('Completed tasks cannot be edited.', 409);
   }
+
+  const resetToStatus = task.status === 'in_progress' ? 'in_progress' : 'todo';
+  const resetStartedAt =
+    resetToStatus === 'in_progress' ? task.started_at ?? new Date().toISOString() : null;
 
   const { normalized, track, selectedItems, copy } = await resolveTaskSelectionPlan({
     supabase,
@@ -960,8 +1129,8 @@ export const editActivationTask = async ({
       description: copy.description,
       scope_type: normalized.scopeType,
       requested_count: normalized.scopeType === 'count' ? normalized.requestedCount : null,
-      status: 'todo',
-      started_at: null,
+      status: resetToStatus,
+      started_at: resetStartedAt,
       completed_at: null
     })
     .eq('id', taskId)
@@ -1014,13 +1183,34 @@ const loadUserTasksWithItems = async (supabase: SupabaseClient, userId: string) 
   const { data, error } = await supabase
     .from('user_activation_tasks')
     .select(
-      'id,user_id,task_type,task_group,title,description,scope_type,requested_count,status,created_at,started_at,completed_at,tracks:track_id(slug,title),user_activation_task_items(id,item_status,started_at,completed_at,content_item_id)'
+      'id,user_id,task_type,task_group,title,description,scope_type,requested_count,status,sort_order,created_at,started_at,completed_at,tracks:track_id(slug,title),user_activation_task_items(id,item_status,started_at,completed_at,content_item_id)'
     )
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
   assertSuccess(error);
   return (data ?? []) as ActivationTaskRow[];
+};
+
+const loadUserTasksForReconcile = async (supabase: SupabaseClient, userId: string) => {
+  const { data, error } = await supabase
+    .from('user_activation_tasks')
+    .select('id,status,started_at,completed_at')
+    .eq('user_id', userId);
+
+  assertSuccess(error);
+  return (data ?? []) as ActivationTaskReconcileRow[];
+};
+
+const runInBatches = async <T>(
+  items: T[],
+  worker: (item: T) => Promise<void>,
+  batchSize = 20
+) => {
+  for (let index = 0; index < items.length; index += batchSize) {
+    const batch = items.slice(index, index + batchSize);
+    await Promise.all(batch.map((item) => worker(item)));
+  }
 };
 
 const mapTaskRowsToBoardData = (
@@ -1032,7 +1222,7 @@ const mapTaskRowsToBoardData = (
   const inProgress: ActivationBoardCard[] = [];
   const completed: ActivationBoardCard[] = [];
 
-  rows.forEach((row) => {
+  [...rows].sort(compareTaskRowsForBoard).forEach((row) => {
     const items = row.user_activation_task_items ?? [];
     const total = items.length;
     const completedCount = items.filter((item) => item.item_status === 'completed').length;
@@ -1091,7 +1281,7 @@ export const reconcileActivationTaskStatuses = async ({
   supabase: SupabaseClient;
   userId: string;
 }) => {
-  const tasks = await loadUserTasksWithItems(supabase, userId);
+  const tasks = await loadUserTasksForReconcile(supabase, userId);
   if (tasks.length === 0) {
     return;
   }
@@ -1181,7 +1371,9 @@ export const reconcileActivationTaskStatuses = async ({
     });
 
     const derivedTaskStatus: ActivationTaskStatus = allCompleted
-      ? 'completed'
+      ? task.status === 'completed'
+        ? 'completed'
+        : 'in_progress'
       : hasAnyProgress || task.started_at !== null
         ? 'in_progress'
         : 'todo';
@@ -1205,7 +1397,7 @@ export const reconcileActivationTaskStatuses = async ({
     }
   });
 
-  for (const update of itemUpdates) {
+  await runInBatches(itemUpdates, async (update) => {
     const { error } = await supabase
       .from('user_activation_task_items')
       .update({
@@ -1216,9 +1408,9 @@ export const reconcileActivationTaskStatuses = async ({
       .eq('id', update.id)
       .eq('user_id', userId);
     assertSuccess(error);
-  }
+  });
 
-  for (const update of taskUpdates) {
+  await runInBatches(taskUpdates, async (update) => {
     const { error } = await supabase
       .from('user_activation_tasks')
       .update({
@@ -1229,7 +1421,7 @@ export const reconcileActivationTaskStatuses = async ({
       .eq('id', update.id)
       .eq('user_id', userId);
     assertSuccess(error);
-  }
+  });
 };
 
 export const getActivationBoardData = async ({
@@ -1241,13 +1433,15 @@ export const getActivationBoardData = async ({
   userId: string;
   shouldReconcile?: boolean;
 }): Promise<ActivationBoardData> => {
+  const catalogTracksPromise = getActiveTrackCatalog(supabase);
+
   if (shouldReconcile) {
     await reconcileActivationTaskStatuses({ supabase, userId });
   }
 
   const [tasks, catalogTracks, taskOptions] = await Promise.all([
     loadUserTasksWithItems(supabase, userId),
-    getActiveTrackCatalog(supabase),
+    catalogTracksPromise,
     getTaskOptionCatalog(supabase, userId)
   ]);
 
@@ -1282,11 +1476,17 @@ export const startActivationTask = async ({
   const nowIso = new Date().toISOString();
 
   if (task.status === 'todo') {
+    const sortOrder = await getTopSortOrderForStatus({
+      supabase,
+      userId,
+      status: 'in_progress'
+    });
     const { error: taskUpdateError } = await supabase
       .from('user_activation_tasks')
       .update({
         status: 'in_progress',
-        started_at: task.started_at ?? nowIso
+        started_at: task.started_at ?? nowIso,
+        sort_order: sortOrder
       })
       .eq('id', task.id)
       .eq('user_id', userId);
@@ -1316,7 +1516,219 @@ export const startActivationTask = async ({
     assertSuccess(itemUpdateError);
   }
 
-  await reconcileActivationTaskStatuses({ supabase, userId });
+};
+
+export const moveActivationTaskToTodo = async ({
+  supabase,
+  userId,
+  taskId
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  taskId: string;
+}) => {
+  const { data: task, error: taskError } = await supabase
+    .from('user_activation_tasks')
+    .select('id,status')
+    .eq('id', taskId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  assertSuccess(taskError);
+
+  if (!task) {
+    throw new ActivationServiceError('Activation task not found.', 404);
+  }
+
+  if (task.status === 'completed') {
+    throw new ActivationServiceError('Completed tasks cannot be moved to To Do.', 409);
+  }
+
+  if (task.status === 'todo') {
+    return;
+  }
+
+  const { data: items, error: itemsError } = await supabase
+    .from('user_activation_task_items')
+    .select('id,item_status,completed_at')
+    .eq('activation_task_id', task.id)
+    .eq('user_id', userId);
+  assertSuccess(itemsError);
+
+  const completedItems = (items ?? []).filter(
+    (item: { item_status: ActivationItemStatus; completed_at: string | null }) =>
+      item.item_status === 'completed' || item.completed_at !== null
+  );
+  if (completedItems.length > 0) {
+    throw new ActivationServiceError(
+      'Tasks with completed progress cannot be moved back to To Do.',
+      409
+    );
+  }
+
+  const inProgressItems = (items ?? []).filter(
+    (item: { id: string; item_status: ActivationItemStatus }) =>
+      item.item_status === 'in_progress'
+  ) as Array<{ id: string }>;
+
+  await runInBatches(inProgressItems, async (item) => {
+    const { error } = await supabase
+      .from('user_activation_task_items')
+      .update({
+        item_status: 'todo',
+        started_at: null,
+        completed_at: null
+      })
+      .eq('id', item.id)
+      .eq('user_id', userId);
+    assertSuccess(error);
+  });
+
+  const sortOrder = await getTopSortOrderForStatus({
+    supabase,
+    userId,
+    status: 'todo'
+  });
+  const { error: taskUpdateError } = await supabase
+    .from('user_activation_tasks')
+    .update({
+      status: 'todo',
+      started_at: null,
+      completed_at: null,
+      sort_order: sortOrder
+    })
+    .eq('id', task.id)
+    .eq('user_id', userId);
+  assertSuccess(taskUpdateError);
+};
+
+export const moveActivationTaskToCompleted = async ({
+  supabase,
+  userId,
+  taskId
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  taskId: string;
+}) => {
+  const { data: task, error: taskError } = await supabase
+    .from('user_activation_tasks')
+    .select('id,status,started_at,completed_at')
+    .eq('id', taskId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  assertSuccess(taskError);
+
+  if (!task) {
+    throw new ActivationServiceError('Activation task not found.', 404);
+  }
+
+  if (task.status === 'completed') {
+    return;
+  }
+
+  if (task.status !== 'in_progress') {
+    throw new ActivationServiceError('Only in-progress tasks can be completed.', 409);
+  }
+
+  const { data: items, error: itemsError } = await supabase
+    .from('user_activation_task_items')
+    .select('id,item_status,started_at,completed_at')
+    .eq('activation_task_id', task.id)
+    .eq('user_id', userId);
+  assertSuccess(itemsError);
+
+  const taskItems = (items ?? []) as Array<{
+    id: string;
+    item_status: ActivationItemStatus;
+    started_at: string | null;
+    completed_at: string | null;
+  }>;
+  const allCompleted =
+    taskItems.length > 0 &&
+    taskItems.every(
+      (item) => item.item_status === 'completed' || item.completed_at !== null
+    );
+
+  if (!allCompleted) {
+    throw new ActivationServiceError('Finish all linked items to unlock Completed.', 409);
+  }
+
+  const nowIso = new Date().toISOString();
+  const firstProgressAt =
+    taskItems.find((item) => item.started_at)?.started_at ??
+    taskItems.find((item) => item.completed_at)?.completed_at ??
+    nowIso;
+  const sortOrder = await getTopSortOrderForStatus({
+    supabase,
+    userId,
+    status: 'completed'
+  });
+
+  const { error: taskUpdateError } = await supabase
+    .from('user_activation_tasks')
+    .update({
+      status: 'completed',
+      started_at: task.started_at ?? firstProgressAt,
+      completed_at: task.completed_at ?? nowIso,
+      sort_order: sortOrder
+    })
+    .eq('id', task.id)
+    .eq('user_id', userId);
+  assertSuccess(taskUpdateError);
+};
+
+export const reorderActivationTasks = async ({
+  supabase,
+  userId,
+  status,
+  orderedTaskIds
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  status: ActivationTaskStatus;
+  orderedTaskIds: string[];
+}) => {
+  if (orderedTaskIds.length === 0) {
+    return;
+  }
+
+  const uniqueTaskIds = new Set(orderedTaskIds);
+  if (uniqueTaskIds.size !== orderedTaskIds.length) {
+    throw new ActivationServiceError('Tasks can only appear once in a reorder request.', 400);
+  }
+
+  const { data, error } = await supabase
+    .from('user_activation_tasks')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('status', status);
+  assertSuccess(error);
+
+  const existingTaskIds = ((data ?? []) as Array<{ id: string }>).map((task) => task.id);
+  const existingTaskIdSet = new Set(existingTaskIds);
+
+  if (
+    existingTaskIds.length !== orderedTaskIds.length ||
+    orderedTaskIds.some((taskId) => !existingTaskIdSet.has(taskId))
+  ) {
+    throw new ActivationServiceError('Task order is out of date. Refresh and try again.', 409);
+  }
+
+  await runInBatches(
+    orderedTaskIds.map((taskId, index) => ({
+      id: taskId,
+      sort_order: buildSequentialSortOrder(index)
+    })),
+    async (update) => {
+      const { error: updateError } = await supabase
+        .from('user_activation_tasks')
+        .update({ sort_order: update.sort_order })
+        .eq('id', update.id)
+        .eq('user_id', userId)
+        .eq('status', status);
+      assertSuccess(updateError);
+    }
+  );
 };
 
 export const reconcileActivationTasksSafely = async ({

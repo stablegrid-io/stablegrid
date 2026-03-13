@@ -33,8 +33,7 @@ export default function RootLayout({
         >
           <CookieConsentManager />
           <AuthProvider>
-            <Navigation />
-            <div className="pb-16 lg:pb-0">{children}</div>
+            <Navigation>{children}</Navigation>
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -28,14 +28,16 @@ export function TechDeckDock({
   onAssetSelect
 }: TechDeckDockProps) {
   return (
-    <section className="rounded-2xl border border-[#2a3240] bg-[radial-gradient(circle_at_60%_0%,rgba(34,185,153,0.08),transparent_52%),linear-gradient(180deg,rgba(16,20,27,0.97),rgba(11,14,20,0.96))] p-2.5 text-[#dbe3f0] shadow-[0_16px_44px_rgba(0,0,0,0.34)]">
-      <div className="mb-2 flex items-center justify-between gap-3">
+    <section className="relative overflow-hidden rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(13,18,25,0.9),rgba(8,12,18,0.95))] p-2.5 text-[#dbe3f0] shadow-[0_24px_80px_-48px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(144,216,196,0.12),transparent_24%)]" />
+
+      <div className="relative mb-2 flex items-center justify-between gap-3">
         <p className="text-lg font-semibold uppercase tracking-[0.12em] text-[#9fb0ca]">Tech Deck</p>
 
         <button
           type="button"
           onClick={onToggle}
-          className="inline-flex items-center gap-1 rounded-full border border-[#3a4758] bg-[#171f2a]/90 px-3 py-1 text-xs font-semibold text-[#d8e4f7] transition hover:border-brand-400/60"
+          className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/[0.045] px-3 py-1.5 text-xs font-semibold text-[#d8e4f7] transition hover:border-white/20 hover:bg-white/[0.075]"
         >
           {open ? (
             <>
@@ -65,7 +67,7 @@ export function TechDeckDock({
           showModelPreviews={showModelPreviews}
         />
       ) : (
-        <div className="rounded-xl border border-[#323f50] bg-[#131a24]/92 px-3 py-2 text-sm text-[#c6d3e6]">
+        <div className="relative rounded-[20px] border border-white/8 bg-black/20 px-3 py-2.5 text-sm text-[#c6d3e6] backdrop-blur-sm">
           Deck collapsed for map focus. Expand to review and deploy infrastructure.
         </div>
       )}

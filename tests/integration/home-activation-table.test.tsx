@@ -119,36 +119,99 @@ describe('HomeActivationTable', () => {
     expect(String(createCall[1]?.body)).toContain('"scopeType":"count"');
   });
 
-  it('starts a todo task via PATCH endpoint', async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ data: baseBoard }))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          data: {
-            board: {
-              ...baseBoard,
-              todo: [],
-              inProgress: [
-                {
-                  ...baseBoard.todo[0],
-                  status: 'in_progress',
-                  statusLabel: '1/2 complete',
-                  actionLabel: 'Open'
-                }
-              ]
+  it('submits explicit theory module selection with contentItemIds', async () => {
+    const boardWithTheoryOptions = {
+      ...baseBoard,
+      catalog: {
+        ...baseBoard.catalog,
+        taskOptions: {
+          theory: [
+            {
+              id: 'module-3',
+              title: 'Module 3',
+              label: 'PySpark: Module 3',
+              trackSlug: 'pyspark',
+              trackTitle: 'PySpark'
+            },
+            {
+              id: 'module-2',
+              title: 'Module 2',
+              label: 'PySpark: Module 2',
+              trackSlug: 'pyspark',
+              trackTitle: 'PySpark'
             }
-          }
-        })
+          ],
+          theoryCompleted: [
+            {
+              id: 'module-1',
+              title: 'Module 1',
+              label: 'PySpark: Module 1',
+              trackSlug: 'pyspark',
+              trackTitle: 'PySpark'
+            }
+          ],
+          flashcards: [],
+          notebooks: [],
+          missions: []
+        }
+      }
+    };
+
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: boardWithTheoryOptions }))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            data: {
+              board: boardWithTheoryOptions
+            }
+          },
+          201
+        )
       );
 
     render(<HomeActivationTable {...buildProps()} />);
     await screen.findByText('Complete 2 PySpark modules');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    fireEvent.click(screen.getByRole('button', { name: /create task/i }));
+    fireEvent.click(screen.getByLabelText('Module 2'));
+    fireEvent.click(screen.getByLabelText('Module 3'));
+    const createButtons = screen.getAllByRole('button', { name: /^create task$/i });
+    fireEvent.click(createButtons[createButtons.length - 1]);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(fetchMock.mock.calls[1][0]).toBe('/api/activation-tasks/task-1/start');
-    expect(fetchMock.mock.calls[1][1]?.method).toBe('PATCH');
+    const createCall = fetchMock.mock.calls[1];
+    expect(createCall[0]).toBe('/api/activation-tasks');
+    expect(String(createCall[1]?.body)).toContain('"taskType":"theory"');
+    expect(String(createCall[1]?.body)).toContain('"contentItemIds":["module-2","module-3"]');
+  });
+
+  it('closes the create task modal when Escape is pressed', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: baseBoard }));
+
+    render(<HomeActivationTable {...buildProps()} />);
+    await screen.findByText('Complete 2 PySpark modules');
+
+    fireEvent.click(screen.getByRole('button', { name: /create task/i }));
+    expect(screen.getByText('New activation commitment')).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() =>
+      expect(screen.queryByText('New activation commitment')).not.toBeInTheDocument()
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps only edit on todo cards', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: baseBoard }));
+
+    render(<HomeActivationTable {...buildProps()} />);
+    await screen.findByText('Complete 2 PySpark modules');
+
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 
   it('supports dragging a todo task into In Progress to start it', async () => {
@@ -195,6 +258,164 @@ describe('HomeActivationTable', () => {
     expect(fetchMock.mock.calls[1][1]?.method).toBe('PATCH');
   });
 
+  it('supports dragging an in-progress task back into To Do', async () => {
+    const inProgressBoard = {
+      ...baseBoard,
+      todo: [],
+      inProgress: [
+        {
+          ...baseBoard.todo[0],
+          status: 'in_progress',
+          statusLabel: '0/2 complete',
+          actionLabel: 'Open'
+        }
+      ]
+    };
+
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: inProgressBoard }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            board: {
+              ...baseBoard,
+              todo: [
+                {
+                  ...baseBoard.todo[0],
+                  status: 'todo',
+                  statusLabel: '2 linked items',
+                  actionLabel: 'Start'
+                }
+              ],
+              inProgress: []
+            }
+          }
+        })
+      );
+
+    render(<HomeActivationTable {...buildProps()} />);
+    await screen.findByText('Complete 2 PySpark modules');
+
+    const taskCard = screen.getByText('Complete 2 PySpark modules').closest('article');
+    expect(taskCard).not.toBeNull();
+
+    const dataTransfer = {
+      effectAllowed: 'move',
+      dropEffect: 'move',
+      setData: vi.fn(),
+      getData: vi.fn()
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(taskCard!, { dataTransfer });
+    fireEvent.dragOver(screen.getByTestId('activation-column-todo'), { dataTransfer });
+    fireEvent.drop(screen.getByTestId('activation-column-todo'), { dataTransfer });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/activation-tasks/task-1/todo');
+    expect(fetchMock.mock.calls[1][1]?.method).toBe('PATCH');
+  });
+
+  it('does not allow dragging unfinished tasks into Completed', async () => {
+    const inProgressBoard = {
+      ...baseBoard,
+      todo: [],
+      inProgress: [
+        {
+          ...baseBoard.todo[0],
+          status: 'in_progress',
+          statusLabel: '0/2 complete',
+          actionLabel: 'Open'
+        }
+      ]
+    };
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: inProgressBoard }));
+
+    render(<HomeActivationTable {...buildProps()} />);
+    await screen.findByText('Complete 2 PySpark modules');
+
+    const taskCard = screen.getByText('Complete 2 PySpark modules').closest('article');
+    expect(taskCard).not.toBeNull();
+
+    const dataTransfer = {
+      effectAllowed: 'move',
+      dropEffect: 'move',
+      setData: vi.fn(),
+      getData: vi.fn()
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(taskCard!, { dataTransfer });
+    fireEvent.dragOver(screen.getByTestId('activation-column-completed'), { dataTransfer });
+    fireEvent.drop(screen.getByTestId('activation-column-completed'), { dataTransfer });
+
+    await waitFor(() =>
+      expect(screen.getByText('Finish all linked items to unlock Completed.')).toBeInTheDocument()
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('unlocks finished in-progress tasks for drag to Completed', async () => {
+    const readyBoard = {
+      ...baseBoard,
+      todo: [],
+      inProgress: [
+        {
+          ...baseBoard.todo[0],
+          status: 'in_progress',
+          statusLabel: '1/1 complete',
+          actionLabel: 'Open',
+          requestedCount: 1,
+          progress: { completed: 1, total: 1 }
+        }
+      ]
+    };
+
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: readyBoard }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            board: {
+              ...readyBoard,
+              inProgress: [],
+              completed: [
+                {
+                  ...readyBoard.inProgress[0],
+                  status: 'completed',
+                  actionLabel: null,
+                  completedAt: '2026-03-13T09:00:00.000Z'
+                }
+              ]
+            }
+          }
+        })
+      );
+
+    render(<HomeActivationTable {...buildProps()} />);
+    await screen.findByText('Complete 2 PySpark modules');
+
+    expect(screen.getByText('Ready to complete')).toBeInTheDocument();
+    expect(screen.getByText('1 task unlocked. Drag into Completed.')).toBeInTheDocument();
+
+    const taskCard = screen.getByText('Complete 2 PySpark modules').closest('article');
+    expect(taskCard).not.toBeNull();
+
+    const dataTransfer = {
+      effectAllowed: 'move',
+      dropEffect: 'move',
+      setData: vi.fn(),
+      getData: vi.fn()
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(taskCard!, { dataTransfer });
+    fireEvent.dragOver(screen.getByTestId('activation-column-completed'), { dataTransfer });
+    fireEvent.drop(screen.getByTestId('activation-column-completed'), { dataTransfer });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/activation-tasks/task-1/completed');
+    expect(fetchMock.mock.calls[1][1]?.method).toBe('PATCH');
+  });
+
   it('edits a todo task via PATCH endpoint', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ data: baseBoard }))
@@ -229,7 +450,56 @@ describe('HomeActivationTable', () => {
     expect(fetchMock.mock.calls[1][1]?.method).toBe('PATCH');
   });
 
-  it('deletes a task via DELETE endpoint', async () => {
+  it('edits an in-progress task via PATCH endpoint', async () => {
+    const inProgressBoard = {
+      ...baseBoard,
+      todo: [],
+      inProgress: [
+        {
+          ...baseBoard.todo[0],
+          status: 'in_progress',
+          statusLabel: '0/1 complete',
+          actionLabel: 'Open',
+          requestedCount: 1,
+          progress: { completed: 0, total: 1 }
+        }
+      ]
+    };
+
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: inProgressBoard }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            board: {
+              ...inProgressBoard,
+              inProgress: [
+                {
+                  ...inProgressBoard.inProgress[0],
+                  title: 'Complete 2 PySpark modules',
+                  requestedCount: 2,
+                  statusLabel: '0/2 complete',
+                  progress: { completed: 0, total: 2 }
+                }
+              ]
+            }
+          }
+        })
+      );
+
+    render(<HomeActivationTable {...buildProps()} />);
+    await screen.findByText('Complete 2 PySpark modules');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByText('Update activation commitment')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save task' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/activation-tasks/task-1');
+    expect(fetchMock.mock.calls[1][1]?.method).toBe('PATCH');
+  });
+
+  it('deletes a task from the edit flow via DELETE endpoint', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ data: baseBoard }))
       .mockResolvedValueOnce(
@@ -246,9 +516,11 @@ describe('HomeActivationTable', () => {
     render(<HomeActivationTable {...buildProps()} />);
     await screen.findByText('Complete 2 PySpark modules');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    expect(screen.getByRole('heading', { name: 'Delete task?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByText('Update activation commitment')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Delete task' }));
+    expect(screen.getByRole('heading', { name: 'Delete task?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm delete' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(fetchMock.mock.calls[1][0]).toBe('/api/activation-tasks/task-1');

@@ -1,5 +1,6 @@
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
+import { pysparkDataEngineeringTrackTheory } from '@/data/learn/theory/pysparkDataEngineeringTrack';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -13,7 +14,7 @@ export interface TheoryTrackSummary {
 }
 
 const buildTrack = (
-  doc: TheoryDoc,
+  sourceDoc: TheoryDoc,
   {
     slug,
     label,
@@ -22,7 +23,7 @@ const buildTrack = (
     highlights
   }: Omit<TheoryTrackSummary, 'chapters' | 'chapterCount' | 'totalMinutes'>
 ): TheoryTrackSummary => {
-  const chapters = sortModulesByOrder(doc.modules ?? doc.chapters);
+  const chapters = sortModulesByOrder(sourceDoc.modules ?? sourceDoc.chapters);
 
   return {
     slug,
@@ -36,11 +37,20 @@ const buildTrack = (
   };
 };
 
-export const getTheoryTracks = (doc: TheoryDoc): TheoryTrackSummary[] => {
+interface TheoryTrackConfig {
+  slug: string;
+  label: string;
+  eyebrow: string;
+  description: string;
+  highlights: string[];
+  sourceDoc: TheoryDoc;
+}
+
+const getTheoryTrackConfigs = (doc: TheoryDoc): TheoryTrackConfig[] => {
   switch (doc.topic) {
     case 'pyspark':
       return [
-        buildTrack(doc, {
+        {
           slug: 'full-stack',
           label: 'PySpark: The Full Stack',
           eyebrow: 'Track 01',
@@ -50,12 +60,26 @@ export const getTheoryTracks = (doc: TheoryDoc): TheoryTrackSummary[] => {
             'Foundations, internals, and distributed execution',
             'Delta, modeling, quality, and performance engineering',
             'Streaming, platform design, governance, and interview depth'
-          ]
-        })
+          ],
+          sourceDoc: doc
+        },
+        {
+          slug: 'data-engineering-track',
+          label: 'PySpark: Data Engineering Track',
+          eyebrow: 'Track 02',
+          description:
+            'A focused data engineering route: platform foundations, OneLake, lakehouse workflows, orchestration, Spark, and capstone delivery.',
+          highlights: [
+            'Platform and OneLake fundamentals first (F1 + F2)',
+            'Core data engineering modules from DE1 through DE8',
+            'Applied production patterns across pipeline, SQL, and medallion layers'
+          ],
+          sourceDoc: pysparkDataEngineeringTrackTheory
+        }
       ];
     case 'fabric':
       return [
-        buildTrack(doc, {
+        {
           slug: 'full-stack',
           label: 'Fabric: End-to-End Platform',
           eyebrow: 'Track 01',
@@ -65,12 +89,25 @@ export const getTheoryTracks = (doc: TheoryDoc): TheoryTrackSummary[] => {
             'Platform architecture, OneLake, and core workloads',
             'Data movement, Spark engineering, warehousing, and SQL analytics',
             'Realtime intelligence, BI, governance, operations, and capstone'
-          ]
-        })
+          ],
+          sourceDoc: doc
+        }
       ];
     default:
       return [];
   }
+};
+
+export const getTheoryTracks = (doc: TheoryDoc): TheoryTrackSummary[] => {
+  return getTheoryTrackConfigs(doc).map((config) =>
+    buildTrack(config.sourceDoc, {
+      slug: config.slug,
+      label: config.label,
+      eyebrow: config.eyebrow,
+      description: config.description,
+      highlights: config.highlights
+    })
+  );
 };
 
 export const getTheoryTrackBySlug = (
@@ -78,3 +115,9 @@ export const getTheoryTrackBySlug = (
   slug: string
 ): TheoryTrackSummary | null =>
   getTheoryTracks(doc).find((track) => track.slug === slug) ?? null;
+
+export const getTheoryTrackDocBySlug = (
+  doc: TheoryDoc,
+  slug: string
+): TheoryDoc | null =>
+  getTheoryTrackConfigs(doc).find((track) => track.slug === slug)?.sourceDoc ?? null;

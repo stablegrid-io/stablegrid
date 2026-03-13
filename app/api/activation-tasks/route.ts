@@ -42,6 +42,11 @@ export async function POST(request: Request) {
           typeof payload.requestedCount === 'number'
             ? payload.requestedCount
             : undefined,
+        contentItemIds: Array.isArray(payload.contentItemIds)
+          ? payload.contentItemIds.filter(
+              (value): value is string => typeof value === 'string'
+            )
+          : undefined,
         contentItemId:
           typeof payload.contentItemId === 'string'
             ? payload.contentItemId
@@ -52,7 +57,7 @@ export async function POST(request: Request) {
     const board = await getActivationBoardData({
       supabase,
       userId: user.id,
-      shouldReconcile: true
+      shouldReconcile: false
     });
     const allCards = [...board.todo, ...board.inProgress, ...board.completed];
     const createdCard = allCards.find((card) => card.id === created.taskId) ?? null;

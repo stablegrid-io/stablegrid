@@ -78,7 +78,7 @@ function ModelCore({
 
   const normalizedModel = useMemo(() => {
     const scene = cloneSceneWithDetachedMaterials(gltf.scene);
-    tuneGridModelMaterials(scene, 'scene');
+    tuneGridModelMaterials(scene, 'preview');
     const box = computeMeshBounds(scene);
     const size = new Vector3();
     const center = new Vector3();
@@ -425,13 +425,8 @@ export function NodeActor({
     }
 
     if (modelWrapperRef.current) {
-      const pulseStateBoost = deploying ? 0.24 : highlighted ? 0.18 : connected ? 0.1 : 0;
-
       animatedModelPartsRef.current.pulses.forEach((pulse) => {
-        pulse.material.emissiveIntensity =
-          modelMotion.pulseBase +
-          pulseStateBoost +
-          pulse.weight * modelMotion.pulseBoost * (reducedMotion ? 0.35 : 0.55 + 0.45 * ((Math.sin(elapsed * 3.4 * motionMultiplier + pulse.phase) + 1) / 2));
+        pulse.material.emissiveIntensity = 0.02;
       });
     }
 

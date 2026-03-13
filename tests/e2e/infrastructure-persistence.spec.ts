@@ -44,7 +44,7 @@ test.describe('infrastructure persistence', () => {
     });
     await page.reload({ waitUntil: 'networkidle' });
 
-    await expect(page.locator('main')).toContainText('Live Grid Stabilization Map', {
+    await expect(page.locator('main')).toContainText('Restore the Iberian Grid', {
       timeout: 20_000
     });
 

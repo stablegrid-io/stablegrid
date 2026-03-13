@@ -239,7 +239,7 @@ export const CheatSheetLayout = ({ data }: CheatSheetLayoutProps) => {
   }, []);
 
   return (
-    <div className="h-[calc(100dvh-4rem)] overflow-y-auto bg-light-bg dark:bg-dark-bg">
+    <div className="h-[calc(100dvh-4rem)] overflow-y-auto bg-light-bg dark:bg-dark-bg lg:h-[100dvh]">
       <div className="mx-auto max-w-[1280px] px-4 py-6 lg:px-6">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div>

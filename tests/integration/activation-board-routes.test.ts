@@ -547,8 +547,11 @@ describe('activation board API routes', () => {
     }>(response);
 
     expect(payload.data.todo).toHaveLength(0);
-    expect(payload.data.inProgress.map((task) => task.id)).toEqual(['task-mission']);
-    expect(payload.data.completed.map((task) => task.id)).toEqual(['task-theory']);
+    expect(payload.data.inProgress.map((task) => task.id).sort()).toEqual([
+      'task-mission',
+      'task-theory'
+    ]);
+    expect(payload.data.completed).toHaveLength(0);
   });
 
   it('PATCH /api/activation-tasks/:id/start transitions todo task to in_progress', async () => {
@@ -635,6 +638,138 @@ describe('activation board API routes', () => {
     expect(task?.status).toBe('in_progress');
     const item = db.user_activation_task_items.find((row) => row.id === 'item-1');
     expect(item?.item_status).toBe('in_progress');
+  });
+
+  it('PATCH /api/activation-tasks/:id/todo transitions in_progress task to todo', async () => {
+    const db = createDb();
+    db.content_items.push({
+      id: 'content-1',
+      track_id: 'track-pyspark',
+      content_type: 'theory_module',
+      source_ref: 'module-01',
+      title: 'Module 1',
+      sequence_order: 1,
+      is_active: true
+    });
+    db.user_activation_tasks.push({
+      id: 'task-1',
+      user_id: 'user-1',
+      task_type: 'theory',
+      task_group: 'theory',
+      title: 'Complete 1 PySpark module',
+      description: 'Continue through the next theory units in this track.',
+      scope_type: 'count',
+      requested_count: 1,
+      status: 'in_progress',
+      track_id: 'track-pyspark',
+      created_at: nowIso(),
+      started_at: nowIso(),
+      completed_at: null
+    });
+    db.user_activation_task_items.push({
+      id: 'item-1',
+      user_id: 'user-1',
+      activation_task_id: 'task-1',
+      content_item_id: 'content-1',
+      item_status: 'in_progress',
+      started_at: nowIso(),
+      completed_at: null
+    });
+    db.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const client = createSupabaseClient(db);
+    createClientMock.mockReturnValue(client);
+    const { PATCH } = await import('@/app/api/activation-tasks/[id]/todo/route');
+
+    const response = await PATCH(
+      new Request('http://localhost/api/activation-tasks/task-1/todo', {
+        method: 'PATCH'
+      }),
+      { params: { id: 'task-1' } }
+    );
+
+    expect(response.status).toBe(200);
+    const payload = await parseJson<{
+      data: { task: { status: string } | null };
+    }>(response);
+
+    expect(payload.data.task?.status).toBe('todo');
+    const task = db.user_activation_tasks.find((row) => row.id === 'task-1');
+    expect(task?.status).toBe('todo');
+    const item = db.user_activation_task_items.find((row) => row.id === 'item-1');
+    expect(item?.item_status).toBe('todo');
+  });
+
+  it('PATCH /api/activation-tasks/:id/completed transitions unlocked in_progress task to completed', async () => {
+    const db = createDb();
+    db.content_items.push({
+      id: 'content-1',
+      track_id: 'track-pyspark',
+      content_type: 'theory_module',
+      source_ref: 'module-01',
+      title: 'Module 1',
+      sequence_order: 1,
+      is_active: true
+    });
+    db.user_activation_tasks.push({
+      id: 'task-1',
+      user_id: 'user-1',
+      task_type: 'theory',
+      task_group: 'theory',
+      title: 'Complete 1 PySpark module',
+      description: 'Continue through the next theory units in this track.',
+      scope_type: 'count',
+      requested_count: 1,
+      status: 'in_progress',
+      track_id: 'track-pyspark',
+      created_at: nowIso(),
+      started_at: nowIso(),
+      completed_at: null
+    });
+    db.user_activation_task_items.push({
+      id: 'item-1',
+      user_id: 'user-1',
+      activation_task_id: 'task-1',
+      content_item_id: 'content-1',
+      item_status: 'completed',
+      started_at: nowIso(),
+      completed_at: nowIso()
+    });
+    db.module_progress.push({
+      user_id: 'user-1',
+      module_id: 'module-01',
+      is_completed: true
+    });
+    db.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const client = createSupabaseClient(db);
+    createClientMock.mockReturnValue(client);
+    const { PATCH } = await import('@/app/api/activation-tasks/[id]/completed/route');
+
+    const response = await PATCH(
+      new Request('http://localhost/api/activation-tasks/task-1/completed', {
+        method: 'PATCH'
+      }),
+      { params: { id: 'task-1' } }
+    );
+
+    expect(response.status).toBe(200);
+    const payload = await parseJson<{
+      data: { task: { status: string } | null };
+    }>(response);
+
+    expect(payload.data.task?.status).toBe('completed');
+    const task = db.user_activation_tasks.find((row) => row.id === 'task-1');
+    expect(task?.status).toBe('completed');
+    expect(task?.completed_at).toBeTruthy();
   });
 
   it('PATCH /api/activation-tasks/:id edits a todo task using structured payload', async () => {
@@ -724,6 +859,97 @@ describe('activation board API routes', () => {
     expect(
       db.user_activation_task_items.filter((row) => row.activation_task_id === 'task-edit-1')
     ).toHaveLength(2);
+  });
+
+  it('PATCH /api/activation-tasks/reorder persists task order inside a column', async () => {
+    const db = createDb();
+    db.user_activation_tasks.push(
+      {
+        id: 'task-1',
+        user_id: 'user-1',
+        task_type: 'theory',
+        task_group: 'theory',
+        title: 'Complete 2 selected modules',
+        description: 'Continue through these selected theory modules in your track.',
+        scope_type: 'count',
+        requested_count: 2,
+        status: 'todo',
+        sort_order: 1000,
+        track_id: 'track-pyspark',
+        created_at: '2026-03-13T08:00:00.000Z',
+        started_at: null,
+        completed_at: null
+      },
+      {
+        id: 'task-2',
+        user_id: 'user-1',
+        task_type: 'theory',
+        task_group: 'theory',
+        title: 'Complete Module 8: Complex Data Types',
+        description: 'Continue through this theory module in your track.',
+        scope_type: 'count',
+        requested_count: 1,
+        status: 'todo',
+        sort_order: 2000,
+        track_id: 'track-pyspark',
+        created_at: '2026-03-13T09:00:00.000Z',
+        started_at: null,
+        completed_at: null
+      }
+    );
+    db.user_activation_task_items.push(
+      {
+        id: 'item-1',
+        user_id: 'user-1',
+        activation_task_id: 'task-1',
+        content_item_id: 'content-1',
+        item_status: 'todo',
+        started_at: null,
+        completed_at: null
+      },
+      {
+        id: 'item-2',
+        user_id: 'user-1',
+        activation_task_id: 'task-2',
+        content_item_id: 'content-2',
+        item_status: 'todo',
+        started_at: null,
+        completed_at: null
+      }
+    );
+    db.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const client = createSupabaseClient(db);
+    createClientMock.mockReturnValue(client);
+    const { PATCH } = await import('@/app/api/activation-tasks/reorder/route');
+
+    const response = await PATCH(
+      new Request('http://localhost/api/activation-tasks/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'todo',
+          orderedTaskIds: ['task-2', 'task-1']
+        })
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const payload = await parseJson<{
+      data: {
+        board: {
+          todo: Array<{ id: string }>;
+        };
+      };
+    }>(response);
+
+    expect(payload.data.board.todo.map((task) => task.id)).toEqual(['task-2', 'task-1']);
+    expect(db.user_activation_tasks.find((row) => row.id === 'task-2')?.sort_order).toBe(1000);
+    expect(db.user_activation_tasks.find((row) => row.id === 'task-1')?.sort_order).toBe(2000);
   });
 
   it('DELETE /api/activation-tasks/:id removes a task and linked items', async () => {

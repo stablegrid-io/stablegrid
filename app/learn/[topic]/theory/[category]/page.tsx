@@ -10,7 +10,11 @@ import {
   getTheoryCategoryMeta,
   type TheoryCategorySlug
 } from '@/data/learn/theory/categories';
-import { getTheoryTrackBySlug, getTheoryTracks } from '@/data/learn/theory/tracks';
+import {
+  getTheoryTrackBySlug,
+  getTheoryTrackDocBySlug,
+  getTheoryTracks
+} from '@/data/learn/theory/tracks';
 import { loadServerTheoryProgress } from '@/lib/learn/serverTheoryProgress';
 
 interface LearnTopicTheoryCategoryPageProps {
@@ -18,12 +22,17 @@ interface LearnTopicTheoryCategoryPageProps {
     topic: string;
     category: string;
   };
+  searchParams?: {
+    chapter?: string | string[];
+    lesson?: string | string[];
+  };
 }
 
 const ALL_CATEGORY = 'all';
 
 export default async function LearnTopicTheoryCategoryPage({
-  params
+  params,
+  searchParams
 }: LearnTopicTheoryCategoryPageProps) {
   const doc = theoryDocs[params.topic];
   if (!doc) {
@@ -33,12 +42,24 @@ export default async function LearnTopicTheoryCategoryPage({
   const categoryParam = params.category.toLowerCase();
   const track = getTheoryTrackBySlug(doc, categoryParam);
   if (track) {
+    const trackDoc = getTheoryTrackDocBySlug(doc, categoryParam) ?? doc;
+    const requestedChapter =
+      typeof searchParams?.chapter === 'string'
+        ? searchParams.chapter
+        : Array.isArray(searchParams?.chapter)
+          ? searchParams.chapter[0]
+          : null;
+
+    if (requestedChapter) {
+      return <TheoryLayout doc={trackDoc} />;
+    }
+
     const { completedChapterIds, chapterProgressById, moduleProgressById } =
-      await loadServerTheoryProgress(params.topic);
+      await loadServerTheoryProgress(trackDoc.topic);
 
     return (
       <TheoryTrackPath
-        doc={doc}
+        doc={trackDoc}
         track={track}
         completedChapterIds={completedChapterIds}
         chapterProgressById={chapterProgressById}

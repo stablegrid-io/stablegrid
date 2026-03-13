@@ -39,7 +39,7 @@ test.describe('grid ops core loop', () => {
     await seedEnergyBudget(page);
 
     await page.goto('/energy', { waitUntil: 'networkidle' });
-    await expect(page.locator('main')).toContainText('Live Grid Stabilization Map', {
+    await expect(page.locator('main')).toContainText('Restore the Iberian Grid', {
       timeout: 20_000
     });
     await expect(page.locator('main')).toContainText('Active Event', {

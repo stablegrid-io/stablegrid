@@ -90,7 +90,7 @@ describe('loadServerTheoryProgress', () => {
     createClientMock.mockReset();
   });
 
-  it('densifies sparse module_progress rows before exposing them to learn pages', async () => {
+  it('keeps completion strictly module-based when module_progress rows are sparse', async () => {
     createClientMock.mockReturnValue(
       makeSupabaseClient({
         readingRows: [
@@ -151,11 +151,12 @@ describe('loadServerTheoryProgress', () => {
     const { loadServerTheoryProgress } = await import('@/lib/learn/serverTheoryProgress');
     const progress = await loadServerTheoryProgress('pyspark');
 
-    expect(progress.completedChapterIds).toEqual(['module-01', 'module-02']);
+    expect(progress.totalChapterCount).toBe(30);
+    expect(progress.completedChapterIds).toEqual(['module-01']);
     expect(progress.moduleProgressById['module-02']).toEqual({
       moduleOrder: 2,
       isUnlocked: true,
-      isCompleted: true,
+      isCompleted: false,
       currentLessonId: null,
       lastVisitedRoute: null,
       updatedAt: null
@@ -192,6 +193,7 @@ describe('loadServerTheoryProgress', () => {
     const { loadServerTheoryProgress } = await import('@/lib/learn/serverTheoryProgress');
     const progress = await loadServerTheoryProgress('pyspark');
 
+    expect(progress.totalChapterCount).toBe(30);
     expect(progress.completedChapterIds).toEqual(['module-01']);
     expect(progress.chapterProgressById['module-01']).toMatchObject({
       sectionsRead: 4,
@@ -229,6 +231,7 @@ describe('loadServerTheoryProgress', () => {
     const { loadServerTheoryProgress } = await import('@/lib/learn/serverTheoryProgress');
     const progress = await loadServerTheoryProgress('pyspark');
 
+    expect(progress.totalChapterCount).toBe(30);
     expect(progress.chapterProgressById['module-01']).toMatchObject({
       sectionsRead: 1,
       sectionsTotal: 4,

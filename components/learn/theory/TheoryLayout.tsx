@@ -79,12 +79,30 @@ const parseLessonFromRoute = (route: string | null) => {
   return lessonId && lessonId.trim().length > 0 ? lessonId : null;
 };
 
+const parseTheoryTrackSlugFromPathname = (pathname: string) => {
+  const match = pathname.match(/^\/learn\/[^/]+\/theory\/([^/?#]+)/);
+  if (!match) {
+    return null;
+  }
+
+  const slug = match[1]?.trim().toLowerCase();
+  if (!slug || slug === 'all') {
+    return null;
+  }
+
+  return slug;
+};
+
 export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const requestedChapterId = searchParams.get('chapter');
   const requestedLessonId = searchParams.get('lesson');
+  const activeTrackSlug = useMemo(
+    () => parseTheoryTrackSlugFromPathname(pathname),
+    [pathname]
+  );
 
   const modules = useMemo(
     () => sortModulesByOrder(doc.modules ?? doc.chapters),
@@ -279,7 +297,9 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     const loadModuleProgress = async () => {
       try {
         const response = await fetch(
-          `/api/learn/module-progress?topic=${encodeURIComponent(doc.topic)}`,
+          `/api/learn/module-progress?topic=${encodeURIComponent(doc.topic)}${
+            activeTrackSlug ? `&track=${encodeURIComponent(activeTrackSlug)}` : ''
+          }`,
           {
             method: 'GET',
             cache: 'no-store'
@@ -372,6 +392,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       mounted = false;
     };
   }, [
+    activeTrackSlug,
     applyModuleProgressRows,
     doc.topic,
     modules,
@@ -561,6 +582,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         },
         body: JSON.stringify({
           topic: doc.topic,
+          track: activeTrackSlug,
           action,
           moduleId,
           currentLessonId,
@@ -581,7 +603,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       setProgressIssue((current) => (current?.kind === 'sync' ? null : current));
       return payload;
     },
-    [applyModuleProgressRows, doc.topic]
+    [activeTrackSlug, applyModuleProgressRows, doc.topic]
   );
 
   useEffect(() => {
@@ -744,7 +766,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   ]);
 
   return (
-    <div className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-light-bg dark:bg-dark-bg">
+    <div className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-light-bg dark:bg-dark-bg lg:h-[100dvh]">
       <div className="flex h-11 flex-shrink-0 items-center gap-3 border-b border-light-border bg-light-bg px-4 dark:border-dark-border dark:bg-dark-bg">
         <button
           type="button"

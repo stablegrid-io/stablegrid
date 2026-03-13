@@ -1,56 +1,8 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  type LucideIcon,
-  BarChart3,
-  BookOpen,
-  ClipboardCheck,
-  Home,
-  Zap
-} from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
-
-interface NavItem {
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  badge?: number;
-  matchPrefixes?: string[];
-}
-
-const navItems: NavItem[] = [
-  { href: '/', icon: Home, label: 'Home' },
-  {
-    href: '/learn/theory',
-    icon: BookOpen,
-    label: 'Theory',
-    matchPrefixes: ['/learn']
-  },
-  {
-    href: '/tasks',
-    icon: ClipboardCheck,
-    label: 'Tasks',
-    matchPrefixes: ['/tasks', '/practice', '/missions', '/flashcards']
-  },
-  { href: '/energy', icon: Zap, label: 'Grid' },
-  { href: '/progress', icon: BarChart3, label: 'HRB' }
-];
-
-const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
-  if (!pathname) return false;
-  if (!isAuthenticated) {
-    return true;
-  }
-  if (
-    pathname.startsWith('/practice/') &&
-    pathname !== '/practice/setup' &&
-    pathname !== '/practice/notebooks'
-  ) {
-    return true;
-  }
-  return ['/login', '/signup', '/reset-password', '/update-password'].includes(pathname);
-};
+import { isNavItemActive, navItems, shouldHideNav } from './navigation-config';
 
 export const BottomNav = () => {
   const pathname = usePathname();
@@ -66,11 +18,7 @@ export const BottomNav = () => {
       <div className="flex h-16 items-center justify-around px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = item.matchPrefixes
-            ? item.matchPrefixes.some(
-                (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
-              )
-            : pathname === item.href || pathname?.startsWith(`${item.href}/`);
+          const isActive = isNavItemActive(pathname, item);
 
           return (
             <button
@@ -91,11 +39,6 @@ export const BottomNav = () => {
                       : 'text-text-light-tertiary dark:text-text-dark-tertiary'
                   }`}
                 />
-                {item.badge ? (
-                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-error-500 text-[10px] font-medium text-white">
-                    {item.badge > 9 ? '9+' : item.badge}
-                  </span>
-                ) : null}
               </div>
 
               <span

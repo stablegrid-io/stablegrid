@@ -583,7 +583,7 @@ export function GridSceneCanvas({
             onAssetSelect(null);
           }}
           onCreated={({ gl }) => {
-            gl.toneMappingExposure = 1.18;
+            gl.toneMappingExposure = 1.04;
           }}
           camera={{
             fov: cameraPose.fov,
@@ -594,19 +594,19 @@ export function GridSceneCanvas({
         >
           <OrbitCameraRig pose={cameraPose} controls={cameraControlLimits} />
 
-          <ambientLight intensity={0.62} color="#ffffff" />
-          <hemisphereLight intensity={0.48} color="#f6f8ff" groundColor="#263126" />
+          <ambientLight intensity={0.44} color="#f7f8fb" />
+          <hemisphereLight intensity={0.28} color="#f3f5f9" groundColor="#27302b" />
           <directionalLight
             castShadow={qualityCaps.enableShadows}
-            intensity={1.04}
+            intensity={0.86}
             color="#ffffff"
             position={[7.8, 12, 3.4]}
             shadow-mapSize-width={1024}
             shadow-mapSize-height={1024}
           />
-          <directionalLight intensity={0.42} color="#c9d6ff" position={[-5.8, 4.4, -3.2]} />
-          <pointLight intensity={0.14} color="#7fd0ff" position={[4.6, 2.4, -1.8]} />
-          <pointLight intensity={0.1} color="#74e4b6" position={[-6.2, 1.4, 1.2]} />
+          <directionalLight intensity={0.16} color="#dfe5ee" position={[-5.8, 4.4, -3.2]} />
+          <pointLight intensity={0.035} color="#dbe5f2" position={[4.6, 2.4, -1.8]} />
+          <pointLight intensity={0.025} color="#dce6de" position={[-6.2, 1.4, 1.2]} />
 
           <GridGround activationRatio={activationRatio} />
           <GridScenePostFX caps={qualityCaps} />

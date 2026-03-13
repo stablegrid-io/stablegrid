@@ -4,6 +4,9 @@ import {
   createActivationTask,
   deleteActivationTask,
   editActivationTask,
+  moveActivationTaskToCompleted,
+  moveActivationTaskToTodo,
+  reorderActivationTasks,
   reconcileActivationTaskStatuses,
   startActivationTask
 } from '@/lib/activation/service';
@@ -51,6 +54,16 @@ const matchesFilters = (
 };
 
 const projectRow = (db: InMemoryDb, table: keyof InMemoryDb, row: Row, columns: string) => {
+  if (table === 'content_items' && columns.includes('tracks:track_id')) {
+    const track = db.tracks.find((entry) => entry.id === row.track_id);
+    return {
+      ...row,
+      tracks: track
+        ? { slug: track.slug, title: track.title, is_active: track.is_active }
+        : null
+    };
+  }
+
   if (table === 'user_activation_tasks') {
     const projected = { ...row };
     if (columns.includes('tracks:track_id')) {
@@ -405,6 +418,220 @@ describe('activation service', () => {
     );
   });
 
+  it('creates a theory task from explicitly selected modules', async () => {
+    const seed = createDb();
+    seed.content_items.push(
+      {
+        id: 'module-a',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-01',
+        title: 'PySpark Module 1',
+        sequence_order: 1,
+        is_active: true
+      },
+      {
+        id: 'module-b',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-02',
+        title: 'PySpark Module 2',
+        sequence_order: 2,
+        is_active: true
+      },
+      {
+        id: 'module-c',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-03',
+        title: 'PySpark Module 3',
+        sequence_order: 3,
+        is_active: true
+      }
+    );
+    seed.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const { client, db } = createSupabase(seed);
+    const created = await createActivationTask({
+      supabase: client,
+      userId: 'user-1',
+      input: {
+        taskType: 'theory',
+        taskGroup: 'theory',
+        scopeType: 'count',
+        contentItemIds: ['module-b', 'module-c']
+      }
+    });
+
+    const task = db.user_activation_tasks.find((entry) => entry.id === created.taskId);
+    expect(task?.requested_count).toBe(2);
+    expect(task?.title).toBe('Complete 2 selected modules');
+
+    const linkedItems = db.user_activation_task_items.filter(
+      (entry) => entry.activation_task_id === created.taskId
+    );
+    expect(linkedItems).toHaveLength(2);
+    expect(linkedItems[0].content_item_id).toBe('module-b');
+    expect(linkedItems[1].content_item_id).toBe('module-c');
+  });
+
+  it('supports explicit theory selections with more than three modules', async () => {
+    const seed = createDb();
+    seed.content_items.push(
+      {
+        id: 'module-a',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-01',
+        title: 'PySpark Module 1',
+        sequence_order: 1,
+        is_active: true
+      },
+      {
+        id: 'module-b',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-02',
+        title: 'PySpark Module 2',
+        sequence_order: 2,
+        is_active: true
+      },
+      {
+        id: 'module-c',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-03',
+        title: 'PySpark Module 3',
+        sequence_order: 3,
+        is_active: true
+      },
+      {
+        id: 'module-d',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-04',
+        title: 'PySpark Module 4',
+        sequence_order: 4,
+        is_active: true
+      }
+    );
+    seed.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const { client, db } = createSupabase(seed);
+    const created = await createActivationTask({
+      supabase: client,
+      userId: 'user-1',
+      input: {
+        taskType: 'theory',
+        taskGroup: 'theory',
+        scopeType: 'count',
+        contentItemIds: ['module-a', 'module-b', 'module-c', 'module-d']
+      }
+    });
+
+    const task = db.user_activation_tasks.find((entry) => entry.id === created.taskId);
+    expect(task?.requested_count).toBe(4);
+
+    const linkedItems = db.user_activation_task_items.filter(
+      (entry) => entry.activation_task_id === created.taskId
+    );
+    expect(linkedItems).toHaveLength(4);
+  });
+
+  it('does not allow reselecting modules already linked to prior theory tasks', async () => {
+    const seed = createDb();
+    seed.content_items.push(
+      {
+        id: 'module-a',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-01',
+        title: 'PySpark Module 1',
+        sequence_order: 1,
+        is_active: true
+      },
+      {
+        id: 'module-b',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-02',
+        title: 'PySpark Module 2',
+        sequence_order: 2,
+        is_active: true
+      }
+    );
+    seed.user_activation_tasks.push({
+      id: 'old-theory-task',
+      user_id: 'user-1',
+      task_type: 'theory',
+      task_group: 'theory',
+      title: 'Complete PySpark Module 1',
+      description: 'Continue through this theory module in your track.',
+      scope_type: 'count',
+      requested_count: 1,
+      status: 'completed',
+      track_id: 'track-pyspark',
+      created_at: nowIso(),
+      started_at: nowIso(),
+      completed_at: nowIso()
+    });
+    seed.user_activation_task_items.push({
+      id: 'old-theory-item',
+      user_id: 'user-1',
+      activation_task_id: 'old-theory-task',
+      content_item_id: 'module-a',
+      item_status: 'completed',
+      started_at: nowIso(),
+      completed_at: nowIso()
+    });
+    seed.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const { client, db } = createSupabase(seed);
+
+    await expect(
+      createActivationTask({
+        supabase: client,
+        userId: 'user-1',
+        input: {
+          taskType: 'theory',
+          taskGroup: 'theory',
+          scopeType: 'count',
+          contentItemIds: ['module-a']
+        }
+      })
+    ).rejects.toMatchObject({ status: 422 });
+
+    const created = await createActivationTask({
+      supabase: client,
+      userId: 'user-1',
+      input: {
+        taskType: 'theory',
+        taskGroup: 'theory',
+        trackSlug: 'pyspark',
+        scopeType: 'count',
+        requestedCount: 1
+      }
+    });
+
+    const linkedItems = db.user_activation_task_items.filter(
+      (entry) => entry.activation_task_id === created.taskId
+    );
+    expect(linkedItems).toHaveLength(1);
+    expect(linkedItems[0].content_item_id).toBe('module-b');
+  });
+
   it('creates all remaining mission items when scope is all_remaining', async () => {
     const seed = createDb();
     seed.content_items.push(
@@ -592,13 +819,16 @@ describe('activation service', () => {
 
     expect(
       db.user_activation_tasks.find((entry) => entry.id === 'task-theory')?.status
-    ).toBe('completed');
+    ).toBe('in_progress');
     expect(
       db.user_activation_tasks.find((entry) => entry.id === 'task-flashcard')?.status
-    ).toBe('completed');
+    ).toBe('in_progress');
     expect(
       db.user_activation_tasks.find((entry) => entry.id === 'task-notebook')?.status
-    ).toBe('completed');
+    ).toBe('in_progress');
+    expect(
+      db.user_activation_tasks.find((entry) => entry.id === 'task-theory')?.completed_at
+    ).toBeNull();
   });
 
   it('reconciles task and item status from source-of-truth mission progress', async () => {
@@ -652,10 +882,64 @@ describe('activation service', () => {
 
     const task = db.user_activation_tasks.find((entry) => entry.id === 'mission-task-1');
     const item = db.user_activation_task_items.find((entry) => entry.id === 'mission-item-1');
-    expect(task?.status).toBe('completed');
+    expect(task?.status).toBe('in_progress');
     expect(item?.item_status).toBe('completed');
-    expect(task?.completed_at).toBeTruthy();
+    expect(task?.completed_at).toBeNull();
     expect(item?.completed_at).toBeTruthy();
+  });
+
+  it('preserves completed task status during reconcile after the user finishes the drag-to-complete step', async () => {
+    const seed = createDb();
+    seed.content_items.push({
+      id: 'module-ready-1',
+      track_id: 'track-pyspark',
+      content_type: 'theory_module',
+      source_ref: 'module-06',
+      title: 'Module 6',
+      sequence_order: 6,
+      is_active: true
+    });
+    seed.user_activation_tasks.push({
+      id: 'task-done-1',
+      user_id: 'user-1',
+      task_type: 'theory',
+      task_group: 'theory',
+      title: 'Complete 1 PySpark module',
+      description: 'Continue through the next theory units in this track.',
+      scope_type: 'count',
+      requested_count: 1,
+      status: 'completed',
+      track_id: 'track-pyspark',
+      created_at: nowIso(),
+      started_at: nowIso(),
+      completed_at: nowIso()
+    });
+    seed.user_activation_task_items.push({
+      id: 'task-done-item-1',
+      user_id: 'user-1',
+      activation_task_id: 'task-done-1',
+      content_item_id: 'module-ready-1',
+      item_status: 'completed',
+      started_at: nowIso(),
+      completed_at: nowIso()
+    });
+    seed.module_progress.push({
+      user_id: 'user-1',
+      module_id: 'module-06',
+      is_completed: true
+    });
+    seed.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const { client, db } = createSupabase(seed);
+    await reconcileActivationTaskStatuses({ supabase: client, userId: 'user-1' });
+
+    const task = db.user_activation_tasks.find((entry) => entry.id === 'task-done-1');
+    expect(task?.status).toBe('completed');
+    expect(task?.completed_at).toBeTruthy();
   });
 
   it('edits a todo task and rebinds linked content items', async () => {
@@ -740,6 +1024,94 @@ describe('activation service', () => {
       (entry) => entry.activation_task_id === 'task-edit-1'
     );
     expect(items).toHaveLength(2);
+  });
+
+  it('edits an in_progress task without locking the edit flow to To Do only', async () => {
+    const seed = createDb();
+    seed.content_items.push(
+      {
+        id: 'module-1',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-01',
+        title: 'Module 1',
+        sequence_order: 1,
+        is_active: true
+      },
+      {
+        id: 'module-2',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-02',
+        title: 'Module 2',
+        sequence_order: 2,
+        is_active: true
+      },
+      {
+        id: 'module-3',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-03',
+        title: 'Module 3',
+        sequence_order: 3,
+        is_active: true
+      }
+    );
+    seed.user_activation_tasks.push({
+      id: 'task-edit-in-progress-1',
+      user_id: 'user-1',
+      task_type: 'theory',
+      task_group: 'theory',
+      title: 'Complete 1 PySpark module',
+      description: 'Continue through the next theory units in this track.',
+      scope_type: 'count',
+      requested_count: 1,
+      status: 'in_progress',
+      track_id: 'track-pyspark',
+      created_at: nowIso(),
+      started_at: nowIso(),
+      completed_at: null
+    });
+    seed.user_activation_task_items.push({
+      id: 'task-edit-in-progress-item-1',
+      user_id: 'user-1',
+      activation_task_id: 'task-edit-in-progress-1',
+      content_item_id: 'module-1',
+      item_status: 'in_progress',
+      started_at: nowIso(),
+      completed_at: null
+    });
+    seed.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const { client, db } = createSupabase(seed);
+    await editActivationTask({
+      supabase: client,
+      userId: 'user-1',
+      taskId: 'task-edit-in-progress-1',
+      input: {
+        taskType: 'theory',
+        taskGroup: 'theory',
+        trackSlug: 'pyspark',
+        scopeType: 'count',
+        requestedCount: 2
+      }
+    });
+
+    const task = db.user_activation_tasks.find((entry) => entry.id === 'task-edit-in-progress-1');
+    expect(task?.title).toBe('Complete 2 PySpark modules');
+    expect(task?.requested_count).toBe(2);
+    expect(task?.status).toBe('in_progress');
+    expect(task?.started_at).toBeTruthy();
+
+    const items = db.user_activation_task_items.filter(
+      (entry) => entry.activation_task_id === 'task-edit-in-progress-1'
+    );
+    expect(items).toHaveLength(2);
+    expect(items.every((entry) => entry.item_status === 'todo')).toBe(true);
   });
 
   it('deletes a task and all linked items', async () => {
@@ -852,6 +1224,156 @@ describe('activation service', () => {
     const firstItem = db.user_activation_task_items.find((entry) => entry.id === 'item-a');
     expect(firstItem?.item_status).toBe('in_progress');
     expect(firstItem?.started_at).toBeTruthy();
+  });
+
+  it('moves an in_progress task back to todo when it has no completed progress', async () => {
+    const seed = createDb();
+    seed.content_items.push({
+      id: 'c1',
+      track_id: 'track-pyspark',
+      content_type: 'theory_module',
+      source_ref: 'module-01',
+      title: 'Module 1',
+      sequence_order: 1,
+      is_active: true
+    });
+    seed.user_activation_tasks.push({
+      id: 'task-move-back-1',
+      user_id: 'user-1',
+      task_type: 'theory',
+      task_group: 'theory',
+      title: 'Complete 1 PySpark module',
+      description: 'Continue through the next theory units in this track.',
+      scope_type: 'count',
+      requested_count: 1,
+      status: 'in_progress',
+      track_id: 'track-pyspark',
+      created_at: nowIso(),
+      started_at: nowIso(),
+      completed_at: null
+    });
+    seed.user_activation_task_items.push({
+      id: 'item-move-back-1',
+      user_id: 'user-1',
+      activation_task_id: 'task-move-back-1',
+      content_item_id: 'c1',
+      item_status: 'in_progress',
+      started_at: nowIso(),
+      completed_at: null
+    });
+
+    const { client, db } = createSupabase(seed);
+    await moveActivationTaskToTodo({
+      supabase: client,
+      userId: 'user-1',
+      taskId: 'task-move-back-1'
+    });
+
+    const task = db.user_activation_tasks.find((entry) => entry.id === 'task-move-back-1');
+    expect(task?.status).toBe('todo');
+    expect(task?.started_at).toBeNull();
+    expect(task?.completed_at).toBeNull();
+
+    const item = db.user_activation_task_items.find((entry) => entry.id === 'item-move-back-1');
+    expect(item?.item_status).toBe('todo');
+    expect(item?.started_at).toBeNull();
+    expect(item?.completed_at).toBeNull();
+  });
+
+  it('moves an unlocked in_progress task to completed after all linked items are done', async () => {
+    const seed = createDb();
+    seed.content_items.push({
+      id: 'c-ready-1',
+      track_id: 'track-pyspark',
+      content_type: 'theory_module',
+      source_ref: 'module-07',
+      title: 'Module 7',
+      sequence_order: 7,
+      is_active: true
+    });
+    seed.user_activation_tasks.push({
+      id: 'task-move-complete-1',
+      user_id: 'user-1',
+      task_type: 'theory',
+      task_group: 'theory',
+      title: 'Complete 1 PySpark module',
+      description: 'Continue through the next theory units in this track.',
+      scope_type: 'count',
+      requested_count: 1,
+      status: 'in_progress',
+      track_id: 'track-pyspark',
+      created_at: nowIso(),
+      started_at: nowIso(),
+      completed_at: null
+    });
+    seed.user_activation_task_items.push({
+      id: 'item-move-complete-1',
+      user_id: 'user-1',
+      activation_task_id: 'task-move-complete-1',
+      content_item_id: 'c-ready-1',
+      item_status: 'completed',
+      started_at: nowIso(),
+      completed_at: nowIso()
+    });
+    seed.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const { client, db } = createSupabase(seed);
+    await moveActivationTaskToCompleted({
+      supabase: client,
+      userId: 'user-1',
+      taskId: 'task-move-complete-1'
+    });
+
+    const task = db.user_activation_tasks.find((entry) => entry.id === 'task-move-complete-1');
+    expect(task?.status).toBe('completed');
+    expect(task?.completed_at).toBeTruthy();
+  });
+
+  it('reorders tasks inside the same status column', async () => {
+    const seed = createDb();
+    seed.user_activation_tasks.push(
+      {
+        id: 'task-1',
+        user_id: 'user-1',
+        status: 'todo',
+        sort_order: 1000,
+        created_at: '2026-03-13T08:00:00.000Z'
+      },
+      {
+        id: 'task-2',
+        user_id: 'user-1',
+        status: 'todo',
+        sort_order: 2000,
+        created_at: '2026-03-13T09:00:00.000Z'
+      },
+      {
+        id: 'task-3',
+        user_id: 'user-1',
+        status: 'todo',
+        sort_order: 3000,
+        created_at: '2026-03-13T10:00:00.000Z'
+      }
+    );
+
+    const { client, db } = createSupabase(seed);
+
+    await reorderActivationTasks({
+      supabase: client,
+      userId: 'user-1',
+      status: 'todo',
+      orderedTaskIds: ['task-3', 'task-1', 'task-2']
+    });
+
+    const orderedTasks = db.user_activation_tasks
+      .filter((entry) => entry.status === 'todo')
+      .sort((left, right) => left.sort_order - right.sort_order);
+
+    expect(orderedTasks.map((entry) => entry.id)).toEqual(['task-3', 'task-1', 'task-2']);
+    expect(orderedTasks.map((entry) => entry.sort_order)).toEqual([1000, 2000, 3000]);
   });
 
   it('throws a conflict when trying to start a completed task', async () => {

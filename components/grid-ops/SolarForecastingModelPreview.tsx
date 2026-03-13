@@ -77,7 +77,7 @@ function SolarModelMesh() {
 export function SolarForecastingModelPreview({ className }: { className?: string }) {
   return (
     <div
-      className={`h-24 overflow-hidden rounded-lg border border-[#2b4f41] bg-[radial-gradient(circle_at_24%_18%,rgba(88,132,255,0.2),transparent_46%),linear-gradient(180deg,#0a1322,#060c15)] ${className ?? ''}`}
+      className={`h-24 overflow-hidden rounded-lg border border-white/8 bg-[radial-gradient(circle_at_24%_18%,rgba(255,255,255,0.08),transparent_42%),linear-gradient(180deg,#0c121a,#070b11)] ${className ?? ''}`}
     >
       <Canvas
         shadows={false}
@@ -85,9 +85,9 @@ export function SolarForecastingModelPreview({ className }: { className?: string
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
         camera={{ position: [0, 0.3, 2.55], fov: 32, near: 0.1, far: 30 }}
       >
-        <ambientLight intensity={0.58} color="#ffffff" />
-        <directionalLight intensity={0.62} color="#ffffff" position={[3.2, 4.2, 2.2]} />
-        <directionalLight intensity={0.34} color="#b8cdfc" position={[-3, 2.2, 0.2]} />
+        <ambientLight intensity={0.42} color="#f5f7fb" />
+        <directionalLight intensity={0.52} color="#ffffff" position={[3.2, 4.2, 2.2]} />
+        <directionalLight intensity={0.16} color="#dde4ef" position={[-3, 2.2, 0.2]} />
         <Suspense fallback={null}>
           <SolarModelMesh />
         </Suspense>

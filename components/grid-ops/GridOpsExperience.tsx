@@ -9,7 +9,6 @@ import {
   trackProductEvent,
   trackProductEventOnce
 } from '@/lib/analytics/productAnalytics';
-import { GridOpsCommandBar } from '@/components/grid-ops/GridOpsCommandBar';
 import { GridOpsHeader } from '@/components/grid-ops/GridOpsHeader';
 import { MilestoneToast } from '@/components/grid-ops/MilestoneToast';
 import { MissionControlDrawer } from '@/components/grid-ops/MissionControlDrawer';
@@ -223,43 +222,36 @@ export function GridOpsExperience() {
   }, [selectedAssetId, state]);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-light-bg px-4 pb-12 pt-8 text-text-light-primary dark:bg-dark-bg dark:text-[#e6ebf2] sm:px-6">
-      <div className="pointer-events-none absolute inset-0 dark:hidden bg-[radial-gradient(circle_at_20%_18%,rgba(10,10,10,0.06),transparent_26%),radial-gradient(circle_at_84%_12%,rgba(10,10,10,0.04),transparent_30%)]" />
-      <div className="pointer-events-none absolute inset-0 hidden dark:block bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.03),transparent_24%),radial-gradient(circle_at_84%_14%,rgba(34,185,153,0.08),transparent_30%)]" />
+    <main className="relative min-h-screen overflow-hidden bg-[#04070b] px-4 pb-12 pt-8 text-[#e6ebf2] sm:px-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_12%,rgba(144,216,196,0.16),transparent_24%),radial-gradient(circle_at_86%_10%,rgba(126,170,255,0.12),transparent_22%),linear-gradient(180deg,#09111a_0%,#05090f_40%,#03060a_100%)]" />
       <div
-        className="pointer-events-none absolute inset-0 dark:hidden"
+        className="pointer-events-none absolute inset-0 opacity-60"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(10,10,10,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(10,10,10,0.04) 1px, transparent 1px)',
-          backgroundSize: '42px 42px'
+            'linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px)',
+          backgroundSize: '42px 42px',
+          maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.7), rgba(0,0,0,0.18))'
         }}
       />
-      <div
-        className="pointer-events-none absolute inset-0 hidden dark:block"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(250,250,250,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(250,250,250,0.03) 1px, transparent 1px)',
-          backgroundSize: '42px 42px'
-        }}
-      />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,transparent_50%,rgba(0,0,0,0.52)_100%)]" />
 
       <div className="relative mx-auto flex w-full max-w-[1480px] flex-col gap-4">
         <GridOpsHeader />
 
         {loading && !state ? (
-          <section className="rounded-xl border border-[#d7dde5] bg-[#f7f9fc] p-8 text-center dark:border-[#2a313d] dark:bg-[#12161d]">
+          <section className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(13,18,25,0.9),rgba(8,12,18,0.95))] p-8 text-center shadow-[0_24px_80px_-48px_rgba(0,0,0,0.95)] backdrop-blur-xl">
             <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand-500" />
-            <p className="mt-2 text-sm text-[#4a5768] dark:text-[#a3afbf]">Loading simulation board...</p>
+            <p className="mt-2 text-sm text-[#9dafc5]">Loading simulation board...</p>
           </section>
         ) : null}
 
         {error ? (
-          <section className="rounded-xl border border-rose-500/35 bg-rose-500/10 px-4 py-3">
-            <p className="text-sm font-medium text-rose-700 dark:text-rose-200">{error}</p>
+          <section className="rounded-[24px] border border-rose-500/30 bg-[linear-gradient(180deg,rgba(66,20,26,0.58),rgba(22,10,13,0.9))] px-4 py-3 shadow-[0_24px_80px_-54px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+            <p className="text-sm font-medium text-rose-100">{error}</p>
             <button
               type="button"
               onClick={() => void fetchState()}
-              className="mt-2 inline-flex items-center gap-2 rounded-md border border-rose-500/40 bg-white px-3 py-1.5 text-sm font-medium text-rose-700 transition hover:bg-rose-50 dark:bg-[#1b1313] dark:text-rose-200"
+              className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/12 bg-black/20 px-3 py-1.5 text-sm font-medium text-rose-100 transition hover:border-rose-300/40 hover:bg-rose-500/12"
             >
               <RefreshCw className="h-4 w-4" />
               Retry
@@ -268,13 +260,7 @@ export function GridOpsExperience() {
         ) : null}
 
         {state ? (
-          <section className="space-y-3">
-            <GridOpsCommandBar
-              state={state}
-              missionOpen={missionDrawerOpen}
-              onToggleMission={() => setMissionDrawerOpen((previous) => !previous)}
-            />
-
+          <section>
             <div
               className={`grid items-start gap-3 ${
                 missionDrawerOpen
@@ -294,8 +280,8 @@ export function GridOpsExperience() {
                     />
                   </GridSceneErrorBoundary>
                 ) : (
-                  <section className="flex h-[58vh] min-h-[520px] w-full items-center justify-center rounded-2xl border border-amber-500/30 bg-[#11161d] px-6 text-center">
-                    <p className="text-sm text-[#c6cfdd]">
+                  <section className="flex h-[58vh] min-h-[520px] w-full items-center justify-center rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(13,18,25,0.9),rgba(8,12,18,0.95))] px-6 text-center shadow-[0_24px_80px_-48px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+                    <p className="text-sm text-[#c8d3e3]">
                       {sceneDisabledMessage}
                     </p>
                   </section>

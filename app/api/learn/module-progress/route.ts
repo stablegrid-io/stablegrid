@@ -89,18 +89,36 @@ const hasMissingReadingSessionsColumnError = (error: unknown) => {
   );
 };
 
-const getCanonicalModules = (topic: Topic): CanonicalModuleEntry[] => {
-  const moduleContext = getCanonicalModuleContext(topic);
-  return moduleContext.map((module) => ({ id: module.id, order: module.order }));
+const resolveTrackSlug = (topic: Topic, rawTrackSlug: string | null) => {
+  if (!rawTrackSlug) {
+    return null;
+  }
+
+  const doc = theoryDocs[topic];
+  if (!doc) {
+    return null;
+  }
+
+  const normalizedSlug = rawTrackSlug.trim().toLowerCase();
+  return getTheoryTracks(doc).some((track) => track.slug === normalizedSlug)
+    ? normalizedSlug
+    : null;
 };
 
-const getCanonicalModuleContext = (topic: Topic): CanonicalModuleContextEntry[] => {
+const getCanonicalModuleContext = (
+  topic: Topic,
+  trackSlug: string | null
+): CanonicalModuleContextEntry[] => {
   const doc = theoryDocs[topic];
   if (!doc) {
     return [];
   }
 
-  return sortModulesByOrder(doc.modules ?? doc.chapters).map((module) => ({
+  const sourceChapters = trackSlug
+    ? getTheoryTracks(doc).find((track) => track.slug === trackSlug)?.chapters ?? []
+    : sortModulesByOrder(doc.modules ?? doc.chapters);
+
+  return sortModulesByOrder(sourceChapters).map((module) => ({
     id: module.id,
     order: module.order ?? module.number,
     lessonIds: module.sections.map((section) => section.id),
@@ -431,13 +449,14 @@ const syncModuleProgressChain = async ({
 const ensureModuleProgress = async ({
   supabase,
   userId,
-  topic
+  topic,
+  canonicalModules
 }: {
   supabase: ReturnType<typeof createClient>;
   userId: string;
   topic: Topic;
+  canonicalModules: CanonicalModuleEntry[];
 }) => {
-  const canonicalModules = getCanonicalModules(topic);
   if (canonicalModules.length === 0) {
     return [];
   }
@@ -451,6 +470,14 @@ const ensureModuleProgress = async ({
     existingRows,
     nowIso: new Date().toISOString()
   });
+};
+
+const filterRowsForCanonicalModules = (
+  rows: ModuleProgressRow[],
+  canonicalModules: CanonicalModuleEntry[]
+) => {
+  const canonicalModuleIds = new Set(canonicalModules.map((module) => module.id));
+  return rows.filter((row) => canonicalModuleIds.has(row.module_id));
 };
 
 export async function GET(request: Request) {
@@ -469,8 +496,13 @@ export async function GET(request: Request) {
   if (!topic || !isTopic(topic)) {
     return NextResponse.json({ error: 'Invalid topic.' }, { status: 400 });
   }
+  const rawTrackSlug = url.searchParams.get('track');
+  const trackSlug = resolveTrackSlug(topic, rawTrackSlug);
+  if (rawTrackSlug && !trackSlug) {
+    return NextResponse.json({ error: 'Invalid track.' }, { status: 400 });
+  }
 
-  const canonicalModuleContext = getCanonicalModuleContext(topic);
+  const canonicalModuleContext = getCanonicalModuleContext(topic, trackSlug);
   const canonicalModules = canonicalModuleContext.map((module) => ({
     id: module.id,
     order: module.order
@@ -483,9 +515,11 @@ export async function GET(request: Request) {
     const rows = await ensureModuleProgress({
       supabase,
       userId: user.id,
-      topic
+      topic,
+      canonicalModules
     });
-    return NextResponse.json({ data: rows, storage: 'module_progress' });
+    const scopedRows = filterRowsForCanonicalModules(rows, canonicalModules);
+    return NextResponse.json({ data: scopedRows, storage: 'module_progress' });
   } catch (error) {
     if (isMissingModuleProgressTableError(error)) {
       try {
@@ -543,6 +577,11 @@ export async function POST(request: Request) {
   if (!topic || !isTopic(topic)) {
     return NextResponse.json({ error: 'Invalid topic.' }, { status: 400 });
   }
+  const rawTrackSlug = typeof payload.track === 'string' ? payload.track : null;
+  const trackSlug = resolveTrackSlug(topic, rawTrackSlug);
+  if (rawTrackSlug && !trackSlug) {
+    return NextResponse.json({ error: 'Invalid track.' }, { status: 400 });
+  }
 
   const action = payload.action;
   if (!isAction(action)) {
@@ -550,7 +589,7 @@ export async function POST(request: Request) {
   }
 
   const nowIso = new Date().toISOString();
-  const canonicalModuleContext = getCanonicalModuleContext(topic);
+  const canonicalModuleContext = getCanonicalModuleContext(topic, trackSlug);
   const canonicalModules = canonicalModuleContext.map((module) => ({
     id: module.id,
     order: module.order
@@ -567,7 +606,8 @@ export async function POST(request: Request) {
       ensuredRows = await ensureModuleProgress({
         supabase,
         userId: user.id,
-        topic
+        topic,
+        canonicalModules
       });
     } catch (error) {
       if (!isMissingModuleProgressTableError(error)) {
@@ -582,6 +622,7 @@ export async function POST(request: Request) {
         canonicalModules
       });
     }
+    ensuredRows = filterRowsForCanonicalModules(ensuredRows, canonicalModules);
 
     if (action === 'ensure') {
       return NextResponse.json({
@@ -681,7 +722,8 @@ export async function POST(request: Request) {
     await reconcileActivationTasksSafely({ supabase, userId: user.id });
     revalidateTheoryProgressViews(topic);
 
-    return NextResponse.json({ data: syncedRows, storage: 'module_progress' });
+    const scopedRows = filterRowsForCanonicalModules(syncedRows, canonicalModules);
+    return NextResponse.json({ data: scopedRows, storage: 'module_progress' });
   } catch (error) {
     return NextResponse.json(
       {

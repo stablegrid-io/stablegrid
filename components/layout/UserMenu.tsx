@@ -141,7 +141,15 @@ function ShiftStatusRing({
   );
 }
 
-export function UserMenu() {
+export function UserMenu({
+  align = 'end',
+  placement = 'bottom',
+  appearance = 'default'
+}: {
+  align?: 'start' | 'end';
+  placement?: 'bottom' | 'right';
+  appearance?: 'default' | 'rail';
+}) {
   const { user, signOut } = useAuth();
   const { getAvailableBudgetUnits } = useProgressStore();
   const pathname = usePathname();
@@ -276,24 +284,55 @@ export function UserMenu() {
     }
   };
 
+  const isRailAppearance = appearance === 'rail';
+  const buttonClassName = isRailAppearance
+    ? 'group relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(180deg,rgba(35,39,47,0.76),rgba(14,17,22,0.94))] text-[#f3f5f8] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_18px_32px_-22px_rgba(0,0,0,0.95)] backdrop-blur-2xl transition-all duration-200 hover:border-white/16 hover:bg-[linear-gradient(180deg,rgba(42,47,56,0.82),rgba(18,22,28,0.96))] hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.16),0_24px_38px_-24px_rgba(0,0,0,0.98)]'
+    : 'flex h-11 w-11 items-center justify-center rounded-full border border-light-border bg-light-surface text-text-light-secondary shadow-sm transition hover:bg-light-hover dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-secondary dark:hover:bg-dark-hover';
+  const initialsClassName = isRailAppearance
+    ? 'relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[radial-gradient(circle_at_30%_28%,rgba(255,255,255,0.12),rgba(255,255,255,0.02)_42%,transparent_65%),linear-gradient(180deg,rgba(16,21,29,0.88),rgba(10,13,18,0.96))] text-[0.98rem] font-semibold tracking-[-0.02em] text-[#f5f7fa] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+    : 'flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-600 dark:bg-brand-900/20 dark:text-brand-300';
+  const panelClassName = isRailAppearance
+    ? 'border-white/10 bg-[linear-gradient(180deg,rgba(20,24,31,0.96),rgba(12,15,20,0.98))] shadow-[0_24px_60px_-28px_rgba(0,0,0,0.98)] backdrop-blur-2xl dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(20,24,31,0.96),rgba(12,15,20,0.98))]'
+    : 'border-light-border bg-light-surface shadow-[0_20px_50px_rgba(0,0,0,0.25)] dark:border-dark-border dark:bg-dark-surface';
+
   return (
     <div className="relative" ref={menuRef}>
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex h-11 w-11 items-center justify-center rounded-full border border-light-border bg-light-surface text-text-light-secondary shadow-sm transition hover:bg-light-hover dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-secondary dark:hover:bg-dark-hover"
+        className={buttonClassName}
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-label="Open profile menu"
         title={email}
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-600 dark:bg-brand-900/20 dark:text-brand-300">
+        {isRailAppearance ? (
+          <>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-[1px] rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.1),transparent_32%,transparent)]"
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-[6px] rounded-full border border-white/[0.05]"
+            />
+          </>
+        ) : null}
+        <div className={initialsClassName}>
           {initials}
         </div>
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 z-50 mt-3 w-[22rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-light-border bg-light-surface shadow-[0_20px_50px_rgba(0,0,0,0.25)] dark:border-dark-border dark:bg-dark-surface">
+        <div
+          className={`absolute z-50 w-[22rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border ${
+            panelClassName
+          } ${
+            placement === 'right'
+              ? 'bottom-0 left-[calc(100%+0.9rem)]'
+              : `mt-3 ${align === 'start' ? 'left-0' : 'right-0'}`
+          }`}
+        >
           <div className="relative border-b border-light-border bg-[linear-gradient(140deg,rgba(34,185,153,0.14),rgba(14,165,233,0.08))] p-4 dark:border-dark-border dark:bg-[linear-gradient(140deg,rgba(34,185,153,0.2),rgba(14,165,233,0.12))]">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,185,153,0.2),transparent_50%)]" />
             <div className="relative flex items-start gap-3">

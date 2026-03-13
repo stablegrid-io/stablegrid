@@ -35,11 +35,13 @@ const parseRouteQuery = (route: string) => {
 
 const buildModuleHref = ({
   topic,
+  trackSlug,
   chapterId,
   currentLessonId,
   lastVisitedRoute
 }: {
   topic: string;
+  trackSlug: string;
   chapterId: string;
   currentLessonId: string | null;
   lastVisitedRoute: string | null;
@@ -50,7 +52,7 @@ const buildModuleHref = ({
     fallbackParams.set('lesson', currentLessonId);
   }
 
-  const fallbackHref = `/learn/${topic}/theory/all?${fallbackParams.toString()}`;
+  const fallbackHref = `/learn/${topic}/theory/${trackSlug}?${fallbackParams.toString()}`;
   if (typeof lastVisitedRoute !== 'string') {
     return fallbackHref;
   }
@@ -187,6 +189,7 @@ export const TheoryTrackPath = ({
       lastActiveAt,
       href: buildModuleHref({
         topic: doc.topic,
+        trackSlug: track.slug,
         chapterId: module.id,
         currentLessonId,
         lastVisitedRoute

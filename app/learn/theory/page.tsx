@@ -9,19 +9,27 @@ export const metadata: Metadata = {
 };
 
 export default async function LearnTheoryTopicsPage() {
-  const initialCompletedChapterCountByTopic = Object.fromEntries(
+  const progressByTopic = Object.fromEntries(
     await Promise.all(
       learnTopics.map(async (topic) => {
         const progress = await loadServerTheoryProgress(topic.id);
-        return [topic.id, progress.completedChapterIds.length] as const;
+        return [topic.id, progress] as const;
       })
     )
+  );
+
+  const initialCompletedChapterCountByTopic = Object.fromEntries(
+    learnTopics.map((topic) => [topic.id, progressByTopic[topic.id]?.completedChapterIds.length ?? 0])
+  );
+  const initialChapterCountByTopic = Object.fromEntries(
+    learnTopics.map((topic) => [topic.id, progressByTopic[topic.id]?.totalChapterCount ?? 0])
   );
 
   return (
     <LearnModeTopicSelector
       mode="theory"
       initialCompletedChapterCountByTopic={initialCompletedChapterCountByTopic}
+      initialChapterCountByTopic={initialChapterCountByTopic}
     />
   );
 }

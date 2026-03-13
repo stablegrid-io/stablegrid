@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { theoryDocs } from '@/data/learn/theory';
+import { getTheoryTracks } from '@/data/learn/theory/tracks';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import { getReadLessonCountFromSessionSnapshot } from '@/lib/learn/readingSessionProgress';
 import { getTheoryOrderedLessonIds } from '@/lib/learn/theoryCatalog';
@@ -26,6 +27,7 @@ export interface ServerTheoryModuleProgressSnapshot {
 
 export interface ServerTheoryProgressPayload {
   hasUser: boolean;
+  totalChapterCount: number;
   completedChapterIds: string[];
   chapterProgressById: Record<string, ServerTheoryChapterProgressSnapshot>;
   moduleProgressById: Record<string, ServerTheoryModuleProgressSnapshot>;
@@ -52,10 +54,29 @@ const getCanonicalTheoryModules = (topic: string): CanonicalTheoryModuleEntry[] 
     return [];
   }
 
-  return sortModulesByOrder(doc.modules ?? doc.chapters).map((module) => ({
-    id: module.id,
-    order: module.order ?? module.number
-  }));
+  const tracks = getTheoryTracks(doc);
+  const sourceModules =
+    tracks.length > 0
+      ? tracks.flatMap((track) => sortModulesByOrder(track.chapters))
+      : sortModulesByOrder(doc.modules ?? doc.chapters);
+
+  const seenModuleIds = new Set<string>();
+  const uniqueModules = sourceModules.reduce<CanonicalTheoryModuleEntry[]>(
+    (accumulator, module) => {
+      if (seenModuleIds.has(module.id)) {
+        return accumulator;
+      }
+      seenModuleIds.add(module.id);
+      accumulator.push({
+        id: module.id,
+        order: accumulator.length + 1
+      });
+      return accumulator;
+    },
+    []
+  );
+
+  return uniqueModules;
 };
 
 const hasModuleRowProgress = (row: ServerTheoryModuleProgressRow | undefined) =>
@@ -117,25 +138,15 @@ export const normalizeServerTheoryModuleProgress = ({
     };
   });
 
-  const highestExplicitCompletedIndex = evidence.reduce(
-    (highestIndex, entry, index) => (entry.explicitCompleted ? index : highestIndex),
-    -1
-  );
-  const highestProgressIndex = evidence.reduce(
-    (highestIndex, entry, index) => (entry.hasProgress ? index : highestIndex),
-    -1
-  );
-  const completedBoundaryIndex = Math.max(
-    highestExplicitCompletedIndex,
-    highestProgressIndex - 1
-  );
-
   let previousCompleted = false;
   const moduleProgressById = evidence.reduce<
     Record<string, ServerTheoryModuleProgressSnapshot>
   >((accumulator, entry, index) => {
-    const isCompleted = entry.explicitCompleted || index <= completedBoundaryIndex;
-    const isUnlocked = index === 0 || previousCompleted || isCompleted;
+    // Completion must reflect explicit module completion state only.
+    const isCompleted = entry.explicitCompleted;
+    const isUnlocked =
+      entry.moduleRow?.is_unlocked ??
+      (index === 0 || previousCompleted || isCompleted || entry.hasProgress);
     previousCompleted = isCompleted;
 
     accumulator[entry.module.id] = {
@@ -166,6 +177,7 @@ export const normalizeServerTheoryModuleProgress = ({
 export const loadServerTheoryProgress = async (
   topic: string
 ): Promise<ServerTheoryProgressPayload> => {
+  const canonicalModules = getCanonicalTheoryModules(topic);
   const supabase = createClient();
   const {
     data: { user }
@@ -174,6 +186,7 @@ export const loadServerTheoryProgress = async (
   if (!user) {
     return {
       hasUser: false,
+      totalChapterCount: canonicalModules.length,
       completedChapterIds: [],
       chapterProgressById: {},
       moduleProgressById: {}
@@ -238,6 +251,7 @@ export const loadServerTheoryProgress = async (
 
   return {
     hasUser: true,
+    totalChapterCount: canonicalModules.length,
     completedChapterIds,
     chapterProgressById,
     moduleProgressById

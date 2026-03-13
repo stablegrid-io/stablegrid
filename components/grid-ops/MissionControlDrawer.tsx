@@ -32,12 +32,14 @@ export function MissionControlDrawer({ state, onHide }: MissionControlDrawerProp
     : recommendation.action;
 
   return (
-    <aside className="h-fit rounded-2xl border border-[#2a3341] bg-[radial-gradient(circle_at_74%_0%,rgba(34,185,153,0.08),transparent_48%),linear-gradient(180deg,rgba(16,20,27,0.97),rgba(11,14,20,0.96))] p-2 text-[#dbe4f1] shadow-[0_18px_48px_rgba(0,0,0,0.34)]">
-      <div className="mb-2 flex justify-end">
+    <aside className="relative h-fit overflow-hidden rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(13,18,25,0.9),rgba(8,12,18,0.95))] p-2.5 text-[#dbe4f1] shadow-[0_24px_80px_-48px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(144,216,196,0.12),transparent_28%)]" />
+
+      <div className="relative mb-2 flex justify-end">
         <button
           type="button"
           onClick={onHide}
-          className="inline-flex items-center gap-1 rounded-xl border border-[#3a4759] bg-[#151d28]/92 px-2.5 py-1 text-[0.75rem] font-semibold text-[#dae5f6] transition hover:border-brand-400/60"
+          className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/[0.045] px-3 py-1.5 text-[0.75rem] font-semibold text-[#dde8f6] transition hover:border-white/20 hover:bg-white/[0.075]"
         >
           <RefreshCcw className="h-3 w-3" />
           Hide Mission
@@ -45,7 +47,7 @@ export function MissionControlDrawer({ state, onHide }: MissionControlDrawerProp
         </button>
       </div>
 
-      <section className="rounded-xl bg-[#131a24]/90 px-2.5 py-2">
+      <section className="relative rounded-[20px] border border-white/8 bg-black/20 px-3 py-3 backdrop-blur-sm">
         <p className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#94a7c2]">
           <AlertTriangle className="h-3 w-3 text-amber-300" />
           Active Event
@@ -62,9 +64,9 @@ export function MissionControlDrawer({ state, onHide }: MissionControlDrawerProp
         <p className="mt-1 text-[0.8rem] text-[#a8b8cf]">Next: {next.label}</p>
       </section>
 
-      <div className="my-2 border-t border-[#2c3748]" />
+      <div className="my-3 border-t border-white/10" />
 
-      <section className="rounded-xl bg-[#131a24]/90 px-2.5 py-2">
+      <section className="relative rounded-[20px] border border-white/8 bg-black/20 px-3 py-3 backdrop-blur-sm">
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#94a7c2]">Mission</p>
 
         <p className="mt-1 text-[1.05rem] font-semibold text-[#ecf1fb]">
@@ -88,7 +90,7 @@ export function MissionControlDrawer({ state, onHide }: MissionControlDrawerProp
 
         <Link
           href="/learn/pyspark/theory/all"
-          className="mt-2.5 inline-flex w-full items-center justify-center gap-1 rounded-xl border border-[#39475b] bg-[#17202d] px-2.5 py-1.5 text-[0.84rem] font-medium text-[#e6edf8] transition hover:border-brand-400/70"
+          className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-[18px] border border-white/12 bg-white/[0.05] px-3 py-2 text-[0.84rem] font-medium text-[#e6edf8] transition hover:border-white/20 hover:bg-white/[0.075]"
         >
           Continue Learning
           <ArrowRight className="h-3 w-3" />

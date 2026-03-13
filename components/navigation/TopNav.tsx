@@ -4,106 +4,57 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  ArrowUpRight,
-  BarChart3,
-  BookOpen,
-  ChevronDown,
-  ClipboardCheck,
-  Flag,
-  Home,
-  Layers3,
-  NotebookPen,
-  Zap,
-  type LucideIcon
-} from 'lucide-react';
+import { ArrowUpRight, ChevronDown } from 'lucide-react';
 import { StableGridIcon } from '@/components/brand/StableGridLogo';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
+import {
+  isNavItemActive,
+  isTheoryLessonPath,
+  navItems,
+  shouldHideNav,
+  taskDropdownItems
+} from './navigation-config';
 
-const UserMenuLazy = dynamic(
+const UserMenuLazy = dynamic<{
+  align?: 'start' | 'end';
+  placement?: 'bottom' | 'right';
+  appearance?: 'default' | 'rail';
+}>(
   () => import('@/components/layout/UserMenu').then((module) => module.UserMenu),
   {
     ssr: false,
     loading: () => (
-      <div className="h-9 w-9 rounded-full border border-light-border bg-light-surface dark:border-dark-border dark:bg-dark-surface" />
+      <div className="h-11 w-11 rounded-full border border-white/12 bg-white/5 shadow-[0_10px_22px_rgba(0,0,0,0.18)]" />
     )
   }
 );
-
-const navItems: Array<{
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  matchPrefixes?: string[];
-}> = [
-  { href: '/', icon: Home, label: 'Home' },
-  {
-    href: '/learn/theory',
-    icon: BookOpen,
-    label: 'Theory',
-    matchPrefixes: ['/learn']
-  },
-  {
-    href: '/tasks',
-    icon: ClipboardCheck,
-    label: 'Tasks',
-    matchPrefixes: ['/tasks', '/practice', '/missions', '/flashcards']
-  },
-  { href: '/energy', icon: Zap, label: 'Grid' },
-  { href: '/progress', icon: BarChart3, label: 'HRB' }
-];
-
-const taskDropdownItems: Array<{
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  description: string;
-}> = [
-  {
-    href: '/practice/notebooks',
-    icon: NotebookPen,
-    label: 'Notebooks',
-    description: 'Line-by-line review tasks'
-  },
-  {
-    href: '/missions',
-    icon: Flag,
-    label: 'Missions',
-    description: 'Operational incident drills'
-  },
-  {
-    href: '/flashcards',
-    icon: Layers3,
-    label: 'Flashcards',
-    description: 'Rapid theory recall sprints'
-  }
-];
-
-const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
-  if (!pathname) return false;
-  if (!isAuthenticated) {
-    return true;
-  }
-  if (
-    pathname.startsWith('/practice/') &&
-    pathname !== '/practice/setup' &&
-    pathname !== '/practice/notebooks'
-  ) {
-    return true;
-  }
-  return ['/login', '/signup', '/reset-password', '/update-password'].includes(pathname);
-};
 
 type WindowWithIdle = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
   cancelIdleCallback?: (handle: number) => void;
 };
 
+const desktopRailItemClass = (isActive: boolean, isLessonMode: boolean) =>
+  `group relative flex items-center justify-center overflow-hidden rounded-[22px] border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b7d4c7]/55 ${
+    isLessonMode ? 'h-12 w-12' : 'min-h-[4.75rem] w-full flex-col gap-1.5 px-2.5 py-3'
+  } ${
+    isActive
+      ? 'border-white/16 bg-[linear-gradient(180deg,rgba(56,78,69,0.7),rgba(28,39,34,0.9))] text-[#eef6f1] shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_18px_28px_-22px_rgba(150,205,178,0.85)]'
+      : 'border-transparent bg-white/[0.03] text-[#aeb9b3] hover:border-white/10 hover:bg-white/[0.07] hover:text-[#edf3ef]'
+  }`;
+
+const desktopLabelPillClass =
+  'pointer-events-none absolute left-[calc(100%+0.8rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#111513]/92 px-3 py-1 text-[11px] font-medium tracking-[0.01em] text-[#eef4f0] opacity-0 shadow-[0_12px_30px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 lg:block';
+
 export const TopNav = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuthStore();
   const hideNav = shouldHideNav(pathname, Boolean(user));
+  const isLessonMode = isTheoryLessonPath(pathname);
+  const homeNavItem = navItems.find((item) => item.href === '/') ?? navItems[0];
+  const desktopRailItems = navItems.filter((item) => item.href !== '/');
+  const isHomeActive = isNavItemActive(pathname, homeNavItem);
   const prefetchedRoutesRef = useRef<Set<string>>(new Set());
   const tasksMenuRef = useRef<HTMLDivElement>(null);
   const [tasksOpen, setTasksOpen] = useState(false);
@@ -198,205 +149,250 @@ export const TopNav = () => {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-[#2f3834] bg-[#020303]/95 backdrop-blur-xl">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-25"
-        style={{
-          backgroundImage:
-            'linear-gradient(to right, rgba(97,111,104,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(97,111,104,0.08) 1px, transparent 1px)',
-          backgroundSize: '48px 48px'
-        }}
-      />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#8ea29a]/65 to-transparent" />
-      <div className="container relative mx-auto px-4">
-        <div className="flex h-[74px] items-center justify-between gap-3">
+    <>
+      <nav className="sticky top-0 z-50 border-b border-[#28302d] bg-[#050706]/88 backdrop-blur-2xl lg:hidden">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent)]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+        <div className="relative mx-auto flex h-16 items-center justify-between px-4">
           <Link
             href="/"
-            className="group flex items-center gap-3 rounded-xl border border-[#2f3834] bg-[#0b0f0f]/80 px-3 py-2 transition-all hover:border-[#4e655c] hover:bg-[#111615]"
+            className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[#edf3ef] shadow-[0_12px_28px_-20px_rgba(0,0,0,0.75)] transition hover:bg-white/[0.06]"
           >
             <StableGridIcon size="md" />
-            <div className="hidden sm:block">
-              <div className="text-base font-semibold text-[#edf3ef]">stableGrid.io</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8ebca8]">
+            <div>
+              <div className="text-sm font-semibold tracking-[-0.01em]">stableGrid.io</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-[#91a69c]">
                 Control Rail
               </div>
             </div>
           </Link>
 
-          <div className="hidden items-center rounded-2xl border border-[#2f3834] bg-[#0a0e0d]/88 px-2 py-1 shadow-[inset_0_0_0_1px_rgba(154,167,161,0.08)] lg:flex">
-            {navItems.map((item, index) => {
+          <UserMenuLazy />
+        </div>
+      </nav>
+
+      <aside
+        data-testid="desktop-nav-rail"
+        data-nav-mode={isLessonMode ? 'lesson' : 'default'}
+        className="fixed inset-y-0 left-0 z-50 hidden px-4 py-4 lg:flex"
+      >
+        <div
+          className={`relative flex h-full flex-col rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(11,14,13,0.9),rgba(7,9,8,0.94))] p-3 shadow-[0_24px_80px_-44px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl ${
+            isLessonMode ? 'w-[4.9rem]' : 'w-[7.75rem]'
+          }`}
+        >
+          <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_42%)]" />
+          <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/28 to-transparent" />
+
+          <Link
+            href="/"
+            onMouseEnter={() => prefetchRoute('/')}
+            onFocus={() => prefetchRoute('/')}
+            className={`group relative flex items-center overflow-hidden rounded-[24px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b7d4c7]/55 ${
+              isLessonMode ? 'justify-center px-0 py-3' : 'flex-col gap-2 px-3 py-4'
+            } ${
+              isHomeActive
+                ? 'border border-white/10 bg-white/[0.03] text-[#eef4f0] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_24px_-24px_rgba(0,0,0,0.98)]'
+                : 'border border-transparent bg-transparent text-[#f2f7f4] hover:border-white/8 hover:bg-white/[0.03]'
+            }`}
+          >
+            <span
+              className={`inline-flex items-center justify-center rounded-full transition ${
+                isLessonMode
+                  ? 'h-12 w-12 bg-[linear-gradient(180deg,rgba(18,28,44,0.82),rgba(11,18,32,0.92))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                  : isHomeActive
+                    ? 'h-14 w-14 bg-[linear-gradient(180deg,rgba(18,28,44,0.62),rgba(10,16,28,0.84))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                    : 'h-14 w-14 bg-[linear-gradient(180deg,rgba(16,21,29,0.42),rgba(10,13,18,0.68))] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] group-hover:bg-[linear-gradient(180deg,rgba(18,26,38,0.56),rgba(11,16,24,0.76))]'
+              }`}
+            >
+              <StableGridIcon size="md" />
+            </span>
+            {isLessonMode ? (
+              <span className={desktopLabelPillClass}>Home</span>
+            ) : (
+              <div className="text-center">
+                <div className="text-[12.5px] font-semibold tracking-[-0.015em] text-[#eef4f0]">
+                  stableGrid
+                </div>
+                <div
+                  data-testid="desktop-nav-brand-divider"
+                  aria-hidden="true"
+                  className="mx-auto mt-3 h-px w-14 rounded-full bg-white/22"
+                />
+              </div>
+            )}
+          </Link>
+
+          {!isLessonMode ? (
+            <div
+              data-testid="desktop-nav-divider"
+              aria-hidden="true"
+              className="mx-3 mt-3 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent"
+            />
+          ) : null}
+
+          <div
+            data-testid="desktop-nav-actions"
+            className="mt-4 flex flex-1 flex-col justify-center gap-2"
+          >
+            {desktopRailItems.map((item) => {
               const Icon = item.icon;
-              const isActive = item.matchPrefixes
-                ? item.matchPrefixes.some(
-                    (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
-                  )
-                : pathname === item.href || pathname?.startsWith(`${item.href}/`);
-              const itemBaseClass = `group relative inline-flex min-w-[122px] items-center gap-2.5 overflow-hidden rounded-xl px-3 py-2 transition-all focus-visible:ring-2 focus-visible:ring-brand-300/70 focus-visible:ring-offset-0 ${
-                isActive
-                  ? 'bg-gradient-to-r from-[#2c3b34]/70 via-[#1f2925]/75 to-[#24332c]/72 shadow-[0_0_0_1px_rgba(116,164,139,0.45),0_0_26px_rgba(85,132,110,0.22)]'
-                  : 'hover:bg-white/[0.04]'
-              }`;
-              const iconClass = `relative inline-flex h-7 w-7 items-center justify-center rounded-lg border ${
-                isActive
-                  ? 'border-[#79c2a2]/70 bg-[#1d2f28]/85 text-[#8fd7b5]'
-                  : 'border-[#3a4440] bg-white/[0.02] text-[#9ba8a1] group-hover:border-[#6f8f82] group-hover:text-[#bfddd0]'
-              }`;
-              const labelClass = `text-sm font-medium ${
-                isActive ? 'text-[#deefe7]' : 'text-[#bac9c1]'
-              }`;
+              const isActive = isNavItemActive(pathname, item);
+              const isTasksItem = item.href === '/tasks';
 
-              return (
-                <div key={item.href} className="flex items-center">
-                  {item.href === '/tasks' ? (
-                    <div ref={tasksMenuRef} className="relative">
-                      <button
-                        type="button"
-                        aria-haspopup="menu"
-                        aria-expanded={tasksOpen}
-                        onClick={() => setTasksOpen((current) => !current)}
-                        onMouseEnter={() => {
-                          prefetchRoute(item.href);
-                          taskDropdownItems.forEach((taskItem) => prefetchRoute(taskItem.href));
-                        }}
-                        className={itemBaseClass}
-                      >
-                        <span className={iconClass}>
-                          <Icon className="h-4 w-4" />
-                          {isActive ? (
-                            <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-brand-300 shadow-[0_0_12px_rgba(34,185,153,0.9)]" />
-                          ) : null}
-                        </span>
-                        <span className={labelClass}>{item.label}</span>
-                        <ChevronDown
-                          className={`h-3.5 w-3.5 text-[#98b3a6] transition-transform ${
-                            tasksOpen ? 'rotate-180' : 'rotate-0'
-                          }`}
-                        />
-                        {isActive ? (
-                          <span className="absolute inset-x-3 bottom-0 h-px bg-gradient-to-r from-transparent via-[#90c9ad] to-transparent" />
-                        ) : null}
-                      </button>
-
-                      {tasksOpen ? (
-                        <div
-                          role="menu"
-                          className="absolute left-0 top-[calc(100%+10px)] z-50 w-[320px] overflow-hidden rounded-2xl border border-[#2f3834] bg-[#0a0e0d]/96 p-2 shadow-[0_24px_44px_-24px_rgba(0,0,0,0.72)] backdrop-blur-xl"
-                        >
-                          <div className="px-3 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8fc2ab]">
-                              Tasks
-                            </p>
-                            <p className="mt-1 text-xs text-[#88958e]">
-                              Jump directly into active operations.
-                            </p>
-                          </div>
-
-                          <div className="mx-2 h-px bg-[#2e3734]" />
-
-                          <div className="space-y-0.5 px-1 py-1.5">
-                            {taskDropdownItems.map((taskItem) => {
-                              const TaskIcon = taskItem.icon;
-                              const taskActive =
-                                pathname === taskItem.href ||
-                                pathname?.startsWith(`${taskItem.href}/`);
-
-                              return (
-                                <Link
-                                  key={taskItem.href}
-                                  href={taskItem.href}
-                                  role="menuitem"
-                                  onClick={() => setTasksOpen(false)}
-                                  onMouseEnter={() => prefetchRoute(taskItem.href)}
-                                  onFocus={() => prefetchRoute(taskItem.href)}
-                                  className={`group flex items-start gap-3 rounded-lg px-3 py-2 transition ${
-                                    taskActive
-                                      ? 'bg-[#1e2824]'
-                                      : 'hover:bg-[#121714]'
-                                  }`}
-                                >
-                                  <span
-                                    className={`mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-lg ${
-                                      taskActive
-                                        ? 'bg-[#22342c] text-[#a6dac2]'
-                                        : 'bg-white/[0.03] text-[#8c9892]'
-                                    }`}
-                                  >
-                                  <TaskIcon className="h-4 w-4" />
-                                  </span>
-                                  <span className="min-w-0 flex-1">
-                                    <span className="block text-sm font-medium text-[#e2ece7]">
-                                      {taskItem.label}
-                                    </span>
-                                    <span className="block text-xs text-[#7f8d86]">
-                                      {taskItem.description}
-                                    </span>
-                                  </span>
-                                  <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 text-[#7e8f87] transition group-hover:text-[#bed5ca]" />
-                                </Link>
-                              );
-                            })}
-                          </div>
-
-                          <div className="mt-1 border-t border-[#2d3532] px-2 pt-2">
-                            <Link
-                              href="/tasks"
-                              role="menuitem"
-                              onClick={() => setTasksOpen(false)}
-                              onMouseEnter={() => prefetchRoute('/tasks')}
-                              onFocus={() => prefetchRoute('/tasks')}
-                              className="inline-flex w-full items-center justify-between rounded-lg bg-[#111715] px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#a3cfba] transition hover:bg-[#18201d] hover:text-[#d6ebe1]"
-                            >
-                              Open Tasks Hub
-                              <ArrowUpRight className="h-3.5 w-3.5" />
-                            </Link>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      onMouseEnter={() => prefetchRoute(item.href)}
-                      onFocus={() => prefetchRoute(item.href)}
-                      className={itemBaseClass}
+              if (isTasksItem) {
+                return (
+                  <div key={item.href} ref={tasksMenuRef} className="relative">
+                    <button
+                      type="button"
+                      aria-haspopup="menu"
+                      aria-expanded={tasksOpen}
+                      onClick={() => setTasksOpen((current) => !current)}
+                      onMouseEnter={() => {
+                        prefetchRoute(item.href);
+                        taskDropdownItems.forEach((taskItem) => prefetchRoute(taskItem.href));
+                      }}
+                      onFocus={() => {
+                        prefetchRoute(item.href);
+                        taskDropdownItems.forEach((taskItem) => prefetchRoute(taskItem.href));
+                      }}
+                      className={desktopRailItemClass(isActive || tasksOpen, isLessonMode)}
                     >
-                      <span className={iconClass}>
-                        <Icon className="h-4 w-4" />
+                      <span className="relative inline-flex items-center justify-center">
+                        <Icon className={`${isLessonMode ? 'h-5 w-5' : 'h-5 w-5'}`} />
                         {isActive ? (
-                          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-[#8fd7b5] shadow-[0_0_12px_rgba(115,181,148,0.82)]" />
+                          <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#b6e7ce] shadow-[0_0_18px_rgba(182,231,206,0.88)]" />
                         ) : null}
                       </span>
-                      <span className={labelClass}>{item.label}</span>
-                      {isActive ? (
-                        <span className="absolute inset-x-3 bottom-0 h-px bg-gradient-to-r from-transparent via-[#90c9ad] to-transparent" />
-                      ) : null}
-                    </Link>
+                      {isLessonMode ? (
+                        <>
+                          <ChevronDown
+                            className={`absolute bottom-1.5 right-1.5 h-3 w-3 text-[#a4b8af] transition-transform ${
+                              tasksOpen ? 'rotate-180' : 'rotate-0'
+                            }`}
+                          />
+                          <span className={desktopLabelPillClass}>Tasks</span>
+                        </>
+                      ) : (
+                        <span className="mt-1 flex items-center gap-1 text-[11px] font-medium tracking-[0.01em] text-current">
+                          Tasks
+                          <ChevronDown
+                            className={`h-3 w-3 text-[#9fb2aa] transition-transform ${
+                              tasksOpen ? 'rotate-180' : 'rotate-0'
+                            }`}
+                          />
+                        </span>
+                      )}
+                    </button>
+
+                    {tasksOpen ? (
+                      <div
+                        role="menu"
+                        className="absolute left-[calc(100%+0.95rem)] top-0 z-50 w-[20rem] overflow-hidden rounded-[26px] border border-white/10 bg-[#111513]/95 p-2.5 shadow-[0_28px_90px_-40px_rgba(0,0,0,0.95)] backdrop-blur-2xl"
+                      >
+                        <div className="px-3 py-2.5">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9db9ab]">
+                            Tasks
+                          </p>
+                          <p className="mt-1.5 text-sm leading-5 text-[#aab6b0]">
+                            Pick the working surface you want without leaving the rail.
+                          </p>
+                        </div>
+
+                        <div className="mx-2 h-px bg-white/8" />
+
+                        <div className="mt-1 space-y-1 px-1">
+                          {taskDropdownItems.map((taskItem) => {
+                            const TaskIcon = taskItem.icon;
+                            const taskActive =
+                              pathname === taskItem.href ||
+                              pathname?.startsWith(`${taskItem.href}/`);
+
+                            return (
+                              <Link
+                                key={taskItem.href}
+                                href={taskItem.href}
+                                role="menuitem"
+                                onClick={() => setTasksOpen(false)}
+                                onMouseEnter={() => prefetchRoute(taskItem.href)}
+                                onFocus={() => prefetchRoute(taskItem.href)}
+                                className={`group flex items-start gap-3 rounded-[20px] px-3 py-3 transition ${
+                                  taskActive ? 'bg-white/[0.07]' : 'hover:bg-white/[0.05]'
+                                }`}
+                              >
+                                <span
+                                  className={`mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border ${
+                                    taskActive
+                                      ? 'border-white/14 bg-[#243129] text-[#dff1e8]'
+                                      : 'border-white/8 bg-white/[0.03] text-[#a2b0aa]'
+                                  }`}
+                                >
+                                  <TaskIcon className="h-4 w-4" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-sm font-medium text-[#edf3ef]">
+                                    {taskItem.label}
+                                  </span>
+                                  <span className="mt-0.5 block text-xs leading-5 text-[#95a39d]">
+                                    {taskItem.description}
+                                  </span>
+                                </span>
+                                <ArrowUpRight className="mt-1 h-3.5 w-3.5 text-[#7e8d86] transition group-hover:text-[#d8e7df]" />
+                              </Link>
+                            );
+                          })}
+                        </div>
+
+                        <div className="mt-2 border-t border-white/8 px-2 pt-2">
+                          <Link
+                            href="/tasks"
+                            role="menuitem"
+                            onClick={() => setTasksOpen(false)}
+                            onMouseEnter={() => prefetchRoute('/tasks')}
+                            onFocus={() => prefetchRoute('/tasks')}
+                            className="inline-flex w-full items-center justify-between rounded-[18px] border border-white/8 bg-white/[0.04] px-3.5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#dfece5] transition hover:bg-white/[0.07]"
+                          >
+                            Open Tasks Hub
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onMouseEnter={() => prefetchRoute(item.href)}
+                  onFocus={() => prefetchRoute(item.href)}
+                  className={desktopRailItemClass(isActive, isLessonMode)}
+                >
+                  <span className="relative inline-flex items-center justify-center">
+                    <Icon className="h-5 w-5" />
+                    {isActive ? (
+                      <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#b6e7ce] shadow-[0_0_18px_rgba(182,231,206,0.88)]" />
+                    ) : null}
+                  </span>
+                  {isLessonMode ? (
+                    <span className={desktopLabelPillClass}>{item.label}</span>
+                  ) : (
+                    <span className="mt-1 text-[11px] font-medium tracking-[0.01em] text-current">
+                      {item.label}
+                    </span>
                   )}
-                  {index < navItems.length - 1 ? (
-                    <span
-                      aria-hidden="true"
-                      className="mx-1 h-px w-4 bg-gradient-to-r from-[#698278]/45 to-transparent"
-                    />
-                  ) : null}
-                </div>
+                </Link>
               );
             })}
           </div>
 
-          <div className="flex items-center gap-2">
-            {user ? (
-              <UserMenuLazy />
-            ) : (
-              <Link
-                href="/login"
-                className="inline-flex items-center rounded-xl border border-[#4a5d56] bg-[#131917] px-3 py-2 text-sm font-semibold text-[#d8e3de] transition-colors hover:bg-[#19211e]"
-              >
-                Sign in
-              </Link>
-            )}
+          <div className="mt-auto flex flex-col items-center pt-4">
+            <UserMenuLazy align="start" placement="right" appearance="rail" />
           </div>
         </div>
-      </div>
-    </nav>
+      </aside>
+    </>
   );
 };

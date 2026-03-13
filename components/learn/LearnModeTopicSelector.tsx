@@ -15,6 +15,7 @@ type LearnMode = 'theory';
 interface LearnModeTopicSelectorProps {
   mode: LearnMode;
   initialCompletedChapterCountByTopic?: Record<string, number>;
+  initialChapterCountByTopic?: Record<string, number>;
 }
 
 interface TopicEntry {
@@ -41,9 +42,11 @@ const getSimpleTrackName = (title: string) => {
 
 export function LearnModeTopicSelector({
   mode,
-  initialCompletedChapterCountByTopic = {}
+  initialCompletedChapterCountByTopic = {},
+  initialChapterCountByTopic = {}
 }: LearnModeTopicSelectorProps) {
   const completedChapterCountByTopic = initialCompletedChapterCountByTopic;
+  const chapterCountByTopic = initialChapterCountByTopic;
 
   const topics = useMemo<TopicEntry[]>(() => {
     return learnTopics.map((topic) => {
@@ -89,9 +92,13 @@ export function LearnModeTopicSelector({
                   const style = getTheoryTopicStyle(topic.id);
                   const completedTopicChapters =
                     completedChapterCountByTopic[topic.id] ?? 0;
+                  const totalTopicChapters =
+                    chapterCountByTopic[topic.id] && chapterCountByTopic[topic.id] > 0
+                      ? chapterCountByTopic[topic.id]
+                      : topic.chapterCount;
                   const topicProgressPct =
-                    topic.chapterCount > 0
-                      ? Math.round((completedTopicChapters / topic.chapterCount) * 100)
+                    totalTopicChapters > 0
+                      ? Math.round((completedTopicChapters / totalTopicChapters) * 100)
                       : 0;
 
                   return (
@@ -146,7 +153,7 @@ export function LearnModeTopicSelector({
                               {topicProgressPct}%
                             </div>
                             <div className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-                              {completedTopicChapters}/{topic.chapterCount} read
+                              {completedTopicChapters}/{totalTopicChapters} read
                             </div>
                           </div>
                         </div>
@@ -164,7 +171,7 @@ export function LearnModeTopicSelector({
                               />
                             </div>
                             <span className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-                              {completedTopicChapters}/{topic.chapterCount}
+                              {completedTopicChapters}/{totalTopicChapters}
                             </span>
                           </div>
 

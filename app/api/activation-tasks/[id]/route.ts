@@ -13,6 +13,11 @@ const toCreateInput = (payload: Record<string, unknown>) => ({
   trackSlug: typeof payload.trackSlug === 'string' ? payload.trackSlug : undefined,
   scopeType: payload.scopeType as 'count' | 'all_remaining',
   requestedCount: typeof payload.requestedCount === 'number' ? payload.requestedCount : undefined,
+  contentItemIds: Array.isArray(payload.contentItemIds)
+    ? payload.contentItemIds.filter(
+        (value): value is string => typeof value === 'string'
+      )
+    : undefined,
   contentItemId:
     typeof payload.contentItemId === 'string' ? payload.contentItemId : undefined
 });
@@ -54,7 +59,7 @@ export async function PATCH(
     const board = await getActivationBoardData({
       supabase,
       userId: user.id,
-      shouldReconcile: true
+      shouldReconcile: false
     });
     const allCards = [...board.todo, ...board.inProgress, ...board.completed];
     const task = allCards.find((card) => card.id === taskId) ?? null;
