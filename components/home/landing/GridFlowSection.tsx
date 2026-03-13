@@ -2491,10 +2491,16 @@ export const GridFlowSection = () => {
     1
   );
   const stepOnePosition = 1;
-  const darknessOverlayOpacity =
+  const baseDarknessOverlayOpacity =
     journeyPosition <= stepOnePosition
       ? clamp(journeyPosition / stepOnePosition, 0, 1)
       : 1;
+  const postIntroDarknessFloor = isIntroAutoplayComplete ? 0.36 : 0;
+  const darknessOverlayOpacity = clamp(
+    Math.max(baseDarknessOverlayOpacity, postIntroDarknessFloor),
+    0,
+    1
+  );
   const shouldLockIntroScroll = !reducedMotion && !isIntroAutoplayComplete;
   const scenePerformanceMode: 'full' | 'balanced' = performanceMode;
   const storyArticles = useMemo(

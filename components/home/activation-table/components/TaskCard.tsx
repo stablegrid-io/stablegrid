@@ -2,11 +2,15 @@ import { motion } from 'framer-motion';
 import { useState, type ReactNode } from 'react';
 
 export type TaskCardState = 'todo' | 'in-progress' | 'completed';
+export type TaskCardKind = 'theory' | 'task';
 
 export interface TaskCardData {
   id: string;
   title: string;
   subtitle: string;
+  kind?: TaskCardKind;
+  kindLabel?: string;
+  contextLabel?: string;
   statusLabel?: string;
   readyToComplete?: boolean;
   actionLabel?: string;
@@ -54,12 +58,32 @@ const edgeToneByState: Record<TaskCardState, ReactNode> = {
   completed: <div aria-hidden className="absolute inset-y-3 left-0 w-px bg-[#79d0ab]/75" />
 };
 
+const kindChipToneByKind: Record<TaskCardKind, string> = {
+  theory:
+    'border-[#314354] bg-[rgba(17,28,39,0.86)] text-[#cad7eb] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]',
+  task:
+    'border-[#30463d] bg-[rgba(14,27,22,0.88)] text-[#cfe2d8] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+};
+
+const kindDotToneByKind: Record<TaskCardKind, string> = {
+  theory: 'bg-[#88a9d8]',
+  task: 'bg-[#8cc6a9]'
+};
+
+const kindAuraByKind: Record<TaskCardKind, string> = {
+  theory:
+    'bg-[radial-gradient(circle_at_14%_0%,rgba(97,125,170,0.16),transparent_36%)]',
+  task:
+    'bg-[radial-gradient(circle_at_14%_0%,rgba(100,151,126,0.14),transparent_36%)]'
+};
+
 export const TASK_CARD_BASE_CLASS =
   'group relative overflow-hidden rounded-[14px] border border-[#2d3531] bg-[linear-gradient(180deg,#0a1011_0%,#070a0b_100%)] px-4 py-3.5 transition-[transform,border-color,background-color,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#43524b] hover:bg-[linear-gradient(180deg,#0c1315_0%,#090d0f_100%)] hover:shadow-[0_18px_30px_-22px_rgba(0,0,0,0.8)]';
 
 export function TaskCard({ task, state }: TaskCardProps) {
   const isDraggable = Boolean(task.draggable);
   const [isDragging, setIsDragging] = useState(false);
+  const cardKind = task.kind ?? 'theory';
 
   return (
     <article
@@ -90,6 +114,10 @@ export function TaskCard({ task, state }: TaskCardProps) {
       }`}
     >
       {edgeToneByState[state]}
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 opacity-90 ${kindAuraByKind[cardKind]}`}
+      />
       {task.readyToComplete ? (
         <motion.div
           aria-hidden
@@ -102,6 +130,23 @@ export function TaskCard({ task, state }: TaskCardProps) {
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
+          {task.kindLabel || task.contextLabel ? (
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              {task.kindLabel ? (
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-medium tracking-[0.08em] ${kindChipToneByKind[cardKind]}`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${kindDotToneByKind[cardKind]}`} />
+                  <span>{task.kindLabel}</span>
+                </span>
+              ) : null}
+              {task.contextLabel ? (
+                <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#7b8984]">
+                  {task.contextLabel}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           <h4 className={`text-sm font-medium leading-snug ${titleToneByState[state]}`}>{task.title}</h4>
           <p className={`mt-1.5 text-xs leading-relaxed ${subtitleToneByState[state]}`}>{task.subtitle}</p>
         </div>

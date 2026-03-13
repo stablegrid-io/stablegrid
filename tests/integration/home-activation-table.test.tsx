@@ -79,6 +79,39 @@ describe('HomeActivationTable', () => {
     });
   });
 
+  it('renders a quiet distinction between theory and task cards', async () => {
+    const mixedBoard = {
+      ...baseBoard,
+      inProgress: [
+        {
+          ...baseBoard.todo[0],
+          id: 'task-2',
+          title: 'Complete 1 Microsoft Fabric notebook',
+          description: 'Apply your learning through guided practical work.',
+          status: 'in_progress',
+          taskType: 'task',
+          taskGroup: 'notebooks',
+          trackSlug: 'fabric',
+          trackTitle: 'Microsoft Fabric',
+          requestedCount: 1,
+          progress: { completed: 0, total: 1 },
+          statusLabel: '0/1 complete',
+          actionLabel: 'Open'
+        }
+      ]
+    };
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: mixedBoard }));
+
+    render(<HomeActivationTable {...buildProps()} />);
+
+    await screen.findByText('Complete 2 PySpark modules');
+    expect(screen.getByText('Theory')).toBeInTheDocument();
+    expect(screen.getByText('PySpark')).toBeInTheDocument();
+    expect(screen.getByText('Task')).toBeInTheDocument();
+    expect(screen.getByText('Notebook')).toBeInTheDocument();
+  });
+
   it('submits create task flow to POST endpoint', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ data: baseBoard }))

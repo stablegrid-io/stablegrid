@@ -117,6 +117,13 @@ const ESTIMATE_BY_GROUP: Record<ActivationTaskGroup, { minutesPerItem: number; k
   missions: { minutesPerItem: 16, kwhPerItem: 4 }
 };
 
+const TASK_CONTEXT_LABEL_BY_GROUP: Record<ActivationTaskGroup, string> = {
+  theory: 'Track',
+  flashcards: 'Flashcards',
+  notebooks: 'Notebook',
+  missions: 'Mission'
+};
+
 const formatDuration = (totalMinutes: number) => {
   if (totalMinutes <= 0) {
     return '0m';
@@ -1075,6 +1082,12 @@ export function ActivationTable() {
       id: card.id,
       title: card.title,
       subtitle: card.description,
+      kind: card.taskType,
+      kindLabel: card.taskType === 'theory' ? 'Theory' : 'Task',
+      contextLabel:
+        card.taskType === 'theory'
+          ? card.trackTitle ?? 'Track'
+          : TASK_CONTEXT_LABEL_BY_GROUP[card.taskGroup],
       readyToComplete: isCardReadyToComplete(card),
       statusLabel: card.statusLabel ?? undefined,
       actionLabel: card.status === 'todo' ? undefined : card.actionLabel ?? undefined,

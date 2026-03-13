@@ -398,6 +398,10 @@ export function UserMenu({
                 <Bug className="h-4 w-4" />
                 Report a bug
               </Link>
+              <div
+                role="separator"
+                className="mx-2.5 my-1 h-px bg-light-border/80 dark:bg-dark-border/80"
+              />
               <button
                 type="button"
                 onClick={() => {

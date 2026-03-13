@@ -274,7 +274,7 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
     variant: 'final',
     align: 'center',
     ctaSource: 'grid_flow_final',
-    ctaLabel: "Yes, let's do it",
+    ctaLabel: 'Start free',
     scene: {
       stageBeat: 4.12,
       diagramOffsetX: 6,
