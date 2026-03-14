@@ -3,6 +3,37 @@ import { createMiddlewareClient } from '@/lib/supabase/middleware';
 
 const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/update-password'];
 const PROTECTED_ROUTES = ['/hub', '/missions', '/practice', '/workspace', '/onboarding'];
+const ADMIN_ROUTES = ['/admin'];
+
+const hasAdminMembership = async (userId: string) => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase service role environment variables.');
+  }
+
+  const membershipUrl = new URL('/rest/v1/admin_memberships', supabaseUrl);
+  membershipUrl.searchParams.set('select', 'user_id');
+  membershipUrl.searchParams.set('user_id', `eq.${userId}`);
+  membershipUrl.searchParams.set('limit', '1');
+
+  const response = await fetch(membershipUrl.toString(), {
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      Accept: 'application/json'
+    },
+    cache: 'no-store'
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to verify admin membership (${response.status}).`);
+  }
+
+  const data = (await response.json()) as Array<{ user_id: string }>;
+  return Array.isArray(data) && data.length > 0;
+};
 
 export async function middleware(request: NextRequest) {
   const { supabase, response } = createMiddlewareClient(request);
@@ -15,9 +46,23 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
     pathname.startsWith(route)
   );
+  const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
 
-  if (!user && isProtectedRoute) {
+  if (!user && (isProtectedRoute || isAdminRoute)) {
     return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  if (user && isAdminRoute) {
+    const isAdmin = await hasAdminMembership(user.id);
+
+    if (!isAdmin) {
+      return new NextResponse('Forbidden', {
+        status: 403,
+        headers: {
+          'content-type': 'text/plain; charset=utf-8'
+        }
+      });
+    }
   }
 
   if (user && isAuthRoute) {
@@ -36,6 +81,8 @@ export const config = {
     '/workspace/:path*',
     '/onboarding/:path*',
     '/onboarding',
+    '/admin',
+    '/admin/:path*',
     '/login',
     '/signup',
     '/reset-password',

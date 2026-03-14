@@ -120,6 +120,8 @@ export interface CreateActivationTaskInput {
   requestedCount?: number;
   contentItemIds?: string[];
   contentItemId?: string;
+  title?: string;
+  description?: string;
 }
 
 interface NormalizedActivationTaskInput {
@@ -343,6 +345,20 @@ const buildTaskCopy = ({
   return {
     title: `Complete ${count} ${count === 1 ? 'mission' : 'missions'}`,
     description: 'Apply your learning through guided practical work.'
+  };
+};
+
+const applyTaskCopyOverrides = (
+  copy: { title: string; description: string },
+  input: CreateActivationTaskInput
+) => {
+  const customTitle = typeof input.title === 'string' ? input.title.trim() : '';
+  const customDescription =
+    typeof input.description === 'string' ? input.description.trim() : '';
+
+  return {
+    title: customTitle || copy.title,
+    description: customDescription || copy.description
   };
 };
 
@@ -856,7 +872,7 @@ const resolveTaskSelectionPlan = async ({
       };
     }
 
-    const copy =
+    const generatedCopy =
       normalized.taskType === 'theory'
         ? selectedItems.length === 1
           ? {
@@ -874,6 +890,7 @@ const resolveTaskSelectionPlan = async ({
             requestedCount: selectedItems.length,
             trackTitle: track?.title ?? null
           });
+    const copy = applyTaskCopyOverrides(generatedCopy, input);
 
     return {
       normalized: {
@@ -949,13 +966,14 @@ const resolveTaskSelectionPlan = async ({
         })()
       : eligibleItems;
 
-  const copy = buildTaskCopy({
+  const generatedCopy = buildTaskCopy({
     taskType: normalized.taskType,
     taskGroup: normalized.taskGroup,
     scopeType: normalized.scopeType,
     requestedCount: normalized.requestedCount,
     trackTitle: track?.title ?? null
   });
+  const copy = applyTaskCopyOverrides(generatedCopy, input);
 
   return {
     normalized,

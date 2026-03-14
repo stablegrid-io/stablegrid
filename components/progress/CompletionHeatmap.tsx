@@ -113,16 +113,16 @@ export const CompletionHeatmap = ({ sessions }: CompletionHeatmapProps) => {
   }, [grid]);
 
   return (
-    <div className="rounded-2xl border border-light-border bg-light-surface p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:border-dark-border dark:bg-dark-surface">
-      <h2 className="mb-1 text-sm font-semibold uppercase tracking-[0.11em] text-slate-700 dark:text-slate-200">
+    <section className="rounded-[1.5rem] border border-[#d6ddd7] bg-white/72 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] backdrop-blur dark:border-white/10 dark:bg-white/5 sm:p-5">
+      <h2 className="mb-1 text-sm font-semibold tracking-[-0.02em] text-[#121b18] dark:text-[#f2f7f4]">
         Activity Heatmap
       </h2>
-      <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+      <p className="mb-4 text-sm leading-6 text-[#6d746f] dark:text-[#7e9589]">
         Last 12 weeks of reading activity.
       </p>
 
       <div
-        className="mb-1 grid gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400"
+        className="mb-1 grid gap-1 text-[10px] font-medium text-[#6d746f] dark:text-[#7e9589]"
         style={{ gridTemplateColumns: `repeat(${WEEK_COLUMNS}, minmax(0, 1fr))` }}
       >
         {monthLabels.map((label, index) => (
@@ -146,13 +146,16 @@ export const CompletionHeatmap = ({ sessions }: CompletionHeatmapProps) => {
             type="button"
             onMouseEnter={() => setHoveredDate(day.key)}
             onMouseLeave={() => setHoveredDate(null)}
+            onFocus={() => setHoveredDate(day.key)}
+            onBlur={() => setHoveredDate(null)}
             className={`mx-auto h-3 w-3 rounded-sm ${levelClasses[day.level]}`}
             title={`${day.label}: ${day.count} sessions`}
+            aria-label={`${day.label}: ${day.count} sessions`}
           />
         ))}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[#6d746f] dark:text-[#7e9589]">
         <div className="flex items-center gap-2">
           <span>Less</span>
           {levelClasses.map((className, idx) => (
@@ -165,9 +168,9 @@ export const CompletionHeatmap = ({ sessions }: CompletionHeatmapProps) => {
             ? `${formatDayLabel(hoveredDate)}: ${
                 grid.find((day) => day.key === hoveredDate)?.count ?? 0
               } sessions`
-            : 'Hover a day'}
+            : 'Focus a day'}
         </span>
       </div>
-    </div>
+    </section>
   );
 };

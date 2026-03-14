@@ -83,6 +83,9 @@ export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolea
 export const isTheoryLessonPath = (pathname?: string | null) =>
   Boolean(pathname && /^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname));
 
+export const isCompactDesktopNavPath = (pathname?: string | null) =>
+  Boolean(pathname?.startsWith('/admin')) || isTheoryLessonPath(pathname);
+
 export const isNavItemActive = (pathname: string | null, item: NavItem) =>
   item.matchPrefixes
     ? item.matchPrefixes.some(

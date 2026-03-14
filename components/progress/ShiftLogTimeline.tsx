@@ -111,17 +111,17 @@ export function ShiftLogTimeline({ entries }: ShiftLogTimelineProps) {
     <section
       id="shift-log"
       aria-labelledby="shift-log-heading"
-      className="rounded-2xl border border-light-border bg-light-surface p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:border-dark-border dark:bg-dark-surface"
+      className="rounded-[1.5rem] border border-[#d6ddd7] bg-white/72 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] backdrop-blur dark:border-white/10 dark:bg-white/5 sm:p-5"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2
             id="shift-log-heading"
-            className="text-sm font-semibold uppercase tracking-[0.11em] text-slate-700 dark:text-slate-200"
+            className="text-sm font-semibold tracking-[-0.02em] text-[#121b18] dark:text-[#f2f7f4]"
           >
             Shift Log
           </h2>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-sm leading-6 text-[#6d746f] dark:text-[#7e9589]">
             Operational evidence timeline for promotion review.
           </p>
         </div>
@@ -133,10 +133,10 @@ export function ShiftLogTimeline({ entries }: ShiftLogTimelineProps) {
               role="tab"
               aria-selected={filter === option.id}
               onClick={() => setFilter(option.id)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                 filter === option.id
                   ? 'border-brand-500 bg-brand-500 text-white'
-                  : 'border-slate-300 text-slate-600 hover:border-brand-500 hover:text-brand-700 dark:border-dark-border dark:text-slate-300 dark:hover:border-brand-500 dark:hover:text-brand-300'
+                  : 'border-[#d5ddd7] bg-white/70 text-[#56635c] hover:border-brand-500/30 hover:text-brand-700 dark:border-white/10 dark:bg-white/5 dark:text-[#9db6aa] dark:hover:border-brand-400/30 dark:hover:text-brand-300'
               }`}
             >
               {option.label}
@@ -146,14 +146,14 @@ export function ShiftLogTimeline({ entries }: ShiftLogTimelineProps) {
       </div>
 
       {groupedEntries.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-light-border bg-light-bg px-4 py-6 text-sm text-slate-600 dark:border-dark-border dark:bg-dark-bg dark:text-slate-300">
+        <div className="mt-4 rounded-[18px] border border-dashed border-[#d6ddd7] bg-white/60 px-4 py-6 text-sm leading-6 text-[#627068] dark:border-white/10 dark:bg-white/4 dark:text-[#8aa496]">
           No worker record yet. Complete a lesson, practice run, or mission to create your first shift log entry.
         </div>
       ) : (
         <div className="mt-4 space-y-4">
           {groupedEntries.map(([dayLabel, dayEntries]) => (
             <div key={dayLabel}>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#4e5f57] dark:text-[#8aa496]">
                 {dayLabel}
               </h3>
               <ul className="space-y-2">
@@ -163,20 +163,20 @@ export function ShiftLogTimeline({ entries }: ShiftLogTimelineProps) {
                     <li key={entry.id}>
                       <Link
                         href={entry.route}
-                        className="flex items-start gap-3 rounded-lg border border-light-border bg-light-bg px-3 py-2.5 transition hover:border-brand-400 dark:border-dark-border dark:bg-dark-bg dark:hover:border-brand-500"
+                        className="flex items-start gap-3 rounded-[18px] border border-[#d6ddd7] bg-white/74 px-3.5 py-3 transition-colors hover:border-brand-500/30 dark:border-white/10 dark:bg-white/4 dark:hover:border-brand-400/25"
                       >
                         <EntryIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                          <p className="text-sm font-medium text-[#121b18] dark:text-[#f2f7f4]">
                             {entry.action}
                           </p>
-                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          <p className="mt-0.5 text-xs text-[#6d746f] dark:text-[#7e9589]">
                             {entry.detail}
                           </p>
                         </div>
                         <time
                           dateTime={entry.occurredAt}
-                          className="shrink-0 text-xs text-slate-500 dark:text-slate-400"
+                          className="shrink-0 text-xs text-[#6d746f] dark:text-[#7e9589]"
                         >
                           {formatTime(entry.occurredAt)}
                         </time>
@@ -195,7 +195,7 @@ export function ShiftLogTimeline({ entries }: ShiftLogTimelineProps) {
           <button
             type="button"
             onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-brand-500 hover:text-brand-700 dark:border-dark-border dark:text-slate-300 dark:hover:border-brand-500 dark:hover:text-brand-300"
+            className="rounded-full border border-[#d5ddd7] bg-white/70 px-3.5 py-2 text-sm font-medium text-[#56635c] transition-colors hover:border-brand-500/30 hover:text-brand-700 dark:border-white/10 dark:bg-white/5 dark:text-[#9db6aa] dark:hover:border-brand-400/30 dark:hover:text-brand-300"
           >
             Load more entries
           </button>

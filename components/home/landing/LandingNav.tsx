@@ -29,7 +29,7 @@ export const LandingNav = () => {
                 source: 'nav_primary'
               });
             }}
-            className="rounded-full border border-[#edf4fa] bg-[#dbe4ec] px-4 py-2 text-sm font-medium text-[#10161c] shadow-[0_0_0_1px_rgba(255,255,255,0.35)_inset,0_8px_18px_rgba(223,232,240,0.28)] transition-colors hover:bg-[#eef4f9]"
+            className="rounded-full border border-[#edf4fa] bg-[#dbe4ec] px-4 py-2 text-sm font-medium text-[#10161c] transition-colors hover:bg-[#eef4f9]"
           >
             Start free
           </Link>

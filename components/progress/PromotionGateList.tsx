@@ -28,13 +28,13 @@ export function PromotionGateList({
   const allCriteriaMet = unmetCriteria.length === 0;
 
   return (
-    <div>
+    <div data-testid="promotion-criteria-list">
       {metCriteria.length > 0 ? (
         <div className="mb-2 flex justify-end">
           <button
             type="button"
             onClick={() => setShowCompleted((value) => !value)}
-            className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 transition hover:border-brand-500 hover:text-brand-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-brand-500 dark:hover:text-brand-300"
+            className="rounded-full border border-[#d5ddd7] bg-white/70 px-3 py-1.5 text-xs font-medium text-[#56635c] transition-colors hover:border-brand-500/30 hover:text-brand-700 dark:border-white/10 dark:bg-white/5 dark:text-[#9db6aa] dark:hover:border-brand-400/30 dark:hover:text-brand-300"
           >
             {showCompleted ? 'Hide completed criteria' : `Show completed (${metCriteria.length})`}
           </button>
@@ -42,7 +42,7 @@ export function PromotionGateList({
       ) : null}
 
       {allCriteriaMet && !showCompleted ? (
-        <div className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs text-brand-800 dark:border-brand-500/40 dark:bg-brand-900/25 dark:text-brand-200">
+        <div className="rounded-[18px] border border-brand-200 bg-brand-50/90 px-3.5 py-3 text-sm text-brand-800 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-200">
           All criteria are met for this role. Select the next role stage to see pending requirements.
         </div>
       ) : (
@@ -50,7 +50,12 @@ export function PromotionGateList({
           {visibleCriteria.map((criterion) => (
             <li
               key={criterion.id}
-              className="rounded-lg border border-light-border bg-light-bg px-3 py-2.5 dark:border-dark-border dark:bg-dark-bg"
+              data-testid={
+                criterion.route === '/practice/notebooks'
+                  ? 'promotion-criterion-notebooks'
+                  : undefined
+              }
+              className="rounded-[18px] border border-[#d6ddd7] bg-white/74 px-3.5 py-3 dark:border-white/8 dark:bg-white/4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -60,18 +65,18 @@ export function PromotionGateList({
                     ) : (
                       <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
                     )}
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <p className="text-sm font-medium text-[#121b18] dark:text-[#f2f7f4]">
                       {criterion.label}
                     </p>
                   </div>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-xs leading-5 text-[#6d746f] dark:text-[#7e9589]">
                     {criterion.currentValueLabel} / {criterion.targetValueLabel}
                   </p>
                 </div>
                 <Link
                   href={criterion.route}
                   onClick={() => onCriterionClick?.(criterion)}
-                  className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 transition hover:border-brand-500 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 dark:border-slate-600 dark:text-slate-300 dark:hover:border-brand-500 dark:hover:text-brand-300"
+                  className="inline-flex items-center gap-1 rounded-full border border-[#d5ddd7] bg-white/80 px-3 py-1.5 text-xs font-medium text-[#56635c] transition-colors hover:border-brand-500/30 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-[#9db6aa] dark:hover:border-brand-400/30 dark:hover:text-brand-300"
                 >
                   Open
                   <ExternalLink className="h-3 w-3" />

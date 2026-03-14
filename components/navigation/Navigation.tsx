@@ -5,13 +5,13 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { TopNav } from './TopNav';
 import { BottomNav } from './BottomNav';
-import { isTheoryLessonPath, shouldHideNav } from './navigation-config';
+import { isCompactDesktopNavPath, shouldHideNav } from './navigation-config';
 
 export const Navigation = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const hideNav = shouldHideNav(pathname, Boolean(user));
-  const isLessonMode = isTheoryLessonPath(pathname);
+  const isLessonMode = isCompactDesktopNavPath(pathname);
 
   return (
     <>

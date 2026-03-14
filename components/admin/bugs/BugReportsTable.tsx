@@ -1,0 +1,153 @@
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { BugSeverityBadge } from '@/components/admin/bugs/BugSeverityBadge';
+import { BugStatusBadge } from '@/components/admin/bugs/BugStatusBadge';
+import type { BugReport, BugSortKey, BugSortState } from '@/components/admin/bugs/types';
+import { formatSubmittedAt } from '@/components/admin/bugs/utils';
+
+const COLUMNS: Array<{
+  id: 'report' | 'reporter' | 'severity' | 'status' | 'submittedAt' | 'module';
+  label: string;
+  sortable?: boolean;
+  sortKey?: BugSortKey;
+  align?: 'left' | 'right';
+}> = [
+  { id: 'report', label: 'Report' },
+  { id: 'reporter', label: 'Reporter' },
+  { id: 'severity', label: 'Severity', sortable: true, sortKey: 'severity' },
+  { id: 'status', label: 'Status', sortable: true, sortKey: 'status' },
+  { id: 'submittedAt', label: 'Submitted', sortable: true, sortKey: 'submittedAt' },
+  { id: 'module', label: 'Module', sortable: true, sortKey: 'module' }
+];
+
+const alignClass = (align: 'left' | 'right' | undefined) =>
+  align === 'right' ? 'text-right' : 'text-left';
+
+const SortIcon = ({
+  sort,
+  sortKey
+}: {
+  sort: BugSortState;
+  sortKey: BugSortKey;
+}) => {
+  if (sort.key !== sortKey) {
+    return <ArrowUpDown className="h-3.5 w-3.5 text-[#5f7269]" />;
+  }
+
+  return sort.direction === 'asc' ? (
+    <ArrowUp className="h-3.5 w-3.5 text-[#d6e4de]" />
+  ) : (
+    <ArrowDown className="h-3.5 w-3.5 text-[#d6e4de]" />
+  );
+};
+
+const SkeletonRow = () => (
+  <tr className="border-t border-white/8">
+    <td className="px-4 py-4">
+      <div className="h-4 w-56 animate-pulse rounded bg-white/[0.08]" />
+      <div className="mt-2 h-3 w-72 animate-pulse rounded bg-white/[0.05]" />
+    </td>
+    {Array.from({ length: COLUMNS.length - 1 }).map((_, index) => (
+      <td key={index} className="px-4 py-4">
+        <div className="h-4 w-24 animate-pulse rounded bg-white/[0.08]" />
+      </td>
+    ))}
+  </tr>
+);
+
+export function BugReportsTable({
+  rows,
+  loading,
+  sort,
+  onSort,
+  onRowClick
+}: {
+  rows: BugReport[];
+  loading: boolean;
+  sort: BugSortState;
+  onSort: (sortKey: BugSortKey) => void;
+  onRowClick: (report: BugReport) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#070d0c]">
+      <div className="overflow-x-auto">
+        <table className="min-w-full border-collapse">
+          <thead className="bg-white/[0.02]">
+            <tr>
+              {COLUMNS.map((column) => (
+                <th
+                  key={column.id}
+                  scope="col"
+                  className={`px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#8ca098] ${alignClass(column.align)}`}
+                >
+                  {column.sortable && column.sortKey ? (
+                    <button
+                      type="button"
+                      onClick={() => onSort(column.sortKey!)}
+                      className="inline-flex items-center gap-1.5 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
+                    >
+                      {column.label}
+                      <SortIcon sort={sort} sortKey={column.sortKey} />
+                    </button>
+                  ) : (
+                    column.label
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {loading ? Array.from({ length: 8 }).map((_, index) => <SkeletonRow key={index} />) : null}
+
+            {!loading && rows.length === 0 ? (
+              <tr className="border-t border-white/8">
+                <td colSpan={COLUMNS.length} className="px-6 py-14 text-center text-sm text-[#8ea39a]">
+                  No bug reports found for the current filters.
+                </td>
+              </tr>
+            ) : null}
+
+            {!loading
+              ? rows.map((report) => (
+                  <tr
+                    key={report.id}
+                    tabIndex={0}
+                    role="button"
+                    onClick={() => onRowClick(report)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onRowClick(report);
+                      }
+                    }}
+                    className="group border-t border-white/8 transition hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
+                  >
+                    <td className="px-4 py-3.5">
+                      <p className="max-w-[22rem] truncate text-sm font-semibold text-white">{report.title}</p>
+                      <p className="mt-0.5 max-w-[24rem] truncate text-xs text-[#7f948b]">
+                        {report.shortDescription}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="max-w-[13rem] truncate text-sm text-[#d3e0da]">{report.reporterName}</p>
+                      <p className="max-w-[13rem] truncate text-xs text-[#7f948b]">{report.reporterEmail}</p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <BugSeverityBadge severity={report.severity} />
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <BugStatusBadge status={report.status} />
+                    </td>
+                    <td className="px-4 py-3.5 text-sm text-[#d3e0da]">
+                      {formatSubmittedAt(report.submittedAt)}
+                    </td>
+                    <td className="px-4 py-3.5 text-sm text-[#d3e0da]">{report.module}</td>
+                  </tr>
+                ))
+              : null}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

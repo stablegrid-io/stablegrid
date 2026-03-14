@@ -164,11 +164,16 @@ const syncProgressWithoutNotebookPayload = async (page: Page) => {
 
 const expectHrbNotebookCriterion = async (page: Page, completedCount: number) => {
   await page.goto('/progress', { waitUntil: 'networkidle' });
-  await expect(
-    page.getByRole('heading', {
-      name: 'Career Ladder'
-    })
-  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('hrb-overview')).toBeVisible({ timeout: 20_000 });
+
+  const readinessDisclosure = page.getByTestId('hrb-readiness-disclosure');
+  await expect(readinessDisclosure).toBeVisible({ timeout: 20_000 });
+
+  if ((await readinessDisclosure.getAttribute('aria-expanded')) !== 'true') {
+    await readinessDisclosure.click();
+  }
+
+  await expect(page.getByTestId('hrb-readiness-panel')).toBeVisible({ timeout: 20_000 });
 
   const showCompletedButton = page.getByRole('button', {
     name: /show completed/i
@@ -177,10 +182,7 @@ const expectHrbNotebookCriterion = async (page: Page, completedCount: number) =>
     await showCompletedButton.first().click();
   }
 
-  const notebookCriterion = page
-    .locator('ul[aria-label="Promotion criteria"] li')
-    .filter({ hasText: 'Notebook reviews' })
-    .first();
+  const notebookCriterion = page.getByTestId('promotion-criterion-notebooks').first();
 
   await expect(notebookCriterion).toBeVisible({ timeout: 20_000 });
   await expect(notebookCriterion).toContainText(
