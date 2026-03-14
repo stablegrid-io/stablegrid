@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const rowsOptions = [10, 20, 50];
+const ROWS_OPTIONS = [10, 20, 50];
 
 const buildPageNumbers = (page: number, pageCount: number) => {
   if (pageCount <= 5) {
@@ -13,7 +13,7 @@ const buildPageNumbers = (page: number, pageCount: number) => {
     .sort((left, right) => left - right);
 };
 
-export function CustomersPagination({
+export function OrdersPagination({
   page,
   pageCount,
   totalCount,
@@ -46,7 +46,7 @@ export function CustomersPagination({
             onChange={(event) => onRowsPerPageChange(Number(event.target.value))}
             className="h-8 rounded-[10px] border border-white/12 bg-white/[0.04] px-2 text-sm text-white outline-none transition focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15"
           >
-            {rowsOptions.map((option) => (
+            {ROWS_OPTIONS.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>

@@ -4,6 +4,7 @@ import { BugSeverityBadge } from '@/components/admin/bugs/BugSeverityBadge';
 import { BugStatusBadge } from '@/components/admin/bugs/BugStatusBadge';
 import type { BugReport, BugStatus } from '@/components/admin/bugs/types';
 import { formatSubmittedAt } from '@/components/admin/bugs/utils';
+import { ADMIN_DRAWER_SURFACE_CLASS } from '@/components/admin/theme';
 
 const STATUS_OPTIONS: BugStatus[] = ['New', 'In Review', 'Resolved'];
 
@@ -62,7 +63,7 @@ export function BugDetailDrawer({
         role="dialog"
         aria-modal="true"
         aria-label="Bug detail"
-        className="fixed right-0 top-0 z-50 h-full w-full max-w-xl overflow-y-auto border-l border-white/12 bg-[linear-gradient(180deg,#0b1110_0%,#070b0b_100%)] p-5 shadow-[-20px_0_46px_-30px_rgba(0,0,0,0.95)]"
+        className={`fixed right-0 top-0 z-50 h-full w-full max-w-xl overflow-y-auto p-5 ${ADMIN_DRAWER_SURFACE_CLASS}`}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -96,7 +97,7 @@ export function BugDetailDrawer({
             <select
               value={statusDraft}
               onChange={(event) => setStatusDraft(event.target.value as BugStatus)}
-              className="h-10 flex-1 rounded-[12px] border border-white/12 bg-[#0a1110] px-3 text-sm text-white outline-none transition focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15"
+              className="h-10 flex-1 rounded-[12px] border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15"
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option} value={option}>

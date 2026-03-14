@@ -15,7 +15,7 @@ export function CustomersSearchInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder="Search customers..."
-        className="h-11 w-full rounded-[14px] border border-white/10 bg-[#0a1110] pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-[#6f857c] focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15"
+        className="h-11 w-full rounded-[14px] border border-white/10 bg-white/[0.04] pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-[#6f857c] focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15"
       />
     </label>
   );

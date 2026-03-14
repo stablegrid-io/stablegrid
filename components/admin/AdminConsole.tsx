@@ -10,6 +10,12 @@ import {
 } from '@/components/admin/AdminLeftRail';
 import { AdminAnalyticsSection } from '@/components/admin/AdminAnalyticsSection';
 import { TheoryLessonsSection } from '@/components/admin/TheoryLessonsSection';
+import {
+  ADMIN_LAYOUT_CLASS,
+  ADMIN_PAGE_SHELL_CLASS,
+  AdminInlineMessage,
+  AdminSurface
+} from '@/components/admin/theme';
 import type {
   ActivationBoardCard,
   ActivationBoardData,
@@ -47,7 +53,7 @@ const STATUS_LABELS: Record<ActivationTaskStatus, string> = {
   completed: 'Completed'
 };
 
-type AdminSectionId = Exclude<AdminNavSectionId, 'customers' | 'financials' | 'bugs'>;
+type AdminSectionId = Exclude<AdminNavSectionId, 'customers' | 'financials' | 'bugs' | 'orders'>;
 type ActiveFilter = 'all' | 'active' | 'inactive';
 type ContentTypeFilter = 'all' | keyof typeof CONTENT_TYPE_LABELS;
 type SelectionMode = 'auto' | 'specific';
@@ -164,20 +170,7 @@ const moveItem = <T,>(items: T[], fromIndex: number, toIndex: number) => {
   return next;
 };
 
-const Surface = ({
-  children,
-  className = ''
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) => (
-  <section
-    className={`relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,12,0.82),rgba(5,8,8,0.92))] shadow-[0_30px_80px_-52px_rgba(0,0,0,0.82)] backdrop-blur-xl ${className}`}
-  >
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,185,153,0.12),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.04),transparent_30%)]" />
-    <div className="relative">{children}</div>
-  </section>
-);
+const Surface = AdminSurface;
 
 const SectionHeading = ({
   eyebrow,
@@ -200,23 +193,7 @@ const SectionHeading = ({
   </div>
 );
 
-const InlineMessage = ({
-  tone,
-  message
-}: {
-  tone: 'error' | 'success';
-  message: string;
-}) => (
-  <div
-    className={`rounded-[18px] border px-4 py-3 text-sm ${
-      tone === 'error'
-        ? 'border-rose-400/25 bg-rose-500/10 text-rose-100'
-        : 'border-brand-400/25 bg-brand-500/10 text-[#d7f6ec]'
-    }`}
-  >
-    {message}
-  </div>
-);
+const InlineMessage = AdminInlineMessage;
 
 const SmallBadge = ({ children }: { children: React.ReactNode }) => (
   <span className="inline-flex items-center rounded-full border border-white/12 bg-white/[0.04] px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[#9db6aa]">
@@ -1739,8 +1716,8 @@ export function AdminConsole({
   }, []);
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(34,185,153,0.12),transparent_26%),linear-gradient(180deg,#040706_0%,#060b0a_36%,#050706_100%)] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1460px] lg:mx-0 lg:grid lg:grid-cols-[13.25rem_minmax(0,1fr)] lg:gap-3 xl:grid-cols-[13.75rem_minmax(0,1fr)]">
+    <main className={ADMIN_PAGE_SHELL_CLASS}>
+      <div className={ADMIN_LAYOUT_CLASS}>
         <aside className="hidden lg:block">
           <AdminLeftRail activeSection={activeSection} />
         </aside>

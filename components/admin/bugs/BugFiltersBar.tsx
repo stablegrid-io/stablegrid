@@ -24,7 +24,7 @@ export function BugFiltersBar({
   exportDisabled: boolean;
 }) {
   return (
-    <div className="space-y-4 border-b border-white/8 px-4 py-4 sm:px-5">
+    <div className="space-y-4 border-b border-white/10 px-4 py-4 sm:px-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div
           className="inline-flex rounded-full border border-white/10 bg-white/[0.03] p-1"
@@ -88,7 +88,7 @@ export function BugFiltersBar({
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search bug reports..."
-          className="h-11 w-full rounded-[14px] border border-white/10 bg-[#0a1110] pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-[#6f857c] focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15"
+          className="h-11 w-full rounded-[14px] border border-white/10 bg-white/[0.04] pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-[#6f857c] focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15"
         />
       </label>
     </div>

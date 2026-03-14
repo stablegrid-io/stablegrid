@@ -26,7 +26,7 @@ const SortIcon = ({
 };
 
 const SkeletonRow = ({ visibleColumnCount }: { visibleColumnCount: number }) => (
-  <tr className="border-t border-white/8">
+  <tr className="border-t border-white/10">
     <td className="px-4 py-4">
       <div className="h-4 w-44 animate-pulse rounded bg-white/[0.08]" />
       <div className="mt-2 h-3 w-56 animate-pulse rounded bg-white/[0.05]" />
@@ -59,7 +59,7 @@ export function CustomersTable({
   );
 
   return (
-    <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#070d0c]">
+    <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#07100f]/65">
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead className="bg-white/[0.02]">
@@ -95,7 +95,7 @@ export function CustomersTable({
               : null}
 
             {!loading && rows.length === 0 ? (
-              <tr className="border-t border-white/8">
+              <tr className="border-t border-white/10">
                 <td
                   colSpan={renderedColumns.length}
                   className="px-6 py-14 text-center text-sm text-[#8ea39a]"
@@ -118,7 +118,7 @@ export function CustomersTable({
                         onRowClick(customer);
                       }
                     }}
-                    className="group border-t border-white/8 transition hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
+                    className="group border-t border-white/10 transition hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
                   >
                     {renderedColumns.map((column) => {
                       if (column.id === 'customer') {

@@ -6,6 +6,12 @@ import { DailyRevenueChartCard } from '@/components/admin/financials/DailyRevenu
 import { FinancialsKpiCard } from '@/components/admin/financials/FinancialsKpiCard';
 import { FinancialsPageHeader } from '@/components/admin/financials/FinancialsPageHeader';
 import { RevenueHeroCard } from '@/components/admin/financials/RevenueHeroCard';
+import {
+  ADMIN_LAYOUT_CLASS,
+  ADMIN_PAGE_SHELL_CLASS,
+  ADMIN_SECONDARY_SURFACE_CLASS,
+  AdminInlineMessage
+} from '@/components/admin/theme';
 import type { AdminFinancialsSnapshot } from '@/lib/admin/types';
 
 interface ApiEnvelope<T> {
@@ -53,8 +59,8 @@ export function AdminFinancialsPage() {
   }, [loadFinancials]);
 
   return (
-    <main className="min-h-screen bg-[#050908] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1460px] lg:mx-0 lg:grid lg:grid-cols-[13.25rem_minmax(0,1fr)] lg:gap-3 xl:grid-cols-[13.75rem_minmax(0,1fr)]">
+    <main className={ADMIN_PAGE_SHELL_CLASS}>
+      <div className={ADMIN_LAYOUT_CLASS}>
         <aside className="hidden lg:block">
           <AdminLeftRail activeSection="financials" />
         </aside>
@@ -62,14 +68,10 @@ export function AdminFinancialsPage() {
         <div className="space-y-5">
           <FinancialsPageHeader />
 
-          {error ? (
-            <section className="rounded-[18px] border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
-              {error}
-            </section>
-          ) : null}
+          {error ? <AdminInlineMessage tone="error" message={error} /> : null}
 
           {loading && !snapshot ? (
-            <section className="rounded-[24px] border border-white/10 bg-[#060b0a] px-5 py-10 text-sm text-[#90a49b]">
+            <section className={`${ADMIN_SECONDARY_SURFACE_CLASS} px-5 py-10 text-sm text-[#90a49b]`}>
               Loading financials...
             </section>
           ) : null}

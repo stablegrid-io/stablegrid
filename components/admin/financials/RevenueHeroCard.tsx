@@ -4,6 +4,7 @@ import { TrendingDown, TrendingUp } from 'lucide-react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { AdminFinancialsTrendPoint } from '@/lib/admin/types';
 import { computeChangePct, formatCompactCurrency, formatCurrency } from '@/components/admin/financials/utils';
+import { ADMIN_SECONDARY_SURFACE_CLASS } from '@/components/admin/theme';
 
 interface RevenueHeroCardProps {
   monthlyRevenue: number;
@@ -24,7 +25,7 @@ export function RevenueHeroCard({
       : 'text-[#d7f6ec] border-brand-400/20 bg-brand-500/10';
 
   return (
-    <section className="rounded-[24px] border border-white/10 bg-[#060b0a] p-5 sm:p-6">
+    <section className={`${ADMIN_SECONDARY_SURFACE_CLASS} p-5 sm:p-6`}>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-end">
         <div className="space-y-3">
           <p className="text-[0.72rem] uppercase tracking-[0.18em] text-[#8ca79a]">Monthly revenue</p>

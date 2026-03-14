@@ -41,7 +41,7 @@ const SortIcon = ({
 };
 
 const SkeletonRow = () => (
-  <tr className="border-t border-white/8">
+  <tr className="border-t border-white/10">
     <td className="px-4 py-4">
       <div className="h-4 w-56 animate-pulse rounded bg-white/[0.08]" />
       <div className="mt-2 h-3 w-72 animate-pulse rounded bg-white/[0.05]" />
@@ -68,7 +68,7 @@ export function BugReportsTable({
   onRowClick: (report: BugReport) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#070d0c]">
+    <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#07100f]/65">
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead className="bg-white/[0.02]">
@@ -100,7 +100,7 @@ export function BugReportsTable({
             {loading ? Array.from({ length: 8 }).map((_, index) => <SkeletonRow key={index} />) : null}
 
             {!loading && rows.length === 0 ? (
-              <tr className="border-t border-white/8">
+              <tr className="border-t border-white/10">
                 <td colSpan={COLUMNS.length} className="px-6 py-14 text-center text-sm text-[#8ea39a]">
                   No bug reports found for the current filters.
                 </td>
@@ -120,7 +120,7 @@ export function BugReportsTable({
                         onRowClick(report);
                       }
                     }}
-                    className="group border-t border-white/8 transition hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
+                    className="group border-t border-white/10 transition hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
                   >
                     <td className="px-4 py-3.5">
                       <p className="max-w-[22rem] truncate text-sm font-semibold text-white">{report.title}</p>

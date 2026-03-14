@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Columns3, RotateCcw } from 'lucide-react';
 import { CUSTOMER_COLUMNS } from '@/components/admin/customers/constants';
 import type { CustomerColumnId } from '@/components/admin/customers/types';
+import { ADMIN_DROPDOWN_SURFACE_CLASS } from '@/components/admin/theme';
 
 export function CustomersColumnsDropdown({
   visibleColumns,
@@ -59,7 +60,9 @@ export function CustomersColumnsDropdown({
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-[calc(100%+8px)] z-20 w-56 rounded-[14px] border border-white/14 bg-[linear-gradient(180deg,rgba(16,22,22,0.96),rgba(8,12,12,0.96))] p-2 shadow-[0_24px_42px_-24px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+        <div
+          className={`absolute right-0 top-[calc(100%+8px)] z-20 w-56 rounded-[14px] p-2 ${ADMIN_DROPDOWN_SURFACE_CLASS}`}
+        >
           <div className="mb-1 px-2 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-[#7f948b]">
             Visible columns
           </div>

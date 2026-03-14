@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Users
 } from 'lucide-react';
+import { AdminInlineMessage, AdminSurface } from '@/components/admin/theme';
 import type {
   AdminAnalyticsDecisionTree,
   AdminAnalyticsKpi,
@@ -146,38 +147,9 @@ const buildSparklineArea = (values: number[], width: number, height: number) => 
   return `${linePath} L ${lastPointX.toFixed(2)} ${height} L 0 ${height} Z`;
 };
 
-const Surface = ({
-  children,
-  className = ''
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) => (
-  <section
-    className={`relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,12,0.82),rgba(5,8,8,0.92))] shadow-[0_30px_80px_-52px_rgba(0,0,0,0.82)] backdrop-blur-xl ${className}`}
-  >
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,185,153,0.12),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.04),transparent_30%)]" />
-    <div className="relative">{children}</div>
-  </section>
-);
+const Surface = AdminSurface;
 
-const InlineMessage = ({
-  tone,
-  message
-}: {
-  tone: 'error' | 'success';
-  message: string;
-}) => (
-  <div
-    className={`rounded-[18px] border px-4 py-3 text-sm ${
-      tone === 'error'
-        ? 'border-rose-400/25 bg-rose-500/10 text-rose-100'
-        : 'border-brand-400/25 bg-brand-500/10 text-[#d7f6ec]'
-    }`}
-  >
-    {message}
-  </div>
-);
+const InlineMessage = AdminInlineMessage;
 
 interface HeroKpiCardData {
   id: AdminAnalyticsKpi['id'];
@@ -914,9 +886,10 @@ export function AdminAnalyticsSection({
                     void loadAnalytics(period);
                     onMutation('Analytics refreshed.');
                   }}
-                  className="hidden rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.08] sm:inline-flex"
+                  className="hidden h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/[0.05] text-white transition hover:border-brand-400/30 hover:bg-white/[0.08] sm:inline-flex"
+                  aria-label="Refresh analytics"
                 >
-                  Refresh analytics
+                  <RefreshCw className="h-4.5 w-4.5" strokeWidth={2.2} />
                 </button>
               </div>
             </div>

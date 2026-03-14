@@ -22,7 +22,7 @@ export function FinancialsKpiCard({ metric }: FinancialsKpiCardProps) {
       : 'text-[#d7f6ec] border-brand-400/20 bg-brand-500/10';
 
   return (
-    <article className="rounded-[20px] border border-white/10 bg-[#060b0a] px-4 py-4 sm:px-5">
+    <article className="rounded-[20px] border border-white/10 bg-[#07100f]/65 px-4 py-4 shadow-[0_24px_45px_-35px_rgba(0,0,0,0.9)] sm:px-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[0.75rem] uppercase tracking-[0.14em] text-[#8ca79a]">{metric.label}</p>
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.04]">

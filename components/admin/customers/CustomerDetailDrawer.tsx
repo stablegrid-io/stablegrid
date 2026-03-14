@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import type { Customer } from '@/components/admin/customers/types';
 import { formatCurrency, formatJoinedDate } from '@/components/admin/customers/utils';
+import { ADMIN_DRAWER_SURFACE_CLASS } from '@/components/admin/theme';
 
 export function CustomerDetailDrawer({
   customer,
@@ -28,7 +29,7 @@ export function CustomerDetailDrawer({
         role="dialog"
         aria-modal="true"
         aria-label="Customer detail"
-        className="fixed right-0 top-0 z-50 h-full w-full max-w-md border-l border-white/12 bg-[linear-gradient(180deg,#0b1110_0%,#070b0b_100%)] p-5 shadow-[-20px_0_46px_-30px_rgba(0,0,0,0.95)]"
+        className={`fixed right-0 top-0 z-50 h-full w-full max-w-md p-5 ${ADMIN_DRAWER_SURFACE_CLASS}`}
       >
         <div className="flex items-start justify-between">
           <div>

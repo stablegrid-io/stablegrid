@@ -11,6 +11,12 @@ import { CustomersPagination } from '@/components/admin/customers/CustomersPagin
 import { CustomersSearchInput } from '@/components/admin/customers/CustomersSearchInput';
 import { CustomersStatusTabs } from '@/components/admin/customers/CustomersStatusTabs';
 import { CustomersTable } from '@/components/admin/customers/CustomersTable';
+import {
+  ADMIN_LAYOUT_CLASS,
+  ADMIN_PAGE_SHELL_CLASS,
+  AdminInlineMessage,
+  AdminSurface
+} from '@/components/admin/theme';
 import type { Customer, CustomerColumnId, SortState, StatusFilter } from '@/components/admin/customers/types';
 import { buildCustomersCsv, getNextSortDirection, paginate, sortCustomers } from '@/components/admin/customers/utils';
 
@@ -24,11 +30,7 @@ const DEFAULT_VISIBLE_COLUMNS = new Set<CustomerColumnId>(
   CUSTOMER_COLUMNS.filter((column) => column.toggleable !== false).map((column) => column.id)
 );
 
-const Surface = ({ children }: { children: React.ReactNode }) => (
-  <section className="rounded-[24px] border border-white/10 bg-[#060b0a] shadow-[0_24px_45px_-35px_rgba(0,0,0,0.9)]">
-    {children}
-  </section>
-);
+const Surface = AdminSurface;
 
 const createExportFileName = () => {
   const now = new Date();
@@ -173,8 +175,8 @@ export function AdminCustomersPage() {
   const isTableLoading = loading || tableBusy;
 
   return (
-    <main className="min-h-screen bg-[#050908] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1460px] lg:mx-0 lg:grid lg:grid-cols-[13.25rem_minmax(0,1fr)] lg:gap-3 xl:grid-cols-[13.75rem_minmax(0,1fr)]">
+    <main className={ADMIN_PAGE_SHELL_CLASS}>
+      <div className={ADMIN_LAYOUT_CLASS}>
         <aside className="hidden lg:block">
           <AdminLeftRail activeSection="customers" />
         </aside>
@@ -182,14 +184,10 @@ export function AdminCustomersPage() {
         <div className="space-y-5">
           <CustomersPageHeader />
 
-          {error ? (
-            <section className="rounded-[18px] border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
-              {error}
-            </section>
-          ) : null}
+          {error ? <AdminInlineMessage tone="error" message={error} /> : null}
 
           <Surface>
-            <div className="space-y-4 border-b border-white/8 px-4 py-4 sm:px-5">
+            <div className="space-y-4 border-b border-white/10 px-4 py-4 sm:px-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <CustomersStatusTabs
                   value={statusFilter}
