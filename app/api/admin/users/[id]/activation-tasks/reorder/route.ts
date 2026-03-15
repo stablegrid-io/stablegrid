@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdminAccess } from '@/lib/admin/access';
 import { parseJsonBody, toAdminErrorResponse } from '@/lib/admin/http';
+import { runAdminProtectedMutation } from '@/lib/admin/protection';
 import {
   getActivationBoardData,
   reorderActivationTasks,
@@ -33,48 +34,64 @@ export async function PATCH(
     if (!isActivationTaskStatus(status)) {
       return NextResponse.json({ error: 'Task status is required.' }, { status: 400 });
     }
-
-    await reorderActivationTasks({
-      supabase: adminSupabase,
-      userId,
-      status,
-      orderedTaskIds
-    });
-
-    const board = await getActivationBoardData({
-      supabase: adminSupabase,
-      userId,
-      shouldReconcile: false
-    });
-
-    await logAdminAudit({
-      supabase: adminSupabase,
-      actorUserId: user.id,
-      targetUserId: userId,
-      entityType: 'activation_task_order',
-      entityId: `${userId}:${status}`,
-      action: 'activation_tasks_reordered',
-      beforeState: {
+    const response = await runAdminProtectedMutation({
+      request,
+      adminUserId: user.id,
+      scope: 'admin_activation_task_reorder',
+      requestBody: {
+        userId,
         status,
         orderedTaskIds
       },
-      afterState: {
-        status,
-        orderedTaskIds: (
-          status === 'todo'
-            ? board.todo
-            : status === 'in_progress'
-              ? board.inProgress
-              : board.completed
-        ).map((task) => task.id)
+      execute: async () => {
+        await reorderActivationTasks({
+          supabase: adminSupabase,
+          userId,
+          status,
+          orderedTaskIds
+        });
+
+        const board = await getActivationBoardData({
+          supabase: adminSupabase,
+          userId,
+          shouldReconcile: false
+        });
+
+        await logAdminAudit({
+          supabase: adminSupabase,
+          actorUserId: user.id,
+          targetUserId: userId,
+          entityType: 'activation_task_order',
+          entityId: `${userId}:${status}`,
+          action: 'activation_tasks_reordered',
+          beforeState: {
+            status,
+            orderedTaskIds
+          },
+          afterState: {
+            status,
+            orderedTaskIds: (
+              status === 'todo'
+                ? board.todo
+                : status === 'in_progress'
+                  ? board.inProgress
+                  : board.completed
+            ).map((task) => task.id)
+          }
+        });
+
+        return {
+          body: {
+            data: {
+              board
+            }
+          },
+          status: 200
+        };
       }
     });
 
-    return NextResponse.json({
-      data: {
-        board
-      }
-    });
+    return NextResponse.json(response.body, { status: response.status });
   } catch (error) {
     return toAdminErrorResponse(error, 'Failed to reorder activation tasks.');
   }

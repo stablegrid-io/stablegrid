@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ApiRouteError } from '@/lib/api/http';
 import { AdminAccessError } from '@/lib/admin/access';
 import { AdminServiceError } from '@/lib/admin/service';
 import { ActivationServiceError } from '@/lib/activation/service';
@@ -15,16 +16,22 @@ export const toAdminErrorResponse = (error: unknown, fallbackMessage: string) =>
   if (
     error instanceof AdminAccessError ||
     error instanceof AdminServiceError ||
-    error instanceof ActivationServiceError
+    error instanceof ActivationServiceError ||
+    error instanceof ApiRouteError
   ) {
     return NextResponse.json(
       {
         error: error.message,
-        ...(error instanceof AdminServiceError || error instanceof ActivationServiceError
+        ...(error instanceof AdminServiceError ||
+        error instanceof ActivationServiceError ||
+        error instanceof ApiRouteError
           ? error.details ?? {}
           : {})
       },
-      { status: error.status }
+      {
+        status: error.status,
+        headers: error instanceof ApiRouteError ? error.headers : undefined
+      }
     );
   }
 

@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createApiProtectionAdminClient,
+  createApiProtectionAdminState
+} from './support/apiProtectionAdmin';
 
 interface UserProgressRow {
   user_id: string;
@@ -20,9 +24,14 @@ interface GridOpsStateRow {
 }
 
 const createClientMock = vi.fn();
+const createAdminClientMock = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: createClientMock
+}));
+
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: createAdminClientMock
 }));
 
 const ASSET_COSTS: Record<string, number> = {
@@ -256,12 +265,18 @@ const getState = async (scenario = 'iberia_v1') => {
   return GET(new Request(`http://localhost/api/grid-ops/state?scenario=${scenario}`));
 };
 
-const postAction = async (payload: Record<string, unknown>) => {
+const postAction = async (
+  payload: Record<string, unknown>,
+  headers: HeadersInit = {}
+) => {
   const { POST } = await import('@/app/api/grid-ops/action/route');
   return POST(
     new Request('http://localhost/api/grid-ops/action', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers
+      },
       body: JSON.stringify(payload)
     })
   );
@@ -271,6 +286,7 @@ describe('grid-ops routes', () => {
   beforeEach(() => {
     vi.resetModules();
     createClientMock.mockReset();
+    createAdminClientMock.mockReset();
   });
 
   it('GET seeds missing grid_ops_state from user_progress', async () => {
@@ -335,6 +351,8 @@ describe('grid-ops routes', () => {
       }
     ];
 
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeSupabaseClient({ userProgressRows, gridOpsRows }));
 
     const response = await postAction({
@@ -381,6 +399,8 @@ describe('grid-ops routes', () => {
       }
     ];
 
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeSupabaseClient({ userProgressRows, gridOpsRows }));
 
     const response = await postAction({
@@ -408,6 +428,8 @@ describe('grid-ops routes', () => {
       }
     ];
 
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeSupabaseClient({ userProgressRows, gridOpsRows }));
 
     const response = await postAction({
@@ -435,6 +457,8 @@ describe('grid-ops routes', () => {
       }
     ];
 
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeSupabaseClient({ userProgressRows, gridOpsRows }));
 
     const response = await postAction({
@@ -456,5 +480,43 @@ describe('grid-ops routes', () => {
     expect(payload.data.active_event.id).toBe('evening_peak');
     expect(payload.data.milestone_unlocked?.threshold).toBe(75);
     expect(payload.data.next_best_action.action.length).toBeGreaterThan(0);
+  });
+
+  it('replays deploy responses for duplicate idempotency keys without rerunning the RPC', async () => {
+    const userProgressRows: UserProgressRow[] = [{ user_id: 'user-1', xp: 10000 }];
+    const gridOpsRows: GridOpsStateRow[] = [
+      {
+        user_id: 'user-1',
+        scenario_id: 'iberia_v1',
+        turn_index: 0,
+        deployed_asset_ids: ['control-center'],
+        last_deployed_asset_id: null,
+        spent_units: 0,
+        scenario_seed: 1
+      }
+    ];
+
+    const adminState = createApiProtectionAdminState();
+    const supabaseClient = makeSupabaseClient({ userProgressRows, gridOpsRows });
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
+    createClientMock.mockReturnValue(supabaseClient);
+
+    const payload = {
+      scenarioId: 'iberia_v1',
+      actionType: 'deploy',
+      assetId: 'smart-transformer'
+    } satisfies Record<string, unknown>;
+    const headers = {
+      'Idempotency-Key': 'grid-ops-deploy-key-1234',
+      'x-forwarded-for': '203.0.113.5'
+    };
+
+    const firstResponse = await postAction(payload, headers);
+    const secondResponse = await postAction(payload, headers);
+
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    await expect(firstResponse.json()).resolves.toEqual(await secondResponse.json());
+    expect(supabaseClient.rpc).toHaveBeenCalledTimes(1);
   });
 });

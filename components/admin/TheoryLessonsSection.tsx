@@ -3,6 +3,7 @@
 import { GripVertical, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { TheorySection } from '@/components/learn/theory/TheorySection';
+import { createPayloadRequestKey } from '@/lib/api/requestKeys';
 import type {
   AdminTheoryDocPayload,
   AdminTheoryDocId,
@@ -41,7 +42,7 @@ const THEORY_TRACK_FALLBACKS: Array<{ value: AdminTheoryDocId; label: string }> 
 const EDIT_TARGET_OPTIONS: Array<{ value: EditTarget; label: string; helper: string }> = [
   {
     value: 'lessons',
-    label: 'Lessons',
+    label: 'Theory',
     helper: 'Published theory lessons'
   },
   {
@@ -674,16 +675,23 @@ export function TheoryLessonsSection({
     setSaveSuccess(null);
 
     try {
+      const requestBody = {
+        topic: selectedTopic,
+        chapterId: selectedChapter.id,
+        lessonId: selectedLesson.id,
+        title: lessonTitle,
+        estimatedMinutes,
+        blocks: parsedBlocksState.blocks
+      };
       await requestJson<AdminTheoryLessonMutationPayload>('/api/admin/theory-docs/lessons', {
         method: 'PATCH',
-        body: JSON.stringify({
-          topic: selectedTopic,
-          chapterId: selectedChapter.id,
-          lessonId: selectedLesson.id,
-          title: lessonTitle,
-          estimatedMinutes,
-          blocks: parsedBlocksState.blocks
-        })
+        headers: {
+          'Idempotency-Key': createPayloadRequestKey(
+            'admin_theory_lesson_update',
+            requestBody
+          )
+        },
+        body: JSON.stringify(requestBody)
       });
 
       await loadTopicDoc(selectedTopic);
@@ -1108,7 +1116,7 @@ export function TheoryLessonsSection({
               className="text-[1.7rem] font-semibold tracking-tight text-white sm:text-[1.95rem]"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              {editTarget === 'lessons' ? 'Lesson editor' : 'Task editor'}
+              {editTarget === 'lessons' ? 'Content editor' : 'Task editor'}
             </h2>
             <p className="max-w-sm text-sm leading-6 text-[#9caea7]">
               {editTarget === 'lessons'

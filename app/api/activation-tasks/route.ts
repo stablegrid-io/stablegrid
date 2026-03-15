@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import { parseJsonObject } from '@/lib/api/http';
 import {
-  ActivationServiceError,
+  runProtectedActivationMutation,
+  toActivationErrorResponse
+} from '@/lib/activation/http';
+import {
   createActivationTask,
   getActivationBoardData
 } from '@/lib/activation/service';
@@ -17,77 +21,68 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let payload: Record<string, unknown>;
   try {
-    payload = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
-  }
+    const payload = await parseJsonObject(request);
+    const input = {
+      taskType: payload.taskType as 'theory' | 'task',
+      taskGroup: payload.taskGroup as
+        | 'theory'
+        | 'flashcards'
+        | 'notebooks'
+        | 'missions',
+      trackSlug: typeof payload.trackSlug === 'string' ? payload.trackSlug : undefined,
+      scopeType: payload.scopeType as 'count' | 'all_remaining',
+      requestedCount:
+        typeof payload.requestedCount === 'number' ? payload.requestedCount : undefined,
+      contentItemIds: Array.isArray(payload.contentItemIds)
+        ? payload.contentItemIds.filter(
+            (value): value is string => typeof value === 'string'
+          )
+        : undefined,
+      contentItemId:
+        typeof payload.contentItemId === 'string' ? payload.contentItemId : undefined
+    };
 
-  try {
-    const created = await createActivationTask({
-      supabase,
+    const response = await runProtectedActivationMutation({
+      request,
       userId: user.id,
-      input: {
-        taskType: payload.taskType as 'theory' | 'task',
-        taskGroup: payload.taskGroup as
-          | 'theory'
-          | 'flashcards'
-          | 'notebooks'
-          | 'missions',
-        trackSlug:
-          typeof payload.trackSlug === 'string' ? payload.trackSlug : undefined,
-        scopeType: payload.scopeType as 'count' | 'all_remaining',
-        requestedCount:
-          typeof payload.requestedCount === 'number'
-            ? payload.requestedCount
-            : undefined,
-        contentItemIds: Array.isArray(payload.contentItemIds)
-          ? payload.contentItemIds.filter(
-              (value): value is string => typeof value === 'string'
-            )
-          : undefined,
-        contentItemId:
-          typeof payload.contentItemId === 'string'
-            ? payload.contentItemId
-            : undefined
+      scope: 'activation_task_create',
+      requestBody: {
+        ...input,
+        contentItemIds: input.contentItemIds ?? null,
+        contentItemId: input.contentItemId ?? null,
+        requestedCount: input.requestedCount ?? null,
+        trackSlug: input.trackSlug ?? null
+      },
+      execute: async () => {
+        const created = await createActivationTask({
+          supabase,
+          userId: user.id,
+          input
+        });
+
+        const board = await getActivationBoardData({
+          supabase,
+          userId: user.id,
+          shouldReconcile: false
+        });
+        const allCards = [...board.todo, ...board.inProgress, ...board.completed];
+        const createdCard = allCards.find((card) => card.id === created.taskId) ?? null;
+
+        return {
+          body: {
+            data: {
+              created: createdCard,
+              board
+            }
+          },
+          status: 201
+        };
       }
     });
 
-    const board = await getActivationBoardData({
-      supabase,
-      userId: user.id,
-      shouldReconcile: false
-    });
-    const allCards = [...board.todo, ...board.inProgress, ...board.completed];
-    const createdCard = allCards.find((card) => card.id === created.taskId) ?? null;
-
-    return NextResponse.json(
-      {
-        data: {
-          created: createdCard,
-          board
-        }
-      },
-      { status: 201 }
-    );
+    return NextResponse.json(response.body, { status: response.status });
   } catch (error) {
-    if (error instanceof ActivationServiceError) {
-      return NextResponse.json(
-        {
-          error: error.message,
-          ...(error.details ?? {})
-        },
-        { status: error.status }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : 'Failed to create activation task.'
-      },
-      { status: 500 }
-    );
+    return toActivationErrorResponse(error, 'Failed to create activation task.');
   }
 }

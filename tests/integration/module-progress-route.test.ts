@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createApiProtectionAdminClient,
+  createApiProtectionAdminState
+} from './support/apiProtectionAdmin';
 
 interface StoredModuleProgressRow {
   id: string;
@@ -32,69 +36,81 @@ interface StoredReadingSessionRow {
 }
 
 const createClientMock = vi.fn();
+const createAdminClientMock = vi.fn();
 const revalidatePathMock = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: createClientMock
 }));
 
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: createAdminClientMock
+}));
+
 vi.mock('next/cache', () => ({
   revalidatePath: revalidatePathMock
 }));
 
-const makeSupabaseClient = (rowsRef: StoredModuleProgressRow[]) => ({
-  auth: {
-    getUser: vi.fn().mockResolvedValue({
-      data: { user: { id: 'user-1' } },
-      error: null
-    })
-  },
-  from: vi.fn((table: string) => {
-    if (table !== 'module_progress') {
-      throw new Error(`Unexpected table: ${table}`);
-    }
+const makeSupabaseClient = (rowsRef: StoredModuleProgressRow[]) => {
+  const moduleProgressUpsertMock = vi.fn(
+    async (incomingRows: Omit<StoredModuleProgressRow, 'id'>[]) => {
+      incomingRows.forEach((incomingRow) => {
+        const existingIndex = rowsRef.findIndex(
+          (row) =>
+            row.user_id === incomingRow.user_id &&
+            row.topic === incomingRow.topic &&
+            row.module_id === incomingRow.module_id
+        );
 
-    return {
-      select: vi.fn(() => ({
-        eq: vi.fn((_userColumn: string, userId: string) => ({
-          eq: vi.fn((_topicColumn: string, topic: string) => ({
-            order: vi.fn(async () => ({
-              data: rowsRef
-                .filter((row) => row.user_id === userId && row.topic === topic)
-                .sort((left, right) => left.module_order - right.module_order),
-              error: null
+        if (existingIndex >= 0) {
+          rowsRef[existingIndex] = {
+            ...rowsRef[existingIndex],
+            ...incomingRow
+          };
+          return;
+        }
+
+        rowsRef.push({
+          id: `row-${rowsRef.length + 1}`,
+          ...incomingRow
+        });
+      });
+
+      return { error: null };
+    }
+  );
+
+  return {
+    auth: {
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: { id: 'user-1' } },
+        error: null
+      })
+    },
+    from: vi.fn((table: string) => {
+      if (table !== 'module_progress') {
+        throw new Error(`Unexpected table: ${table}`);
+      }
+
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn((_userColumn: string, userId: string) => ({
+            eq: vi.fn((_topicColumn: string, topic: string) => ({
+              order: vi.fn(async () => ({
+                data: rowsRef
+                  .filter((row) => row.user_id === userId && row.topic === topic)
+                  .sort((left, right) => left.module_order - right.module_order),
+                error: null
+              }))
             }))
           }))
-        }))
-      })),
-      upsert: vi.fn(async (incomingRows: Omit<StoredModuleProgressRow, 'id'>[]) => {
-        incomingRows.forEach((incomingRow) => {
-          const existingIndex = rowsRef.findIndex(
-            (row) =>
-              row.user_id === incomingRow.user_id &&
-              row.topic === incomingRow.topic &&
-              row.module_id === incomingRow.module_id
-          );
-
-          if (existingIndex >= 0) {
-            rowsRef[existingIndex] = {
-              ...rowsRef[existingIndex],
-              ...incomingRow
-            };
-            return;
-          }
-
-          rowsRef.push({
-            id: `row-${rowsRef.length + 1}`,
-            ...incomingRow
-          });
-        });
-
-        return { error: null };
-      })
-    };
-  })
-});
+        })),
+        upsert: moduleProgressUpsertMock
+      };
+    }),
+    __moduleProgressUpsertMock: moduleProgressUpsertMock
+  };
+};
 
 const makeFallbackSupabaseClient = (rowsRef: StoredReadingSessionRow[]) => ({
   auth: {
@@ -206,12 +222,18 @@ const makeFallbackSupabaseClient = (rowsRef: StoredReadingSessionRow[]) => ({
   })
 });
 
-const post = async (payload: Record<string, unknown>) => {
+const post = async (
+  payload: Record<string, unknown>,
+  headers: HeadersInit = {}
+) => {
   const { POST } = await import('@/app/api/learn/module-progress/route');
   return POST(
     new Request('http://localhost/api/learn/module-progress', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers
+      },
       body: JSON.stringify(payload)
     })
   );
@@ -221,10 +243,13 @@ describe('module-progress route', () => {
   beforeEach(() => {
     vi.resetModules();
     createClientMock.mockReset();
+    createAdminClientMock.mockReset();
   });
 
   it('persists current lesson and route with touch action', async () => {
     const rows: StoredModuleProgressRow[] = [];
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeSupabaseClient(rows));
 
     const response = await post({
@@ -249,6 +274,8 @@ describe('module-progress route', () => {
 
   it('unlocks module 2 when module 1 is completed', async () => {
     const rows: StoredModuleProgressRow[] = [];
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeSupabaseClient(rows));
 
     const response = await post({
@@ -270,6 +297,8 @@ describe('module-progress route', () => {
 
   it('rejects completion for a locked module', async () => {
     const rows: StoredModuleProgressRow[] = [];
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeSupabaseClient(rows));
 
     const response = await post({
@@ -285,6 +314,8 @@ describe('module-progress route', () => {
 
   it('falls back to reading_sessions storage when module_progress is unavailable', async () => {
     const readingRows: StoredReadingSessionRow[] = [];
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeFallbackSupabaseClient(readingRows));
 
     const response = await post({
@@ -339,6 +370,8 @@ describe('module-progress route', () => {
         last_active_at: '2026-02-23T12:00:00.000Z'
       }
     ];
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeFallbackSupabaseClient(readingRows));
 
     const response = await post({
@@ -370,6 +403,8 @@ describe('module-progress route', () => {
 
   it('preserves resume state without counting a touched lesson as read in fallback mode', async () => {
     const readingRows: StoredReadingSessionRow[] = [];
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeFallbackSupabaseClient(readingRows));
 
     const response = await post({
@@ -415,6 +450,8 @@ describe('module-progress route', () => {
         last_active_at: '2026-02-23T12:00:00.000Z'
       }
     ];
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeFallbackSupabaseClient(readingRows));
 
     const touchResponse = await post({
@@ -457,6 +494,8 @@ describe('module-progress route', () => {
         last_active_at: '2026-02-23T12:00:00.000Z'
       }
     ];
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     createClientMock.mockReturnValue(makeFallbackSupabaseClient(readingRows));
 
     const touchResponse = await post({
@@ -474,5 +513,31 @@ describe('module-progress route', () => {
       'module-01-lesson-01': 30
     });
     expect(savedModuleOne?.completed_lesson_ids).toEqual(['module-01-lesson-01']);
+  });
+
+  it('replays duplicate module progress writes when the same idempotency key is retried', async () => {
+    const rows: StoredModuleProgressRow[] = [];
+    const adminState = createApiProtectionAdminState();
+    const supabaseClient = makeSupabaseClient(rows);
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
+    createClientMock.mockReturnValue(supabaseClient);
+
+    const payload = {
+      topic: 'pyspark',
+      action: 'complete',
+      moduleId: 'module-01'
+    };
+    const headers = {
+      'Idempotency-Key': 'module-progress-key-1234',
+      'x-forwarded-for': '203.0.113.13'
+    };
+
+    const firstResponse = await post(payload, headers);
+    const secondResponse = await post(payload, headers);
+
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    expect(await firstResponse.json()).toEqual(await secondResponse.json());
+    expect(supabaseClient.__moduleProgressUpsertMock).toHaveBeenCalledTimes(2);
   });
 });

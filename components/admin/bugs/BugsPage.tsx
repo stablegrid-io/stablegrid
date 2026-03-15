@@ -15,6 +15,7 @@ import {
   AdminInlineMessage,
   AdminSurface
 } from '@/components/admin/theme';
+import { createPayloadRequestKey } from '@/lib/api/requestKeys';
 
 const DEFAULT_ROWS_PER_PAGE = 10;
 const DEFAULT_SORT: BugSortState = {
@@ -181,11 +182,18 @@ export function AdminBugsPage() {
       setError(null);
 
       try {
+        const requestBody = {
+          status: statusToDbValue(nextStatus)
+        };
         const updated = await requestJson<BugReport>(`/api/admin/bugs/${selectedReport.id}`, {
           method: 'PATCH',
-          body: JSON.stringify({
-            status: statusToDbValue(nextStatus)
-          })
+          headers: {
+            'Idempotency-Key': createPayloadRequestKey('admin_bug_status_update', {
+              reportId: selectedReport.id,
+              ...requestBody
+            })
+          },
+          body: JSON.stringify(requestBody)
         });
 
         setReports((current) =>

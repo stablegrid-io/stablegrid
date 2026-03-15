@@ -16,6 +16,7 @@ import {
   X
 } from 'lucide-react';
 import { NOTEBOOKS, type NotebookDefinition, type NotebookIssue } from '@/data/notebooks';
+import { createNotebookProgressRequestKey } from '@/lib/api/requestKeys';
 import { LightbulbPulseFeedback } from '@/components/feedback/LightbulbPulseFeedback';
 
 type NotebookView = 'catalog' | 'review' | 'results';
@@ -340,7 +341,10 @@ export function NotebooksPracticePage() {
       try {
         const response = await fetch('/api/practice/notebooks/progress', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': createNotebookProgressRequestKey(nextCompletedNotebookIds)
+          },
           body: JSON.stringify({
             completedNotebookIds: Array.from(nextCompletedNotebookIds)
           })

@@ -22,6 +22,7 @@
     "report:funnel": "node tools/product-funnel-report.mjs",
     "generate:grid-assets": "node tools/generate-grid-placeholder-models.mjs",
     "validate:grid-assets": "node tools/validate-grid-assets.cjs",
+    "cleanup:api-protection": "node tools/run-api-protection-cleanup.mjs",
     "test:perf:e2e": "PERF_ASSERT=1 npm run build && PERF_ASSERT=1 playwright test -c playwright.perf.config.ts tests/e2e/performance.spec.ts tests/e2e/landing-scroll-performance.spec.ts",
     "perf:lighthouse": "npx --yes @lhci/cli@0.14.x autorun --config=.lighthouserc.json",
     "content:theory": "node tools/theory-content-pipeline.cjs"

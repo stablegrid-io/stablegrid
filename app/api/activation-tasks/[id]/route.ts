@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import { parseJsonObject } from '@/lib/api/http';
 import {
-  ActivationServiceError,
+  runProtectedActivationMutation,
+  toActivationErrorResponse
+} from '@/lib/activation/http';
+import {
   deleteActivationTask,
   editActivationTask,
   getActivationBoardData
@@ -41,57 +45,58 @@ export async function PATCH(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let payload: Record<string, unknown>;
   try {
-    payload = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
-  }
+    const payload = await parseJsonObject(request);
+    const input = toCreateInput(payload);
 
-  try {
-    await editActivationTask({
-      supabase,
+    const response = await runProtectedActivationMutation({
+      request,
       userId: user.id,
-      taskId,
-      input: toCreateInput(payload)
-    });
+      scope: 'activation_task_update',
+      requestBody: {
+        taskId,
+        ...input,
+        contentItemIds: input.contentItemIds ?? null,
+        contentItemId: input.contentItemId ?? null,
+        requestedCount: input.requestedCount ?? null,
+        trackSlug: input.trackSlug ?? null
+      },
+      execute: async () => {
+        await editActivationTask({
+          supabase,
+          userId: user.id,
+          taskId,
+          input
+        });
 
-    const board = await getActivationBoardData({
-      supabase,
-      userId: user.id,
-      shouldReconcile: false
-    });
-    const allCards = [...board.todo, ...board.inProgress, ...board.completed];
-    const task = allCards.find((card) => card.id === taskId) ?? null;
+        const board = await getActivationBoardData({
+          supabase,
+          userId: user.id,
+          shouldReconcile: false
+        });
+        const allCards = [...board.todo, ...board.inProgress, ...board.completed];
+        const task = allCards.find((card) => card.id === taskId) ?? null;
 
-    return NextResponse.json({
-      data: {
-        task,
-        board
+        return {
+          body: {
+            data: {
+              task,
+              board
+            }
+          },
+          status: 200
+        };
       }
     });
-  } catch (error) {
-    if (error instanceof ActivationServiceError) {
-      return NextResponse.json(
-        {
-          error: error.message,
-          ...(error.details ?? {})
-        },
-        { status: error.status }
-      );
-    }
 
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Failed to edit activation task.'
-      },
-      { status: 500 }
-    );
+    return NextResponse.json(response.body, { status: response.status });
+  } catch (error) {
+    return toActivationErrorResponse(error, 'Failed to edit activation task.');
   }
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   const taskId = params.id;
@@ -110,33 +115,40 @@ export async function DELETE(
   }
 
   try {
-    await deleteActivationTask({
-      supabase,
+    const response = await runProtectedActivationMutation({
+      request,
       userId: user.id,
-      taskId
-    });
+      scope: 'activation_task_delete',
+      requestBody: {
+        taskId,
+        action: 'delete'
+      },
+      execute: async () => {
+        await deleteActivationTask({
+          supabase,
+          userId: user.id,
+          taskId
+        });
 
-    const board = await getActivationBoardData({
-      supabase,
-      userId: user.id,
-      shouldReconcile: false
-    });
+        const board = await getActivationBoardData({
+          supabase,
+          userId: user.id,
+          shouldReconcile: false
+        });
 
-    return NextResponse.json({
-      data: {
-        board
+        return {
+          body: {
+            data: {
+              board
+            }
+          },
+          status: 200
+        };
       }
     });
-  } catch (error) {
-    if (error instanceof ActivationServiceError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
 
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Failed to delete activation task.'
-      },
-      { status: 500 }
-    );
+    return NextResponse.json(response.body, { status: response.status });
+  } catch (error) {
+    return toActivationErrorResponse(error, 'Failed to delete activation task.');
   }
 }

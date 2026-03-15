@@ -15,6 +15,7 @@ import {
   Zap
 } from 'lucide-react';
 import { MISSIONS, type MissionDefinition } from '@/data/missions';
+import { createMissionProgressRequestKey } from '@/lib/api/requestKeys';
 import { formatKwh, getMissionRewardKwh } from '@/lib/energy';
 import { mergeWithDefaultMissions } from '@/lib/missions';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
@@ -457,7 +458,14 @@ export default function MissionsPage() {
       try {
         const response = await fetch('/api/missions/progress', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': createMissionProgressRequestKey({
+              missionSlug,
+              state,
+              unlocked: true
+            })
+          },
           body: JSON.stringify({
             missionSlug,
             state,

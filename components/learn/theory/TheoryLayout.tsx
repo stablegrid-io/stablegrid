@@ -10,6 +10,7 @@ import {
   trackProductEvent,
   trackProductEventOnce
 } from '@/lib/analytics/productAnalytics';
+import { createPayloadRequestKey } from '@/lib/api/requestKeys';
 import { useReadingSession } from '@/lib/hooks/useReadingSession';
 import { useTheorySessionTimer } from '@/lib/hooks/useTheorySessionTimer';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
@@ -575,19 +576,22 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       currentLessonId?: string | null;
       lastVisitedRoute?: string | null;
     }) => {
+      const requestBody = {
+        topic: doc.topic,
+        track: activeTrackSlug,
+        action,
+        moduleId,
+        currentLessonId,
+        lastVisitedRoute
+      };
+
       const response = await fetch('/api/learn/module-progress', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Idempotency-Key': createPayloadRequestKey('module_progress', requestBody)
         },
-        body: JSON.stringify({
-          topic: doc.topic,
-          track: activeTrackSlug,
-          action,
-          moduleId,
-          currentLessonId,
-          lastVisitedRoute
-        })
+        body: JSON.stringify(requestBody)
       });
 
       const payload = (await response

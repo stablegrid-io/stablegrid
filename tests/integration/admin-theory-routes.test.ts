@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createApiProtectionAdminClient,
+  createApiProtectionAdminState
+} from './support/apiProtectionAdmin';
 
 const requireAdminAccessMock = vi.fn();
+const createAdminClientMock = vi.fn();
 const getTheoryDocForAdminMock = vi.fn();
 const listTheoryDocSummariesMock = vi.fn();
 const updateTheoryLessonInPublishedDocMock = vi.fn();
@@ -16,6 +21,10 @@ vi.mock('@/lib/admin/access', async () => {
     requireAdminAccess: requireAdminAccessMock
   };
 });
+
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: createAdminClientMock
+}));
 
 vi.mock('@/lib/admin/theory', async () => {
   const actual = await vi.importActual<typeof import('@/lib/admin/theory')>(
@@ -55,6 +64,7 @@ describe('admin theory routes', () => {
   beforeEach(() => {
     vi.resetModules();
     requireAdminAccessMock.mockReset();
+    createAdminClientMock.mockReset();
     getTheoryDocForAdminMock.mockReset();
     listTheoryDocSummariesMock.mockReset();
     updateTheoryLessonInPublishedDocMock.mockReset();
@@ -128,6 +138,8 @@ describe('admin theory routes', () => {
   });
 
   it('PATCH /api/admin/theory-docs/lessons saves a lesson and writes an audit row', async () => {
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     requireAdminAccessMock.mockResolvedValueOnce(accessContext);
     updateTheoryLessonInPublishedDocMock.mockResolvedValueOnce({
       before: {
@@ -186,5 +198,62 @@ describe('admin theory routes', () => {
       })
     );
     expect(payload.data.lesson.title).toBe('Lesson 1: New title');
+  });
+
+  it('replays duplicate lesson saves when the same idempotency key is retried', async () => {
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
+    requireAdminAccessMock.mockResolvedValue(accessContext);
+    updateTheoryLessonInPublishedDocMock.mockResolvedValueOnce({
+      before: {
+        title: 'Lesson 1: Old title',
+        estimatedMinutes: 7,
+        blocks: [{ type: 'paragraph', content: 'Old copy.' }]
+      },
+      after: {
+        topic: 'pyspark',
+        chapterId: 'module-01',
+        doc: {
+          topic: 'pyspark',
+          title: 'PySpark Modules',
+          description: 'desc',
+          chapters: []
+        },
+        lesson: {
+          id: 'module-01-lesson-01',
+          title: 'Lesson 1: New title',
+          estimatedMinutes: 8,
+          blocks: [{ type: 'paragraph', content: 'New copy.' }]
+        }
+      }
+    });
+
+    const { PATCH } = await import('@/app/api/admin/theory-docs/lessons/route');
+    const request = () =>
+      new Request('http://localhost/api/admin/theory-docs/lessons', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': 'admin-theory-lesson-1234',
+          'x-forwarded-for': '203.0.113.22'
+        },
+        body: JSON.stringify({
+          topic: 'pyspark',
+          chapterId: 'module-01',
+          lessonId: 'module-01-lesson-01',
+          title: 'Lesson 1: New title',
+          estimatedMinutes: 8,
+          blocks: [{ type: 'paragraph', content: 'New copy.' }]
+        })
+      });
+
+    const firstResponse = await PATCH(request());
+    const secondResponse = await PATCH(request());
+
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    expect(await firstResponse.json()).toEqual(await secondResponse.json());
+    expect(updateTheoryLessonInPublishedDocMock).toHaveBeenCalledTimes(1);
+    expect(logAdminAuditMock).toHaveBeenCalledTimes(1);
   });
 });

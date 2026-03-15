@@ -9,6 +9,7 @@ import {
   trackProductEvent,
   trackProductEventOnce
 } from '@/lib/analytics/productAnalytics';
+import { createGridOpsDeployRequestKey } from '@/lib/api/requestKeys';
 import { GridOpsHeader } from '@/components/grid-ops/GridOpsHeader';
 import { MilestoneToast } from '@/components/grid-ops/MilestoneToast';
 import { MissionControlDrawer } from '@/components/grid-ops/MissionControlDrawer';
@@ -119,7 +120,12 @@ export function GridOpsExperience() {
         const response = await fetch('/api/grid-ops/action', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Idempotency-Key': createGridOpsDeployRequestKey({
+              scenarioId: GRID_OPS_DEFAULT_SCENARIO,
+              turnIndex: state.simulation.turn_index,
+              assetId
+            })
           },
           body: JSON.stringify({
             scenarioId: GRID_OPS_DEFAULT_SCENARIO,
@@ -222,15 +228,16 @@ export function GridOpsExperience() {
   }, [selectedAssetId, state]);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#04070b] px-4 pb-12 pt-8 text-[#e6ebf2] sm:px-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_12%,rgba(144,216,196,0.16),transparent_24%),radial-gradient(circle_at_86%_10%,rgba(126,170,255,0.12),transparent_22%),linear-gradient(180deg,#09111a_0%,#05090f_40%,#03060a_100%)]" />
+    <main className="relative min-h-screen overflow-hidden bg-transparent px-4 pb-12 pt-8 text-[#e6ebf2] sm:px-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_12%,rgba(144,216,196,0.12),transparent_26%),radial-gradient(circle_at_86%_10%,rgba(126,170,255,0.1),transparent_24%)]" />
       <div
-        className="pointer-events-none absolute inset-0 opacity-60"
+        className="pointer-events-none absolute inset-0 opacity-90"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px)',
-          backgroundSize: '42px 42px',
-          maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.7), rgba(0,0,0,0.18))'
+            'linear-gradient(to right, var(--app-grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--app-grid-line) 1px, transparent 1px), linear-gradient(to right, var(--app-grid-line-strong) 1px, transparent 1px), linear-gradient(to bottom, var(--app-grid-line-strong) 1px, transparent 1px)',
+          backgroundSize: '54px 54px, 54px 54px, 216px 216px, 216px 216px',
+          backgroundPosition: '-1px -1px',
+          maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.86), rgba(0,0,0,0.32))'
         }}
       />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,transparent_50%,rgba(0,0,0,0.52)_100%)]" />

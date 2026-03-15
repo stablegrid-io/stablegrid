@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { PracticeTopic } from '@/lib/types';
+import { createPayloadRequestKey } from '@/lib/api/requestKeys';
 import {
   DEFAULT_DEPLOYED_NODE_IDS,
   ENERGY_REWARDS,
@@ -345,17 +346,21 @@ export const useProgressStore = create<ProgressState>()(
       saveProgress: async () => {
         const state = get();
         try {
+          const requestBody = {
+            xp: state.xp,
+            streak: state.streak,
+            completedQuestions: state.completedQuestions,
+            deployedNodeIds: state.deployedNodeIds,
+            lastDeployedNodeId: state.lastDeployedNodeId,
+            topicProgress: state.topicProgress
+          };
           const response = await fetch('/api/auth/sync-progress', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              xp: state.xp,
-              streak: state.streak,
-              completedQuestions: state.completedQuestions,
-              deployedNodeIds: state.deployedNodeIds,
-              lastDeployedNodeId: state.lastDeployedNodeId,
-              topicProgress: state.topicProgress
-            })
+            headers: {
+              'Content-Type': 'application/json',
+              'Idempotency-Key': createPayloadRequestKey('sync_progress', requestBody)
+            },
+            body: JSON.stringify(requestBody)
           });
 
           if (!response.ok) {

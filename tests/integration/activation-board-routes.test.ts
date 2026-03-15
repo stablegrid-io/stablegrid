@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createApiProtectionAdminClient,
+  createApiProtectionAdminState
+} from './support/apiProtectionAdmin';
 
 type Row = Record<string, any>;
 
@@ -14,9 +18,14 @@ interface InMemoryDb {
 }
 
 const createClientMock = vi.fn();
+const createAdminClientMock = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: createClientMock
+}));
+
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: createAdminClientMock
 }));
 
 const nowIso = () => new Date().toISOString();
@@ -257,6 +266,10 @@ describe('activation board API routes', () => {
   beforeEach(() => {
     vi.resetModules();
     createClientMock.mockReset();
+    createAdminClientMock.mockReset();
+    createAdminClientMock.mockReturnValue(
+      createApiProtectionAdminClient(createApiProtectionAdminState())
+    );
   });
 
   it('POST /api/activation-tasks creates a theory count task with linked next items', async () => {
@@ -640,6 +653,102 @@ describe('activation board API routes', () => {
     expect(item?.item_status).toBe('in_progress');
   });
 
+  it('PATCH /api/activation-tasks/:id/start replays duplicate requests without advancing a second item', async () => {
+    const db = createDb();
+    db.content_items.push(
+      {
+        id: 'content-1',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-01',
+        title: 'Module 1',
+        sequence_order: 1,
+        is_active: true
+      },
+      {
+        id: 'content-2',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-02',
+        title: 'Module 2',
+        sequence_order: 2,
+        is_active: true
+      }
+    );
+    db.user_activation_tasks.push({
+      id: 'task-1',
+      user_id: 'user-1',
+      task_type: 'theory',
+      task_group: 'theory',
+      title: 'Complete 2 PySpark modules',
+      description: 'Continue through the next theory units in this track.',
+      scope_type: 'count',
+      requested_count: 2,
+      status: 'todo',
+      track_id: 'track-pyspark',
+      created_at: nowIso(),
+      started_at: null,
+      completed_at: null
+    });
+    db.user_activation_task_items.push(
+      {
+        id: 'item-1',
+        user_id: 'user-1',
+        activation_task_id: 'task-1',
+        content_item_id: 'content-1',
+        item_status: 'todo',
+        started_at: null,
+        completed_at: null
+      },
+      {
+        id: 'item-2',
+        user_id: 'user-1',
+        activation_task_id: 'task-1',
+        content_item_id: 'content-2',
+        item_status: 'todo',
+        started_at: null,
+        completed_at: null
+      }
+    );
+    db.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const client = createSupabaseClient(db);
+    const adminState = createApiProtectionAdminState();
+    createClientMock.mockReturnValue(client);
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
+    const { PATCH } = await import('@/app/api/activation-tasks/[id]/start/route');
+
+    const request = () =>
+      new Request('http://localhost/api/activation-tasks/task-1/start', {
+        method: 'PATCH',
+        headers: {
+          'Idempotency-Key': 'activation-task-start-key-1234',
+          'x-forwarded-for': '203.0.113.41'
+        }
+      });
+
+    const firstResponse = await PATCH(request(), { params: { id: 'task-1' } });
+    const secondResponse = await PATCH(request(), { params: { id: 'task-1' } });
+
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    expect(await firstResponse.json()).toEqual(await secondResponse.json());
+
+    const inProgressItems = db.user_activation_task_items.filter(
+      (row) => row.activation_task_id === 'task-1' && row.item_status === 'in_progress'
+    );
+    const todoItems = db.user_activation_task_items.filter(
+      (row) => row.activation_task_id === 'task-1' && row.item_status === 'todo'
+    );
+
+    expect(inProgressItems).toHaveLength(1);
+    expect(todoItems).toHaveLength(1);
+  });
+
   it('PATCH /api/activation-tasks/:id/todo transitions in_progress task to todo', async () => {
     const db = createDb();
     db.content_items.push({
@@ -1000,5 +1109,66 @@ describe('activation board API routes', () => {
     expect(
       db.user_activation_task_items.find((row) => row.activation_task_id === 'task-delete-1')
     ).toBeUndefined();
+  });
+
+  it('POST /api/activation-tasks replays duplicate creates without inserting a second task', async () => {
+    const db = createDb();
+    db.content_items.push(
+      {
+        id: 'content-1',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-01',
+        title: 'Module 1',
+        sequence_order: 1,
+        is_active: true
+      },
+      {
+        id: 'content-2',
+        track_id: 'track-pyspark',
+        content_type: 'theory_module',
+        source_ref: 'module-02',
+        title: 'Module 2',
+        sequence_order: 2,
+        is_active: true
+      }
+    );
+    db.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const client = createSupabaseClient(db);
+    const adminState = createApiProtectionAdminState();
+    createClientMock.mockReturnValue(client);
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
+    const { POST } = await import('@/app/api/activation-tasks/route');
+
+    const request = () =>
+      new Request('http://localhost/api/activation-tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': 'activation-task-create-key-1234',
+          'x-forwarded-for': '203.0.113.42'
+        },
+        body: JSON.stringify({
+          taskType: 'theory',
+          taskGroup: 'theory',
+          trackSlug: 'pyspark',
+          scopeType: 'count',
+          requestedCount: 2
+        })
+      });
+
+    const firstResponse = await POST(request());
+    const secondResponse = await POST(request());
+
+    expect(firstResponse.status).toBe(201);
+    expect(secondResponse.status).toBe(201);
+    expect(await firstResponse.json()).toEqual(await secondResponse.json());
+    expect(db.user_activation_tasks).toHaveLength(1);
+    expect(db.user_activation_task_items).toHaveLength(2);
   });
 });

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { Check, ChevronLeft, ChevronRight, Play, Terminal } from 'lucide-react';
+import { createMissionProgressRequestKey } from '@/lib/api/requestKeys';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import type { MissionState } from '@/types/missions';
 import type { MissionDefinition } from '@/data/missions';
@@ -235,7 +236,14 @@ export function UnifiedMissionExperience({ mission }: { mission: MissionDefiniti
     try {
       const response = await fetch('/api/missions/progress', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': createMissionProgressRequestKey({
+            missionSlug: mission.slug,
+            state,
+            unlocked: true
+          })
+        },
         body: JSON.stringify({ missionSlug: mission.slug, state, unlocked: true })
       });
 

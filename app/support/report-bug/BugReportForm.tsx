@@ -39,6 +39,11 @@ const getInitialRoute = (from: string | null) => {
   return from.trim().slice(0, 500);
 };
 
+const createRequestKey = () =>
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `bug-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
 export function BugReportForm() {
   const searchParams = useSearchParams();
   const initialRoute = useMemo(() => getInitialRoute(searchParams.get('from')), [searchParams]);
@@ -49,6 +54,7 @@ export function BugReportForm() {
   const [submitState, setSubmitState] = useState<SubmitState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [reportId, setReportId] = useState<string | null>(null);
+  const [requestKey, setRequestKey] = useState(() => createRequestKey());
 
   const isSubmitting = submitState === 'submitting';
 
@@ -66,7 +72,8 @@ export function BugReportForm() {
       const response = await fetch('/api/support/bug-report', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Idempotency-Key': requestKey
         },
         body: JSON.stringify({
           title: summary,
@@ -90,6 +97,7 @@ export function BugReportForm() {
       setArea('');
       setSummary('');
       setDetails('');
+      setRequestKey(createRequestKey());
     } catch (error) {
       setSubmitState('error');
       setErrorMessage(error instanceof Error ? error.message : 'Unable to submit bug report.');

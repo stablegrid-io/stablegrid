@@ -1,5 +1,12 @@
 import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
+import { ApiRouteError, parseJsonObject, toApiErrorResponse } from '@/lib/api/http';
+import {
+  enforceRateLimit,
+  getClientIp,
+  readIdempotencyKey,
+  runIdempotentJsonRequest
+} from '@/lib/api/protection';
 import { theoryDocs } from '@/data/learn/theory';
 import { getTheoryCategories } from '@/data/learn/theory/categories';
 import { getTheoryTracks } from '@/data/learn/theory/tracks';
@@ -127,6 +134,7 @@ const getCanonicalModuleContext = (
 };
 
 const revalidateTheoryProgressViews = (topic: Topic) => {
+  revalidatePath('/theory');
   revalidatePath('/learn/theory');
   revalidatePath(`/learn/${topic}/theory`);
   revalidatePath(`/learn/${topic}/theory/all`);
@@ -480,6 +488,48 @@ const filterRowsForCanonicalModules = (
   return rows.filter((row) => canonicalModuleIds.has(row.module_id));
 };
 
+interface ModuleProgressRequestPayload {
+  action: ModuleProgressAction;
+  currentLessonId: string | null;
+  lastVisitedRoute: string | null;
+  moduleId: string | null;
+  topic: Topic;
+  trackSlug: string | null;
+}
+
+const parseModuleProgressRequestPayload = async (
+  request: Request
+): Promise<ModuleProgressRequestPayload> => {
+  const payload = await parseJsonObject(request);
+
+  const topic = typeof payload.topic === 'string' ? payload.topic : null;
+  if (!topic || !isTopic(topic)) {
+    throw new ApiRouteError('Invalid topic.', 400);
+  }
+
+  const rawTrackSlug = typeof payload.track === 'string' ? payload.track : null;
+  const trackSlug = resolveTrackSlug(topic, rawTrackSlug);
+  if (rawTrackSlug && !trackSlug) {
+    throw new ApiRouteError('Invalid track.', 400);
+  }
+
+  const action = payload.action;
+  if (!isAction(action)) {
+    throw new ApiRouteError('Invalid action.', 400);
+  }
+
+  return {
+    action,
+    currentLessonId:
+      typeof payload.currentLessonId === 'string' ? payload.currentLessonId : null,
+    lastVisitedRoute:
+      typeof payload.lastVisitedRoute === 'string' ? payload.lastVisitedRoute : null,
+    moduleId: typeof payload.moduleId === 'string' ? payload.moduleId : null,
+    topic,
+    trackSlug
+  };
+};
+
 export async function GET(request: Request) {
   const supabase = createClient();
   const {
@@ -566,171 +616,191 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let payload: Record<string, unknown>;
   try {
-    payload = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
-  }
+    const payload = await parseModuleProgressRequestPayload(request);
+    const clientIp = getClientIp(request);
+    const idempotencyKey = readIdempotencyKey(request);
 
-  const topic = typeof payload.topic === 'string' ? payload.topic : null;
-  if (!topic || !isTopic(topic)) {
-    return NextResponse.json({ error: 'Invalid topic.' }, { status: 400 });
-  }
-  const rawTrackSlug = typeof payload.track === 'string' ? payload.track : null;
-  const trackSlug = resolveTrackSlug(topic, rawTrackSlug);
-  if (rawTrackSlug && !trackSlug) {
-    return NextResponse.json({ error: 'Invalid track.' }, { status: 400 });
-  }
+    await Promise.all([
+      enforceRateLimit({
+        scope: 'module_progress_user',
+        key: user.id,
+        limit: 90,
+        windowSeconds: 5 * 60
+      }),
+      enforceRateLimit({
+        scope: 'module_progress_ip',
+        key: clientIp,
+        limit: 180,
+        windowSeconds: 5 * 60
+      })
+    ]);
 
-  const action = payload.action;
-  if (!isAction(action)) {
-    return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
-  }
-
-  const nowIso = new Date().toISOString();
-  const canonicalModuleContext = getCanonicalModuleContext(topic, trackSlug);
-  const canonicalModules = canonicalModuleContext.map((module) => ({
-    id: module.id,
-    order: module.order
-  }));
-  if (canonicalModules.length === 0) {
-    return NextResponse.json({ data: [] });
-  }
-
-  try {
-    let ensuredRows: ModuleProgressRow[];
-    let usingFallback = false;
-
-    try {
-      ensuredRows = await ensureModuleProgress({
-        supabase,
-        userId: user.id,
-        topic,
-        canonicalModules
-      });
-    } catch (error) {
-      if (!isMissingModuleProgressTableError(error)) {
-        throw error;
-      }
-
-      usingFallback = true;
-      ensuredRows = await fetchFallbackRowsFromReadingSessions({
-        supabase,
-        userId: user.id,
-        topic,
-        canonicalModules
-      });
-    }
-    ensuredRows = filterRowsForCanonicalModules(ensuredRows, canonicalModules);
-
-    if (action === 'ensure') {
-      return NextResponse.json({
-        data: ensuredRows,
-        storage: usingFallback ? 'reading_sessions_fallback' : 'module_progress',
-        warning: usingFallback
-          ? 'module_progress table missing; using reading_sessions fallback.'
-          : undefined
-      });
-    }
-
-    const moduleId = typeof payload.moduleId === 'string' ? payload.moduleId : null;
-    if (!moduleId || !canonicalModules.some((module) => module.id === moduleId)) {
-      return NextResponse.json({ error: 'Invalid module id.' }, { status: 400 });
-    }
-
-    const targetRow = ensuredRows.find((row) => row.module_id === moduleId);
-    if (!targetRow) {
-      return NextResponse.json({ error: 'Module progress row missing.' }, { status: 404 });
-    }
-
-    if (action === 'complete' && !targetRow.is_unlocked) {
-      return NextResponse.json(
-        { error: 'Module is locked and cannot be completed yet.' },
-        { status: 409 }
-      );
-    }
-
-    const mutatedRows =
-      action === 'complete'
-        ? mutateModuleProgressRows({
-            rows: ensuredRows,
-            moduleId,
-            mutation: { type: 'complete' },
-            nowIso
-          })
-        : action === 'incomplete'
-          ? mutateModuleProgressRows({
-              rows: ensuredRows,
-              moduleId,
-              mutation: { type: 'incomplete' },
-              nowIso
-            })
-          : mutateModuleProgressRows({
-              rows: ensuredRows,
-              moduleId,
-              mutation: {
-                type: 'touch',
-                currentLessonId:
-                  typeof payload.currentLessonId === 'string' ? payload.currentLessonId : null,
-                lastVisitedRoute:
-                  typeof payload.lastVisitedRoute === 'string'
-                    ? payload.lastVisitedRoute
-                    : null
-              },
-              nowIso
-            });
-
-    if (usingFallback) {
-      await persistFallbackReadingSessionAction({
-        supabase,
-        userId: user.id,
-        topic,
-        moduleContext: canonicalModuleContext,
-        action,
-        moduleId,
-        nowIso,
-        currentLessonId:
-          typeof payload.currentLessonId === 'string' ? payload.currentLessonId : null,
-        lastVisitedRoute:
-          typeof payload.lastVisitedRoute === 'string' ? payload.lastVisitedRoute : null
-      });
-      await reconcileActivationTasksSafely({ supabase, userId: user.id });
-      revalidateTheoryProgressViews(topic);
-
-      const fallbackRows = await fetchFallbackRowsFromReadingSessions({
-        supabase,
-        userId: user.id,
-        topic,
-        canonicalModules
-      });
-      return NextResponse.json({
-        data: fallbackRows,
-        storage: 'reading_sessions_fallback',
-        warning: 'module_progress table missing; using reading_sessions fallback.'
-      });
-    }
-
-    const syncedRows = await syncModuleProgressChain({
-      supabase,
-      userId: user.id,
-      topic,
-      canonicalModules,
-      existingRows: mutatedRows,
-      nowIso
-    });
-    await reconcileActivationTasksSafely({ supabase, userId: user.id });
-    revalidateTheoryProgressViews(topic);
-
-    const scopedRows = filterRowsForCanonicalModules(syncedRows, canonicalModules);
-    return NextResponse.json({ data: scopedRows, storage: 'module_progress' });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : 'Failed to update module progress.'
-      },
-      { status: 500 }
+    const nowIso = new Date().toISOString();
+    const canonicalModuleContext = getCanonicalModuleContext(
+      payload.topic,
+      payload.trackSlug
     );
+    const canonicalModules = canonicalModuleContext.map((module) => ({
+      id: module.id,
+      order: module.order
+    }));
+    if (canonicalModules.length === 0) {
+      return NextResponse.json({ data: [] });
+    }
+
+    const response = await runIdempotentJsonRequest({
+      scope: 'module_progress',
+      ownerKey: user.id,
+      idempotencyKey,
+      requestBody: {
+        action: payload.action,
+        currentLessonId: payload.currentLessonId,
+        lastVisitedRoute: payload.lastVisitedRoute,
+        moduleId: payload.moduleId,
+        topic: payload.topic,
+        track: payload.trackSlug
+      },
+      execute: async () => {
+        let ensuredRows: ModuleProgressRow[];
+        let usingFallback = false;
+
+        try {
+          ensuredRows = await ensureModuleProgress({
+            supabase,
+            userId: user.id,
+            topic: payload.topic,
+            canonicalModules
+          });
+        } catch (error) {
+          if (!isMissingModuleProgressTableError(error)) {
+            throw error;
+          }
+
+          usingFallback = true;
+          ensuredRows = await fetchFallbackRowsFromReadingSessions({
+            supabase,
+            userId: user.id,
+            topic: payload.topic,
+            canonicalModules
+          });
+        }
+        ensuredRows = filterRowsForCanonicalModules(ensuredRows, canonicalModules);
+
+        if (payload.action === 'ensure') {
+          return {
+            body: {
+              data: ensuredRows,
+              storage: usingFallback ? 'reading_sessions_fallback' : 'module_progress',
+              warning: usingFallback
+                ? 'module_progress table missing; using reading_sessions fallback.'
+                : undefined
+            },
+            status: 200
+          };
+        }
+
+        if (
+          !payload.moduleId ||
+          !canonicalModules.some((module) => module.id === payload.moduleId)
+        ) {
+          throw new ApiRouteError('Invalid module id.', 400);
+        }
+
+        const targetRow = ensuredRows.find((row) => row.module_id === payload.moduleId);
+        if (!targetRow) {
+          throw new ApiRouteError('Module progress row missing.', 404);
+        }
+
+        if (payload.action === 'complete' && !targetRow.is_unlocked) {
+          throw new ApiRouteError(
+            'Module is locked and cannot be completed yet.',
+            409
+          );
+        }
+
+        const mutatedRows =
+          payload.action === 'complete'
+            ? mutateModuleProgressRows({
+                rows: ensuredRows,
+                moduleId: payload.moduleId,
+                mutation: { type: 'complete' },
+                nowIso
+              })
+            : payload.action === 'incomplete'
+              ? mutateModuleProgressRows({
+                  rows: ensuredRows,
+                  moduleId: payload.moduleId,
+                  mutation: { type: 'incomplete' },
+                  nowIso
+                })
+              : mutateModuleProgressRows({
+                  rows: ensuredRows,
+                  moduleId: payload.moduleId,
+                  mutation: {
+                    type: 'touch',
+                    currentLessonId: payload.currentLessonId,
+                    lastVisitedRoute: payload.lastVisitedRoute
+                  },
+                  nowIso
+                });
+
+        if (usingFallback) {
+          await persistFallbackReadingSessionAction({
+            supabase,
+            userId: user.id,
+            topic: payload.topic,
+            moduleContext: canonicalModuleContext,
+            action: payload.action,
+            moduleId: payload.moduleId,
+            nowIso,
+            currentLessonId: payload.currentLessonId,
+            lastVisitedRoute: payload.lastVisitedRoute
+          });
+          await reconcileActivationTasksSafely({ supabase, userId: user.id });
+          revalidateTheoryProgressViews(payload.topic);
+
+          const fallbackRows = await fetchFallbackRowsFromReadingSessions({
+            supabase,
+            userId: user.id,
+            topic: payload.topic,
+            canonicalModules
+          });
+          return {
+            body: {
+              data: fallbackRows,
+              storage: 'reading_sessions_fallback',
+              warning: 'module_progress table missing; using reading_sessions fallback.'
+            },
+            status: 200
+          };
+        }
+
+        const syncedRows = await syncModuleProgressChain({
+          supabase,
+          userId: user.id,
+          topic: payload.topic,
+          canonicalModules,
+          existingRows: mutatedRows,
+          nowIso
+        });
+        await reconcileActivationTasksSafely({ supabase, userId: user.id });
+        revalidateTheoryProgressViews(payload.topic);
+
+        const scopedRows = filterRowsForCanonicalModules(syncedRows, canonicalModules);
+        return {
+          body: {
+            data: scopedRows,
+            storage: 'module_progress',
+            warning: undefined
+          },
+          status: 200
+        };
+      }
+    });
+
+    return NextResponse.json(response.body, { status: response.status });
+  } catch (error) {
+    return toApiErrorResponse(error, 'Failed to update module progress.');
   }
 }

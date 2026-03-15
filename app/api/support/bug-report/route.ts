@@ -1,4 +1,11 @@
 import { NextResponse } from 'next/server';
+import { ApiRouteError, parseJsonObject, toApiErrorResponse } from '@/lib/api/http';
+import {
+  enforceRateLimit,
+  getClientIp,
+  readIdempotencyKey,
+  runIdempotentJsonRequest
+} from '@/lib/api/protection';
 import { createClient } from '@/lib/supabase/server';
 
 const TITLE_MIN_LENGTH = 5;
@@ -52,103 +59,145 @@ const parseRequiredOption = <T extends Record<string, string>>(
 
 const isValidRouteOrUrl = (value: string) => /^\/|^https?:\/\//i.test(value);
 
-export async function POST(request: Request) {
-  const supabase = createClient();
-  const {
-    data: { user },
-    error: userError
-  } = await supabase.auth.getUser();
+interface BugReportPayload {
+  area: keyof typeof AREA_LABELS;
+  category: keyof typeof CATEGORY_LABELS;
+  details: string;
+  pageUrl: string | null;
+  title: string;
+}
 
-  if (userError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  let payload:
-    | {
-        title?: unknown;
-        details?: unknown;
-        pageUrl?: unknown;
-        context?: unknown;
-      }
-    | null = null;
-  try {
-    payload = (await request.json()) as {
-      title?: unknown;
-      details?: unknown;
-      pageUrl?: unknown;
-      context?: unknown;
-    };
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
-  }
-
-  const title = toCleanString(payload?.title, TITLE_MAX_LENGTH);
-  const details = toCleanString(payload?.details, DETAILS_MAX_LENGTH);
+const parseBugReportPayload = async (request: Request) => {
+  const payload = await parseJsonObject(request, 'Invalid JSON payload.');
+  const title = toCleanString(payload.title, TITLE_MAX_LENGTH);
+  const details = toCleanString(payload.details, DETAILS_MAX_LENGTH);
   const pageUrlRaw = toCleanString(payload?.pageUrl, PAGE_URL_MAX_LENGTH);
   const pageUrl = pageUrlRaw.length > 0 ? pageUrlRaw : null;
 
   if (title.length < TITLE_MIN_LENGTH) {
-    return NextResponse.json(
-      { error: `Summary must be at least ${TITLE_MIN_LENGTH} characters.` },
-      { status: 400 }
+    throw new ApiRouteError(
+      `Summary must be at least ${TITLE_MIN_LENGTH} characters.`,
+      400
     );
   }
 
   if (details.length < DETAILS_MIN_LENGTH) {
-    return NextResponse.json(
-      { error: `Details must be at least ${DETAILS_MIN_LENGTH} characters.` },
-      { status: 400 }
+    throw new ApiRouteError(
+      `Details must be at least ${DETAILS_MIN_LENGTH} characters.`,
+      400
     );
   }
 
   if (pageUrl && !isValidRouteOrUrl(pageUrl)) {
-    return NextResponse.json(
-      { error: 'Page route must start with "/" or "http(s)://".' },
-      { status: 400 }
-    );
+    throw new ApiRouteError('Page route must start with "/" or "http(s)://".', 400);
   }
 
   const context =
-    payload?.context && typeof payload.context === 'object'
+    payload.context && typeof payload.context === 'object'
       ? (payload.context as Record<string, unknown>)
       : {};
   const category = parseRequiredOption(context.category, CATEGORY_LABELS);
   const area = parseRequiredOption(context.area, AREA_LABELS);
 
   if (!category) {
-    return NextResponse.json({ error: 'Category is required.' }, { status: 400 });
+    throw new ApiRouteError('Category is required.', 400);
   }
   if (!area) {
-    return NextResponse.json({ error: 'Affected area is required.' }, { status: 400 });
+    throw new ApiRouteError('Affected area is required.', 400);
   }
 
-  const detailsWithContext = [
+  return {
+    area,
+    category,
     details,
-    '[Structured context]',
-    `Category: ${CATEGORY_LABELS[category]}`,
-    `Area: ${AREA_LABELS[area]}`
-  ]
-    .join('\n')
-    .slice(0, DETAILS_MAX_LENGTH);
+    pageUrl,
+    title
+  } satisfies BugReportPayload;
+};
 
-  const userAgent = toCleanString(request.headers.get('user-agent'), USER_AGENT_MAX_LENGTH);
+export async function POST(request: Request) {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
-    .from('bug_reports')
-    .insert({
-      user_id: user.id,
-      email: user.email ?? '',
-      title,
-      details: detailsWithContext,
-      page_url: pageUrl,
-      user_agent: userAgent || null
-    })
-    .select('id')
-    .single();
+    if (userError || !user) {
+      throw new ApiRouteError('Unauthorized', 401);
+    }
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const payload = await parseBugReportPayload(request);
+    const clientIp = getClientIp(request);
+    const idempotencyKey = readIdempotencyKey(request);
+
+    await Promise.all([
+      enforceRateLimit({
+        scope: 'support_bug_report_user',
+        key: user.id,
+        limit: 4,
+        windowSeconds: 60 * 60
+      }),
+      enforceRateLimit({
+        scope: 'support_bug_report_ip',
+        key: clientIp,
+        limit: 8,
+        windowSeconds: 60 * 60
+      })
+    ]);
+
+    const detailsWithContext = [
+      payload.details,
+      '[Structured context]',
+      `Category: ${CATEGORY_LABELS[payload.category]}`,
+      `Area: ${AREA_LABELS[payload.area]}`
+    ]
+      .join('\n')
+      .slice(0, DETAILS_MAX_LENGTH);
+
+    const userAgent = toCleanString(
+      request.headers.get('user-agent'),
+      USER_AGENT_MAX_LENGTH
+    );
+
+    const response = await runIdempotentJsonRequest({
+      scope: 'support_bug_report',
+      ownerKey: user.id,
+      idempotencyKey,
+      requestBody: {
+        category: payload.category,
+        area: payload.area,
+        pageUrl: payload.pageUrl,
+        title: payload.title,
+        details: payload.details
+      },
+      execute: async () => {
+        const { data, error } = await supabase
+          .from('bug_reports')
+          .insert({
+            user_id: user.id,
+            email: user.email ?? '',
+            title: payload.title,
+            details: detailsWithContext,
+            page_url: payload.pageUrl,
+            user_agent: userAgent || null
+          })
+          .select('id')
+          .single();
+
+        if (error) {
+          throw new ApiRouteError(error.message, 500);
+        }
+
+        return {
+          body: { reported: true, id: data.id },
+          status: 200
+        };
+      }
+    });
+
+    return NextResponse.json(response.body, { status: response.status });
+  } catch (error) {
+    return toApiErrorResponse(error, 'Failed to submit bug report.');
   }
-
-  return NextResponse.json({ reported: true, id: data.id });
 }

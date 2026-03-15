@@ -113,6 +113,7 @@ export const trackProductEvent = async (
   metadata: EventMetadata = {},
   options: {
     path?: string;
+    requestKey?: string;
   } = {}
 ) => {
   if (!canUseWindow() || !hasAnalyticsConsent()) {
@@ -126,7 +127,8 @@ export const trackProductEvent = async (
     await fetch('/api/analytics/events', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(options.requestKey ? { 'Idempotency-Key': options.requestKey } : {})
       },
       body: JSON.stringify({
         eventName,
@@ -158,5 +160,8 @@ export const trackProductEventOnce = async (
   }
 
   markTrackedOnce(onceKey);
-  await trackProductEvent(eventName, metadata, options);
+  await trackProductEvent(eventName, metadata, {
+    ...options,
+    requestKey: `once:${eventName}:${onceKey}`
+  });
 };

@@ -1,4 +1,11 @@
 import { NextResponse } from 'next/server';
+import { ApiRouteError, parseJsonObject, toApiErrorResponse } from '@/lib/api/http';
+import {
+  enforceRateLimit,
+  getClientIp,
+  readIdempotencyKey,
+  runIdempotentJsonRequest
+} from '@/lib/api/protection';
 import { GRID_OPS_DEFAULT_SCENARIO } from '@/lib/grid-ops/config';
 import {
   computeGridOpsState,
@@ -55,6 +62,39 @@ type GridOpsRpcRow = {
   error_message: string | null;
 };
 
+interface GridOpsActionPayload {
+  actionType: 'deploy';
+  assetId: string;
+  scenarioId: string;
+}
+
+const parseGridOpsActionPayload = async (request: Request) => {
+  const payload = await parseJsonObject(request);
+  const scenarioId = parseScenarioId(payload.scenarioId);
+  if (!scenarioId) {
+    throw new ApiRouteError(
+      `Invalid scenario. Supported scenario: ${GRID_OPS_DEFAULT_SCENARIO}`,
+      400
+    );
+  }
+
+  const actionType = payload.actionType;
+  if (actionType !== 'deploy') {
+    throw new ApiRouteError('Invalid action type.', 400);
+  }
+
+  const assetId = typeof payload.assetId === 'string' ? payload.assetId : null;
+  if (!assetId) {
+    throw new ApiRouteError('assetId is required for deploy action.', 400);
+  }
+
+  return {
+    actionType,
+    assetId,
+    scenarioId
+  } satisfies GridOpsActionPayload;
+};
+
 export async function POST(request: Request) {
   const supabase = createClient();
   const {
@@ -66,138 +106,141 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let payload: Record<string, unknown>;
   try {
-    payload = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
-  }
+    const payload = await parseGridOpsActionPayload(request);
+    const clientIp = getClientIp(request);
+    const idempotencyKey = readIdempotencyKey(request);
 
-  const scenarioId = parseScenarioId(payload.scenarioId);
-  if (!scenarioId) {
-    return NextResponse.json(
-      { error: `Invalid scenario. Supported scenario: ${GRID_OPS_DEFAULT_SCENARIO}` },
-      { status: 400 }
-    );
-  }
-
-  const actionType = payload.actionType;
-  if (actionType !== 'deploy') {
-    return NextResponse.json({ error: 'Invalid action type.' }, { status: 400 });
-  }
-
-  const assetId = typeof payload.assetId === 'string' ? payload.assetId : null;
-  if (!assetId) {
-    return NextResponse.json({ error: 'assetId is required for deploy action.' }, { status: 400 });
-  }
-
-  try {
-    const userProgress = await fetchUserProgressSnapshot({
-      supabase,
-      userId: user.id
-    });
-
-    const earnedUnits = resolveEarnedUnits(userProgress);
-    const existingRow = await ensureGridOpsState({
-      supabase,
-      userId: user.id,
-      scenarioId: normalizeScenarioId(scenarioId),
-      userProgress
-    });
-
-    const beforeState = computeGridOpsState({
-      scenarioId: existingRow.scenario_id,
-      earnedUnits,
-      row: existingRow
-    });
-
-    const { data: rpcResult, error: rpcError } = await supabase.rpc(
-      'grid_ops_deploy_asset',
-      {
-        p_scenario_id: scenarioId,
-        p_asset_id: assetId
-      },
-    );
-
-    if (rpcError) {
-      return NextResponse.json({ error: rpcError.message }, { status: 500 });
-    }
-
-    const rpcRow = (Array.isArray(rpcResult) ? rpcResult[0] : rpcResult) as
-      | GridOpsRpcRow
-      | undefined;
-
-    if (!rpcRow) {
-      return NextResponse.json(
-        { error: 'Grid ops deploy RPC returned no state row.' },
-        { status: 500 }
-      );
-    }
-
-    if (rpcRow.error_code) {
-      return NextResponse.json(
-        {
-          error: rpcRow.error_message ?? 'Deploy validation failed.',
-          errorCode: rpcRow.error_code
-        },
-        { status: statusForDeployError(rpcRow.error_code) }
-      );
-    }
-
-    const nextRow = {
-      user_id: rpcRow.user_id,
-      scenario_id: normalizeScenarioId(rpcRow.scenario_id),
-      turn_index: rpcRow.turn_index,
-      deployed_asset_ids: rpcRow.deployed_asset_ids,
-      last_deployed_asset_id: rpcRow.last_deployed_asset_id,
-      spent_units: rpcRow.spent_units,
-      scenario_seed: rpcRow.scenario_seed
-    };
-
-    const afterState = computeGridOpsState({
-      scenarioId: nextRow.scenario_id,
-      earnedUnits,
-      row: nextRow
-    });
-
-    const activatedRegions = afterState.map.regions
-      .filter((region) => {
-        const beforeRegion = beforeState.map.regions.find((candidate) => candidate.id === region.id);
-        return region.active && !beforeRegion?.active;
+    await Promise.all([
+      enforceRateLimit({
+        scope: 'grid_ops_action_user',
+        key: user.id,
+        limit: 30,
+        windowSeconds: 5 * 60
+      }),
+      enforceRateLimit({
+        scope: 'grid_ops_action_ip',
+        key: clientIp,
+        limit: 60,
+        windowSeconds: 5 * 60
       })
-      .map((region) => region.id);
+    ]);
 
-    const milestoneUnlocked = resolveMilestoneUnlock({
-      before: beforeState.milestones.current,
-      after: afterState.milestones.current
+    const response = await runIdempotentJsonRequest({
+      scope: 'grid_ops_action',
+      ownerKey: user.id,
+      idempotencyKey,
+      requestBody: payload,
+      execute: async () => {
+        const userProgress = await fetchUserProgressSnapshot({
+          supabase,
+          userId: user.id
+        });
+
+        const earnedUnits = resolveEarnedUnits(userProgress);
+        const existingRow = await ensureGridOpsState({
+          supabase,
+          userId: user.id,
+          scenarioId: normalizeScenarioId(payload.scenarioId),
+          userProgress
+        });
+
+        const beforeState = computeGridOpsState({
+          scenarioId: existingRow.scenario_id,
+          earnedUnits,
+          row: existingRow
+        });
+
+        const { data: rpcResult, error: rpcError } = await supabase.rpc(
+          'grid_ops_deploy_asset',
+          {
+            p_scenario_id: payload.scenarioId,
+            p_asset_id: payload.assetId
+          }
+        );
+
+        if (rpcError) {
+          throw new ApiRouteError(rpcError.message, 500);
+        }
+
+        const rpcRow = (Array.isArray(rpcResult) ? rpcResult[0] : rpcResult) as
+          | GridOpsRpcRow
+          | undefined;
+
+        if (!rpcRow) {
+          throw new ApiRouteError('Grid ops deploy RPC returned no state row.', 500);
+        }
+
+        if (rpcRow.error_code) {
+          throw new ApiRouteError(
+            rpcRow.error_message ?? 'Deploy validation failed.',
+            statusForDeployError(rpcRow.error_code),
+            {
+              details: {
+                errorCode: rpcRow.error_code
+              }
+            }
+          );
+        }
+
+        const nextRow = {
+          user_id: rpcRow.user_id,
+          scenario_id: normalizeScenarioId(rpcRow.scenario_id),
+          turn_index: rpcRow.turn_index,
+          deployed_asset_ids: rpcRow.deployed_asset_ids,
+          last_deployed_asset_id: rpcRow.last_deployed_asset_id,
+          spent_units: rpcRow.spent_units,
+          scenario_seed: rpcRow.scenario_seed
+        };
+
+        const afterState = computeGridOpsState({
+          scenarioId: nextRow.scenario_id,
+          earnedUnits,
+          row: nextRow
+        });
+
+        const activatedRegions = afterState.map.regions
+          .filter((region) => {
+            const beforeRegion = beforeState.map.regions.find(
+              (candidate) => candidate.id === region.id
+            );
+            return region.active && !beforeRegion?.active;
+          })
+          .map((region) => region.id);
+
+        const milestoneUnlocked = resolveMilestoneUnlock({
+          before: beforeState.milestones.current,
+          after: afterState.milestones.current
+        });
+
+        return {
+          body: {
+            data: {
+              before_state: beforeState,
+              after_state: afterState,
+              delta: {
+                stability:
+                  afterState.simulation.stability_pct - beforeState.simulation.stability_pct,
+                risk:
+                  afterState.simulation.blackout_risk_pct -
+                  beforeState.simulation.blackout_risk_pct,
+                budget_units:
+                  afterState.resources.available_units - beforeState.resources.available_units
+              },
+              activated_regions: activatedRegions,
+              milestone_unlocked: milestoneUnlocked,
+              active_event: afterState.events.active_event,
+              next_best_action: afterState.recommendation.next_best_action
+            },
+            storage: 'grid_ops_state'
+          },
+          status: 200
+        };
+      }
     });
 
-    return NextResponse.json({
-      data: {
-        before_state: beforeState,
-        after_state: afterState,
-        delta: {
-          stability: afterState.simulation.stability_pct - beforeState.simulation.stability_pct,
-          risk: afterState.simulation.blackout_risk_pct - beforeState.simulation.blackout_risk_pct,
-          budget_units:
-            afterState.resources.available_units - beforeState.resources.available_units
-        },
-        activated_regions: activatedRegions,
-        milestone_unlocked: milestoneUnlocked,
-        active_event: afterState.events.active_event,
-        next_best_action: afterState.recommendation.next_best_action
-      },
-      storage: 'grid_ops_state'
-    });
+    return NextResponse.json(response.body, { status: response.status });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to apply grid operations action.'
-      },
-      { status: 500 }
-    );
+    return toApiErrorResponse(error, 'Failed to apply grid operations action.');
   }
 }

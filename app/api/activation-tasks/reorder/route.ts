@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import { ApiRouteError, parseJsonObject } from '@/lib/api/http';
 import {
-  ActivationServiceError,
+  runProtectedActivationMutation,
+  toActivationErrorResponse
+} from '@/lib/activation/http';
+import {
   getActivationBoardData,
   reorderActivationTasks,
   type ActivationTaskStatus
@@ -21,55 +25,57 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let payload: Record<string, unknown>;
   try {
-    payload = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
-  }
+    const payload = await parseJsonObject(request);
 
-  const status = payload.status;
-  const orderedTaskIds = Array.isArray(payload.orderedTaskIds)
-    ? payload.orderedTaskIds.filter((value): value is string => typeof value === 'string')
-    : [];
+    const status = payload.status;
+    const orderedTaskIds = Array.isArray(payload.orderedTaskIds)
+      ? payload.orderedTaskIds.filter((value): value is string => typeof value === 'string')
+      : [];
 
-  if (!isActivationTaskStatus(status)) {
-    return NextResponse.json({ error: 'Task status is required.' }, { status: 400 });
-  }
-
-  if (orderedTaskIds.length === 0) {
-    return NextResponse.json({ error: 'Ordered task ids are required.' }, { status: 400 });
-  }
-
-  try {
-    await reorderActivationTasks({
-      supabase,
-      userId: user.id,
-      status,
-      orderedTaskIds
-    });
-
-    const board = await getActivationBoardData({
-      supabase,
-      userId: user.id,
-      shouldReconcile: false
-    });
-
-    return NextResponse.json({
-      data: {
-        board
-      }
-    });
-  } catch (error) {
-    if (error instanceof ActivationServiceError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+    if (!isActivationTaskStatus(status)) {
+      throw new ApiRouteError('Task status is required.', 400);
     }
 
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Failed to reorder activation tasks.'
+    if (orderedTaskIds.length === 0) {
+      throw new ApiRouteError('Ordered task ids are required.', 400);
+    }
+
+    const response = await runProtectedActivationMutation({
+      request,
+      userId: user.id,
+      scope: 'activation_task_reorder',
+      requestBody: {
+        status,
+        orderedTaskIds
       },
-      { status: 500 }
-    );
+      execute: async () => {
+        await reorderActivationTasks({
+          supabase,
+          userId: user.id,
+          status,
+          orderedTaskIds
+        });
+
+        const board = await getActivationBoardData({
+          supabase,
+          userId: user.id,
+          shouldReconcile: false
+        });
+
+        return {
+          body: {
+            data: {
+              board
+            }
+          },
+          status: 200
+        };
+      }
+    });
+
+    return NextResponse.json(response.body, { status: response.status });
+  } catch (error) {
+    return toActivationErrorResponse(error, 'Failed to reorder activation tasks.');
   }
 }

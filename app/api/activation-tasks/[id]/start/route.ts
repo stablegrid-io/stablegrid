@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import {
-  ActivationServiceError,
+  runProtectedActivationMutation,
+  toActivationErrorResponse
+} from '@/lib/activation/http';
+import {
   getActivationBoardData,
   startActivationTask
 } from '@/lib/activation/service';
 import { createClient } from '@/lib/supabase/server';
 
 export async function PATCH(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   const taskId = params.id;
@@ -26,37 +29,43 @@ export async function PATCH(
   }
 
   try {
-    await startActivationTask({
-      supabase,
+    const response = await runProtectedActivationMutation({
+      request,
       userId: user.id,
-      taskId
-    });
+      scope: 'activation_task_start',
+      requestBody: {
+        taskId,
+        action: 'start'
+      },
+      execute: async () => {
+        await startActivationTask({
+          supabase,
+          userId: user.id,
+          taskId
+        });
 
-    const board = await getActivationBoardData({
-      supabase,
-      userId: user.id,
-      shouldReconcile: false
-    });
-    const allCards = [...board.todo, ...board.inProgress, ...board.completed];
-    const task = allCards.find((card) => card.id === taskId) ?? null;
+        const board = await getActivationBoardData({
+          supabase,
+          userId: user.id,
+          shouldReconcile: false
+        });
+        const allCards = [...board.todo, ...board.inProgress, ...board.completed];
+        const task = allCards.find((card) => card.id === taskId) ?? null;
 
-    return NextResponse.json({
-      data: {
-        task,
-        board
+        return {
+          body: {
+            data: {
+              task,
+              board
+            }
+          },
+          status: 200
+        };
       }
     });
-  } catch (error) {
-    if (error instanceof ActivationServiceError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
 
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : 'Failed to start activation task.'
-      },
-      { status: 500 }
-    );
+    return NextResponse.json(response.body, { status: response.status });
+  } catch (error) {
+    return toActivationErrorResponse(error, 'Failed to start activation task.');
   }
 }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { BoardColumn } from '@/components/home/activation-table/components/BoardColumn';
+import { createPayloadRequestKey } from '@/lib/api/requestKeys';
 import type {
   TaskCardData,
   TaskCardState
@@ -528,6 +529,12 @@ export function ActivationTable() {
     try {
       const response = await fetch(`/api/activation-tasks/${taskId}/start`, {
         method: 'PATCH',
+        headers: {
+          'Idempotency-Key': createPayloadRequestKey('activation_task_start', {
+            taskId,
+            action: 'start'
+          })
+        },
         credentials: 'include'
       });
       const payload = (await response.json()) as {
@@ -558,6 +565,12 @@ export function ActivationTable() {
     try {
       const response = await fetch(`/api/activation-tasks/${taskId}/todo`, {
         method: 'PATCH',
+        headers: {
+          'Idempotency-Key': createPayloadRequestKey('activation_task_todo', {
+            taskId,
+            action: 'move_to_todo'
+          })
+        },
         credentials: 'include'
       });
       const payload = (await response.json()) as {
@@ -590,6 +603,12 @@ export function ActivationTable() {
     try {
       const response = await fetch(`/api/activation-tasks/${taskId}/completed`, {
         method: 'PATCH',
+        headers: {
+          'Idempotency-Key': createPayloadRequestKey('activation_task_completed', {
+            taskId,
+            action: 'move_to_completed'
+          })
+        },
         credentials: 'include'
       });
       const payload = (await response.json()) as {
@@ -619,16 +638,21 @@ export function ActivationTable() {
 
   const persistTaskReorder = async (state: TaskCardState, orderedTaskIds: string[]) => {
     try {
+      const requestBody = {
+        status: ACTIVATION_STATUS_BY_STATE[state],
+        orderedTaskIds
+      };
       const response = await fetch('/api/activation-tasks/reorder', {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Idempotency-Key': createPayloadRequestKey(
+            'activation_task_reorder',
+            requestBody
+          )
         },
         credentials: 'include',
-        body: JSON.stringify({
-          status: ACTIVATION_STATUS_BY_STATE[state],
-          orderedTaskIds
-        })
+        body: JSON.stringify(requestBody)
       });
       const payload = (await response.json()) as {
         data?: { board?: ActivationBoardPayload };
@@ -937,12 +961,19 @@ export function ActivationTable() {
       }
 
       const isEditing = editingTaskId !== null;
+      const requestScope = isEditing
+        ? 'activation_task_update'
+        : 'activation_task_create';
       const response = await fetch(
         isEditing ? `/api/activation-tasks/${editingTaskId}` : '/api/activation-tasks',
         {
           method: isEditing ? 'PATCH' : 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Idempotency-Key': createPayloadRequestKey(requestScope, {
+              taskId: editingTaskId,
+              ...payload
+            })
           },
           credentials: 'include',
           body: JSON.stringify(payload)
@@ -996,6 +1027,12 @@ export function ActivationTable() {
     try {
       const response = await fetch(`/api/activation-tasks/${taskId}`, {
         method: 'DELETE',
+        headers: {
+          'Idempotency-Key': createPayloadRequestKey('activation_task_delete', {
+            taskId,
+            action: 'delete'
+          })
+        },
         credentials: 'include'
       });
       const payload = (await response.json()) as {

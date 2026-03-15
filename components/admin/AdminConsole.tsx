@@ -32,6 +32,7 @@ import type {
   AdminTrackRecord,
   AdminUserSearchResult
 } from '@/lib/admin/types';
+import { createPayloadRequestKey } from '@/lib/api/requestKeys';
 
 const CONTENT_TYPE_LABELS = {
   theory_module: 'Theory',
@@ -234,9 +235,16 @@ function TrackEditorCard({
     setError(null);
 
     try {
+      const requestBody = { title, isActive };
       await requestJson<AdminTrackRecord>(`/api/admin/tracks/${track.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ title, isActive })
+        headers: {
+          'Idempotency-Key': createPayloadRequestKey('admin_track_update', {
+            trackId: track.id,
+            ...requestBody
+          })
+        },
+        body: JSON.stringify(requestBody)
       });
       await onSaved();
       onMutation(`Track updated: ${title}`);
@@ -406,17 +414,24 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
 
     try {
       const method = formState.id ? 'PATCH' : 'POST';
+      const requestBody = {
+        id: formState.id,
+        trackId: formState.trackId,
+        contentType: formState.contentType,
+        sourceRef: formState.sourceRef,
+        title: formState.title,
+        sequenceOrder: Number(formState.sequenceOrder),
+        isActive: formState.isActive
+      };
       await requestJson<AdminContentItemRecord>('/api/admin/content-items', {
         method,
-        body: JSON.stringify({
-          id: formState.id,
-          trackId: formState.trackId,
-          contentType: formState.contentType,
-          sourceRef: formState.sourceRef,
-          title: formState.title,
-          sequenceOrder: Number(formState.sequenceOrder),
-          isActive: formState.isActive
-        })
+        headers: {
+          'Idempotency-Key': createPayloadRequestKey(
+            formState.id ? 'admin_content_item_update' : 'admin_content_item_create',
+            requestBody
+          )
+        },
+        body: JSON.stringify(requestBody)
       });
       await loadCatalog();
       onMutation(
@@ -432,17 +447,24 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
 
   const handleQuickToggle = async (item: AdminContentItemRecord) => {
     try {
+      const requestBody = {
+        id: item.id,
+        trackId: item.trackId,
+        contentType: item.contentType,
+        sourceRef: item.sourceRef,
+        title: item.title,
+        sequenceOrder: item.sequenceOrder,
+        isActive: !item.isActive
+      };
       await requestJson<AdminContentItemRecord>('/api/admin/content-items', {
         method: 'PATCH',
-        body: JSON.stringify({
-          id: item.id,
-          trackId: item.trackId,
-          contentType: item.contentType,
-          sourceRef: item.sourceRef,
-          title: item.title,
-          sequenceOrder: item.sequenceOrder,
-          isActive: !item.isActive
-        })
+        headers: {
+          'Idempotency-Key': createPayloadRequestKey(
+            'admin_content_item_update',
+            requestBody
+          )
+        },
+        body: JSON.stringify(requestBody)
       });
       await loadCatalog();
       onMutation(`${item.title} ${item.isActive ? 'deactivated' : 'activated'}`);
@@ -476,13 +498,20 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
     const reordered = moveItem(groupItems, currentIndex, targetIndex).map((candidate) => candidate.id);
 
     try {
+      const requestBody = {
+        trackId: item.trackId,
+        contentType: item.contentType,
+        orderedItemIds: reordered
+      };
       await requestJson<AdminContentItemRecord[]>('/api/admin/content-items/reorder', {
         method: 'PATCH',
-        body: JSON.stringify({
-          trackId: item.trackId,
-          contentType: item.contentType,
-          orderedItemIds: reordered
-        })
+        headers: {
+          'Idempotency-Key': createPayloadRequestKey(
+            'admin_content_item_reorder',
+            requestBody
+          )
+        },
+        body: JSON.stringify(requestBody)
       });
       await loadCatalog();
       onMutation(`Reordered ${CONTENT_TYPE_LABELS[item.contentType]} catalog`);
@@ -949,6 +978,16 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
         endpoint,
         {
           method,
+          headers: {
+            'Idempotency-Key': createPayloadRequestKey(
+              editingTaskId ? 'admin_activation_task_update' : 'admin_activation_task_create',
+              {
+                userId: selectedUser.id,
+                taskId: editingTaskId,
+                ...payload
+              }
+            )
+          },
           body: JSON.stringify(payload)
         }
       );
@@ -1000,11 +1039,22 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
     setTaskFormError(null);
 
     try {
+      const requestBody = { action };
       const data = await requestJson<{ task: ActivationBoardCard | null; board: ActivationBoardData }>(
         `/api/admin/users/${selectedUser.id}/activation-tasks/${taskId}`,
         {
           method: 'PATCH',
-          body: JSON.stringify({ action })
+          headers: {
+            'Idempotency-Key': createPayloadRequestKey(
+              'admin_activation_task_update',
+              {
+                userId: selectedUser.id,
+                taskId,
+                ...requestBody
+              }
+            )
+          },
+          body: JSON.stringify(requestBody)
         }
       );
       setBoardData((current) =>
@@ -1037,7 +1087,17 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
       const data = await requestJson<{ board: ActivationBoardData }>(
         `/api/admin/users/${selectedUser.id}/activation-tasks/${taskId}`,
         {
-          method: 'DELETE'
+          method: 'DELETE',
+          headers: {
+            'Idempotency-Key': createPayloadRequestKey(
+              'admin_activation_task_delete',
+              {
+                userId: selectedUser.id,
+                taskId,
+                action: 'delete'
+              }
+            )
+          }
         }
       );
       setBoardData((current) =>
@@ -1090,14 +1150,24 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
 
     setBusyActionKey(`${taskId}:reorder:${direction}`);
     try {
+      const requestBody = {
+        status,
+        orderedTaskIds
+      };
       const data = await requestJson<{ board: ActivationBoardData }>(
         `/api/admin/users/${selectedUser.id}/activation-tasks/reorder`,
         {
           method: 'PATCH',
-          body: JSON.stringify({
-            status,
-            orderedTaskIds
-          })
+          headers: {
+            'Idempotency-Key': createPayloadRequestKey(
+              'admin_activation_task_reorder',
+              {
+                userId: selectedUser.id,
+                ...requestBody
+              }
+            )
+          },
+          body: JSON.stringify(requestBody)
         }
       );
       setBoardData((current) =>

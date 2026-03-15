@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createApiProtectionAdminClient,
+  createApiProtectionAdminState
+} from './support/apiProtectionAdmin';
 
 const requireAdminAccessMock = vi.fn();
+const createAdminClientMock = vi.fn();
 const listAdminAnalyticsMock = vi.fn();
 const listAdminFinancialsMock = vi.fn();
 const listAdminCustomersMock = vi.fn();
@@ -24,6 +29,10 @@ vi.mock('@/lib/admin/access', async () => {
     requireAdminAccess: requireAdminAccessMock
   };
 });
+
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: createAdminClientMock
+}));
 
 vi.mock('@/lib/admin/service', async () => {
   const actual = await vi.importActual<typeof import('@/lib/admin/service')>(
@@ -145,7 +154,7 @@ const baseBugReports = [
     expectedResult: null,
     actualResult: null,
     attachmentUrls: [],
-    pageUrl: '/learn/theory'
+    pageUrl: '/theory'
   }
 ];
 
@@ -197,6 +206,7 @@ describe('admin API routes', () => {
   beforeEach(() => {
     vi.resetModules();
     requireAdminAccessMock.mockReset();
+    createAdminClientMock.mockReset();
     listAdminAnalyticsMock.mockReset();
     listAdminFinancialsMock.mockReset();
     listAdminCustomersMock.mockReset();
@@ -295,6 +305,8 @@ describe('admin API routes', () => {
   });
 
   it('PATCH /api/admin/bugs/:id updates bug status and writes audit log', async () => {
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     requireAdminAccessMock.mockResolvedValueOnce(accessContext);
     updateAdminBugReportStatusMock.mockResolvedValueOnce({
       before: baseBugReports[0],
@@ -350,6 +362,8 @@ describe('admin API routes', () => {
   });
 
   it('POST /api/admin/content-items writes an audit log after creating an item', async () => {
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     requireAdminAccessMock.mockResolvedValueOnce(accessContext);
     upsertAdminContentItemMock.mockResolvedValueOnce({
       before: null,
@@ -408,6 +422,8 @@ describe('admin API routes', () => {
   });
 
   it('PATCH /api/admin/users/:id/activation-tasks/:taskId starts a task and logs the mutation', async () => {
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     requireAdminAccessMock.mockResolvedValueOnce(accessContext);
     getAdminActivationTaskSnapshotMock
       .mockResolvedValueOnce({
@@ -499,6 +515,8 @@ describe('admin API routes', () => {
   });
 
   it('PATCH /api/admin/users/:id/activation-tasks/:taskId forwards custom title and description', async () => {
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
     requireAdminAccessMock.mockResolvedValueOnce(accessContext);
     getAdminActivationTaskSnapshotMock
       .mockResolvedValueOnce({
@@ -589,5 +607,55 @@ describe('admin API routes', () => {
       })
     });
     expect(payload.data.task.title).toBe('Run the outage notebook');
+  });
+
+  it('replays duplicate admin content item creates without double-writing the audit mutation', async () => {
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
+    requireAdminAccessMock.mockResolvedValue(accessContext);
+    upsertAdminContentItemMock.mockResolvedValueOnce({
+      before: null,
+      after: {
+        id: 'content-1',
+        trackId: 'track-1',
+        trackSlug: 'pyspark',
+        trackTitle: 'PySpark',
+        contentType: 'theory_module',
+        sourceRef: 'module-21',
+        title: 'Module 21',
+        sequenceOrder: 21,
+        isActive: true,
+        createdAt: '2026-03-14T10:00:00.000Z',
+        updatedAt: '2026-03-14T10:00:00.000Z'
+      }
+    });
+
+    const { POST } = await import('@/app/api/admin/content-items/route');
+    const request = () =>
+      new Request('http://localhost/api/admin/content-items', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': 'admin-content-create-1234',
+          'x-forwarded-for': '203.0.113.21'
+        },
+        body: JSON.stringify({
+          trackId: 'track-1',
+          contentType: 'theory_module',
+          sourceRef: 'module-21',
+          title: 'Module 21',
+          sequenceOrder: 21,
+          isActive: true
+        })
+      });
+
+    const firstResponse = await POST(request());
+    const secondResponse = await POST(request());
+
+    expect(firstResponse.status).toBe(201);
+    expect(secondResponse.status).toBe(201);
+    expect(await firstResponse.json()).toEqual(await secondResponse.json());
+    expect(upsertAdminContentItemMock).toHaveBeenCalledTimes(1);
+    expect(logAdminAuditMock).toHaveBeenCalledTimes(1);
   });
 });

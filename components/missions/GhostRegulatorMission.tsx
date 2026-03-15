@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { createMissionProgressRequestKey } from '@/lib/api/requestKeys';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import type { MissionState } from '@/types/missions';
 import { LightbulbPulseFeedback } from '@/components/feedback/LightbulbPulseFeedback';
@@ -906,7 +907,14 @@ export function GhostRegulatorMission() {
     try {
       const response = await fetch('/api/missions/progress', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': createMissionProgressRequestKey({
+            missionSlug: MISSION_SLUG,
+            state,
+            unlocked: true
+          })
+        },
         body: JSON.stringify({
           missionSlug: MISSION_SLUG,
           state,
