@@ -7,6 +7,7 @@ import {
   Bug,
   ClipboardList,
   FileText,
+  MessageSquare,
   Shield,
   ShoppingCart,
   Users,
@@ -17,6 +18,7 @@ import { AdminSurface } from '@/components/admin/theme';
 
 export type AdminNavSectionId =
   | 'analytics'
+  | 'feedback'
   | 'lessons'
   | 'catalog'
   | 'assignments'
@@ -33,13 +35,19 @@ export const ADMIN_SECTIONS: Array<{
   icon: LucideIcon;
 }> = [
   { id: 'analytics', label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+  { id: 'feedback', label: 'Feedback', href: '/admin/feedback', icon: MessageSquare },
   { id: 'audit', label: 'Audit', href: '/admin/audit', icon: Shield },
   { id: 'lessons', label: 'Content Editor', href: '/admin/lessons', icon: FileText },
   { id: 'catalog', label: 'Catalog', href: '/admin/catalog', icon: BookOpen },
   { id: 'orders', label: 'Orders', href: '/admin/orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', href: '/admin/customers', icon: Users },
   { id: 'financials', label: 'Financials', href: '/admin/financials', icon: Wallet },
-  { id: 'assignments', label: 'Assignments', href: '/admin/assignments', icon: ClipboardList },
+  {
+    id: 'assignments',
+    label: 'Assignments',
+    href: '/admin/assignments',
+    icon: ClipboardList
+  },
   { id: 'bugs', label: 'Bugs', href: '/admin/bugs', icon: Bug }
 ];
 
@@ -51,7 +59,7 @@ export const ADMIN_SECTION_GROUPS: Array<{
   {
     id: 'monitor',
     label: 'Monitor',
-    sections: ['analytics', 'audit']
+    sections: ['analytics', 'feedback', 'audit']
   },
   {
     id: 'content',
@@ -74,7 +82,9 @@ export function AdminLeftRail({ activeSection }: { activeSection: AdminNavSectio
   return (
     <AdminSurface className="sticky top-4 p-4">
       <div>
-        <p className="text-[0.64rem] uppercase tracking-[0.28em] text-[#84bea9]">Internal admin</p>
+        <p className="text-[0.64rem] uppercase tracking-[0.28em] text-[#84bea9]">
+          Internal admin
+        </p>
         <p className="mt-2 text-lg font-semibold tracking-tight text-white">Console</p>
 
         <div className="mt-5 space-y-4">
@@ -105,7 +115,9 @@ export function AdminLeftRail({ activeSection }: { activeSection: AdminNavSectio
                     >
                       <span
                         className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                          isActive ? 'bg-brand-400/15 text-[#bdeedd]' : 'bg-white/[0.05] text-[#9eb2a9]'
+                          isActive
+                            ? 'bg-brand-400/15 text-[#bdeedd]'
+                            : 'bg-white/[0.05] text-[#9eb2a9]'
                         }`}
                       >
                         <Icon className="h-3 w-3" />

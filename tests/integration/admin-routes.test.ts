@@ -10,7 +10,9 @@ const listAdminAnalyticsMock = vi.fn();
 const listAdminFinancialsMock = vi.fn();
 const listAdminCustomersMock = vi.fn();
 const listAdminBugReportsMock = vi.fn();
+const listAdminFeedbackRecordsMock = vi.fn();
 const updateAdminBugReportStatusMock = vi.fn();
+const updateAdminFeedbackRecordMock = vi.fn();
 const listAdminCatalogMock = vi.fn();
 const upsertAdminContentItemMock = vi.fn();
 const logAdminAuditMock = vi.fn();
@@ -20,9 +22,8 @@ const startActivationTaskMock = vi.fn();
 const editActivationTaskMock = vi.fn();
 
 vi.mock('@/lib/admin/access', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/admin/access')>(
-    '@/lib/admin/access'
-  );
+  const actual =
+    await vi.importActual<typeof import('@/lib/admin/access')>('@/lib/admin/access');
 
   return {
     ...actual,
@@ -35,9 +36,8 @@ vi.mock('@/lib/supabase/admin', () => ({
 }));
 
 vi.mock('@/lib/admin/service', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/admin/service')>(
-    '@/lib/admin/service'
-  );
+  const actual =
+    await vi.importActual<typeof import('@/lib/admin/service')>('@/lib/admin/service');
 
   return {
     ...actual,
@@ -45,7 +45,9 @@ vi.mock('@/lib/admin/service', async () => {
     listAdminFinancials: listAdminFinancialsMock,
     listAdminCustomers: listAdminCustomersMock,
     listAdminBugReports: listAdminBugReportsMock,
+    listAdminFeedbackRecords: listAdminFeedbackRecordsMock,
     updateAdminBugReportStatus: updateAdminBugReportStatusMock,
+    updateAdminFeedbackRecord: updateAdminFeedbackRecordMock,
     listAdminCatalog: listAdminCatalogMock,
     upsertAdminContentItem: upsertAdminContentItemMock,
     logAdminAudit: logAdminAuditMock,
@@ -158,6 +160,28 @@ const baseBugReports = [
   }
 ];
 
+const baseFeedbackRecords = [
+  {
+    id: 'bug_report:bug-1',
+    sourceId: 'bug-1',
+    sourceType: 'bug_report',
+    userName: 'Emma Wilson',
+    userEmail: 'emma@stablegrid.io',
+    submittedAt: '2026-03-14T12:00:00.000Z',
+    type: 'Issue',
+    rating: 2,
+    sentiment: 'Negative',
+    category: 'Performance',
+    status: 'Submitted',
+    module: 'Task Pages',
+    linkedPage: '/home',
+    preview: 'Task pages take too long to open on older laptops.',
+    message: 'Every task page takes a few seconds before content settles.',
+    internalNotes: '',
+    keywords: ['performance', 'task pages', 'loading']
+  }
+];
+
 const baseBoard = {
   todo: [
     {
@@ -211,7 +235,9 @@ describe('admin API routes', () => {
     listAdminFinancialsMock.mockReset();
     listAdminCustomersMock.mockReset();
     listAdminBugReportsMock.mockReset();
+    listAdminFeedbackRecordsMock.mockReset();
     updateAdminBugReportStatusMock.mockReset();
+    updateAdminFeedbackRecordMock.mockReset();
     listAdminCatalogMock.mockReset();
     upsertAdminContentItemMock.mockReset();
     logAdminAuditMock.mockReset();
@@ -254,7 +280,9 @@ describe('admin API routes', () => {
     listAdminAnalyticsMock.mockResolvedValueOnce(baseAnalytics);
 
     const { GET } = await import('@/app/api/admin/analytics/route');
-    const request = new Request('http://localhost:3000/api/admin/analytics?period=weekly');
+    const request = new Request(
+      'http://localhost:3000/api/admin/analytics?period=weekly'
+    );
     const response = await GET(request);
     const payload = await response.json();
 
@@ -304,6 +332,19 @@ describe('admin API routes', () => {
     expect(payload.data).toEqual(baseBugReports);
   });
 
+  it('GET /api/admin/feedback returns normalized feedback data for an authorized admin', async () => {
+    requireAdminAccessMock.mockResolvedValueOnce(accessContext);
+    listAdminFeedbackRecordsMock.mockResolvedValueOnce(baseFeedbackRecords);
+
+    const { GET } = await import('@/app/api/admin/feedback/route');
+    const response = await GET();
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(listAdminFeedbackRecordsMock).toHaveBeenCalledWith(adminSupabase);
+    expect(payload.data).toEqual(baseFeedbackRecords);
+  });
+
   it('PATCH /api/admin/bugs/:id updates bug status and writes audit log', async () => {
     const adminState = createApiProtectionAdminState();
     createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
@@ -346,6 +387,59 @@ describe('admin API routes', () => {
       })
     );
     expect(payload.data.status).toBe('In Review');
+  });
+
+  it('PATCH /api/admin/feedback/:sourceType/:id updates feedback triage and writes audit log', async () => {
+    const adminState = createApiProtectionAdminState();
+    createAdminClientMock.mockReturnValue(createApiProtectionAdminClient(adminState));
+    requireAdminAccessMock.mockResolvedValueOnce(accessContext);
+    updateAdminFeedbackRecordMock.mockResolvedValueOnce({
+      before: baseFeedbackRecords[0],
+      after: {
+        ...baseFeedbackRecords[0],
+        status: 'Resolved',
+        internalNotes: 'Escalated to performance review.'
+      }
+    });
+
+    const { PATCH } = await import('@/app/api/admin/feedback/[sourceType]/[id]/route');
+    const response = await PATCH(
+      new Request('http://localhost:3000/api/admin/feedback/bug_report/bug-1', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'Resolved',
+          internalNotes: 'Escalated to performance review.'
+        })
+      }),
+      {
+        params: {
+          sourceType: 'bug_report',
+          id: 'bug-1'
+        }
+      }
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(updateAdminFeedbackRecordMock).toHaveBeenCalledWith({
+      supabase: adminSupabase,
+      actorUserId: 'admin-1',
+      sourceId: 'bug-1',
+      sourceType: 'bug_report',
+      status: 'Resolved',
+      adminNotes: 'Escalated to performance review.'
+    });
+    expect(logAdminAuditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'feedback_record',
+        entityId: 'bug_report:bug-1',
+        action: 'feedback_record_updated'
+      })
+    );
+    expect(payload.data.status).toBe('Resolved');
   });
 
   it('GET /api/admin/catalog returns catalog data for an authorized admin', async () => {

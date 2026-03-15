@@ -206,6 +206,10 @@ export interface AdminCustomerRecord {
 export type AdminBugSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
 export type AdminBugStatus = 'New' | 'In Review' | 'Resolved';
 export type AdminBugStatusDb = 'new' | 'triaged' | 'resolved';
+export type AdminFeedbackSourceType = 'bug_report' | 'lightbulb_feedback';
+export type AdminFeedbackType = 'Issue' | 'Feature Request' | 'Praise' | 'Usability';
+export type AdminFeedbackSentiment = 'Positive' | 'Neutral' | 'Negative';
+export type AdminFeedbackStatus = 'Submitted' | 'Reviewed' | 'Resolved' | 'Ignored';
 
 export interface AdminBugReportRecord {
   id: string;
@@ -226,6 +230,26 @@ export interface AdminBugReportRecord {
   actualResult: string | null;
   attachmentUrls: string[];
   pageUrl: string | null;
+}
+
+export interface AdminFeedbackRecord {
+  id: string;
+  sourceId: string;
+  sourceType: AdminFeedbackSourceType;
+  userName: string;
+  userEmail: string;
+  submittedAt: string;
+  type: AdminFeedbackType;
+  rating: 1 | 2 | 3 | 4 | 5;
+  sentiment: AdminFeedbackSentiment;
+  category: string;
+  status: AdminFeedbackStatus;
+  module: string;
+  linkedPage: string;
+  preview: string;
+  message: string;
+  internalNotes: string;
+  keywords: string[];
 }
 
 export interface AdminUserSearchResult {

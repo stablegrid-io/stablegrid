@@ -20,6 +20,11 @@ import {
   type AdminFinancialsTrendPoint,
   type AdminCustomerRecord,
   type AdminBugReportRecord,
+  type AdminFeedbackRecord,
+  type AdminFeedbackSentiment,
+  type AdminFeedbackSourceType,
+  type AdminFeedbackStatus,
+  type AdminFeedbackType,
   type AdminBugSeverity,
   type AdminBugStatus,
   type AdminBugStatusDb,
@@ -127,6 +132,27 @@ interface BugReportRow {
   updated_at: string;
 }
 
+interface ProductFunnelEventRow {
+  id: string;
+  session_id: string;
+  user_id: string | null;
+  event_name: string;
+  path: string | null;
+  metadata: JsonValue;
+  occurred_at: string;
+  created_at: string;
+}
+
+interface FeedbackTriageRow {
+  source_type: AdminFeedbackSourceType;
+  source_id: string;
+  status: 'submitted' | 'reviewed' | 'resolved' | 'ignored';
+  admin_notes: string;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AdminAuditRow {
   id: string;
   actor_user_id: string;
@@ -179,10 +205,39 @@ const REFUND_SUBSCRIPTION_STATUSES = new Set([
   'incomplete_expired'
 ]);
 const BUG_STATUS_DB_VALUES: AdminBugStatusDb[] = ['new', 'triaged', 'resolved'];
+const FEEDBACK_SOURCE_TYPES: AdminFeedbackSourceType[] = [
+  'bug_report',
+  'lightbulb_feedback'
+];
+const FEEDBACK_TRIAGE_DB_VALUES = [
+  'submitted',
+  'reviewed',
+  'resolved',
+  'ignored'
+] as const;
+const LIGHTBULB_EVENT_NAME = 'lightbulb_feedback_submitted';
 const BUG_STATUS_LABEL_BY_DB: Record<AdminBugStatusDb, AdminBugStatus> = {
   new: 'New',
   triaged: 'In Review',
   resolved: 'Resolved'
+};
+const FEEDBACK_STATUS_LABEL_BY_DB: Record<
+  (typeof FEEDBACK_TRIAGE_DB_VALUES)[number],
+  AdminFeedbackStatus
+> = {
+  submitted: 'Submitted',
+  reviewed: 'Reviewed',
+  resolved: 'Resolved',
+  ignored: 'Ignored'
+};
+const FEEDBACK_STATUS_DB_BY_LABEL: Record<
+  AdminFeedbackStatus,
+  (typeof FEEDBACK_TRIAGE_DB_VALUES)[number]
+> = {
+  Submitted: 'submitted',
+  Reviewed: 'reviewed',
+  Resolved: 'resolved',
+  Ignored: 'ignored'
 };
 const BUG_SEVERITY_BY_CATEGORY_LABEL: Record<string, AdminBugSeverity> = {
   'UI / visual glitch': 'Low',
@@ -286,7 +341,8 @@ const isMissingRelationError = (error: { message?: string } | null) => {
 };
 
 const isAdminContentType = (value: unknown): value is ActivationContentType =>
-  typeof value === 'string' && ADMIN_CONTENT_TYPES.includes(value as ActivationContentType);
+  typeof value === 'string' &&
+  ADMIN_CONTENT_TYPES.includes(value as ActivationContentType);
 
 const normalizeRequiredText = (value: string | undefined, fieldLabel: string) => {
   const normalized = value?.trim();
@@ -369,7 +425,8 @@ const formatDurationShort = (seconds: number) => {
 const analyticsPeriodLabel = (value: string) =>
   value === 'today' ? 'Today' : value.charAt(0).toUpperCase() + value.slice(1);
 
-const daysAgoIso = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+const daysAgoIso = (days: number) =>
+  new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
 const startOfUtcDay = (value: string | Date) => {
   const date = value instanceof Date ? new Date(value) : new Date(value);
@@ -385,7 +442,8 @@ const buildTrendBuckets = (
   return Array.from({ length: config.trendBucketCount }, (_, index) => {
     const bucketStart = new Date(currentDayStart);
     bucketStart.setUTCDate(
-      currentDayStart.getUTCDate() - (config.trendBucketCount - 1 - index) * config.trendBucketDays
+      currentDayStart.getUTCDate() -
+        (config.trendBucketCount - 1 - index) * config.trendBucketDays
     );
 
     const bucketEnd = new Date(bucketStart);
@@ -414,8 +472,12 @@ const resolveAnalyticsPeriod = (period?: string | null): AdminAnalyticsPeriod =>
   return period in ANALYTICS_PERIODS ? (period as AdminAnalyticsPeriod) : 'monthly';
 };
 
-const isPaidSubscription = (row: Pick<SubscriptionAnalyticsRow, 'plan' | 'stripe_sub_id'>) =>
-  row.plan !== 'free' && typeof row.stripe_sub_id === 'string' && row.stripe_sub_id.length > 0;
+const isPaidSubscription = (
+  row: Pick<SubscriptionAnalyticsRow, 'plan' | 'stripe_sub_id'>
+) =>
+  row.plan !== 'free' &&
+  typeof row.stripe_sub_id === 'string' &&
+  row.stripe_sub_id.length > 0;
 
 const isActivePaidSubscription = (
   row: Pick<SubscriptionAnalyticsRow, 'plan' | 'stripe_sub_id' | 'status'>
@@ -555,7 +617,9 @@ const mapBugReportRow = (
   const parsed = parseBugDetailsWithContext(row.details);
   const categoryLabel = parsed.categoryLabel ?? 'Other';
   const areaLabel = parsed.areaLabel ?? null;
-  const module = areaLabel ? BUG_MODULE_BY_AREA_LABEL[areaLabel] ?? areaLabel : inferBugModuleFromPageUrl(row.page_url);
+  const module = areaLabel
+    ? BUG_MODULE_BY_AREA_LABEL[areaLabel] ?? areaLabel
+    : inferBugModuleFromPageUrl(row.page_url);
   const profile = profileById.get(row.user_id);
   const reporterEmail = row.email || profile?.email || '';
   const reporterName = toReporterName(profile, reporterEmail);
@@ -583,11 +647,581 @@ const mapBugReportRow = (
   };
 };
 
+const isFeedbackSourceType = (value: unknown): value is AdminFeedbackSourceType =>
+  typeof value === 'string' &&
+  FEEDBACK_SOURCE_TYPES.includes(value as AdminFeedbackSourceType);
+
+const isFeedbackTriageStatus = (
+  value: unknown
+): value is (typeof FEEDBACK_TRIAGE_DB_VALUES)[number] =>
+  typeof value === 'string' &&
+  FEEDBACK_TRIAGE_DB_VALUES.includes(value as (typeof FEEDBACK_TRIAGE_DB_VALUES)[number]);
+
+const toFeedbackRecordId = (sourceType: AdminFeedbackSourceType, sourceId: string) =>
+  `${sourceType}:${sourceId}`;
+
+const toFeedbackTriageKey = (sourceType: AdminFeedbackSourceType, sourceId: string) =>
+  `${sourceType}:${sourceId}`;
+
+const toFeedbackStatusFromBugStatus = (
+  statusDb: AdminBugStatusDb
+): Exclude<AdminFeedbackStatus, 'Ignored'> => {
+  if (statusDb === 'triaged') {
+    return 'Reviewed';
+  }
+
+  if (statusDb === 'resolved') {
+    return 'Resolved';
+  }
+
+  return 'Submitted';
+};
+
+const toBugStatusFromFeedbackStatus = (
+  status: AdminFeedbackStatus
+): AdminBugStatusDb | null => {
+  if (status === 'Submitted') {
+    return 'new';
+  }
+
+  if (status === 'Reviewed') {
+    return 'triaged';
+  }
+
+  if (status === 'Resolved') {
+    return 'resolved';
+  }
+
+  return null;
+};
+
+const getFeedbackNotes = (triageRow: FeedbackTriageRow | null | undefined) =>
+  triageRow?.admin_notes?.trim() ?? '';
+
+const createAnonymousFeedbackIdentity = (sessionId: string) => {
+  const sessionLabel = sessionId.slice(0, 8);
+
+  return {
+    userName: 'Anonymous session',
+    userEmail: `session:${sessionLabel}`
+  };
+};
+
+const resolveFeedbackIdentity = ({
+  email,
+  profile,
+  sessionId
+}: {
+  email?: string | null;
+  profile?: ProfileRow;
+  sessionId?: string;
+}) => {
+  const normalizedEmail = email?.trim() || profile?.email?.trim() || '';
+
+  if (normalizedEmail) {
+    return {
+      userName: toReporterName(profile, normalizedEmail),
+      userEmail: normalizedEmail
+    };
+  }
+
+  if (sessionId) {
+    return createAnonymousFeedbackIdentity(sessionId);
+  }
+
+  return {
+    userName: profile?.name?.trim() || 'Unknown user',
+    userEmail: 'Unknown'
+  };
+};
+
+const normalizeFeedbackModuleFromPath = (path: string | null) => {
+  if (!path) {
+    return 'Other';
+  }
+
+  const normalized = path.toLowerCase();
+
+  if (normalized.includes('/theory') || normalized.includes('/learn/')) {
+    return 'Theory';
+  }
+
+  if (normalized.includes('/missions')) {
+    return 'Missions';
+  }
+
+  if (normalized.includes('/practice/notebooks')) {
+    return 'Notebooks';
+  }
+
+  if (normalized.includes('/practice') || normalized.includes('/tasks')) {
+    return 'Task Pages';
+  }
+
+  if (normalized.includes('/grid-ops') || normalized.includes('/energy')) {
+    return 'Grid Ops';
+  }
+
+  if (
+    normalized.includes('/pricing') ||
+    normalized.includes('/billing') ||
+    normalized.includes('/settings')
+  ) {
+    return 'Billing';
+  }
+
+  if (normalized.includes('/login') || normalized.includes('/signup')) {
+    return 'Onboarding';
+  }
+
+  if (normalized === '/' || normalized.includes('/home')) {
+    return 'Dashboard';
+  }
+
+  return 'Other';
+};
+
+const normalizeFeedbackCategoryFromBugLabel = (categoryLabel: string | null) => {
+  const normalized = categoryLabel?.toLowerCase() ?? '';
+
+  if (normalized.includes('performance')) return 'Performance';
+  if (normalized.includes('navigation')) return 'Navigation';
+  if (normalized.includes('billing')) return 'Billing';
+  if (normalized.includes('auth')) return 'Auth / Account';
+  if (normalized.includes('data')) return 'Data / Progress';
+  if (normalized.includes('crash')) return 'Crash / Error';
+  if (normalized.includes('ui')) return 'UI / Visual';
+
+  return categoryLabel?.trim() || 'General';
+};
+
+const normalizeLightbulbCategory = ({
+  contextType,
+  module
+}: {
+  contextType: string | null;
+  module: string;
+}) => {
+  if (module === 'Theory') return 'Theory Experience';
+  if (module === 'Onboarding') return 'Onboarding';
+  if (module === 'Missions') return 'Missions';
+  if (module === 'Notebooks') return 'Notebooks';
+  if (module === 'Grid Ops') return 'Grid Ops';
+  if (module === 'Billing') return 'Billing';
+  if (module === 'Dashboard') return 'Navigation';
+  if (module === 'Task Pages') return 'Task Flow';
+
+  if (contextType === 'mission') return 'Missions';
+  if (contextType === 'notebook') return 'Notebooks';
+  if (contextType === 'module') return 'Theory Experience';
+
+  return 'General';
+};
+
+const normalizeKeyword = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s/-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const FEEDBACK_KEYWORD_STOP_WORDS = new Set([
+  'about',
+  'after',
+  'before',
+  'could',
+  'every',
+  'feels',
+  'finally',
+  'have',
+  'into',
+  'just',
+  'make',
+  'more',
+  'page',
+  'pages',
+  'should',
+  'that',
+  'their',
+  'there',
+  'these',
+  'this',
+  'when',
+  'with'
+]);
+
+const extractKeywordsFromText = (text: string, fallbackKeywords: string[] = []) => {
+  const frequency = new Map<string, number>();
+  const tokens = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s/-]/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token.length >= 4 && !FEEDBACK_KEYWORD_STOP_WORDS.has(token));
+
+  tokens.forEach((token) => {
+    frequency.set(token, (frequency.get(token) ?? 0) + 1);
+  });
+
+  const ranked = Array.from(frequency.entries())
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([token]) => token);
+
+  const merged = [...fallbackKeywords, ...ranked]
+    .map((keyword) => normalizeKeyword(keyword))
+    .filter((keyword) => keyword.length > 0);
+
+  return Array.from(new Set(merged)).slice(0, 8);
+};
+
+const LIGHTBULB_FEEDBACK_VALUE_TO_LABEL = {
+  dim: 'Needs work',
+  steady: 'Clear enough',
+  bright: 'Very clear'
+} as const;
+
+type LightbulbFeedbackValue = keyof typeof LIGHTBULB_FEEDBACK_VALUE_TO_LABEL;
+
+const isLightbulbFeedbackValue = (value: unknown): value is LightbulbFeedbackValue =>
+  typeof value === 'string' && value in LIGHTBULB_FEEDBACK_VALUE_TO_LABEL;
+
+const LIGHTBULB_FEEDBACK_TYPE_BY_VALUE: Record<
+  LightbulbFeedbackValue,
+  AdminFeedbackType
+> = {
+  dim: 'Issue',
+  steady: 'Usability',
+  bright: 'Praise'
+};
+
+const LIGHTBULB_FEEDBACK_SENTIMENT_BY_VALUE: Record<
+  LightbulbFeedbackValue,
+  AdminFeedbackSentiment
+> = {
+  dim: 'Negative',
+  steady: 'Neutral',
+  bright: 'Positive'
+};
+
+const LIGHTBULB_FEEDBACK_RATING_BY_VALUE: Record<
+  LightbulbFeedbackValue,
+  1 | 2 | 3 | 4 | 5
+> = {
+  dim: 2,
+  steady: 3,
+  bright: 5
+};
+
+const asMetadataRecord = (value: JsonValue): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const parseLightbulbMetadata = (metadata: JsonValue) => {
+  const record = asMetadataRecord(metadata);
+  const contextType = typeof record.contextType === 'string' ? record.contextType : null;
+  const contextId = typeof record.contextId === 'string' ? record.contextId : null;
+  const value = isLightbulbFeedbackValue(record.value) ? record.value : 'steady';
+
+  return {
+    contextType,
+    contextId,
+    value
+  };
+};
+
+const buildLightbulbPreview = ({
+  category,
+  module,
+  value
+}: {
+  category: string;
+  module: string;
+  value: LightbulbFeedbackValue;
+}) => {
+  const valueLabel = LIGHTBULB_FEEDBACK_VALUE_TO_LABEL[value];
+
+  if (value === 'bright') {
+    return `${valueLabel} response for ${category.toLowerCase()} in ${module.toLowerCase()}.`;
+  }
+
+  if (value === 'dim') {
+    return `${valueLabel} signal for ${category.toLowerCase()} in ${module.toLowerCase()}.`;
+  }
+
+  return `${valueLabel} response for ${module.toLowerCase()} flow.`;
+};
+
+const buildLightbulbMessage = ({
+  category,
+  contextId,
+  contextType,
+  linkedPage,
+  module,
+  value
+}: {
+  category: string;
+  contextId: string | null;
+  contextType: string | null;
+  linkedPage: string;
+  module: string;
+  value: LightbulbFeedbackValue;
+}) => {
+  const valueLabel = LIGHTBULB_FEEDBACK_VALUE_TO_LABEL[value];
+  const contextTypeLabel = contextType ?? 'general';
+  const contextIdLabel = contextId ?? 'not supplied';
+
+  return `This is a one-click lightbulb response marked as "${valueLabel}" for the ${category.toLowerCase()} experience in ${module}. Context type: ${contextTypeLabel}. Context id: ${contextIdLabel}. Linked page: ${linkedPage}.`;
+};
+
+const resolveBugFeedbackStatus = ({
+  row,
+  triageRow
+}: {
+  row: BugReportRow;
+  triageRow: FeedbackTriageRow | null | undefined;
+}): AdminFeedbackStatus =>
+  triageRow?.status === 'ignored'
+    ? 'Ignored'
+    : toFeedbackStatusFromBugStatus(isBugReportDbStatus(row.status) ? row.status : 'new');
+
+const mapBugReportRowToAdminFeedback = ({
+  row,
+  profileById,
+  triageRow
+}: {
+  row: BugReportRow;
+  profileById: Map<string, ProfileRow>;
+  triageRow?: FeedbackTriageRow | null;
+}): AdminFeedbackRecord => {
+  const parsed = parseBugDetailsWithContext(row.details);
+  const module = parsed.areaLabel
+    ? BUG_MODULE_BY_AREA_LABEL[parsed.areaLabel] ?? parsed.areaLabel
+    : inferBugModuleFromPageUrl(row.page_url);
+  const category = normalizeFeedbackCategoryFromBugLabel(parsed.categoryLabel);
+  const severity =
+    BUG_SEVERITY_BY_CATEGORY_LABEL[parsed.categoryLabel ?? 'Other'] ?? 'Medium';
+  const ratingBySeverity: Record<AdminBugSeverity, 1 | 2 | 3 | 4 | 5> = {
+    Critical: 1,
+    High: 2,
+    Medium: 2,
+    Low: 3
+  };
+  const profile = profileById.get(row.user_id);
+  const identity = resolveFeedbackIdentity({
+    email: row.email,
+    profile
+  });
+  const description = parsed.description || row.details;
+  const linkedPage = row.page_url?.trim() || 'Unknown';
+
+  return {
+    id: toFeedbackRecordId('bug_report', row.id),
+    sourceId: row.id,
+    sourceType: 'bug_report',
+    userName: identity.userName,
+    userEmail: identity.userEmail,
+    submittedAt: row.created_at,
+    type: 'Issue',
+    rating: ratingBySeverity[severity],
+    sentiment: 'Negative',
+    category,
+    status: resolveBugFeedbackStatus({ row, triageRow }),
+    module,
+    linkedPage,
+    preview: buildShortDescription(row.title),
+    message: description,
+    internalNotes: getFeedbackNotes(triageRow),
+    keywords: extractKeywordsFromText(`${row.title} ${description}`, [
+      category,
+      module,
+      'bug report'
+    ])
+  };
+};
+
+const mapProductFunnelEventToAdminFeedback = ({
+  row,
+  profileById,
+  triageRow
+}: {
+  row: ProductFunnelEventRow;
+  profileById: Map<string, ProfileRow>;
+  triageRow?: FeedbackTriageRow | null;
+}): AdminFeedbackRecord => {
+  const metadata = parseLightbulbMetadata(row.metadata);
+  const profile = row.user_id ? profileById.get(row.user_id) : undefined;
+  const identity = resolveFeedbackIdentity({
+    profile,
+    sessionId: row.session_id
+  });
+  const linkedPage = row.path?.trim() || 'Unknown';
+  const module = normalizeFeedbackModuleFromPath(row.path);
+  const category = normalizeLightbulbCategory({
+    contextType: metadata.contextType,
+    module
+  });
+
+  return {
+    id: toFeedbackRecordId('lightbulb_feedback', row.id),
+    sourceId: row.id,
+    sourceType: 'lightbulb_feedback',
+    userName: identity.userName,
+    userEmail: identity.userEmail,
+    submittedAt: row.occurred_at,
+    type: LIGHTBULB_FEEDBACK_TYPE_BY_VALUE[metadata.value],
+    rating: LIGHTBULB_FEEDBACK_RATING_BY_VALUE[metadata.value],
+    sentiment: LIGHTBULB_FEEDBACK_SENTIMENT_BY_VALUE[metadata.value],
+    category,
+    status: triageRow ? FEEDBACK_STATUS_LABEL_BY_DB[triageRow.status] : 'Submitted',
+    module,
+    linkedPage,
+    preview: buildLightbulbPreview({
+      category,
+      module,
+      value: metadata.value
+    }),
+    message: buildLightbulbMessage({
+      category,
+      contextId: metadata.contextId,
+      contextType: metadata.contextType,
+      linkedPage,
+      module,
+      value: metadata.value
+    }),
+    internalNotes: getFeedbackNotes(triageRow),
+    keywords: extractKeywordsFromText(
+      [category, module, metadata.contextType, metadata.contextId]
+        .filter(Boolean)
+        .join(' '),
+      [
+        category,
+        module,
+        metadata.contextType ?? 'general',
+        LIGHTBULB_FEEDBACK_VALUE_TO_LABEL[metadata.value]
+      ]
+    )
+  };
+};
+
+const loadFeedbackTriageMap = async ({
+  supabase,
+  sourceIds,
+  sourceType
+}: {
+  supabase: SupabaseClient;
+  sourceIds: string[];
+  sourceType: AdminFeedbackSourceType;
+}) => {
+  const triageMap = new Map<string, FeedbackTriageRow>();
+
+  if (sourceIds.length === 0) {
+    return triageMap;
+  }
+
+  const triageResult = await readOptionalRows<FeedbackTriageRow>(
+    supabase
+      .from('admin_feedback_triage')
+      .select('source_type,source_id,status,admin_notes,updated_by,created_at,updated_at')
+      .eq('source_type', sourceType)
+      .in('source_id', sourceIds)
+  );
+
+  if (!triageResult.available) {
+    return triageMap;
+  }
+
+  triageResult.rows.forEach((row) => {
+    if (!isFeedbackSourceType(row.source_type) || !isFeedbackTriageStatus(row.status)) {
+      return;
+    }
+
+    triageMap.set(toFeedbackTriageKey(row.source_type, row.source_id), row);
+  });
+
+  return triageMap;
+};
+
+const getFeedbackTriageRow = async ({
+  supabase,
+  sourceId,
+  sourceType
+}: {
+  supabase: SupabaseClient;
+  sourceId: string;
+  sourceType: AdminFeedbackSourceType;
+}) => {
+  const triageResult = await readOptionalMaybeSingle<FeedbackTriageRow>(
+    supabase
+      .from('admin_feedback_triage')
+      .select('source_type,source_id,status,admin_notes,updated_by,created_at,updated_at')
+      .eq('source_type', sourceType)
+      .eq('source_id', sourceId)
+      .maybeSingle()
+  );
+
+  if (!triageResult.available || !triageResult.row) {
+    return null;
+  }
+
+  if (
+    !isFeedbackSourceType(triageResult.row.source_type) ||
+    !isFeedbackTriageStatus(triageResult.row.status)
+  ) {
+    return null;
+  }
+
+  return triageResult.row;
+};
+
+const upsertFeedbackTriage = async ({
+  adminNotes,
+  actorUserId,
+  sourceId,
+  sourceType,
+  status,
+  supabase
+}: {
+  adminNotes: string;
+  actorUserId: string;
+  sourceId: string;
+  sourceType: AdminFeedbackSourceType;
+  status: AdminFeedbackStatus;
+  supabase: SupabaseClient;
+}) => {
+  const { data, error } = await supabase
+    .from('admin_feedback_triage')
+    .upsert(
+      {
+        source_type: sourceType,
+        source_id: sourceId,
+        status: FEEDBACK_STATUS_DB_BY_LABEL[status],
+        admin_notes: adminNotes,
+        updated_by: actorUserId
+      },
+      {
+        onConflict: 'source_type,source_id'
+      }
+    )
+    .select('source_type,source_id,status,admin_notes,updated_by,created_at,updated_at')
+    .single();
+  assertSuccess(error);
+
+  const row = data as FeedbackTriageRow | null;
+  if (
+    !row ||
+    !isFeedbackSourceType(row.source_type) ||
+    !isFeedbackTriageStatus(row.status)
+  ) {
+    throw new AdminServiceError('Feedback triage state is invalid.', 500);
+  }
+
+  return row;
+};
+
 const toTopicLabel = (topic: string) =>
   TOPIC_LABELS[topic] ??
-  topic
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase());
+  topic.replace(/[-_]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 
 const mergeDistinctUserIds = (...sources: Array<Array<{ user_id: string }>>) =>
   new Set(
@@ -605,7 +1239,8 @@ const pushTimestampedActivity = (
 ) => {
   rows.forEach((row) => {
     const userId = typeof row.user_id === 'string' ? row.user_id : null;
-    const timestamp = typeof row[key] === 'string' ? row[key] : null;
+    const timestampValue = row[key];
+    const timestamp = typeof timestampValue === 'string' ? timestampValue : null;
 
     if (!userId || !timestamp) {
       return;
@@ -613,7 +1248,7 @@ const pushTimestampedActivity = (
 
     target.push({
       user_id: userId,
-      timestamp
+      timestamp: timestamp as string
     });
   });
 };
@@ -626,7 +1261,8 @@ const pushTopicTimestampedActivity = (
   rows.forEach((row) => {
     const userId = typeof row.user_id === 'string' ? row.user_id : null;
     const topic = typeof row.topic === 'string' ? row.topic : null;
-    const timestamp = typeof row[key] === 'string' ? row[key] : null;
+    const timestampValue = row[key];
+    const timestamp = typeof timestampValue === 'string' ? timestampValue : null;
 
     if (!userId || !topic || !timestamp) {
       return;
@@ -634,8 +1270,8 @@ const pushTopicTimestampedActivity = (
 
     target.push({
       user_id: userId,
-      topic,
-      timestamp
+      topic: topic as string,
+      timestamp: timestamp as string
     });
   });
 };
@@ -657,6 +1293,26 @@ const readOptionalRows = async <T>(
   return {
     available: true,
     rows: (result.data ?? []) as T[]
+  };
+};
+
+const readOptionalMaybeSingle = async <T>(
+  query: Promise<{ data: T | null; error: { message?: string } | null }>
+) => {
+  const result = await query;
+
+  if (isMissingRelationError(result.error)) {
+    return {
+      available: false,
+      row: null as T | null
+    };
+  }
+
+  assertSuccess(result.error);
+
+  return {
+    available: true,
+    row: (result.data ?? null) as T | null
   };
 };
 
@@ -1115,7 +1771,10 @@ export const reorderAdminContentItems = async ({
 
   const uniqueIds = new Set(orderedItemIds);
   if (uniqueIds.size !== orderedItemIds.length) {
-    throw new AdminServiceError('Duplicate item ids are not allowed in reorder requests.', 400);
+    throw new AdminServiceError(
+      'Duplicate item ids are not allowed in reorder requests.',
+      400
+    );
   }
 
   const { data, error } = await supabase
@@ -1134,7 +1793,10 @@ export const reorderAdminContentItems = async ({
     existingItems.length !== orderedItemIds.length ||
     orderedItemIds.some((itemId) => !existingIdSet.has(itemId))
   ) {
-    throw new AdminServiceError('Content order is out of date. Refresh and try again.', 409);
+    throw new AdminServiceError(
+      'Content order is out of date. Refresh and try again.',
+      409
+    );
   }
 
   const before = existingItems.map(mapContentItemRow);
@@ -1189,9 +1851,13 @@ export const listAdminAnalytics = async (
         ? null
         : daysAgoIso(config.rangeDays);
   const comparisonWindowStart =
-    period === 'daily' ? comparisonDayStart.toISOString() : daysAgoIso(config.comparisonDays);
+    period === 'daily'
+      ? comparisonDayStart.toISOString()
+      : daysAgoIso(config.comparisonDays);
   const previousWindowStart =
-    period === 'daily' ? previousDayStart.toISOString() : daysAgoIso(config.comparisonDays * 2);
+    period === 'daily'
+      ? previousDayStart.toISOString()
+      : daysAgoIso(config.comparisonDays * 2);
   const trend = buildTrendBuckets(period);
   const lookbackStart =
     period === 'all_time'
@@ -1263,7 +1929,9 @@ export const listAdminAnalytics = async (
             .select('user_id,topic,read_at')
             .gte('read_at', lookbackStart ?? generatedAt)
     ),
-    readOptionalRows<{ user_id: string }>(supabase.from('module_progress').select('user_id')),
+    readOptionalRows<{ user_id: string }>(
+      supabase.from('module_progress').select('user_id')
+    ),
     readOptionalRows<{ user_id: string }>(
       supabase.from('reading_lesson_history').select('user_id')
     ),
@@ -1286,7 +1954,9 @@ export const listAdminAnalytics = async (
           .from('user_activation_tasks')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'completed'),
-    supabase.from('user_activation_tasks').select('user_id,status,started_at,completed_at'),
+    supabase
+      .from('user_activation_tasks')
+      .select('user_id,status,started_at,completed_at'),
     supabase
       .from('subscriptions')
       .select('user_id,plan,status,stripe_sub_id,created_at,updated_at')
@@ -1308,8 +1978,12 @@ export const listAdminAnalytics = async (
   assertSuccess(subscriptionsResult.error);
 
   const profilesRows = (profilesResult.data ?? []) as ProfileRow[];
-  const readingSessionsRows = (readingSessionsResult.data ?? []) as Array<Record<string, unknown>>;
-  const topicProgressRows = (topicProgressResult.data ?? []) as Array<Record<string, unknown>>;
+  const readingSessionsRows = (readingSessionsResult.data ?? []) as Array<
+    Record<string, unknown>
+  >;
+  const topicProgressRows = (topicProgressResult.data ?? []) as Array<
+    Record<string, unknown>
+  >;
   const lessonHistoryRows = readingLessonHistoryResult.rows;
   const taskRows = (taskRowsResult.data ?? []) as TaskAnalyticsRow[];
   const subscriptionRows = (subscriptionsResult.data ?? []) as SubscriptionAnalyticsRow[];
@@ -1379,12 +2053,22 @@ export const listAdminAnalytics = async (
     return true;
   };
 
-  const countDistinctUsersInRange = (rows: UserActivityRow[], start: string | null, end?: string) =>
-    new Set(rows.filter((row) => isWithinRange(row.timestamp, start, end)).map((row) => row.user_id)).size;
+  const countDistinctUsersInRange = (
+    rows: UserActivityRow[],
+    start: string | null,
+    end?: string
+  ) =>
+    new Set(
+      rows
+        .filter((row) => isWithinRange(row.timestamp, start, end))
+        .map((row) => row.user_id)
+    ).size;
 
   const countProfilesInRange = (rows: ProfileRow[], start: string | null, end?: string) =>
-    rows.filter((row) => typeof row.created_at === 'string' && isWithinRange(row.created_at, start, end))
-      .length;
+    rows.filter(
+      (row) =>
+        typeof row.created_at === 'string' && isWithinRange(row.created_at, start, end)
+    ).length;
 
   const countRowsInRange = <T extends Record<string, unknown>>(
     rows: T[],
@@ -1392,11 +2076,19 @@ export const listAdminAnalytics = async (
     start: string | null,
     end?: string
   ) =>
-    rows.filter((row) => typeof row[key] === 'string' && isWithinRange(row[key] as string, start, end))
-      .length;
+    rows.filter(
+      (row) =>
+        typeof row[key] === 'string' && isWithinRange(row[key] as string, start, end)
+    ).length;
 
-  const countSalesInRange = (rows: SubscriptionAnalyticsRow[], start: string | null, end?: string) =>
-    rows.filter((row) => isPaidSubscription(row) && isWithinRange(row.created_at, start, end)).length;
+  const countSalesInRange = (
+    rows: SubscriptionAnalyticsRow[],
+    start: string | null,
+    end?: string
+  ) =>
+    rows.filter(
+      (row) => isPaidSubscription(row) && isWithinRange(row.created_at, start, end)
+    ).length;
 
   const parseSessionSeconds = (row: Record<string, unknown>) => {
     const rawActiveSeconds = row.active_seconds;
@@ -1442,7 +2134,8 @@ export const listAdminAnalytics = async (
     let sessionCount = 0;
 
     rows.forEach((row) => {
-      const lastActiveAt = typeof row.last_active_at === 'string' ? row.last_active_at : null;
+      const lastActiveAt =
+        typeof row.last_active_at === 'string' ? row.last_active_at : null;
       const activeSeconds = parseSessionSeconds(row);
 
       if (!lastActiveAt || activeSeconds == null) {
@@ -1504,7 +2197,8 @@ export const listAdminAnalytics = async (
 
     sessionRows.forEach((row) => {
       const userId = typeof row.user_id === 'string' ? row.user_id : null;
-      const lastActiveAt = typeof row.last_active_at === 'string' ? row.last_active_at : null;
+      const lastActiveAt =
+        typeof row.last_active_at === 'string' ? row.last_active_at : null;
       const activeSeconds = parseSessionSeconds(row);
 
       if (!userId || !lastActiveAt || activeSeconds == null) {
@@ -1542,7 +2236,10 @@ export const listAdminAnalytics = async (
       };
     }
 
-    const totalSeconds = Array.from(secondsByUser.values()).reduce((sum, value) => sum + value, 0);
+    const totalSeconds = Array.from(secondsByUser.values()).reduce(
+      (sum, value) => sum + value,
+      0
+    );
     return {
       averageSeconds: Math.round(totalSeconds / userCount),
       userCount
@@ -1554,7 +2251,9 @@ export const listAdminAnalytics = async (
       ? engagedUsers
       : countDistinctUsersInRange(recentActivityRows, currentWindowStart);
   const newUsers =
-    currentWindowStart == null ? totalUsers : countProfilesInRange(profilesRows, currentWindowStart);
+    currentWindowStart == null
+      ? totalUsers
+      : countProfilesInRange(profilesRows, currentWindowStart);
   const lessonCompletions =
     currentWindowStart == null
       ? lessonHistoryRows.length
@@ -1564,10 +2263,10 @@ export const listAdminAnalytics = async (
       ? moduleCompletionRows.length
       : countRowsInRange(moduleCompletionRows, 'completed_at', currentWindowStart);
   const tasksCompleted =
-    currentWindowStart == null
-      ? completedTasks
-      : tasksCompletedCurrentResult.count ?? 0;
-  const activeSubscriptions = subscriptionRows.filter((row) => isActivePaidSubscription(row)).length;
+    currentWindowStart == null ? completedTasks : tasksCompletedCurrentResult.count ?? 0;
+  const activeSubscriptions = subscriptionRows.filter((row) =>
+    isActivePaidSubscription(row)
+  ).length;
   const sales =
     currentWindowStart == null
       ? subscriptionRows.filter((row) => isPaidSubscription(row)).length
@@ -1579,28 +2278,40 @@ export const listAdminAnalytics = async (
   const taskStatsInPeriod = taskDurationStatsInRange(taskRows, currentWindowStart);
   const fallbackTaskStats = taskDurationStatsInRange(taskRows, null);
   const hasTaskSamplesInPeriod = taskStatsInPeriod.taskCount > 0;
-  const averageTaskTimeSeconds =
-    hasTaskSamplesInPeriod ? taskStatsInPeriod.averageSeconds : fallbackTaskStats.averageSeconds;
+  const averageTaskTimeSeconds = hasTaskSamplesInPeriod
+    ? taskStatsInPeriod.averageSeconds
+    : fallbackTaskStats.averageSeconds;
   const platformTimeStatsInPeriod = platformTimeStatsInRange(
     readingSessionsRows,
     taskRows,
     currentWindowStart
   );
-  const fallbackPlatformTimeStats = platformTimeStatsInRange(readingSessionsRows, taskRows, null);
+  const fallbackPlatformTimeStats = platformTimeStatsInRange(
+    readingSessionsRows,
+    taskRows,
+    null
+  );
   const hasPlatformSamplesInPeriod = platformTimeStatsInPeriod.userCount > 0;
-  const averagePlatformTimeSeconds =
-    hasPlatformSamplesInPeriod
-      ? platformTimeStatsInPeriod.averageSeconds
-      : fallbackPlatformTimeStats.averageSeconds;
+  const averagePlatformTimeSeconds = hasPlatformSamplesInPeriod
+    ? platformTimeStatsInPeriod.averageSeconds
+    : fallbackPlatformTimeStats.averageSeconds;
 
   const deltaCurrentStart = currentWindowStart ?? comparisonWindowStart;
-  const previousUsers = countProfilesInRange(profilesRows, previousWindowStart, deltaCurrentStart);
+  const previousUsers = countProfilesInRange(
+    profilesRows,
+    previousWindowStart,
+    deltaCurrentStart
+  );
   const previousActiveUsers = countDistinctUsersInRange(
     recentActivityRows,
     previousWindowStart,
     deltaCurrentStart
   );
-  const previousSales = countSalesInRange(subscriptionRows, previousWindowStart, deltaCurrentStart);
+  const previousSales = countSalesInRange(
+    subscriptionRows,
+    previousWindowStart,
+    deltaCurrentStart
+  );
   const previousLessonCompletions = countRowsInRange(
     lessonHistoryRows,
     'read_at',
@@ -1618,7 +2329,9 @@ export const listAdminAnalytics = async (
     deltaCurrentStart
   );
   const previousAverageTaskTimeSeconds =
-    previousTaskStats.taskCount > 0 ? previousTaskStats.averageSeconds : averageTaskTimeSeconds;
+    previousTaskStats.taskCount > 0
+      ? previousTaskStats.averageSeconds
+      : averageTaskTimeSeconds;
   const previousPlatformStats = platformTimeStatsInRange(
     readingSessionsRows,
     taskRows,
@@ -1638,15 +2351,22 @@ export const listAdminAnalytics = async (
   const activeUserIds = buildUserIdSet(recentActivityRows, (row) =>
     isWithinRange(row.timestamp, currentWindowStart)
   );
-  const theoryCompletedUserIds = buildUserIdSet(moduleCompletionRows, (row) =>
-    typeof row.completed_at === 'string' && isWithinRange(row.completed_at, currentWindowStart)
+  const theoryCompletedUserIds = buildUserIdSet(
+    moduleCompletionRows,
+    (row) =>
+      typeof row.completed_at === 'string' &&
+      isWithinRange(row.completed_at, currentWindowStart)
   );
-  const taskCompletedUserIds = buildUserIdSet(taskRows, (row) =>
-    row.status === 'completed' &&
-    typeof row.completed_at === 'string' &&
-    isWithinRange(row.completed_at, currentWindowStart)
+  const taskCompletedUserIds = buildUserIdSet(
+    taskRows,
+    (row) =>
+      row.status === 'completed' &&
+      typeof row.completed_at === 'string' &&
+      isWithinRange(row.completed_at, currentWindowStart)
   );
-  const paidUserIds = buildUserIdSet(subscriptionRows, (row) => isActivePaidSubscription(row));
+  const paidUserIds = buildUserIdSet(subscriptionRows, (row) =>
+    isActivePaidSubscription(row)
+  );
   const freeUserIds = differenceUserSet(allUserIds, paidUserIds);
   const inactiveUserIds = differenceUserSet(allUserIds, activeUserIds);
   const newUsersWindowStart = currentWindowStart ?? comparisonWindowStart;
@@ -1661,7 +2381,9 @@ export const listAdminAnalytics = async (
   );
   const returningUserIds = differenceUserSet(allUserIds, newUserIds);
   const startedModuleUserIds = moduleProgressResult.available
-    ? buildUserIdSet(moduleProgressResult.rows, (row) => isWithinRange(row.updated_at, currentWindowStart))
+    ? buildUserIdSet(moduleProgressResult.rows, (row) =>
+        isWithinRange(row.updated_at, currentWindowStart)
+      )
     : buildUserIdSet(
         readingSessionsRows
           .filter(
@@ -1685,8 +2407,16 @@ export const listAdminAnalytics = async (
   };
 
   const recentTopicActivityRows: TopicActivityRow[] = [];
-  pushTopicTimestampedActivity(recentTopicActivityRows, readingSessionsRows, 'last_active_at');
-  pushTopicTimestampedActivity(recentTopicActivityRows, topicProgressRows, 'last_activity_at');
+  pushTopicTimestampedActivity(
+    recentTopicActivityRows,
+    readingSessionsRows,
+    'last_active_at'
+  );
+  pushTopicTimestampedActivity(
+    recentTopicActivityRows,
+    topicProgressRows,
+    'last_activity_at'
+  );
   pushTopicTimestampedActivity(
     recentTopicActivityRows,
     moduleProgressResult.rows as Array<Record<string, unknown>>,
@@ -1700,7 +2430,12 @@ export const listAdminAnalytics = async (
 
   const topicStatsMap = new Map<
     string,
-    { label: string; activeUsers: Set<string>; lessonCompletions: number; moduleCompletions: number }
+    {
+      label: string;
+      activeUsers: Set<string>;
+      lessonCompletions: number;
+      moduleCompletions: number;
+    }
   >();
 
   recentTopicActivityRows
@@ -1732,7 +2467,11 @@ export const listAdminAnalytics = async (
     });
 
   moduleCompletionRows
-    .filter((entry) => typeof entry.completed_at === 'string' && isWithinRange(entry.completed_at, currentWindowStart))
+    .filter(
+      (entry) =>
+        typeof entry.completed_at === 'string' &&
+        isWithinRange(entry.completed_at, currentWindowStart)
+    )
     .forEach((entry) => {
       const current = topicStatsMap.get(entry.topic) ?? {
         label: toTopicLabel(entry.topic),
@@ -1774,7 +2513,10 @@ export const listAdminAnalytics = async (
       id: 'paid_vs_free',
       title: 'Paid vs Free',
       description: 'See how monetization segments convert into real learning outcomes.',
-      windowLabel: period === 'all_time' ? 'Lifetime outcomes' : analyticsPeriodLabel(config.summaryLabel),
+      windowLabel:
+        period === 'all_time'
+          ? 'Lifetime outcomes'
+          : analyticsPeriodLabel(config.summaryLabel),
       rootLabel: 'Total users',
       rootCount: totalUsers,
       rootHelper: 'Entire user base',
@@ -1805,7 +2547,10 @@ export const listAdminAnalytics = async (
       id: 'active_vs_inactive',
       title: 'Active vs Inactive',
       description: 'Understand how recent engagement separates the user base.',
-      windowLabel: period === 'all_time' ? 'Lifetime activity' : analyticsPeriodLabel(config.summaryLabel),
+      windowLabel:
+        period === 'all_time'
+          ? 'Lifetime activity'
+          : analyticsPeriodLabel(config.summaryLabel),
       rootLabel: 'Total users',
       rootCount: totalUsers,
       rootHelper: 'Entire user base',
@@ -1875,8 +2620,12 @@ export const listAdminAnalytics = async (
     {
       id: 'started_vs_not_started',
       title: 'Started a Module vs Did Not Start',
-      description: 'See how starting the learning journey changes downstream performance.',
-      windowLabel: period === 'all_time' ? 'Lifetime start signals' : analyticsPeriodLabel(config.summaryLabel),
+      description:
+        'See how starting the learning journey changes downstream performance.',
+      windowLabel:
+        period === 'all_time'
+          ? 'Lifetime start signals'
+          : analyticsPeriodLabel(config.summaryLabel),
       rootLabel: 'Total users',
       rootCount: totalUsers,
       rootHelper: 'Entire user base',
@@ -1907,7 +2656,10 @@ export const listAdminAnalytics = async (
       id: 'theory_vs_tasks',
       title: 'Theory Completers vs Task Completers',
       description: 'Compare the two key outcome cohorts side by side.',
-      windowLabel: period === 'all_time' ? 'Lifetime completion cohorts' : analyticsPeriodLabel(config.summaryLabel),
+      windowLabel:
+        period === 'all_time'
+          ? 'Lifetime completion cohorts'
+          : analyticsPeriodLabel(config.summaryLabel),
       note: 'These cohorts can overlap. A user can appear in both branches.',
       rootLabel: 'Total users',
       rootCount: totalUsers,
@@ -1946,7 +2698,8 @@ export const listAdminAnalytics = async (
     }
 
     const bucket = trend.find(
-      (entry) => profile.created_at! >= entry.bucketStart && profile.created_at! < entry.bucketEnd
+      (entry) =>
+        profile.created_at! >= entry.bucketStart && profile.created_at! < entry.bucketEnd
     );
     if (bucket) {
       bucket.newUsers += 1;
@@ -1990,9 +2743,13 @@ export const listAdminAnalytics = async (
     entry.activeUsers = activeUsersByBucket.get(entry.bucketStart)?.size ?? 0;
   });
 
-  const sessionDurationByBucket = new Map<string, { totalSeconds: number; count: number }>();
+  const sessionDurationByBucket = new Map<
+    string,
+    { totalSeconds: number; count: number }
+  >();
   readingSessionsRows.forEach((row) => {
-    const lastActiveAt = typeof row.last_active_at === 'string' ? row.last_active_at : null;
+    const lastActiveAt =
+      typeof row.last_active_at === 'string' ? row.last_active_at : null;
     const activeSeconds = parseSessionSeconds(row);
 
     if (!lastActiveAt || activeSeconds == null) {
@@ -2042,7 +2799,10 @@ export const listAdminAnalytics = async (
       return;
     }
 
-    const current = taskDurationByBucket.get(bucket.bucketStart) ?? { totalSeconds: 0, count: 0 };
+    const current = taskDurationByBucket.get(bucket.bucketStart) ?? {
+      totalSeconds: 0,
+      count: 0
+    };
     current.totalSeconds += durationSeconds;
     current.count += 1;
     taskDurationByBucket.set(bucket.bucketStart, current);
@@ -2057,9 +2817,14 @@ export const listAdminAnalytics = async (
     return Math.round(aggregate.totalSeconds / aggregate.count);
   });
 
-  const platformTimeTrendSeconds = trend.map((point) =>
-    platformTimeStatsInRange(readingSessionsRows, taskRows, point.bucketStart, point.bucketEnd)
-      .averageSeconds
+  const platformTimeTrendSeconds = trend.map(
+    (point) =>
+      platformTimeStatsInRange(
+        readingSessionsRows,
+        taskRows,
+        point.bucketStart,
+        point.bucketEnd
+      ).averageSeconds
   );
 
   const totalUsersBase =
@@ -2071,7 +2836,8 @@ export const listAdminAnalytics = async (
   });
 
   const paidSalesTotal =
-    subscriptionRows.filter((row) => isPaidSubscription(row)).length - trend.reduce((sum, point) => sum + point.sales, 0);
+    subscriptionRows.filter((row) => isPaidSubscription(row)).length -
+    trend.reduce((sum, point) => sum + point.sales, 0);
   let runningSalesTotal = paidSalesTotal;
   const paidSalesTrend = trend.map((point) => {
     runningSalesTotal += point.sales;
@@ -2082,13 +2848,15 @@ export const listAdminAnalytics = async (
     currentWindowStart == null
       ? countProfilesInRange(profilesRows, comparisonWindowStart)
       : newUsers;
-  const totalUsersMetricValue = period === 'all_time' ? totalUsers : usersInSelectedWindow;
+  const totalUsersMetricValue =
+    period === 'all_time' ? totalUsers : usersInSelectedWindow;
   const totalUsersMetricLabel = period === 'all_time' ? 'Total users' : 'Users in period';
   const totalUsersMetricHelper =
     period === 'all_time'
       ? 'All profiles created in the platform.'
       : `Profiles created in ${config.summaryLabel}.`;
-  const totalUsersMetricTrend = period === 'all_time' ? totalUserTrend : trend.map((point) => point.newUsers);
+  const totalUsersMetricTrend =
+    period === 'all_time' ? totalUserTrend : trend.map((point) => point.newUsers);
 
   const metrics: AdminAnalyticsKpi[] = [
     {
@@ -2146,7 +2914,10 @@ export const listAdminAnalytics = async (
         period === 'all_time'
           ? 'Average reading session length across all tracked sessions.'
           : `Average reading session length in ${config.summaryLabel}.`,
-      deltaValue: toDeltaPct(averageSessionDurationSeconds, previousAverageSessionDurationSeconds),
+      deltaValue: toDeltaPct(
+        averageSessionDurationSeconds,
+        previousAverageSessionDurationSeconds
+      ),
       deltaLabel: config.comparisonLabel,
       trendValues: sessionDurationTrendSeconds
     },
@@ -2158,7 +2929,10 @@ export const listAdminAnalytics = async (
       helper: hasPlatformSamplesInPeriod
         ? `Estimated active time per user in ${config.summaryLabel} (sessions + tasks).`
         : 'No activity in selected period; showing latest baseline active time per user.',
-      deltaValue: toDeltaPct(averagePlatformTimeSeconds, previousAveragePlatformTimeSeconds),
+      deltaValue: toDeltaPct(
+        averagePlatformTimeSeconds,
+        previousAveragePlatformTimeSeconds
+      ),
       deltaLabel: config.comparisonLabel,
       trendValues: platformTimeTrendSeconds
     },
@@ -2280,20 +3054,26 @@ export const listAdminFinancials = async (
       .select('user_id,plan,status,stripe_sub_id,created_at,updated_at')
       .gte('created_at', previousWindowStartIso)
       .lte('created_at', currentWindowEndIso),
-    supabase.from('profiles').select('id,created_at').gte('created_at', previousWindowStartIso)
+    supabase
+      .from('profiles')
+      .select('id,created_at')
+      .gte('created_at', previousWindowStartIso)
   ]);
 
   assertSuccess(subscriptionsResult.error);
   assertSuccess(profilesResult.error);
 
-  const subscriptions = ((subscriptionsResult.data ?? []) as SubscriptionAnalyticsRow[]).filter((row) =>
-    isPaidSubscription(row)
-  );
+  const subscriptions = (
+    (subscriptionsResult.data ?? []) as SubscriptionAnalyticsRow[]
+  ).filter((row) => isPaidSubscription(row));
   const profiles = (profilesResult.data ?? []) as ProfileRow[];
 
-  const isWithinRange = (value: string, start: string, end: string) => value >= start && value < end;
+  const isWithinRange = (value: string, start: string, end: string) =>
+    value >= start && value < end;
   const currentWindowEndDate = new Date(currentWindowStartDate);
-  currentWindowEndDate.setUTCDate(currentWindowEndDate.getUTCDate() + FINANCIALS_WINDOW_DAYS);
+  currentWindowEndDate.setUTCDate(
+    currentWindowEndDate.getUTCDate() + FINANCIALS_WINDOW_DAYS
+  );
   const currentWindowEndNormalizedIso = currentWindowEndDate.toISOString();
   const previousWindowEndIso = currentWindowStartIso;
 
@@ -2335,7 +3115,8 @@ export const listAdminFinancials = async (
   };
   const formatRate = (value: number) => `${value.toFixed(1)}%`;
 
-  const currentAvgOrderValue = currentOrders.length > 0 ? currentRevenue / currentOrders.length : 0;
+  const currentAvgOrderValue =
+    currentOrders.length > 0 ? currentRevenue / currentOrders.length : 0;
   const previousAvgOrderValue =
     previousOrders.length > 0 ? previousRevenue / previousOrders.length : 0;
   const currentConversionRate = toRate(currentOrders.length, currentNewUsers);
@@ -2365,7 +3146,8 @@ export const listAdminFinancials = async (
 
   currentOrders.forEach((order) => {
     const bucket = dayBuckets.find(
-      (point) => order.created_at >= point.bucketStart && order.created_at < point.bucketEnd
+      (point) =>
+        order.created_at >= point.bucketStart && order.created_at < point.bucketEnd
     );
 
     if (!bucket) {
@@ -2412,7 +3194,9 @@ export const listAdminFinancials = async (
     periodLabel: 'Last 30 days',
     monthlyRevenue: currentRevenue,
     previousMonthlyRevenue: previousRevenue,
-    heroTrend: dayBuckets.slice(-FINANCIALS_HERO_POINTS).map(({ bucketEnd: _bucketEnd, ...point }) => point),
+    heroTrend: dayBuckets
+      .slice(-FINANCIALS_HERO_POINTS)
+      .map(({ bucketEnd: _bucketEnd, ...point }) => point),
     dailyRevenue: dayBuckets.map(({ bucketEnd: _bucketEnd, ...point }) => point),
     kpis
   };
@@ -2422,8 +3206,13 @@ export const listAdminCustomers = async (
   supabase: SupabaseClient
 ): Promise<AdminCustomerRecord[]> => {
   const [profilesResult, subscriptionsResult] = await Promise.all([
-    supabase.from('profiles').select('id,name,email,created_at').order('created_at', { ascending: false }),
-    supabase.from('subscriptions').select('user_id,plan,status,stripe_sub_id,created_at,updated_at')
+    supabase
+      .from('profiles')
+      .select('id,name,email,created_at')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('subscriptions')
+      .select('user_id,plan,status,stripe_sub_id,created_at,updated_at')
   ]);
 
   assertSuccess(profilesResult.error);
@@ -2469,10 +3258,7 @@ export const listAdminCustomers = async (
   });
 };
 
-const loadBugProfilesMap = async (
-  supabase: SupabaseClient,
-  userIds: string[]
-) => {
+const loadProfilesMap = async (supabase: SupabaseClient, userIds: string[]) => {
   const profileMap = new Map<string, ProfileRow>();
   if (userIds.length === 0) {
     return profileMap;
@@ -2497,7 +3283,9 @@ export const listAdminBugReports = async (
   const bugReportsResult = await readOptionalRows<BugReportRow>(
     supabase
       .from('bug_reports')
-      .select('id,user_id,email,title,details,page_url,user_agent,status,created_at,updated_at')
+      .select(
+        'id,user_id,email,title,details,page_url,user_agent,status,created_at,updated_at'
+      )
       .order('created_at', { ascending: false })
   );
 
@@ -2506,7 +3294,7 @@ export const listAdminBugReports = async (
   }
 
   const rows = bugReportsResult.rows.filter((row) => isBugReportDbStatus(row.status));
-  const profileMap = await loadBugProfilesMap(
+  const profileMap = await loadProfilesMap(
     supabase,
     Array.from(new Set(rows.map((row) => row.user_id)))
   );
@@ -2532,7 +3320,9 @@ export const updateAdminBugReportStatus = async ({
 
   const { data: beforeRaw, error: beforeError } = await supabase
     .from('bug_reports')
-    .select('id,user_id,email,title,details,page_url,user_agent,status,created_at,updated_at')
+    .select(
+      'id,user_id,email,title,details,page_url,user_agent,status,created_at,updated_at'
+    )
     .eq('id', reportId)
     .maybeSingle();
   assertSuccess(beforeError);
@@ -2548,7 +3338,9 @@ export const updateAdminBugReportStatus = async ({
       status
     })
     .eq('id', reportId)
-    .select('id,user_id,email,title,details,page_url,user_agent,status,created_at,updated_at')
+    .select(
+      'id,user_id,email,title,details,page_url,user_agent,status,created_at,updated_at'
+    )
     .single();
   assertSuccess(afterError);
 
@@ -2557,11 +3349,239 @@ export const updateAdminBugReportStatus = async ({
     throw new AdminServiceError('Bug status is invalid.', 500);
   }
 
-  const profileMap = await loadBugProfilesMap(supabase, [beforeRow.user_id]);
+  const profileMap = await loadProfilesMap(supabase, [beforeRow.user_id]);
 
   return {
     before: mapBugReportRow(beforeRow, profileMap),
     after: mapBugReportRow(afterRow, profileMap)
+  };
+};
+
+export const listAdminFeedbackRecords = async (
+  supabase: SupabaseClient
+): Promise<AdminFeedbackRecord[]> => {
+  const [bugReportsResult, lightbulbEventsResult] = await Promise.all([
+    readOptionalRows<BugReportRow>(
+      supabase
+        .from('bug_reports')
+        .select(
+          'id,user_id,email,title,details,page_url,user_agent,status,created_at,updated_at'
+        )
+        .order('created_at', { ascending: false })
+    ),
+    readOptionalRows<ProductFunnelEventRow>(
+      supabase
+        .from('product_funnel_events')
+        .select('id,session_id,user_id,event_name,path,metadata,occurred_at,created_at')
+        .eq('event_name', LIGHTBULB_EVENT_NAME)
+        .order('occurred_at', { ascending: false })
+    )
+  ]);
+
+  const bugRows = bugReportsResult.rows.filter((row) => isBugReportDbStatus(row.status));
+  const lightbulbRows = lightbulbEventsResult.rows.filter(
+    (row) => row.event_name === LIGHTBULB_EVENT_NAME
+  );
+
+  const profileMap = await loadProfilesMap(
+    supabase,
+    Array.from(
+      new Set(
+        [
+          ...bugRows.map((row) => row.user_id),
+          ...lightbulbRows.map((row) => row.user_id)
+        ].filter(
+          (value): value is string => typeof value === 'string' && value.length > 0
+        )
+      )
+    )
+  );
+
+  const [bugTriageMap, lightbulbTriageMap] = await Promise.all([
+    loadFeedbackTriageMap({
+      supabase,
+      sourceIds: bugRows.map((row) => row.id),
+      sourceType: 'bug_report'
+    }),
+    loadFeedbackTriageMap({
+      supabase,
+      sourceIds: lightbulbRows.map((row) => row.id),
+      sourceType: 'lightbulb_feedback'
+    })
+  ]);
+
+  return [
+    ...bugRows.map((row) =>
+      mapBugReportRowToAdminFeedback({
+        row,
+        profileById: profileMap,
+        triageRow: bugTriageMap.get(toFeedbackTriageKey('bug_report', row.id)) ?? null
+      })
+    ),
+    ...lightbulbRows.map((row) =>
+      mapProductFunnelEventToAdminFeedback({
+        row,
+        profileById: profileMap,
+        triageRow:
+          lightbulbTriageMap.get(toFeedbackTriageKey('lightbulb_feedback', row.id)) ??
+          null
+      })
+    )
+  ].sort(
+    (left, right) =>
+      new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime()
+  );
+};
+
+export const getAdminFeedbackRecord = async ({
+  sourceId,
+  sourceType,
+  supabase
+}: {
+  sourceId: string;
+  sourceType: AdminFeedbackSourceType;
+  supabase: SupabaseClient;
+}): Promise<AdminFeedbackRecord | null> => {
+  if (sourceType === 'bug_report') {
+    const bugResult = await readOptionalMaybeSingle<BugReportRow>(
+      supabase
+        .from('bug_reports')
+        .select(
+          'id,user_id,email,title,details,page_url,user_agent,status,created_at,updated_at'
+        )
+        .eq('id', sourceId)
+        .maybeSingle()
+    );
+
+    const row = bugResult.row;
+    if (!row || !isBugReportDbStatus(row.status)) {
+      return null;
+    }
+
+    const profileMap = await loadProfilesMap(supabase, [row.user_id]);
+    const triageRow = await getFeedbackTriageRow({
+      supabase,
+      sourceId,
+      sourceType
+    });
+
+    return mapBugReportRowToAdminFeedback({
+      row,
+      profileById: profileMap,
+      triageRow
+    });
+  }
+
+  const eventResult = await readOptionalMaybeSingle<ProductFunnelEventRow>(
+    supabase
+      .from('product_funnel_events')
+      .select('id,session_id,user_id,event_name,path,metadata,occurred_at,created_at')
+      .eq('id', sourceId)
+      .eq('event_name', LIGHTBULB_EVENT_NAME)
+      .maybeSingle()
+  );
+
+  const row = eventResult.row;
+  if (!row || row.event_name !== LIGHTBULB_EVENT_NAME) {
+    return null;
+  }
+
+  const profileMap = await loadProfilesMap(supabase, row.user_id ? [row.user_id] : []);
+  const triageRow = await getFeedbackTriageRow({
+    supabase,
+    sourceId,
+    sourceType
+  });
+
+  return mapProductFunnelEventToAdminFeedback({
+    row,
+    profileById: profileMap,
+    triageRow
+  });
+};
+
+export const updateAdminFeedbackRecord = async ({
+  actorUserId,
+  adminNotes,
+  sourceId,
+  sourceType,
+  status,
+  supabase
+}: {
+  actorUserId: string;
+  adminNotes: string;
+  sourceId: string;
+  sourceType: AdminFeedbackSourceType;
+  status: AdminFeedbackStatus;
+  supabase: SupabaseClient;
+}): Promise<{
+  before: AdminFeedbackRecord;
+  after: AdminFeedbackRecord;
+}> => {
+  const normalizedNotes = adminNotes.trim();
+  if (normalizedNotes.length > 4000) {
+    throw new AdminServiceError('Admin notes are too long.', 422);
+  }
+
+  const before = await getAdminFeedbackRecord({
+    supabase,
+    sourceId,
+    sourceType
+  });
+
+  if (!before) {
+    throw new AdminServiceError('Feedback record not found.', 404);
+  }
+
+  if (sourceType === 'bug_report') {
+    const nextBugStatus = toBugStatusFromFeedbackStatus(status);
+
+    if (nextBugStatus) {
+      const { error } = await supabase
+        .from('bug_reports')
+        .update({
+          status: nextBugStatus
+        })
+        .eq('id', sourceId);
+      assertSuccess(error);
+    }
+  } else {
+    const event = await readOptionalMaybeSingle<ProductFunnelEventRow>(
+      supabase
+        .from('product_funnel_events')
+        .select('id')
+        .eq('id', sourceId)
+        .eq('event_name', LIGHTBULB_EVENT_NAME)
+        .maybeSingle()
+    );
+
+    if (!event.row) {
+      throw new AdminServiceError('Feedback record not found.', 404);
+    }
+  }
+
+  await upsertFeedbackTriage({
+    supabase,
+    adminNotes: normalizedNotes,
+    actorUserId,
+    sourceId,
+    sourceType,
+    status
+  });
+
+  const after = await getAdminFeedbackRecord({
+    supabase,
+    sourceId,
+    sourceType
+  });
+
+  if (!after) {
+    throw new AdminServiceError('Feedback record not found after update.', 500);
+  }
+
+  return {
+    before,
+    after
   };
 };
 
