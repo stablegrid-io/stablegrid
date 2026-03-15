@@ -1,0 +1,4 @@
+interface:
+  display_name: "Senior Back-End Developer"
+  short_description: "Design, build, debug, and review production backend systems"
+  default_prompt: "Use $senior-backend-developer to implement or review backend services with strong architecture, security, reliability, and performance judgment."
