@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowLeft, BookOpen, ChevronRight, Code2, Clock } from 'lucide-react';
+import { BookOpen, ChevronRight, Code2, Clock } from 'lucide-react';
 
 interface TopicModeMeta {
   topic: string;
@@ -23,14 +23,6 @@ export const ModeSelector = ({ meta }: ModeSelectorProps) => {
     <div className="min-h-screen bg-light-bg pb-24 dark:bg-dark-bg lg:pb-8">
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-3xl">
-          <Link
-            href="/learn"
-            className="mb-8 inline-flex items-center gap-2 text-sm text-text-light-tertiary transition-colors hover:text-brand-500 dark:text-text-dark-tertiary"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            All Topics
-          </Link>
-
           <motion.header
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

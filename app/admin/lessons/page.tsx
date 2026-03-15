@@ -3,7 +3,7 @@ import { AdminConsole } from '@/components/admin/AdminConsole';
 import { AdminAccessError, requireAdminAccess } from '@/lib/admin/access';
 
 export const metadata = {
-  title: 'Lessons · Admin Console · stableGrid.io'
+  title: 'Content editor · Admin Console · stableGrid.io'
 };
 
 export default async function AdminLessonsPage() {

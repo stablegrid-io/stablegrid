@@ -1,8 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { User, UserCircle2 } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { ImagePlus, Trash2, User, UserCircle2 } from 'lucide-react';
+import NextImage from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { useAuthStore } from '@/lib/stores/useAuthStore';
 import {
   SettingsCard,
   SettingsField,
@@ -17,10 +19,96 @@ interface ProfileTabProps {
   onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
+const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
+const AVATAR_CANVAS_SIZE = 256;
+const PROFILE_AVATAR_UPDATED_EVENT = 'stablegrid:profile-avatar-updated';
+
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        reject(new Error('Could not read selected image.'));
+        return;
+      }
+      resolve(reader.result);
+    };
+    reader.onerror = () => {
+      reject(new Error('Could not read selected image.'));
+    };
+    reader.readAsDataURL(file);
+  });
+
+const normalizePngAvatar = async (file: File) => {
+  const source = await readFileAsDataUrl(file);
+
+  return new Promise<string>((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = AVATAR_CANVAS_SIZE;
+      canvas.height = AVATAR_CANVAS_SIZE;
+
+      const context = canvas.getContext('2d');
+      if (!context) {
+        reject(new Error('Could not process selected image.'));
+        return;
+      }
+
+      const scale = Math.max(
+        AVATAR_CANVAS_SIZE / image.width,
+        AVATAR_CANVAS_SIZE / image.height
+      );
+      const drawWidth = image.width * scale;
+      const drawHeight = image.height * scale;
+      const offsetX = (AVATAR_CANVAS_SIZE - drawWidth) / 2;
+      const offsetY = (AVATAR_CANVAS_SIZE - drawHeight) / 2;
+
+      context.clearRect(0, 0, AVATAR_CANVAS_SIZE, AVATAR_CANVAS_SIZE);
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    image.onerror = () => {
+      reject(new Error('Could not process selected PNG.'));
+    };
+    image.src = source;
+  });
+};
+
+const isPngFile = (file: File) =>
+  file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+
+const emitProfileAvatarUpdated = (avatarUrl: string | null) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(PROFILE_AVATAR_UPDATED_EVENT, {
+      detail: { avatarUrl }
+    })
+  );
+};
+
 export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
   const supabase = createClient();
+  const setUser = useAuthStore((state) => state.setUser);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState(profile.name ?? '');
   const [email, setEmail] = useState(userEmail);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
+  const [avatarProcessing, setAvatarProcessing] = useState(false);
+  const [baseline, setBaseline] = useState<{
+    name: string;
+    email: string;
+    avatarUrl: string | null;
+  }>({
+    name: profile.name ?? '',
+    email: userEmail,
+    avatarUrl: profile.avatar_url
+  });
   const [loading, setLoading] = useState(false);
 
   const initials = useMemo(() => {
@@ -28,22 +116,66 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
     return source.slice(0, 2).toUpperCase();
   }, [name, email]);
 
-  const hasChanges = name !== (profile.name ?? '') || email !== userEmail;
+  const hasChanges =
+    name !== baseline.name ||
+    email !== baseline.email ||
+    (avatarUrl ?? '') !== (baseline.avatarUrl ?? '');
 
-  const handleSave = async () => {
-    if (!hasChanges || loading) {
+  const handleAvatarUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
       return;
     }
+
+    if (!isPngFile(file)) {
+      onToast('Only PNG files are supported.', 'error');
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_BYTES) {
+      onToast('PNG is too large. Maximum size is 4 MB.', 'error');
+      return;
+    }
+
+    setAvatarProcessing(true);
+    try {
+      const normalizedAvatar = await normalizePngAvatar(file);
+      setAvatarUrl(normalizedAvatar);
+      onToast('PNG ready. Save changes to apply.', 'info');
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to process selected PNG.';
+      onToast(message, 'error');
+    } finally {
+      setAvatarProcessing(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!hasChanges || loading || avatarProcessing) {
+      return;
+    }
+
+    const nameChanged = name !== baseline.name;
+    const emailChanged = email !== baseline.email;
+    const avatarChanged = (avatarUrl ?? '') !== (baseline.avatarUrl ?? '');
 
     setLoading(true);
 
     try {
-      if (name !== (profile.name ?? '')) {
+      if (nameChanged || avatarChanged) {
         const { error: profileError } = await supabase.from('profiles').upsert(
           {
             id: profile.id,
             name,
-            email: userEmail
+            email,
+            avatar_url: avatarUrl
           },
           { onConflict: 'id' }
         );
@@ -53,16 +185,44 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
         }
       }
 
-      if (email !== userEmail) {
-        const { error: emailError } = await supabase.auth.updateUser({ email });
-        if (emailError) {
-          throw emailError;
+      if (emailChanged) {
+        const updatePayload: {
+          email?: string;
+        } = {};
+
+        if (emailChanged) {
+          updatePayload.email = email;
         }
 
+        const { data: authData, error: authError } = await supabase.auth.updateUser(updatePayload);
+        if (authError) {
+          throw authError;
+        }
+
+        if (authData.user) {
+          setUser(authData.user);
+        }
+      }
+
+      if (avatarChanged) {
+        emitProfileAvatarUpdated(avatarUrl);
+      }
+
+      if (emailChanged) {
         onToast(`Verification email sent to ${email}.`, 'info');
+      } else if (avatarChanged && nameChanged) {
+        onToast('Profile and picture saved.', 'success');
+      } else if (avatarChanged) {
+        onToast('Profile picture saved.', 'success');
       } else {
         onToast('Profile saved.', 'success');
       }
+
+      setBaseline({
+        name,
+        email,
+        avatarUrl
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save profile.';
       onToast(message, 'error');
@@ -80,8 +240,19 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
       >
         <div className="space-y-5">
           <div className="flex items-center gap-4 rounded-xl border border-light-border bg-light-bg p-4 dark:border-dark-border dark:bg-dark-bg">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-500/15 text-lg font-semibold text-brand-500">
-              {initials}
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-brand-500/15 text-lg font-semibold text-brand-500">
+              {avatarUrl ? (
+                <NextImage
+                  src={avatarUrl}
+                  alt="Profile avatar"
+                  width={56}
+                  height={56}
+                  unoptimized
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                initials
+              )}
             </div>
             <div>
               <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
@@ -92,6 +263,38 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
               </p>
             </div>
           </div>
+
+          <SettingsField label="Profile picture (PNG)" hint="PNG only. Max 4 MB.">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading || avatarProcessing}
+                className="btn btn-secondary"
+              >
+                <ImagePlus className="h-4 w-4" />
+                {avatarProcessing ? 'Preparing PNG...' : 'Upload PNG'}
+              </button>
+              {avatarUrl ? (
+                <button
+                  type="button"
+                  onClick={() => setAvatarUrl(null)}
+                  disabled={loading || avatarProcessing}
+                  className="btn btn-ghost"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Remove
+                </button>
+              ) : null}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,.png"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+            </div>
+          </SettingsField>
 
           <SettingsField label="Full name">
             <SettingsInput
@@ -121,7 +324,7 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
             <button
               type="button"
               onClick={handleSave}
-              disabled={!hasChanges || loading}
+              disabled={!hasChanges || loading || avatarProcessing}
               className="btn btn-primary"
             >
               {loading ? 'Saving...' : 'Save changes'}
@@ -138,7 +341,7 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
           <SummaryCell label="Member since" value={formatMemberSince(profile.created_at)} />
           <SummaryCell label="Email" value={userEmail || '—'} />
           <SummaryCell label="Profile ID" value={profile.id.slice(0, 8)} />
-          <SummaryCell label="Avatar" value={profile.avatar_url ? 'Custom' : 'Generated'} />
+          <SummaryCell label="Avatar" value={avatarUrl ? 'Custom PNG' : 'Generated'} />
         </div>
       </SettingsCard>
     </div>

@@ -239,7 +239,7 @@ test.describe('activation loop smoke', () => {
       await page.getByRole('button', { name: /Beginner/i }).click();
       await page.getByRole('button', { name: 'Continue' }).click();
       await page.getByRole('button', { name: /Let's go/i }).click();
-      await page.waitForURL('**/learn/theory', { timeout: 20_000 });
+      await page.waitForURL('**/theory', { timeout: 20_000 });
     }
 
     await page.goto(

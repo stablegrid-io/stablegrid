@@ -25,7 +25,7 @@ const COURSES: CourseCard[] = [
     name: 'Microsoft Fabric',
     description: 'Lakehouse-first analytics patterns and orchestration in production contexts.',
     imageSrc: '/brand/microsoft-fabric-logo.svg',
-    href: '/learn/theory',
+    href: '/theory',
     badge: 'Live now'
   },
   {

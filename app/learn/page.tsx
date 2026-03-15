@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function LearnPage() {
-  redirect('/learn/theory');
+  redirect('/theory');
 }

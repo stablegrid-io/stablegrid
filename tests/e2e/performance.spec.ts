@@ -7,7 +7,7 @@ test.describe('performance smoke', () => {
   test.skip(!perfEnabled, 'Set PERF_ASSERT=1 to run performance assertions.');
 
   test('theory route transition stays under budget', async ({ page }) => {
-    await page.goto('/learn/theory');
+    await page.goto('/theory');
 
     await page.waitForLoadState('networkidle');
     await expect(page.locator('a[href="/learn/pyspark/theory"]').first()).toBeVisible();

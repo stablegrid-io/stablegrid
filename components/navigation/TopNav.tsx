@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowUpRight, ChevronDown, Shield, User } from 'lucide-react';
+import { ArrowUpRight, Shield, User } from 'lucide-react';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { StableGridIcon } from '@/components/brand/StableGridLogo';
 import type { AdminRole } from '@/lib/admin/types';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
@@ -12,8 +14,7 @@ import {
   isNavItemActive,
   isCompactDesktopNavPath,
   navItems,
-  shouldHideNav,
-  taskDropdownItems
+  shouldHideNav
 } from './navigation-config';
 
 const UserMenuLazy = dynamic<{
@@ -52,26 +53,74 @@ interface AdminAccessData {
   role: AdminRole;
 }
 
+interface ProfileAvatarResponse {
+  data?: {
+    avatarUrl?: string | null;
+  };
+}
+
+const PROFILE_AVATAR_UPDATED_EVENT = 'stablegrid:profile-avatar-updated';
+
+const toAvatarUrl = (value: unknown) =>
+  typeof value === 'string' && value.trim().length > 0 ? value : null;
+
+const toNickname = (user: SupabaseUser | null) => {
+  if (!user) {
+    return 'Profile';
+  }
+
+  const metadata = user.user_metadata ?? {};
+  const metadataCandidates = [
+    metadata.nickname,
+    metadata.display_name,
+    metadata.name,
+    metadata.full_name
+  ];
+
+  for (const candidate of metadataCandidates) {
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  if (typeof user.email === 'string' && user.email.includes('@')) {
+    const localPart = user.email.split('@')[0]?.trim();
+    if (localPart) {
+      return localPart;
+    }
+  }
+
+  return 'Profile';
+};
+
 export const TopNav = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuthStore();
   const hideNav = shouldHideNav(pathname, Boolean(user));
   const isLessonMode = isCompactDesktopNavPath(pathname);
+  const profileNickname = toNickname(user);
   const desktopRailItems = [
     ...navItems,
     {
       href: '/settings',
       icon: User,
-      label: 'Profile',
+      label: profileNickname,
       matchPrefixes: ['/settings']
     }
   ];
+  const profileAvatarUrlRaw = user?.user_metadata?.avatar_url;
+  const profileAvatarFallback =
+    typeof profileAvatarUrlRaw === 'string' &&
+    profileAvatarUrlRaw.trim().length > 0 &&
+    !profileAvatarUrlRaw.startsWith('data:')
+      ? profileAvatarUrlRaw
+      : null;
   const prefetchedRoutesRef = useRef<Set<string>>(new Set());
-  const tasksMenuRef = useRef<HTMLDivElement>(null);
-  const [tasksOpen, setTasksOpen] = useState(false);
   const [adminAccess, setAdminAccess] = useState<AdminAccessData | null>(null);
   const [hasResolvedAdminAccess, setHasResolvedAdminAccess] = useState(false);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
+  const resolvedProfileAvatarUrl = profileAvatarUrl ?? profileAvatarFallback;
 
   const prefetchRoute = useCallback(
     (route: string) => {
@@ -90,15 +139,11 @@ export const TopNav = () => {
   }, [user?.id]);
 
   useEffect(() => {
-    const primaryRoutes = ['/', '/learn/theory', '/tasks', '/progress', '/energy'];
-    const taskRoutes = taskDropdownItems.map((item) => item.href);
+    const primaryRoutes = ['/home', '/theory', '/tasks', '/progress', '/energy'];
     const secondaryRoutes = ['/settings'];
 
     const prefetchPrimary = () => {
       primaryRoutes.forEach((route) => {
-        prefetchRoute(route);
-      });
-      taskRoutes.forEach((route) => {
         prefetchRoute(route);
       });
     };
@@ -183,39 +228,58 @@ export const TopNav = () => {
   }, [hasResolvedAdminAccess, user?.id]);
 
   useEffect(() => {
-    setTasksOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!tasksOpen) {
-      return undefined;
+    if (!user?.id) {
+      setProfileAvatarUrl(null);
+      return;
     }
 
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) {
-        return;
+    const abortController = new AbortController();
+
+    const loadProfileAvatar = async () => {
+      try {
+        const response = await fetch('/api/profile/avatar', {
+          method: 'GET',
+          signal: abortController.signal
+        });
+
+        if (abortController.signal.aborted || !response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as ProfileAvatarResponse;
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        setProfileAvatarUrl(toAvatarUrl(payload?.data?.avatarUrl));
+      } catch (error) {
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        console.error('Failed to load profile avatar from nav rail:', error);
       }
-      if (tasksMenuRef.current?.contains(target)) {
-        return;
-      }
-      setTasksOpen(false);
     };
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setTasksOpen(false);
-      }
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    void loadProfileAvatar();
 
     return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      abortController.abort();
     };
-  }, [tasksOpen]);
+  }, [user?.id]);
+
+  useEffect(() => {
+    const handleProfileAvatarUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ avatarUrl?: string | null }>;
+      setProfileAvatarUrl(toAvatarUrl(customEvent.detail?.avatarUrl));
+    };
+
+    window.addEventListener(PROFILE_AVATAR_UPDATED_EVENT, handleProfileAvatarUpdated);
+
+    return () => {
+      window.removeEventListener(PROFILE_AVATAR_UPDATED_EVENT, handleProfileAvatarUpdated);
+    };
+  }, []);
 
   if (hideNav) {
     return null;
@@ -228,7 +292,7 @@ export const TopNav = () => {
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
         <div className="relative mx-auto flex h-16 items-center justify-between px-4">
           <Link
-            href="/"
+            href="/home"
             className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[#edf3ef] shadow-[0_12px_28px_-20px_rgba(0,0,0,0.75)] transition hover:bg-white/[0.06]"
           >
             <StableGridIcon
@@ -288,179 +352,13 @@ export const TopNav = () => {
           <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_42%)]" />
           <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/28 to-transparent" />
 
-          <Link
-            href="/"
-            onMouseEnter={() => prefetchRoute('/')}
-            onFocus={() => prefetchRoute('/')}
-            className={`group relative flex items-center overflow-hidden rounded-[24px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b7d4c7]/55 ${
-              isLessonMode ? 'justify-center px-0 py-3' : 'flex-col gap-2 px-3 py-4'
-            } bg-transparent text-[#f2f7f4] hover:bg-white/[0.03]`}
-          >
-            <span
-              className={`inline-flex items-center justify-center rounded-full transition ${
-                isLessonMode
-                  ? 'h-12 w-12 bg-[linear-gradient(180deg,rgba(18,28,44,0.82),rgba(11,18,32,0.92))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
-                  : 'h-14 w-14 bg-[linear-gradient(180deg,rgba(16,21,29,0.42),rgba(10,13,18,0.68))] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] group-hover:bg-[linear-gradient(180deg,rgba(18,26,38,0.56),rgba(11,16,24,0.76))]'
-              }`}
-            >
-              <StableGridIcon
-                size="md"
-                className="shadow-[0_10px_22px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.06)]"
-              />
-            </span>
-            {isLessonMode ? (
-              <span className={desktopLabelPillClass}>Home</span>
-            ) : (
-              <div className="text-center">
-                <div className="text-[12.5px] font-semibold tracking-[-0.015em] text-[#eef4f0]">
-                  stableGrid.io
-                </div>
-                <div
-                  data-testid="desktop-nav-brand-divider"
-                  aria-hidden="true"
-                  className="mx-auto mt-3 h-px w-14 rounded-full bg-white/22"
-                />
-              </div>
-            )}
-          </Link>
-
-          {!isLessonMode ? (
-            <div
-              data-testid="desktop-nav-divider"
-              aria-hidden="true"
-              className="mx-3 mt-3 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent"
-            />
-          ) : null}
-
           <div
             data-testid="desktop-nav-actions"
-            className="mt-4 flex flex-1 flex-col justify-center gap-2"
+            className="mt-1 flex flex-1 flex-col justify-center gap-2"
           >
             {desktopRailItems.map((item) => {
               const Icon = item.icon;
               const isActive = isNavItemActive(pathname, item);
-              const isTasksItem = item.href === '/tasks';
-
-              if (isTasksItem) {
-                return (
-                  <div key={item.href} ref={tasksMenuRef} className="relative">
-                    <button
-                      type="button"
-                      aria-haspopup="menu"
-                      aria-expanded={tasksOpen}
-                      onClick={() => setTasksOpen((current) => !current)}
-                      onMouseEnter={() => {
-                        prefetchRoute(item.href);
-                        taskDropdownItems.forEach((taskItem) => prefetchRoute(taskItem.href));
-                      }}
-                      onFocus={() => {
-                        prefetchRoute(item.href);
-                        taskDropdownItems.forEach((taskItem) => prefetchRoute(taskItem.href));
-                      }}
-                      className={desktopRailItemClass(isActive || tasksOpen, isLessonMode)}
-                    >
-                      <span className="relative inline-flex items-center justify-center">
-                        <Icon className={`${isLessonMode ? 'h-5 w-5' : 'h-5 w-5'}`} />
-                      </span>
-                      {isLessonMode ? (
-                        <>
-                          <ChevronDown
-                            className={`absolute bottom-1.5 right-1.5 h-3 w-3 text-[#a4b8af] transition-transform ${
-                              tasksOpen ? 'rotate-180' : 'rotate-0'
-                            }`}
-                          />
-                          <span className={desktopLabelPillClass}>Tasks</span>
-                        </>
-                      ) : (
-                        <span className="mt-1 flex items-center gap-1 text-[11px] font-medium tracking-[0.01em] text-current">
-                          Tasks
-                          <ChevronDown
-                            className={`h-3 w-3 text-[#9fb2aa] transition-transform ${
-                              tasksOpen ? 'rotate-180' : 'rotate-0'
-                            }`}
-                          />
-                        </span>
-                      )}
-                    </button>
-
-                    {tasksOpen ? (
-                      <div
-                        role="menu"
-                        className="absolute left-[calc(100%+0.95rem)] top-0 z-50 w-[20rem] overflow-hidden rounded-[24px] border border-white/18 bg-[linear-gradient(180deg,rgba(19,25,27,0.86),rgba(10,14,16,0.9))] p-2.5 shadow-[0_26px_72px_-34px_rgba(0,0,0,0.78)] backdrop-blur-[22px]"
-                      >
-                        <div className="rounded-[16px] bg-white/[0.03] px-3.5 py-3">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#9fc2b3]">
-                            Tasks
-                          </p>
-                          <p className="mt-1.5 text-sm leading-5 text-[#b2c1bb]">
-                            Choose where you want to work.
-                          </p>
-                        </div>
-
-                        <div className="mx-2.5 my-2 h-px bg-white/10" />
-
-                        <div className="space-y-1.5 px-1">
-                          {taskDropdownItems.map((taskItem) => {
-                            const TaskIcon = taskItem.icon;
-                            const taskActive =
-                              pathname === taskItem.href ||
-                              pathname?.startsWith(`${taskItem.href}/`);
-
-                            return (
-                              <Link
-                                key={taskItem.href}
-                                href={taskItem.href}
-                                role="menuitem"
-                                onClick={() => setTasksOpen(false)}
-                                onMouseEnter={() => prefetchRoute(taskItem.href)}
-                                onFocus={() => prefetchRoute(taskItem.href)}
-                                className={`group flex items-start gap-3 rounded-[16px] border px-3 py-2.5 transition ${
-                                  taskActive
-                                    ? 'border-white/14 bg-white/[0.1]'
-                                    : 'border-transparent hover:border-white/10 hover:bg-white/[0.06]'
-                                }`}
-                              >
-                                <span
-                                  className={`mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full border ${
-                                    taskActive
-                                      ? 'border-white/22 bg-white/[0.12] text-[#ebf5f1]'
-                                      : 'border-white/12 bg-white/[0.05] text-[#a8b7b1]'
-                                  }`}
-                                >
-                                  <TaskIcon className="h-4 w-4" />
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                  <span className="block text-sm font-medium tracking-[-0.01em] text-[#eff6f2]">
-                                    {taskItem.label}
-                                  </span>
-                                  <span className="mt-0.5 block text-xs leading-5 text-[#9baca5]">
-                                    {taskItem.description}
-                                  </span>
-                                </span>
-                                <ArrowUpRight className="mt-1 h-3.5 w-3.5 text-[#8ea099] transition group-hover:text-[#e1efe9]" />
-                              </Link>
-                            );
-                          })}
-                        </div>
-
-                        <div className="mt-2 border-t border-white/10 px-2 pt-2">
-                          <Link
-                            href="/tasks"
-                            role="menuitem"
-                            onClick={() => setTasksOpen(false)}
-                            onMouseEnter={() => prefetchRoute('/tasks')}
-                            onFocus={() => prefetchRoute('/tasks')}
-                            className="inline-flex w-full items-center justify-between rounded-[16px] border border-white/16 bg-white/[0.05] px-3.5 py-2.5 text-sm font-medium tracking-[-0.01em] text-[#e8f3ee] transition hover:border-white/22 hover:bg-white/[0.1]"
-                          >
-                            Open tasks hub
-                            <ArrowUpRight className="h-3.5 w-3.5" />
-                          </Link>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              }
 
               return (
                 <Link
@@ -471,12 +369,29 @@ export const TopNav = () => {
                   className={desktopRailItemClass(isActive, isLessonMode)}
                 >
                   <span className="relative inline-flex items-center justify-center">
-                    <Icon className="h-5 w-5" />
+                    {item.href === '/settings' && resolvedProfileAvatarUrl ? (
+                      <span
+                        className={`inline-flex overflow-hidden rounded-full border border-white/20 bg-white/[0.08] ${
+                          isLessonMode ? 'h-8 w-8' : 'h-11 w-11'
+                        }`}
+                      >
+                        <Image
+                          src={resolvedProfileAvatarUrl}
+                          alt="Profile avatar"
+                          width={isLessonMode ? 32 : 44}
+                          height={isLessonMode ? 32 : 44}
+                          unoptimized
+                          className="h-full w-full object-cover"
+                        />
+                      </span>
+                    ) : (
+                      <Icon className="h-5 w-5" />
+                    )}
                   </span>
                   {isLessonMode ? (
                     <span className={desktopLabelPillClass}>{item.label}</span>
                   ) : (
-                    <span className="mt-1 text-[11px] font-medium tracking-[0.01em] text-current">
+                    <span className="mt-1 max-w-full truncate text-[11px] font-medium tracking-[0.01em] text-current">
                       {item.label}
                     </span>
                   )}

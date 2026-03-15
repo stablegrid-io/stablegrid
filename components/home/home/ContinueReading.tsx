@@ -51,7 +51,7 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
           </p>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <Link href="/learn/theory" className="btn btn-primary rounded-xl px-5 py-3">
+            <Link href="/theory" className="btn btn-primary rounded-xl px-5 py-3">
               Open theory
             </Link>
             <Link

@@ -5,10 +5,7 @@ import {
   BarChart3,
   BookOpen,
   ClipboardCheck,
-  Flag,
   Home,
-  Layers3,
-  NotebookPen,
   Zap
 } from 'lucide-react';
 
@@ -19,20 +16,13 @@ export interface NavItem {
   matchPrefixes?: string[];
 }
 
-export interface TaskDropdownItem {
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  description: string;
-}
-
 export const navItems: NavItem[] = [
-  { href: '/', icon: Home, label: 'Home' },
+  { href: '/home', icon: Home, label: 'Home', matchPrefixes: ['/home', '/'] },
   {
-    href: '/learn/theory',
+    href: '/theory',
     icon: BookOpen,
     label: 'Theory',
-    matchPrefixes: ['/learn']
+    matchPrefixes: ['/theory', '/learn']
   },
   {
     href: '/tasks',
@@ -42,27 +32,6 @@ export const navItems: NavItem[] = [
   },
   { href: '/energy', icon: Zap, label: 'Grid' },
   { href: '/progress', icon: BarChart3, label: 'HRB' }
-];
-
-export const taskDropdownItems: TaskDropdownItem[] = [
-  {
-    href: '/practice/notebooks',
-    icon: NotebookPen,
-    label: 'Notebooks',
-    description: 'Line-by-line review tasks'
-  },
-  {
-    href: '/missions',
-    icon: Flag,
-    label: 'Missions',
-    description: 'Operational incident drills'
-  },
-  {
-    href: '/flashcards',
-    icon: Layers3,
-    label: 'Flashcards',
-    description: 'Rapid theory recall sprints'
-  }
 ];
 
 export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
@@ -87,8 +56,10 @@ export const isCompactDesktopNavPath = (pathname?: string | null) =>
   Boolean(pathname?.startsWith('/admin')) || isTheoryLessonPath(pathname);
 
 export const isNavItemActive = (pathname: string | null, item: NavItem) =>
-  item.matchPrefixes
-    ? item.matchPrefixes.some(
-        (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
-      )
-    : pathname === item.href || pathname?.startsWith(`${item.href}/`);
+  Boolean(
+    item.matchPrefixes
+      ? item.matchPrefixes.some(
+          (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
+        )
+      : pathname === item.href || pathname?.startsWith(`${item.href}/`)
+  );

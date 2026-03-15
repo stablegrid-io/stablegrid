@@ -4,7 +4,7 @@ export const ADMIN_PAGE_SHELL_CLASS =
   'min-h-screen bg-[radial-gradient(circle_at_top,rgba(34,185,153,0.12),transparent_26%),linear-gradient(180deg,#040706_0%,#060b0a_36%,#050706_100%)] px-4 py-6 sm:px-6 lg:px-8';
 
 export const ADMIN_LAYOUT_CLASS =
-  'mx-auto max-w-[1460px] lg:mx-0 lg:grid lg:grid-cols-[13.25rem_minmax(0,1fr)] lg:gap-3 xl:grid-cols-[13.75rem_minmax(0,1fr)]';
+  'w-full lg:grid lg:grid-cols-[13.25rem_minmax(0,1fr)] lg:gap-3 xl:grid-cols-[13.75rem_minmax(0,1fr)]';
 
 export const ADMIN_PRIMARY_SURFACE_CLASS =
   'relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,12,0.82),rgba(5,8,8,0.92))] shadow-[0_30px_80px_-52px_rgba(0,0,0,0.82)] backdrop-blur-xl';

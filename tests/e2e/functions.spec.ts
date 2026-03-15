@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('theory topics page', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/learn/theory', { waitUntil: 'networkidle' });
+    await page.goto('/theory', { waitUntil: 'networkidle' });
   });
 
   test('loads topics and opens a topic route', async ({ page }) => {

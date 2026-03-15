@@ -220,18 +220,6 @@ export default async function TasksPage() {
     <main className="min-h-screen bg-light-bg pb-20 dark:bg-dark-bg lg:pb-8">
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-6xl">
-          <header className="mb-7 rounded-[1.8rem] border border-light-border bg-light-surface p-6 dark:border-dark-border dark:bg-dark-surface">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-500">
-              Tasks
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold text-text-light-primary dark:text-text-dark-primary">
-              Continue from your active task lanes
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-text-light-secondary dark:text-text-dark-secondary">
-              Open notebooks, missions, or flashcards from one command surface.
-            </p>
-          </header>
-
           <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
             {taskLanes.map((lane) => {
               const Icon = lane.icon;

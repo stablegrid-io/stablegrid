@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import {
-  ArrowLeft,
   BookOpen,
   CheckCircle2,
   ChevronRight,
@@ -372,14 +371,6 @@ export const TheoryCategorySelector = ({
       <div className="min-h-screen bg-light-bg pb-24 dark:bg-dark-bg lg:pb-8">
         <div className="container mx-auto px-4 py-8">
           <div className="mx-auto max-w-6xl">
-            <Link
-              href="/learn/theory"
-              className="mb-8 inline-flex items-center gap-2 text-sm text-text-light-tertiary transition-colors hover:text-brand-500 dark:text-text-dark-tertiary"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              All Topics
-            </Link>
-
             <header className="mb-10 max-w-3xl">
               <p
                 className={`mb-2 text-xs font-medium uppercase tracking-[0.24em] ${topicStyle.accentTextClass}`}
@@ -428,14 +419,6 @@ export const TheoryCategorySelector = ({
     <div className="min-h-screen bg-light-bg pb-24 dark:bg-dark-bg lg:pb-8">
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-6xl">
-          <Link
-            href="/learn/theory"
-            className="mb-8 inline-flex items-center gap-2 text-sm text-text-light-tertiary transition-colors hover:text-brand-500 dark:text-text-dark-tertiary"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            All Topics
-          </Link>
-
           <header className="mb-10">
             <p className="mb-2 text-xs font-medium uppercase tracking-[0.24em] text-brand-500">
               Theory

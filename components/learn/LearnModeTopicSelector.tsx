@@ -4,7 +4,6 @@ import React, { useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
-  ArrowLeft,
   ChevronRight
 } from 'lucide-react';
 import { getLearnTopicMeta, learnTopics } from '@/data/learn';
@@ -75,14 +74,6 @@ export function LearnModeTopicSelector({
     <div className="min-h-screen bg-light-bg pb-20 dark:bg-dark-bg lg:pb-8">
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-6xl">
-          <Link
-            href="/learn"
-            className="mb-8 inline-flex items-center gap-2 text-sm text-text-light-tertiary transition-colors hover:text-brand-500 dark:text-text-dark-tertiary"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            All Topics
-          </Link>
-
           <section>
             {orderedTopics.length > 0 ? (
               <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">

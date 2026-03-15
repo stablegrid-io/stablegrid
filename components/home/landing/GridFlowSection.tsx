@@ -1147,7 +1147,7 @@ function TheoryTrackGallery({ isLightMode }: { isLightMode: boolean }) {
       name: 'Microsoft Fabric',
       description: 'Lakehouse-first analytics patterns and orchestration in production contexts.',
       logoSrc: '/brand/microsoft-fabric-logo.svg',
-      href: '/learn/theory',
+      href: '/theory',
       badge: 'Live now',
       locked: false
     },
@@ -1156,7 +1156,7 @@ function TheoryTrackGallery({ isLightMode }: { isLightMode: boolean }) {
       name: 'Apache Airflow',
       description: 'Pipeline scheduling, DAG design, and reliability playbooks.',
       logoSrc: '/brand/apache-airflow-logo.svg',
-      href: '/learn/theory',
+      href: '/theory',
       badge: 'Locked',
       locked: true
     }

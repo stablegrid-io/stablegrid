@@ -122,7 +122,7 @@ export const PricingSection = () => {
               Preview PySpark path
             </Link>
             <Link
-              href="/learn/theory"
+              href="/theory"
               className="font-medium text-[#e3efe8] transition-colors hover:text-[#22b999]"
             >
               Open Theory topics

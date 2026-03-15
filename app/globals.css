@@ -10,6 +10,19 @@
       serif;
     --font-hero: 'Inter', 'Avenir Next', 'Segoe UI', 'Helvetica Neue', Arial, system-ui,
       sans-serif;
+    --app-grid-base: #f7f8fb;
+    --app-grid-line: rgba(15, 23, 42, 0.05);
+    --app-grid-line-strong: rgba(15, 23, 42, 0.08);
+    --app-grid-glow-a: rgba(16, 185, 129, 0.03);
+    --app-grid-glow-b: rgba(59, 130, 246, 0.03);
+  }
+
+  .dark {
+    --app-grid-base: #070b0d;
+    --app-grid-line: rgba(136, 155, 168, 0.075);
+    --app-grid-line-strong: rgba(136, 155, 168, 0.11);
+    --app-grid-glow-a: rgba(16, 185, 129, 0.05);
+    --app-grid-glow-b: rgba(56, 189, 248, 0.04);
   }
 
   html,
@@ -30,11 +43,33 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background-color: var(--app-grid-base);
+    background-image:
+      linear-gradient(to right, var(--app-grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--app-grid-line) 1px, transparent 1px),
+      linear-gradient(to right, var(--app-grid-line-strong) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--app-grid-line-strong) 1px, transparent 1px),
+      radial-gradient(circle at 18% -12%, var(--app-grid-glow-a), transparent 48%),
+      radial-gradient(circle at 84% 122%, var(--app-grid-glow-b), transparent 48%);
+    background-size: 54px 54px, 54px 54px, 216px 216px, 216px 216px, 100% 100%, 100% 100%;
+    background-position: -1px -1px;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   .dark body {
     @apply bg-dark-bg text-text-dark-primary;
+  }
+
+  :is(main, div, section).min-h-screen {
+    background-image:
+      linear-gradient(to right, var(--app-grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--app-grid-line) 1px, transparent 1px),
+      linear-gradient(to right, var(--app-grid-line-strong) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--app-grid-line-strong) 1px, transparent 1px),
+      radial-gradient(circle at 18% -12%, var(--app-grid-glow-a), transparent 48%),
+      radial-gradient(circle at 84% 122%, var(--app-grid-glow-b), transparent 48%);
+    background-size: 54px 54px, 54px 54px, 216px 216px, 216px 216px, 100% 100%, 100% 100%;
+    background-position: -1px -1px;
   }
 
   ::-webkit-scrollbar {

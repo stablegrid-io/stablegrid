@@ -51,7 +51,7 @@ export const ProgressDashboard = ({
   const primaryRoute =
     primaryTask?.route ??
     workerCareerSnapshot.promotionCriteria[0]?.route ??
-    '/learn/theory';
+    '/theory';
   const criteriaMetCount = workerCareerSnapshot.promotionCriteria.filter(
     (criterion) => criterion.met
   ).length;

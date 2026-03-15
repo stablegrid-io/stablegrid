@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Layers3 } from 'lucide-react';
+import { ArrowRight, Layers3 } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { summarizeTrackLessonProgress } from '@/lib/learn/theoryTrackProgress';
@@ -43,14 +43,6 @@ export const TheoryTrackGallery = ({
     <div className="min-h-screen bg-light-bg pb-24 dark:bg-dark-bg lg:pb-8">
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-6xl" style={accentVars}>
-          <Link
-            href="/learn/theory"
-            className="mb-8 inline-flex items-center gap-2 text-sm text-text-light-tertiary transition-colors hover:text-[rgb(var(--theory-accent))] dark:text-text-dark-tertiary"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            All Topics
-          </Link>
-
           <header className="mb-10 max-w-3xl">
             <p
               className={`mb-2 text-xs font-medium uppercase tracking-[0.24em] ${topicStyle.accentTextClass}`}

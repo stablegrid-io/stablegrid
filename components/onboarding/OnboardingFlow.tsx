@@ -92,10 +92,10 @@ const LEVELS: Array<{ id: Level; label: string; description: string }> = [
 ];
 
 const FIRST_STEP_DESTINATIONS: Record<Goal, string> = {
-  theory: '/learn/theory',
+  theory: '/theory',
   practice: '/practice/setup',
   missions: '/missions',
-  all: '/learn/theory'
+  all: '/theory'
 };
 
 const STEPS = ['welcome', 'topics', 'goal', 'level', 'ready'] as const;
@@ -158,7 +158,7 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
 
   const finish = async () => {
     setIsFinishing(true);
-    const destination = selectedGoal ? FIRST_STEP_DESTINATIONS[selectedGoal] : '/learn/theory';
+    const destination = selectedGoal ? FIRST_STEP_DESTINATIONS[selectedGoal] : '/theory';
     await trackProductEvent('onboarding_completed', {
       selectedTopics: Array.from(selectedTopics),
       selectedGoal,

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
+  Bug,
   Bell,
   Cookie,
   Clock3,
@@ -217,6 +218,17 @@ export function SettingsShell({
             >
               <LifeBuoy className="h-4 w-4" />
               Support
+            </Link>
+            <Link
+              href={
+                pathname
+                  ? `/support/report-bug?from=${encodeURIComponent(pathname)}`
+                  : '/support/report-bug'
+              }
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm font-medium text-text-light-secondary transition-colors hover:bg-light-hover dark:text-text-dark-secondary dark:hover:bg-dark-hover"
+            >
+              <Bug className="h-4 w-4" />
+              Report a bug
             </Link>
           </div>
 

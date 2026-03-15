@@ -386,7 +386,7 @@ const toCriteria = (definition: StageDefinition, metrics: CareerMetrics): Promot
       progressPct: toRequirementProgressPct(metrics.tracksCompleted, trackTarget),
       currentValueLabel: `${metrics.tracksCompleted}/${metrics.tracksTotal} tracks`,
       targetValueLabel: `${trackTarget} tracks`,
-      route: '/learn/theory'
+      route: '/theory'
     },
     {
       id: `${definition.id}-flashcards`,

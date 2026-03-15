@@ -22,7 +22,7 @@ const BUG_FIXTURE: BugReport[] = [
     expectedResult: null,
     actualResult: null,
     attachmentUrls: [],
-    pageUrl: '/learn/theory'
+    pageUrl: '/theory'
   },
   {
     id: 'bug-2',
@@ -128,6 +128,10 @@ describe('AdminBugsPage', () => {
     render(<AdminBugsPage />);
     await flushTimers();
 
+    fireEvent.click(screen.getByRole('tab', { name: 'New' }));
+    await flushTimers(180);
+
+    expect(screen.getByText('Theory lesson freezes')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Theory lesson freezes'));
     expect(screen.getByRole('dialog', { name: 'Bug detail' })).toBeInTheDocument();
 

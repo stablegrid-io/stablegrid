@@ -66,7 +66,7 @@ const buildProps = (): HomeEntryExperienceProps => ({
         kind: 'mission',
         position: { x: 16, y: 58 },
         mobileOrder: 1,
-        actions: [{ label: 'Open route', href: '/learn/theory' }]
+        actions: [{ label: 'Open route', href: '/theory' }]
       },
       {
         id: 'current',

@@ -180,7 +180,7 @@ export const LearningGrid = ({
   const primaryActionHref =
     recommendedNode?.actions[0]?.href ??
     metrics.find((metric) => metric.id === 'progress')?.actionHref ??
-    '/learn/theory';
+    '/theory';
   const primaryActionLabel =
     recommendedNode?.actions[0]?.label ??
     metrics.find((metric) => metric.id === 'progress')?.actionLabel ??

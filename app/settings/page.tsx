@@ -30,16 +30,31 @@ export default async function SettingsPage() {
       .maybeSingle()
   ]);
 
+  const metadataAvatarRaw = user.user_metadata?.avatar_url;
+  const metadataAvatar =
+    typeof metadataAvatarRaw === 'string' &&
+    metadataAvatarRaw.trim().length > 0 &&
+    !metadataAvatarRaw.startsWith('data:')
+      ? metadataAvatarRaw
+      : null;
+
   const fallbackProfile: ProfileRecord = {
     id: user.id,
     name: (user.user_metadata?.name as string | undefined) ?? null,
     email: user.email ?? null,
-    avatar_url: null,
+    avatar_url: metadataAvatar,
     created_at: user.created_at ?? null,
     notification_prefs: null
   };
 
-  const profile = (profileResult.data as ProfileRecord | null) ?? fallbackProfile;
+  const profileData = profileResult.data as ProfileRecord | null;
+  const profile: ProfileRecord = profileData
+    ? {
+        ...fallbackProfile,
+        ...profileData,
+        avatar_url: profileData.avatar_url ?? fallbackProfile.avatar_url
+      }
+    : fallbackProfile;
   const subscription = (subscriptionResult.data as SubscriptionRecord | null) ?? null;
 
   return (
