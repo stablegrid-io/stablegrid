@@ -1,11 +1,13 @@
 import type { FrozenTheoryDoc } from '@/types/theory';
 import { fabricTheory } from '@/data/learn/theory/fabric';
+import { fabricDataEngineeringTrack } from '@/data/learn/theory/fabric-data-engineering-track';
 import { pysparkTheory } from '@/data/learn/theory/pyspark';
 import { freezeTheoryDoc } from '@/lib/learn/freezeTheoryDoc';
 
 const rawTheoryDocs = {
   pyspark: pysparkTheory,
-  fabric: fabricTheory
+  fabric: fabricTheory,
+  'fabric-data-engineering-track': fabricDataEngineeringTrack
 };
 
 export const theoryDocs: Record<string, FrozenTheoryDoc> = Object.entries(

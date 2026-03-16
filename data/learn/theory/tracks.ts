@@ -93,6 +93,22 @@ const getTheoryTrackConfigs = (doc: TheoryDoc): TheoryTrackConfig[] => {
           sourceDoc: doc
         }
       ];
+    case 'fabric-data-engineering-track':
+      return [
+        {
+          slug: 'full-stack',
+          label: 'Fabric: Data Engineering Track',
+          eyebrow: 'Track 02',
+          description:
+            'A focused data engineering route: platform foundations, OneLake, lakehouse workflows, data warehousing, T-SQL analytics, and ETL pipelines.',
+          highlights: [
+            'Platform and OneLake fundamentals (F1 + F2)',
+            'Lakehouse architecture, warehousing, and SQL analytics (DW1-DW4)',
+            'Medallion architecture, T-SQL, and pipeline orchestration (DW5-DW6)'
+          ],
+          sourceDoc: doc
+        }
+      ];
     default:
       return [];
   }
