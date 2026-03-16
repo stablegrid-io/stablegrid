@@ -132,9 +132,12 @@ describe('learn theory pages progress parity', () => {
     const { default: LearnTheoryTopicsPage } = await import('@/app/learn/theory/page');
     render(await LearnTheoryTopicsPage());
 
-    const fabricCard = screen.getByText('Microsoft Fabric Modules').closest('a');
+    // LearnModeTopicSelector strips trailing "Modules" via getSimpleTrackName(),
+    // so 'Microsoft Fabric Modules' renders as 'Microsoft Fabric' on the card.
+    const fabricCard = screen.getByText('Microsoft Fabric').closest('a');
     expect(fabricCard).not.toBeNull();
-    expect(within(fabricCard as HTMLElement).getByText('1/1 read')).toBeInTheDocument();
+    // The fabric topic now has 28 modules total (20 from full-stack track + 8 from data-engineering-track)
+    expect(within(fabricCard as HTMLElement).getByText('1/28 read')).toBeInTheDocument();
 
     cleanup();
 
@@ -145,9 +148,8 @@ describe('learn theory pages progress parity', () => {
       })
     );
 
-    expect(screen.getByText('1/1 lessons read')).toBeInTheDocument();
-    const moduleCard = screen.getByText('Module 1: Fabric Learning Status').closest('a');
-    expect(moduleCard).not.toBeNull();
-    expect(within(moduleCard as HTMLElement).getByText('Completed')).toBeInTheDocument();
+    // The fabric topic now renders a TheoryTrackGallery (track-level view).
+    // The full-stack track covers all 20 modules; with module-01 complete, verify parity.
+    expect(screen.getByText('1/20 modules complete')).toBeInTheDocument();
   });
 });

@@ -1,6 +1,7 @@
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import { pysparkDataEngineeringTrackTheory } from '@/data/learn/theory/pysparkDataEngineeringTrack';
+import { fabricDataEngineeringTrack } from '@/data/learn/theory/fabric-data-engineering-track';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -91,12 +92,9 @@ const getTheoryTrackConfigs = (doc: TheoryDoc): TheoryTrackConfig[] => {
             'Realtime intelligence, BI, governance, operations, and capstone'
           ],
           sourceDoc: doc
-        }
-      ];
-    case 'fabric-data-engineering-track':
-      return [
+        },
         {
-          slug: 'full-stack',
+          slug: 'data-engineering-track',
           label: 'Fabric: Data Engineering Track',
           eyebrow: 'Track 02',
           description:
@@ -106,7 +104,7 @@ const getTheoryTrackConfigs = (doc: TheoryDoc): TheoryTrackConfig[] => {
             'Lakehouse architecture, warehousing, and SQL analytics (DW1-DW4)',
             'Medallion architecture, T-SQL, and pipeline orchestration (DW5-DW6)'
           ],
-          sourceDoc: doc
+          sourceDoc: fabricDataEngineeringTrack
         }
       ];
     default:
