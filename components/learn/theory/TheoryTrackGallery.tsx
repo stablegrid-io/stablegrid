@@ -92,10 +92,10 @@ export const TheoryTrackGallery = ({
                 <Link
                   key={track.slug}
                   href={`/learn/${doc.topic}/theory/${track.slug}`}
-                  className="group relative overflow-hidden rounded-[32px] border border-light-border bg-light-surface p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(var(--theory-accent),0.4)] hover:shadow-[0_30px_90px_-44px_rgba(var(--theory-accent),0.42)] dark:border-dark-border dark:bg-dark-surface"
+                  className="group relative overflow-hidden rounded-[32px] border border-light-border bg-light-surface p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(var(--theory-accent),0.24)] hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.08)] dark:border-dark-border dark:bg-dark-surface dark:hover:border-[rgba(var(--theory-accent),0.4)] dark:hover:shadow-[0_30px_90px_-44px_rgba(var(--theory-accent),0.42)]"
                 >
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(var(--theory-accent),0.18),transparent_32%),linear-gradient(180deg,rgba(var(--theory-accent),0.08),transparent_46%)]" />
-                  <div className="pointer-events-none absolute -right-12 top-10 h-44 w-44 rounded-full bg-[rgba(var(--theory-accent),0.1)] blur-3xl" />
+                  <div className="pointer-events-none absolute inset-0 opacity-25 dark:opacity-100 bg-[radial-gradient(circle_at_100%_0%,rgba(var(--theory-accent),0.18),transparent_32%),linear-gradient(180deg,rgba(var(--theory-accent),0.08),transparent_46%)]" />
+                  <div className="pointer-events-none absolute -right-12 top-10 h-44 w-44 rounded-full bg-[rgba(var(--theory-accent),0.1)] opacity-20 blur-3xl dark:opacity-100" />
 
                   <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                     <div className="max-w-3xl">

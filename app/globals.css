@@ -10,11 +10,11 @@
       serif;
     --font-hero: 'Inter', 'Avenir Next', 'Segoe UI', 'Helvetica Neue', Arial, system-ui,
       sans-serif;
-    --app-grid-base: #f7f8fb;
-    --app-grid-line: rgba(15, 23, 42, 0.05);
-    --app-grid-line-strong: rgba(15, 23, 42, 0.08);
-    --app-grid-glow-a: rgba(16, 185, 129, 0.03);
-    --app-grid-glow-b: rgba(59, 130, 246, 0.03);
+    --app-grid-base: #ffffff;
+    --app-grid-line: rgba(0, 0, 0, 0.018);
+    --app-grid-line-strong: rgba(0, 0, 0, 0.032);
+    --app-grid-glow-a: rgba(16, 185, 129, 0.012);
+    --app-grid-glow-b: rgba(59, 130, 246, 0.012);
   }
 
   .dark {

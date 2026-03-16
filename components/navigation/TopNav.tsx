@@ -8,8 +8,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ArrowUpRight, Shield, User } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { StableGridIcon } from '@/components/brand/StableGridLogo';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import type { AdminRole } from '@/lib/admin/types';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
+import { useGridOpsStore } from '@/lib/stores/useGridOpsStore';
 import {
   isNavItemActive,
   isCompactDesktopNavPath,
@@ -97,16 +99,17 @@ export const TopNav = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuthStore();
+  const activeIncidentCount = useGridOpsStore((s) => s.activeIncidentCount);
   const hideNav = shouldHideNav(pathname, Boolean(user));
   const isLessonMode = isCompactDesktopNavPath(pathname);
   const profileNickname = toNickname(user);
   const desktopRailItems = [
     ...navItems,
     {
-      href: '/settings',
+      href: '/profile',
       icon: User,
       label: profileNickname,
-      matchPrefixes: ['/settings']
+      matchPrefixes: ['/profile']
     }
   ];
   const profileAvatarUrlRaw = user?.user_metadata?.avatar_url;
@@ -140,7 +143,7 @@ export const TopNav = () => {
 
   useEffect(() => {
     const primaryRoutes = ['/home', '/theory', '/tasks', '/progress', '/energy'];
-    const secondaryRoutes = ['/settings'];
+    const secondaryRoutes = ['/settings', '/profile'];
 
     const prefetchPrimary = () => {
       primaryRoutes.forEach((route) => {
@@ -307,7 +310,8 @@ export const TopNav = () => {
             </div>
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
             <UserMenuLazy />
           </div>
         </div>
@@ -387,6 +391,12 @@ export const TopNav = () => {
                     ) : (
                       <Icon className="h-5 w-5" />
                     )}
+                    {/* Incident badge on the Grid nav item */}
+                    {item.href === '/energy' && activeIncidentCount > 0 && (
+                      <span className="absolute -right-1 -top-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-rose-500 px-[3px] text-[9px] font-bold leading-none text-white shadow-[0_0_6px_rgba(244,63,94,0.6)]">
+                        {activeIncidentCount > 9 ? '9+' : activeIncidentCount}
+                      </span>
+                    )}
                   </span>
                   {isLessonMode ? (
                     <span className={desktopLabelPillClass}>{item.label}</span>
@@ -401,6 +411,7 @@ export const TopNav = () => {
           </div>
 
           <div className="mt-auto flex w-full flex-col items-center gap-3 pt-4">
+            <ThemeToggle />
             {adminAccess?.enabled ? (
               isLessonMode ? (
                 <Link

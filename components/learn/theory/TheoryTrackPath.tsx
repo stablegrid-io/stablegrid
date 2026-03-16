@@ -247,8 +247,8 @@ export const TheoryTrackPath = ({
           </Link>
 
           <header className="relative overflow-hidden rounded-[32px] border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(var(--theory-accent),0.16),transparent_34%),linear-gradient(180deg,rgba(var(--theory-accent),0.08),transparent_48%)]" />
-            <div className="pointer-events-none absolute -right-12 top-10 h-44 w-44 rounded-full bg-[rgba(var(--theory-accent),0.1)] blur-3xl" />
+            <div className="pointer-events-none absolute inset-0 opacity-25 dark:opacity-100 bg-[radial-gradient(circle_at_100%_0%,rgba(var(--theory-accent),0.16),transparent_34%),linear-gradient(180deg,rgba(var(--theory-accent),0.08),transparent_48%)]" />
+            <div className="pointer-events-none absolute -right-12 top-10 h-44 w-44 rounded-full bg-[rgba(var(--theory-accent),0.1)] opacity-20 blur-3xl dark:opacity-100" />
 
             <div className="relative">
               <p
@@ -342,7 +342,7 @@ export const TheoryTrackPath = ({
 
             <div className="relative mx-auto max-w-5xl">
               <div
-                className="pointer-events-none absolute bottom-8 left-[2.625rem] top-8 w-px -translate-x-1/2 bg-white/[0.06] md:left-1/2"
+                className="pointer-events-none absolute bottom-8 left-[2.625rem] top-8 w-px -translate-x-1/2 bg-black/[0.06] dark:bg-white/[0.06] md:left-1/2"
                 aria-hidden="true"
               >
                 <div className="absolute inset-x-0 inset-y-0 bg-[rgba(var(--theory-accent),0.14)] blur-[1px]" />
@@ -354,11 +354,11 @@ export const TheoryTrackPath = ({
                 const title = stripModulePrefix(card.module.title) || card.module.title;
                 const cardFrameClass =
                   card.status === 'active'
-                    ? 'border-[rgba(var(--theory-accent),0.5)] bg-[rgba(var(--theory-accent),0.08)] shadow-[0_28px_60px_-40px_rgba(var(--theory-accent),0.42)]'
+                    ? 'border-[rgba(var(--theory-accent),0.5)] bg-[rgba(var(--theory-accent),0.08)] shadow-[0_16px_40px_-24px_rgba(var(--theory-accent),0.18)] dark:shadow-[0_28px_60px_-40px_rgba(var(--theory-accent),0.42)]'
                     : card.status === 'completed'
-                      ? 'border-success-300/65 bg-light-bg/92 shadow-[0_18px_40px_-34px_rgba(34,197,94,0.16)] dark:bg-dark-bg/86'
+                      ? 'border-success-300/65 bg-light-bg/92 shadow-[0_8px_24px_-12px_rgba(34,197,94,0.1)] dark:bg-dark-bg/86 dark:shadow-[0_18px_40px_-34px_rgba(34,197,94,0.16)]'
                       : card.status === 'available'
-                        ? 'border-[rgba(var(--theory-accent),0.24)] bg-light-bg/92 shadow-[0_18px_40px_-34px_rgba(0,0,0,0.5)] dark:bg-dark-bg/86'
+                        ? 'border-[rgba(var(--theory-accent),0.24)] bg-light-bg/92 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.06)] dark:bg-dark-bg/86 dark:shadow-[0_18px_40px_-34px_rgba(0,0,0,0.5)]'
                         : 'border-light-border bg-light-bg/94 shadow-none dark:border-dark-border dark:bg-dark-bg/92';
                 const nodeClass =
                   card.status === 'completed'
