@@ -2,6 +2,7 @@ import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import { pysparkDataEngineeringTrackTheory } from '@/data/learn/theory/pysparkDataEngineeringTrack';
 import { fabricDataEngineeringTrack } from '@/data/learn/theory/fabric-data-engineering-track';
+import { fabricBusinessIntelligenceTrack } from '@/data/learn/theory/fabric-business-intelligence-track';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -105,6 +106,19 @@ const getTheoryTrackConfigs = (doc: TheoryDoc): TheoryTrackConfig[] => {
             'Medallion architecture, T-SQL, and pipeline orchestration (DW5-DW6)'
           ],
           sourceDoc: fabricDataEngineeringTrack
+        },
+        {
+          slug: 'business-intelligence-track',
+          label: 'Fabric: Business Intelligence Track',
+          eyebrow: 'Track 03',
+          description:
+            'A specialized BI route: lakehouse foundations, semantic modeling, DAX analytics, report design, app distribution, governance, and capstone delivery.',
+          highlights: [
+            'Lakehouse, warehouse fundamentals, and BI foundations (BI1)',
+            'Semantic models, DirectLake, DAX language, and analytics (BI2-BI3)',
+            'Reports, dashboards, distribution, governance, and capstone project (BI4-BI7)'
+          ],
+          sourceDoc: fabricBusinessIntelligenceTrack
         }
       ];
     default:

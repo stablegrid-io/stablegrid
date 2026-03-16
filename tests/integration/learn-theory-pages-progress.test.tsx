@@ -136,8 +136,8 @@ describe('learn theory pages progress parity', () => {
     // so 'Microsoft Fabric Modules' renders as 'Microsoft Fabric' on the card.
     const fabricCard = screen.getByText('Microsoft Fabric').closest('a');
     expect(fabricCard).not.toBeNull();
-    // The fabric topic now has 28 modules total (20 from full-stack track + 8 from data-engineering-track)
-    expect(within(fabricCard as HTMLElement).getByText('1/28 read')).toBeInTheDocument();
+    // The fabric topic now has 35 modules total (20 from full-stack + 8 from data-engineering-track + 7 from business-intelligence-track)
+    expect(within(fabricCard as HTMLElement).getByText('1/35 read')).toBeInTheDocument();
 
     cleanup();
 
