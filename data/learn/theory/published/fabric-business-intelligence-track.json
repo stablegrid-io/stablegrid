@@ -477,14 +477,14 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Mode",
-                  "Data Location",
-                  "Freshness",
-                  "Speed",
-                  "When to Use"
-                ],
+              "headers": [
+                "Mode",
+                "Data Location",
+                "Freshness",
+                "Speed",
+                "When to Use"
+              ],
+              "rows": [
                 [
                   "Import",
                   "Copied into VertiPaq at refresh time",
@@ -510,12 +510,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Aspect",
-                  "Default Semantic Model",
-                  "Custom Semantic Model"
-                ],
+              "headers": [
+                "Aspect",
+                "Default Semantic Model",
+                "Custom Semantic Model"
+              ],
+              "rows": [
                 [
                   "Tables included",
                   "All tables from the item",
@@ -555,12 +555,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Criterion",
-                  "Lakehouse (Gold)",
-                  "Warehouse (Gold)"
-                ],
+              "headers": [
+                "Criterion",
+                "Lakehouse (Gold)",
+                "Warehouse (Gold)"
+              ],
+              "rows": [
                 [
                   "DirectLake support",
                   "Yes",
@@ -605,12 +605,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Check",
-                  "What to Look For",
-                  "Red Flag"
-                ],
+              "headers": [
+                "Check",
+                "What to Look For",
+                "Red Flag"
+              ],
+              "rows": [
                 [
                   "Star schema structure",
                   "Separate fact and dimension tables with clear relationships.",
@@ -1404,12 +1404,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Behavior",
-                  "What Happens",
-                  "Energy Impact"
-                ],
+              "headers": [
+                "Behavior",
+                "What Happens",
+                "Energy Impact"
+              ],
+              "rows": [
                 [
                   "No scheduled refresh",
                   "When the pipeline writes new meter readings to Gold at 02:30 AM, the next report query reads the new data.",
@@ -1439,14 +1439,14 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "From (One Side)",
-                  "To (Many Side)",
-                  "Join Columns",
-                  "Cardinality",
-                  "Filter Direction"
-                ],
+              "headers": [
+                "From (One Side)",
+                "To (Many Side)",
+                "Join Columns",
+                "Cardinality",
+                "Filter Direction"
+              ],
+              "rows": [
                 [
                   "dim_date",
                   "fact_meter_readings",
@@ -1479,13 +1479,13 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Hierarchy Name",
-                  "Table",
-                  "Levels (Top → Bottom)",
-                  "Usage"
-                ],
+              "headers": [
+                "Hierarchy Name",
+                "Table",
+                "Levels (Top → Bottom)",
+                "Usage"
+              ],
+              "rows": [
                 [
                   "Calendar",
                   "dim_date",
@@ -1508,12 +1508,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Table",
-                  "Folder",
-                  "Contents"
-                ],
+              "headers": [
+                "Table",
+                "Folder",
+                "Contents"
+              ],
+              "rows": [
                 [
                   "fact_meter_readings",
                   "Consumption Measures",
@@ -1553,12 +1553,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Aspect",
-                  "Measures",
-                  "Calculated Columns"
-                ],
+              "headers": [
+                "Aspect",
+                "Measures",
+                "Calculated Columns"
+              ],
+              "rows": [
                 [
                   "When evaluated",
                   "At query time, based on current filter context.",
@@ -1593,12 +1593,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Optimization",
-                  "Why",
-                  "Impact"
-                ],
+              "headers": [
+                "Optimization",
+                "Why",
+                "Impact"
+              ],
+              "rows": [
                 [
                   "Remove unused columns",
                   "Every column consumes memory, even if no visual references it.",
@@ -2662,12 +2662,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Where the Measure Appears",
-                  "Filter Context",
-                  "Result"
-                ],
+              "headers": [
+                "Where the Measure Appears",
+                "Filter Context",
+                "Result"
+              ],
+              "rows": [
                 [
                   "Card visual, no filters",
                   "No filters — all rows participate.",
@@ -2697,12 +2697,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Function",
-                  "What It Does",
-                  "Energy Example"
-                ],
+              "headers": [
+                "Function",
+                "What It Does",
+                "Energy Example"
+              ],
+              "rows": [
                 [
                   "ALL(table/column)",
                   "Removes all filters from the specified table or column.",
@@ -2732,12 +2732,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Function",
-                  "Returns",
-                  "Energy Use Case"
-                ],
+              "headers": [
+                "Function",
+                "Returns",
+                "Energy Use Case"
+              ],
+              "rows": [
                 [
                   "TOTALYTD(expr, dates)",
                   "Year-to-date cumulative",
@@ -2777,12 +2777,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Scenario",
-                  "Use",
-                  "Why"
-                ],
+              "headers": [
+                "Scenario",
+                "Use",
+                "Why"
+              ],
+              "rows": [
                 [
                   "Sum a single column",
                   "SUM(fact[daily_kwh])",
@@ -2807,12 +2807,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Display Folder",
-                  "Measure Name",
-                  "DAX Pattern"
-                ],
+              "headers": [
+                "Display Folder",
+                "Measure Name",
+                "DAX Pattern"
+              ],
+              "rows": [
                 [
                   "Consumption",
                   "Total Consumption kWh",
@@ -2907,12 +2907,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Practice",
-                  "Why",
-                  "Example"
-                ],
+              "headers": [
+                "Practice",
+                "Why",
+                "Example"
+              ],
+              "rows": [
                 [
                   "Use VAR for intermediate results",
                   "Evaluated once, cached. No re-computation.",
@@ -3447,13 +3447,13 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Visual",
-                  "Best For",
-                  "Energy Example",
-                  "Avoid When"
-                ],
+              "headers": [
+                "Visual",
+                "Best For",
+                "Energy Example",
+                "Avoid When"
+              ],
+              "rows": [
                 [
                   "Card / KPI",
                   "Single headline metric with optional target and trend.",
@@ -3536,13 +3536,13 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Slicer",
-                  "Type",
-                  "Source Column",
-                  "Notes"
-                ],
+              "headers": [
+                "Slicer",
+                "Type",
+                "Source Column",
+                "Notes"
+              ],
+              "rows": [
                 [
                   "Region",
                   "List (multi-select)",
@@ -3577,13 +3577,13 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Page",
-                  "Purpose",
-                  "Level",
-                  "Key Visuals"
-                ],
+              "headers": [
+                "Page",
+                "Purpose",
+                "Level",
+                "Key Visuals"
+              ],
+              "rows": [
                 [
                   "Grid Overview",
                   "How is the grid performing today?",
@@ -3618,13 +3618,13 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Visual",
-                  "Format Target",
-                  "Rule",
-                  "Energy Use Case"
-                ],
+              "headers": [
+                "Visual",
+                "Format Target",
+                "Rule",
+                "Energy Use Case"
+              ],
+              "rows": [
                 [
                   "Substation table",
                   "Background color on kWh column",
@@ -3659,12 +3659,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Use Case",
-                  "Why Paginated",
-                  "Energy Example"
-                ],
+              "headers": [
+                "Use Case",
+                "Why Paginated",
+                "Energy Example"
+              ],
+              "rows": [
                 [
                   "Monthly billing statements",
                   "Precise layout: header, line items, totals. One page per customer.",
@@ -4177,12 +4177,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Aspect",
-                  "Dashboard",
-                  "Report"
-                ],
+              "headers": [
+                "Aspect",
+                "Dashboard",
+                "Report"
+              ],
+              "rows": [
                 [
                   "Pages",
                   "Single page only.",
@@ -4212,14 +4212,14 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Recipient",
-                  "Report Page",
-                  "Schedule",
-                  "Format",
-                  "RLS Context"
-                ],
+              "headers": [
+                "Recipient",
+                "Report Page",
+                "Schedule",
+                "Format",
+                "RLS Context"
+              ],
+              "rows": [
                 [
                   "VP Operations",
                   "Executive Summary",
@@ -4266,14 +4266,14 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Method",
-                  "Audience",
-                  "Security",
-                  "Interactivity",
-                  "Energy Use Case"
-                ],
+              "headers": [
+                "Method",
+                "Audience",
+                "Security",
+                "Interactivity",
+                "Energy Use Case"
+              ],
+              "rows": [
                 [
                   "Power BI App",
                   "Internal users (licensed). Large audience.",
@@ -5045,12 +5045,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Aspect",
-                  "Static RLS",
-                  "Dynamic RLS"
-                ],
+              "headers": [
+                "Aspect",
+                "Static RLS",
+                "Dynamic RLS"
+              ],
+              "rows": [
                 [
                   "Roles needed",
                   "One per filter value (4 regions = 4 roles)",
@@ -5085,12 +5085,12 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Test",
-                  "Expected Result",
-                  "Failure Indicator"
-                ],
+              "headers": [
+                "Test",
+                "Expected Result",
+                "Failure Indicator"
+              ],
+              "rows": [
                 [
                   "NORTH manager views Grid Overview",
                   "All KPI cards and charts show NORTH-only data. Region slicer shows only NORTH.",
@@ -5125,13 +5125,13 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Label",
-                  "Applied To",
-                  "Energy Example",
-                  "Restrictions"
-                ],
+              "headers": [
+                "Label",
+                "Applied To",
+                "Energy Example",
+                "Restrictions"
+              ],
+              "rows": [
                 [
                   "Public",
                   "Data safe for external sharing.",
@@ -5160,13 +5160,13 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Level",
-                  "Meaning",
-                  "Who Can Apply",
-                  "Energy Example"
-                ],
+              "headers": [
+                "Level",
+                "Meaning",
+                "Who Can Apply",
+                "Energy Example"
+              ],
+              "rows": [
                 [
                   "No endorsement",
                   "Default. Unvalidated. May be experimental or draft.",
@@ -5189,13 +5189,13 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Layer",
-                  "Mechanism",
-                  "What It Controls",
-                  "Energy Configuration"
-                ],
+              "headers": [
+                "Layer",
+                "Mechanism",
+                "What It Controls",
+                "Energy Configuration"
+              ],
+              "rows": [
                 [
                   "Platform",
                   "Entra ID authentication",
@@ -5874,13 +5874,13 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Table",
-                  "Type",
-                  "Key Columns",
-                  "Rows"
-                ],
+              "headers": [
+                "Table",
+                "Type",
+                "Key Columns",
+                "Rows"
+              ],
+              "rows": [
                 [
                   "fact_meter_readings",
                   "Fact (grain: 1 row per meter per day)",
@@ -5921,13 +5921,13 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "ID",
-                  "Requirement",
-                  "Stakeholder",
-                  "Priority"
-                ],
+              "headers": [
+                "ID",
+                "Requirement",
+                "Stakeholder",
+                "Priority"
+              ],
+              "rows": [
                 [
                   "BR1",
                   "Daily grid overview: total consumption, peak demand, active meters, YoY growth, monthly trend, regional comparison.",
@@ -5980,13 +5980,13 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Page",
-                  "Purpose",
-                  "Key Visuals",
-                  "Requirement"
-                ],
+              "headers": [
+                "Page",
+                "Purpose",
+                "Key Visuals",
+                "Requirement"
+              ],
+              "rows": [
                 [
                   "Grid Overview",
                   "How is the grid performing?",
@@ -6021,11 +6021,11 @@
             },
             {
               "type": "table",
-              "content": [
-                [
-                  "Component",
-                  "Status"
-                ],
+              "headers": [
+                "Component",
+                "Status"
+              ],
+              "rows": [
                 [
                   "Semantic model (sm_grid_analytics) created in DirectLake mode",
                   "☐"
