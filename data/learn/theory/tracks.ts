@@ -7,6 +7,8 @@ import { fabricBusinessIntelligenceTrack } from '@/data/learn/theory/fabric-busi
 export interface TheoryTrackSummary {
   slug: string;
   label: string;
+  title?: string;
+  subtitle?: string;
   eyebrow: string;
   description: string;
   highlights: string[];
@@ -20,6 +22,8 @@ const buildTrack = (
   {
     slug,
     label,
+    title,
+    subtitle,
     eyebrow,
     description,
     highlights
@@ -30,6 +34,8 @@ const buildTrack = (
   return {
     slug,
     label,
+    ...(title && { title }),
+    ...(subtitle && { subtitle }),
     eyebrow,
     description,
     highlights,
@@ -42,6 +48,8 @@ const buildTrack = (
 interface TheoryTrackConfig {
   slug: string;
   label: string;
+  title?: string;
+  subtitle?: string;
   eyebrow: string;
   description: string;
   highlights: string[];
@@ -110,6 +118,8 @@ const getTheoryTrackConfigs = (doc: TheoryDoc): TheoryTrackConfig[] => {
         {
           slug: 'business-intelligence-track',
           label: 'Fabric: Business Intelligence Track',
+          title: 'Business Intelligence Track',
+          subtitle: 'Master semantic modeling, DAX analytics, and report design',
           eyebrow: 'Track 03',
           description:
             'A specialized BI route: lakehouse foundations, semantic modeling, DAX analytics, report design, app distribution, governance, and capstone delivery.',
@@ -131,6 +141,8 @@ export const getTheoryTracks = (doc: TheoryDoc): TheoryTrackSummary[] => {
     buildTrack(config.sourceDoc, {
       slug: config.slug,
       label: config.label,
+      ...(config.title && { title: config.title }),
+      ...(config.subtitle && { subtitle: config.subtitle }),
       eyebrow: config.eyebrow,
       description: config.description,
       highlights: config.highlights

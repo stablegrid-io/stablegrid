@@ -108,7 +108,7 @@ export const TheoryTrackGallery = ({
 
                       <div className="flex flex-wrap items-center gap-3">
                         <h2 className="text-3xl font-semibold text-text-light-primary dark:text-text-dark-primary">
-                          {track.label}
+                          {track.title || track.label}
                         </h2>
                         <span
                           className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${topicStyle.badgeClass}`}
@@ -116,6 +116,12 @@ export const TheoryTrackGallery = ({
                           {track.chapterCount} modules
                         </span>
                       </div>
+
+                      {track.subtitle && (
+                        <p className="mt-2 max-w-2xl text-sm font-medium text-text-light-secondary dark:text-text-dark-secondary">
+                          {track.subtitle}
+                        </p>
+                      )}
 
                       <p className="mt-4 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
                         {track.description}

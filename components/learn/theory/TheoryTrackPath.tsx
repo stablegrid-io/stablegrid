@@ -257,9 +257,14 @@ export const TheoryTrackPath = ({
                 {track.eyebrow}
               </p>
               <h1 className="text-[2rem] font-bold leading-tight text-text-light-primary dark:text-text-dark-primary">
-                {track.label}
+                {track.title || track.label}
               </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+              {track.subtitle && (
+                <p className="mt-2 max-w-3xl text-base font-medium text-text-light-secondary dark:text-text-dark-secondary">
+                  {track.subtitle}
+                </p>
+              )}
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
                 {track.description}
               </p>
 
