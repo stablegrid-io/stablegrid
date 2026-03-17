@@ -140,6 +140,33 @@ const makeSupabaseClient = ({
       };
     }
 
+    if (table === 'incidents') {
+      const emptyResult = { data: [] as unknown[], error: null };
+      const emptyPromise = Promise.resolve(emptyResult);
+
+      // Incidents are not seeded in these unit tests — all queries return empty arrays.
+      // Each method returns a chainable thenable so select/eq/is/lt chains all resolve cleanly.
+      const makeChain = (): object => {
+        const chain: Record<string, unknown> = {
+          then: emptyPromise.then.bind(emptyPromise),
+          catch: emptyPromise.catch.bind(emptyPromise),
+          finally: emptyPromise.finally.bind(emptyPromise),
+          eq: vi.fn(() => makeChain()),
+          is: vi.fn(() => makeChain()),
+          lt: vi.fn(() => makeChain())
+        };
+        return chain;
+      };
+
+      return {
+        select: vi.fn(() => makeChain()),
+        insert: vi.fn(async () => ({ error: null })),
+        update: vi.fn(() => ({
+          eq: vi.fn(async () => ({ error: null }))
+        }))
+      };
+    }
+
     throw new Error(`Unexpected table: ${table}`);
   }),
   rpc: vi.fn(
@@ -477,7 +504,9 @@ describe('grid-ops routes', () => {
       };
     };
 
-    expect(payload.data.active_event.id).toBe('evening_peak');
+    // iberia_v1 uses its own event cycle: [heatwave_demand_surge(2), solar_overgeneration(2), substation_thermal_stress(2)]
+    // turn_index=2, scenario_seed=1 → seedOffset=0, normalizedTurn=2 → solar_overgeneration
+    expect(payload.data.active_event.id).toBe('solar_overgeneration');
     expect(payload.data.milestone_unlocked?.threshold).toBe(75);
     expect(payload.data.next_best_action.action.length).toBeGreaterThan(0);
   });

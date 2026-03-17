@@ -1,14 +1,12 @@
 import { DEFAULT_DEPLOYED_NODE_IDS, unitsToKwh } from '@/lib/energy';
 import {
-  GRID_OPS_ASSETS,
   GRID_OPS_ASSET_BY_ID,
-  GRID_OPS_BASE_FORECAST_CONFIDENCE,
-  GRID_OPS_BASE_STABILITY,
   GRID_OPS_DEFAULT_SCENARIO,
-  GRID_OPS_EVENTS,
   GRID_OPS_MILESTONES,
-  GRID_OPS_REGIONS,
-  GRID_OPS_SYNERGIES
+  GRID_OPS_SYNERGIES,
+  GRID_STABILIZED_MILESTONE_TITLE,
+  isValidScenarioId,
+  resolveScenarioConfig
 } from '@/lib/grid-ops/config';
 import {
   resolveEdgeTier,
@@ -19,15 +17,50 @@ import type {
   GridOpsAssetView,
   GridOpsComputedState,
   GridOpsDeployValidationResult,
+  GridOpsEventDefinition,
+  GridOpsIncidentRow,
   GridOpsMilestone,
   GridOpsNodeState,
   GridOpsRecommendation,
+  GridOpsRegionDefinition,
+  GridOpsRegionStatus,
   GridOpsScenarioId,
   GridOpsStateRow
 } from '@/lib/grid-ops/types';
+import { getAssetHealthMap } from '@/lib/grid-ops/incidentEngine';
+import { INCIDENT_HEALTH_PCT, getDispatcherMessage } from '@/lib/grid-ops/incidentNarratives';
+import { getAvailableDispatchCalls } from '@/lib/grid-ops/dispatchCallContent';
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
+
+// ─── Region constants & helpers ───────────────────────────────────────────────
+
+export const ASSET_REGION_MAP: Record<string, string> = {
+  'control-center': 'western-corridor',
+  'solar-forecasting-array': 'western-corridor',
+  'smart-transformer': 'western-corridor',
+  'frequency-controller': 'central-mesh',
+  'ai-grid-optimizer': 'central-mesh',
+  'hvdc-interconnector': 'eastern-demand',
+  'grid-flywheel': 'eastern-demand',
+  'battery-storage': 'eastern-demand',
+  'demand-response-system': 'eastern-demand'
+};
+
+const DARK_REGION_PENALTY = 8; // stability pts lost per dark region
+
+function computeRegionStatus(
+  region: GridOpsRegionDefinition,
+  deployedInRegion: string[],
+  healthMap: Record<string, number>,
+  stabilityPct: number
+): GridOpsRegionStatus {
+  if (stabilityPct < region.activationThreshold) return 'inactive';
+  if (deployedInRegion.some((id) => (healthMap[id] ?? 100) <= 20)) return 'dark';
+  if (deployedInRegion.some((id) => (healthMap[id] ?? 100) < 100)) return 'threatened';
+  return 'active';
+}
 
 const roundToTwo = (value: number) => Math.round(value * 100) / 100;
 
@@ -65,8 +98,12 @@ export const computeSpentUnits = (deployedAssetIds: string[]) => {
   }, 0);
 };
 
-const resolveEventState = (turnIndex: number, scenarioSeed: number) => {
-  const cycleLength = GRID_OPS_EVENTS.reduce((sum, event) => sum + event.durationTurns, 0);
+const resolveEventState = (
+  turnIndex: number,
+  scenarioSeed: number,
+  events: GridOpsEventDefinition[]
+) => {
+  const cycleLength = events.reduce((sum, event) => sum + event.durationTurns, 0);
   const seedOffset = Math.max(0, Math.floor(scenarioSeed) - 1) % cycleLength;
   const normalizedTurn = ((Math.max(0, turnIndex) + seedOffset) % cycleLength + cycleLength) % cycleLength;
 
@@ -74,8 +111,8 @@ const resolveEventState = (turnIndex: number, scenarioSeed: number) => {
   let activeIndex = 0;
   let turnOffset = 0;
 
-  for (let index = 0; index < GRID_OPS_EVENTS.length; index += 1) {
-    const event = GRID_OPS_EVENTS[index];
+  for (let index = 0; index < events.length; index += 1) {
+    const event = events[index];
     const nextCursor = cursor + event.durationTurns;
     if (normalizedTurn >= cursor && normalizedTurn < nextCursor) {
       activeIndex = index;
@@ -85,9 +122,9 @@ const resolveEventState = (turnIndex: number, scenarioSeed: number) => {
     cursor = nextCursor;
   }
 
-  const activeEvent = GRID_OPS_EVENTS[activeIndex];
+  const activeEvent = events[activeIndex];
   const remainingTurns = activeEvent.durationTurns - turnOffset;
-  const nextEvent = GRID_OPS_EVENTS[(activeIndex + 1) % GRID_OPS_EVENTS.length];
+  const nextEvent = events[(activeIndex + 1) % events.length];
 
   return {
     active: {
@@ -139,9 +176,10 @@ const resolveSynergyState = (deployedAssetIds: string[]) => {
 
 const resolveEventMitigation = (
   deployedAssets: GridOpsAssetDefinition[],
-  activeEventId: string
+  activeEventId: string,
+  events: GridOpsEventDefinition[]
 ) => {
-  const eventDefinition = GRID_OPS_EVENTS.find((event) => event.id === activeEventId);
+  const eventDefinition = events.find((event) => event.id === activeEventId);
   if (!eventDefinition) {
     return {
       stability: 0,
@@ -187,10 +225,13 @@ const resolveNodeState = ({
   return 'connected';
 };
 
-const resolveMilestones = (stabilityPct: number) => {
-  const sortedMilestones = [...GRID_OPS_MILESTONES].sort(
-    (left, right) => left.threshold - right.threshold
-  );
+const resolveMilestones = (stabilityPct: number, scenarioId: GridOpsScenarioId) => {
+  const scenarioTitle = GRID_STABILIZED_MILESTONE_TITLE[scenarioId];
+  const sortedMilestones = [...GRID_OPS_MILESTONES]
+    .sort((left, right) => left.threshold - right.threshold)
+    .map((m) =>
+      m.id === 'grid-stabilized' && scenarioTitle ? { ...m, title: scenarioTitle } : m
+    );
 
   const reached = sortedMilestones.filter((milestone) => stabilityPct >= milestone.threshold);
   const current = reached.length > 0 ? reached[reached.length - 1] : null;
@@ -254,14 +295,16 @@ const resolveLockedReason = ({
 
 const resolveAssetViews = ({
   deployedAssetIds,
-  availableUnits
+  availableUnits,
+  assets
 }: {
   deployedAssetIds: string[];
   availableUnits: number;
+  assets: GridOpsAssetDefinition[];
 }): GridOpsAssetView[] => {
   const deployedSet = new Set(deployedAssetIds);
 
-  return GRID_OPS_ASSETS.map((asset) => {
+  return assets.map((asset) => {
     const isDeployed = deployedSet.has(asset.id);
     const lockedReason = isDeployed
       ? null
@@ -292,14 +335,16 @@ const resolveRecommendation = ({
   assetViews,
   activeEventId,
   deployedAssetIds,
-  availableUnits
+  availableUnits,
+  events
 }: {
   assetViews: GridOpsAssetView[];
   activeEventId: string;
   deployedAssetIds: string[];
   availableUnits: number;
+  events: GridOpsEventDefinition[];
 }): GridOpsRecommendation => {
-  const activeEvent = GRID_OPS_EVENTS.find((event) => event.id === activeEventId);
+  const activeEvent = events.find((event) => event.id === activeEventId);
   const deployedSet = new Set(deployedAssetIds);
 
   const candidates = assetViews
@@ -410,6 +455,9 @@ export const ensureStateRowShape = ({
     scenario_seed: Number.isFinite(row?.scenario_seed)
       ? Math.max(1, Number(row?.scenario_seed))
       : 1,
+    completed_dispatch_call_ids: Array.isArray(row?.completed_dispatch_call_ids)
+      ? (row.completed_dispatch_call_ids as string[])
+      : [],
     created_at: row?.created_at,
     updated_at: row?.updated_at
   };
@@ -418,14 +466,28 @@ export const ensureStateRowShape = ({
 export const computeGridOpsState = ({
   scenarioId = GRID_OPS_DEFAULT_SCENARIO,
   earnedUnits,
-  row
+  row,
+  incidents = []
 }: {
   scenarioId?: GridOpsScenarioId;
   earnedUnits: number;
   row: GridOpsStateRow;
+  incidents?: GridOpsIncidentRow[];
 }): GridOpsComputedState => {
   const deployedAssetIds = normalizeDeployedAssetIds(row.deployed_asset_ids);
   const deployedSet = new Set(deployedAssetIds);
+
+  // Resolve scenario-specific configuration
+  const {
+    assets: scenarioAssets,
+    assetById: scenarioAssetById,
+    assetRegionMap: scenarioAssetRegionMap,
+    regions: scenarioRegions,
+    events: scenarioEvents,
+    baseStability,
+    baseForecast
+  } = resolveScenarioConfig(scenarioId);
+
   const deployedAssets = deployedAssetIds
     .map((assetId) => GRID_OPS_ASSET_BY_ID[assetId])
     .filter(Boolean);
@@ -434,9 +496,9 @@ export const computeGridOpsState = ({
   const safeEarnedUnits = Math.max(0, Math.floor(earnedUnits));
   const availableUnits = Math.max(0, safeEarnedUnits - spentUnits);
 
-  const eventState = resolveEventState(row.turn_index, row.scenario_seed);
+  const eventState = resolveEventState(row.turn_index, row.scenario_seed, scenarioEvents);
   const synergyState = resolveSynergyState(deployedAssetIds);
-  const eventMitigation = resolveEventMitigation(deployedAssets, eventState.active.id);
+  const eventMitigation = resolveEventMitigation(deployedAssets, eventState.active.id, scenarioEvents);
 
   const assetTotals = deployedAssets.reduce(
     (sum, asset) => ({
@@ -448,12 +510,33 @@ export const computeGridOpsState = ({
   );
 
   const rawStability =
-    GRID_OPS_BASE_STABILITY +
+    baseStability +
     assetTotals.stability +
     synergyState.totals.stability +
     eventMitigation.stability -
     eventState.activeDefinition.modifiers.stabilityPenalty;
-  const stabilityPct = clamp(Math.round(rawStability), 0, 120);
+
+  // Apply incident health penalties (each degraded node reduces stability)
+  const healthMap = getAssetHealthMap(incidents);
+  const incidentStabilityPenalty = deployedAssetIds.reduce((total, assetId) => {
+    const health = healthMap[assetId];
+    if (health === undefined) return total;
+    const degradation = (100 - health) / 100; // 0.0 to 0.80
+    return total + degradation * 30; // max -24 pts per offline node
+  }, 0);
+
+  // Apply dark-region penalty (each region with an offline asset costs an extra -8 stability)
+  const prepenaltyStability = rawStability - incidentStabilityPenalty;
+  const darkRegionCount = scenarioRegions.filter((r) => {
+    const deployed = deployedAssetIds.filter((id) => scenarioAssetRegionMap[id] === r.id);
+    return computeRegionStatus(r, deployed, healthMap, prepenaltyStability) === 'dark';
+  }).length;
+
+  const stabilityPct = clamp(
+    Math.round(prepenaltyStability - darkRegionCount * DARK_REGION_PENALTY),
+    0,
+    120
+  );
 
   const riskMitigationTotal =
     assetTotals.riskMitigation +
@@ -466,33 +549,36 @@ export const computeGridOpsState = ({
   const blackoutRiskPct = clamp(Math.round(rawRisk), 0, 100);
 
   const rawForecast =
-    GRID_OPS_BASE_FORECAST_CONFIDENCE +
+    baseForecast +
     assetTotals.forecast +
     synergyState.totals.forecast +
     eventMitigation.forecast -
     eventState.activeDefinition.modifiers.forecastPenalty;
   const forecastConfidencePct = clamp(Math.round(rawForecast), 0, 100);
 
-  const milestones = resolveMilestones(stabilityPct);
+  const milestones = resolveMilestones(stabilityPct, scenarioId);
 
   const assetViews = resolveAssetViews({
     deployedAssetIds,
-    availableUnits
+    availableUnits,
+    assets: scenarioAssets
   });
 
   const recommendation = resolveRecommendation({
     assetViews,
     activeEventId: eventState.active.id,
     deployedAssetIds,
-    availableUnits
+    availableUnits,
+    events: scenarioEvents
   });
 
   const mapVisibleAssetIds = new Set(
     assetViews.filter((asset) => isAssetVisibleOnMap(asset)).map((asset) => asset.id)
   );
 
-  const nodes = GRID_OPS_ASSETS.filter((asset) => mapVisibleAssetIds.has(asset.id)).map((asset) => {
+  const nodes = scenarioAssets.filter((asset) => mapVisibleAssetIds.has(asset.id)).map((asset) => {
     const visualHints = resolveNodeVisualHints(asset);
+    const nodeHealthPct = healthMap[asset.id]; // undefined = healthy
 
     return {
       id: asset.id,
@@ -506,13 +592,14 @@ export const computeGridOpsState = ({
         stability: stabilityPct,
         synergyAssetIds: synergyState.highlightedAssetIds
       }),
-      ...visualHints
+      ...visualHints,
+      ...(nodeHealthPct !== undefined ? { health_pct: nodeHealthPct } : {})
     };
   });
 
-  const edges = GRID_OPS_ASSETS.flatMap((asset) =>
+  const edges = scenarioAssets.flatMap((asset) =>
     asset.connects.map((targetId) => {
-      const target = GRID_OPS_ASSET_BY_ID[targetId];
+      const target = scenarioAssetById[targetId];
       const energized = deployedSet.has(asset.id) && deployedSet.has(targetId);
       const affectedByEvent = Boolean(
         target &&
@@ -534,12 +621,46 @@ export const computeGridOpsState = ({
     })
   ).filter((edge) => mapVisibleAssetIds.has(edge.from) && mapVisibleAssetIds.has(edge.to));
 
-  const regions = GRID_OPS_REGIONS.map((region) => ({
-    id: region.id,
-    name: region.name,
-    activationThreshold: region.activationThreshold,
-    active: stabilityPct >= region.activationThreshold
-  }));
+  const activeIncidents = incidents.filter((i) => i.resolved_at === null);
+  const regions = scenarioRegions.map((region) => {
+    const assetIds = deployedAssetIds.filter((id) => scenarioAssetRegionMap[id] === region.id);
+    const threatCount = activeIncidents.filter(
+      (i) => scenarioAssetRegionMap[i.asset_id] === region.id
+    ).length;
+    return {
+      id: region.id,
+      name: region.name,
+      activationThreshold: region.activationThreshold,
+      active: stabilityPct >= region.activationThreshold,
+      status: computeRegionStatus(region, assetIds, healthMap, stabilityPct),
+      asset_ids: assetIds,
+      threat_count: threatCount
+    };
+  });
+
+  // Build incident views
+  const incidentViews = incidents
+    .filter((i) => i.resolved_at === null)
+    .map((i) => ({
+      id: i.id,
+      asset_id: i.asset_id,
+      asset_name: getAssetName(i.asset_id),
+      incident_type: i.incident_type,
+      severity: i.severity,
+      health_pct: INCIDENT_HEALTH_PCT[i.severity],
+      repair_cost_units: i.repair_cost_units,
+      dispatcher_message: getDispatcherMessage(i.incident_type, i.severity),
+      started_at: i.started_at,
+      escalates_at: i.escalates_at
+    }));
+
+  // Build dispatch call views
+  const dispatchCalls = getAvailableDispatchCalls({
+    scenarioId,
+    stabilityPct,
+    turnIndex: row.turn_index,
+    completedIds: row.completed_dispatch_call_ids
+  });
 
   return {
     scenario_id: scenarioId,
@@ -575,7 +696,9 @@ export const computeGridOpsState = ({
     recommendation: {
       next_best_action: recommendation
     },
-    active_synergy_ids: synergyState.matched.map((synergy) => synergy.id)
+    active_synergy_ids: synergyState.matched.map((synergy) => synergy.id),
+    incidents: incidentViews,
+    dispatch_calls: dispatchCalls
   };
 };
 
@@ -664,7 +787,7 @@ export const resolveMilestoneUnlock = ({
 };
 
 export const normalizeScenarioId = (value: unknown): GridOpsScenarioId => {
-  if (value === GRID_OPS_DEFAULT_SCENARIO) {
+  if (isValidScenarioId(value)) {
     return value;
   }
 

@@ -570,8 +570,82 @@ export function GridSceneCanvas({
     <section
       ref={frameRef}
       data-grid-scene="2p5d"
-      className={`relative h-[58vh] min-h-[520px] max-h-[760px] w-full overflow-hidden rounded-2xl border border-[#2a3442] bg-[radial-gradient(circle_at_18%_20%,rgba(34,185,153,0.1),transparent_42%),radial-gradient(circle_at_80%_76%,rgba(56,189,248,0.08),transparent_46%),linear-gradient(180deg,#101722,#0d131d)] ${className ?? ''}`}
+      className={`relative h-[58vh] min-h-[520px] max-h-[760px] w-full overflow-hidden rounded-2xl border border-[#1a2830] bg-[radial-gradient(ellipse_at_20%_25%,rgba(0,208,132,0.13),transparent_48%),radial-gradient(ellipse_at_78%_60%,rgba(0,229,255,0.07),transparent_44%),linear-gradient(180deg,#040a0d_0%,#060d11_45%,#07110d_100%)] ${className ?? ''}`}
     >
+      {/* Industrial skyline silhouette — visible through transparent canvas sky pixels */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[52%]" aria-hidden>
+        <svg
+          viewBox="0 0 1200 220"
+          preserveAspectRatio="xMidYMax meet"
+          className="h-full w-full"
+          style={{ opacity: 0.6 }}
+        >
+          <defs>
+            <radialGradient id="hgL" cx="22%" cy="100%" r="38%">
+              <stop offset="0%" stopColor="#0e2914" stopOpacity="0.7" />
+              <stop offset="100%" stopColor="#040a0d" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="hgR" cx="76%" cy="100%" r="32%">
+              <stop offset="0%" stopColor="#0c2210" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="#040a0d" stopOpacity="0" />
+            </radialGradient>
+            <linearGradient id="skyFade" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#040a0d" stopOpacity="0" />
+              <stop offset="38%" stopColor="#040a0d" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="#040a0d" stopOpacity="1" />
+            </linearGradient>
+          </defs>
+          {/* Horizon atmospheric glow */}
+          <rect width="1200" height="220" fill="url(#hgL)" />
+          <rect width="1200" height="220" fill="url(#hgR)" />
+          {/* Industrial silhouette: buildings, cooling towers, pylons, chimneys */}
+          <path
+            fill="#060e0a"
+            d="
+              M0,220 L0,175
+              L18,175 L18,158 L38,158 L38,148 L48,148 L48,158 L68,158 L68,175
+              L82,175 L82,162 L86,162 L86,145 L89,145 L89,155 L92,155 L92,145 L95,145 L95,162 L99,162 L99,175
+              L110,175
+              C112,148 118,128 124,118 C130,108 138,106 142,106 C146,106 154,108 160,118 C166,128 172,148 174,175
+              L184,175
+              C186,150 192,130 198,120 C204,110 212,108 216,108 C220,108 228,110 234,120 C240,130 246,150 248,175
+              L260,175 L260,155 L282,155 L282,168 L298,168 L298,155 L316,155 L316,175
+              L332,175 L332,148 L340,148 L340,132 L343,132 L343,148 L348,148 L348,132 L351,132 L351,148 L359,148 L359,175
+              L374,175 L374,160 L400,160 L400,148 L414,148 L414,162 L428,162 L428,175
+              L444,175 L444,142 L452,142 L452,126 L455,126 L455,142 L460,142 L460,126 L463,126 L463,142 L471,142 L471,175
+              L488,175
+              C490,149 496,130 502,120 C508,110 516,108 520,108 C524,108 532,110 538,120 C544,130 550,149 552,175
+              L568,175 L568,158 L592,158 L592,170 L608,170 L608,158 L626,158 L626,175
+              L642,175 L642,164 L660,164 L660,152 L670,152 L670,162 L680,162 L680,175
+              L698,175
+              C700,150 706,131 712,121 C718,111 726,109 730,109 C734,109 742,111 748,121 C754,131 760,150 762,175
+              L778,175 L778,155 L804,155 L804,168 L822,168 L822,155 L840,155 L840,175
+              L856,175 L856,146 L864,146 L864,130 L867,130 L867,146 L872,146 L872,130 L875,130 L875,146 L883,146 L883,175
+              L898,175 L898,162 L930,162 L930,172 L948,172 L948,162 L966,162 L966,175
+              L982,175
+              C984,150 990,131 996,121 C1002,111 1010,109 1014,109 C1018,109 1026,111 1032,121 C1038,131 1044,150 1046,175
+              L1060,175 L1060,157 L1086,157 L1086,168 L1102,168 L1102,157 L1124,157 L1124,175
+              L1140,175 L1140,162 L1158,162 L1158,148 L1168,148 L1168,162 L1182,162 L1182,175
+              L1200,175 L1200,220 Z
+            "
+          />
+          {/* Ground strip */}
+          <rect y="175" width="1200" height="45" fill="#060e0a" />
+          {/* Fade-to-sky gradient */}
+          <rect width="1200" height="220" fill="url(#skyFade)" />
+          {/* Amber warning beacons on cooling tower tops */}
+          <circle cx="142" cy="108" r="2" fill="#f59e0b" opacity="0.7" />
+          <circle cx="216" cy="110" r="2" fill="#f59e0b" opacity="0.65" />
+          <circle cx="520" cy="110" r="2" fill="#f59e0b" opacity="0.7" />
+          <circle cx="730" cy="111" r="2" fill="#f59e0b" opacity="0.6" />
+          <circle cx="1014" cy="111" r="2" fill="#f59e0b" opacity="0.65" />
+          {/* Red pylon indicator lights */}
+          <circle cx="343" cy="134" r="1.5" fill="#ef4444" opacity="0.55" />
+          <circle cx="455" cy="128" r="1.5" fill="#ef4444" opacity="0.55" />
+          <circle cx="867" cy="132" r="1.5" fill="#ef4444" opacity="0.5" />
+        </svg>
+      </div>
+
       {canvasEventSource ? (
         <Canvas
           eventSource={canvasEventSource}
@@ -583,7 +657,7 @@ export function GridSceneCanvas({
             onAssetSelect(null);
           }}
           onCreated={({ gl }) => {
-            gl.toneMappingExposure = 1.04;
+            gl.toneMappingExposure = 0.88;
           }}
           camera={{
             fov: cameraPose.fov,
@@ -593,20 +667,21 @@ export function GridSceneCanvas({
           }}
         >
           <OrbitCameraRig pose={cameraPose} controls={cameraControlLimits} />
+          <fog attach="fog" args={['#040a0d', 14, 34]} />
 
-          <ambientLight intensity={0.44} color="#f7f8fb" />
-          <hemisphereLight intensity={0.28} color="#f3f5f9" groundColor="#27302b" />
+          <ambientLight intensity={0.18} color="#c8e8d0" />
+          <hemisphereLight intensity={0.10} color="#a0c8b0" groundColor="#0d1f12" />
           <directionalLight
             castShadow={qualityCaps.enableShadows}
-            intensity={0.86}
-            color="#ffffff"
+            intensity={0.44}
+            color="#e8f0ea"
             position={[7.8, 12, 3.4]}
             shadow-mapSize-width={1024}
             shadow-mapSize-height={1024}
           />
-          <directionalLight intensity={0.16} color="#dfe5ee" position={[-5.8, 4.4, -3.2]} />
-          <pointLight intensity={0.035} color="#dbe5f2" position={[4.6, 2.4, -1.8]} />
-          <pointLight intensity={0.025} color="#dce6de" position={[-6.2, 1.4, 1.2]} />
+          <directionalLight intensity={0.08} color="#b8d0c0" position={[-5.8, 4.4, -3.2]} />
+          <pointLight intensity={0.06} color="#00e5ff" position={[4.6, 2.4, -1.8]} />
+          <pointLight intensity={0.04} color="#00d084" position={[-6.2, 1.4, 1.2]} />
 
           <GridGround activationRatio={activationRatio} />
           <GridScenePostFX caps={qualityCaps} />

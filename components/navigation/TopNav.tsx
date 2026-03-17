@@ -373,7 +373,7 @@ export const TopNav = () => {
                   className={desktopRailItemClass(isActive, isLessonMode)}
                 >
                   <span className="relative inline-flex items-center justify-center">
-                    {item.href === '/settings' && resolvedProfileAvatarUrl ? (
+                    {item.href === '/profile' && resolvedProfileAvatarUrl ? (
                       <span
                         className={`inline-flex overflow-hidden rounded-full border border-white/20 bg-white/[0.08] ${
                           isLessonMode ? 'h-8 w-8' : 'h-11 w-11'

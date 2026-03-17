@@ -1,23 +1,29 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, RefreshCw } from 'lucide-react';
-import { GRID_OPS_DEFAULT_SCENARIO } from '@/lib/grid-ops/config';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
+import { GRID_OPS_CAMPAIGN } from '@/lib/grid-ops/config';
 import { GRID_SCENE_ANIMATION_CONFIG } from '@/lib/grid-ops/sceneAnimationConfig';
-import type { GridOpsComputedState, GridOpsMilestone } from '@/lib/grid-ops/types';
+import type { GridOpsComputedState, GridOpsMilestone, GridOpsDispatchCallView, GridOpsRegionStatus, GridOpsRegionView, GridOpsScenarioId } from '@/lib/grid-ops/types';
+import { RegionDarkToast } from '@/components/grid-ops/RegionDarkToast';
 import {
   trackProductEvent,
   trackProductEventOnce
 } from '@/lib/analytics/productAnalytics';
 import { createGridOpsDeployRequestKey } from '@/lib/api/requestKeys';
-import { GridOpsHeader } from '@/components/grid-ops/GridOpsHeader';
 import { MilestoneToast } from '@/components/grid-ops/MilestoneToast';
 import { MissionControlDrawer } from '@/components/grid-ops/MissionControlDrawer';
 import { GridSceneErrorBoundary } from '@/components/grid-ops/scene/GridSceneErrorBoundary';
 import { GridSceneCanvas } from '@/components/grid-ops/scene/GridSceneCanvas';
+import { GridMapCanvas } from '@/components/grid-ops/GridMapCanvas';
 import { TechDeckDock } from '@/components/grid-ops/TechDeckDock';
+import { IncidentAlertModal } from '@/components/grid-ops/IncidentAlertModal';
+import { DispatchCallModal } from '@/components/grid-ops/DispatchCallModal';
+import { DispatcherPanel } from '@/components/dispatcher/DispatcherPanel';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { useGridOpsStore } from '@/lib/stores/useGridOpsStore';
 import { detectWebGLSupport } from '@/lib/grid-ops/webglSupport';
 
 interface StateResponse {
@@ -41,7 +47,13 @@ interface ActionResponse {
 
 const GRID_SCENE_DISABLE = process.env.NEXT_PUBLIC_GRID_SCENE_DISABLE === 'true';
 
-export function GridOpsExperience() {
+interface GridOpsExperienceProps {
+  scenarioId: GridOpsScenarioId;
+}
+
+export function GridOpsExperience({ scenarioId }: GridOpsExperienceProps) {
+  const router = useRouter();
+  const scenarioDef = GRID_OPS_CAMPAIGN.find((s) => s.id === scenarioId);
   const [state, setState] = useState<GridOpsComputedState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,9 +70,17 @@ export function GridOpsExperience() {
   const [milestone, setMilestone] = useState<GridOpsMilestone | null>(null);
   const [missionDrawerOpen, setMissionDrawerOpen] = useState(true);
   const [techDeckOpen, setTechDeckOpen] = useState(true);
+  const [viewMode, setViewMode] = useState<'3d' | '2d'>('2d');
+  const [incidentModalOpen, setIncidentModalOpen] = useState(false);
+  const [activeDispatchCall, setActiveDispatchCall] = useState<GridOpsDispatchCallView | null>(null);
+  const [pendingRepairId, setPendingRepairId] = useState<string | null>(null);
+  const [pendingDispatchId, setPendingDispatchId] = useState<string | null>(null);
+  const [darkRegionToast, setDarkRegionToast] = useState<string | null>(null);
+  const prevRegionStatusesRef = useRef<Record<string, GridOpsRegionStatus>>({});
   const hasTrackedOpenRef = useRef(false);
   const user = useAuthStore((store) => store.user);
   const syncProgress = useProgressStore((store) => store.syncProgress);
+  const setActiveIncidentCount = useGridOpsStore((s) => s.setActiveIncidentCount);
 
   const fetchState = useCallback(async () => {
     setLoading(true);
@@ -68,7 +88,7 @@ export function GridOpsExperience() {
 
     try {
       const response = await fetch(
-        `/api/grid-ops/state?scenario=${GRID_OPS_DEFAULT_SCENARIO}`,
+        `/api/grid-ops/state?scenario=${scenarioId}`,
         { cache: 'no-store' }
       );
 
@@ -79,12 +99,29 @@ export function GridOpsExperience() {
 
       const payload = (await response.json()) as StateResponse;
       setState(payload.data);
+
+      // Detect regions that newly went dark and show toast
+      for (const region of payload.data.map.regions) {
+        const prev = prevRegionStatusesRef.current[region.id];
+        if (prev !== undefined && prev !== 'dark' && region.status === 'dark') {
+          setDarkRegionToast(region.name);
+        }
+      }
+      prevRegionStatusesRef.current = Object.fromEntries(
+        payload.data.map.regions.map((r) => [r.id, r.status] as [string, GridOpsRegionStatus])
+      );
+
+      const incidentCount = payload.data.incidents?.length ?? 0;
+      setActiveIncidentCount(incidentCount);
+      if (incidentCount > 0) {
+        setIncidentModalOpen(true);
+      }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Failed to load state.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scenarioId, setActiveIncidentCount]);
 
   useEffect(() => {
     void fetchState();
@@ -122,13 +159,13 @@ export function GridOpsExperience() {
           headers: {
             'Content-Type': 'application/json',
             'Idempotency-Key': createGridOpsDeployRequestKey({
-              scenarioId: GRID_OPS_DEFAULT_SCENARIO,
+              scenarioId: scenarioId,
               turnIndex: state.simulation.turn_index,
               assetId
             })
           },
           body: JSON.stringify({
-            scenarioId: GRID_OPS_DEFAULT_SCENARIO,
+            scenarioId: scenarioId,
             actionType: 'deploy',
             assetId
           })
@@ -186,7 +223,95 @@ export function GridOpsExperience() {
         setPendingAssetId(null);
       }
     },
-    [pendingAssetId, state, syncProgress, user?.id]
+    [scenarioId, pendingAssetId, state, syncProgress, user?.id]
+  );
+
+  const handleRepair = useCallback(
+    async (incidentId: string) => {
+      if (pendingRepairId) return;
+      setPendingRepairId(incidentId);
+      setError(null);
+
+      try {
+        const response = await fetch('/api/grid-ops/incident/repair', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ incidentId, scenarioId: scenarioId })
+        });
+
+        const payload = await response.json();
+        if (!response.ok || !payload.data) {
+          throw new Error(payload?.error ?? 'Failed to repair incident.');
+        }
+
+        setState(payload.data.updated_state);
+
+        // Update region status tracking after repair
+        for (const region of payload.data.updated_state.map.regions) {
+          const prev = prevRegionStatusesRef.current[region.id];
+          if (prev !== undefined && prev !== 'dark' && region.status === 'dark') {
+            setDarkRegionToast(region.name);
+          }
+        }
+        prevRegionStatusesRef.current = Object.fromEntries(
+          (payload.data.updated_state.map.regions as GridOpsRegionView[]).map((r) => [r.id, r.status] as [string, GridOpsRegionStatus])
+        );
+
+        const remaining = payload.data.updated_state.incidents?.length ?? 0;
+        setActiveIncidentCount(remaining);
+        if (remaining === 0) {
+          setIncidentModalOpen(false);
+        }
+
+        if (user?.id) {
+          void syncProgress(user.id);
+        }
+      } catch (requestError) {
+        setError(requestError instanceof Error ? requestError.message : 'Failed to repair incident.');
+      } finally {
+        setPendingRepairId(null);
+      }
+    },
+    [scenarioId, pendingRepairId, setActiveIncidentCount, syncProgress, user?.id]
+  );
+
+  const handleCompleteDispatchCall = useCallback(
+    async (callId: string) => {
+      if (pendingDispatchId) return;
+      setPendingDispatchId(callId);
+      setError(null);
+
+      try {
+        const response = await fetch('/api/grid-ops/dispatch/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callId, scenarioId: scenarioId })
+        });
+
+        const payload = await response.json();
+        if (!response.ok || !payload.data) {
+          throw new Error(payload?.error ?? 'Failed to complete dispatch call.');
+        }
+
+        setState(payload.data.updated_state);
+
+        // Reflect completed state inside the open modal
+        setActiveDispatchCall((prev) =>
+          prev?.id === callId ? { ...prev, completed: true } : prev
+        );
+
+        if (user?.id) {
+          void syncProgress(user.id);
+        }
+      } catch (requestError) {
+        setError(
+          requestError instanceof Error ? requestError.message : 'Failed to complete dispatch call.'
+        );
+      } finally {
+        setPendingDispatchId(null);
+      }
+    },
+    [scenarioId, pendingDispatchId, syncProgress, user?.id]
   );
 
   const sortedAssets = useMemo(
@@ -243,7 +368,55 @@ export function GridOpsExperience() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom,transparent_50%,rgba(0,0,0,0.52)_100%)]" />
 
       <div className="relative mx-auto flex w-full max-w-[1480px] flex-col gap-4">
-        <GridOpsHeader />
+        {/* Nav: back · mission identity · live stats · mission reopen */}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => router.push('/energy')}
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.75rem] font-medium text-[#7a9ab8] transition hover:border-white/20 hover:text-[#a8c0d8]"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Missions
+          </button>
+
+          {scenarioDef && (
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="text-xl leading-none">{scenarioDef.flag}</span>
+              <div className="min-w-0">
+                <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-[#3a5068]">
+                  Mission {scenarioDef.order}
+                </p>
+                <p className="truncate text-[0.85rem] font-semibold text-[#c4d4e8]">
+                  {scenarioDef.name}
+                  <span className="ml-1.5 font-normal text-[#4a6278]">— {scenarioDef.subtitle}</span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="ml-auto flex items-center gap-2">
+            {state && (
+              <>
+                <span className="hidden items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[0.72rem] font-semibold text-[#90c4a8] sm:inline-flex">
+                  {state.simulation.stability_pct}% stable
+                </span>
+                <span className="hidden items-center rounded-full border border-amber-500/20 bg-amber-500/8 px-2.5 py-1 text-[0.7rem] font-medium text-amber-300/80 lg:inline-flex">
+                  {state.events.active_event.label}
+                </span>
+              </>
+            )}
+            {state && !missionDrawerOpen && (
+              <button
+                type="button"
+                onClick={() => setMissionDrawerOpen(true)}
+                className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/[0.045] px-3 py-1.5 text-[0.75rem] font-semibold text-[#dde8f6] transition hover:border-white/20 hover:bg-white/[0.075]"
+              >
+                Mission
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        </div>
 
         {loading && !state ? (
           <section className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(13,18,25,0.9),rgba(8,12,18,0.95))] p-8 text-center shadow-[0_24px_80px_-48px_rgba(0,0,0,0.95)] backdrop-blur-xl">
@@ -276,7 +449,39 @@ export function GridOpsExperience() {
               }`}
             >
               <div className="space-y-3">
-                {sceneRuntimeEnabled ? (
+                {/* View mode toggle — Apple segmented pill */}
+                <div className="inline-flex overflow-hidden rounded-full border border-white/10 bg-white/[0.04] p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('2d')}
+                    className={`rounded-full px-4 py-1.5 text-[11px] font-semibold transition-all ${
+                      viewMode === '2d'
+                        ? 'bg-white/15 text-white shadow-sm'
+                        : 'text-white/40 hover:text-white/60'
+                    }`}
+                  >
+                    Map
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('3d')}
+                    className={`rounded-full px-4 py-1.5 text-[11px] font-semibold transition-all ${
+                      viewMode === '3d'
+                        ? 'bg-white/15 text-white shadow-sm'
+                        : 'text-white/40 hover:text-white/60'
+                    }`}
+                  >
+                    3D
+                  </button>
+                </div>
+
+                {viewMode === '2d' ? (
+                  <GridMapCanvas
+                    state={state}
+                    highlightedAssetId={highlightedAssetId}
+                    deployingAssetId={deployingAssetId}
+                  />
+                ) : sceneRuntimeEnabled ? (
                   <GridSceneErrorBoundary>
                     <GridSceneCanvas
                       state={state}
@@ -312,6 +517,7 @@ export function GridOpsExperience() {
                 <MissionControlDrawer
                   state={state}
                   onHide={() => setMissionDrawerOpen(false)}
+                  onOpenDispatchCall={setActiveDispatchCall}
                 />
               ) : null}
             </div>
@@ -320,6 +526,30 @@ export function GridOpsExperience() {
       </div>
 
       <MilestoneToast milestone={milestone} />
+
+      <IncidentAlertModal
+        incidents={state?.incidents ?? []}
+        open={incidentModalOpen}
+        onRepair={handleRepair}
+        onDismiss={() => setIncidentModalOpen(false)}
+        pendingRepairId={pendingRepairId}
+      />
+
+      <DispatchCallModal
+        call={activeDispatchCall}
+        onClose={() => setActiveDispatchCall(null)}
+        onComplete={handleCompleteDispatchCall}
+        pendingComplete={Boolean(pendingDispatchId)}
+      />
+
+      <DispatcherPanel />
+
+      {darkRegionToast && (
+        <RegionDarkToast
+          regionName={darkRegionToast}
+          onDismiss={() => setDarkRegionToast(null)}
+        />
+      )}
     </main>
   );
 }

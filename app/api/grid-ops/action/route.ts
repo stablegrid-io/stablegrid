@@ -6,7 +6,7 @@ import {
   readIdempotencyKey,
   runIdempotentJsonRequest
 } from '@/lib/api/protection';
-import { GRID_OPS_DEFAULT_SCENARIO } from '@/lib/grid-ops/config';
+import { GRID_OPS_DEFAULT_SCENARIO, isValidScenarioId } from '@/lib/grid-ops/config';
 import {
   computeGridOpsState,
   normalizeScenarioId,
@@ -20,15 +20,9 @@ import {
 import { createClient } from '@/lib/supabase/server';
 
 const parseScenarioId = (value: unknown) => {
-  if (typeof value !== 'string' || value.length === 0) {
-    return GRID_OPS_DEFAULT_SCENARIO;
-  }
-
-  if (value !== GRID_OPS_DEFAULT_SCENARIO) {
-    return null;
-  }
-
-  return value;
+  if (typeof value !== 'string' || value.length === 0) return GRID_OPS_DEFAULT_SCENARIO;
+  if (isValidScenarioId(value)) return value;
+  return null;
 };
 
 const statusForDeployError = (errorCode: string | undefined) => {
@@ -73,7 +67,7 @@ const parseGridOpsActionPayload = async (request: Request) => {
   const scenarioId = parseScenarioId(payload.scenarioId);
   if (!scenarioId) {
     throw new ApiRouteError(
-      `Invalid scenario. Supported scenario: ${GRID_OPS_DEFAULT_SCENARIO}`,
+      'Invalid scenario. Supported: lithuania_v1, iberia_v1, nordic_v1, germany_v1, europe_v1.',
       400
     );
   }
@@ -190,7 +184,9 @@ export async function POST(request: Request) {
           deployed_asset_ids: rpcRow.deployed_asset_ids,
           last_deployed_asset_id: rpcRow.last_deployed_asset_id,
           spent_units: rpcRow.spent_units,
-          scenario_seed: rpcRow.scenario_seed
+          scenario_seed: rpcRow.scenario_seed,
+          // deploy action does not affect completed dispatch calls — carry over from existing row
+          completed_dispatch_call_ids: existingRow.completed_dispatch_call_ids
         };
 
         const afterState = computeGridOpsState({

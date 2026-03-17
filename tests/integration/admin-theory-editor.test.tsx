@@ -245,12 +245,13 @@ describe('TheoryLessonsSection', () => {
 
     render(<TheoryLessonsSection onMutation={() => {}} />);
 
-    await screen.findByLabelText('Lesson title');
+    // Wait for lesson map items to appear — the Lesson title label exists even before the
+    // doc loads (the input is just disabled), so findByLabelText resolves immediately.
+    // findAllByTestId waits until the fetch completes and blocksDraft is populated.
+    const mapItems = await screen.findAllByTestId('lesson-map-item');
 
     expect(screen.queryByRole('button', { name: 'Up' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Down' })).not.toBeInTheDocument();
-
-    const mapItems = screen.getAllByTestId('lesson-map-item');
     expect(mapItems[0]).toHaveTextContent('First block copy');
     expect(mapItems[1]).toHaveTextContent('Second block copy');
 

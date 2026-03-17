@@ -79,7 +79,8 @@ describe('grid-ops visual mapping', () => {
         deployed_asset_ids: ['control-center', 'smart-transformer'],
         last_deployed_asset_id: 'smart-transformer',
         spent_units: 2000,
-        scenario_seed: 1
+        scenario_seed: 1,
+        completed_dispatch_call_ids: []
       }
     });
 

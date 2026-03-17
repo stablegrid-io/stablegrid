@@ -153,10 +153,6 @@ export function AssetDeck({
                 ) : asset.id === 'solar-forecasting-array' ? (
                   <SolarForecastingModelPreview className={`${panelMode ? 'mt-2.5 h-40' : 'mt-2.5 h-36'} ${isLocked ? 'opacity-80' : ''}`} />
                 ) : null
-              ) : !showModelPreviews && hasInlinePreview ? (
-                <div className="mt-2.5 rounded-lg border border-white/8 bg-black/20 px-3 py-2 text-[11px] text-[#9eacc2] backdrop-blur-sm">
-                  3D preview unavailable in this runtime.
-                </div>
               ) : null}
 
               <div className="mt-2.5">
@@ -238,10 +234,10 @@ function AssetMetricsPopover({
 
         <div className="pointer-events-none absolute right-0 top-full z-20 mt-1.5 w-[232px] translate-y-1 rounded-lg border border-white/10 bg-[#0d141e]/95 p-1.5 opacity-0 shadow-[0_12px_32px_rgba(0,0,0,0.35)] backdrop-blur-xl transition group-hover/metrics:pointer-events-auto group-hover/metrics:translate-y-0 group-hover/metrics:opacity-100 group-focus-within/metrics:pointer-events-auto group-focus-within/metrics:translate-y-0 group-focus-within/metrics:opacity-100">
           <div className="grid grid-cols-2 gap-1.5 text-xs">
-            <StatRow label="Cost" value={`${asset.cost_kwh.toFixed(2)} kWh`} dockMode />
-            <StatRow label="Stability" value={`+${asset.effects.stability}%`} dockMode />
-            <StatRow label="Risk Damp" value={`+${asset.effects.riskMitigation}`} dockMode />
-            <StatRow label="Forecast" value={`+${asset.effects.forecast}%`} dockMode />
+            <StatRow label="Cost" value={`${asset.cost_kwh.toFixed(2)} kWh`} />
+            <StatRow label="Stability" value={`+${asset.effects.stability}%`} />
+            <StatRow label="Risk Damp" value={`+${asset.effects.riskMitigation}`} />
+            <StatRow label="Forecast" value={`+${asset.effects.forecast}%`} />
           </div>
         </div>
       </div>
@@ -249,23 +245,9 @@ function AssetMetricsPopover({
   );
 }
 
-function StatRow({
-  label,
-  value,
-  dockMode = false
-}: {
-  label: string;
-  value: string;
-  dockMode?: boolean;
-}) {
+function StatRow({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      className={`rounded-md border px-2 py-1.5 ${
-        dockMode
-          ? 'border-white/8 bg-black/20'
-          : 'border-white/8 bg-black/20'
-      }`}
-    >
+    <div className="rounded-md border border-white/8 bg-black/20 px-2 py-1.5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9fb0c8]">
         {label}
       </p>

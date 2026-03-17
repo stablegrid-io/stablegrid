@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { GridOpsAssetView, GridOpsComputedState, GridOpsNodeView } from '@/lib/grid-ops/types';
+import type { GridOpsAssetView, GridOpsComputedState, GridOpsNodeView, GridOpsRegionStatus } from '@/lib/grid-ops/types';
+import { AssetHealthBar } from './AssetHealthBar';
 
 interface GridMapCanvasProps {
   state: GridOpsComputedState;
@@ -158,12 +159,23 @@ const EDGE_STYLES: Record<EdgeVisualState, { color: string; width: number; dash?
   }
 };
 
-const regionOverlayColor: Record<string, string> = {
-  'western-corridor': 'rgba(0,208,132,0.12)',
-  'central-mesh': 'rgba(0,208,132,0.14)',
-  'eastern-demand': 'rgba(42,169,255,0.1)',
-  'interconnect-ring': 'rgba(156,107,255,0.1)',
-  'optimization-layer': 'rgba(245,185,66,0.1)'
+const getRegionFill = (status: GridOpsRegionStatus | undefined): string => {
+  switch (status) {
+    case 'dark':       return 'rgba(255,77,79,0.22)';
+    case 'threatened': return 'rgba(245,185,66,0.18)';
+    case 'active':     return 'rgba(0,208,132,0.15)';
+    default:           return 'rgba(46,63,58,0.0)'; // inactive — no glow
+  }
+};
+
+const getRegionAnimation = (status: GridOpsRegionStatus | undefined) => {
+  if (status === 'dark') {
+    return { opacity: [0.4, 0.7, 0.45], scale: [0.88, 1.06, 0.9] };
+  }
+  if (status === 'threatened') {
+    return { opacity: [0.3, 0.55, 0.32], scale: [0.86, 1.05, 0.88] };
+  }
+  return { opacity: [0.14, 0.34, 0.18], scale: [0.84, 1.08, 0.86] };
 };
 
 const NODE_ICON_BY_ID: Record<string, LucideIcon> = {
@@ -437,6 +449,45 @@ function NodeMicroIndicator({
   );
 }
 
+// ── Stability atmosphere helper ────────────────────────────────────────────────
+// Returns a CSS style that overlays a color/filter on the grid map based on
+// the current stability percentage. Transitions smoothly between tiers (2s ease).
+function getAtmosphereStyle(pct: number): React.CSSProperties {
+  if (pct < 25) {
+    return {
+      background:
+        'radial-gradient(ellipse at 50% 50%,transparent 30%,rgba(248,113,113,0.18) 80%,rgba(220,38,38,0.28) 100%)',
+      filter: 'saturate(0.72)'
+    };
+  }
+  if (pct < 50) {
+    return {
+      background:
+        'radial-gradient(ellipse at 50% 50%,transparent 35%,rgba(251,146,60,0.10) 75%,rgba(245,158,11,0.18) 100%)',
+      filter: 'saturate(0.88)'
+    };
+  }
+  if (pct < 75) {
+    return {
+      background:
+        'radial-gradient(ellipse at 50% 50%,transparent 40%,rgba(100,116,139,0.06) 80%)',
+      filter: 'saturate(1.0)'
+    };
+  }
+  if (pct < 90) {
+    return {
+      background:
+        'radial-gradient(ellipse at 50% 50%,rgba(34,197,94,0.04) 0%,transparent 45%,rgba(34,197,94,0.08) 100%)',
+      filter: 'saturate(1.1)'
+    };
+  }
+  return {
+    background:
+      'radial-gradient(ellipse at 50% 50%,rgba(34,185,153,0.10) 0%,transparent 40%,rgba(245,185,66,0.12) 100%)',
+    filter: 'saturate(1.25) brightness(1.04)'
+  };
+}
+
 export function GridMapCanvas({
   state,
   highlightedAssetId,
@@ -681,10 +732,10 @@ export function GridMapCanvas({
   return (
     <section
       ref={mapFrameRef}
-      className={`relative h-[74vh] min-h-[640px] w-full overflow-hidden rounded-2xl border border-[#214236] bg-[radial-gradient(circle_at_18%_20%,rgba(0,208,132,0.16),transparent_40%),radial-gradient(circle_at_80%_76%,rgba(42,169,255,0.12),transparent_44%),linear-gradient(180deg,#071a14,#05110d)] ${className ?? ''}`}
+      className={`relative h-[74vh] min-h-[640px] w-full overflow-hidden rounded-2xl border border-[#1a3028] bg-[radial-gradient(circle_at_18%_20%,rgba(0,208,132,0.10),transparent_36%),radial-gradient(circle_at_80%_76%,rgba(42,169,255,0.08),transparent_40%),linear-gradient(180deg,#060e09,#030a06)] ${className ?? ''}`}
     >
       <svg
-        className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.2]"
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.28]"
         viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
         preserveAspectRatio="xMidYMid slice"
         aria-hidden
@@ -696,7 +747,7 @@ export function GridMapCanvas({
             y1={index * (MAP_HEIGHT / 21)}
             x2={MAP_WIDTH}
             y2={index * (MAP_HEIGHT / 21)}
-            stroke="rgba(0,208,132,0.22)"
+            stroke="rgba(0,208,132,0.14)"
             strokeWidth="0.6"
           />
         ))}
@@ -707,16 +758,35 @@ export function GridMapCanvas({
             y1={0}
             x2={index * (MAP_WIDTH / 35)}
             y2={MAP_HEIGHT}
-            stroke="rgba(0,208,132,0.2)"
+            stroke="rgba(0,208,132,0.12)"
             strokeWidth="0.6"
           />
         ))}
+        {/* Circuit-board intersection dots */}
+        {Array.from({ length: 22 }).flatMap((_, r) =>
+          Array.from({ length: 36 }).map((_, c) => (
+            <circle
+              key={`dot-${r}-${c}`}
+              cx={c * (MAP_WIDTH / 35)}
+              cy={r * (MAP_HEIGHT / 21)}
+              r="0.9"
+              fill="rgba(0,208,132,0.22)"
+            />
+          ))
+        )}
       </svg>
+
+      {/* Stability atmosphere overlay — reacts to stability tier */}
+      <div
+        className="pointer-events-none absolute inset-0 transition-all duration-[2000ms] ease-in-out"
+        style={getAtmosphereStyle(state.simulation.stability_pct)}
+      />
 
       <div className="relative h-full w-full">
         {state.map.regions.map((region) => {
           const center = regionCenters[region.id];
-          if (!center || !region.active) {
+          // Show glow for active/threatened/dark; skip inactive and regions without a center
+          if (!center || region.status === 'inactive') {
             return null;
           }
 
@@ -727,11 +797,14 @@ export function GridMapCanvas({
               style={{
                 left: toGraphPercentX(center.x),
                 top: toGraphPercentY(center.y),
-                background: regionOverlayColor[region.id] ?? 'rgba(0,208,132,0.12)'
+                background: getRegionFill(region.status)
               }}
               initial={{ opacity: 0.2, scale: 0.8 }}
-              animate={{ opacity: [0.14, 0.34, 0.18], scale: [0.84, 1.08, 0.86] }}
-              transition={{ duration: 4.2, repeat: Number.POSITIVE_INFINITY }}
+              animate={getRegionAnimation(region.status)}
+              transition={{
+                duration: region.status === 'dark' ? 2.4 : region.status === 'threatened' ? 3.0 : 4.2,
+                repeat: Number.POSITIVE_INFINITY
+              }}
             />
           );
         })}
@@ -793,9 +866,25 @@ export function GridMapCanvas({
                     stroke="rgba(162,255,219,0.95)"
                     strokeWidth={1.8}
                     strokeLinecap="round"
-                    strokeDasharray="7 18"
+                    strokeDasharray="5 22"
                     animate={{ strokeDashoffset: [0, -96] }}
                     transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1.8, ease: 'linear' }}
+                  />
+                ) : null}
+
+                {/* Backbone second particle — slower overlay for depth */}
+                {visualState === 'active' && isBackbone ? (
+                  <motion.line
+                    x1={toGraphX(from.x)}
+                    y1={toGraphY(from.y)}
+                    x2={toGraphX(to.x)}
+                    y2={toGraphY(to.y)}
+                    stroke="rgba(162,255,219,0.42)"
+                    strokeWidth={1.2}
+                    strokeLinecap="round"
+                    strokeDasharray="3 32"
+                    animate={{ strokeDashoffset: [0, -140] }}
+                    transition={{ repeat: Number.POSITIVE_INFINITY, duration: 3.6, ease: 'linear' }}
                   />
                 ) : null}
 
@@ -867,6 +956,10 @@ export function GridMapCanvas({
           const labelVisible = labelVisibility.has(node.id) || hoveredNodeId === node.id;
           const showMicro = detailLevel > 1 || hoveredNodeId === node.id || highlighted;
 
+          // Incident health — undefined means healthy
+          const nodeHealthPct = (node as GridOpsNodeView & { health_pct?: number }).health_pct;
+          const isNodeOffline = nodeHealthPct !== undefined && nodeHealthPct <= 20;
+
           return (
             <motion.div
               key={node.id}
@@ -875,7 +968,8 @@ export function GridMapCanvas({
                 left: toGraphPercentX(position.x),
                 top: toGraphPercentY(position.y),
                 transform: 'translate(-50%, -50%)',
-                opacity: isFocused ? 1 : 0.26
+                opacity: isFocused ? (isNodeOffline ? 0.45 : 1) : 0.26,
+                filter: isNodeOffline ? 'grayscale(0.7)' : undefined
               }}
               animate={
                 deploying
@@ -900,6 +994,20 @@ export function GridMapCanvas({
                 style={{ width: `${nodeSize}px`, height: `${nodeSize}px` }}
               >
                 <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden>
+                  {/* Deploy ripple — radiates outward when node is being deployed */}
+                  {deploying ? (
+                    <motion.circle
+                      cx="50"
+                      cy="50"
+                      r="46"
+                      fill="none"
+                      stroke="rgba(0,208,132,0.75)"
+                      strokeWidth="1.5"
+                      initial={{ r: 46, opacity: 0.85 }}
+                      animate={{ r: 74, opacity: 0 }}
+                      transition={{ duration: 1.0, repeat: 2, ease: 'easeOut' }}
+                    />
+                  ) : null}
                   <circle
                     cx="50"
                     cy="50"
@@ -968,8 +1076,10 @@ export function GridMapCanvas({
                 {operationalState === 'active' ? (
                   <motion.span
                     className="pointer-events-none absolute inset-0 rounded-full"
-                    style={{ boxShadow: outerStyle.glow }}
-                    animate={{ opacity: [0.65, 1, 0.7] }}
+                    style={{
+                      boxShadow: `${outerStyle.glow}, 0 0 0 8px ${categoryStyle.color}1e`
+                    }}
+                    animate={{ opacity: [0.60, 1, 0.65] }}
                     transition={{ repeat: Number.POSITIVE_INFINITY, duration: 2.8 }}
                   />
                 ) : null}
@@ -1001,6 +1111,16 @@ export function GridMapCanvas({
                   <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(42,169,255,0.8)]" />
                 ) : null}
               </button>
+
+              {/* Health bar — shown below node when there's an active incident */}
+              {nodeHealthPct !== undefined && nodeHealthPct < 100 && (
+                <div
+                  className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+                  style={{ top: `${nodeSize + 2}px`, width: `${nodeSize}px` }}
+                >
+                  <AssetHealthBar healthPct={nodeHealthPct} />
+                </div>
+              )}
 
               <div className="pointer-events-none absolute left-1/2 top-full -translate-x-1/2">
                 <NodeMicroIndicator asset={asset} show={showMicro} />

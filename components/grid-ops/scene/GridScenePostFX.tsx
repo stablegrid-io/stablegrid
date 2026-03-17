@@ -32,8 +32,8 @@ function GridScenePostFXEnabled({ caps }: GridScenePostFXProps) {
       caps.bloomThreshold
     );
     const vignettePass = new ShaderPass(VignetteShader);
-    vignettePass.uniforms.offset.value = 0.42;
-    vignettePass.uniforms.darkness.value = 0.9;
+    vignettePass.uniforms.offset.value = 0.36;
+    vignettePass.uniforms.darkness.value = 1.15;
 
     const effectComposer = new EffectComposer(gl);
     effectComposer.addPass(renderPass);

@@ -13,7 +13,7 @@ export function GridGround({ activationRatio }: GridGroundProps) {
   const glowColor = useMemo(() => {
     const base = new Color(GRID_VISUAL_TOKENS.gridBgDark);
     const lift = new Color(GRID_VISUAL_TOKENS.accentGreen);
-    return base.lerp(lift, Math.min(0.34, Math.max(0.1, activationRatio * 0.28)));
+    return base.lerp(lift, Math.min(0.42, Math.max(0.12, activationRatio * 0.36)));
   }, [activationRatio]);
 
   floorTexture.wrapS = RepeatWrapping;
@@ -32,7 +32,7 @@ export function GridGround({ activationRatio }: GridGroundProps) {
           color={glowColor}
           map={floorTexture}
           emissive={GRID_VISUAL_TOKENS.accentGreen}
-          emissiveIntensity={0.08 + activationRatio * 0.06}
+          emissiveIntensity={0.28 + activationRatio * 0.18}
           roughness={0.9}
           metalness={0.08}
         />

@@ -134,9 +134,7 @@ describe('tasks page backend auth + user scoping', () => {
     const { default: TasksPage } = await import('@/app/tasks/page');
     render(await TasksPage());
 
-    expect(
-      screen.getByRole('heading', { name: 'Continue from your active task lanes' })
-    ).toBeInTheDocument();
+    // The tasks page no longer has a section heading — it renders task lane cards directly.
     expect(screen.getByText('Open notebooks').closest('a')).toHaveAttribute(
       'href',
       '/practice/notebooks'
@@ -362,9 +360,7 @@ describe('tasks page backend auth + user scoping', () => {
     const { default: TasksPage } = await import('@/app/tasks/page');
     render(await TasksPage());
 
-    expect(
-      screen.getByRole('heading', { name: 'Continue from your active task lanes' })
-    ).toBeInTheDocument();
+    // The tasks page no longer has a section heading — it renders task lane cards directly.
     expect(screen.getByText('Open notebooks').closest('a')).toHaveAttribute(
       'href',
       '/practice/notebooks'

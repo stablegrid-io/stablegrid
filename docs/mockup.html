@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StableGrid — Game Concept Mockup</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0A0E1A; color:#E0E6F0; font-family:'Courier New',monospace; height:100vh; overflow:hidden; }
+
+/* ── NAV ── */
+.top-nav { position:fixed; top:0; left:0; right:0; z-index:1000; display:flex; gap:2px; background:#050810; padding:8px; border-bottom:1px solid #1A2540; }
+.top-nav button { background:#0D1425; color:#6080A0; border:1px solid #1A2540; padding:6px 14px; font-size:11px; font-family:inherit; cursor:pointer; letter-spacing:1px; text-transform:uppercase; transition:all .2s; }
+.top-nav button.active { background:#1A2A4A; color:#00D4FF; border-color:#00D4FF; }
+
+/* ── SCREENS ── */
+.screen { display:none; position:fixed; top:40px; left:0; right:0; bottom:0; flex-direction:row; }
+.screen.active { display:flex; }
+
+/* ══════════════════════════════════
+   GRID SCREEN
+══════════════════════════════════ */
+#screen-grid { flex-direction:column; }
+
+.grid-header { display:flex; align-items:center; justify-content:space-between; padding:10px 20px; background:#080C18; border-bottom:1px solid #1A2540; flex-shrink:0; }
+.region-label { font-size:10px; letter-spacing:3px; color:#4060A0; text-transform:uppercase; }
+.region-name  { font-size:16px; color:#E0E6F0; letter-spacing:1px; font-weight:bold; }
+
+.header-metrics { display:flex; gap:28px; }
+.metric { text-align:center; }
+.metric-lbl { font-size:9px; letter-spacing:2px; color:#4060A0; text-transform:uppercase; }
+.metric-val { font-size:20px; font-weight:bold; }
+.mv-stab { color:#F5B942; }
+.mv-risk { color:#FF4D4F; }
+.mv-kwh  { color:#00D4FF; }
+.mv-days { color:#FF4D4F; font-size:16px; }
+
+.event-badge { background:#1A0A00; border:1px solid #F5B942; color:#F5B942; font-size:9px; padding:4px 10px; letter-spacing:1px; text-transform:uppercase; animation:pulseAmber 2s infinite; }
+@keyframes pulseAmber { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+.grid-body { flex:1; display:flex; overflow:hidden; }
+
+/* canvas area */
+.canvas-wrap { flex:1; position:relative; overflow:hidden; background:#0A0E1A; }
+
+/* SVG styles */
+.grid-svg { width:100%; height:100%; }
+.tier-lbl { fill:#222E48; font-size:9px; font-family:'Courier New',monospace; letter-spacing:1px; text-transform:uppercase; }
+
+/* edges */
+@keyframes flow { from{stroke-dashoffset:20} to{stroke-dashoffset:0} }
+.ep { stroke-dasharray:6 14; animation:flow 1.4s linear infinite; }
+.ep.s { animation-duration:3s; }
+.ep.f { animation-duration:.7s; }
+
+/* nodes */
+@keyframes ringPulse { 0%,100%{r:24;opacity:.25} 50%{r:28;opacity:.08} }
+.ring { fill:none; stroke-width:1.5; animation:ringPulse 3s ease-in-out infinite; }
+@keyframes warnFlicker { 0%,100%{opacity:1} 50%{opacity:.5} }
+.warn-node { animation:warnFlicker 1.2s ease-in-out infinite; }
+
+/* right panel */
+.right-panel { width:260px; background:#080C18; border-left:1px solid #1A2540; display:flex; flex-direction:column; overflow-y:auto; flex-shrink:0; }
+.rp-section { border-bottom:1px solid #1A2540; padding:14px; }
+.rp-title { font-size:9px; letter-spacing:2px; color:#4060A0; text-transform:uppercase; margin-bottom:10px; }
+.rp-head { font-size:13px; color:#E0E6F0; margin-bottom:5px; }
+.rp-body { font-size:10px; color:#6080A0; line-height:1.6; }
+
+.dc-item { background:#0D1425; border:1px solid #1A2540; border-left:3px solid #00D4FF; padding:10px; cursor:pointer; margin-bottom:8px; transition:all .2s; }
+.dc-item:hover { background:#141E35; }
+.dc-item.active-call { border-left-color:#00D084; background:#0A1A0A; }
+.dc-num { font-size:8px; color:#00D4FF; letter-spacing:2px; }
+.dc-name { font-size:11px; color:#E0E6F0; margin-top:3px; }
+
+.inc-badge { background:#FF4D4F; color:#fff; font-size:8px; padding:1px 5px; border-radius:8px; margin-left:4px; animation:pulseRed 1s infinite; display:inline-block; }
+@keyframes pulseRed { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.inc-row { cursor:pointer; background:#1A0A00; border:1px solid #F5B942; border-left-width:3px; padding:10px; margin-top:4px; }
+.inc-tag  { font-size:8px; color:#F5B942; letter-spacing:1px; text-transform:uppercase; }
+.inc-desc { font-size:10px; color:#C0A060; margin-top:3px; }
+.inc-meta { font-size:9px; color:#604080; margin-top:3px; }
+
+.stab-section { padding:14px; }
+.stab-num { font-size:24px; font-weight:bold; color:#F5B942; }
+.stab-tier { font-size:9px; color:#FF4D4F; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; }
+.stab-track { background:#1A2540; height:6px; border-radius:1px; margin:6px 0; }
+.stab-fill  { height:100%; background:linear-gradient(90deg,#FF4D4F 0%,#F5B942 40%,#00D084 75%,#00D4FF 100%); width:38%; transition:width 1s; }
+.stab-ticks { display:flex; justify-content:space-between; font-size:8px; color:#2A3A5A; margin-top:3px; }
+
+/* asset deck */
+.asset-deck { height:118px; background:#070B15; border-top:1px solid #1A2540; flex-shrink:0; display:flex; align-items:center; padding:0 16px; gap:10px; overflow-x:auto; }
+.deck-lbl { font-size:8px; letter-spacing:2px; color:#4060A0; text-transform:uppercase; writing-mode:vertical-rl; flex-shrink:0; }
+.asset-card { flex-shrink:0; width:92px; background:#0D1425; border:1px solid #1A2540; padding:8px; cursor:pointer; transition:all .2s; }
+.asset-card:hover { background:#141E35; transform:translateY(-2px); }
+.asset-card.avail { border-color:#2A5A3A; }
+.asset-card.avail:hover { border-color:#00D084; box-shadow:0 0 10px rgba(0,208,132,.2); }
+.ac-tier { font-size:7px; letter-spacing:1px; margin-bottom:4px; }
+.ac-name { font-size:9px; color:#C0D0E0; line-height:1.3; margin-bottom:5px; }
+.ac-cost { font-size:9px; color:#00D4FF; }
+.ac-cost span { color:#F5B942; }
+
+/* dispatcher panel */
+.disp-panel { position:absolute; bottom:128px; right:270px; width:256px; background:#080C18; border:1px solid #2A3A6A; border-left:3px solid #00D4FF; padding:12px; animation:slideIn .4s ease-out; z-index:100; }
+@keyframes slideIn { from{transform:translateX(16px);opacity:0} to{transform:translateX(0);opacity:1} }
+.disp-hdr  { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.disp-ava  { width:28px; height:28px; background:#1A2A4A; border:1px solid #2A3A6A; display:flex; align-items:center; justify-content:center; font-size:13px; }
+.disp-name { font-size:9px; letter-spacing:2px; color:#4060A0; text-transform:uppercase; }
+.disp-text { font-size:11px; color:#C0D0E0; line-height:1.6; font-style:italic; }
+.disp-dismiss { display:block; text-align:right; font-size:9px; color:#4060A0; margin-top:8px; cursor:pointer; letter-spacing:1px; text-transform:uppercase; }
+.disp-dismiss:hover { color:#00D4FF; }
+
+/* ══════════════════════════════════
+   PROFILE SCREEN
+══════════════════════════════════ */
+#screen-profile { flex-direction:row; background:#0A0E1A; }
+
+.prof-left { width:360px; display:flex; flex-direction:column; align-items:center; padding:28px 20px; border-right:1px solid #1A2540; flex-shrink:0; }
+.prof-name  { font-size:20px; color:#E0E6F0; letter-spacing:2px; margin-bottom:4px; }
+.prof-title { font-size:10px; letter-spacing:3px; color:#00D4FF; text-transform:uppercase; margin-bottom:5px; }
+.prof-level { font-size:11px; color:#4060A0; margin-bottom:18px; }
+
+/* character viewport */
+.char-vp { width:210px; height:260px; background:#080C18; border:1px solid #1A2540; border-radius:4px; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; margin-bottom:14px; }
+.char-platform { position:absolute; bottom:28px; width:90px; height:18px; background:#0D1425; border:1px solid #2A3A6A; border-radius:50%; left:50%; transform:translateX(-50%); box-shadow:0 0 20px rgba(0,212,255,.15); }
+@keyframes charIdle { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-5px)} }
+.char-fig { position:absolute; bottom:44px; left:50%; transform:translateX(-50%); animation:charIdle 3s ease-in-out infinite; }
+.char-head { width:28px; height:26px; background:#1A3A5A; border:1px solid #2A5A8A; margin:0 auto; position:relative; }
+.char-helmet { position:absolute; top:-6px; left:-4px; right:-4px; height:11px; background:#F5B942; border:1px solid #C09020; }
+@keyframes blink { 0%,90%,100%{opacity:1} 95%{opacity:0} }
+.char-light { position:absolute; top:-2px; right:2px; width:5px; height:5px; background:#00D4FF; border-radius:50%; animation:blink 2s step-start infinite; }
+.char-body { width:34px; height:46px; background:linear-gradient(180deg,#1A3A5A,#0D2A4A); border:1px solid #2A5A8A; margin:0 auto; position:relative; }
+.char-vest { position:absolute; top:4px; left:-2px; right:-2px; height:28px; background:rgba(0,212,132,.14); border:1px solid rgba(0,212,132,.28); }
+.char-tablet { position:absolute; right:-14px; top:9px; width:12px; height:16px; background:#0D1A2A; border:1px solid #00D4FF; box-shadow:0 0 6px rgba(0,212,255,.4); }
+.char-tablet-screen { width:100%; height:55%; background:#001020; }
+.char-light-overlay { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 25%,rgba(0,212,255,.09) 0%,transparent 70%); pointer-events:none; }
+.char-lv { position:absolute; bottom:8px; left:50%; transform:translateX(-50%); font-size:8px; letter-spacing:2px; color:#2A3A6A; text-transform:uppercase; }
+
+/* xp bar */
+.xp-wrap { width:100%; margin-bottom:18px; }
+.xp-hdr  { display:flex; justify-content:space-between; font-size:9px; color:#4060A0; margin-bottom:4px; letter-spacing:1px; }
+.xp-track { background:#1A2540; height:4px; }
+.xp-fill  { height:100%; background:linear-gradient(90deg,#00D4FF,#00D084); width:72%; }
+
+/* equipment */
+.equip-title { font-size:9px; letter-spacing:2px; color:#4060A0; text-transform:uppercase; margin-bottom:10px; align-self:flex-start; }
+.equip-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; width:100%; }
+.eq-slot { aspect-ratio:1; background:#0D1425; border:1px solid #1A2540; display:flex; align-items:center; justify-content:center; font-size:16px; position:relative; }
+.eq-slot.on  { border-color:#2A4A6A; }
+.eq-slot.off { opacity:.35; }
+.eq-slot .lk { position:absolute; bottom:2px; right:2px; font-size:7px; color:#4060A0; }
+
+/* profile right */
+.prof-right { flex:1; padding:28px; overflow-y:auto; }
+.stats-hdr { font-size:11px; letter-spacing:3px; color:#4060A0; text-transform:uppercase; margin-bottom:18px; border-bottom:1px solid #1A2540; padding-bottom:10px; }
+.stat-row { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid #0D1425; }
+.stat-n { font-size:11px; color:#8090B0; }
+.stat-v { font-size:14px; font-weight:bold; font-family:'Courier New',monospace; }
+.sv-g { color:#00D084; } .sv-b { color:#00D4FF; } .sv-a { color:#F5B942; } .sv-r { color:#FF4D4F; } .sv-m { color:#8090B0; }
+
+.regions-ttl { font-size:9px; letter-spacing:2px; color:#4060A0; text-transform:uppercase; margin:22px 0 10px; }
+.reg-badges { display:flex; gap:10px; flex-wrap:wrap; }
+.reg-badge { background:#0D1425; border:1px solid #2A4A6A; padding:8px 12px; text-align:center; min-width:80px; }
+.reg-badge.lk { opacity:.3; border-style:dashed; }
+.reg-flag { font-size:20px; margin-bottom:4px; }
+.reg-rname { font-size:8px; letter-spacing:1px; color:#6080A0; }
+.reg-stab { font-size:11px; color:#00D084; font-family:'Courier New',monospace; margin-top:2px; }
+
+/* ══════════════════════════════════
+   MODALS
+══════════════════════════════════ */
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:500; align-items:center; justify-content:center; }
+.modal-bg.open { display:flex; }
+
+/* incident */
+.inc-modal { width:380px; background:#080C18; border:1px solid #2A3A5A; border-top:3px solid #F5B942; padding:20px; }
+.inc-m-hdr { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.inc-m-ico { font-size:24px; }
+.inc-m-title { font-size:14px; color:#E0E6F0; }
+.inc-m-asset { font-size:10px; color:#F5B942; letter-spacing:1px; text-transform:uppercase; }
+.disp-quote { background:#0D1425; border-left:3px solid #00D4FF; padding:10px 12px; font-size:11px; color:#C0D0E0; line-height:1.6; font-style:italic; margin-bottom:12px; }
+.concept-box { background:#0A1020; border:1px solid #1A2540; padding:10px 12px; margin-bottom:14px; }
+.concept-ttl { font-size:8px; letter-spacing:2px; color:#4060A0; text-transform:uppercase; margin-bottom:5px; }
+.concept-txt { font-size:10px; color:#8090B0; line-height:1.6; }
+.inc-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px; }
+.inc-stat { background:#0D1425; padding:8px; text-align:center; }
+.ist-lbl { font-size:8px; color:#4060A0; letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
+.ist-val { font-size:13px; font-weight:bold; font-family:'Courier New',monospace; }
+.modal-btns { display:flex; gap:8px; }
+.btn-main { flex:1; background:#0D2A1A; border:1px solid #00D084; color:#00D084; padding:10px; font-size:11px; font-family:inherit; cursor:pointer; letter-spacing:1px; text-transform:uppercase; transition:all .2s; }
+.btn-main:hover { background:#0D3A1A; box-shadow:0 0 10px rgba(0,208,132,.3); }
+.btn-sec  { background:transparent; border:1px solid #2A3A5A; color:#6080A0; padding:10px 16px; font-size:10px; font-family:inherit; cursor:pointer; letter-spacing:1px; text-transform:uppercase; }
+.btn-sec:hover { color:#8090B0; }
+
+/* dispatch call */
+.dc-modal { width:430px; background:#080C18; border:1px solid #2A3A5A; border-top:3px solid #00D4FF; padding:20px; }
+.dc-m-num   { font-size:9px; letter-spacing:3px; color:#00D4FF; text-transform:uppercase; margin-bottom:5px; }
+.dc-m-title { font-size:18px; color:#E0E6F0; margin-bottom:16px; }
+.dc-quote-box { display:flex; gap:12px; background:#0D1425; border-left:3px solid #00D4FF; padding:12px; margin-bottom:14px; }
+.dc-ava { width:36px; height:36px; flex-shrink:0; background:#1A2A4A; border:1px solid #2A3A6A; display:flex; align-items:center; justify-content:center; font-size:16px; }
+.dc-quote-txt { font-size:11px; color:#C0D0E0; line-height:1.7; font-style:italic; }
+.dc-concept { background:#0A1020; border:1px solid #1A2540; padding:12px; margin-bottom:14px; }
+.dc-concept-lbl { font-size:8px; letter-spacing:2px; color:#4060A0; text-transform:uppercase; margin-bottom:5px; }
+.dc-concept-txt { font-size:10px; color:#8090B0; line-height:1.6; }
+.dc-concept-lnk { font-size:9px; color:#00D4FF; letter-spacing:1px; margin-top:5px; display:block; cursor:pointer; }
+.dc-objs { margin-bottom:14px; }
+.dc-obj-lbl { font-size:8px; letter-spacing:2px; color:#4060A0; text-transform:uppercase; margin-bottom:8px; }
+.dc-obj { display:flex; align-items:center; gap:8px; font-size:11px; color:#C0D0E0; padding:4px 0; }
+.dc-obj::before { content:'→'; color:#00D4FF; font-size:10px; }
+.dc-reward { display:flex; gap:10px; background:#0A1020; padding:10px; margin-bottom:16px; align-items:center; }
+.rew-i { font-size:12px; color:#F5B942; font-family:'Courier New',monospace; }
+.rew-sep { color:#2A3A5A; }
+.btn-blue { flex:1; background:#0A2A3A; border:1px solid #00D4FF; color:#00D4FF; padding:10px; font-size:11px; font-family:inherit; cursor:pointer; letter-spacing:1px; text-transform:uppercase; transition:all .2s; }
+.btn-blue:hover { background:#0D3A5A; box-shadow:0 0 12px rgba(0,212,255,.25); }
+
+/* scrollbar */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:#0A0E1A; }
+::-webkit-scrollbar-thumb { background:#1A2540; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<div class="top-nav">
+  <button class="active" onclick="showScreen('grid',this)">⚡ Grid View</button>
+  <button onclick="showScreen('profile',this)">👤 Profile</button>
+  <button onclick="openModal('incident')">⚠️ Incident Alert</button>
+  <button onclick="openModal('dispatch')">📻 Dispatch Call</button>
+</div>
+
+<!-- ════════════════ GRID SCREEN ════════════════ -->
+<div id="screen-grid" class="screen active">
+
+  <!-- header -->
+  <div class="grid-header">
+    <div>
+      <div class="region-label">Region 01</div>
+      <div class="region-name">🇱🇹 Lithuania — LITGRID</div>
+    </div>
+    <div class="header-metrics">
+      <div class="metric"><div class="metric-lbl">Stability</div><div class="metric-val mv-stab">38%</div></div>
+      <div class="metric"><div class="metric-lbl">Blackout Risk</div><div class="metric-val mv-risk">71%</div></div>
+      <div class="metric"><div class="metric-lbl">Available kWh</div><div class="metric-val mv-kwh">4.20</div></div>
+      <div class="metric"><div class="metric-lbl">BRELL Exit</div><div class="metric-val mv-days">88 days</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="event-badge">⚡ Evening Peak Active</div>
+      <div style="font-size:9px;color:#4060A0;letter-spacing:1px;">LV14 · Grid Engineer</div>
+    </div>
+  </div>
+
+  <!-- body -->
+  <div class="grid-body">
+
+    <!-- SVG canvas -->
+    <div class="canvas-wrap">
+      <svg class="grid-svg" viewBox="0 0 900 500" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+          <filter id="glowS"><feGaussianBlur stdDeviation="8" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+          <pattern id="gridpat" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M40 0L0 0 0 40" fill="none" stroke="#1A2540" stroke-width=".5" opacity=".35"/>
+          </pattern>
+        </defs>
+
+        <!-- bg -->
+        <rect width="900" height="500" fill="#0A0E1A"/>
+        <rect width="900" height="500" fill="url(#gridpat)"/>
+
+        <!-- tier bands -->
+        <rect x="10" y="12" width="880" height="68" fill="#0D1120" rx="2" opacity=".7"/>
+        <text x="20" y="26" class="tier-lbl">330kV Transmission</text>
+        <rect x="10" y="88" width="880" height="72" fill="#0C1018" rx="2" opacity=".7"/>
+        <text x="20" y="102" class="tier-lbl">110kV Sub-Transmission</text>
+        <rect x="10" y="168" width="880" height="72" fill="#0B0F17" rx="2" opacity=".7"/>
+        <text x="20" y="182" class="tier-lbl">35kV Regional Distribution</text>
+        <rect x="10" y="248" width="880" height="72" fill="#0A0E16" rx="2" opacity=".7"/>
+        <text x="20" y="262" class="tier-lbl">10kV Urban Distribution</text>
+        <rect x="10" y="328" width="880" height="100" fill="#090D15" rx="2" opacity=".7"/>
+        <text x="20" y="342" class="tier-lbl">0.4kV Service Points</text>
+
+        <!-- ── STATIC EDGES ── -->
+        <!-- 330kV backbone -->
+        <line x1="138" y1="48" x2="305" y2="48" stroke="#FF6B35" stroke-width="2.5" opacity=".35"/>
+        <line x1="365" y1="48" x2="505" y2="48" stroke="#FF6B35" stroke-width="2.5" opacity=".25" stroke-dasharray="6 4"/>
+        <line x1="565" y1="48" x2="695" y2="48" stroke="#FF6B35" stroke-width="2.5" opacity=".2" stroke-dasharray="5 5"/>
+        <!-- 330→110 vertical -->
+        <line x1="520" y1="68" x2="520" y2="110" stroke="#F5B942" stroke-width="2" opacity=".3"/>
+        <!-- 110kV horizontal -->
+        <line x1="380" y1="130" x2="620" y2="130" stroke="#F5B942" stroke-width="2" opacity=".3"/>
+        <!-- 110→35 -->
+        <line x1="400" y1="150" x2="380" y2="192" stroke="#2AA9FF" stroke-width="1.5" opacity=".3"/>
+        <!-- 35→10 -->
+        <line x1="380" y1="242" x2="360" y2="268" stroke="#9C6BFF" stroke-width="1.5" opacity=".25"/>
+        <!-- 10→0.4 -->
+        <line x1="320" y1="320" x2="280" y2="348" stroke="#00D084" stroke-width="1.5" opacity=".2"/>
+
+        <!-- ── ANIMATED PARTICLES (deployed connections) ── -->
+        <line x1="138" y1="48" x2="305" y2="48" stroke="#FF8050" stroke-width="2.5" class="ep" opacity=".7"/>
+        <line x1="138" y1="48" x2="305" y2="48" stroke="#FF6B35" stroke-width="1" class="ep s" opacity=".3" style="animation-delay:.8s"/>
+        <line x1="380" y1="130" x2="520" y2="130" stroke="#F5B942" stroke-width="2" class="ep" opacity=".5" style="animation-duration:2s"/>
+
+        <!-- ── NODES ── -->
+
+        <!-- T0: SCADA — deployed healthy -->
+        <g class="node-group" onclick="">
+          <circle cx="100" cy="48" r="26" class="ring" stroke="#00D084"/>
+          <circle cx="100" cy="48" r="20" fill="rgba(0,208,132,.1)" filter="url(#glow)"/>
+          <circle cx="100" cy="48" r="20" fill="#0D2A1A" stroke="#00D084" stroke-width="2"/>
+          <text x="100" y="48" fill="#00D084" font-size="11" text-anchor="middle" dominant-baseline="central" font-family="Courier New">⊕</text>
+          <rect x="82" y="71" width="36" height="3" fill="#1A2540" rx="1"/>
+          <rect x="82" y="71" width="36" height="3" fill="#00D084" rx="1"/>
+          <text x="100" y="84" fill="#8090B0" font-size="8" text-anchor="middle" font-family="Courier New">SCADA/EMS</text>
+          <text x="100" y="93" fill="#4060A0" font-size="7" text-anchor="middle" font-family="Courier New">T0 · FREE</text>
+        </g>
+
+        <!-- T0: Protection Relay — deployed -->
+        <g>
+          <circle cx="100" cy="124" r="17" class="ring" stroke="#00D084" style="animation-duration:4.5s"/>
+          <circle cx="100" cy="124" r="14" fill="rgba(0,208,132,.07)"/>
+          <circle cx="100" cy="124" r="14" fill="#0D2A1A" stroke="#00D084" stroke-width="1.5"/>
+          <text x="100" y="124" fill="#00D084" font-size="9" text-anchor="middle" dominant-baseline="central" font-family="Courier New">R</text>
+          <rect x="84" y="141" width="32" height="3" fill="#1A2540" rx="1"/>
+          <rect x="84" y="141" width="32" height="3" fill="#00D084" rx="1"/>
+          <text x="100" y="154" fill="#8090B0" font-size="8" text-anchor="middle" font-family="Courier New">Prot. Relay</text>
+          <text x="100" y="162" fill="#4060A0" font-size="7" text-anchor="middle" font-family="Courier New">T0 · 1kWh</text>
+        </g>
+
+        <!-- 330kV Line — deployed, strong -->
+        <g>
+          <circle cx="335" cy="48" r="24" class="ring" stroke="#FF6B35" style="animation-duration:2.2s"/>
+          <circle cx="335" cy="48" r="20" fill="rgba(255,107,53,.13)" filter="url(#glowS)"/>
+          <circle cx="335" cy="48" r="20" fill="#200800" stroke="#FF6B35" stroke-width="2"/>
+          <text x="335" y="48" fill="#FF6B35" font-size="8" text-anchor="middle" dominant-baseline="central" font-family="Courier New" font-weight="bold">330kV</text>
+          <rect x="317" y="71" width="36" height="3" fill="#1A2540" rx="1"/>
+          <rect x="317" y="71" width="36" height="3" fill="#FF6B35" rx="1"/>
+          <text x="335" y="84" fill="#8090B0" font-size="8" text-anchor="middle" font-family="Courier New">330kV Line</text>
+          <text x="335" y="93" fill="#4060A0" font-size="7" text-anchor="middle" font-family="Courier New">T1 · 3kWh</text>
+        </g>
+
+        <!-- 330/110kV Sub — DEPLOYED, WARNING -->
+        <g class="warn-node">
+          <circle cx="535" cy="48" r="24" class="ring" stroke="#F5B942"/>
+          <circle cx="535" cy="48" r="20" fill="rgba(245,185,66,.1)"/>
+          <circle cx="535" cy="48" r="20" fill="#1A1000" stroke="#F5B942" stroke-width="2"/>
+          <text x="535" y="48" fill="#F5B942" font-size="7" text-anchor="middle" dominant-baseline="central" font-family="Courier New">330/110</text>
+          <!-- warning badge -->
+          <circle cx="553" cy="30" r="7" fill="#F5B942"/>
+          <text x="553" y="30" fill="#0A0E1A" font-size="8" font-weight="bold" text-anchor="middle" dominant-baseline="central">!</text>
+          <rect x="517" y="71" width="36" height="3" fill="#1A2540" rx="1"/>
+          <rect x="517" y="71" width="22" height="3" fill="#F5B942" rx="1"/>
+          <text x="535" y="84" fill="#8090B0" font-size="8" text-anchor="middle" font-family="Courier New">330/110 Sub</text>
+          <text x="535" y="93" fill="#F5B942" font-size="7" text-anchor="middle" font-family="Courier New">⚠ 61% · 41h</text>
+        </g>
+
+        <!-- HVDC LitPol — deployed -->
+        <g>
+          <circle cx="725" cy="48" r="22" class="ring" stroke="#FF4D4F" style="animation-duration:3.5s"/>
+          <circle cx="725" cy="48" r="18" fill="rgba(255,77,79,.08)"/>
+          <circle cx="725" cy="48" r="18" fill="#200000" stroke="#FF4D4F" stroke-width="2"/>
+          <text x="725" y="48" fill="#FF4D4F" font-size="7" text-anchor="middle" dominant-baseline="central" font-family="Courier New">HVDC</text>
+          <rect x="707" y="69" width="36" height="3" fill="#1A2540" rx="1"/>
+          <rect x="707" y="69" width="36" height="3" fill="#FF4D4F" rx="1"/>
+          <text x="725" y="82" fill="#8090B0" font-size="8" text-anchor="middle" font-family="Courier New">LitPol Link</text>
+          <text x="725" y="91" fill="#4060A0" font-size="7" text-anchor="middle" font-family="Courier New">T1 · 15kWh</text>
+        </g>
+
+        <!-- NordBalt — undeployed -->
+        <g opacity=".4">
+          <circle cx="855" cy="48" r="18" fill="#0D1425" stroke="#2A3A5A" stroke-dasharray="4 2" stroke-width="1.5"/>
+          <text x="855" y="48" fill="#2A3A5A" font-size="7" text-anchor="middle" dominant-baseline="central" font-family="Courier New">NORD</text>
+          <text x="855" y="72" fill="#2A3A5A" font-size="8" text-anchor="middle" font-family="Courier New">NordBalt</text>
+          <text x="855" y="81" fill="#2A3A5A" font-size="7" text-anchor="middle" font-family="Courier New">15kWh</text>
+        </g>
+
+        <!-- 110kV Switch — deployed -->
+        <g>
+          <circle cx="500" cy="124" r="18" class="ring" stroke="#F5B942" style="animation-duration:4s"/>
+          <circle cx="500" cy="124" r="15" fill="rgba(245,185,66,.07)"/>
+          <circle cx="500" cy="124" r="15" fill="#150E00" stroke="#F5B942" stroke-width="1.5"/>
+          <text x="500" y="124" fill="#F5B942" font-size="8" text-anchor="middle" dominant-baseline="central" font-family="Courier New">110</text>
+          <rect x="483" y="142" width="34" height="3" fill="#1A2540" rx="1"/>
+          <rect x="483" y="142" width="34" height="3" fill="#F5B942" rx="1"/>
+          <text x="500" y="155" fill="#8090B0" font-size="8" text-anchor="middle" font-family="Courier New">110kV Switch</text>
+          <text x="500" y="163" fill="#4060A0" font-size="7" text-anchor="middle" font-family="Courier New">T2 · 3kWh</text>
+        </g>
+
+        <!-- 110/35kV Transformer — AVAILABLE, RECOMMENDED -->
+        <g style="cursor:pointer">
+          <circle cx="380" cy="208" r="22" class="ring" stroke="#2AA9FF" style="animation-duration:1.4s"/>
+          <circle cx="380" cy="208" r="18" fill="rgba(42,169,255,.08)"/>
+          <circle cx="380" cy="208" r="18" fill="#081525" stroke="#2AA9FF" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <text x="380" y="208" fill="#2AA9FF" font-size="8" text-anchor="middle" dominant-baseline="central" font-family="Courier New">110/35</text>
+          <!-- NEXT badge -->
+          <rect x="362" y="188" width="36" height="11" fill="#081525" stroke="#2AA9FF" stroke-width="1" rx="2"/>
+          <text x="380" y="194" fill="#2AA9FF" font-size="6" text-anchor="middle" dominant-baseline="central" font-family="Courier New" letter-spacing="1">DEPLOY NEXT</text>
+          <text x="380" y="230" fill="#2AA9FF" font-size="8" text-anchor="middle" font-family="Courier New">110/35kV Tr.</text>
+          <text x="380" y="239" fill="#2AA9FF" font-size="7" text-anchor="middle" font-family="Courier New">4kWh ← available</text>
+        </g>
+
+        <!-- Cap Bank — undeployed -->
+        <g opacity=".4">
+          <circle cx="580" cy="208" r="15" fill="#0D1425" stroke="#2A3A5A" stroke-dasharray="4 2"/>
+          <text x="580" y="208" fill="#2A3A5A" font-size="8" text-anchor="middle" dominant-baseline="central" font-family="Courier New">CAP</text>
+          <text x="580" y="229" fill="#2A3A5A" font-size="8" text-anchor="middle" font-family="Courier New">Cap. Bank</text>
+          <text x="580" y="237" fill="#2A3A5A" font-size="7" text-anchor="middle" font-family="Courier New">4kWh</text>
+        </g>
+
+        <!-- 10kV Ring — locked -->
+        <g opacity=".25">
+          <circle cx="340" cy="288" r="15" fill="#0D1425" stroke="#1A2540" stroke-dasharray="3 3"/>
+          <text x="340" y="288" fill="#1A2540" font-size="10" text-anchor="middle" dominant-baseline="central">🔒</text>
+          <text x="340" y="308" fill="#1A2540" font-size="8" text-anchor="middle" font-family="Courier New">10kV Ring</text>
+        </g>
+
+        <!-- BESS — locked -->
+        <g opacity=".2">
+          <circle cx="540" cy="288" r="14" fill="#0D1425" stroke="#1A2540" stroke-dasharray="3 3"/>
+          <text x="540" y="288" fill="#1A2540" font-size="10" text-anchor="middle" dominant-baseline="central">🔒</text>
+          <text x="540" y="307" fill="#1A2540" font-size="8" text-anchor="middle" font-family="Courier New">BESS</text>
+        </g>
+
+        <!-- LV 0.4kV — locked -->
+        <g opacity=".18">
+          <circle cx="260" cy="375" r="13" fill="#0D1425" stroke="#1A2540" stroke-dasharray="3 3"/>
+          <text x="260" y="375" fill="#1A2540" font-size="10" text-anchor="middle" dominant-baseline="central">🔒</text>
+          <text x="260" y="393" fill="#1A2540" font-size="8" text-anchor="middle" font-family="Courier New">0.4kV LV</text>
+        </g>
+
+        <!-- Smart Meter — locked -->
+        <g opacity=".18">
+          <circle cx="460" cy="375" r="13" fill="#0D1425" stroke="#1A2540" stroke-dasharray="3 3"/>
+          <text x="460" y="375" fill="#1A2540" font-size="10" text-anchor="middle" dominant-baseline="central">🔒</text>
+          <text x="460" y="393" fill="#1A2540" font-size="8" text-anchor="middle" font-family="Courier New">Smart Meter</text>
+        </g>
+
+        <!-- Stability bar at bottom -->
+        <rect x="10" y="464" width="880" height="1" fill="#1A2540"/>
+        <rect x="10" y="468" width="335" height="5" fill="#1A2540" rx="2"/>
+        <rect x="10" y="468" width="127" height="5" fill="#F5B942" rx="2"/>
+        <text x="18" y="461" class="tier-lbl" font-size="8">GRID STABILITY  38% / 110%  ▓▓▓░░░░░░░░░░░</text>
+      </svg>
+
+      <!-- Dispatcher panel -->
+      <div class="disp-panel" id="dispPanel">
+        <div class="disp-hdr">
+          <div class="disp-ava">⚡</div>
+          <div class="disp-name">The Dispatcher</div>
+        </div>
+        <div class="disp-text">"The 330/110kV substation is showing thermal stress from the Evening Peak. Get the 110/35kV transformer online before the next event cycle or that sub is going offline."</div>
+        <span class="disp-dismiss" onclick="document.getElementById('dispPanel').style.display='none'">Got it →</span>
+      </div>
+    </div>
+
+    <!-- Right panel -->
+    <div class="right-panel">
+      <div class="rp-section">
+        <div class="rp-title">Active Region</div>
+        <div class="rp-head">Lithuania — BRELL Exit</div>
+        <div class="rp-body">BRELL desynchronisation in 88 days. Grid critically unstable. Priority: sub-transmission online before winter.</div>
+      </div>
+      <div class="rp-section">
+        <div class="rp-title">Dispatch Calls</div>
+        <div class="dc-item active-call" onclick="openModal('dispatch')">
+          <div class="dc-num">CALL #02 · ACTIVE</div>
+          <div class="dc-name">Building the Backbone</div>
+        </div>
+        <div class="dc-item" style="opacity:.45;cursor:default">
+          <div class="dc-num">CALL #03 · LOCKED</div>
+          <div class="dc-name">The Last Winter on BRELL</div>
+        </div>
+        <div class="dc-item" style="opacity:.25;cursor:default">
+          <div class="dc-num">CALL #04 · LOCKED</div>
+          <div class="dc-name">Distribution or Darkness</div>
+        </div>
+      </div>
+      <div class="rp-section">
+        <div class="rp-title">Grid Incidents <span class="inc-badge">1</span></div>
+        <div class="inc-row" onclick="openModal('incident')">
+          <div class="inc-tag">⚠ WARNING · 330/110kV Sub</div>
+          <div class="inc-desc">Thermal stress — 61% capacity</div>
+          <div class="inc-meta">Repair: 1.2 kWh · 41h window</div>
+        </div>
+      </div>
+      <div class="stab-section">
+        <div class="rp-title">Grid Stability</div>
+        <div class="stab-num">38%</div>
+        <div class="stab-tier">Critical</div>
+        <div class="stab-track"><div class="stab-fill"></div></div>
+        <div class="stab-ticks"><span>0</span><span>25</span><span>50</span><span>75</span><span>110%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Asset Deck -->
+  <div class="asset-deck">
+    <div class="deck-lbl">Deploy</div>
+    <div class="asset-card avail">
+      <div class="ac-tier" style="color:#2AA9FF">T2 · 110kV</div>
+      <div class="ac-name">110/35kV Power Transformer</div>
+      <div class="ac-cost">4.0 kWh <span>← 4.20 avail</span></div>
+    </div>
+    <div class="asset-card avail">
+      <div class="ac-tier" style="color:#2AA9FF">T2 · 110kV</div>
+      <div class="ac-name">110kV Underground Cable</div>
+      <div class="ac-cost">5.0 kWh</div>
+    </div>
+    <div class="asset-card" style="opacity:.38">
+      <div class="ac-tier" style="color:#3A5A8A">T3 · 35kV</div>
+      <div class="ac-name">35kV Distribution Sub</div>
+      <div class="ac-cost">3.0 kWh <span style="color:#6080A0">· locked</span></div>
+    </div>
+    <div class="asset-card" style="opacity:.28">
+      <div class="ac-tier" style="color:#3A4A6A">T4 · 10kV</div>
+      <div class="ac-name">10kV Ring Main Network</div>
+      <div class="ac-cost">4.0 kWh <span style="color:#6080A0">· locked</span></div>
+    </div>
+    <div class="asset-card" style="opacity:.2">
+      <div class="ac-tier" style="color:#2A3A5A">T5 · BESS</div>
+      <div class="ac-name">Battery Energy Storage</div>
+      <div class="ac-cost">8.0 kWh</div>
+    </div>
+    <div class="asset-card" style="background:#0A1A0A;border-color:#2A5A3A;opacity:.55">
+      <div class="ac-tier" style="color:#00D084">LT · Special</div>
+      <div class="ac-name">Kruonis Pumped-Storage</div>
+      <div class="ac-cost">12.0 kWh</div>
+    </div>
+    <div class="asset-card" style="opacity:.2">
+      <div class="ac-tier" style="color:#2A3A5A">T1 · HVDC</div>
+      <div class="ac-name">NordBalt Cable</div>
+      <div class="ac-cost">15.0 kWh</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ PROFILE SCREEN ════════════════ -->
+<div id="screen-profile" class="screen">
+  <div class="prof-left">
+    <div class="prof-name">Alex K.</div>
+    <div class="prof-title">Grid Engineer</div>
+    <div class="prof-level">Level 14 · 4,820 Grid Score</div>
+
+    <div class="char-vp">
+      <div class="char-fig">
+        <div class="char-head">
+          <div class="char-helmet"></div>
+          <div class="char-light"></div>
+        </div>
+        <div class="char-body">
+          <div class="char-vest"></div>
+          <div class="char-tablet"><div class="char-tablet-screen"></div></div>
+        </div>
+      </div>
+      <div class="char-platform"></div>
+      <div class="char-light-overlay"></div>
+      <div class="char-lv">Lv. 14</div>
+    </div>
+
+    <div class="xp-wrap">
+      <div class="xp-hdr"><span>XP Progress</span><span>72% → Lv.15</span></div>
+      <div class="xp-track"><div class="xp-fill"></div></div>
+    </div>
+
+    <div class="equip-title">Equipment</div>
+    <div class="equip-grid">
+      <div class="eq-slot on" title="Dispatcher Comms">🎧</div>
+      <div class="eq-slot on" title="Lithuania Patch">🇱🇹</div>
+      <div class="eq-slot on" title="Incident Badge">🔧</div>
+      <div class="eq-slot on" title="Clean Record" style="border-color:#00D084;box-shadow:0 0 8px rgba(0,208,132,.2)">✨</div>
+      <div class="eq-slot off"><span class="lk">🔒</span></div>
+      <div class="eq-slot off"><span class="lk">🔒</span></div>
+      <div class="eq-slot off"><span class="lk">🔒</span></div>
+      <div class="eq-slot off"><span class="lk">🔒</span></div>
+    </div>
+  </div>
+
+  <div class="prof-right">
+    <div class="stats-hdr">Engineer Record</div>
+    <div class="stat-row"><span class="stat-n">Regions stabilised</span><span class="stat-v sv-g">1 / 5</span></div>
+    <div class="stat-row"><span class="stat-n">Current stability (Lithuania)</span><span class="stat-v sv-a">38%</span></div>
+    <div class="stat-row"><span class="stat-n">Peak stability achieved</span><span class="stat-v sv-g">108%</span></div>
+    <div class="stat-row"><span class="stat-n">Incidents resolved</span><span class="stat-v sv-b">23</span></div>
+    <div class="stat-row"><span class="stat-n">Incidents missed</span><span class="stat-v sv-m">2</span></div>
+    <div class="stat-row"><span class="stat-n">Blackouts experienced</span><span class="stat-v sv-g">0 ✓</span></div>
+    <div class="stat-row"><span class="stat-n">Grid Score</span><span class="stat-v sv-b">4,820</span></div>
+    <div class="stat-row"><span class="stat-n">Total kWh earned</span><span class="stat-v sv-a">84.2 kWh</span></div>
+    <div class="stat-row"><span class="stat-n">Learning streak</span><span class="stat-v sv-g">14 days 🔥</span></div>
+    <div class="stat-row"><span class="stat-n">Theory modules completed</span><span class="stat-v sv-b">28 / 64</span></div>
+    <div class="stat-row"><span class="stat-n">Missions completed</span><span class="stat-v sv-a">5 / 12</span></div>
+
+    <div class="regions-ttl">Regions</div>
+    <div class="reg-badges">
+      <div class="reg-badge"><div class="reg-flag">🇱🇹</div><div class="reg-rname">Lithuania</div><div class="reg-stab">38% →</div></div>
+      <div class="reg-badge lk"><div class="reg-flag">🇸🇪</div><div class="reg-rname">Nordic</div><div class="reg-stab" style="color:#2A3A5A">Locked</div></div>
+      <div class="reg-badge lk"><div class="reg-flag">🇬🇧</div><div class="reg-rname">UK Offshore</div><div class="reg-stab" style="color:#2A3A5A">Locked</div></div>
+      <div class="reg-badge lk"><div class="reg-flag">🇺🇸</div><div class="reg-rname">California</div><div class="reg-stab" style="color:#2A3A5A">Locked</div></div>
+      <div class="reg-badge lk"><div class="reg-flag">🤠</div><div class="reg-rname">Texas ERCOT</div><div class="reg-stab" style="color:#2A3A5A">???</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ INCIDENT MODAL ════════════ -->
+<div id="modal-incident" class="modal-bg" onclick="if(event.target===this)closeModal('incident')">
+  <div class="inc-modal">
+    <div class="inc-m-hdr">
+      <div class="inc-m-ico">⚠️</div>
+      <div>
+        <div class="inc-m-title">Transformer Thermal Stress</div>
+        <div class="inc-m-asset">330/110kV Autotransformer Substation</div>
+      </div>
+    </div>
+    <div class="disp-quote">"Thermal sensors on the 330/110kV autotransformer are reading 94°C — 12° over nominal. Evening Peak is pushing load through a unit not rated for sustained overload. You've got 41 hours before it trips offline."</div>
+    <div class="concept-box">
+      <div class="concept-ttl">What's happening</div>
+      <div class="concept-txt">Autotransformers share a common winding between primary and secondary circuits. Sustained overload causes copper losses to generate heat beyond the oil's thermal capacity — eventually triggering the protection relay and taking the unit offline.</div>
+    </div>
+    <div class="inc-stats">
+      <div class="inc-stat"><div class="ist-lbl">Health</div><div class="ist-val" style="color:#F5B942">61%</div></div>
+      <div class="inc-stat"><div class="ist-lbl">Repair Cost</div><div class="ist-val" style="color:#00D4FF">1.2 kWh</div></div>
+      <div class="inc-stat"><div class="ist-lbl">Window</div><div class="ist-val" style="color:#FF6B35">41h 12m</div></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-main" onclick="closeModal('incident')">Repair — 1.2 kWh</button>
+      <button class="btn-sec"  onclick="closeModal('incident')">Later</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ DISPATCH CALL MODAL ════════════ -->
+<div id="modal-dispatch" class="modal-bg" onclick="if(event.target===this)closeModal('dispatch')">
+  <div class="dc-modal">
+    <div class="dc-m-num">📻 Dispatch Call #02</div>
+    <div class="dc-m-title">"Building the Backbone"</div>
+    <div class="dc-quote-box">
+      <div class="dc-ava">⚡</div>
+      <div class="dc-quote-txt">"330kV backbone is live. Good. But we're moving bulk power with nowhere for it to go — the 110kV tier is completely dark. No 330/110kV transformer means no regional distribution. The whole system is a dead end past the transmission line. Fix that."</div>
+    </div>
+    <div class="dc-concept">
+      <div class="dc-concept-lbl">What you're building</div>
+      <div class="dc-concept-txt">The 330/110kV autotransformer substation is the gateway between transmission and distribution. Without it, high-voltage bulk power has no route into the regional network — towns and consumers below 110kV remain de-energised regardless of what's on the transmission side.</div>
+      <span class="dc-concept-lnk">→ Power Transformers module</span>
+    </div>
+    <div class="dc-objs">
+      <div class="dc-obj-lbl">Objectives</div>
+      <div class="dc-obj">Deploy the 330/110kV Autotransformer Substation</div>
+      <div class="dc-obj">Deploy one 110kV Switching Substation</div>
+      <div class="dc-obj">Maintain stability above 45% through the next event cycle</div>
+    </div>
+    <div class="dc-reward">
+      <span class="rew-i">+1.2 kWh</span>
+      <span class="rew-sep">·</span>
+      <span class="rew-i" style="color:#9C6BFF">+150 Grid Score</span>
+      <span class="rew-sep">·</span>
+      <span class="rew-i" style="color:#00D084">Unlocks Tier 3</span>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-blue" onclick="closeModal('dispatch')">Accept Mission</button>
+      <button class="btn-sec"  onclick="closeModal('dispatch')">Later</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showScreen(name, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.top-nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+function openModal(name)  { document.getElementById('modal-' + name).classList.add('open'); }
+function closeModal(name) { document.getElementById('modal-' + name).classList.remove('open'); }
+</script>
+</body>
+</html>

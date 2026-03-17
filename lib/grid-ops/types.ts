@@ -1,4 +1,35 @@
-export type GridOpsScenarioId = 'iberia_v1';
+export type GridOpsScenarioId =
+  | 'lithuania_v1'
+  | 'iberia_v1'
+  | 'nordic_v1'
+  | 'germany_v1'
+  | 'europe_v1';
+
+// ─── Campaign ──────────────────────────────────────────────────────────────────
+
+export interface GridOpsCampaignScenario {
+  id: GridOpsScenarioId;
+  order: number;
+  name: string;        // "Lithuania"
+  subtitle: string;    // "Baltic Grid Crisis"
+  description: string;
+  flag: string;        // emoji flag
+  completionThreshold: number; // stability_pct required to complete
+  unlockAfter: GridOpsScenarioId | null; // null = always unlocked (first mission)
+}
+
+export type GridOpsCampaignState = 'locked' | 'available' | 'in_progress' | 'completed';
+
+export interface GridOpsCampaignScenarioProgress {
+  scenario: GridOpsCampaignScenario;
+  state: GridOpsCampaignState;
+  stability_pct: number | null; // null if not started
+  deployed_count: number;
+}
+
+export interface GridOpsCampaignView {
+  scenarios: GridOpsCampaignScenarioProgress[];
+}
 
 export type GridOpsAssetCategory =
   | 'monitoring'
@@ -110,6 +141,7 @@ export interface GridOpsStateRow {
   last_deployed_asset_id: string | null;
   spent_units: number;
   scenario_seed: number;
+  completed_dispatch_call_ids: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -150,6 +182,7 @@ export interface GridOpsNodeView {
   visual_icon?: GridOpsVisualIcon;
   importance?: GridOpsNodeImportance;
   micro_indicator?: GridOpsMicroIndicator;
+  health_pct?: number; // undefined = healthy; 75=warning, 50=critical, 20=offline
 }
 
 export interface GridOpsEdgeView {
@@ -161,11 +194,16 @@ export interface GridOpsEdgeView {
   tier?: 'backbone' | 'secondary';
 }
 
+export type GridOpsRegionStatus = 'inactive' | 'active' | 'threatened' | 'dark';
+
 export interface GridOpsRegionView {
   id: string;
   name: string;
   activationThreshold: number;
   active: boolean;
+  status: GridOpsRegionStatus;
+  asset_ids: string[];   // deployed assets currently in this region
+  threat_count: number;  // active incidents in this region
 }
 
 export interface GridOpsAssetView {
@@ -214,6 +252,8 @@ export interface GridOpsComputedState {
     next_best_action: GridOpsRecommendation;
   };
   active_synergy_ids: string[];
+  incidents: GridOpsIncidentView[];
+  dispatch_calls: GridOpsDispatchCallView[];
 }
 
 export type GridOpsDeployErrorCode =
@@ -226,4 +266,57 @@ export interface GridOpsDeployValidationResult {
   ok: boolean;
   errorCode?: GridOpsDeployErrorCode;
   message?: string;
+}
+
+// ─── Incident System ──────────────────────────────────────────────────────────
+
+export type GridOpsIncidentType =
+  | 'voltage_fluctuation'
+  | 'frequency_instability'
+  | 'transformer_overload'
+  | 'forecasting_gap'
+  | 'reserve_shortage'
+  | 'cascade_risk'
+  | 'communication_loss';
+
+export type GridOpsIncidentSeverity = 'warning' | 'critical' | 'offline';
+
+/** Raw DB row from the `incidents` table. */
+export interface GridOpsIncidentRow {
+  id: string;
+  user_id: string;
+  scenario_id: string;
+  asset_id: string;
+  incident_type: GridOpsIncidentType;
+  severity: GridOpsIncidentSeverity;
+  health_penalty_pct: number;
+  repair_cost_units: number;
+  started_at: string;
+  escalates_at: string | null;
+  resolved_at: string | null;
+}
+
+/** Computed view embedded in GridOpsComputedState. */
+export interface GridOpsIncidentView {
+  id: string;
+  asset_id: string;
+  asset_name: string;
+  incident_type: GridOpsIncidentType;
+  severity: GridOpsIncidentSeverity;
+  health_pct: number; // 75=warning, 50=critical, 20=offline
+  repair_cost_units: number;
+  dispatcher_message: string;
+  started_at: string;
+  escalates_at: string | null;
+}
+
+// ─── Dispatch Calls ───────────────────────────────────────────────────────────
+
+export interface GridOpsDispatchCallView {
+  id: string;
+  title: string;
+  summary: string;
+  dialogue: string[];
+  reward_units: number;
+  completed: boolean;
 }

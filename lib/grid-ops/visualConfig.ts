@@ -10,7 +10,7 @@ import type {
 export const GRID_VISUAL_TOKENS = {
   gridBgDark: '#071A14',
   accentGreen: '#00D084',
-  accentBlue: '#2AA9FF',
+  accentBlue: '#00E5FF',
   accentAmber: '#F5B942',
   accentRed: '#FF4D4F',
   accentPurple: '#9C6BFF',

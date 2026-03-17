@@ -60,10 +60,11 @@ const insertGridOpsState = async ({
       deployed_asset_ids: row.deployed_asset_ids,
       last_deployed_asset_id: row.last_deployed_asset_id,
       spent_units: row.spent_units,
-      scenario_seed: row.scenario_seed
+      scenario_seed: row.scenario_seed,
+      completed_dispatch_call_ids: row.completed_dispatch_call_ids ?? []
     })
     .select(
-      'user_id,scenario_id,turn_index,deployed_asset_ids,last_deployed_asset_id,spent_units,scenario_seed,created_at,updated_at'
+      'user_id,scenario_id,turn_index,deployed_asset_ids,last_deployed_asset_id,spent_units,scenario_seed,completed_dispatch_call_ids,created_at,updated_at'
     )
     .single();
 
@@ -90,7 +91,7 @@ const fetchGridOpsStateRow = async ({
   const { data, error } = await supabase
     .from('grid_ops_state')
     .select(
-      'user_id,scenario_id,turn_index,deployed_asset_ids,last_deployed_asset_id,spent_units,scenario_seed,created_at,updated_at'
+      'user_id,scenario_id,turn_index,deployed_asset_ids,last_deployed_asset_id,spent_units,scenario_seed,completed_dispatch_call_ids,created_at,updated_at'
     )
     .eq('user_id', userId)
     .eq('scenario_id', scenarioId)
@@ -144,7 +145,8 @@ export const ensureGridOpsState = async ({
     deployed_asset_ids: fallbackDeployedAssetIds,
     last_deployed_asset_id: lastDeployedAssetId,
     spent_units: computeSpentUnits(fallbackDeployedAssetIds),
-    scenario_seed: 1
+    scenario_seed: 1,
+    completed_dispatch_call_ids: []
   };
 
   const inserted = await insertGridOpsState({

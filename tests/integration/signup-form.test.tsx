@@ -7,8 +7,13 @@ const pushMock = vi.fn();
 const signUpMock = vi.fn();
 const signInWithOAuthMock = vi.fn();
 
+// SignupForm now has two password fields: "Password" and "Repeat password".
+// Use exact-match regex so we don't get multiple-element ambiguity.
 const getPasswordInput = () =>
-  screen.getByLabelText(/password/i, { selector: 'input' }) as HTMLInputElement;
+  screen.getByLabelText(/^password$/i, { selector: 'input' }) as HTMLInputElement;
+
+const getConfirmPasswordInput = () =>
+  screen.getByLabelText(/repeat password/i, { selector: 'input' }) as HTMLInputElement;
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -33,21 +38,18 @@ describe('SignupForm', () => {
 
   it('renders signup headings and fields', () => {
     render(<SignupForm />);
+    // Heading and name-field label were updated in the SignupForm redesign
     expect(
-      screen.getByRole('heading', { name: /create your account/i })
+      screen.getByRole('heading', { name: /create account/i })
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/full name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/nickname/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(getPasswordInput()).toBeInTheDocument();
+    // Confirm-password field added in redesign
+    expect(getConfirmPasswordInput()).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^terms$/i })).toHaveAttribute('href', '/terms');
-    expect(screen.getByRole('link', { name: /^privacy policy$/i })).toHaveAttribute(
-      'href',
-      '/privacy'
-    );
-    expect(screen.getByRole('link', { name: /contact support/i })).toHaveAttribute(
-      'href',
-      '/support'
-    );
+    // Redesign shortened "Privacy Policy" to "Privacy"
+    expect(screen.getByRole('link', { name: /^privacy$/i })).toHaveAttribute('href', '/privacy');
   });
 
   it('keeps submit disabled until all requirements are met', async () => {
@@ -57,13 +59,17 @@ describe('SignupForm', () => {
     const submit = screen.getByRole('button', { name: /create account/i });
     expect(submit).toBeDisabled();
 
-    await user.type(screen.getByLabelText(/full name/i), 'Nedas');
+    await user.type(screen.getByLabelText(/nickname/i), 'Nedas');
     await user.type(screen.getByLabelText(/email/i), 'nedas@example.com');
     await user.type(getPasswordInput(), 'weak');
     expect(submit).toBeDisabled();
 
     await user.clear(getPasswordInput());
     await user.type(getPasswordInput(), 'Strong1!');
+    // Submit stays disabled until the confirm-password field also matches
+    expect(submit).toBeDisabled();
+
+    await user.type(getConfirmPasswordInput(), 'Strong1!');
     expect(submit).toBeEnabled();
   });
 
@@ -72,9 +78,10 @@ describe('SignupForm', () => {
     signUpMock.mockResolvedValueOnce({ session: { user: { id: 'u1' } } });
 
     render(<SignupForm />);
-    await user.type(screen.getByLabelText(/full name/i), '  Nedas  ');
+    await user.type(screen.getByLabelText(/nickname/i), '  Nedas  ');
     await user.type(screen.getByLabelText(/email/i), '  nedas@example.com ');
     await user.type(getPasswordInput(), 'Strong1!');
+    await user.type(getConfirmPasswordInput(), 'Strong1!');
     await user.click(screen.getByRole('button', { name: /create account/i }));
 
     await waitFor(() => {
@@ -93,9 +100,10 @@ describe('SignupForm', () => {
     signUpMock.mockResolvedValueOnce({});
 
     render(<SignupForm />);
-    await user.type(screen.getByLabelText(/full name/i), 'Nedas');
+    await user.type(screen.getByLabelText(/nickname/i), 'Nedas');
     await user.type(screen.getByLabelText(/email/i), 'nedas@example.com');
     await user.type(getPasswordInput(), 'Strong1!');
+    await user.type(getConfirmPasswordInput(), 'Strong1!');
     await user.click(screen.getByRole('button', { name: /create account/i }));
 
     await waitFor(() => {

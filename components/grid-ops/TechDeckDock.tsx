@@ -32,7 +32,7 @@ export function TechDeckDock({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(144,216,196,0.12),transparent_24%)]" />
 
       <div className="relative mb-2 flex items-center justify-between gap-3">
-        <p className="text-lg font-semibold uppercase tracking-[0.12em] text-[#9fb0ca]">Tech Deck</p>
+        <p className="text-[0.8rem] font-semibold text-[#9fb0ca]">Infrastructure</p>
 
         <button
           type="button"
@@ -67,8 +67,8 @@ export function TechDeckDock({
           showModelPreviews={showModelPreviews}
         />
       ) : (
-        <div className="relative rounded-[20px] border border-white/8 bg-black/20 px-3 py-2.5 text-sm text-[#c6d3e6] backdrop-blur-sm">
-          Deck collapsed for map focus. Expand to review and deploy infrastructure.
+        <div className="relative rounded-[20px] border border-white/8 bg-black/20 px-3 py-2.5 text-[0.8rem] text-[#7a8da5] backdrop-blur-sm">
+          Expand to deploy infrastructure.
         </div>
       )}
     </section>

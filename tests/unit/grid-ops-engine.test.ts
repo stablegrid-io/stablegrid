@@ -16,7 +16,8 @@ const baseRow: GridOpsStateRow = {
   deployed_asset_ids: ['control-center'],
   last_deployed_asset_id: null,
   spent_units: 0,
-  scenario_seed: 1
+  scenario_seed: 1,
+  completed_dispatch_call_ids: []
 };
 
 describe('grid-ops engine', () => {

@@ -157,7 +157,7 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     name: 'AI Grid Optimizer',
     icon: 'A',
     kwhRequired: 18,
-    stabilityImpactPct: 25,
+    stabilityImpactPct: 14,
     function: 'Autonomous predictive balancing',
     unlocks: 'Mission 005: The Ghost Regulator',
     position: { x: 900, y: 180 },
@@ -257,3 +257,80 @@ export const getNextInfrastructureNode = (deployedNodeIds: string[]) => {
     INFRASTRUCTURE_NODES.find((node) => !deployedNodeIds.includes(node.id)) ?? null
   );
 };
+
+// ── Level System ─────────────────────────────────────────────────────────────
+
+export type CharacterTierId = 'cadet' | 'engineer' | 'architect' | 'commander';
+
+export interface LevelDefinition {
+  level: number; // 1–50
+  title: string;
+  tier: CharacterTierId;
+  cumulativeUnitsRequired: number;
+}
+
+// Quadratic XP curve: LEVEL_BASE * (level-1)^LEVEL_EXPONENT
+// Level 5 ≈ 5k cumulative, Level 20 ≈ 68k, Level 50 ≈ 720k
+const LEVEL_BASE_UNITS = 400;
+const LEVEL_EXPONENT = 1.85;
+
+export const LEVEL_TABLE: LevelDefinition[] = (() => {
+  let cumulative = 0;
+  return Array.from({ length: 50 }, (_, i) => {
+    const level = i + 1;
+    const required =
+      level === 1 ? 0 : Math.round(LEVEL_BASE_UNITS * Math.pow(level - 1, LEVEL_EXPONENT));
+    cumulative += required;
+    const title =
+      level <= 5
+        ? 'Grid Cadet'
+        : level <= 10
+          ? 'Grid Technician'
+          : level <= 20
+            ? 'Grid Engineer'
+            : level <= 30
+              ? 'Senior Engineer'
+              : level <= 40
+                ? 'Grid Architect'
+                : level <= 49
+                  ? 'Principal Engineer'
+                  : 'Grid Commander';
+    const tier: CharacterTierId =
+      level <= 10 ? 'cadet' : level <= 30 ? 'engineer' : level <= 49 ? 'architect' : 'commander';
+    return { level, title, tier, cumulativeUnitsRequired: cumulative };
+  });
+})();
+
+export const TIER_COLORS: Record<CharacterTierId, { primary: string; glow: string }> = {
+  cadet: { primary: '#5ba3f5', glow: 'rgba(91,163,245,0.35)' },
+  engineer: { primary: '#22b999', glow: 'rgba(34,185,153,0.35)' },
+  architect: { primary: '#f5b942', glow: 'rgba(245,185,66,0.35)' },
+  commander: { primary: '#c0392b', glow: 'rgba(192,57,43,0.40)' }
+};
+
+export function getLevelFromUnits(totalUnits: number): LevelDefinition {
+  for (let i = LEVEL_TABLE.length - 1; i >= 0; i--) {
+    if (totalUnits >= LEVEL_TABLE[i].cumulativeUnitsRequired) return LEVEL_TABLE[i];
+  }
+  return LEVEL_TABLE[0];
+}
+
+export function getLevelProgress(totalUnits: number): {
+  current: LevelDefinition;
+  next: LevelDefinition | null;
+  progressPct: number;
+  unitsNeededForNext: number;
+} {
+  const current = getLevelFromUnits(totalUnits);
+  // LEVEL_TABLE is 0-indexed; current.level is 1-indexed → LEVEL_TABLE[current.level] is the next entry
+  const next = LEVEL_TABLE[current.level] ?? null;
+  if (!next) return { current, next: null, progressPct: 100, unitsNeededForNext: 0 };
+  const bandSize = next.cumulativeUnitsRequired - current.cumulativeUnitsRequired;
+  const progress = totalUnits - current.cumulativeUnitsRequired;
+  return {
+    current,
+    next,
+    progressPct: Math.min(100, Math.round((progress / bandSize) * 100)),
+    unitsNeededForNext: Math.max(0, bandSize - progress)
+  };
+}

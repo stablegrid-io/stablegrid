@@ -2,10 +2,10 @@
 
 import {
   type LucideIcon,
-  BarChart3,
   BookOpen,
   ClipboardCheck,
   Home,
+  User,
   Zap
 } from 'lucide-react';
 
@@ -31,7 +31,7 @@ export const navItems: NavItem[] = [
     matchPrefixes: ['/tasks', '/practice', '/missions', '/flashcards']
   },
   { href: '/energy', icon: Zap, label: 'Grid' },
-  { href: '/progress', icon: BarChart3, label: 'HRB' }
+  { href: '/progress', icon: User, label: 'Character' }
 ];
 
 export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
