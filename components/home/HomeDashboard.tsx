@@ -440,20 +440,6 @@ export const HomeDashboard = ({
         </section>
       </div>
 
-      {/* Footer shell */}
-      <footer className="h-7 border-t border-outline-variant/20 flex items-center justify-between px-4 bg-surface-dim flex-shrink-0">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <span className="text-[8px] font-mono text-primary font-bold">SYSTEM_LOGS</span>
-          <div className="h-3 w-[1px] bg-outline-variant/30" />
-          <span className="text-[8px] font-mono text-on-surface-variant">
-            <span className="text-primary">INFO</span> :: Neural buffer synchronized.
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-1.5 h-1.5 bg-primary animate-pulse" />
-          <span className="text-[8px] font-mono text-primary tracking-widest uppercase">NEURAL_LINK: ACTIVE</span>
-        </div>
-      </footer>
     </div>
   );
 };
