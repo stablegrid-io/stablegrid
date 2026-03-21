@@ -28,7 +28,7 @@ export const navItems: NavItem[] = [
   {
     href: '/assignments',
     icon: ClipboardCheck,
-    label: 'Tasks',
+    label: 'Operations',
     matchPrefixes: ['/assignments', '/tasks', '/practice', '/missions', '/flashcards']
   },
   { href: '/energy', icon: Zap, label: 'Grid', disabled: true },
