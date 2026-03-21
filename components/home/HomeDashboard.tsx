@@ -202,175 +202,227 @@ export const HomeDashboard = ({
   })();
   return (
     <div className="relative min-h-screen pb-24 lg:pb-10">
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col px-4 pb-16 pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
-        {/* Hero section — XP, Level, Role */}
-        <section className="mb-8 flex flex-col items-center justify-center py-10 border border-primary/10 glass-panel relative overflow-hidden bg-gradient-to-b from-surface-container-low to-background">
-          <div className="relative w-full max-w-3xl flex flex-col items-center justify-center">
-            {/* Decorative rings — animated */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[280px] h-[280px] border border-primary/5 rounded-full absolute animate-[spin_60s_linear_infinite]" />
-              <div className="w-[200px] h-[200px] border border-primary/10 rounded-full absolute border-dashed animate-[spin_45s_linear_infinite_reverse]" />
-              <div className="w-[340px] h-[340px] bg-primary/5 blur-[80px] rounded-full absolute animate-[pulse_6s_ease-in-out_infinite]" />
-            </div>
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col px-4 pb-16 pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-4">
 
-            <div className="relative flex items-center justify-center w-full min-h-[180px]">
-              {/* Central node — animated */}
-              <div className="relative z-10 w-40 h-40 flex items-center justify-center">
-                <div className="relative w-20 h-20 flex items-center justify-center animate-[spin_30s_linear_infinite]">
-                  <div className="absolute w-16 h-16 border-2 border-primary rotate-[30deg] opacity-80 shadow-[0_0_15px_#00F2FF]" />
-                  <div className="absolute w-16 h-16 border-2 border-primary/50 rotate-[-30deg]" />
-                  <div className="absolute w-8 h-8 bg-primary/20 backdrop-blur-sm border border-primary animate-pulse" />
-                </div>
-                {/* Cross-hair lines — static */}
-                <div className="absolute w-[120px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent rotate-45" />
-                <div className="absolute w-[120px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent -rotate-45" />
-                <div className="absolute h-[120px] w-[1px] bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
-                {/* Floating neural nodes */}
-                <div className="absolute -top-8 -left-8 w-2 h-2 bg-primary neural-node animate-[pulse_3s_ease-in-out_infinite]" />
-                <div className="absolute -bottom-6 -right-10 w-1.5 h-1.5 bg-primary/80 neural-node animate-[pulse_4s_ease-in-out_infinite_0.5s]" />
-                <div className="absolute top-10 -right-8 w-2 h-2 bg-primary neural-node animate-[pulse_3.5s_ease-in-out_infinite_1s]" />
-
-                {/* XP display */}
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                  <div className="text-[8px] font-mono text-primary/60 tracking-[0.4em] uppercase mb-0.5">XP_SYNC</div>
-                  <div className="text-2xl font-headline font-black text-primary drop-shadow-[0_0_10px_rgba(0,242,255,0.5)]">
-                    {stats.totalXp.toLocaleString()}
-                  </div>
-                </div>
-
-                {/* Left stat — Streak */}
-                <div className="absolute top-1/2 -left-36 -translate-y-1/2 text-right hidden lg:block">
-                  <div className="border-r border-primary/30 pr-3 py-1">
-                    <div className="text-[8px] font-mono text-primary/50 tracking-widest uppercase">Streak</div>
-                    <div className="text-base font-headline font-bold text-on-surface">
-                      {stats.currentStreak} days
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right stat — Progress */}
-                <div className="absolute top-1/2 -right-36 -translate-y-1/2 text-left hidden lg:block">
-                  <div className="border-l border-primary/30 pl-3 py-1">
-                    <div className="text-[8px] font-mono text-primary/50 tracking-widest uppercase">Progress</div>
-                    <div className="text-base font-headline font-bold text-primary">
-                      {overallProgress}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Segmented progress bar */}
-          <div className="max-w-md mx-auto w-full mt-6 px-6 relative z-10">
-            <div className="flex gap-1 h-1.5">
-              {Array.from({ length: 12 }, (_, i) => (
-                <div
-                  key={i}
-                  className={`flex-1 ${i < Math.round((overallProgress / 100) * 12) ? 'bg-primary' : 'bg-white/5'}`}
-                />
+        {/* Top stats bar */}
+        <div className="flex flex-wrap items-center gap-6 mb-6 border-b border-outline-variant/20 pb-4">
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-[9px] text-on-surface-variant uppercase">SYSTEM_LVL</span>
+            <span className="font-headline text-2xl font-black text-on-surface">
+              {Math.floor(stats.totalXp / 1000)}
+            </span>
+            <div className="flex gap-0.5">
+              {Array.from({ length: 4 }, (_, i) => (
+                <div key={i} className={`w-1 h-4 ${i < Math.min(4, Math.floor(stats.totalXp / 2500)) ? 'bg-primary' : 'bg-surface-container-highest'}`} />
               ))}
             </div>
-            <div className="flex justify-between mt-2 font-mono text-[8px] text-primary/40 uppercase tracking-widest">
-              <span>{firstName}&apos;s progress</span>
-              <span>{stats.totalXp.toLocaleString()} XP total</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[9px] text-on-surface-variant uppercase">XP_TOTAL</span>
+            <span className="font-headline text-2xl font-black text-on-surface">
+              {stats.totalXp.toLocaleString()}
+            </span>
+            <span className="font-mono text-sm text-on-surface-variant">/ {((Math.floor(stats.totalXp / 10000) + 1) * 10000).toLocaleString()}</span>
+          </div>
+          <div className="ml-auto hidden lg:flex items-center gap-6">
+            <div>
+              <span className="font-mono text-[8px] text-on-surface-variant uppercase block">CURRENT_TITLE</span>
+              <span className="font-headline text-sm font-bold text-on-surface uppercase">{firstName}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[8px] text-on-surface-variant uppercase">STREAK_ACTIVE</span>
+              <span className="font-headline text-sm font-bold text-primary">{stats.currentStreak}_DAYS</span>
             </div>
           </div>
+        </div>
 
-          <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-        </section>
+        {/* 3-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_280px] gap-6">
 
-        {/* Theory + Assignments cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Theory card */}
-          <Link
-            href={theoryAction.href}
-            className="glass-panel border border-primary/10 p-8 flex flex-col h-full group relative overflow-hidden transition-all hover:border-primary/30"
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-1.5 h-1.5 bg-primary shadow-[0_0_5px_#99f7ff]" />
-              <span className="font-mono text-[10px] text-primary/60 tracking-widest uppercase">
-                Theory
-              </span>
+          {/* Left: Theory Tree */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-headline text-sm font-bold text-on-surface uppercase tracking-wider">THEORY_TREE</h2>
+              <span className="font-mono text-[9px] text-on-surface-variant">[MOD: {recommendedTopic.theoryCompleted}/{recommendedTopic.theoryTotal}]</span>
             </div>
 
-            <h3 className="font-headline font-bold text-2xl text-on-surface mb-2">
-              {theoryTrackLabel}
-            </h3>
-            <p className="text-on-surface-variant text-sm mb-8 leading-relaxed max-w-md">
-              {theoryAction.progressLine}
-            </p>
+            {topicSnapshots.map((snapshot, index) => {
+              const isActive = snapshot.topicId === moduleTopicId;
+              const isCompleted = snapshot.theoryPct >= 100;
+              const filledBars = Math.round((snapshot.theoryPct / 100) * 4);
 
-            <div className="mt-auto">
-              <div className="flex justify-between items-end mb-3">
-                <span className="font-mono text-[10px] text-primary">
-                  Progress: {theoryProgressPct}%
-                </span>
-                <span className="font-mono text-[10px] text-on-surface-variant">
-                  {theoryProgressValueLabel}
+              return (
+                <Link
+                  key={snapshot.topicId}
+                  href={`/learn/${snapshot.topicId}/theory`}
+                  className={`block border p-3 transition-all ${
+                    isActive
+                      ? 'border-primary/30 bg-primary/5'
+                      : 'border-outline-variant/15 hover:border-outline-variant/30'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-7 h-7 flex items-center justify-center border text-[10px] font-mono font-bold flex-shrink-0 ${
+                      isCompleted
+                        ? 'border-primary bg-primary/20 text-primary'
+                        : isActive
+                          ? 'border-primary/50 bg-primary/10 text-primary'
+                          : 'border-outline-variant/30 text-on-surface-variant'
+                    }`}>
+                      {isCompleted ? '✓' : isActive ? '▶' : '○'}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-mono text-[9px] text-on-surface-variant">M-{String(index + 1).padStart(2, '0')}{isActive ? ' [ACTIVE]' : ''}</div>
+                      <div className={`font-headline text-xs font-bold uppercase leading-tight ${isActive ? 'text-primary' : isCompleted ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+                        {snapshot.label}
+                      </div>
+                      {isCompleted && (
+                        <span className="font-mono text-[8px] text-primary bg-primary/10 px-1.5 py-0.5 mt-1 inline-block">SYNCED</span>
+                      )}
+                      {!isCompleted && (
+                        <div className="flex gap-0.5 mt-1.5">
+                          {Array.from({ length: 4 }, (_, i) => (
+                            <div key={i} className={`w-3 h-1 ${i < filledBars ? 'bg-primary' : 'bg-surface-container-highest'}`} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Center: Main content area */}
+          <div className="space-y-6">
+            {/* Theory resume card */}
+            <Link
+              href={theoryAction.href}
+              className="glass-panel border border-primary/10 p-6 flex flex-col group relative overflow-hidden transition-all hover:border-primary/30"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1.5 h-1.5 bg-primary shadow-[0_0_5px_#99f7ff]" />
+                <span className="font-mono text-[10px] text-primary/60 tracking-widest uppercase">
+                  ACTIVE_THEORY
                 </span>
               </div>
-              <div className="h-1 w-full bg-surface-container-highest mb-8">
-                <div
-                  className="h-full bg-primary shadow-[0_0_10px_rgba(153,247,255,0.3)] transition-all duration-500"
-                  style={{ width: `${theoryProgressPct}%` }}
-                />
+              <h3 className="font-headline font-bold text-xl text-on-surface mb-2">
+                {theoryTrackLabel}
+              </h3>
+              <p className="text-on-surface-variant text-sm mb-6 leading-relaxed">
+                {theoryAction.progressLine}
+              </p>
+              <div className="flex justify-between items-end mb-2">
+                <span className="font-mono text-[10px] text-primary">PROGRESS: {theoryProgressPct}%</span>
+                <span className="font-mono text-[10px] text-on-surface-variant">{theoryProgressValueLabel}</span>
               </div>
-              <div className="w-full bg-primary-container text-on-primary-container font-headline font-bold text-xs py-4 tracking-widest flex items-center justify-center gap-2 hover:bg-primary transition-all active:scale-[0.98] duration-150 uppercase border border-primary/20">
+              <div className="h-1 w-full bg-surface-container-highest mb-6">
+                <div className="h-full bg-primary shadow-[0_0_10px_rgba(153,247,255,0.3)] transition-all" style={{ width: `${theoryProgressPct}%` }} />
+              </div>
+              <div className="w-full bg-primary text-on-primary font-headline font-bold text-xs py-3 tracking-widest flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98] transition-all uppercase">
                 <span>{theoryAction.label}</span>
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-3.5 w-3.5" />
               </div>
-            </div>
-          </Link>
+            </Link>
 
-          {/* Assignments card */}
-          <Link
-            href={latestTaskAction.actionHref}
-            className="glass-panel border border-tertiary/10 p-8 flex flex-col h-full group relative overflow-hidden transition-all hover:border-tertiary/30"
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-1.5 h-1.5 bg-tertiary shadow-[0_0_5px_#ffc965]" />
-              <span className="font-mono text-[10px] text-tertiary/60 tracking-widest uppercase">
-                Assignments
-              </span>
-            </div>
-
-            <h3 className="font-headline font-bold text-2xl text-on-surface mb-2">
-              {latestTaskAction.title}
-            </h3>
-            <p className="text-on-surface-variant text-sm mb-8 leading-relaxed max-w-md">
-              {latestTaskAction.summary}
-            </p>
-
-            <div className="mt-auto">
-              {tasksProgressPct !== null ? (
-                <>
-                  <div className="flex justify-between items-end mb-3">
-                    <span className="font-mono text-[10px] text-tertiary">
-                      Progress: {tasksProgressPct}%
-                    </span>
-                    <span className="font-mono text-[10px] text-on-surface-variant">
-                      {latestTaskAction.statLine}
-                    </span>
-                  </div>
-                  <div className="h-1 w-full bg-surface-container-highest mb-8">
-                    <div
-                      className="h-full bg-tertiary shadow-[0_0_10px_rgba(255,201,101,0.3)] transition-all duration-500"
-                      style={{ width: `${tasksProgressPct}%` }}
-                    />
-                  </div>
-                </>
-              ) : (
-                <p className="font-mono text-[10px] text-on-surface-variant mb-8">
-                  {latestTaskAction.statLine}
-                </p>
+            {/* Operations card */}
+            <Link
+              href={latestTaskAction.actionHref}
+              className="glass-panel border border-tertiary/10 p-6 flex flex-col group relative overflow-hidden transition-all hover:border-tertiary/30"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1.5 h-1.5 bg-tertiary shadow-[0_0_5px_#ffc965]" />
+                <span className="font-mono text-[10px] text-tertiary/60 tracking-widest uppercase">
+                  ACTIVE_OPERATION
+                </span>
+              </div>
+              <h3 className="font-headline font-bold text-xl text-on-surface mb-2">
+                {latestTaskAction.title}
+              </h3>
+              <p className="text-on-surface-variant text-sm mb-4 leading-relaxed">
+                {latestTaskAction.summary}
+              </p>
+              {tasksProgressPct !== null && (
+                <div className="flex gap-0.5 mb-4">
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <div key={i} className={`flex-1 h-1.5 ${i < Math.round(tasksProgressPct / 10) ? 'bg-tertiary' : 'bg-surface-container-highest'}`} />
+                  ))}
+                </div>
               )}
-              <div className="w-full border border-tertiary/20 text-tertiary font-headline font-bold text-xs py-4 tracking-widest flex items-center justify-center gap-2 hover:bg-tertiary/5 transition-all active:scale-[0.98] duration-150 uppercase">
-                <span>{latestTaskAction.actionLabel}</span>
-                <ArrowRight className="h-4 w-4" />
+              <div className="flex items-center justify-between font-mono text-[10px]">
+                <span className="text-on-surface-variant">{latestTaskAction.statLine}</span>
+                <span className="text-tertiary font-bold">{latestTaskAction.actionLabel} &gt;&gt;</span>
+              </div>
+            </Link>
+          </div>
+
+          {/* Right: Mission briefing cards */}
+          <div className="space-y-4">
+            <h2 className="font-headline text-sm font-bold text-on-surface uppercase tracking-wider">
+              MISSION_BRIEFING
+            </h2>
+
+            {/* Active assignment */}
+            <div className="border border-outline-variant/20 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-1 h-1 bg-primary" />
+                <span className="font-mono text-[8px] text-primary uppercase tracking-widest">ACTIVE_ASSIGNMENT</span>
+              </div>
+              <h4 className="font-headline text-xs font-bold text-on-surface uppercase mb-2">{theoryTrackLabel}</h4>
+              <div className="flex gap-0.5 mb-2">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <div key={i} className={`w-3 h-1 ${i < Math.round((theoryProgressPct / 100) * 6) ? 'bg-primary' : 'bg-surface-container-highest'}`} />
+                ))}
+              </div>
+              <Link href={theoryAction.href} className="font-mono text-[9px] text-primary hover:underline uppercase tracking-wider">
+                RESUME &gt;&gt;
+              </Link>
+            </div>
+
+            {/* XP Stats */}
+            <div className="border border-outline-variant/20 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1 h-1 bg-secondary" />
+                <span className="font-mono text-[8px] text-secondary uppercase tracking-widest">OPERATOR_STATS</span>
+              </div>
+              <div className="space-y-2 font-mono text-[10px]">
+                <div className="flex justify-between">
+                  <span className="text-on-surface-variant">QUESTIONS</span>
+                  <span className="text-on-surface font-bold">{stats.questionsCompleted}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-on-surface-variant">ACCURACY</span>
+                  <span className="text-on-surface font-bold">{stats.overallAccuracy}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-on-surface-variant">OVERALL</span>
+                  <span className="text-primary font-bold">{overallProgress}%</span>
+                </div>
               </div>
             </div>
-          </Link>
+
+            {/* Grid telemetry */}
+            <div className="border border-outline-variant/20 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1 h-1 bg-tertiary" />
+                <span className="font-mono text-[8px] text-tertiary uppercase tracking-widest">GRID_TELEMETRY</span>
+              </div>
+              <div className="space-y-2 font-mono text-[10px]">
+                <div className="flex justify-between">
+                  <span className="text-on-surface-variant">TOPICS</span>
+                  <span className="text-on-surface font-bold">{topicSnapshots.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-on-surface-variant">STREAK</span>
+                  <span className="text-on-surface font-bold">{stats.currentStreak} DAYS</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-on-surface-variant">NETWORK</span>
+                  <span className="text-primary font-bold">ENCRYPTED</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
