@@ -159,35 +159,40 @@ export const Sidebar = () => {
       }`}
     >
       {/* User section */}
-      <div className={`border-b border-[#99f7ff]/10 ${isCompact ? 'px-3 py-4 flex justify-center' : 'px-6 py-6'}`}>
-        <div className={`flex items-center ${isCompact ? 'justify-center' : 'gap-3'}`}>
-          <div className={`border border-primary/30 p-0.5 flex-shrink-0 ${isCompact ? 'w-8 h-8' : 'w-10 h-10'}`}>
+      <div className={`border-b border-[#99f7ff]/10 ${isCompact ? 'px-3 py-4 flex justify-center' : 'px-5 py-5'}`}>
+        {isCompact ? (
+          <div className="w-9 h-9 border border-primary/30 p-0.5 flex-shrink-0">
             {resolvedAvatarUrl ? (
-              <Image
-                src={resolvedAvatarUrl}
-                alt="Avatar"
-                width={isCompact ? 28 : 36}
-                height={isCompact ? 28 : 36}
-                unoptimized
-                className="w-full h-full object-cover"
-              />
+              <Image src={resolvedAvatarUrl} alt="Avatar" width={32} height={32} unoptimized className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-surface-container flex items-center justify-center">
                 <StableGridIcon size="sm" className="w-full h-full border-0" />
               </div>
             )}
           </div>
-          {!isCompact && (
-            <div>
-              <div className="font-mono text-xs font-bold uppercase text-[#00F2FF]">
-                {nickname}
-              </div>
-              <div className="font-mono text-[9px] text-primary/40">
-                ONLINE
-              </div>
+        ) : (
+          <div className="flex flex-col items-center text-center">
+            {/* Larger avatar */}
+            <div className="w-16 h-16 border border-primary/30 p-0.5 mb-3">
+              {resolvedAvatarUrl ? (
+                <Image src={resolvedAvatarUrl} alt="Avatar" width={60} height={60} unoptimized className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-surface-container flex items-center justify-center">
+                  <StableGridIcon size="sm" className="w-full h-full border-0" />
+                </div>
+              )}
             </div>
-          )}
-        </div>
+            {/* Name */}
+            <div className="font-mono text-xs font-bold uppercase text-[#00F2FF]">
+              {nickname}
+            </div>
+            {/* Level badge */}
+            <div className="mt-1.5 inline-flex items-center gap-1.5 border border-primary/20 bg-primary/5 px-2 py-0.5">
+              <span className="w-1 h-1 bg-primary" />
+              <span className="font-mono text-[8px] text-primary/70 tracking-widest uppercase">ONLINE</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Nav links */}
