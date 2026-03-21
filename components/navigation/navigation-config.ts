@@ -14,6 +14,7 @@ export interface NavItem {
   icon: LucideIcon;
   label: string;
   matchPrefixes?: string[];
+  disabled?: boolean;
 }
 
 export const navItems: NavItem[] = [
@@ -25,10 +26,10 @@ export const navItems: NavItem[] = [
     matchPrefixes: ['/theory', '/learn']
   },
   {
-    href: '/tasks',
+    href: '/assignments',
     icon: ClipboardCheck,
     label: 'Tasks',
-    matchPrefixes: ['/tasks', '/practice', '/missions', '/flashcards']
+    matchPrefixes: ['/assignments', '/tasks', '/practice', '/missions', '/flashcards']
   },
   { href: '/energy', icon: Zap, label: 'Grid' },
   { href: '/progress', icon: User, label: 'Character' }
