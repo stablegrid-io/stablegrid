@@ -235,7 +235,7 @@ export const HomeDashboard = ({
             <h3 className="font-headline font-bold text-xs tracking-widest text-primary">THEORY_TREE</h3>
             <span className="font-mono text-[9px] text-primary/40">[MOD: {recommendedTopic.theoryCompleted}/{recommendedTopic.theoryTotal}]</span>
           </div>
-          <div className="relative pl-4 space-y-5 before:absolute before:left-[15px] before:top-4 before:bottom-4 before:w-[1px] before:bg-outline-variant/30">
+          <div className="relative pl-4 space-y-2 before:absolute before:left-[15px] before:top-3 before:bottom-3 before:w-[1px] before:bg-outline-variant/30">
             {(() => {
               // Build module nodes from the active topic's chapters
               const activeTopicSessions = recentSessions
@@ -252,11 +252,9 @@ export const HomeDashboard = ({
                 activeTopicSessions.map((s) => [s.chapterNumber, s.chapterId.replace(/^module-/, 'Module ')])
               );
 
-              // Only show previous, current, and next module
-              const visibleRange = [activeChapterNumber - 1, activeChapterNumber, activeChapterNumber + 1]
-                .filter((n) => n >= 1 && n <= totalModules);
-
-              return visibleRange.map((num) => {
+              // Show all chapters that fit — completed ones are compact,
+              // current is highlighted, future are dimmed
+              return Array.from({ length: totalModules }, (_, i) => i + 1).map((num) => {
                 const isCompleted = completedChapterNumbers.has(num);
                 const isActive = num === activeChapterNumber && !isCompleted;
                 const isLocked = num > activeChapterNumber && !isCompleted;
@@ -269,42 +267,51 @@ export const HomeDashboard = ({
                   : 0;
 
                 return (
+                  {isCompleted ? (
+                  /* Compact completed row */
                   <Link
                     key={num}
                     href={`/learn/${moduleTopicId}/theory`}
-                    className="relative flex items-center gap-3 group"
+                    className="relative flex items-center gap-2 group py-0.5"
                   >
-                    <div className={`z-10 w-8 h-8 border flex items-center justify-center flex-shrink-0 ${
-                      isCompleted
-                        ? 'border-primary/40 bg-primary/10'
-                        : isActive
-                          ? 'border-2 border-primary bg-primary/20 shadow-[0_0_15px_rgba(153,247,255,0.3)]'
-                          : 'border-outline-variant bg-surface-container opacity-40'
+                    <div className="z-10 w-5 h-5 border border-primary/30 bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-primary text-[8px]">✓</span>
+                    </div>
+                    <span className="font-mono text-[8px] text-primary/50 truncate">
+                      M-{String(num).padStart(2, '0')} {title}
+                    </span>
+                  </Link>
+                ) : (
+                  /* Active or locked — fuller display */
+                  <Link
+                    key={num}
+                    href={`/learn/${moduleTopicId}/theory`}
+                    className="relative flex items-center gap-3 group py-1"
+                  >
+                    <div className={`z-10 w-7 h-7 border flex items-center justify-center flex-shrink-0 ${
+                      isActive
+                        ? 'border-2 border-primary bg-primary/20 shadow-[0_0_12px_rgba(153,247,255,0.3)]'
+                        : 'border-outline-variant bg-surface-container opacity-40'
                     }`}>
-                      {isCompleted ? (
-                        <span className="text-primary text-xs">✓</span>
-                      ) : isActive ? (
-                        <span className="text-primary text-xs">▶</span>
+                      {isActive ? (
+                        <span className="text-primary text-[10px]">▶</span>
                       ) : (
-                        <span className="text-outline-variant text-xs">○</span>
+                        <span className="text-outline-variant text-[10px]">○</span>
                       )}
                     </div>
-                    <div className={isCompleted || isActive ? '' : 'opacity-40'}>
-                      <p className={`text-[9px] font-mono mb-0.5 ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
+                    <div className={isActive ? '' : 'opacity-40'}>
+                      <p className={`text-[8px] font-mono mb-0.5 ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
                         M-{String(num).padStart(2, '0')}{isActive ? ' [ACTIVE]' : ''}
                       </p>
-                      <h4 className={`text-xs font-bold uppercase tracking-wide leading-tight ${
+                      <h4 className={`text-[11px] font-bold uppercase tracking-wide leading-tight ${
                         isActive ? 'font-headline text-primary' : 'font-mono text-on-surface/60'
                       }`}>
                         {title}
                       </h4>
-                      {isCompleted && (
-                        <span className="text-[7px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 mt-1 inline-block">SYNCED</span>
-                      )}
-                      {isActive && !isCompleted && (
-                        <div className="flex gap-1 mt-1.5">
+                      {isActive && (
+                        <div className="flex gap-0.5 mt-1">
                           {Array.from({ length: 4 }, (_, i) => (
-                            <div key={i} className={`h-1 w-4 ${i < progressBars ? 'bg-primary' : 'bg-outline-variant/40'}`} />
+                            <div key={i} className={`h-1 w-3 ${i < progressBars ? 'bg-primary' : 'bg-outline-variant/40'}`} />
                           ))}
                         </div>
                       )}
@@ -313,6 +320,7 @@ export const HomeDashboard = ({
                       )}
                     </div>
                   </Link>
+                )}
                 );
               });
             })()}
