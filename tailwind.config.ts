@@ -10,22 +10,26 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
+        sans: ['Inter', 'var(--font-sans)', 'system-ui', 'sans-serif'],
         serif: ['var(--font-serif)', 'Georgia', 'serif'],
-        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace']
+        mono: ['JetBrains Mono', 'var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        headline: ['Space Grotesk', 'var(--font-sans)', 'system-ui', 'sans-serif'],
+        body: ['Inter', 'var(--font-sans)', 'system-ui', 'sans-serif'],
+        label: ['Space Grotesk', 'var(--font-sans)', 'system-ui', 'sans-serif'],
+        'data-mono': ['JetBrains Mono', 'var(--font-mono)', 'ui-monospace', 'monospace']
       },
       colors: {
         brand: {
-          50: '#f4f6f8',
-          100: '#e7ebef',
-          200: '#d5dce2',
-          300: '#c0c9d1',
-          400: '#a7b0b8',
-          500: '#8f99a3',
-          600: '#78838e',
-          700: '#626d79',
-          800: '#4b5561',
-          900: '#353f4b'
+          50: '#e6feff',
+          100: '#b3fcff',
+          200: '#80f9ff',
+          300: '#4df7ff',
+          400: '#1af4ff',
+          500: '#00e2ee',
+          600: '#006a70',
+          700: '#005f64',
+          800: '#004145',
+          900: '#002022'
         },
         success: {
           50: '#f0fdf4',
@@ -52,6 +56,7 @@ const config: Config = {
           900: '#78350f'
         },
         error: {
+          DEFAULT: '#ff716c',
           50: '#fef2f2',
           100: '#fee2e2',
           200: '#fecaca',
@@ -63,31 +68,82 @@ const config: Config = {
           800: '#991b1b',
           900: '#7f1d1d'
         },
+        // Neural Command design tokens (from Stitch)
+        "background": "#0c0e10",
+        "surface": "#0c0e10",
+        "surface-container-lowest": "#000000",
+        "surface-container-low": "#111416",
+        "surface-container": "#171a1c",
+        "surface-container-high": "#1d2023",
+        "surface-container-highest": "#232629",
+        "surface-bright": "#292c30",
+        "surface-variant": "#232629",
+        "surface-dim": "#0c0e10",
+        "surface-tint": "#99f7ff",
+        "primary": "#99f7ff",
+        "primary-dim": "#00e2ee",
+        "primary-container": "#00f1fe",
+        "primary-fixed": "#00f1fe",
+        "primary-fixed-dim": "#00e2ee",
+        "on-primary": "#005f64",
+        "on-primary-container": "#00555a",
+        "on-primary-fixed": "#004145",
+        "on-primary-fixed-variant": "#006065",
+        "secondary": "#bf81ff",
+        "secondary-dim": "#9c42f4",
+        "secondary-container": "#7701d0",
+        "secondary-fixed": "#e4c6ff",
+        "secondary-fixed-dim": "#dab4ff",
+        "on-secondary": "#32005c",
+        "on-secondary-container": "#f0dcff",
+        "on-secondary-fixed": "#4e008a",
+        "on-secondary-fixed-variant": "#7500cc",
+        "tertiary": "#ffc965",
+        "tertiary-dim": "#ecaa00",
+        "tertiary-container": "#feb700",
+        "tertiary-fixed": "#feb700",
+        "tertiary-fixed-dim": "#ecaa00",
+        "on-tertiary": "#5f4200",
+        "on-tertiary-container": "#533a00",
+        "on-tertiary-fixed": "#392700",
+        "on-tertiary-fixed-variant": "#5f4200",
+        "error-dim": "#d7383b",
+        "error-container": "#9f0519",
+        "on-error": "#490006",
+        "on-error-container": "#ffa8a3",
+        "on-surface": "#f0f0f3",
+        "on-surface-variant": "#aaabae",
+        "on-background": "#f0f0f3",
+        "outline": "#747578",
+        "outline-variant": "#46484a",
+        "inverse-primary": "#006a70",
+        "inverse-surface": "#f9f9fc",
+        "inverse-on-surface": "#535558",
         light: {
-          bg: '#ffffff',
-          surface: '#fafafa',
-          border: '#e5e5e5',
-          hover: '#f5f5f5',
-          active: '#eeeeee',
-          muted: '#f9fafb'
+          bg: '#f9f9fc',
+          surface: '#eaecef',
+          border: '#c4c6c9',
+          hover: '#e4e6e9',
+          active: '#dfe1e4',
+          muted: '#f0f2f5'
         },
         dark: {
-          bg: '#0a0a0a',
-          surface: '#171717',
-          border: '#262626',
-          hover: '#1f1f1f',
-          active: '#282828',
-          muted: '#141414'
+          bg: '#0c1014',
+          surface: '#141a1e',
+          border: '#2a2e32',
+          hover: '#1a2024',
+          active: '#222628',
+          muted: '#101418'
         },
         text: {
-          'light-primary': '#0a0a0a',
-          'light-secondary': '#404040',
-          'light-tertiary': '#737373',
-          'light-disabled': '#a3a3a3',
-          'dark-primary': '#fafafa',
-          'dark-secondary': '#a3a3a3',
-          'dark-tertiary': '#737373',
-          'dark-disabled': '#525252'
+          'light-primary': '#1a1c1e',
+          'light-secondary': '#44474a',
+          'light-tertiary': '#747779',
+          'light-disabled': '#c4c6c9',
+          'dark-primary': '#f0f0f3',
+          'dark-secondary': '#8a8b8e',
+          'dark-tertiary': '#5a5c5f',
+          'dark-disabled': '#343638'
         }
       },
       boxShadow: {
@@ -98,8 +154,8 @@ const config: Config = {
         lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
         xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
         '2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
-        focus: '0 0 0 3px rgba(143, 153, 163, 0.22)',
-        'focus-visible': '0 0 0 2px rgb(143 153 163 / 0.36)'
+        focus: '0 0 0 3px rgba(0, 226, 238, 0.22)',
+        'focus-visible': '0 0 0 2px rgb(0 226 238 / 0.36)'
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',
@@ -152,11 +208,13 @@ const config: Config = {
       },
       borderRadius: {
         none: '0',
-        sm: '0.25rem',
-        DEFAULT: '0.5rem',
-        md: '0.625rem',
-        lg: '0.75rem',
-        xl: '1rem',
+        sm: '0px',
+        DEFAULT: '0px',
+        md: '0px',
+        lg: '0px',
+        xl: '0px',
+        '2xl': '0px',
+        '3xl': '0px',
         full: '9999px'
       }
     }
