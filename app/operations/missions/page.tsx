@@ -146,49 +146,8 @@ export default async function OperationsMissionsPage() {
           );
         })}
 
-        {/* System Logs */}
-        <div className="mt-auto border-t border-white/5 pt-4 font-mono text-[8px] tracking-[0.2em]">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-on-surface/20 uppercase">System_Logs</span>
-            <span className="text-primary/60 flex items-center gap-1">
-              <span className="w-1 h-1 bg-primary animate-pulse" />
-              FEED_LIVE
-            </span>
-          </div>
-          <div className="space-y-2 uppercase">
-            <div className="flex justify-between items-center border-l-2 border-primary/40 pl-3">
-              <span className="text-on-surface/60">NODE_INIT</span>
-              <span className="text-primary font-bold">READY</span>
-            </div>
-            <div className="flex justify-between items-center border-l-2 border-tertiary/40 pl-3">
-              <span className="text-on-surface/60">LATENCY_S7</span>
-              <span className="text-tertiary font-bold">WARN</span>
-            </div>
-            <div className="flex justify-between items-center border-l-2 border-primary/40 pl-3">
-              <span className="text-on-surface/60">OMEGA_AUTH</span>
-              <span className="text-primary font-bold">PASS</span>
-            </div>
-            <div className="flex justify-between items-center border-l-2 border-secondary/40 pl-3">
-              <span className="text-on-surface/60">MESH_BRIDGE</span>
-              <span className="text-secondary font-bold">SYNC</span>
-            </div>
-          </div>
-        </div>
       </section>
 
-      {/* Footer */}
-      <footer className="fixed bottom-0 left-0 lg:left-64 right-0 h-10 flex items-center justify-between px-8 bg-black/60 backdrop-blur-xl border-t border-white/5 z-50">
-        <div className="flex gap-8 font-mono text-[8px] text-on-surface/30 uppercase tracking-[0.3em]">
-          <span>GEO_POS: SECTOR_G7</span>
-          <span>SIG-OMEGA-99</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="font-mono text-[8px] text-primary/40 uppercase tracking-widest flex items-center gap-1">
-            <span className="w-1 h-1 bg-primary/40" />
-            SECURE_LINK
-          </span>
-        </div>
-      </footer>
     </main>
   );
 }
