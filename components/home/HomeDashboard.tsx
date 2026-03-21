@@ -204,37 +204,25 @@ export const HomeDashboard = ({
   return (
     <div className="relative flex flex-col" style={{ minHeight: 'calc(100vh - 3.5rem)' }}>
       {/* Header Metrics Bar */}
-      <section className="h-14 flex items-center justify-between px-6 border-b border-outline-variant/20 bg-surface-container-low/40 flex-shrink-0">
-        <div className="flex items-center gap-10">
-          <div className="flex flex-col">
-            <span className="text-[8px] font-mono text-primary/40 tracking-widest">SYSTEM_LVL</span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl font-headline font-black text-primary">{Math.floor(stats.totalXp / 1000)}</span>
-              <div className="flex gap-[2px]">
+      <section className="h-10 flex items-center justify-between px-4 border-b border-outline-variant/20 bg-surface-container-low/40 flex-shrink-0">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="text-[7px] font-mono text-primary/40 tracking-widest">LVL</span>
+            <span className="text-sm font-headline font-black text-primary">{Math.floor(stats.totalXp / 1000)}</span>
+              <div className="flex gap-[1px]">
                 {Array.from({ length: 5 }, (_, i) => (
-                  <div key={i} className={`h-3 w-1 ${i < Math.min(5, Math.floor(stats.totalXp / 2000)) ? 'bg-primary' : 'bg-outline-variant/30'}`} />
+                  <div key={i} className={`h-2 w-[3px] ${i < Math.min(5, Math.floor(stats.totalXp / 2000)) ? 'bg-primary' : 'bg-outline-variant/30'}`} />
                 ))}
               </div>
-            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-[8px] font-mono text-primary/40 tracking-widest">XP_TOTAL</span>
-            <span className="text-base font-mono font-bold text-on-surface">
-              {stats.totalXp.toLocaleString()} <span className="text-[10px] text-primary/50">/ {((Math.floor(stats.totalXp / 10000) + 1) * 10000).toLocaleString()}</span>
-            </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[7px] font-mono text-primary/40">XP</span>
+            <span className="text-xs font-mono font-bold text-on-surface">{stats.totalXp.toLocaleString()}</span>
           </div>
         </div>
-        <div className="hidden lg:flex items-center gap-6">
-          <div className="flex items-center gap-3 bg-surface-container-high px-4 py-1.5 border-x border-primary/20">
-            <div className="flex flex-col">
-              <span className="text-[8px] font-mono text-primary/40">CURRENT_TITLE</span>
-              <span className="text-xs font-mono font-bold text-on-surface tracking-widest uppercase">{firstName}</span>
-            </div>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[8px] font-mono text-tertiary/40 tracking-widest">STREAK_ACTIVE</span>
-            <span className="text-lg font-headline font-bold text-tertiary">{stats.currentStreak}_DAYS</span>
-          </div>
+        <div className="hidden lg:flex items-center gap-4">
+          <span className="text-[9px] font-mono text-on-surface-variant uppercase">{firstName}</span>
+          <span className="text-[9px] font-mono font-bold text-tertiary">{stats.currentStreak}D_STREAK</span>
         </div>
       </section>
 
@@ -242,12 +230,12 @@ export const HomeDashboard = ({
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
 
         {/* Left: Theory Tree */}
-        <section className="lg:col-span-3 border-r border-outline-variant/20 overflow-y-auto p-5 bg-surface-dim/40">
-          <div className="mb-5 flex items-center justify-between">
-            <h3 className="font-headline font-bold text-sm tracking-widest text-primary">THEORY_TREE</h3>
+        <section className="lg:col-span-3 border-r border-outline-variant/20 overflow-y-auto p-4 bg-surface-dim/40">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-headline font-bold text-xs tracking-widest text-primary">THEORY_TREE</h3>
             <span className="font-mono text-[9px] text-primary/40">[MOD: {recommendedTopic.theoryCompleted}/{recommendedTopic.theoryTotal}]</span>
           </div>
-          <div className="relative pl-4 space-y-8 before:absolute before:left-[15px] before:top-4 before:bottom-4 before:w-[1px] before:bg-outline-variant/30">
+          <div className="relative pl-4 space-y-5 before:absolute before:left-[15px] before:top-4 before:bottom-4 before:w-[1px] before:bg-outline-variant/30">
             {(() => {
               // Build module nodes from the active topic's chapters
               const activeTopicSessions = recentSessions
@@ -334,10 +322,10 @@ export const HomeDashboard = ({
         {/* Center: Neural Sync Port */}
         <section className="lg:col-span-6 relative flex flex-col items-center justify-center overflow-hidden bg-surface-container-lowest">
           {/* HUD corners */}
-          <div className="absolute top-5 left-5 border-l border-t border-primary/30 w-12 h-12" />
-          <div className="absolute top-5 right-5 border-r border-t border-primary/30 w-12 h-12" />
-          <div className="absolute bottom-5 left-5 border-l border-b border-primary/30 w-12 h-12" />
-          <div className="absolute bottom-5 right-5 border-r border-b border-primary/30 w-12 h-12" />
+          <div className="absolute top-3 left-3 border-l border-t border-primary/30 w-8 h-8" />
+          <div className="absolute top-3 right-3 border-r border-t border-primary/30 w-8 h-8" />
+          <div className="absolute bottom-3 left-3 border-l border-b border-primary/30 w-8 h-8" />
+          <div className="absolute bottom-3 right-3 border-r border-b border-primary/30 w-8 h-8" />
 
           {/* Scanning HUD */}
           <div className="absolute inset-0 pointer-events-none">
@@ -346,12 +334,12 @@ export const HomeDashboard = ({
           </div>
 
           <div className="relative z-10 text-center">
-            <div className="mb-4">
-              <span className="font-mono text-[9px] text-primary/60 tracking-[0.5em] uppercase">AVATAR_SYNC_PORT</span>
+            <div className="mb-2">
+              <span className="font-mono text-[8px] text-primary/60 tracking-[0.4em] uppercase">AVATAR_SYNC_PORT</span>
             </div>
 
             {/* Operator avatar */}
-            <div className="relative w-64 h-80 bg-primary/5 border border-primary/20 flex items-center justify-center overflow-hidden group mb-4">
+            <div className="relative w-48 h-60 bg-primary/5 border border-primary/20 flex items-center justify-center overflow-hidden group mb-3">
               <Image
                 src="/grid-assets/operator-avatar.jpg"
                 alt={`Operator ${firstName}`}
@@ -370,14 +358,14 @@ export const HomeDashboard = ({
               </div>
             </div>
 
-            <h2 className="font-headline text-lg font-black text-on-surface tracking-widest uppercase">
+            <h2 className="font-headline text-sm font-black text-on-surface tracking-widest uppercase">
               OPERATOR {firstName.toUpperCase()}
             </h2>
-            <p className="font-mono text-[9px] text-primary mt-1">LINK_ESTABLISHED_SUCCESSFULLY</p>
+            <p className="font-mono text-[8px] text-primary mt-0.5">LINK_ESTABLISHED</p>
           </div>
 
           {/* Bottom HUD stats */}
-          <div className="absolute bottom-5 w-full px-10 flex justify-between items-end">
+          <div className="absolute bottom-3 w-full px-6 flex justify-between items-end">
             <div className="flex flex-col gap-1">
               <span className="text-[7px] font-mono text-primary/40">HULL_INTEGRITY</span>
               <div className="flex gap-0.5">
@@ -398,12 +386,12 @@ export const HomeDashboard = ({
         </section>
 
         {/* Right: Mission Briefing */}
-        <section className="lg:col-span-3 overflow-y-auto p-5 bg-surface-dim/40 border-l border-outline-variant/20">
-          <div className="mb-5 flex items-center justify-between">
-            <h3 className="font-headline font-bold text-sm tracking-widest text-primary">MISSION_BRIEFING</h3>
+        <section className="lg:col-span-3 overflow-y-auto p-4 bg-surface-dim/40 border-l border-outline-variant/20">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-headline font-bold text-xs tracking-widest text-primary">MISSION_BRIEFING</h3>
             <span className="font-mono text-[9px] text-tertiary">[{topicSnapshots.filter(s => s.theoryPct > 0 && s.theoryPct < 100).length} ACTIVE]</span>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* System update */}
             <div className="p-3 bg-tertiary/10 border-l-4 border-tertiary">
               <div className="flex items-start justify-between mb-2">
@@ -447,7 +435,7 @@ export const HomeDashboard = ({
             </Link>
 
             {/* Grid telemetry */}
-            <div className="mt-8 p-3 glass-panel border-dashed">
+            <div className="mt-4 p-3 glass-panel border-dashed">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-1 h-1 bg-primary" />
                 <span className="text-[8px] font-mono text-primary tracking-widest uppercase font-bold">GRID_TELEMETRY</span>
@@ -473,7 +461,7 @@ export const HomeDashboard = ({
       </div>
 
       {/* Footer shell */}
-      <footer className="h-9 border-t border-outline-variant/20 flex items-center justify-between px-5 bg-surface-dim flex-shrink-0">
+      <footer className="h-7 border-t border-outline-variant/20 flex items-center justify-between px-4 bg-surface-dim flex-shrink-0">
         <div className="flex items-center gap-3 overflow-hidden">
           <span className="text-[8px] font-mono text-primary font-bold">SYSTEM_LOGS</span>
           <div className="h-3 w-[1px] bg-outline-variant/30" />
