@@ -339,7 +339,7 @@ export const HomeDashboard = ({
             </div>
 
             {/* Operator avatar */}
-            <div className="relative w-48 h-60 bg-primary/5 border border-primary/20 flex items-center justify-center overflow-hidden group mb-3">
+            <div className="relative w-72 h-96 bg-primary/5 border border-primary/20 flex items-center justify-center overflow-hidden group mb-3">
               <Image
                 src="/grid-assets/operator-avatar.jpg"
                 alt={`Operator ${firstName}`}
