@@ -250,16 +250,14 @@ export const TheorySessionPicker = ({
             </section>
 
             {/* Footer */}
-            <footer className="border-t border-outline-variant/20 pt-4 flex justify-end">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => onStart(freeReadConfig)}
-                  className="border border-outline-variant/40 px-3 py-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
-                >
-                  FREE READ
-                </button>
-              </div>
+            <footer className="border-t border-outline-variant/20 pt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => onStart(freeReadConfig)}
+                className="border border-outline-variant/40 px-6 py-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
+              >
+                FREE READ
+              </button>
             </footer>
           </motion.div>
         </motion.div>
