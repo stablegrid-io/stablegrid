@@ -13,7 +13,7 @@
       "sections": [
         {
           "id": "module-AFI1-lesson-01",
-          "title": "Lesson 1: Why TaskFlow Exists",
+          "title": "Why TaskFlow Exists",
           "estimatedMinutes": 12,
           "blocks": [
             {
@@ -96,7 +96,7 @@
         },
         {
           "id": "module-AFI1-lesson-02",
-          "title": "Lesson 2: The @task Decorator",
+          "title": "The @task Decorator",
           "estimatedMinutes": 14,
           "blocks": [
             {
@@ -176,7 +176,7 @@
         },
         {
           "id": "module-AFI1-lesson-03",
-          "title": "Lesson 3: Automatic Dependency Inference",
+          "title": "Automatic Dependency Inference",
           "estimatedMinutes": 10,
           "blocks": [
             {
@@ -233,7 +233,7 @@
         },
         {
           "id": "module-AFI1-lesson-04",
-          "title": "Lesson 4: Multiple Return Values",
+          "title": "Multiple Return Values",
           "estimatedMinutes": 12,
           "blocks": [
             {
@@ -291,7 +291,7 @@
         },
         {
           "id": "module-AFI1-lesson-05",
-          "title": "Lesson 5: Mixing TaskFlow and Operators",
+          "title": "Mixing TaskFlow and Operators",
           "estimatedMinutes": 14,
           "blocks": [
             {
@@ -379,7 +379,7 @@
         },
         {
           "id": "module-AFI1-lesson-06",
-          "title": "Lesson 6: TaskFlow with Task Groups",
+          "title": "TaskFlow with Task Groups",
           "estimatedMinutes": 12,
           "blocks": [
             {
@@ -431,7 +431,7 @@
         },
         {
           "id": "module-AFI1-lesson-07",
-          "title": "Lesson 7: Error Handling in TaskFlow",
+          "title": "Error Handling in TaskFlow",
           "estimatedMinutes": 12,
           "blocks": [
             {
@@ -508,7 +508,7 @@
         },
         {
           "id": "module-AFI1-lesson-08",
-          "title": "Lesson 8: TaskFlow Type Hints",
+          "title": "TaskFlow Type Hints",
           "estimatedMinutes": 10,
           "blocks": [
             {
@@ -555,7 +555,7 @@
         },
         {
           "id": "module-AFI1-lesson-09",
-          "title": "Lesson 9: Converting Classic DAGs",
+          "title": "Converting Classic DAGs",
           "estimatedMinutes": 14,
           "blocks": [
             {
@@ -616,7 +616,7 @@
         },
         {
           "id": "module-AFI1-lesson-10",
-          "title": "Lesson 10: Module Checkpoint",
+          "title": "Module Checkpoint",
           "estimatedMinutes": 10,
           "blocks": [
             {
