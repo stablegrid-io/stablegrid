@@ -262,10 +262,8 @@ export default async function TasksPage() {
                 className="group"
               >
                 <div
-                  className="glass-panel border relative p-8 flex flex-col h-full min-h-[440px] transition-all"
+                  className="glass-panel border relative p-8 flex flex-col h-full min-h-[440px] transition-all hover:shadow-[0_0_30px_rgba(153,247,255,0.08)]"
                   style={{ borderColor: `rgba(${lane.accentRgb},0.1)` }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = `rgba(${lane.accentRgb},0.3)`; e.currentTarget.style.boxShadow = `0 0 30px rgba(${lane.accentRgb},0.1)`; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = `rgba(${lane.accentRgb},0.1)`; e.currentTarget.style.boxShadow = 'none'; }}
                 >
                   {/* L-bracket corner */}
                   <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2" style={{ borderColor: accent }} />
