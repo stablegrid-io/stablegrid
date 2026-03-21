@@ -6,6 +6,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Clock3, Menu, X } from 'lucide-react';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import type { Topic } from '@/types/progress';
+import type { PracticeTopic } from '@/lib/types';
 import {
   trackProductEvent,
   trackProductEventOnce
@@ -29,10 +30,10 @@ import {
   isModuleCheckpointLesson
 } from '@/lib/learn/moduleCheckpoints';
 import {
-  getDisplayLessonTitle,
   sortLessonsByOrder,
   sortModulesByOrder
 } from '@/lib/learn/freezeTheoryDoc';
+import { useAdminStatus } from '@/lib/hooks/useAdminStatus';
 
 interface TheoryLayoutProps {
   doc: TheoryDoc;
@@ -100,6 +101,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const searchParams = useSearchParams();
   const requestedChapterId = searchParams.get('chapter');
   const requestedLessonId = searchParams.get('lesson');
+  const { isAdmin } = useAdminStatus();
   const activeTrackSlug = useMemo(
     () => parseTheoryTrackSlugFromPathname(pathname),
     [pathname]
@@ -195,9 +197,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     activeLessonIndex >= 0
       ? orderedActiveLessons[activeLessonIndex]
       : orderedActiveLessons[0];
-  const activeLessonLabel = activeLesson
-    ? getDisplayLessonTitle(activeLesson, Math.max(activeLessonIndex + 1, 1))
-    : null;
+  const activeLessonNumber = Math.max(activeLessonIndex + 1, 1);
   const buildLessonRoute = useCallback(
     (chapterId: string, lessonId: string | null) => {
       const params = new URLSearchParams();
@@ -264,6 +264,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       return next;
     });
   }, [activeChapter.id]);
+  const completionRewardTopic =
+    doc.topic === 'pyspark' || doc.topic === 'fabric'
+      ? (doc.topic as PracticeTopic)
+      : undefined;
 
   const { isCompleted, completedLessonIds, isHydrated, markChapterComplete } =
     useReadingSession({
@@ -276,7 +280,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       onFirstCompletionEnergyUnits: (units) =>
         addXP(units, {
           source: 'chapter-complete',
-          topic: doc.topic as Topic,
+          ...(completionRewardTopic ? { topic: completionRewardTopic } : {}),
           label: `Completed ${activeChapter.title}`
         })
     });
@@ -775,10 +779,13 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         <button
           type="button"
           onClick={() => setSidebarOpen((value) => !value)}
-          className="btn btn-ghost h-8 w-8 p-0 lg:hidden"
+          aria-expanded={sidebarOpen}
+          aria-controls="theory-sidebar"
+          className="btn btn-ghost inline-flex h-8 items-center gap-2 rounded-full border border-light-border/70 bg-light-surface/70 px-3 text-xs font-medium text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-dark-border/70 dark:bg-dark-surface/70 dark:text-text-dark-secondary dark:hover:border-text-dark-primary dark:hover:text-text-dark-primary"
           aria-label="Toggle module navigation"
         >
           {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          <span className="hidden sm:inline">{sidebarOpen ? 'Close modules' : 'Modules'}</span>
         </button>
 
         {theorySession.hasActiveSession ? (
@@ -789,7 +796,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
               M{activeChapter.order ?? activeChapter.number}
               <span className="mx-1 text-light-border dark:text-dark-border">/</span>
               <span className="text-text-light-secondary dark:text-text-dark-secondary">
-                Lesson {Math.max(activeLessonIndex + 1, 1)} of {orderedActiveLessons.length}
+                Lesson {activeLessonNumber} of {orderedActiveLessons.length}
               </span>
             </div>
 
@@ -810,10 +817,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
               >
                 Settings
               </button>
-              <span className="hidden sm:inline truncate max-w-[16rem]">
-                {activeLessonLabel ?? doc.title}
-              </span>
-              <span>~{activeLessonDurationMinutes} min</span>
             </div>
           </>
         )}
@@ -838,7 +841,8 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
-          className={`absolute inset-y-0 left-0 z-50 w-[16.25rem] border-r border-light-border bg-light-surface transition-transform duration-300 dark:border-dark-border dark:bg-dark-surface lg:relative lg:translate-x-0 ${
+          id="theory-sidebar"
+          className={`absolute inset-y-0 left-0 z-50 w-[min(18.25rem,calc(100vw-1rem))] border-r border-light-border bg-light-surface/96 shadow-2xl backdrop-blur transition-transform duration-300 dark:border-dark-border dark:bg-dark-surface/96 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
@@ -857,17 +861,19 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px]"
             aria-label="Close module navigation"
           />
         ) : null}
 
         <div
           ref={contentRef}
+          aria-hidden={sessionPickerVisible && !theorySession.hasActiveSession}
           className="min-h-0 flex-1 overflow-y-auto bg-light-bg dark:bg-dark-bg"
         >
           <TheoryContent
             topic={doc.topic}
+            docId={doc.id}
             chapter={activeChapter}
             allChapters={modules}
             activeLessonId={activeLessonId}
@@ -881,30 +887,34 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             completedLessonCount={completedLessonIds.length}
             onCompleteModule={completeCurrentModule}
             completionActionPending={completionActionPending}
+            scrollContainerRef={contentRef}
+            isAdmin={isAdmin}
           />
         </div>
       </div>
 
-      <TheorySessionPicker
-        isOpen={sessionPickerVisible && !theorySession.hasActiveSession}
-        configsByMethod={resolvedSessionMethodConfigs}
-        lessonTitle={activeLessonLabel ?? doc.title}
-        lessonDurationMinutes={activeLessonDurationMinutes}
-        onStart={(config) => {
-          markSessionPickerDismissed();
-          setSessionPickerVisible(false);
-          startTheorySession(config);
-        }}
-        onOpenSettings={() => {
-          markSessionPickerDismissed();
-          setSessionPickerVisible(false);
-          router.push('/settings?tab=reading');
-        }}
-        onDismiss={() => {
-          markSessionPickerDismissed();
-          setSessionPickerVisible(false);
-        }}
-      />
+      {sessionPickerVisible && !theorySession.hasActiveSession ? (
+        <TheorySessionPicker
+          isOpen
+          configsByMethod={resolvedSessionMethodConfigs}
+          lessonTitle={activeLesson?.title ?? doc.title}
+          lessonDurationMinutes={activeLessonDurationMinutes}
+          onStart={(config) => {
+            markSessionPickerDismissed();
+            setSessionPickerVisible(false);
+            startTheorySession(config);
+          }}
+          onOpenSettings={() => {
+            markSessionPickerDismissed();
+            setSessionPickerVisible(false);
+            router.push('/settings?tab=reading');
+          }}
+          onDismiss={() => {
+            markSessionPickerDismissed();
+            setSessionPickerVisible(false);
+          }}
+        />
+      ) : null}
 
       <AnimatePresence>
         {theorySession.isOnBreak &&
@@ -927,7 +937,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       <AnimatePresence>
         {theorySession.phase === 'complete' && theorySession.summary ? (
           <TheorySessionSummary
-            lessonTitle={activeLessonLabel ?? doc.title}
+            lessonTitle={activeLesson?.title ?? doc.title}
             totalElapsedSeconds={theorySession.summary.totalElapsedSeconds}
             focusElapsedSeconds={theorySession.summary.focusElapsedSeconds}
             breakElapsedSeconds={theorySession.summary.breakElapsedSeconds}
