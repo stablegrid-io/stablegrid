@@ -158,8 +158,8 @@ export const TheorySessionPicker = ({
                 const stats = METHOD_STATS[methodId];
                 const hz = METHOD_HZ[methodId];
                 const timeLabel = methodId === 'pomodoro'
-                  ? `${config.focusMinutes}/${String(config.breakMinutes).padStart(2, '0')}`
-                  : `${String(totalMinutes).padStart(2, '0')}:00`;
+                  ? `${config.focusMinutes}+${config.breakMinutes}m`
+                  : `${totalMinutes} min`;
                 const targetLabel = methodId === 'sprint' ? 'Interval_Target' : methodId === 'pomodoro' ? 'Cycle_Target' : 'Uptime_Target';
                 const filledBars = methodId === 'sprint' ? 4 : methodId === 'pomodoro' ? 3 : 5;
                 const monitorId = methodId === 'sprint' ? 'S1' : methodId === 'pomodoro' ? 'P2' : 'D3';
