@@ -13,14 +13,14 @@ const TONE_BY_STATUS: Record<
     className: 'border-amber-300/22 bg-amber-500/12 text-amber-100'
   },
   Resolved: {
-    className: 'border-brand-400/24 bg-brand-500/12 text-[#d6f5ea]'
+    className: 'border-brand-400/24 bg-primary/12 text-[#d6f5ea]'
   }
 };
 
 export function BugStatusBadge({ status }: { status: BugStatus }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${TONE_BY_STATUS[status].className}`}
+      className={`inline-flex items-center  border px-2.5 py-1 text-xs font-medium ${TONE_BY_STATUS[status].className}`}
     >
       {status}
     </span>

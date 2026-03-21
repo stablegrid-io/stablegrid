@@ -224,14 +224,14 @@ const Sparkline = ({
         : value.toLocaleString('en');
 
   if (!linePath || !areaPath) {
-    return <div className="h-16 rounded-[18px] bg-white/[0.03]" />;
+    return <div className="h-16  bg-surface-container-low" />;
   }
 
   return (
     <div className="relative pt-1">
       {activePoint ? (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-[12px] border border-white/24 bg-[linear-gradient(180deg,rgba(23,29,29,0.94),rgba(10,14,14,0.94))] px-2.5 py-1.5 text-[11px] font-medium text-white shadow-[0_14px_26px_-18px_rgba(0,0,0,0.92)] backdrop-blur-xl transition-all duration-150 ease-out"
+          className="pointer-events-none absolute z-10 -translate-x-1/2  border border-white/24 bg-[linear-gradient(180deg,rgba(23,29,29,0.94),rgba(10,14,14,0.94))] px-2.5 py-1.5 text-[11px] font-medium text-on-surface shadow-[0_14px_26px_-18px_rgba(0,0,0,0.92)] backdrop-blur-xl transition-all duration-150 ease-out"
           style={{
             left: `${tooltipLeftPx}px`,
             top: `${tooltipTopPx}px`
@@ -239,7 +239,7 @@ const Sparkline = ({
         >
           <div className="flex items-center gap-2 whitespace-nowrap">
             <span className="text-[#d9e8e2]">{activePoint.date}</span>
-            <span className="h-1 w-1 rounded-full bg-white/40" />
+            <span className="h-1 w-1  bg-white/40" />
             <span className={dotClassName}>{formatPointValue(activePoint.value)}</span>
           </div>
           <span className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-[35%] rotate-45 border-b border-r border-white/20 bg-[#111919]" />
@@ -298,7 +298,7 @@ const HeroKpiCard = ({ card }: { card: HeroKpiCardData }) => {
       ? 'text-rose-200'
       : card.deltaValue > 0
         ? 'text-[#d7f6ec]'
-        : 'text-[#c8d7d1]';
+        : 'text-on-surface-variant';
 
   return (
     <div className="group relative overflow-hidden rounded-[30px] border border-white/[0.14] bg-[linear-gradient(180deg,rgba(255,255,255,0.1),rgba(255,255,255,0.03))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_24px_56px_-40px_rgba(0,0,0,0.9)] backdrop-blur-2xl transition duration-300 ease-out hover:-translate-y-px hover:border-white/20">
@@ -307,10 +307,10 @@ const HeroKpiCard = ({ card }: { card: HeroKpiCardData }) => {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium tracking-[0.01em] text-[#d1ded8]">{card.title}</p>
-            <p className="mt-2 text-[2.25rem] font-semibold tracking-tight text-white">{card.value}</p>
+            <p className="mt-2 text-[2.25rem] font-semibold tracking-tight text-on-surface">{card.value}</p>
           </div>
           <div
-            className={`flex h-12 w-12 items-center justify-center rounded-[18px] border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ${card.accentClasses.iconWrap}`}
+            className={`flex h-12 w-12 items-center justify-center  border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ${card.accentClasses.iconWrap}`}
           >
             <card.icon className={`h-5 w-5 ${card.accentClasses.icon}`} strokeWidth={2.2} />
           </div>
@@ -318,7 +318,7 @@ const HeroKpiCard = ({ card }: { card: HeroKpiCardData }) => {
 
         <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
           <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 ${card.accentClasses.pill} ${deltaTone}`}
+            className={`inline-flex items-center gap-1  border px-2.5 py-1 ${card.accentClasses.pill} ${deltaTone}`}
           >
             <TrendIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
             {card.deltaValue === 0 ? '0.0%' : `${card.deltaValue > 0 ? '+' : '-'}${formatChange(card.deltaValue)}`}
@@ -393,12 +393,12 @@ const TREE_ACCENT_STYLES: Record<
     outcomeGlow: 'bg-violet-300/14'
   },
   slate: {
-    segmentSurface: 'bg-[linear-gradient(180deg,rgba(56,67,78,0.26),rgba(17,20,24,0.92))] border-white/10',
-    badge: 'bg-white/[0.08] text-[#dfe8e3] border-white/10',
+    segmentSurface: 'bg-[linear-gradient(180deg,rgba(56,67,78,0.26),rgba(17,20,24,0.92))] border-outline-variant/20',
+    badge: 'bg-surface-container-high text-[#dfe8e3] border-outline-variant/20',
     eyebrow: 'text-[#bed0c7]',
     connector: 'bg-white/34',
     outcomeBar: 'bg-[linear-gradient(90deg,rgba(180,192,201,0.95),rgba(232,239,244,0.9))]',
-    outcomeGlow: 'bg-white/[0.08]'
+    outcomeGlow: 'bg-surface-container-high'
   },
   orange: {
     segmentSurface: 'bg-[linear-gradient(180deg,rgba(127,69,32,0.34),rgba(27,19,16,0.92))] border-orange-300/18',
@@ -410,7 +410,7 @@ const TREE_ACCENT_STYLES: Record<
   },
   rose: {
     segmentSurface: 'bg-[linear-gradient(180deg,rgba(124,48,73,0.34),rgba(25,16,20,0.92))] border-rose-300/18',
-    badge: 'bg-rose-300/12 text-rose-100 border-rose-300/18',
+    badge: 'bg-rose-300/12 text-error border-rose-300/18',
     eyebrow: 'text-rose-200',
     connector: 'bg-rose-300/56',
     outcomeBar: 'bg-[linear-gradient(90deg,rgba(251,113,133,0.95),rgba(255,205,214,0.92))]',
@@ -422,12 +422,12 @@ const InfoHint = ({ label, content }: { label: string; content: string }) => (
   <span className="group relative inline-flex items-center">
     <button
       type="button"
-      className="inline-flex h-5.5 w-5.5 items-center justify-center rounded-full border border-white/14 bg-white/[0.03] text-[#98aba3] transition duration-200 hover:border-white/25 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
+      className="inline-flex h-5.5 w-5.5 items-center justify-center  border border-outline-variant/20 bg-surface-container-low text-[#98aba3] transition duration-200 hover:border-white/25 hover:bg-surface-container-high hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
       aria-label={label}
     >
       <CircleHelp className="h-3.5 w-3.5" strokeWidth={2.1} />
     </button>
-    <span className="pointer-events-none absolute right-0 top-[calc(100%+8px)] z-20 w-64 origin-top-right translate-y-1 scale-[0.98] rounded-[14px] border border-white/18 bg-[linear-gradient(180deg,rgba(18,25,25,0.97),rgba(8,12,12,0.97))] px-3 py-2 text-[11px] leading-5 text-[#dce9e3] opacity-0 shadow-[0_18px_34px_-20px_rgba(0,0,0,0.95)] backdrop-blur-xl transition duration-200 group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 group-focus-within:opacity-100">
+    <span className="pointer-events-none absolute right-0 top-[calc(100%+8px)] z-20 w-64 origin-top-right translate-y-1 scale-[0.98]  border border-white/18 bg-[linear-gradient(180deg,rgba(18,25,25,0.97),rgba(8,12,12,0.97))] px-3 py-2 text-[11px] leading-5 text-[#dce9e3] opacity-0 shadow-[0_18px_34px_-20px_rgba(0,0,0,0.95)] backdrop-blur-xl transition duration-200 group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 group-focus-within:opacity-100">
       {content}
       <span className="absolute right-3 top-0 h-2 w-2 -translate-y-1/2 rotate-45 border-l border-t border-white/16 bg-[#111919]" />
     </span>
@@ -458,7 +458,7 @@ const DecisionTreeOutcomeCard = ({
   const style = TREE_ACCENT_STYLES[accent];
 
   return (
-    <div className="rounded-[20px] border border-white/10 bg-white/[0.035] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <div className=" border border-outline-variant/20 bg-white/[0.035] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[0.68rem] uppercase tracking-[0.16em] text-[#8ea49a]">{outcome.label}</p>
         <InfoHint
@@ -467,14 +467,14 @@ const DecisionTreeOutcomeCard = ({
         />
       </div>
       <div className="mt-3 flex items-end justify-between gap-3">
-        <p className="text-2xl font-semibold tracking-tight text-white">{outcome.ratePct}%</p>
-        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${style.badge}`}>
+        <p className="text-2xl font-semibold tracking-tight text-on-surface">{outcome.ratePct}%</p>
+        <span className={` border px-2.5 py-1 text-[11px] font-medium ${style.badge}`}>
           {outcome.completedUsers}/{outcome.totalUsers}
         </span>
       </div>
-      <div className={`mt-3 h-2 overflow-hidden rounded-full ${style.outcomeGlow}`}>
+      <div className={`mt-3 h-2 overflow-hidden  ${style.outcomeGlow}`}>
         <div
-          className={`h-full rounded-full ${style.outcomeBar}`}
+          className={`h-full  ${style.outcomeBar}`}
           style={{ width: `${Math.max(outcome.ratePct, outcome.totalUsers > 0 ? 6 : 0)}%` }}
         />
       </div>
@@ -497,13 +497,13 @@ const DecisionTreeSegmentCard = ({ segment }: { segment: AdminAnalyticsTreeSegme
               content="Segment count is the number of users in this branch. Share = segment users / total users."
             />
           </div>
-          <h4 className="mt-2 text-lg font-semibold tracking-tight text-white">{segment.label}</h4>
+          <h4 className="mt-2 text-lg font-semibold tracking-tight text-on-surface">{segment.label}</h4>
         </div>
-        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${style.badge}`}>
+        <span className={` border px-2.5 py-1 text-[11px] font-medium ${style.badge}`}>
           {segment.sharePct}% of total
         </span>
       </div>
-      <p className="mt-4 text-[2rem] font-semibold tracking-tight text-white">{segment.count}</p>
+      <p className="mt-4 text-[2rem] font-semibold tracking-tight text-on-surface">{segment.count}</p>
       <p className="mt-2 text-sm leading-6 text-[#a7bbb2]">{segment.helper}</p>
     </div>
   );
@@ -517,18 +517,18 @@ const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[0.68rem] uppercase tracking-[0.28em] text-[#7fbba7]">{tree.windowLabel}</p>
-          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-white">{tree.title}</h3>
+          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-on-surface">{tree.title}</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#9fb1aa]">{tree.description}</p>
         </div>
         {tree.note ? (
-          <div className="rounded-full border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs text-[#d7e5df]">
+          <div className=" border border-outline-variant/20 bg-surface-container px-3.5 py-2 text-xs text-on-surface">
             {tree.note}
           </div>
         ) : null}
       </div>
 
       <div className="lg:hidden">
-        <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <div className=" border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           <div className="flex items-center gap-2">
             <p className="text-[0.68rem] uppercase tracking-[0.2em] text-[#8fa79d]">{tree.rootLabel}</p>
             <InfoHint
@@ -536,7 +536,7 @@ const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
               content="Total users in scope for this analytics view after the selected period filter is applied."
             />
           </div>
-          <p className="mt-3 text-[2.2rem] font-semibold tracking-tight text-white">{tree.rootCount}</p>
+          <p className="mt-3 text-[2.2rem] font-semibold tracking-tight text-on-surface">{tree.rootCount}</p>
           <p className="mt-2 text-sm text-[#9fb1aa]">{tree.rootHelper}</p>
         </div>
         <div className="mt-4 space-y-4">
@@ -545,13 +545,13 @@ const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
 
             return (
               <div key={segment.id} className="relative pl-5">
-                <div className="absolute left-[0.45rem] top-0 bottom-0 w-[2px] rounded-full bg-white/20" />
-                <div className={`absolute left-[0.45rem] top-8 h-[2px] w-4 rounded-full ${style.connector}`} />
+                <div className="absolute left-[0.45rem] top-0 bottom-0 w-[2px]  bg-white/20" />
+                <div className={`absolute left-[0.45rem] top-8 h-[2px] w-4  ${style.connector}`} />
                 <DecisionTreeSegmentCard segment={segment} />
                 <div className="mt-4 space-y-3 pl-4">
                   {segment.outcomes.map((outcome) => (
                     <div key={outcome.id} className="relative pl-4">
-                      <div className={`absolute left-0 top-6 h-[2px] w-4 rounded-full ${style.connector}`} />
+                      <div className={`absolute left-0 top-6 h-[2px] w-4  ${style.connector}`} />
                       <DecisionTreeOutcomeCard outcome={outcome} accent={segment.accent} />
                     </div>
                   ))}
@@ -564,9 +564,9 @@ const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
 
       <div className="hidden lg:block">
         <div className="relative mx-auto max-w-6xl px-4 pb-2 pt-2">
-          <div className="absolute left-1/2 top-[6.25rem] h-10 w-[2px] -translate-x-1/2 rounded-full bg-white/28" />
+          <div className="absolute left-1/2 top-[6.25rem] h-10 w-[2px] -translate-x-1/2  bg-white/28" />
           <div className="flex justify-center">
-            <div className="w-[20rem] rounded-[30px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-6 py-5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_20px_48px_-30px_rgba(0,0,0,0.9)]">
+            <div className="w-[20rem] rounded-[30px] border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-6 py-5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_20px_48px_-30px_rgba(0,0,0,0.9)]">
               <div className="flex items-center justify-center gap-2">
                 <p className="text-[0.68rem] uppercase tracking-[0.24em] text-[#8fa79d]">{tree.rootLabel}</p>
                 <InfoHint
@@ -574,25 +574,25 @@ const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
                   content="Total users in scope for this analytics view after the selected period filter is applied."
                 />
               </div>
-              <p className="mt-3 text-[2.6rem] font-semibold tracking-tight text-white">{tree.rootCount}</p>
+              <p className="mt-3 text-[2.6rem] font-semibold tracking-tight text-on-surface">{tree.rootCount}</p>
               <p className="mt-2 text-sm text-[#9fb1aa]">{tree.rootHelper}</p>
             </div>
           </div>
 
           <div className="relative mt-10 grid grid-cols-2 gap-10 border-t border-white/20 pt-10">
-            <div className="absolute left-1/2 top-0 h-10 w-[2px] -translate-x-1/2 rounded-full bg-white/28" />
+            <div className="absolute left-1/2 top-0 h-10 w-[2px] -translate-x-1/2  bg-white/28" />
             {[leftSegment, rightSegment].map((segment) => {
               const style = TREE_ACCENT_STYLES[segment.accent];
 
               return (
                 <div key={segment.id} className="relative">
-                  <div className={`absolute left-1/2 top-[-2.5rem] h-10 w-[2px] -translate-x-1/2 rounded-full ${style.connector}`} />
+                  <div className={`absolute left-1/2 top-[-2.5rem] h-10 w-[2px] -translate-x-1/2  ${style.connector}`} />
                   <DecisionTreeSegmentCard segment={segment} />
                   <div className="relative mt-8 grid grid-cols-2 gap-4 border-t border-white/16 pt-8">
-                    <div className={`absolute left-1/2 top-0 h-8 w-[2px] -translate-x-1/2 rounded-full ${style.connector}`} />
+                    <div className={`absolute left-1/2 top-0 h-8 w-[2px] -translate-x-1/2  ${style.connector}`} />
                     {segment.outcomes.map((outcome) => (
                       <div key={outcome.id} className="relative">
-                        <div className={`absolute left-1/2 top-[-2rem] h-8 w-[2px] -translate-x-1/2 rounded-full ${style.connector}`} />
+                        <div className={`absolute left-1/2 top-[-2rem] h-8 w-[2px] -translate-x-1/2  ${style.connector}`} />
                         <DecisionTreeOutcomeCard outcome={outcome} accent={segment.accent} />
                       </div>
                     ))}
@@ -808,12 +808,12 @@ export function AdminAnalyticsSection({
   return (
     <div className="space-y-6">
       <Surface>
-        <div className="border-b border-white/10 px-5 py-5 sm:px-6">
+        <div className="border-b border-outline-variant/20 px-5 py-5 sm:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <p className="text-[0.68rem] uppercase tracking-[0.28em] text-[#7fbba7]">Analytics</p>
               <h2
-                className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl"
+                className="mt-3 text-3xl font-semibold tracking-tight text-on-surface sm:text-4xl"
                 style={{ fontFamily: 'var(--font-serif)' }}
               >
                 See growth, engagement, and learning health
@@ -852,7 +852,7 @@ export function AdminAnalyticsSection({
                 </button>
               </div>
               <div className="flex items-center justify-between gap-3 sm:justify-end">
-                <p className="text-xs text-[#8fa69b]">
+                <p className="text-xs text-on-surface-variant">
                   {analytics ? `Updated ${formatDateTime(analytics.generatedAt)}` : 'Loading analytics...'}
                 </p>
                 <button
@@ -861,7 +861,7 @@ export function AdminAnalyticsSection({
                     void loadAnalytics(period);
                     onMutation('Analytics refreshed.');
                   }}
-                  className="hidden h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/[0.05] text-white transition hover:border-brand-400/30 hover:bg-white/[0.08] sm:inline-flex"
+                  className="hidden h-10 w-10 items-center justify-center  border border-outline-variant/20 bg-surface-container text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high sm:inline-flex"
                   aria-label="Refresh analytics"
                 >
                   <RefreshCw className="h-4.5 w-4.5" strokeWidth={2.2} />
@@ -874,7 +874,7 @@ export function AdminAnalyticsSection({
         <div className="px-5 py-5 sm:px-6">
           {error ? <InlineMessage tone="error" message={error} /> : null}
           {loading && !analytics ? (
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] px-5 py-10 text-sm text-[#9fb1aa]">
+            <div className="rounded-[24px] border border-outline-variant/20 bg-surface-container-low px-5 py-10 text-sm text-[#9fb1aa]">
               Loading analytics snapshot...
             </div>
           ) : analytics ? (
@@ -892,23 +892,23 @@ export function AdminAnalyticsSection({
       {analytics ? (
         <>
           <Surface>
-            <div className="border-b border-white/10 px-5 py-5 sm:px-6">
+            <div className="border-b border-outline-variant/20 px-5 py-5 sm:px-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-3xl">
                   <p className="text-[0.68rem] uppercase tracking-[0.28em] text-[#7fbba7]">
                     Decision map
                   </p>
-                  <h3 className="mt-2 text-2xl font-semibold text-white sm:text-[2rem]">
+                  <h3 className="mt-2 text-2xl font-semibold text-on-surface sm:text-[2rem]">
                     See how the user base splits into meaningful outcomes
                   </h3>
                 </div>
-                <div className="rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs text-[#d7e5df]">
+                <div className=" border border-outline-variant/20 bg-surface-container-low px-3.5 py-2 text-xs text-on-surface">
                   {analytics.periodLabel}
                 </div>
               </div>
             </div>
 
-            <div className="border-b border-white/10 px-5 py-4 sm:px-6">
+            <div className="border-b border-outline-variant/20 px-5 py-4 sm:px-6">
               <div
                 className="flex gap-2 overflow-x-auto pb-1"
                 role="tablist"
@@ -925,10 +925,10 @@ export function AdminAnalyticsSection({
                       aria-selected={isActive}
                       aria-controls={`decision-tree-panel-${tree.id}`}
                       onClick={() => setSelectedTreeId(tree.id)}
-                      className={`shrink-0 rounded-full border px-4 py-2.5 text-sm font-medium transition ${
+                      className={`shrink-0  border px-4 py-2.5 text-sm font-medium transition ${
                         isActive
-                          ? 'border-brand-400/35 bg-brand-500/15 text-[#d5f4ea]'
-                          : 'border-white/12 bg-white/[0.04] text-[#c8d7d1] hover:border-brand-400/20 hover:bg-white/[0.06]'
+                          ? 'border-primary/35 bg-primary/15 text-primary'
+                          : 'border-outline-variant/20 bg-surface-container-low text-on-surface-variant hover:border-primary/20 hover:bg-surface-container-high'
                       }`}
                     >
                       {tree.title}
@@ -948,7 +948,7 @@ export function AdminAnalyticsSection({
                   <DecisionTreeMap tree={activeDecisionTree} />
                 </div>
               ) : (
-                <div className="rounded-[24px] border border-dashed border-white/10 bg-white/[0.03] px-5 py-10 text-sm text-[#9fb1aa]">
+                <div className="rounded-[24px] border border-dashed border-outline-variant/20 bg-surface-container-low px-5 py-10 text-sm text-[#9fb1aa]">
                   Decision trees will appear here once the analytics snapshot has enough data to segment users.
                 </div>
               )}

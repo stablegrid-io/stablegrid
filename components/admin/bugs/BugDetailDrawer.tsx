@@ -15,9 +15,9 @@ const DetailField = ({
   label: string;
   value: string | null | undefined;
 }) => (
-  <div className="rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+  <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
     <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">{label}</p>
-    <p className="mt-2 text-sm text-white">{value && value.trim().length > 0 ? value : 'Not provided'}</p>
+    <p className="mt-2 text-sm text-on-surface">{value && value.trim().length > 0 ? value : 'Not provided'}</p>
   </div>
 );
 
@@ -68,13 +68,13 @@ export function BugDetailDrawer({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[#7f948b]">Bug report</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">{report.title}</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-on-surface">{report.title}</h2>
             <p className="mt-1 text-sm text-[#8fa49b]">#{report.id.slice(0, 8)}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.04] text-[#cbdad3] transition hover:border-white/20 hover:bg-white/[0.07]"
+            className="inline-flex h-9 w-9 items-center justify-center  border border-outline-variant/20 bg-surface-container-low text-[#cbdad3] transition hover:border-white/20 hover:bg-white/[0.07]"
           >
             <X className="h-4 w-4" />
           </button>
@@ -86,18 +86,18 @@ export function BugDetailDrawer({
           <span className="text-xs text-[#8ea39a]">{formatSubmittedAt(report.submittedAt)}</span>
         </div>
 
-        <div className="mt-5 rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+        <div className="mt-5  border border-outline-variant/20 bg-surface-container-low p-3">
           <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Description</p>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#d8e5df]">{report.description}</p>
         </div>
 
-        <div className="mt-4 rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+        <div className="mt-4  border border-outline-variant/20 bg-surface-container-low p-3">
           <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Status</p>
           <div className="mt-2 flex items-center gap-2">
             <select
               value={statusDraft}
               onChange={(event) => setStatusDraft(event.target.value as BugStatus)}
-              className="h-10 flex-1 rounded-[12px] border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15"
+              className="h-10 flex-1  border border-outline-variant/20 bg-surface-container-low px-3 text-sm text-on-surface outline-none transition focus:border-primary/35 focus:ring-2 focus:ring-brand-400/15"
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -109,7 +109,7 @@ export function BugDetailDrawer({
               type="button"
               onClick={() => void onSaveStatus(statusDraft)}
               disabled={!statusDirty || savingStatus}
-              className="inline-flex h-10 items-center justify-center rounded-[12px] border border-brand-300/45 bg-brand-500/85 px-4 text-sm font-semibold text-[#06110d] transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-55"
+              className="inline-flex h-10 items-center justify-center  border border-brand-300/45 bg-primary/85 px-4 text-sm font-semibold text-[#06110d] transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-55"
             >
               {savingStatus ? 'Saving...' : 'Save'}
             </button>
@@ -131,7 +131,7 @@ export function BugDetailDrawer({
           <DetailField label="Actual result" value={report.actualResult} />
         </div>
 
-        <div className="mt-4 rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+        <div className="mt-4  border border-outline-variant/20 bg-surface-container-low p-3">
           <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Attachments</p>
           {report.attachmentUrls.length > 0 ? (
             <div className="mt-2 space-y-2">
@@ -141,7 +141,7 @@ export function BugDetailDrawer({
                   href={url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-sm text-[#bfe7da] transition hover:text-white"
+                  className="inline-flex items-center gap-1 text-sm text-[#bfe7da] transition hover:text-on-surface"
                 >
                   {url}
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -153,7 +153,7 @@ export function BugDetailDrawer({
           )}
         </div>
 
-        <div className="mt-4 rounded-[14px] border border-dashed border-white/14 bg-white/[0.02] p-3">
+        <div className="mt-4  border border-dashed border-outline-variant/20 bg-white/[0.02] p-3">
           <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Internal notes</p>
           <p className="mt-2 text-sm text-[#8ea39a]">Notes field placeholder for triage and handoff.</p>
         </div>

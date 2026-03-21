@@ -41,11 +41,11 @@ export function FeedbackTableSection({
   onOpenRecord: (record: FeedbackRecord) => void;
 }) {
   return (
-    <section className="rounded-[24px] border border-white/10 bg-[#07100f]/68 shadow-[0_24px_45px_-35px_rgba(0,0,0,0.9)]">
-      <div className="border-b border-white/10 px-4 py-4 sm:px-5">
+    <section className="rounded-[24px] border border-outline-variant/20 bg-surface-container-low/68 shadow-[0_24px_45px_-35px_rgba(0,0,0,0.9)]">
+      <div className="border-b border-outline-variant/20 px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-white">
+            <h2 className="text-lg font-semibold tracking-tight text-on-surface">
               Feedback details
             </h2>
             <p className="mt-1 text-sm text-[#8ea39a]">
@@ -65,7 +65,7 @@ export function FeedbackTableSection({
                 value={query}
                 onChange={(event) => onQueryChange(event.target.value)}
                 placeholder="Search feedback, keywords, user, or page"
-                className="h-10 w-full rounded-[14px] border border-white/12 bg-white/[0.04] pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-[#70847b] focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15"
+                className="h-10 w-full  border border-outline-variant/20 bg-surface-container-low pl-9 pr-3 text-sm text-on-surface outline-none transition placeholder:text-[#70847b] focus:border-primary/35 focus:ring-2 focus:ring-brand-400/15"
               />
             </label>
 
@@ -79,7 +79,7 @@ export function FeedbackTableSection({
                 onChange={(event) =>
                   onSortChange(event.target.value as FeedbackSortOption)
                 }
-                className="h-10 w-full rounded-[14px] border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15"
+                className="h-10 w-full  border border-outline-variant/20 bg-surface-container-low px-3 text-sm text-on-surface outline-none transition focus:border-primary/35 focus:ring-2 focus:ring-brand-400/15"
               >
                 {FEEDBACK_SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -96,20 +96,20 @@ export function FeedbackTableSection({
         <table className="min-w-full border-separate border-spacing-0">
           <thead>
             <tr className="text-left text-[0.68rem] uppercase tracking-[0.18em] text-[#7f948b]">
-              <th className="border-b border-white/10 px-4 py-3 font-medium sm:px-5">
+              <th className="border-b border-outline-variant/20 px-4 py-3 font-medium sm:px-5">
                 User
               </th>
-              <th className="border-b border-white/10 px-4 py-3 font-medium">Date</th>
-              <th className="border-b border-white/10 px-4 py-3 font-medium">Category</th>
-              <th className="border-b border-white/10 px-4 py-3 font-medium">Rating</th>
-              <th className="border-b border-white/10 px-4 py-3 font-medium">
+              <th className="border-b border-outline-variant/20 px-4 py-3 font-medium">Date</th>
+              <th className="border-b border-outline-variant/20 px-4 py-3 font-medium">Category</th>
+              <th className="border-b border-outline-variant/20 px-4 py-3 font-medium">Rating</th>
+              <th className="border-b border-outline-variant/20 px-4 py-3 font-medium">
                 Sentiment
               </th>
-              <th className="border-b border-white/10 px-4 py-3 font-medium">
+              <th className="border-b border-outline-variant/20 px-4 py-3 font-medium">
                 Short feedback preview
               </th>
-              <th className="border-b border-white/10 px-4 py-3 font-medium">Status</th>
-              <th className="border-b border-white/10 px-4 py-3 font-medium">Actions</th>
+              <th className="border-b border-outline-variant/20 px-4 py-3 font-medium">Status</th>
+              <th className="border-b border-outline-variant/20 px-4 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -121,7 +121,7 @@ export function FeedbackTableSection({
                       key={cellIndex}
                       className="border-b border-white/[0.08] px-4 py-4 sm:px-5"
                     >
-                      <div className="h-4 rounded-full bg-white/[0.06]" />
+                      <div className="h-4  bg-surface-container-high" />
                     </td>
                   ))}
                 </tr>
@@ -129,8 +129,8 @@ export function FeedbackTableSection({
             ) : records.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-12 text-center sm:px-5">
-                  <div className="mx-auto max-w-md rounded-[18px] border border-dashed border-white/10 bg-white/[0.03] px-6 py-8">
-                    <p className="text-base font-medium text-white">
+                  <div className="mx-auto max-w-md  border border-dashed border-outline-variant/20 bg-surface-container-low px-6 py-8">
+                    <p className="text-base font-medium text-on-surface">
                       No feedback matches the current filters.
                     </p>
                     <p className="mt-2 text-sm leading-6 text-[#8ea39a]">
@@ -156,7 +156,7 @@ export function FeedbackTableSection({
                 >
                   <td className="border-b border-white/[0.08] px-4 py-4 sm:px-5">
                     <div>
-                      <p className="font-medium text-white">{record.userName}</p>
+                      <p className="font-medium text-on-surface">{record.userName}</p>
                       <p className="mt-1 text-xs text-[#8ea39a]">{record.userEmail}</p>
                     </div>
                   </td>
@@ -165,16 +165,16 @@ export function FeedbackTableSection({
                   </td>
                   <td className="border-b border-white/[0.08] px-4 py-4">
                     <div>
-                      <p className="font-medium text-white">{record.category}</p>
+                      <p className="font-medium text-on-surface">{record.category}</p>
                       <p className="mt-1 text-xs text-[#8ea39a]">{record.module}</p>
                     </div>
                   </td>
                   <td className="border-b border-white/[0.08] px-4 py-4">
-                    <span className="font-medium text-white">{record.rating}/5</span>
+                    <span className="font-medium text-on-surface">{record.rating}/5</span>
                   </td>
                   <td className="border-b border-white/[0.08] px-4 py-4">
                     <span
-                      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${getSentimentBadgeClass(record.sentiment)}`}
+                      className={`inline-flex items-center  border px-2.5 py-1 text-xs font-medium ${getSentimentBadgeClass(record.sentiment)}`}
                     >
                       {record.sentiment}
                     </span>
@@ -189,7 +189,7 @@ export function FeedbackTableSection({
                   </td>
                   <td className="border-b border-white/[0.08] px-4 py-4">
                     <span
-                      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusBadgeClass(record.status)}`}
+                      className={`inline-flex items-center  border px-2.5 py-1 text-xs font-medium ${getStatusBadgeClass(record.status)}`}
                     >
                       {record.status}
                     </span>
@@ -201,7 +201,7 @@ export function FeedbackTableSection({
                         event.stopPropagation();
                         onOpenRecord(record);
                       }}
-                      className="inline-flex h-9 items-center rounded-[12px] border border-white/12 bg-white/[0.04] px-3 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/[0.07]"
+                      className="inline-flex h-9 items-center  border border-outline-variant/20 bg-surface-container-low px-3 text-sm font-medium text-on-surface transition hover:border-white/20 hover:bg-white/[0.07]"
                     >
                       Open
                     </button>

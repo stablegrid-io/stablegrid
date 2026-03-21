@@ -53,7 +53,7 @@ export function CustomersColumnsDropdown({
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-white/12 bg-white/[0.04] px-3.5 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
+        className="inline-flex h-10 items-center gap-2  border border-outline-variant/20 bg-surface-container-low px-3.5 text-sm font-medium text-on-surface transition hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
       >
         <Columns3 className="h-4 w-4 text-[#9cb0a7]" />
         Columns
@@ -61,7 +61,7 @@ export function CustomersColumnsDropdown({
 
       {open ? (
         <div
-          className={`absolute right-0 top-[calc(100%+8px)] z-20 w-56 rounded-[14px] p-2 ${ADMIN_DROPDOWN_SURFACE_CLASS}`}
+          className={`absolute right-0 top-[calc(100%+8px)] z-20 w-56  p-2 ${ADMIN_DROPDOWN_SURFACE_CLASS}`}
         >
           <div className="mb-1 px-2 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-[#7f948b]">
             Visible columns
@@ -76,10 +76,10 @@ export function CustomersColumnsDropdown({
                   type="button"
                   onClick={() => onToggle(column.id)}
                   aria-label={`Toggle ${column.label} column`}
-                  className="flex w-full items-center justify-between rounded-[10px] px-2 py-2 text-sm text-[#d5e2dd] transition hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
+                  className="flex w-full items-center justify-between  px-2 py-2 text-sm text-[#d5e2dd] transition hover:bg-surface-container-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
                 >
                   <span>{column.label}</span>
-                  <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-white/15 bg-white/[0.03]">
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-white/15 bg-surface-container-low">
                     {checked ? <Check className="h-3 w-3 text-[#9df0d9]" /> : null}
                   </span>
                 </button>
@@ -89,7 +89,7 @@ export function CustomersColumnsDropdown({
           <button
             type="button"
             onClick={onReset}
-            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-[10px] border border-white/12 bg-white/[0.03] px-2 py-2 text-xs font-medium text-[#d5e2dd] transition hover:border-white/20 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
+            className="mt-2 inline-flex w-full items-center justify-center gap-2  border border-outline-variant/20 bg-surface-container-low px-2 py-2 text-xs font-medium text-[#d5e2dd] transition hover:border-white/20 hover:bg-surface-container-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
           >
             <RotateCcw className="h-3 w-3" />
             Reset columns

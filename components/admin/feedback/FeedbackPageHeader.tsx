@@ -10,7 +10,7 @@ import {
 } from '@/components/admin/feedback/types';
 
 const FILTER_SELECT_CLASS =
-  'h-10 rounded-[14px] border border-white/12 bg-white/[0.04] px-3 text-sm text-white outline-none transition focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15';
+  'h-10  border border-outline-variant/20 bg-surface-container-low px-3 text-sm text-on-surface outline-none transition focus:border-primary/35 focus:ring-2 focus:ring-brand-400/15';
 
 function FilterField({
   label,
@@ -54,7 +54,7 @@ export function FeedbackPageHeader({
           >
             <Link
               href="/admin"
-              className="rounded-md px-1 py-0.5 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40"
+              className=" px-1 py-0.5 transition hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40"
             >
               Dashboard
             </Link>
@@ -64,7 +64,7 @@ export function FeedbackPageHeader({
 
           <div>
             <h1
-              className="text-3xl font-semibold tracking-tight text-white sm:text-4xl"
+              className="text-3xl font-semibold tracking-tight text-on-surface sm:text-4xl"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
               Feedback

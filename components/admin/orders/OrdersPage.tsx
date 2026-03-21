@@ -294,42 +294,42 @@ export function OrdersPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[#7f948b]">Order detail</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">{selectedOrder.orderNumber}</h2>
+                <h2 className="mt-2 text-2xl font-semibold text-on-surface">{selectedOrder.orderNumber}</h2>
                 <p className="mt-1 text-sm text-[#8fa49b]">{selectedOrder.customerName}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedOrder(null)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.04] text-[#cbdad3] transition hover:border-white/20 hover:bg-white/[0.07]"
+                className="inline-flex h-9 w-9 items-center justify-center  border border-outline-variant/20 bg-surface-container-low text-[#cbdad3] transition hover:border-white/20 hover:bg-white/[0.07]"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="mt-6 grid gap-3">
-              <div className="rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+              <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
                 <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Status</p>
                 <div className="mt-2">
                   <OrderStatusBadge status={selectedOrder.status} />
                 </div>
               </div>
-              <div className="rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+              <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
                 <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Product</p>
-                <p className="mt-2 text-sm font-medium text-white">{selectedOrder.product}</p>
+                <p className="mt-2 text-sm font-medium text-on-surface">{selectedOrder.product}</p>
               </div>
-              <div className="rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+              <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
                 <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Date</p>
-                <p className="mt-2 text-sm font-medium text-white">{formatOrderDate(selectedOrder.date)}</p>
+                <p className="mt-2 text-sm font-medium text-on-surface">{formatOrderDate(selectedOrder.date)}</p>
               </div>
-              <div className="rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+              <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
                 <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Amount</p>
-                <p className="mt-2 text-sm font-semibold text-white">
+                <p className="mt-2 text-sm font-semibold text-on-surface">
                   {formatOrderAmount(selectedOrder.amount)}
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 rounded-[14px] border border-dashed border-white/14 bg-white/[0.02] p-3 text-sm text-[#8ea39a]">
+            <div className="mt-6  border border-dashed border-outline-variant/20 bg-white/[0.02] p-3 text-sm text-[#8ea39a]">
               Detail placeholder. Connect this drawer to the final order timeline, payment records, and fulfillment actions.
             </div>
           </aside>

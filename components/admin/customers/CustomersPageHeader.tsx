@@ -7,7 +7,7 @@ export function CustomersPageHeader() {
       <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-[#8ea39a]">
         <Link
           href="/admin"
-          className="rounded-md px-1 py-0.5 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40"
+          className=" px-1 py-0.5 transition hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40"
         >
           Dashboard
         </Link>
@@ -16,7 +16,7 @@ export function CustomersPageHeader() {
       </nav>
 
       <h1
-        className="text-3xl font-semibold tracking-tight text-white sm:text-4xl"
+        className="text-3xl font-semibold tracking-tight text-on-surface sm:text-4xl"
         style={{ fontFamily: 'var(--font-serif)' }}
       >
         Customers

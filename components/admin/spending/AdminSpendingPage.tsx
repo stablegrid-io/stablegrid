@@ -223,9 +223,9 @@ export function AdminSpendingPage() {
     .sort((a, b) => b.total - a.total);
 
   const selectClass =
-    'rounded-[10px] border border-white/10 bg-[#07100f] px-2 py-1 text-xs text-white focus:border-brand-400/40 focus:outline-none';
+    ' border border-outline-variant/20 bg-surface-container-low px-2 py-1 text-xs text-on-surface focus:border-brand-400/40 focus:outline-none';
   const inputClass =
-    'rounded-[10px] border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-white placeholder-white/20 focus:border-brand-400/40 focus:outline-none';
+    ' border border-outline-variant/20 bg-surface-container-low px-2 py-1 text-xs text-on-surface placeholder-white/20 focus:border-brand-400/40 focus:outline-none';
 
   return (
     <div className={ADMIN_PAGE_SHELL_CLASS}>
@@ -236,14 +236,14 @@ export function AdminSpendingPage() {
           {/* Header */}
           <AdminSurface className="px-6 py-5">
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-500/10 text-rose-400">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center  bg-error/10 text-error">
                 <TrendingDown className="h-4 w-4" />
               </span>
               <div>
-                <p className="text-[0.64rem] uppercase tracking-[0.28em] text-[#84bea9]">
+                <p className="text-[0.64rem] uppercase tracking-[0.28em] text-primary">
                   Admin · Dev Tools
                 </p>
-                <h1 className="text-lg font-semibold tracking-tight text-white">
+                <h1 className="text-lg font-semibold tracking-tight text-on-surface">
                   Project Spending
                 </h1>
               </div>
@@ -252,23 +252,23 @@ export function AdminSpendingPage() {
                   type="button"
                   onClick={() => void loadEntries()}
                   disabled={loading}
-                  className="flex items-center gap-1.5 rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-[#8da99d] transition hover:border-white/20 hover:text-white disabled:opacity-40"
+                  className="flex items-center gap-1.5  border border-outline-variant/20 bg-surface-container-low px-3 py-1.5 text-xs text-on-surface-variant transition hover:border-white/20 hover:text-on-surface disabled:opacity-40"
                 >
                   <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
                   Refresh
                 </button>
                 <div className="text-right">
-                  <p className="text-[0.64rem] uppercase tracking-[0.22em] text-[#8da99d]">
+                  <p className="text-[0.64rem] uppercase tracking-[0.22em] text-on-surface-variant">
                     Total spent
                   </p>
-                  <p className="text-xl font-bold text-rose-400">{fmt(totalSpend)}</p>
+                  <p className="text-xl font-bold text-error">{fmt(totalSpend)}</p>
                 </div>
               </div>
             </div>
           </AdminSurface>
 
           {error && (
-            <div className="rounded-[14px] border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+            <div className=" border border-error/25 bg-error/10 px-4 py-3 text-sm text-rose-200">
               {error}
             </div>
           )}
@@ -278,31 +278,31 @@ export function AdminSpendingPage() {
             <div className="space-y-4">
               {/* Add entry form */}
               <AdminSurface className="px-6 py-5">
-                <p className="mb-4 text-[0.64rem] uppercase tracking-[0.28em] text-[#84bea9]">
+                <p className="mb-4 text-[0.64rem] uppercase tracking-[0.28em] text-primary">
                   New entry
                 </p>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto_1fr_1fr_1fr]">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-[#8da99d]">
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
                       Date
                     </label>
                     <input
                       type="date"
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
-                      className="rounded-[12px] border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-brand-400/40 focus:outline-none focus:ring-1 focus:ring-brand-400/20"
+                      className=" border border-outline-variant/20 bg-surface-container-low px-3 py-2 text-sm text-on-surface focus:border-brand-400/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-[#8da99d]">
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
                       Category
                     </label>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value as Category)}
-                      className="rounded-[12px] border border-white/10 bg-[#07100f] px-3 py-2 text-sm text-white focus:border-brand-400/40 focus:outline-none focus:ring-1 focus:ring-brand-400/20"
+                      className=" border border-outline-variant/20 bg-surface-container-low px-3 py-2 text-sm text-on-surface focus:border-brand-400/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
                     >
                       {CATEGORIES.map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
@@ -311,13 +311,13 @@ export function AdminSpendingPage() {
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-[#8da99d]">
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
                       Domain
                     </label>
                     <select
                       value={domain}
                       onChange={(e) => setDomain(e.target.value as Domain)}
-                      className="rounded-[12px] border border-white/10 bg-[#07100f] px-3 py-2 text-sm text-white focus:border-brand-400/40 focus:outline-none focus:ring-1 focus:ring-brand-400/20"
+                      className=" border border-outline-variant/20 bg-surface-container-low px-3 py-2 text-sm text-on-surface focus:border-brand-400/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
                     >
                       {DOMAINS.map((d) => (
                         <option key={d} value={d}>{d}</option>
@@ -326,7 +326,7 @@ export function AdminSpendingPage() {
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-[#8da99d]">
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
                       Amount (€)
                     </label>
                     <input
@@ -337,14 +337,14 @@ export function AdminSpendingPage() {
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && void handleAdd()}
-                      className="rounded-[12px] border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white placeholder-white/20 focus:border-brand-400/40 focus:outline-none focus:ring-1 focus:ring-brand-400/20"
+                      className=" border border-outline-variant/20 bg-surface-container-low px-3 py-2 text-sm text-on-surface placeholder-white/20 focus:border-brand-400/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
                     />
                   </div>
                 </div>
 
                 <div className="mt-3 flex gap-3">
                   <div className="flex flex-1 flex-col gap-1">
-                    <label className="text-[10px] uppercase tracking-[0.2em] text-[#8da99d]">
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
                       Description
                     </label>
                     <input
@@ -354,7 +354,7 @@ export function AdminSpendingPage() {
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && void handleAdd()}
-                      className="rounded-[12px] border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white placeholder-white/20 focus:border-brand-400/40 focus:outline-none focus:ring-1 focus:ring-brand-400/20"
+                      className=" border border-outline-variant/20 bg-surface-container-low px-3 py-2 text-sm text-on-surface placeholder-white/20 focus:border-brand-400/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
                     />
                   </div>
                   <div className="flex flex-col justify-end">
@@ -362,7 +362,7 @@ export function AdminSpendingPage() {
                       type="button"
                       onClick={() => void handleAdd()}
                       disabled={submitting}
-                      className="inline-flex items-center gap-2 rounded-[12px] border border-brand-400/30 bg-brand-500/12 px-4 py-2 text-sm font-medium text-[#d5f4ea] transition hover:border-brand-400/50 hover:bg-brand-500/20 disabled:opacity-50"
+                      className="inline-flex items-center gap-2  border border-primary/30 bg-primary/12 px-4 py-2 text-sm font-medium text-primary transition hover:border-brand-400/50 hover:bg-primary/20 disabled:opacity-50"
                     >
                       <PlusCircle className="h-4 w-4" />
                       {submitting ? 'Adding...' : 'Add'}
@@ -371,29 +371,29 @@ export function AdminSpendingPage() {
                 </div>
 
                 {formError && (
-                  <p className="mt-2 text-xs text-rose-400">{formError}</p>
+                  <p className="mt-2 text-xs text-error">{formError}</p>
                 )}
               </AdminSurface>
 
               {/* Entries table */}
               <div className={ADMIN_TABLE_SURFACE_CLASS}>
                 {loading ? (
-                  <div className="px-6 py-12 text-center text-sm text-[#8da99d]">
+                  <div className="px-6 py-12 text-center text-sm text-on-surface-variant">
                     Loading...
                   </div>
                 ) : entries.length === 0 ? (
-                  <div className="px-6 py-12 text-center text-sm text-[#8da99d]">
+                  <div className="px-6 py-12 text-center text-sm text-on-surface-variant">
                     No entries yet. Add your first expense above.
                   </div>
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-white/8">
-                        <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-[#8da99d]">Date</th>
-                        <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-[#8da99d]">Category</th>
-                        <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-[#8da99d]">Domain</th>
-                        <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-[#8da99d]">Description</th>
-                        <th className="px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-[#8da99d]">Amount</th>
+                      <tr className="border-b border-outline-variant/15">
+                        <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-on-surface-variant">Date</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-on-surface-variant">Category</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-on-surface-variant">Domain</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-on-surface-variant">Description</th>
+                        <th className="px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-on-surface-variant">Amount</th>
                         <th className="px-4 py-3" />
                       </tr>
                     </thead>
@@ -465,7 +465,7 @@ export function AdminSpendingPage() {
                                     <button
                                       type="button"
                                       onClick={cancelEdit}
-                                      className="rounded-[8px] border border-white/10 bg-white/[0.03] p-1.5 text-[#8da99d] transition hover:text-white"
+                                      className="rounded-[8px] border border-outline-variant/20 bg-surface-container-low p-1.5 text-on-surface-variant transition hover:text-on-surface"
                                       aria-label="Cancel"
                                     >
                                       <X className="h-3 w-3" />
@@ -475,19 +475,19 @@ export function AdminSpendingPage() {
                               </>
                             ) : (
                               <>
-                                <td className="whitespace-nowrap px-4 py-3 text-[#8da99d]">{entry.date}</td>
+                                <td className="whitespace-nowrap px-4 py-3 text-on-surface-variant">{entry.date}</td>
                                 <td className="px-4 py-3">
-                                  <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${CATEGORY_COLOR[entry.category]}`}>
+                                  <span className={`inline-block  border px-2.5 py-0.5 text-[10px] font-medium ${CATEGORY_COLOR[entry.category]}`}>
                                     {entry.category}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3">
-                                  <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${DOMAIN_COLOR[entry.domain ?? 'General']}`}>
+                                  <span className={`inline-block  border px-2.5 py-0.5 text-[10px] font-medium ${DOMAIN_COLOR[entry.domain ?? 'General']}`}>
                                     {entry.domain ?? 'General'}
                                   </span>
                                 </td>
-                                <td className="px-4 py-3 text-[#d3dfda]">{entry.description}</td>
-                                <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-semibold text-rose-400">
+                                <td className="px-4 py-3 text-on-surface">{entry.description}</td>
+                                <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-semibold text-error">
                                   {fmt(Number(entry.amount))}
                                 </td>
                                 <td className="px-4 py-3 text-right">
@@ -495,7 +495,7 @@ export function AdminSpendingPage() {
                                     <button
                                       type="button"
                                       onClick={() => startEdit(entry)}
-                                      className="text-[#8da99d] transition hover:text-white"
+                                      className="text-on-surface-variant transition hover:text-on-surface"
                                       aria-label="Edit entry"
                                     >
                                       <Pencil className="h-3.5 w-3.5" />
@@ -504,7 +504,7 @@ export function AdminSpendingPage() {
                                       type="button"
                                       onClick={() => void handleDelete(entry.id)}
                                       disabled={deletingId === entry.id}
-                                      className="text-[#8da99d] transition hover:text-rose-400 disabled:cursor-not-allowed"
+                                      className="text-on-surface-variant transition hover:text-error disabled:cursor-not-allowed"
                                       aria-label="Delete entry"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
@@ -518,11 +518,11 @@ export function AdminSpendingPage() {
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t border-white/10">
-                        <td colSpan={4} className="px-4 py-3 text-[10px] uppercase tracking-[0.18em] text-[#8da99d]">
+                      <tr className="border-t border-outline-variant/20">
+                        <td colSpan={4} className="px-4 py-3 text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
                           Total · {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-base font-bold text-rose-400">
+                        <td className="px-4 py-3 text-right font-mono text-base font-bold text-error">
                           {fmt(totalSpend)}
                         </td>
                         <td />
@@ -536,11 +536,11 @@ export function AdminSpendingPage() {
             {/* Right: breakdown by category */}
             <div className="space-y-3">
               <div className={`${ADMIN_SECONDARY_SURFACE_CLASS} px-5 py-4`}>
-                <p className="mb-4 text-[0.64rem] uppercase tracking-[0.28em] text-[#84bea9]">
+                <p className="mb-4 text-[0.64rem] uppercase tracking-[0.28em] text-primary">
                   By category
                 </p>
                 {byCategory.length === 0 ? (
-                  <p className="text-xs text-[#8da99d]">No data yet.</p>
+                  <p className="text-xs text-on-surface-variant">No data yet.</p>
                 ) : (
                   <div className="space-y-3">
                     {byCategory.map(({ cat, total }) => {
@@ -548,16 +548,16 @@ export function AdminSpendingPage() {
                       return (
                         <div key={cat}>
                           <div className="mb-1 flex items-center justify-between gap-2">
-                            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${CATEGORY_COLOR[cat]}`}>
+                            <span className={` border px-2 py-0.5 text-[10px] font-medium ${CATEGORY_COLOR[cat]}`}>
                               {cat}
                             </span>
-                            <span className="font-mono text-xs font-semibold text-[#d3dfda]">
+                            <span className="font-mono text-xs font-semibold text-on-surface">
                               {fmt(total)}
                             </span>
                           </div>
-                          <div className="h-1 w-full overflow-hidden rounded-full bg-white/5">
+                          <div className="h-1 w-full overflow-hidden  bg-white/5">
                             <div
-                              className="h-full rounded-full bg-rose-400/60 transition-all duration-500"
+                              className="h-full  bg-rose-400/60 transition-all duration-500"
                               style={{ width: `${pct}%` }}
                             />
                           </div>

@@ -10,9 +10,9 @@ interface DailyRevenueChartCardProps {
 
 export function DailyRevenueChartCard({ points }: DailyRevenueChartCardProps) {
   return (
-    <section className="rounded-[24px] border border-white/10 bg-[#07100f]/65 p-5 shadow-[0_24px_45px_-35px_rgba(0,0,0,0.9)] sm:p-6">
+    <section className="rounded-[24px] border border-outline-variant/20 bg-surface-container-low/65 p-5 shadow-[0_24px_45px_-35px_rgba(0,0,0,0.9)] sm:p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-tight text-white">Daily Revenue</h2>
+        <h2 className="text-lg font-semibold tracking-tight text-on-surface">Daily Revenue</h2>
         <span className="text-xs uppercase tracking-[0.16em] text-[#8ca79a]">30 days</span>
       </div>
 

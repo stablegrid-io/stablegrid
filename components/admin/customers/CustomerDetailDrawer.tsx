@@ -34,38 +34,38 @@ export function CustomerDetailDrawer({
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[#7f948b]">Customer detail</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">{customer.fullName}</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-on-surface">{customer.fullName}</h2>
             <p className="mt-1 text-sm text-[#8fa49b]">{customer.email}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.04] text-[#cbdad3] transition hover:border-white/20 hover:bg-white/[0.07]"
+            className="inline-flex h-9 w-9 items-center justify-center  border border-outline-variant/20 bg-surface-container-low text-[#cbdad3] transition hover:border-white/20 hover:bg-white/[0.07]"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="mt-6 grid gap-3">
-          <div className="rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+          <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
             <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Status</p>
-            <p className="mt-2 text-sm font-medium text-white">{customer.status}</p>
+            <p className="mt-2 text-sm font-medium text-on-surface">{customer.status}</p>
           </div>
-          <div className="rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+          <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
             <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Joined</p>
-            <p className="mt-2 text-sm font-medium text-white">{formatJoinedDate(customer.joinedAt)}</p>
+            <p className="mt-2 text-sm font-medium text-on-surface">{formatJoinedDate(customer.joinedAt)}</p>
           </div>
-          <div className="rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+          <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
             <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Orders</p>
-            <p className="mt-2 text-sm font-medium text-white">{customer.orders}</p>
+            <p className="mt-2 text-sm font-medium text-on-surface">{customer.orders}</p>
           </div>
-          <div className="rounded-[14px] border border-white/10 bg-white/[0.03] p-3">
+          <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
             <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Total spent</p>
-            <p className="mt-2 text-sm font-semibold text-white">{formatCurrency(customer.totalSpent)}</p>
+            <p className="mt-2 text-sm font-semibold text-on-surface">{formatCurrency(customer.totalSpent)}</p>
           </div>
         </div>
 
-        <div className="mt-6 rounded-[14px] border border-dashed border-white/14 bg-white/[0.02] p-3 text-sm text-[#8ea39a]">
+        <div className="mt-6  border border-dashed border-outline-variant/20 bg-white/[0.02] p-3 text-sm text-[#8ea39a]">
           Detail actions placeholder. Connect this drawer to real customer profile, billing, and activity
           timeline APIs.
         </div>

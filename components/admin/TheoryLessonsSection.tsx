@@ -71,16 +71,16 @@ const BLOCK_TYPE_OPTIONS: Array<{ value: BlockType; label: string }> = [
 ];
 
 const INPUT_CLASS_NAME =
-  'mt-2 w-full rounded-[16px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-brand-400/40 focus:bg-white/[0.06] focus:ring-2 focus:ring-brand-500/15';
+  'mt-2 w-full  border border-outline-variant/20 bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none transition focus:border-brand-400/40 focus:bg-surface-container-high focus:ring-2 focus:ring-brand-500/15';
 
 const SECONDARY_BUTTON_CLASS_NAME =
-  'rounded-[14px] border border-white/10 bg-white/[0.05] px-3 py-2 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-brand-400/30 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:border-white/12 disabled:bg-white/[0.06] disabled:text-[#d0ded8] disabled:opacity-100';
+  ' border border-outline-variant/20 bg-surface-container px-3 py-2 text-sm font-medium text-on-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-primary/30 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:border-outline-variant/20 disabled:bg-surface-container-high disabled:text-[#d0ded8] disabled:opacity-100';
 
 const PRIMARY_BUTTON_CLASS_NAME =
-  'rounded-[16px] border border-brand-300/45 bg-brand-500/92 px-5 py-3 text-sm font-semibold text-[#06110d] shadow-[0_18px_40px_-24px_rgba(34,185,153,0.42)] transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:border-white/12 disabled:bg-white/[0.08] disabled:text-[#d7e5df] disabled:shadow-none disabled:opacity-100';
+  ' border border-brand-300/45 bg-primary/92 px-5 py-3 text-sm font-semibold text-[#06110d] shadow-[0_18px_40px_-24px_rgba(34,185,153,0.42)] transition hover:bg-primary disabled:cursor-not-allowed disabled:border-outline-variant/20 disabled:bg-surface-container-high disabled:text-on-surface disabled:shadow-none disabled:opacity-100';
 
 const ICON_BUTTON_CLASS_NAME =
-  'rounded-[12px] border border-white/10 bg-black/15 px-2.5 py-2 text-xs font-medium text-[#dbe7e1] transition hover:border-brand-400/30 hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-40';
+  ' border border-outline-variant/20 bg-black/15 px-2.5 py-2 text-xs font-medium text-[#dbe7e1] transition hover:border-primary/30 hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-40';
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -108,10 +108,10 @@ const InlineMessage = ({
   message: string;
 }) => (
   <div
-    className={`rounded-[18px] border px-4 py-3 text-sm ${
+    className={` border px-4 py-3 text-sm ${
       tone === 'error'
-        ? 'border-rose-400/25 bg-rose-500/10 text-rose-100'
-        : 'border-brand-400/25 bg-brand-500/10 text-[#d7f6ec]'
+        ? 'border-error/25 bg-error/10 text-error'
+        : 'border-brand-400/25 bg-primary/10 text-[#d7f6ec]'
     }`}
   >
     {message}
@@ -144,11 +144,11 @@ const BlockCard = ({
   children: ReactNode;
   actions: ReactNode;
 }) => (
-  <div className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-6">
+  <div className="rounded-[26px] border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <p className="text-sm font-semibold text-white">{title}</p>
-        <p className="mt-1 text-xs text-[#8fa69b]">{subtitle}</p>
+        <p className="text-sm font-semibold text-on-surface">{title}</p>
+        <p className="mt-1 text-xs text-on-surface-variant">{subtitle}</p>
       </div>
       <div className="flex flex-wrap justify-end gap-2">{actions}</div>
     </div>
@@ -737,7 +737,7 @@ export function TheoryLessonsSection({
     const commonActions = (
       <>
         <select
-          className="rounded-[12px] border border-white/10 bg-black/20 px-3 py-2 text-xs font-medium text-white outline-none transition focus:border-brand-400/40"
+          className=" border border-outline-variant/20 bg-black/20 px-3 py-2 text-xs font-medium text-on-surface outline-none transition focus:border-brand-400/40"
           value={block.type}
           onChange={(event) =>
             updateBlockAtIndex(index, createDefaultBlock(event.target.value as BlockType))
@@ -1047,7 +1047,7 @@ export function TheoryLessonsSection({
               />
             </Field>
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-4 rounded-[18px] border border-white/10 bg-black/10 p-4">
+              <div className="space-y-4  border border-outline-variant/20 bg-black/10 p-4">
                 <Field label="Left label">
                   <input
                     className={INPUT_CLASS_NAME}
@@ -1073,7 +1073,7 @@ export function TheoryLessonsSection({
                   />
                 </Field>
               </div>
-              <div className="space-y-4 rounded-[18px] border border-white/10 bg-black/10 p-4">
+              <div className="space-y-4  border border-outline-variant/20 bg-black/10 p-4">
                 <Field label="Right label">
                   <input
                     className={INPUT_CLASS_NAME}
@@ -1110,14 +1110,14 @@ export function TheoryLessonsSection({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] 2xl:grid-cols-[19rem_minmax(0,1fr)]">
-      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(12,18,16,0.92),rgba(8,12,11,0.97))] shadow-[0_36px_90px_-56px_rgba(0,0,0,0.88)] backdrop-blur-2xl">
+      <section className="relative overflow-hidden rounded-[32px] border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(12,18,16,0.92),rgba(8,12,11,0.97))] shadow-[0_36px_90px_-56px_rgba(0,0,0,0.88)] backdrop-blur-2xl">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,185,153,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.04),transparent_32%)]" />
 
         <div className="relative space-y-5 px-5 py-5 sm:px-6">
           <div className="space-y-2">
             <p className="text-[0.68rem] uppercase tracking-[0.3em] text-[#7fbba7]">Library</p>
             <h2
-              className="text-[1.7rem] font-semibold tracking-tight text-white sm:text-[1.95rem]"
+              className="text-[1.7rem] font-semibold tracking-tight text-on-surface sm:text-[1.95rem]"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
               {editTarget === 'lessons' ? 'Content editor' : 'Task editor'}
@@ -1131,7 +1131,7 @@ export function TheoryLessonsSection({
 
           {loadError ? <InlineMessage tone="error" message={loadError} /> : null}
 
-          <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.028))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <div className=" border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.028))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
             <Field label="Edit target">
               <select
                 className={INPUT_CLASS_NAME}
@@ -1145,20 +1145,20 @@ export function TheoryLessonsSection({
                 ))}
               </select>
             </Field>
-            <p className="mt-3 text-xs leading-5 text-[#8fa69b]">
+            <p className="mt-3 text-xs leading-5 text-on-surface-variant">
               {EDIT_TARGET_OPTIONS.find((option) => option.value === editTarget)?.helper}
             </p>
           </div>
 
           {editTarget === 'lessons' ? (
             <>
-              <div className="space-y-4 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <div className="space-y-4  border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[0.68rem] font-medium uppercase tracking-[0.18em] text-[#8ca79a]">
                       Track
                     </p>
-                    <p className="mt-1 text-xs text-[#8fa69b]">
+                    <p className="mt-1 text-xs text-on-surface-variant">
                       Choose which theory track you want to edit.
                     </p>
                   </div>
@@ -1174,7 +1174,7 @@ export function TheoryLessonsSection({
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#86a79b]" />
                   <input
-                    className="w-full rounded-[18px] border border-white/10 bg-black/15 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-brand-400/40 focus:bg-white/[0.06] focus:ring-2 focus:ring-brand-500/15"
+                    className="w-full  border border-outline-variant/20 bg-black/15 py-3 pl-11 pr-4 text-sm text-on-surface outline-none transition focus:border-brand-400/40 focus:bg-surface-container-high focus:ring-2 focus:ring-brand-500/15"
                     value={lessonSearch}
                     onChange={(event) => setLessonSearch(event.target.value)}
                     placeholder="Search lesson title or id"
@@ -1199,9 +1199,9 @@ export function TheoryLessonsSection({
                 </Field>
 
                 {loading ? (
-                  <p className="text-sm text-[#8fa69b]">Loading lessons...</p>
+                  <p className="text-sm text-on-surface-variant">Loading lessons...</p>
                 ) : !filteredChapters.length ? (
-                  <div className="rounded-[22px] border border-dashed border-white/10 bg-white/[0.03] px-4 py-8 text-sm text-[#9fb1aa]">
+                  <div className=" border border-dashed border-outline-variant/20 bg-surface-container-low px-4 py-8 text-sm text-[#9fb1aa]">
                     No lessons match that search yet.
                   </div>
                 ) : (
@@ -1242,12 +1242,12 @@ export function TheoryLessonsSection({
                 )}
               </div>
 
-              <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <div className=" border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                 <div className="space-y-1">
                   <p className="text-[0.68rem] font-medium uppercase tracking-[0.18em] text-[#8ca79a]">
                     Add block
                   </p>
-                  <p className="text-xs leading-5 text-[#8fa69b]">
+                  <p className="text-xs leading-5 text-on-surface-variant">
                     Add a new block to the end of this lesson, then refine it in the editor.
                   </p>
                 </div>
@@ -1278,8 +1278,8 @@ export function TheoryLessonsSection({
               </div>
             </>
           ) : (
-            <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-              <p className="text-sm font-semibold text-white">Task editor is reserved next</p>
+            <div className=" border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <p className="text-sm font-semibold text-on-surface">Task editor is reserved next</p>
               <p className="mt-2 text-sm leading-6 text-[#9fb1aa]">
                 We kept this area intentionally quiet. When task copy editing lands, it will use the same track-first flow as lesson editing.
               </p>
@@ -1306,35 +1306,35 @@ export function TheoryLessonsSection({
       </section>
 
       <div className="space-y-6">
-        <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(11,16,15,0.88),rgba(7,10,9,0.95))] shadow-[0_36px_90px_-56px_rgba(0,0,0,0.88)] backdrop-blur-2xl">
+        <section className="relative overflow-hidden rounded-[32px] border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(11,16,15,0.88),rgba(7,10,9,0.95))] shadow-[0_36px_90px_-56px_rgba(0,0,0,0.88)] backdrop-blur-2xl">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,185,153,0.16),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.06),transparent_34%)]" />
-          <div className="relative border-b border-white/10 px-5 py-5 sm:px-6">
+          <div className="relative border-b border-outline-variant/20 px-5 py-5 sm:px-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-4xl">
                 <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[#8ca79a]">
                   <span>Composer</span>
                   {editTarget === 'lessons' ? (
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] tracking-[0.14em] text-[#dbe7e1]">
+                    <span className=" border border-outline-variant/20 bg-surface-container-low px-2.5 py-1 text-[10px] tracking-[0.14em] text-[#dbe7e1]">
                       {selectedTrackLabel}
                     </span>
                   ) : null}
                   {editTarget === 'lessons' && selectedChapter ? (
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] tracking-[0.14em] text-[#dbe7e1]">
+                    <span className=" border border-outline-variant/20 bg-surface-container-low px-2.5 py-1 text-[10px] tracking-[0.14em] text-[#dbe7e1]">
                       {selectedChapter.title}
                     </span>
                   ) : null}
                   {editTarget === 'lessons' && hasUnsavedChanges ? (
-                    <span className="rounded-full border border-brand-300/35 bg-brand-500/12 px-2.5 py-1 text-[10px] tracking-[0.14em] text-[#d5f4ea]">
+                    <span className=" border border-brand-300/35 bg-primary/12 px-2.5 py-1 text-[10px] tracking-[0.14em] text-primary">
                       Unsaved
                     </span>
                   ) : editTarget === 'lessons' ? (
-                    <span className="rounded-full border border-white/10 bg-black/15 px-2.5 py-1 text-[10px] tracking-[0.14em] text-[#b9cac3]">
+                    <span className=" border border-outline-variant/20 bg-black/15 px-2.5 py-1 text-[10px] tracking-[0.14em] text-[#b9cac3]">
                       Synced
                     </span>
                   ) : null}
                 </div>
                 <h2
-                  className="mt-4 max-w-5xl text-[1.9rem] font-semibold tracking-tight text-white sm:text-[2.35rem]"
+                  className="mt-4 max-w-5xl text-[1.9rem] font-semibold tracking-tight text-on-surface sm:text-[2.35rem]"
                   style={{ fontFamily: 'var(--font-serif)' }}
                 >
                   {editTarget === 'lessons'
@@ -1361,7 +1361,7 @@ export function TheoryLessonsSection({
                   </Field>
                 </div>
               ) : (
-                <div className="rounded-[18px] border border-white/10 bg-black/15 px-4 py-2.5 text-sm font-medium text-[#d0e0d9] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                <div className=" border border-outline-variant/20 bg-black/15 px-4 py-2.5 text-sm font-medium text-[#d0e0d9] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                   Task mode placeholder
                 </div>
               )}
@@ -1374,7 +1374,7 @@ export function TheoryLessonsSection({
 
             {editTarget === 'lessons' ? (
               <>
-                <div className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.065),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <div className="rounded-[26px] border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.065),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                   <div className="flex flex-wrap items-end justify-between gap-4">
                     <div className="grid min-w-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_13rem]">
                       <Field label="Lesson title">
@@ -1417,11 +1417,11 @@ export function TheoryLessonsSection({
 
                 {editorMode === 'visual' ? (
                   <div className="space-y-4">
-                    <div className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                    <div className="rounded-[26px] border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                       <div className="flex flex-wrap items-end justify-between gap-4">
                         <div>
-                          <p className="text-sm font-semibold text-white">Lesson structure</p>
-                          <p className="mt-1 text-xs text-[#8fa69b]">
+                          <p className="text-sm font-semibold text-on-surface">Lesson structure</p>
+                          <p className="mt-1 text-xs text-on-surface-variant">
                             Focus on one block at a time. Select a block from the map, then edit its content on the right.
                           </p>
                         </div>
@@ -1438,7 +1438,7 @@ export function TheoryLessonsSection({
                     </div>
 
                     {!blocksDraft.length ? (
-                      <div className="rounded-[26px] border border-dashed border-white/10 bg-white/[0.03] px-5 py-10 text-sm text-[#9fb1aa]">
+                      <div className="rounded-[26px] border border-dashed border-outline-variant/20 bg-surface-container-low px-5 py-10 text-sm text-[#9fb1aa]">
                         This lesson has no blocks yet. Add a block to start writing.
                       </div>
                     ) : (
@@ -1450,15 +1450,15 @@ export function TheoryLessonsSection({
                         }`}
                       >
                         {!isWritingMode ? (
-                          <div className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                          <div className="rounded-[26px] border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                             <div className="mb-4 flex items-center justify-between gap-3">
                               <div>
-                                <p className="text-sm font-semibold text-white">Lesson map</p>
-                                <p className="mt-1 text-xs text-[#8fa69b]">
+                                <p className="text-sm font-semibold text-on-surface">Lesson map</p>
+                                <p className="mt-1 text-xs text-on-surface-variant">
                                   {blocksDraft.length} blocks in this lesson
                                 </p>
                               </div>
-                              <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1 text-[11px] font-medium text-[#d5e4de]">
+                              <span className=" border border-outline-variant/20 bg-black/15 px-3 py-1 text-[11px] font-medium text-[#d5e4de]">
                                 {selectedBlockIndex + 1}/{blocksDraft.length}
                               </span>
                             </div>
@@ -1472,7 +1472,7 @@ export function TheoryLessonsSection({
                                   className="relative"
                                 >
                                   {dropIndicator?.index === index && dropIndicator.edge === 'before' ? (
-                                    <div className="absolute inset-x-4 -top-1 z-10 h-0.5 rounded-full bg-brand-400/90 shadow-[0_0_18px_rgba(34,185,153,0.55)]" />
+                                    <div className="absolute inset-x-4 -top-1 z-10 h-0.5  bg-primary/90 shadow-[0_0_18px_rgba(34,185,153,0.55)]" />
                                   ) : null}
                                   <button
                                     data-testid="lesson-map-item"
@@ -1533,32 +1533,32 @@ export function TheoryLessonsSection({
                                       clearBlockDragState();
                                     }}
                                     onDragEnd={clearBlockDragState}
-                                    className={`w-full rounded-[18px] border px-3.5 py-3 text-left transition ${
+                                    className={`w-full  border px-3.5 py-3 text-left transition ${
                                       selectedBlockIndex === index
-                                        ? 'border-brand-300/35 bg-brand-500/12 shadow-[0_18px_40px_-30px_rgba(34,185,153,0.16)]'
-                                        : 'border-white/10 bg-black/12 hover:border-brand-400/25 hover:bg-white/[0.05]'
+                                        ? 'border-brand-300/35 bg-primary/12 shadow-[0_18px_40px_-30px_rgba(34,185,153,0.16)]'
+                                        : 'border-outline-variant/20 bg-black/12 hover:border-brand-400/25 hover:bg-surface-container'
                                     } ${
                                       draggedBlockIndex === index ? 'cursor-grabbing opacity-65' : 'cursor-grab'
                                     }`}
                                     aria-label={`Block ${index + 1}: ${getBlockLabel(block)}. Drag to reorder.`}
                                   >
                                     <div className="flex items-start gap-3">
-                                      <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-black/20 text-[11px] font-semibold text-[#dbe7e1]">
+                                      <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center  border border-outline-variant/20 bg-black/20 text-[11px] font-semibold text-[#dbe7e1]">
                                         {index + 1}
                                       </span>
                                       <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-medium text-white">{getBlockLabel(block)}</p>
-                                        <p className="mt-1 text-xs leading-5 text-[#8fa69b]">
+                                        <p className="text-sm font-medium text-on-surface">{getBlockLabel(block)}</p>
+                                        <p className="mt-1 text-xs leading-5 text-on-surface-variant">
                                           {getBlockSummary(block)}
                                         </p>
                                       </div>
-                                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/20 text-[#8fa69b]">
+                                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center  border border-outline-variant/20 bg-black/20 text-on-surface-variant">
                                         <GripVertical className="h-4 w-4" />
                                       </span>
                                     </div>
                                   </button>
                                   {dropIndicator?.index === index && dropIndicator.edge === 'after' ? (
-                                    <div className="absolute inset-x-4 -bottom-1 z-10 h-0.5 rounded-full bg-brand-400/90 shadow-[0_0_18px_rgba(34,185,153,0.55)]" />
+                                    <div className="absolute inset-x-4 -bottom-1 z-10 h-0.5  bg-primary/90 shadow-[0_0_18px_rgba(34,185,153,0.55)]" />
                                   ) : null}
                                 </div>
                               ))}
@@ -1568,14 +1568,14 @@ export function TheoryLessonsSection({
 
                         <div className="space-y-4">
                           {isWritingMode ? (
-                            <div className="rounded-[22px] border border-brand-300/20 bg-brand-500/8 px-4 py-3 text-sm text-[#d7f6ec]">
+                            <div className=" border border-brand-300/20 bg-primary/8 px-4 py-3 text-sm text-[#d7f6ec]">
                               Writing mode is on. The lesson map is hidden so the editor can use the full width.
                             </div>
                           ) : null}
                           {selectedBlock ? (
                             renderBlockEditor(selectedBlock, selectedBlockIndex)
                           ) : (
-                            <div className="rounded-[26px] border border-dashed border-white/10 bg-white/[0.03] px-5 py-10 text-sm text-[#9fb1aa]">
+                            <div className="rounded-[26px] border border-dashed border-outline-variant/20 bg-surface-container-low px-5 py-10 text-sm text-[#9fb1aa]">
                               Select a block from the lesson map to edit it.
                             </div>
                           )}
@@ -1584,7 +1584,7 @@ export function TheoryLessonsSection({
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                  <div className="rounded-[26px] border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                     <Field label="Lesson blocks JSON">
                       <textarea
                         className={`${INPUT_CLASS_NAME} min-h-[480px] font-mono text-xs leading-6`}
@@ -1594,7 +1594,7 @@ export function TheoryLessonsSection({
                         spellCheck={false}
                       />
                     </Field>
-                    <p className="mt-2 text-xs text-[#8fa69b]">
+                    <p className="mt-2 text-xs text-on-surface-variant">
                       Advanced mode is here for structural edits, but the visual editor is the default writing surface.
                     </p>
                     {parsedBlocksState.error ? (
@@ -1604,10 +1604,10 @@ export function TheoryLessonsSection({
                 )}
               </>
             ) : (
-              <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-7">
+              <div className=" border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-7">
                 <p className="text-[0.72rem] uppercase tracking-[0.16em] text-[#8ca79a]">Task editor</p>
                 <h3
-                  className="mt-3 text-[1.8rem] font-semibold tracking-tight text-white sm:text-[2.15rem]"
+                  className="mt-3 text-[1.8rem] font-semibold tracking-tight text-on-surface sm:text-[2.15rem]"
                   style={{ fontFamily: 'var(--font-serif)' }}
                 >
                   Editing mode reserved for tasks
@@ -1616,14 +1616,14 @@ export function TheoryLessonsSection({
                   You asked for a future filter to choose whether you are editing lessons or tasks. The selector is now in place, and this pane is the dedicated future slot for task copy, instructions, and task-level content.
                 </p>
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
-                  <div className="rounded-[22px] border border-white/10 bg-black/12 p-4">
-                    <p className="text-sm font-semibold text-white">What will land here</p>
+                  <div className=" border border-outline-variant/20 bg-black/12 p-4">
+                    <p className="text-sm font-semibold text-on-surface">What will land here</p>
                     <p className="mt-2 text-sm leading-6 text-[#9fb1aa]">
                       Task title editing, task descriptions, and task guidance in the same glass editor flow as lessons.
                     </p>
                   </div>
-                  <div className="rounded-[22px] border border-white/10 bg-black/12 p-4">
-                    <p className="text-sm font-semibold text-white">What still works today</p>
+                  <div className=" border border-outline-variant/20 bg-black/12 p-4">
+                    <p className="text-sm font-semibold text-on-surface">What still works today</p>
                     <p className="mt-2 text-sm leading-6 text-[#9fb1aa]">
                       Task assignment, ordering, status changes, and overrides are still available in the admin assignments section.
                     </p>
@@ -1634,12 +1634,12 @@ export function TheoryLessonsSection({
           </form>
         </section>
 
-        <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(11,16,15,0.88),rgba(7,10,9,0.95))] shadow-[0_36px_90px_-56px_rgba(0,0,0,0.88)] backdrop-blur-2xl">
+        <section className="relative overflow-hidden rounded-[32px] border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(11,16,15,0.88),rgba(7,10,9,0.95))] shadow-[0_36px_90px_-56px_rgba(0,0,0,0.88)] backdrop-blur-2xl">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,185,153,0.14),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.05),transparent_34%)]" />
-          <div className="relative border-b border-white/10 px-5 py-5 sm:px-6">
+          <div className="relative border-b border-outline-variant/20 px-5 py-5 sm:px-6">
             <p className="text-[0.68rem] uppercase tracking-[0.3em] text-[#7fbba7]">Preview</p>
             <h2
-              className="mt-3 text-[1.9rem] font-semibold tracking-tight text-white sm:text-[2.3rem]"
+              className="mt-3 text-[1.9rem] font-semibold tracking-tight text-on-surface sm:text-[2.3rem]"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
               {editTarget === 'lessons' ? 'Live lesson preview' : 'Task preview slot'}
@@ -1652,15 +1652,15 @@ export function TheoryLessonsSection({
           </div>
           <div className="relative px-5 py-5 sm:px-6">
             {editTarget !== 'lessons' ? (
-              <div className="rounded-[28px] border border-dashed border-white/10 bg-white/[0.03] px-5 py-12 text-sm leading-7 text-[#9fb1aa]">
+              <div className=" border border-dashed border-outline-variant/20 bg-surface-container-low px-5 py-12 text-sm leading-7 text-[#9fb1aa]">
                 This preview pane is reserved for future task content rendering so the lessons and tasks workflow can stay aligned.
               </div>
             ) : !previewLesson || !selectedChapter ? (
-              <p className="text-sm text-[#8fa69b]">Select a lesson to preview it.</p>
+              <p className="text-sm text-on-surface-variant">Select a lesson to preview it.</p>
             ) : parsedBlocksState.error ? (
               <p className="text-sm text-rose-200">Fix the lesson JSON to preview the rendered lesson.</p>
             ) : (
-              <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <div className=" border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                 <TheorySection
                   section={previewLesson}
                   lessonIndex={selectedChapter.sections.findIndex((entry) => entry.id === previewLesson.id)}

@@ -41,14 +41,14 @@ const SortIcon = ({
 };
 
 const SkeletonRow = () => (
-  <tr className="border-t border-white/10">
+  <tr className="border-t border-outline-variant/20">
     <td className="px-4 py-4">
-      <div className="h-4 w-56 animate-pulse rounded bg-white/[0.08]" />
-      <div className="mt-2 h-3 w-72 animate-pulse rounded bg-white/[0.05]" />
+      <div className="h-4 w-56 animate-pulse rounded bg-surface-container-high" />
+      <div className="mt-2 h-3 w-72 animate-pulse rounded bg-surface-container" />
     </td>
     {Array.from({ length: COLUMNS.length - 1 }).map((_, index) => (
       <td key={index} className="px-4 py-4">
-        <div className="h-4 w-24 animate-pulse rounded bg-white/[0.08]" />
+        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-high" />
       </td>
     ))}
   </tr>
@@ -68,7 +68,7 @@ export function BugReportsTable({
   onRowClick: (report: BugReport) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#07100f]/65">
+    <div className="overflow-hidden  border border-outline-variant/20 bg-surface-container-low/65">
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead className="bg-white/[0.02]">
@@ -83,7 +83,7 @@ export function BugReportsTable({
                     <button
                       type="button"
                       onClick={() => onSort(column.sortKey!)}
-                      className="inline-flex items-center gap-1.5 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
+                      className="inline-flex items-center gap-1.5 transition hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
                     >
                       {column.label}
                       <SortIcon sort={sort} sortKey={column.sortKey} />
@@ -100,7 +100,7 @@ export function BugReportsTable({
             {loading ? Array.from({ length: 8 }).map((_, index) => <SkeletonRow key={index} />) : null}
 
             {!loading && rows.length === 0 ? (
-              <tr className="border-t border-white/10">
+              <tr className="border-t border-outline-variant/20">
                 <td colSpan={COLUMNS.length} className="px-6 py-14 text-center text-sm text-[#8ea39a]">
                   No bug reports found for the current filters.
                 </td>
@@ -120,10 +120,10 @@ export function BugReportsTable({
                         onRowClick(report);
                       }
                     }}
-                    className="group border-t border-white/10 transition hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
+                    className="group border-t border-outline-variant/20 transition hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
                   >
                     <td className="px-4 py-3.5">
-                      <p className="max-w-[22rem] truncate text-sm font-semibold text-white">{report.title}</p>
+                      <p className="max-w-[22rem] truncate text-sm font-semibold text-on-surface">{report.title}</p>
                       <p className="mt-0.5 max-w-[24rem] truncate text-xs text-[#7f948b]">
                         {report.shortDescription}
                       </p>

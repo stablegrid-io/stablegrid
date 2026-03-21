@@ -33,7 +33,7 @@ export function CustomersPagination({
   const pageNumbers = buildPageNumbers(page, pageCount);
 
   return (
-    <div className="flex flex-col gap-3 border-t border-white/10 px-4 py-3 text-sm text-[#8da29a] md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-3 border-t border-outline-variant/20 px-4 py-3 text-sm text-[#8da29a] md:flex-row md:items-center md:justify-between">
       <p>
         Showing {start}-{end} of {totalCount} results
       </p>
@@ -44,7 +44,7 @@ export function CustomersPagination({
           <select
             value={rowsPerPage}
             onChange={(event) => onRowsPerPageChange(Number(event.target.value))}
-            className="h-8 rounded-[10px] border border-white/12 bg-white/[0.04] px-2 text-sm text-white outline-none transition focus:border-brand-400/35 focus:ring-2 focus:ring-brand-400/15"
+            className="h-8  border border-outline-variant/20 bg-surface-container-low px-2 text-sm text-on-surface outline-none transition focus:border-primary/35 focus:ring-2 focus:ring-brand-400/15"
           >
             {rowsOptions.map((option) => (
               <option key={option} value={option}>
@@ -58,7 +58,7 @@ export function CustomersPagination({
           type="button"
           onClick={() => onPageChange(Math.max(1, page - 1))}
           disabled={page <= 1}
-          className="inline-flex h-8 items-center gap-1 rounded-[10px] border border-white/12 bg-white/[0.04] px-2.5 text-[#d4e1db] transition hover:border-white/22 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-45"
+          className="inline-flex h-8 items-center gap-1  border border-outline-variant/20 bg-surface-container-low px-2.5 text-[#d4e1db] transition hover:border-white/22 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-45"
         >
           <ChevronLeft className="h-4 w-4" />
           Previous
@@ -69,10 +69,10 @@ export function CustomersPagination({
             key={value}
             type="button"
             onClick={() => onPageChange(value)}
-            className={`inline-flex h-8 min-w-8 items-center justify-center rounded-[10px] border px-2 text-sm font-medium transition ${
+            className={`inline-flex h-8 min-w-8 items-center justify-center  border px-2 text-sm font-medium transition ${
               value === page
-                ? 'border-brand-400/35 bg-brand-500/14 text-[#d5f4ea]'
-                : 'border-white/12 bg-white/[0.04] text-[#d4e1db] hover:border-white/22 hover:bg-white/[0.07]'
+                ? 'border-primary/35 bg-primary/14 text-primary'
+                : 'border-outline-variant/20 bg-surface-container-low text-[#d4e1db] hover:border-white/22 hover:bg-white/[0.07]'
             }`}
             aria-current={value === page ? 'page' : undefined}
           >
@@ -84,7 +84,7 @@ export function CustomersPagination({
           type="button"
           onClick={() => onPageChange(Math.min(pageCount, page + 1))}
           disabled={page >= pageCount}
-          className="inline-flex h-8 items-center gap-1 rounded-[10px] border border-white/12 bg-white/[0.04] px-2.5 text-[#d4e1db] transition hover:border-white/22 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-45"
+          className="inline-flex h-8 items-center gap-1  border border-outline-variant/20 bg-surface-container-low px-2.5 text-[#d4e1db] transition hover:border-white/22 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-45"
         >
           Next
           <ChevronRight className="h-4 w-4" />

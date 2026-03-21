@@ -16,7 +16,7 @@ import {
 import type { FeedbackAnalyticsSnapshot } from '@/components/admin/feedback/types';
 
 const PANEL_CLASS =
-  'rounded-[24px] border border-white/10 bg-[#07100f]/68 p-5 shadow-[0_24px_45px_-35px_rgba(0,0,0,0.9)]';
+  'rounded-[24px] border border-outline-variant/20 bg-surface-container-low/68 p-5 shadow-[0_24px_45px_-35px_rgba(0,0,0,0.9)]';
 
 const tooltipContentStyle = {
   borderRadius: '14px',
@@ -41,7 +41,7 @@ function PanelFrame({
     <article className={`${PANEL_CLASS} ${className ?? ''}`.trim()}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-white">{title}</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-on-surface">{title}</h2>
           <p className="mt-1 text-sm text-[#8ea39a]">{subtitle}</p>
         </div>
       </div>
@@ -52,7 +52,7 @@ function PanelFrame({
 
 function EmptyChartState({ message }: { message: string }) {
   return (
-    <div className="flex h-[220px] items-center justify-center rounded-[18px] border border-dashed border-white/10 bg-white/[0.02] text-sm text-[#8ea39a]">
+    <div className="flex h-[220px] items-center justify-center  border border-dashed border-outline-variant/20 bg-white/[0.02] text-sm text-[#8ea39a]">
       {message}
     </div>
   );
@@ -63,7 +63,7 @@ function StatusOverview({ statuses }: Pick<FeedbackAnalyticsSnapshot, 'statuses'
 
   return (
     <div className="space-y-3">
-      <div className="overflow-hidden rounded-full border border-white/10 bg-white/[0.03]">
+      <div className="overflow-hidden  border border-outline-variant/20 bg-surface-container-low">
         <div className="flex h-3 w-full">
           {statuses.map((status) => (
             <div
@@ -75,7 +75,7 @@ function StatusOverview({ statuses }: Pick<FeedbackAnalyticsSnapshot, 'statuses'
                     ? 'bg-amber-200/70'
                     : status.label === 'Ignored'
                       ? 'bg-white/15'
-                      : 'bg-brand-400/70'
+                      : 'bg-primary/70'
               }
               style={{ width: `${status.percent}%` }}
             />
@@ -91,14 +91,14 @@ function StatusOverview({ statuses }: Pick<FeedbackAnalyticsSnapshot, 'statuses'
           >
             <div className="flex items-center gap-2 text-[#d8e3de]">
               <span
-                className={`inline-flex h-2.5 w-2.5 rounded-full ${
+                className={`inline-flex h-2.5 w-2.5  ${
                   status.label === 'Resolved'
                     ? 'bg-emerald-300/85'
                     : status.label === 'Reviewed'
                       ? 'bg-amber-200/80'
                       : status.label === 'Ignored'
                         ? 'bg-white/20'
-                        : 'bg-brand-400/85'
+                        : 'bg-primary/85'
                 }`}
               />
               <span>{status.label}</span>
@@ -125,7 +125,7 @@ function KeywordCluster({ keywords }: Pick<FeedbackAnalyticsSnapshot, 'keywords'
       {keywords.map((keyword) => (
         <div
           key={keyword.label}
-          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-[#d6e1dc]"
+          className=" border border-outline-variant/20 bg-surface-container-low px-3 py-2 text-sm text-[#d6e1dc]"
         >
           <span>{keyword.label}</span>
           <span className="ml-2 text-[#8ea39a]">{keyword.value}</span>
@@ -139,7 +139,7 @@ function InsightsPanel({ insights }: Pick<FeedbackAnalyticsSnapshot, 'insights'>
   return (
     <article className={PANEL_CLASS}>
       <div className="mb-4">
-        <h2 className="text-lg font-semibold tracking-tight text-white">
+        <h2 className="text-lg font-semibold tracking-tight text-on-surface">
           Feedback insights
         </h2>
         <p className="mt-1 text-sm text-[#8ea39a]">
@@ -152,9 +152,9 @@ function InsightsPanel({ insights }: Pick<FeedbackAnalyticsSnapshot, 'insights'>
         {insights.map((insight) => (
           <div
             key={insight.title}
-            className="rounded-[18px] border border-white/10 bg-white/[0.035] p-4"
+            className=" border border-outline-variant/20 bg-white/[0.035] p-4"
           >
-            <p className="text-sm font-semibold text-white">{insight.title}</p>
+            <p className="text-sm font-semibold text-on-surface">{insight.title}</p>
             <p className="mt-2 text-sm leading-6 text-[#8ea39a]">{insight.detail}</p>
           </div>
         ))}
@@ -256,17 +256,17 @@ export function FeedbackAnalyticsSection({
               {analytics.sentiments.map((entry) => (
                 <div
                   key={entry.label}
-                  className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-white/[0.03] px-3 py-3"
+                  className="flex items-center justify-between gap-3  border border-outline-variant/20 bg-surface-container-low px-3 py-3"
                 >
-                  <div className="flex items-center gap-2 text-sm text-white">
+                  <div className="flex items-center gap-2 text-sm text-on-surface">
                     <span
-                      className="inline-flex h-2.5 w-2.5 rounded-full"
+                      className="inline-flex h-2.5 w-2.5 "
                       style={{ backgroundColor: entry.color }}
                     />
                     <span>{entry.label}</span>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-white">{entry.percent}%</p>
+                    <p className="text-sm font-medium text-on-surface">{entry.percent}%</p>
                     <p className="text-xs text-[#8ea39a]">{entry.value} items</p>
                   </div>
                 </div>

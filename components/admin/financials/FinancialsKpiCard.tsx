@@ -18,20 +18,20 @@ export function FinancialsKpiCard({ metric }: FinancialsKpiCardProps) {
   const TrendIcon = metric.changePct < 0 ? TrendingDown : TrendingUp;
   const trendToneClass =
     metric.changePct < 0
-      ? 'text-rose-200 border-rose-400/20 bg-rose-500/10'
-      : 'text-[#d7f6ec] border-brand-400/20 bg-brand-500/10';
+      ? 'text-rose-200 border-rose-400/20 bg-error/10'
+      : 'text-[#d7f6ec] border-primary/20 bg-primary/10';
 
   return (
-    <article className="rounded-[20px] border border-white/10 bg-[#07100f]/65 px-4 py-4 shadow-[0_24px_45px_-35px_rgba(0,0,0,0.9)] sm:px-5">
+    <article className=" border border-outline-variant/20 bg-surface-container-low/65 px-4 py-4 shadow-[0_24px_45px_-35px_rgba(0,0,0,0.9)] sm:px-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[0.75rem] uppercase tracking-[0.14em] text-[#8ca79a]">{metric.label}</p>
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.04]">
+        <span className="inline-flex h-8 w-8 items-center justify-center  border border-outline-variant/20 bg-surface-container-low">
           <Icon className="h-4 w-4 text-[#9eb2aa]" strokeWidth={2} />
         </span>
       </div>
-      <p className="mt-3 text-2xl font-semibold tracking-tight text-white">{metric.value}</p>
+      <p className="mt-3 text-2xl font-semibold tracking-tight text-on-surface">{metric.value}</p>
       <div className="mt-3">
-        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${trendToneClass}`}>
+        <span className={`inline-flex items-center gap-1  border px-2.5 py-1 text-xs ${trendToneClass}`}>
           <TrendIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
           {metric.changePct >= 0 ? '+' : '-'}
           {Math.abs(metric.changePct).toFixed(1)}%

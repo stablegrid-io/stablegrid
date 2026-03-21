@@ -21,19 +21,19 @@ export function RevenueHeroCard({
   const TrendIcon = changePct < 0 ? TrendingDown : TrendingUp;
   const toneClass =
     changePct < 0
-      ? 'text-rose-200 border-rose-400/20 bg-rose-500/10'
-      : 'text-[#d7f6ec] border-brand-400/20 bg-brand-500/10';
+      ? 'text-rose-200 border-rose-400/20 bg-error/10'
+      : 'text-[#d7f6ec] border-primary/20 bg-primary/10';
 
   return (
     <section className={`${ADMIN_SECONDARY_SURFACE_CLASS} p-5 sm:p-6`}>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-end">
         <div className="space-y-3">
           <p className="text-[0.72rem] uppercase tracking-[0.18em] text-[#8ca79a]">Monthly revenue</p>
-          <p className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+          <p className="text-4xl font-semibold tracking-tight text-on-surface sm:text-5xl">
             {formatCompactCurrency(monthlyRevenue)}
           </p>
           <div className="flex items-center gap-2 text-sm text-[#8ea39a]">
-            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${toneClass}`}>
+            <span className={`inline-flex items-center gap-1  border px-2.5 py-1 text-xs ${toneClass}`}>
               <TrendIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
               {changePct >= 0 ? '+' : '-'}
               {Math.abs(changePct).toFixed(1)}%

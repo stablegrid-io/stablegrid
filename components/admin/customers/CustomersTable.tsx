@@ -26,14 +26,14 @@ const SortIcon = ({
 };
 
 const SkeletonRow = ({ visibleColumnCount }: { visibleColumnCount: number }) => (
-  <tr className="border-t border-white/10">
+  <tr className="border-t border-outline-variant/20">
     <td className="px-4 py-4">
-      <div className="h-4 w-44 animate-pulse rounded bg-white/[0.08]" />
-      <div className="mt-2 h-3 w-56 animate-pulse rounded bg-white/[0.05]" />
+      <div className="h-4 w-44 animate-pulse rounded bg-surface-container-high" />
+      <div className="mt-2 h-3 w-56 animate-pulse rounded bg-surface-container" />
     </td>
     {Array.from({ length: visibleColumnCount - 1 }).map((_, index) => (
       <td key={index} className="px-4 py-4">
-        <div className="h-4 w-20 animate-pulse rounded bg-white/[0.08]" />
+        <div className="h-4 w-20 animate-pulse rounded bg-surface-container-high" />
       </td>
     ))}
   </tr>
@@ -59,7 +59,7 @@ export function CustomersTable({
   );
 
   return (
-    <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#07100f]/65">
+    <div className="overflow-hidden  border border-outline-variant/20 bg-surface-container-low/65">
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead className="bg-white/[0.02]">
@@ -74,7 +74,7 @@ export function CustomersTable({
                     <button
                       type="button"
                       onClick={() => onSort(column.id)}
-                      className={`inline-flex items-center gap-1.5 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35 ${column.align === 'right' ? 'ml-auto' : ''}`}
+                      className={`inline-flex items-center gap-1.5 transition hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35 ${column.align === 'right' ? 'ml-auto' : ''}`}
                     >
                       {column.label}
                       <SortIcon columnId={column.id} sort={sort} />
@@ -95,7 +95,7 @@ export function CustomersTable({
               : null}
 
             {!loading && rows.length === 0 ? (
-              <tr className="border-t border-white/10">
+              <tr className="border-t border-outline-variant/20">
                 <td
                   colSpan={renderedColumns.length}
                   className="px-6 py-14 text-center text-sm text-[#8ea39a]"
@@ -118,18 +118,18 @@ export function CustomersTable({
                         onRowClick(customer);
                       }
                     }}
-                    className="group border-t border-white/10 transition hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
+                    className="group border-t border-outline-variant/20 transition hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
                   >
                     {renderedColumns.map((column) => {
                       if (column.id === 'customer') {
                         return (
                           <td key={column.id} className="px-4 py-3.5">
                             <div className="flex items-center gap-3">
-                              <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/14 bg-[#111a18] text-xs font-semibold text-[#b6c9c1]">
+                              <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center  border border-outline-variant/20 bg-[#111a18] text-xs font-semibold text-[#b6c9c1]">
                                 {customer.initials}
                               </div>
                               <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-white">
+                                <p className="truncate text-sm font-semibold text-on-surface">
                                   {customer.fullName}
                                 </p>
                                 <p className="truncate text-xs text-[#7f948b]">{customer.email}</p>

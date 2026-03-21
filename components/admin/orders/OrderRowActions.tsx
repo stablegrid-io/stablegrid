@@ -54,14 +54,14 @@ export function OrderRowActions({
           event.stopPropagation();
           setOpen((current) => !current);
         }}
-        className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.03] text-[#b9cbc4] transition hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
+        className="inline-flex h-8 w-8 items-center justify-center  border border-outline-variant/20 bg-surface-container-low text-[#b9cbc4] transition hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>
 
       {open ? (
         <div
-          className={`absolute right-0 top-[calc(100%+6px)] z-20 w-36 rounded-[12px] p-1.5 ${ADMIN_DROPDOWN_SURFACE_CLASS}`}
+          className={`absolute right-0 top-[calc(100%+6px)] z-20 w-36  p-1.5 ${ADMIN_DROPDOWN_SURFACE_CLASS}`}
           onClick={(event) => event.stopPropagation()}
         >
           {ORDER_ACTIONS.map((action) => (
@@ -72,7 +72,7 @@ export function OrderRowActions({
                 onAction(action);
                 setOpen(false);
               }}
-              className="flex w-full items-center rounded-[9px] px-2.5 py-2 text-left text-sm text-[#d5e2dd] transition hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
+              className="flex w-full items-center rounded-[9px] px-2.5 py-2 text-left text-sm text-[#d5e2dd] transition hover:bg-surface-container-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
             >
               {action}
             </button>

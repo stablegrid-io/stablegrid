@@ -187,7 +187,7 @@ export function AdminCustomersPage() {
           {error ? <AdminInlineMessage tone="error" message={error} /> : null}
 
           <Surface>
-            <div className="space-y-4 border-b border-white/10 px-4 py-4 sm:px-5">
+            <div className="space-y-4 border-b border-outline-variant/20 px-4 py-4 sm:px-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <CustomersStatusTabs
                   value={statusFilter}
@@ -205,7 +205,7 @@ export function AdminCustomersPage() {
                   <button
                     type="button"
                     onClick={handleExport}
-                    className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-white/12 bg-white/[0.04] px-3.5 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
+                    className="inline-flex h-10 items-center gap-2  border border-outline-variant/20 bg-surface-container-low px-3.5 text-sm font-medium text-on-surface transition hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
                   >
                     <Download className="h-4 w-4 text-[#9cb0a7]" />
                     Export
