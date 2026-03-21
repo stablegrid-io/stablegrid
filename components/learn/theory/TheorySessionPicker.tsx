@@ -127,16 +127,16 @@ export const TheorySessionPicker = ({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             role="dialog"
             aria-modal="true"
-            className="relative z-10 w-full max-w-[64rem] overflow-y-auto max-h-[90vh] border border-outline-variant/30 bg-surface p-6 flex flex-col gap-5"
+            className="relative z-10 w-full max-w-[64rem] overflow-y-auto max-h-[90vh] border border-outline-variant/30 bg-surface pt-10 px-6 pb-6 flex flex-col gap-5"
           >
-            {/* Close */}
+            {/* Close — positioned outside the content padding */}
             <button
               ref={closeButtonRef}
               type="button"
               onClick={onDismiss}
-              className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center border border-outline-variant/30 text-on-surface-variant hover:text-primary hover:border-primary/40 transition-colors z-20"
+              className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center text-on-surface-variant hover:text-primary transition-colors z-20"
             >
-              <X className="h-3 w-3" />
+              <X className="h-4 w-4" />
             </button>
 
             {/* Free Read banner */}
