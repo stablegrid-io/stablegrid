@@ -28,11 +28,11 @@ const METHOD_DESCRIPTIONS: Record<TheorySessionMethodId, string> = {
   'free-read': 'Direct memory access // Unmetered data stream protocol'
 };
 
-const METHOD_ACCENTS: Record<TheorySessionMethodId, { color: string; bg: string; border: string; monitor: string }> = {
-  sprint:     { color: 'text-primary', bg: 'bg-primary', border: 'border-primary', monitor: 'primary' },
-  pomodoro:   { color: 'text-secondary', bg: 'bg-secondary', border: 'border-secondary', monitor: 'secondary' },
-  'deep-focus': { color: 'text-error', bg: 'bg-error', border: 'border-error', monitor: 'error' },
-  'free-read': { color: 'text-secondary', bg: 'bg-secondary', border: 'border-secondary', monitor: 'secondary' }
+const METHOD_ACCENTS: Record<TheorySessionMethodId, { hex: string; rgb: string }> = {
+  sprint:       { hex: '#99f7ff', rgb: '153,247,255' },
+  pomodoro:     { hex: '#bf81ff', rgb: '191,129,255' },
+  'deep-focus': { hex: '#ff716c', rgb: '255,113,108' },
+  'free-read':  { hex: '#bf81ff', rgb: '191,129,255' }
 };
 
 const METHOD_STATS: Record<TheorySessionMethodId, [string, string, string, string]> = {
@@ -176,7 +176,7 @@ export const TheorySessionPicker = ({
                 if (!method) return null;
                 const config = configsByMethod[methodId];
                 const totalMinutes = getTheorySessionTotalMinutes(config);
-                const accent = METHOD_ACCENTS[methodId];
+                const a = METHOD_ACCENTS[methodId];
                 const Icon = METHOD_ICONS[methodId];
                 const CtaIcon = METHOD_CTA_ICONS[methodId];
                 const stats = METHOD_STATS[methodId];
@@ -191,19 +191,24 @@ export const TheorySessionPicker = ({
                 return (
                   <div
                     key={methodId}
-                    className={`glass-panel border ${accent.border}/10 p-6 flex flex-col group hover:${accent.border}/40 transition-all`}
+                    className="glass-panel border p-6 flex flex-col group transition-all relative"
+                    style={{
+                      borderColor: `rgba(${a.rgb},0.1)`,
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = `rgba(${a.rgb},0.4)`; (e.currentTarget as HTMLElement).style.boxShadow = `0 0 30px rgba(${a.rgb},0.15)`; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = `rgba(${a.rgb},0.1)`; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
                   >
                     {/* L-bracket corners */}
-                    <div className={`absolute top-0 left-0 w-3 h-3 border-t border-l ${accent.border}/30`} />
-                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-b border-r ${accent.border}/30`} />
+                    <div className="absolute top-0 left-0 w-3 h-3 border-t border-l" style={{ borderColor: `rgba(${a.rgb},0.3)` }} />
+                    <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r" style={{ borderColor: `rgba(${a.rgb},0.3)` }} />
 
                     {/* Icon + time */}
                     <div className="flex justify-between items-start mb-4">
-                      <div className={`${accent.bg}/10 p-3 border ${accent.border}/20`}>
-                        <Icon className={`h-6 w-6 ${accent.color}`} />
+                      <div className="p-3 border" style={{ backgroundColor: `rgba(${a.rgb},0.1)`, borderColor: `rgba(${a.rgb},0.2)` }}>
+                        <Icon className="h-6 w-6" style={{ color: a.hex }} />
                       </div>
                       <div className="text-right">
-                        <div className={`font-mono text-[8px] ${accent.color} uppercase mb-0.5`}>{targetLabel}</div>
+                        <div className="font-mono text-[8px] uppercase mb-0.5" style={{ color: a.hex }}>{targetLabel}</div>
                         <div className="font-headline text-2xl font-light text-on-surface">{timeLabel}</div>
                       </div>
                     </div>
@@ -220,20 +225,21 @@ export const TheorySessionPicker = ({
                       {/* Rhythm monitor */}
                       <div className="bg-black/40 p-2.5 border border-outline-variant/20">
                         <div className="flex justify-between items-center mb-1.5">
-                          <span className={`font-mono text-[8px] ${accent.color}/60 tracking-widest uppercase`}>
+                          <span className="font-mono text-[8px] tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
                             Rhythm_Monitor_{monitorId}
                           </span>
-                          <span className={`font-mono text-[8px] ${accent.color}`}>{hz} HZ</span>
+                          <span className="font-mono text-[8px]" style={{ color: a.hex }}>{hz} HZ</span>
                         </div>
                         <div className="flex gap-1 h-2.5">
                           {Array.from({ length: 8 }, (_, i) => (
                             <div
                               key={i}
-                              className={`flex-1 ${
-                                i < filledBars
-                                  ? `${accent.bg}/${80 - i * 15}`
-                                  : 'bg-white/5'
-                              }`}
+                              className="flex-1"
+                              style={{
+                                backgroundColor: i < filledBars
+                                  ? `rgba(${a.rgb},${0.8 - i * 0.15})`
+                                  : 'rgba(255,255,255,0.05)'
+                              }}
                             />
                           ))}
                         </div>
@@ -241,11 +247,11 @@ export const TheorySessionPicker = ({
 
                       {/* Stats */}
                       <div className="grid grid-cols-2 gap-3">
-                        <div className={`border-l ${accent.border}/30 pl-2`}>
+                        <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
                           <div className="font-mono text-[7px] text-on-surface-variant uppercase">{stats[0]}</div>
                           <div className="font-headline text-[10px] font-bold text-on-surface uppercase">{stats[1]}</div>
                         </div>
-                        <div className={`border-l ${accent.border}/30 pl-2`}>
+                        <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
                           <div className="font-mono text-[7px] text-on-surface-variant uppercase">{stats[2]}</div>
                           <div className="font-headline text-[10px] font-bold text-on-surface uppercase">{stats[3]}</div>
                         </div>
@@ -255,7 +261,8 @@ export const TheorySessionPicker = ({
                       <button
                         type="button"
                         onClick={() => onStart(config)}
-                        className={`w-full ${accent.bg} py-3 font-headline font-black text-surface text-xs tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all uppercase`}
+                        className="w-full py-3 font-headline font-black text-xs tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all uppercase"
+                        style={{ backgroundColor: a.hex, color: '#0c0e10' }}
                       >
                         EXECUTE_PROTOCOL
                         <CtaIcon className="h-3.5 w-3.5" />
