@@ -15,17 +15,17 @@ import {
 const TIMED_METHOD_ORDER: TheorySessionMethodId[] = ['sprint', 'pomodoro', 'deep-focus'];
 
 const METHOD_NEURAL_LABELS: Record<TheorySessionMethodId, string> = {
-  sprint: 'NEURAL_SPRINT',
-  pomodoro: 'POMODORO_LINK',
-  'deep-focus': 'DEEP_RECURSION',
-  'free-read': 'OPEN_ARCHIVE'
+  sprint: 'SPRINT',
+  pomodoro: 'POMODORO',
+  'deep-focus': 'DEEP CONCENTRATION',
+  'free-read': 'FREE READ'
 };
 
 const METHOD_DESCRIPTIONS: Record<TheorySessionMethodId, string> = {
-  sprint: 'High-velocity synaptic engagement. Designed for rapid context acquisition and short-burst focus.',
-  pomodoro: 'Iterative cognitive pacing. Balanced oscillation between focused work and neural cooling phases.',
-  'deep-focus': 'Total immersion protocol. Isolates executive function for sustained complex architecture mapping.',
-  'free-read': 'Direct memory access // Unmetered data stream protocol'
+  sprint: 'Quick bursts of focused reading. Ideal for short lessons, reviews, or when time is limited.',
+  pomodoro: 'Structured work-break cycles. Builds sustained focus, reduces fatigue, and improves long-term retention.',
+  'deep-focus': 'Extended uninterrupted sessions. Best for complex topics, deep understanding, and flow state learning.',
+  'free-read': 'Open-ended reading without a timer.'
 };
 
 const METHOD_ACCENTS: Record<TheorySessionMethodId, { hex: string; rgb: string }> = {
