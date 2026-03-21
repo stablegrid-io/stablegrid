@@ -36,14 +36,14 @@ const METHOD_ACCENTS: Record<TheorySessionMethodId, { hex: string; rgb: string }
 };
 
 const METHOD_STATS: Record<TheorySessionMethodId, [string, string, string, string]> = {
-  sprint:     ['Synaptic_Load', 'CRITICAL_HIGH', 'Dopamine_Mod', '+14.2%'],
-  pomodoro:   ['Cycle_Efficiency', 'STABLE_FLOW', 'Recovery_Rate', 'OPTIMIZED'],
-  'deep-focus': ['Isolation_Level', 'TOTAL_SILENCE', 'Network_State', 'AIRGAPPED'],
-  'free-read': ['Data_Flow', 'UNMETERED', 'Archive_Mode', 'OPEN']
+  sprint:     ['Intensity', 'HIGH', 'Retention', 'MODERATE'],
+  pomodoro:   ['Intensity', 'BALANCED', 'Retention', 'HIGH'],
+  'deep-focus': ['Intensity', 'SUSTAINED', 'Retention', 'MAXIMUM'],
+  'free-read': ['Intensity', 'FLEXIBLE', 'Retention', 'VARIES']
 };
 
 const METHOD_HZ: Record<TheorySessionMethodId, string> = {
-  sprint: '84.2', pomodoro: '62.0', 'deep-focus': '12.5', 'free-read': '0.0'
+  sprint: 'BURST', pomodoro: 'RHYTHM', 'deep-focus': 'FLOW', 'free-read': 'OPEN'
 };
 
 const METHOD_ICONS = {
@@ -202,7 +202,7 @@ export const TheorySessionPicker = ({
                       <div className="bg-black/40 p-2 border border-outline-variant/20">
                         <div className="flex justify-between items-center mb-1">
                           <span className="font-mono text-[7px] tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
-                            Rhythm_Monitor_{monitorId}
+                            FOCUS_PATTERN
                           </span>
                           <span className="font-mono text-[7px]" style={{ color: a.hex }}>{hz} HZ</span>
                         </div>
