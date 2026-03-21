@@ -14,7 +14,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('avatar_url,full_name')
+    .select('avatar_url,name')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -28,8 +28,8 @@ export async function GET() {
       : null;
 
   const fullName =
-    typeof data?.full_name === 'string' && data.full_name.trim().length > 0
-      ? data.full_name
+    typeof data?.name === 'string' && data.name.trim().length > 0
+      ? data.name
       : null;
 
   return NextResponse.json({
