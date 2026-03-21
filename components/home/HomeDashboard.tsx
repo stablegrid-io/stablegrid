@@ -260,7 +260,7 @@ export const HomeDashboard = ({
               const stripModulePrefix = (title: string) =>
                 title.replace(/^module\s*\d+\s*:\s*/i, '').trim();
 
-              return allModules.map((mod, index) => {
+              return allModules.slice(0, 10).map((mod, index) => {
                 const num = index + 1;
                 const isCompleted = completedChapterIds.has(mod.id);
                 const isActive = num === activeChapterNumber && !isCompleted;
