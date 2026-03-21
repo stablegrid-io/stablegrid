@@ -256,7 +256,7 @@ export const HomeDashboard = ({
                   >
                     <div className={`z-10 w-8 h-8 border flex items-center justify-center flex-shrink-0 ${
                       isCompleted
-                        ? 'border-primary/40 bg-primary/10'
+                        ? 'border-primary bg-primary/20 shadow-[0_0_12px_rgba(153,247,255,0.4)]'
                         : isActive
                           ? 'border-2 border-primary bg-primary/20 shadow-[0_0_15px_rgba(153,247,255,0.3)]'
                           : 'border-outline-variant bg-surface-container opacity-40'
@@ -274,12 +274,12 @@ export const HomeDashboard = ({
                         M-{String(num).padStart(2, '0')}{isActive ? ' [ACTIVE]' : ''}
                       </p>
                       <h4 className={`text-[11px] font-bold uppercase tracking-wide leading-tight ${
-                        isActive ? 'font-headline text-primary' : isCompleted ? 'font-mono text-on-surface/80' : 'font-mono text-on-surface/40'
+                        isActive ? 'font-headline text-primary' : isCompleted ? 'font-mono text-primary/70' : 'font-mono text-on-surface/40'
                       }`}>
                         {title}
                       </h4>
                       {isCompleted && (
-                        <span className="text-[7px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 mt-0.5 inline-block">SYNCED</span>
+                        <span className="text-[7px] font-mono bg-primary/15 text-primary px-1.5 py-0.5 mt-0.5 inline-block shadow-[0_0_8px_rgba(153,247,255,0.2)]">SYNCED</span>
                       )}
                       {isActive && (
                         <div className="flex gap-0.5 mt-1">
