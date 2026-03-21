@@ -165,13 +165,13 @@ export const TheorySessionPicker = ({
             role="dialog"
             aria-modal="true"
             aria-label="Session picker"
-            className="relative z-10 w-full max-w-[72rem] overflow-hidden border border-outline-variant/30 bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
+            className="relative z-10 w-full max-w-[54rem] overflow-hidden border border-outline-variant/30 bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
           >
-            <div className="flex h-[min(85vh,44rem)]">
+            <div className="flex h-[min(70vh,32rem)]">
               {/* Left: Approach Matrix */}
-              <aside className="w-80 flex-shrink-0 border-r border-outline-variant/20 bg-surface-container-low flex flex-col">
-                <div className="px-6 pt-6 pb-4">
-                  <h3 className="font-mono text-[10px] text-on-surface-variant uppercase tracking-[0.3em]">
+              <aside className="w-56 flex-shrink-0 border-r border-outline-variant/20 bg-surface-container-low flex flex-col">
+                <div className="px-4 pt-4 pb-2">
+                  <h3 className="font-mono text-[9px] text-on-surface-variant uppercase tracking-[0.3em]">
                     APPROACH_MATRIX
                   </h3>
                 </div>
@@ -187,24 +187,24 @@ export const TheorySessionPicker = ({
                         ref={(node) => { methodButtonRefs.current[method.id] = node; }}
                         type="button"
                         onClick={() => setSelectedMethodId(method.id)}
-                        className={`w-full text-left px-6 py-5 transition-colors relative ${
+                        className={`w-full text-left px-4 py-3 transition-colors relative ${
                           isSelected
-                            ? 'bg-primary/10 border-l-4 border-primary'
-                            : 'border-l-4 border-transparent hover:bg-surface-container-high'
+                            ? 'bg-primary/10 border-l-3 border-primary'
+                            : 'border-l-3 border-transparent hover:bg-surface-container-high'
                         }`}
                       >
-                        <div className="flex items-start gap-3">
-                          <Icon className={`h-5 w-5 mt-0.5 ${isSelected ? 'text-primary' : 'text-on-surface-variant'}`} />
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <span className={`font-headline font-bold text-sm uppercase ${isSelected ? 'text-primary' : 'text-on-surface'}`}>
+                        <div className="flex items-start gap-2">
+                          <Icon className={`h-4 w-4 mt-0.5 ${isSelected ? 'text-primary' : 'text-on-surface-variant'}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className={`font-headline font-bold text-xs uppercase truncate ${isSelected ? 'text-primary' : 'text-on-surface'}`}>
                                 {METHOD_NEURAL_LABELS[method.id]}
                               </span>
-                              <span className="font-mono text-[9px] text-on-surface-variant">
-                                [MOD_{String(index + 1).padStart(2, '0')}]
+                              <span className="font-mono text-[8px] text-on-surface-variant flex-shrink-0">
+                                [{String(index + 1).padStart(2, '0')}]
                               </span>
                             </div>
-                            <p className="font-mono text-[10px] text-on-surface-variant mt-1 leading-relaxed">
+                            <p className="font-mono text-[9px] text-on-surface-variant mt-0.5 leading-snug truncate">
                               {METHOD_DESCRIPTIONS[method.id]}
                             </p>
                           </div>
@@ -214,11 +214,9 @@ export const TheorySessionPicker = ({
                   })}
                 </div>
 
-                {/* Bottom system info */}
-                <div className="px-6 py-4 border-t border-outline-variant/20 font-mono text-[9px] text-on-surface-variant space-y-1">
-                  <div>&gt; SYNC_STATUS: OPTIMAL</div>
-                  <div>&gt; COGNITIVE_LOAD: 12%</div>
-                  <div>&gt; LATENCY: 4.2ms</div>
+                <div className="px-4 py-2 border-t border-outline-variant/20 font-mono text-[8px] text-on-surface-variant space-y-0.5">
+                  <div>&gt; SYNC: OK</div>
+                  <div>&gt; LOAD: 12%</div>
                 </div>
               </aside>
 
@@ -230,51 +228,51 @@ export const TheorySessionPicker = ({
                   type="button"
                   aria-label="Dismiss"
                   onClick={onDismiss}
-                  className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center border border-outline-variant/30 text-on-surface-variant transition-colors hover:text-primary hover:border-primary/40 z-20"
+                  className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center border border-outline-variant/30 text-on-surface-variant transition-colors hover:text-primary hover:border-primary/40 z-20"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3 w-3" />
                 </button>
 
                 {selectedMethod && selectedConfig ? (
-                  <div className="flex-1 flex flex-col p-8">
+                  <div className="flex-1 flex flex-col p-5">
                     {/* Protocol header */}
-                    <div className="flex justify-between items-start mb-10">
+                    <div className="flex justify-between items-start mb-6">
                       <div>
-                        <div className="font-mono text-[10px] text-primary tracking-[0.3em] uppercase mb-3">
+                        <div className="font-mono text-[9px] text-primary tracking-[0.3em] uppercase mb-2">
                           PROTOCOL // {selectedMethod.id.toUpperCase().replace('-', '_')}_V1.0
                         </div>
-                        <h2 className="font-headline text-5xl font-black text-on-surface uppercase tracking-tight">
+                        <h2 className="font-headline text-3xl font-black text-on-surface uppercase tracking-tight">
                           {METHOD_NEURAL_LABELS[selectedMethod.id]}
                         </h2>
                       </div>
                       <div className="text-right">
-                        <div className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">
+                        <div className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest">
                           SESSION_ESTIMATE
                         </div>
-                        <div className="text-4xl font-headline font-black text-on-surface mt-1">
+                        <div className="text-2xl font-headline font-black text-on-surface mt-1">
                           {selectedMethod.isTimed ? (
                             <>
                               {String(totalMinutes).padStart(2, '0')}:00
-                              <span className="text-lg text-on-surface-variant ml-1">MIN</span>
+                              <span className="text-sm text-on-surface-variant ml-1">MIN</span>
                             </>
                           ) : (
-                            <span className="text-2xl text-on-surface-variant">OPEN</span>
+                            <span className="text-lg text-on-surface-variant">OPEN</span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Cognitive Frequency Map (segmented bar) */}
-                    <div className="mb-8">
-                      <div className="flex justify-between items-end mb-3">
-                        <span className="font-mono text-[10px] text-primary uppercase tracking-[0.2em]">
+                    {/* Cognitive Frequency Map */}
+                    <div className="mb-5">
+                      <div className="flex justify-between items-end mb-2">
+                        <span className="font-mono text-[9px] text-primary uppercase tracking-[0.2em]">
                           COGNITIVE_FREQUENCY_MAP
                         </span>
-                        <span className="font-mono text-[10px] text-on-surface-variant">
+                        <span className="font-mono text-[9px] text-on-surface-variant">
                           {selectedMethod.isTimed ? `${(focusRatio * 100).toFixed(1)} HZ` : 'FREEFORM'}
                         </span>
                       </div>
-                      <div className="flex gap-2 h-10">
+                      <div className="flex gap-1.5 h-7">
                         {Array.from({ length: segmentCount }, (_, i) => (
                           <div
                             key={i}
@@ -289,69 +287,68 @@ export const TheorySessionPicker = ({
                     </div>
 
                     {/* Stats row */}
-                    <div className="grid grid-cols-3 gap-px mb-8">
-                      <div className="bg-surface-container p-4 border border-outline-variant/20">
-                        <div className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest">
+                    <div className="grid grid-cols-3 gap-px mb-5">
+                      <div className="bg-surface-container p-3 border border-outline-variant/20">
+                        <div className="font-mono text-[8px] text-on-surface-variant uppercase tracking-widest">
                           SYNAPTIC_LOAD
                         </div>
-                        <div className="font-headline text-xl font-bold text-on-surface mt-1">
+                        <div className="font-headline text-base font-bold text-on-surface mt-0.5">
                           {selectedMethod.isTimed ? (selectedConfig.focusMinutes >= 25 ? 'HIGH' : 'MED') : 'LOW'}
                         </div>
                       </div>
-                      <div className="bg-surface-container p-4 border border-outline-variant/20">
-                        <div className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest">
+                      <div className="bg-surface-container p-3 border border-outline-variant/20">
+                        <div className="font-mono text-[8px] text-on-surface-variant uppercase tracking-widest">
                           RETENTION_ALPHA
                         </div>
-                        <div className="font-headline text-xl font-bold text-on-surface mt-1">
+                        <div className="font-headline text-base font-bold text-on-surface mt-0.5">
                           {selectedMethod.isTimed ? '0.982' : '0.871'}
                         </div>
                       </div>
-                      <div className="bg-surface-container p-4 border border-outline-variant/20">
-                        <div className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest">
+                      <div className="bg-surface-container p-3 border border-outline-variant/20">
+                        <div className="font-mono text-[8px] text-on-surface-variant uppercase tracking-widest">
                           AUTO_ARCHIVE
                         </div>
-                        <div className="font-headline text-xl font-bold text-primary mt-1">
+                        <div className="font-headline text-base font-bold text-primary mt-0.5">
                           ENABLED
                         </div>
                       </div>
                     </div>
 
                     {/* Description callout */}
-                    <div className="border-l-2 border-primary/40 pl-6 py-4 mb-8">
-                      <p className="font-mono text-sm text-on-surface-variant leading-relaxed">
+                    <div className="border-l-2 border-primary/40 pl-4 py-2 mb-4">
+                      <p className="font-mono text-xs text-on-surface-variant leading-relaxed">
                         {selectedMethod.bestFor}
                       </p>
                     </div>
 
-                    {/* Spacer */}
                     <div className="flex-1" />
 
                     {/* Bottom actions */}
-                    <div className="flex items-center justify-between gap-4 border-t border-outline-variant/20 pt-6">
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between gap-3 border-t border-outline-variant/20 pt-4">
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={onOpenSettings}
-                          className="border border-outline-variant/40 px-5 py-3 font-mono text-[10px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
+                          className="border border-outline-variant/40 px-3 py-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
                         >
-                          [ CONFIG_PARAMETERS ]
+                          CONFIG
                         </button>
                         <button
                           type="button"
                           onClick={onDismiss}
-                          className="border border-outline-variant/40 px-5 py-3 font-mono text-[10px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
+                          className="border border-outline-variant/40 px-3 py-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
                         >
-                          [ CONTINUE_WITHOUT ]
+                          SKIP
                         </button>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => onStart(selectedConfig)}
-                        className="bg-primary text-on-primary font-headline font-black text-sm py-4 px-8 flex items-center gap-3 hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98] transition-all uppercase tracking-widest"
+                        className="bg-primary text-on-primary font-headline font-black text-xs py-3 px-6 flex items-center gap-2 hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98] transition-all uppercase tracking-widest"
                       >
                         START_SESSION
-                        <Play className="h-4 w-4" />
+                        <Play className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
