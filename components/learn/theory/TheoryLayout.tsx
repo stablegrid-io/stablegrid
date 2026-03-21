@@ -774,38 +774,38 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   ]);
 
   return (
-    <div className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-light-bg dark:bg-dark-bg lg:h-[100dvh]">
-      <div className="flex h-11 flex-shrink-0 items-center gap-3 border-b border-light-border bg-light-bg px-4 dark:border-dark-border dark:bg-dark-bg">
+    <div className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface lg:h-[100dvh]">
+      <div className="flex h-11 flex-shrink-0 items-center gap-3 border-b border-outline-variant/30 bg-surface px-4">
         <button
           type="button"
           onClick={() => setSidebarOpen((value) => !value)}
           aria-expanded={sidebarOpen}
           aria-controls="theory-sidebar"
-          className="btn btn-ghost inline-flex h-8 items-center gap-2 rounded-full border border-light-border/70 bg-light-surface/70 px-3 text-xs font-medium text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-dark-border/70 dark:bg-dark-surface/70 dark:text-text-dark-secondary dark:hover:border-text-dark-primary dark:hover:text-text-dark-primary"
+          className="inline-flex h-8 items-center gap-2 border border-outline-variant/50 bg-surface-container px-3 text-xs font-mono font-medium text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
           aria-label="Toggle module navigation"
         >
           {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          <span className="hidden sm:inline">{sidebarOpen ? 'Close modules' : 'Modules'}</span>
+          <span className="hidden sm:inline uppercase tracking-wider">{sidebarOpen ? 'Close' : 'Modules'}</span>
         </button>
 
         {theorySession.hasActiveSession ? (
           <TheorySessionTopbar session={theorySession} />
         ) : (
           <>
-            <div className="min-w-0 truncate text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+            <div className="min-w-0 truncate font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">
               M{activeChapter.order ?? activeChapter.number}
-              <span className="mx-1 text-light-border dark:text-dark-border">/</span>
-              <span className="text-text-light-secondary dark:text-text-dark-secondary">
+              <span className="mx-1 text-outline-variant">/</span>
+              <span className="text-on-surface">
                 Lesson {activeLessonNumber} of {orderedActiveLessons.length}
               </span>
             </div>
 
-            <div className="ml-auto flex items-center gap-3 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+            <div className="ml-auto flex items-center gap-3 font-mono text-[10px] text-on-surface-variant">
               <button
                 type="button"
                 onClick={openSessionPicker}
                 disabled={!sessionDefaultsHydrated}
-                className="inline-flex items-center gap-1 rounded-full border border-light-border px-2.5 py-1 text-xs font-medium text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-text-dark-primary dark:hover:text-text-dark-primary"
+                className="inline-flex items-center gap-1 border border-outline-variant/50 px-2.5 py-1 text-xs font-mono text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary uppercase tracking-wider"
               >
                 <Clock3 className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Session</span>
@@ -813,7 +813,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
               <button
                 type="button"
                 onClick={() => router.push('/settings?tab=reading')}
-                className="hidden rounded-full border border-light-border px-2.5 py-1 text-xs font-medium text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-text-dark-primary dark:hover:text-text-dark-primary sm:inline-flex"
+                className="hidden border border-outline-variant/50 px-2.5 py-1 text-xs font-mono text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary uppercase tracking-wider sm:inline-flex"
               >
                 Settings
               </button>
@@ -825,16 +825,16 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       {progressIssue ? (
         <div
           data-testid="theory-progress-recovery"
-          className="flex flex-wrap items-center justify-between gap-3 border-b border-warning-200 bg-warning-50 px-4 py-2 text-xs text-warning-800 dark:border-warning-700/70 dark:bg-warning-900/20 dark:text-warning-200"
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-tertiary/30 bg-tertiary/10 px-4 py-2 text-xs text-tertiary"
           role="status"
         >
-          <p className="max-w-3xl">{progressIssue.message}</p>
+          <p className="max-w-3xl font-mono">{progressIssue.message}</p>
           <button
             type="button"
             onClick={retryProgressSync}
-            className="inline-flex items-center rounded-full border border-warning-300 bg-white px-3 py-1 text-xs font-semibold text-warning-700 transition-colors hover:border-warning-400 hover:bg-warning-100 dark:border-warning-600/70 dark:bg-warning-900/40 dark:text-warning-100 dark:hover:border-warning-500 dark:hover:bg-warning-900/60"
+            className="inline-flex items-center border border-tertiary/40 bg-tertiary/10 px-3 py-1 text-xs font-mono font-semibold text-tertiary transition-colors hover:bg-tertiary/20 uppercase tracking-wider"
           >
-            Retry progress sync
+            Retry sync
           </button>
         </div>
       ) : null}
@@ -842,7 +842,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
           id="theory-sidebar"
-          className={`absolute inset-y-0 left-0 z-50 w-[min(18.25rem,calc(100vw-1rem))] border-r border-light-border bg-light-surface/96 shadow-2xl backdrop-blur transition-transform duration-300 dark:border-dark-border dark:bg-dark-surface/96 ${
+          className={`absolute inset-y-0 left-0 z-50 w-[min(18.25rem,calc(100vw-1rem))] border-r border-outline-variant/30 bg-surface-container/96 shadow-2xl backdrop-blur transition-transform duration-300 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
@@ -869,7 +869,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         <div
           ref={contentRef}
           aria-hidden={sessionPickerVisible && !theorySession.hasActiveSession}
-          className="min-h-0 flex-1 overflow-y-auto bg-light-bg dark:bg-dark-bg"
+          className="min-h-0 flex-1 overflow-y-auto bg-surface"
         >
           <TheoryContent
             topic={doc.topic}

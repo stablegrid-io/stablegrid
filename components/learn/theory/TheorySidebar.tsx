@@ -52,48 +52,50 @@ export const TheorySidebar = ({
   });
   const checkpointBadgeClass =
     checkpointMeta.state === 'passed'
-      ? 'border-brand-500/30 bg-brand-500/10 text-brand-500'
+      ? 'border-primary/30 bg-primary/10 text-primary'
       : checkpointMeta.state === 'ready'
-        ? 'border-warning-500/30 bg-warning-500/10 text-warning-600 dark:text-warning-400'
-        : 'border-light-border bg-light-bg text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary';
+        ? 'border-tertiary/30 bg-tertiary/10 text-tertiary'
+        : 'border-outline-variant bg-surface-container-low text-on-surface-variant';
 
   return (
-    <div className="flex h-full flex-col bg-light-surface/95 dark:bg-dark-surface/95">
-      <div className="border-b border-light-border px-4 py-4 dark:border-dark-border">
+    <div className="flex h-full flex-col bg-surface-container">
+      <div className="border-b border-outline-variant/30 px-4 py-4">
         <Link
           href={`/learn/${doc.topic}/theory`}
-          className="mb-3 inline-flex items-center gap-2 text-xs text-text-light-tertiary transition-colors hover:text-brand-500 dark:text-text-dark-tertiary"
+          className="mb-3 inline-flex items-center gap-2 font-mono text-[10px] text-on-surface-variant transition-colors hover:text-primary uppercase tracking-wider"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           All Modules
         </Link>
 
-        <div className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
+        <div className="text-sm font-headline font-bold text-on-surface">
           {activeModule.title}
         </div>
-        <div className="mt-1 flex items-center gap-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+        <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-on-surface-variant uppercase">
           <Clock3 className="h-3.5 w-3.5" />
           {orderedLessons.length} lessons · {activeModule.totalMinutes} min
         </div>
 
-        <div className="mt-4 rounded-[16px] border border-light-border/70 bg-white/45 p-3 dark:border-dark-border/70 dark:bg-white/[0.03]">
-          <div className="flex items-center justify-between gap-3 text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+        <div className="mt-4 border border-outline-variant/30 bg-surface-container-low p-3">
+          <div className="flex items-center justify-between gap-3 font-mono text-[10px] text-on-surface-variant uppercase">
             <span>Module progress</span>
             <span>
-              {completedLessonCount}/{orderedLessons.length} lessons completed
+              {completedLessonCount}/{orderedLessons.length}
             </span>
           </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-light-border/60 dark:bg-dark-border/60">
-            <div
-              className="h-full rounded-full bg-brand-500 transition-[width]"
-              style={{ width: `${lessonProgressPct}%` }}
-            />
+          <div className="mt-2 flex gap-1 h-1.5">
+            {Array.from({ length: Math.max(orderedLessons.length, 1) }, (_, i) => (
+              <div
+                key={i}
+                className={`flex-1 ${i < completedLessonCount ? 'bg-primary' : 'bg-surface-container-highest/30'}`}
+              />
+            ))}
           </div>
         </div>
 
         {checkpointMeta.hasCheckpoint ? (
           <div
-            className={`mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium ${checkpointBadgeClass}`}
+            className={`mt-3 inline-flex items-center gap-2 border px-3 py-1.5 font-mono text-[10px] font-medium ${checkpointBadgeClass}`}
           >
             {checkpointMeta.state === 'passed' ? (
               <CheckCircle2 className="h-3.5 w-3.5" />
@@ -112,7 +114,7 @@ export const TheorySidebar = ({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2 pt-1">
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           {orderedLessons.map((section, sectionIndex) => {
             const isActiveLesson = section.id === activeLessonId;
             const lessonOrder = section.order ?? sectionIndex + 1;
@@ -132,26 +134,26 @@ export const TheorySidebar = ({
                 }}
                 disabled={isLockedLesson}
                 title={lessonLabel}
-                className={`w-full rounded-[14px] border px-3 py-2.5 text-left transition-colors ${
+                className={`w-full border px-3 py-2.5 text-left transition-colors ${
                   isActiveLesson
-                    ? 'border-brand-500/25 bg-brand-500/8 shadow-[0_0_0_1px_rgba(34,185,153,0.08)] dark:border-brand-400/20 dark:bg-brand-500/10'
+                    ? 'border-primary/25 bg-primary/10'
                     : isLockedLesson
                       ? 'cursor-not-allowed border-transparent opacity-55'
-                      : 'border-transparent hover:border-light-border hover:bg-light-hover dark:hover:border-dark-border dark:hover:bg-dark-hover'
+                      : 'border-transparent hover:border-outline-variant/30 hover:bg-surface-container-high'
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <div
-                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center font-mono text-[10px] font-bold ${
                       isLockedLesson
-                        ? 'bg-light-border text-text-light-tertiary dark:bg-dark-border dark:text-text-dark-tertiary'
+                        ? 'bg-surface-container-highest text-on-surface-variant'
                         : isLessonRead
                           ? isActiveLesson
-                            ? 'bg-brand-500 text-white shadow-[0_0_0_2px_rgba(34,185,153,0.18)] dark:text-dark-bg'
-                            : 'bg-brand-500/15 text-brand-600 ring-1 ring-brand-500/35 dark:text-brand-400'
+                            ? 'bg-primary text-on-primary'
+                            : 'bg-primary/15 text-primary'
                           : isActiveLesson
-                            ? 'bg-text-light-primary text-white dark:bg-text-dark-primary dark:text-dark-bg'
-                            : 'bg-light-border text-text-light-tertiary dark:bg-dark-border dark:text-text-dark-tertiary'
+                            ? 'bg-on-surface text-surface'
+                            : 'bg-surface-container-highest text-on-surface-variant'
                     }`}
                   >
                     {isLockedLesson ? (
@@ -165,13 +167,13 @@ export const TheorySidebar = ({
                     <div
                       className={`text-sm leading-5 ${
                         isActiveLesson
-                          ? 'font-semibold text-text-light-primary dark:text-text-dark-primary'
-                          : 'text-text-light-secondary dark:text-text-dark-secondary'
+                          ? 'font-semibold text-on-surface'
+                          : 'text-on-surface-variant'
                       }`}
                     >
                       {lessonLabel}
                     </div>
-                    <div className="mt-1 text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+                    <div className="mt-1 font-mono text-[10px] text-on-surface-variant/60">
                       {isCheckpointLesson && checkpointMeta.hasCheckpoint ? (
                         <>
                           {checkpointMeta.label} · {checkpointMeta.detail} ·{' '}
