@@ -2,10 +2,9 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, Brain, Clock3, Settings2, Zap, X, Play } from 'lucide-react';
+import { BookOpen, Brain, Clock3, Zap, X, Play, Lock, RefreshCw } from 'lucide-react';
 import {
   THEORY_SESSION_METHODS,
-  buildTheorySessionTimeline,
   formatTheorySessionDuration,
   getTheorySessionMethod,
   getTheorySessionTotalMinutes,
@@ -13,12 +12,7 @@ import {
   type TheorySessionMethodId
 } from '@/lib/learn/theorySession';
 
-const SESSION_METHOD_ORDER: TheorySessionMethodId[] = [
-  'sprint',
-  'pomodoro',
-  'deep-focus',
-  'free-read'
-];
+const TIMED_METHOD_ORDER: TheorySessionMethodId[] = ['sprint', 'pomodoro', 'deep-focus'];
 
 const METHOD_NEURAL_LABELS: Record<TheorySessionMethodId, string> = {
   sprint: 'NEURAL_SPRINT',
@@ -28,19 +22,37 @@ const METHOD_NEURAL_LABELS: Record<TheorySessionMethodId, string> = {
 };
 
 const METHOD_DESCRIPTIONS: Record<TheorySessionMethodId, string> = {
-  sprint: 'High-intensity synaptic firing. 15m bursts.',
-  pomodoro: 'Standard rhythmic cycling. 25/5 interval.',
-  'deep-focus': 'Full sensory isolation. 90m session.',
-  'free-read': 'Manual intake control. Unmetered flow.'
+  sprint: 'High-velocity synaptic engagement. Designed for rapid context acquisition and short-burst focus.',
+  pomodoro: 'Iterative cognitive pacing. Balanced oscillation between focused work and neural cooling phases.',
+  'deep-focus': 'Total immersion protocol. Isolates executive function for sustained complex architecture mapping.',
+  'free-read': 'Direct memory access // Unmetered data stream protocol'
 };
 
-const getSuggestedMethodId = (
-  lessonDurationMinutes: number
-): TheorySessionMethodId => {
-  if (lessonDurationMinutes <= 18) return 'sprint';
-  if (lessonDurationMinutes >= 45) return 'deep-focus';
-  return 'pomodoro';
+const METHOD_ACCENTS: Record<TheorySessionMethodId, { color: string; bg: string; border: string; monitor: string }> = {
+  sprint:     { color: 'text-primary', bg: 'bg-primary', border: 'border-primary', monitor: 'primary' },
+  pomodoro:   { color: 'text-secondary', bg: 'bg-secondary', border: 'border-secondary', monitor: 'secondary' },
+  'deep-focus': { color: 'text-error', bg: 'bg-error', border: 'border-error', monitor: 'error' },
+  'free-read': { color: 'text-secondary', bg: 'bg-secondary', border: 'border-secondary', monitor: 'secondary' }
 };
+
+const METHOD_STATS: Record<TheorySessionMethodId, [string, string, string, string]> = {
+  sprint:     ['Synaptic_Load', 'CRITICAL_HIGH', 'Dopamine_Mod', '+14.2%'],
+  pomodoro:   ['Cycle_Efficiency', 'STABLE_FLOW', 'Recovery_Rate', 'OPTIMIZED'],
+  'deep-focus': ['Isolation_Level', 'TOTAL_SILENCE', 'Network_State', 'AIRGAPPED'],
+  'free-read': ['Data_Flow', 'UNMETERED', 'Archive_Mode', 'OPEN']
+};
+
+const METHOD_HZ: Record<TheorySessionMethodId, string> = {
+  sprint: '84.2', pomodoro: '62.0', 'deep-focus': '12.5', 'free-read': '0.0'
+};
+
+const METHOD_ICONS = {
+  sprint: Zap, pomodoro: Clock3, 'deep-focus': Brain, 'free-read': BookOpen
+} satisfies Record<TheorySessionMethodId, typeof Zap>;
+
+const METHOD_CTA_ICONS = {
+  sprint: Play, pomodoro: RefreshCw, 'deep-focus': Lock, 'free-read': BookOpen
+} satisfies Record<TheorySessionMethodId, typeof Play>;
 
 interface TheorySessionPickerProps {
   isOpen: boolean;
@@ -52,13 +64,6 @@ interface TheorySessionPickerProps {
   onDismiss: () => void;
 }
 
-const methodIconMap = {
-  pomodoro: Clock3,
-  'deep-focus': Brain,
-  sprint: Zap,
-  'free-read': BookOpen
-} satisfies Record<TheorySessionMethodId, typeof Clock3>;
-
 export const TheorySessionPicker = ({
   isOpen,
   configsByMethod,
@@ -68,44 +73,15 @@ export const TheorySessionPicker = ({
   onOpenSettings,
   onDismiss
 }: TheorySessionPickerProps) => {
-  const suggestedMethodId = useMemo(
-    () => getSuggestedMethodId(lessonDurationMinutes),
-    [lessonDurationMinutes]
-  );
-  const orderedMethods = useMemo(
-    () =>
-      SESSION_METHOD_ORDER.map((methodId) =>
-        THEORY_SESSION_METHODS.find((method) => method.id === methodId)
-      ).filter((method): method is (typeof THEORY_SESSION_METHODS)[number] => Boolean(method)),
-    []
-  );
-  const [selectedMethodId, setSelectedMethodId] = useState<TheorySessionMethodId>(
-    suggestedMethodId
-  );
-  const selectedConfig = configsByMethod[selectedMethodId];
-  const selectedMethod = getTheorySessionMethod(selectedMethodId);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
   const wasOpenRef = useRef(false);
-  const methodButtonRefs = useRef<Record<TheorySessionMethodId, HTMLButtonElement | null>>({
-    pomodoro: null,
-    'deep-focus': null,
-    sprint: null,
-    'free-read': null
-  });
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setSelectedMethodId(suggestedMethodId);
-  }, [isOpen, suggestedMethodId]);
 
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
       previouslyFocusedElementRef.current =
         document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      const focusTarget =
-        methodButtonRefs.current[selectedMethodId] ?? closeButtonRef.current;
-      focusTarget?.focus();
+      closeButtonRef.current?.focus();
       wasOpenRef.current = true;
       return;
     }
@@ -113,7 +89,7 @@ export const TheorySessionPicker = ({
       previouslyFocusedElementRef.current?.focus?.();
       wasOpenRef.current = false;
     }
-  }, [isOpen, selectedMethodId]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -131,14 +107,7 @@ export const TheorySessionPicker = ({
     };
   }, [isOpen, onDismiss]);
 
-  const totalMinutes = selectedConfig ? getTheorySessionTotalMinutes(selectedConfig) : 0;
-  const segments = selectedConfig ? buildTheorySessionTimeline(selectedConfig) : [];
-  const totalSegmentMinutes = segments.reduce((sum, s) => sum + s.minutes, 0);
-  const segmentCount = 16;
-  const focusRatio = totalSegmentMinutes > 0
-    ? segments.filter(s => s.kind === 'focus').reduce((sum, s) => sum + s.minutes, 0) / totalSegmentMinutes
-    : 1;
-  const filledSegments = Math.round(focusRatio * segmentCount);
+  const freeReadConfig = configsByMethod['free-read'];
 
   return (
     <AnimatePresence>
@@ -147,15 +116,9 @@ export const TheorySessionPicker = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-md"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 px-4 py-4 backdrop-blur-md"
         >
-          <button
-            type="button"
-            onClick={onDismiss}
-            tabIndex={-1}
-            aria-hidden="true"
-            className="absolute inset-0"
-          />
+          <button type="button" onClick={onDismiss} tabIndex={-1} aria-hidden="true" className="absolute inset-0" />
 
           <motion.div
             initial={{ y: 18, opacity: 0, scale: 0.985 }}
@@ -164,197 +127,168 @@ export const TheorySessionPicker = ({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             role="dialog"
             aria-modal="true"
-            aria-label="Session picker"
-            className="relative z-10 w-full max-w-[54rem] overflow-hidden border border-outline-variant/30 bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
+            className="relative z-10 w-full max-w-[64rem] overflow-y-auto max-h-[90vh] border border-outline-variant/30 bg-surface p-6 flex flex-col gap-5"
           >
-            <div className="flex h-[min(70vh,32rem)]">
-              {/* Left: Approach Matrix */}
-              <aside className="w-56 flex-shrink-0 border-r border-outline-variant/20 bg-surface-container-low flex flex-col">
-                <div className="px-4 pt-4 pb-2">
-                  <h3 className="font-mono text-[9px] text-on-surface-variant uppercase tracking-[0.3em]">
-                    APPROACH_MATRIX
-                  </h3>
+            {/* Close */}
+            <button
+              ref={closeButtonRef}
+              type="button"
+              onClick={onDismiss}
+              className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center border border-outline-variant/30 text-on-surface-variant hover:text-primary hover:border-primary/40 transition-colors z-20"
+            >
+              <X className="h-3 w-3" />
+            </button>
+
+            {/* Free Read banner */}
+            <section
+              className="border border-dashed border-primary/20 p-4 flex items-center justify-between cursor-pointer hover:bg-surface-container-high/40 transition-all"
+              onClick={() => onStart(freeReadConfig)}
+              onKeyDown={(e) => e.key === 'Enter' && onStart(freeReadConfig)}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="flex items-center gap-4">
+                <div className="bg-secondary/10 p-2.5 border border-secondary/20">
+                  <BookOpen className="h-5 w-5 text-secondary" />
                 </div>
-
-                <div className="flex-1 space-y-0">
-                  {orderedMethods.map((method, index) => {
-                    const isSelected = selectedMethodId === method.id;
-                    const Icon = methodIconMap[method.id];
-
-                    return (
-                      <button
-                        key={method.id}
-                        ref={(node) => { methodButtonRefs.current[method.id] = node; }}
-                        type="button"
-                        onClick={() => setSelectedMethodId(method.id)}
-                        className={`w-full text-left px-4 py-3 transition-colors relative ${
-                          isSelected
-                            ? 'bg-primary/10 border-l-3 border-primary'
-                            : 'border-l-3 border-transparent hover:bg-surface-container-high'
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <Icon className={`h-4 w-4 mt-0.5 ${isSelected ? 'text-primary' : 'text-on-surface-variant'}`} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1">
-                              <span className={`font-headline font-bold text-xs uppercase truncate ${isSelected ? 'text-primary' : 'text-on-surface'}`}>
-                                {METHOD_NEURAL_LABELS[method.id]}
-                              </span>
-                              <span className="font-mono text-[8px] text-on-surface-variant flex-shrink-0">
-                                [{String(index + 1).padStart(2, '0')}]
-                              </span>
-                            </div>
-                            <p className="font-mono text-[9px] text-on-surface-variant mt-0.5 leading-snug truncate">
-                              {METHOD_DESCRIPTIONS[method.id]}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
+                <div>
+                  <h3 className="font-headline text-sm font-bold tracking-widest text-on-surface">OPEN_ARCHIVE_OVERRIDE</h3>
+                  <p className="font-mono text-[9px] text-on-surface-variant mt-0.5 uppercase">
+                    Direct memory access // Unmetered data stream protocol
+                  </p>
                 </div>
-
-                <div className="px-4 py-2 border-t border-outline-variant/20 font-mono text-[8px] text-on-surface-variant space-y-0.5">
-                  <div>&gt; SYNC: OK</div>
-                  <div>&gt; LOAD: 12%</div>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="hidden md:block text-right">
+                  <div className="font-mono text-[8px] text-on-surface-variant uppercase">System_State</div>
+                  <div className="font-headline text-xs text-secondary font-bold">READY_FOR_SEQUENCING</div>
                 </div>
-              </aside>
+                <div className="border border-secondary px-4 py-1.5 font-mono text-[9px] text-secondary tracking-widest hover:bg-secondary hover:text-surface transition-all uppercase">
+                  INITIATE_MANUAL_READ
+                </div>
+              </div>
+            </section>
 
-              {/* Right: Protocol Detail */}
-              <main className="flex-1 flex flex-col bg-surface overflow-y-auto">
-                {/* Close button */}
-                <button
-                  ref={closeButtonRef}
-                  type="button"
-                  aria-label="Dismiss"
-                  onClick={onDismiss}
-                  className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center border border-outline-variant/30 text-on-surface-variant transition-colors hover:text-primary hover:border-primary/40 z-20"
-                >
-                  <X className="h-3 w-3" />
-                </button>
+            {/* 3-column timed method cards */}
+            <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {TIMED_METHOD_ORDER.map((methodId) => {
+                const method = getTheorySessionMethod(methodId);
+                if (!method) return null;
+                const config = configsByMethod[methodId];
+                const totalMinutes = getTheorySessionTotalMinutes(config);
+                const accent = METHOD_ACCENTS[methodId];
+                const Icon = METHOD_ICONS[methodId];
+                const CtaIcon = METHOD_CTA_ICONS[methodId];
+                const stats = METHOD_STATS[methodId];
+                const hz = METHOD_HZ[methodId];
+                const timeLabel = methodId === 'pomodoro'
+                  ? `${config.focusMinutes}/${String(config.breakMinutes).padStart(2, '0')}`
+                  : `${String(totalMinutes).padStart(2, '0')}:00`;
+                const targetLabel = methodId === 'sprint' ? 'Interval_Target' : methodId === 'pomodoro' ? 'Cycle_Target' : 'Uptime_Target';
+                const filledBars = methodId === 'sprint' ? 4 : methodId === 'pomodoro' ? 3 : 5;
+                const monitorId = methodId === 'sprint' ? 'S1' : methodId === 'pomodoro' ? 'P2' : 'D3';
 
-                {selectedMethod && selectedConfig ? (
-                  <div className="flex-1 flex flex-col p-5">
-                    {/* Protocol header */}
-                    <div className="flex justify-between items-start mb-6">
-                      <div>
-                        <div className="font-mono text-[9px] text-primary tracking-[0.3em] uppercase mb-2">
-                          PROTOCOL // {selectedMethod.id.toUpperCase().replace('-', '_')}_V1.0
-                        </div>
-                        <h2 className="font-headline text-3xl font-black text-on-surface uppercase tracking-tight">
-                          {METHOD_NEURAL_LABELS[selectedMethod.id]}
-                        </h2>
+                return (
+                  <div
+                    key={methodId}
+                    className={`glass-panel border ${accent.border}/10 p-6 flex flex-col group hover:${accent.border}/40 transition-all`}
+                  >
+                    {/* L-bracket corners */}
+                    <div className={`absolute top-0 left-0 w-3 h-3 border-t border-l ${accent.border}/30`} />
+                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-b border-r ${accent.border}/30`} />
+
+                    {/* Icon + time */}
+                    <div className="flex justify-between items-start mb-4">
+                      <div className={`${accent.bg}/10 p-3 border ${accent.border}/20`}>
+                        <Icon className={`h-6 w-6 ${accent.color}`} />
                       </div>
                       <div className="text-right">
-                        <div className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest">
-                          SESSION_ESTIMATE
-                        </div>
-                        <div className="text-2xl font-headline font-black text-on-surface mt-1">
-                          {selectedMethod.isTimed ? (
-                            <>
-                              {String(totalMinutes).padStart(2, '0')}:00
-                              <span className="text-sm text-on-surface-variant ml-1">MIN</span>
-                            </>
-                          ) : (
-                            <span className="text-lg text-on-surface-variant">OPEN</span>
-                          )}
-                        </div>
+                        <div className={`font-mono text-[8px] ${accent.color} uppercase mb-0.5`}>{targetLabel}</div>
+                        <div className="font-headline text-2xl font-light text-on-surface">{timeLabel}</div>
                       </div>
                     </div>
 
-                    {/* Cognitive Frequency Map */}
-                    <div className="mb-5">
-                      <div className="flex justify-between items-end mb-2">
-                        <span className="font-mono text-[9px] text-primary uppercase tracking-[0.2em]">
-                          COGNITIVE_FREQUENCY_MAP
-                        </span>
-                        <span className="font-mono text-[9px] text-on-surface-variant">
-                          {selectedMethod.isTimed ? `${(focusRatio * 100).toFixed(1)} HZ` : 'FREEFORM'}
-                        </span>
-                      </div>
-                      <div className="flex gap-1.5 h-7">
-                        {Array.from({ length: segmentCount }, (_, i) => (
-                          <div
-                            key={i}
-                            className={`flex-1 transition-all ${
-                              i < filledSegments
-                                ? 'bg-primary/80'
-                                : 'bg-surface-container-highest border border-outline-variant/20'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                    {/* Title + description */}
+                    <h2 className="font-headline text-xl font-black tracking-tight text-on-surface mb-1">
+                      {METHOD_NEURAL_LABELS[methodId]}
+                    </h2>
+                    <p className="font-mono text-[10px] text-on-surface-variant leading-relaxed mb-4 min-h-[3rem]">
+                      {METHOD_DESCRIPTIONS[methodId]}
+                    </p>
 
-                    {/* Stats row */}
-                    <div className="grid grid-cols-3 gap-px mb-5">
-                      <div className="bg-surface-container p-3 border border-outline-variant/20">
-                        <div className="font-mono text-[8px] text-on-surface-variant uppercase tracking-widest">
-                          SYNAPTIC_LOAD
+                    <div className="space-y-4 mt-auto">
+                      {/* Rhythm monitor */}
+                      <div className="bg-black/40 p-2.5 border border-outline-variant/20">
+                        <div className="flex justify-between items-center mb-1.5">
+                          <span className={`font-mono text-[8px] ${accent.color}/60 tracking-widest uppercase`}>
+                            Rhythm_Monitor_{monitorId}
+                          </span>
+                          <span className={`font-mono text-[8px] ${accent.color}`}>{hz} HZ</span>
                         </div>
-                        <div className="font-headline text-base font-bold text-on-surface mt-0.5">
-                          {selectedMethod.isTimed ? (selectedConfig.focusMinutes >= 25 ? 'HIGH' : 'MED') : 'LOW'}
+                        <div className="flex gap-1 h-2.5">
+                          {Array.from({ length: 8 }, (_, i) => (
+                            <div
+                              key={i}
+                              className={`flex-1 ${
+                                i < filledBars
+                                  ? `${accent.bg}/${80 - i * 15}`
+                                  : 'bg-white/5'
+                              }`}
+                            />
+                          ))}
                         </div>
-                      </div>
-                      <div className="bg-surface-container p-3 border border-outline-variant/20">
-                        <div className="font-mono text-[8px] text-on-surface-variant uppercase tracking-widest">
-                          RETENTION_ALPHA
-                        </div>
-                        <div className="font-headline text-base font-bold text-on-surface mt-0.5">
-                          {selectedMethod.isTimed ? '0.982' : '0.871'}
-                        </div>
-                      </div>
-                      <div className="bg-surface-container p-3 border border-outline-variant/20">
-                        <div className="font-mono text-[8px] text-on-surface-variant uppercase tracking-widest">
-                          AUTO_ARCHIVE
-                        </div>
-                        <div className="font-headline text-base font-bold text-primary mt-0.5">
-                          ENABLED
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Description callout */}
-                    <div className="border-l-2 border-primary/40 pl-4 py-2 mb-4">
-                      <p className="font-mono text-xs text-on-surface-variant leading-relaxed">
-                        {selectedMethod.bestFor}
-                      </p>
-                    </div>
-
-                    <div className="flex-1" />
-
-                    {/* Bottom actions */}
-                    <div className="flex items-center justify-between gap-3 border-t border-outline-variant/20 pt-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={onOpenSettings}
-                          className="border border-outline-variant/40 px-3 py-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
-                        >
-                          CONFIG
-                        </button>
-                        <button
-                          type="button"
-                          onClick={onDismiss}
-                          className="border border-outline-variant/40 px-3 py-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
-                        >
-                          SKIP
-                        </button>
                       </div>
 
+                      {/* Stats */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className={`border-l ${accent.border}/30 pl-2`}>
+                          <div className="font-mono text-[7px] text-on-surface-variant uppercase">{stats[0]}</div>
+                          <div className="font-headline text-[10px] font-bold text-on-surface uppercase">{stats[1]}</div>
+                        </div>
+                        <div className={`border-l ${accent.border}/30 pl-2`}>
+                          <div className="font-mono text-[7px] text-on-surface-variant uppercase">{stats[2]}</div>
+                          <div className="font-headline text-[10px] font-bold text-on-surface uppercase">{stats[3]}</div>
+                        </div>
+                      </div>
+
+                      {/* CTA */}
                       <button
                         type="button"
-                        onClick={() => onStart(selectedConfig)}
-                        className="bg-primary text-on-primary font-headline font-black text-xs py-3 px-6 flex items-center gap-2 hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98] transition-all uppercase tracking-widest"
+                        onClick={() => onStart(config)}
+                        className={`w-full ${accent.bg} py-3 font-headline font-black text-surface text-xs tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all uppercase`}
                       >
-                        START_SESSION
-                        <Play className="h-3.5 w-3.5" />
+                        EXECUTE_PROTOCOL
+                        <CtaIcon className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
-                ) : null}
-              </main>
-            </div>
+                );
+              })}
+            </section>
+
+            {/* Footer */}
+            <footer className="border-t border-outline-variant/20 pt-4 flex justify-between items-end">
+              <div className="bg-black/60 p-3 border border-outline-variant/30 font-mono text-[9px] text-primary/40 leading-tight max-w-md">
+                <p>&gt; SYSTEM_READY: WAITING FOR OPERATOR INPUT_</p>
+                <p>&gt; {lessonTitle}</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onOpenSettings}
+                  className="border border-outline-variant/40 px-3 py-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
+                >
+                  CONFIG
+                </button>
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="border border-outline-variant/40 px-3 py-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
+                >
+                  SKIP
+                </button>
+              </div>
+            </footer>
           </motion.div>
         </motion.div>
       ) : null}
