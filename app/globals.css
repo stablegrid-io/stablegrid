@@ -5,24 +5,8 @@
 @layer base {
   :root {
     --font-sans: 'Inter', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
-    --font-mono: 'DM Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
-    --font-serif: 'DM Serif Display', 'Iowan Old Style', 'Palatino Linotype', Georgia,
-      serif;
-    --font-hero: 'Inter', 'Avenir Next', 'Segoe UI', 'Helvetica Neue', Arial, system-ui,
-      sans-serif;
-    --app-grid-base: #ffffff;
-    --app-grid-line: rgba(0, 0, 0, 0.018);
-    --app-grid-line-strong: rgba(0, 0, 0, 0.032);
-    --app-grid-glow-a: rgba(16, 185, 129, 0.012);
-    --app-grid-glow-b: rgba(59, 130, 246, 0.012);
-  }
-
-  .dark {
-    --app-grid-base: #070b0d;
-    --app-grid-line: rgba(136, 155, 168, 0.075);
-    --app-grid-line-strong: rgba(136, 155, 168, 0.11);
-    --app-grid-glow-a: rgba(16, 185, 129, 0.05);
-    --app-grid-glow-b: rgba(56, 189, 248, 0.04);
+    --font-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+    --font-serif: 'DM Serif Display', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
   }
 
   html,
@@ -38,38 +22,13 @@
   }
 
   body {
-    @apply font-sans antialiased bg-light-bg text-text-light-primary;
+    @apply font-sans antialiased;
     font-feature-settings: 'cv11', 'ss01', 'ss02', 'ss03', 'ss04';
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: var(--app-grid-base);
-    background-image:
-      linear-gradient(to right, var(--app-grid-line) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--app-grid-line) 1px, transparent 1px),
-      linear-gradient(to right, var(--app-grid-line-strong) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--app-grid-line-strong) 1px, transparent 1px),
-      radial-gradient(circle at 18% -12%, var(--app-grid-glow-a), transparent 48%),
-      radial-gradient(circle at 84% 122%, var(--app-grid-glow-b), transparent 48%);
-    background-size: 54px 54px, 54px 54px, 216px 216px, 216px 216px, 100% 100%, 100% 100%;
-    background-position: -1px -1px;
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  .dark body {
-    @apply bg-dark-bg text-text-dark-primary;
-  }
-
-  :is(main, div, section).min-h-screen {
-    background-image:
-      linear-gradient(to right, var(--app-grid-line) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--app-grid-line) 1px, transparent 1px),
-      linear-gradient(to right, var(--app-grid-line-strong) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--app-grid-line-strong) 1px, transparent 1px),
-      radial-gradient(circle at 18% -12%, var(--app-grid-glow-a), transparent 48%),
-      radial-gradient(circle at 84% 122%, var(--app-grid-glow-b), transparent 48%);
-    background-size: 54px 54px, 54px 54px, 216px 216px, 216px 216px, 100% 100%, 100% 100%;
-    background-position: -1px -1px;
+    background-color: #0c0e10;
+    color: #f0f0f3;
   }
 
   ::-webkit-scrollbar {
@@ -82,21 +41,18 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-light-border dark:bg-dark-border rounded-full;
+    background-color: #46484a;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-text-light-tertiary dark:bg-text-dark-tertiary;
+    background-color: #747578;
   }
 
   ::selection {
-    @apply bg-brand-500/20 text-text-light-primary;
-  }
-
-  .dark ::selection {
-    @apply text-text-dark-primary;
+    background-color: rgba(153, 247, 255, 0.2);
+    color: #f0f0f3;
   }
 
   button:focus {
@@ -108,15 +64,15 @@
   }
 
   :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus-visible {
-    @apply ring-2 ring-brand-500 ring-offset-2 ring-offset-light-bg;
-  }
-
-  .dark :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus-visible {
-    @apply ring-offset-dark-bg;
+    @apply ring-2 ring-offset-2;
+    --tw-ring-color: #00e2ee;
+    --tw-ring-offset-color: #0c0e10;
   }
 
   button:focus-visible {
-    @apply ring-2 ring-brand-500 ring-offset-2;
+    @apply ring-2 ring-offset-2;
+    --tw-ring-color: #00e2ee;
+    --tw-ring-offset-color: #0c0e10;
   }
 
   :disabled {
@@ -125,106 +81,74 @@
 }
 
 @layer components {
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium;
-    @apply transition-all duration-150;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+  .grid-overlay {
+    background-image:
+      linear-gradient(to right, rgba(153, 247, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(153, 247, 255, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
 
-  .btn-primary {
-    @apply bg-brand-600 text-white;
-    @apply hover:bg-brand-500 active:bg-brand-700;
-    @apply shadow-sm hover:shadow-md;
+  .scanline {
+    background: linear-gradient(to bottom, transparent 50%, rgba(153, 247, 255, 0.05) 50%);
+    background-size: 100% 4px;
   }
 
-  .btn-secondary {
-    @apply bg-light-surface dark:bg-dark-surface;
-    @apply text-text-light-primary dark:text-text-dark-primary;
-    @apply border border-light-border dark:border-dark-border;
-    @apply hover:bg-light-hover dark:hover:bg-dark-hover;
-    @apply shadow-sm;
+  .glass-panel {
+    backdrop-filter: blur(12px);
+    background: rgba(17, 20, 22, 0.7);
   }
 
-  .btn-ghost {
-    @apply bg-transparent;
-    @apply text-text-light-secondary dark:text-text-dark-secondary;
-    @apply hover:bg-light-hover dark:hover:bg-dark-hover;
+  .l-bracket {
+    position: relative;
+  }
+  .l-bracket::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    border-top: 2px solid currentColor;
+    border-left: 2px solid currentColor;
+    pointer-events: none;
+  }
+  .l-bracket::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 10px;
+    height: 10px;
+    border-bottom: 2px solid currentColor;
+    border-right: 2px solid currentColor;
+    pointer-events: none;
   }
 
-  .btn-danger {
-    @apply bg-error-500 text-white;
-    @apply hover:bg-error-600 active:bg-error-700;
-    @apply shadow-sm hover:shadow-md;
+  .l-corner {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+  }
+  .l-corner-tl { top: 0; left: 0; border-top: 2px solid currentColor; border-left: 2px solid currentColor; }
+  .l-corner-tr { top: 0; right: 0; border-top: 2px solid currentColor; border-right: 2px solid currentColor; }
+  .l-corner-bl { bottom: 0; left: 0; border-bottom: 2px solid currentColor; border-left: 2px solid currentColor; }
+  .l-corner-br { bottom: 0; right: 0; border-bottom: 2px solid currentColor; border-right: 2px solid currentColor; }
+
+  .l-bracket-teal  { border-left: 2px solid #99f7ff; border-top: 2px solid #99f7ff; }
+  .l-bracket-red   { border-left: 2px solid #ff716c; border-top: 2px solid #ff716c; }
+  .l-bracket-amber { border-left: 2px solid #ffc965; border-top: 2px solid #ffc965; }
+
+  .glow-primary {
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
   }
 
-  .card {
-    @apply rounded-lg border border-light-border dark:border-dark-border;
-    @apply bg-light-surface dark:bg-dark-surface;
-    @apply shadow-sm transition-all duration-150;
-  }
-
-  .card-hover {
-    @apply hover:shadow-md hover:border-light-active dark:hover:border-dark-active;
-  }
-
-  .input {
-    @apply w-full rounded-lg border border-light-border dark:border-dark-border;
-    @apply bg-light-bg dark:bg-dark-bg;
-    @apply px-3 py-2;
-    @apply text-text-light-primary dark:text-text-dark-primary;
-    @apply placeholder:text-text-light-tertiary dark:placeholder:text-text-dark-tertiary;
-    @apply focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed;
-    @apply transition-all duration-150;
-  }
-
-  .badge {
-    @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium;
-  }
-
-  .badge-success {
-    @apply bg-success-50 text-success-700 border border-success-200;
-    @apply dark:bg-success-700/20 dark:text-success-400 dark:border-success-700;
-  }
-
-  .badge-warning {
-    @apply bg-warning-50 text-warning-700 border border-warning-200;
-    @apply dark:bg-warning-700/20 dark:text-warning-400 dark:border-warning-700;
-  }
-
-  .badge-error {
-    @apply bg-error-50 text-error-700 border border-error-200;
-    @apply dark:bg-error-700/20 dark:text-error-400 dark:border-error-700;
-  }
-
-  .status-dot {
-    @apply h-2 w-2 rounded-full;
-  }
-
-  .divider {
-    @apply border-t border-light-border dark:border-dark-border;
-  }
-
-  .text-headline {
-    @apply text-3xl font-bold tracking-tight;
-  }
-
-  .text-title {
-    @apply text-xl font-semibold;
-  }
-
-  .text-body {
-    @apply text-sm text-text-light-secondary dark:text-text-dark-secondary;
-  }
-
-  .text-caption {
-    @apply text-xs text-text-light-tertiary dark:text-text-dark-tertiary;
+  .neural-node {
+    box-shadow: 0 0 15px #00F2FF, inset 0 0 5px #00F2FF;
   }
 
   .data-mono {
-    font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco,
-      Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-family: 'JetBrains Mono', var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
 }
 
@@ -233,16 +157,12 @@
     @apply transition-all duration-150 ease-out;
   }
 
-  .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
-  }
-
   .scrollbar-slim::-webkit-scrollbar {
     width: 8px;
   }
 
   .scrollbar-slim::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-light-border dark:bg-dark-border;
+    background-color: #46484a;
   }
 
   .scrollbar-slim::-webkit-scrollbar-track {
