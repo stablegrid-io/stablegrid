@@ -327,26 +327,8 @@ export const HomeDashboard = ({
               </div>
             </div>
 
-            {/* Avatar with SVG progress ring */}
+            {/* Avatar */}
             <div className="relative inline-block mb-3">
-              {/* SVG circular progress */}
-              <svg className="absolute -inset-4 w-[calc(100%+2rem)] h-[calc(100%+2rem)] -rotate-90 z-20 pointer-events-none" viewBox="0 0 200 260">
-                {/* Background ring */}
-                <ellipse cx="100" cy="130" rx="96" ry="126" fill="none" stroke="rgba(153,247,255,0.08)" strokeWidth="2" />
-                {/* Progress ring */}
-                <ellipse
-                  cx="100" cy="130" rx="96" ry="126"
-                  fill="none"
-                  stroke="#99f7ff"
-                  strokeWidth="2.5"
-                  strokeDasharray={`${2 * Math.PI * 110}`}
-                  strokeDashoffset={`${2 * Math.PI * 110 * (1 - (stats.totalXp % 10000) / 10000)}`}
-                  strokeLinecap="butt"
-                  className="drop-shadow-[0_0_6px_rgba(0,242,255,0.5)]"
-                />
-              </svg>
-
-              {/* Avatar image */}
               <div className="relative w-56 h-72 bg-primary/5 border border-primary/20 flex items-center justify-center overflow-hidden group">
                 <Image
                   src="/grid-assets/operator-avatar.jpg"
@@ -364,12 +346,6 @@ export const HomeDashboard = ({
                 </div>
               </div>
 
-              {/* Level badge at bottom of ring */}
-              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-30 bg-surface border border-primary/40 px-3 py-1 shadow-[0_0_12px_rgba(0,242,255,0.2)]">
-                <span className="font-mono text-[8px] text-primary font-bold tracking-widest">
-                  LVL {Math.floor(stats.totalXp / 1000)} · {Math.round((stats.totalXp % 10000) / 100)}%
-                </span>
-              </div>
             </div>
 
             {/* Operator name */}
