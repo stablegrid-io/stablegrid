@@ -204,53 +204,53 @@ export const HomeDashboard = ({
     <div className="relative min-h-screen pb-24 lg:pb-10">
       <div className="relative mx-auto flex w-full max-w-7xl flex-col px-4 pb-16 pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
         {/* Hero section — XP, Level, Role */}
-        <section className="mb-12 flex flex-col items-center justify-center py-20 border border-primary/10 glass-panel relative overflow-hidden bg-gradient-to-b from-surface-container-low to-background">
-          <div className="relative w-full max-w-4xl flex flex-col items-center justify-center">
+        <section className="mb-8 flex flex-col items-center justify-center py-10 border border-primary/10 glass-panel relative overflow-hidden bg-gradient-to-b from-surface-container-low to-background">
+          <div className="relative w-full max-w-3xl flex flex-col items-center justify-center">
             {/* Decorative rings */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[500px] h-[500px] border border-primary/5 rounded-full absolute" />
-              <div className="w-[350px] h-[350px] border border-primary/10 rounded-full absolute border-dashed" />
-              <div className="w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full absolute" />
+              <div className="w-[280px] h-[280px] border border-primary/5 rounded-full absolute" />
+              <div className="w-[200px] h-[200px] border border-primary/10 rounded-full absolute border-dashed" />
+              <div className="w-[340px] h-[340px] bg-primary/5 blur-[80px] rounded-full absolute" />
             </div>
 
-            <div className="relative flex items-center justify-center w-full min-h-[300px]">
+            <div className="relative flex items-center justify-center w-full min-h-[180px]">
               {/* Central node */}
-              <div className="relative z-10 w-64 h-64 flex items-center justify-center">
-                <div className="relative w-32 h-32 flex items-center justify-center">
-                  <div className="absolute w-24 h-24 border-2 border-primary rotate-[30deg] opacity-80 shadow-[0_0_20px_#00F2FF]" />
-                  <div className="absolute w-24 h-24 border-2 border-primary/50 rotate-[-30deg]" />
-                  <div className="absolute w-12 h-12 bg-primary/20 backdrop-blur-sm border border-primary animate-pulse" />
-                  <div className="absolute w-[200px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent rotate-45" />
-                  <div className="absolute w-[200px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent -rotate-45" />
-                  <div className="absolute h-[200px] w-[1px] bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
-                  <div className="absolute -top-12 -left-12 w-3 h-3 bg-primary neural-node" />
-                  <div className="absolute -bottom-8 -right-16 w-2 h-2 bg-primary/80 neural-node" />
-                  <div className="absolute top-16 -right-12 w-3 h-3 bg-primary neural-node" />
+              <div className="relative z-10 w-40 h-40 flex items-center justify-center">
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <div className="absolute w-16 h-16 border-2 border-primary rotate-[30deg] opacity-80 shadow-[0_0_15px_#00F2FF]" />
+                  <div className="absolute w-16 h-16 border-2 border-primary/50 rotate-[-30deg]" />
+                  <div className="absolute w-8 h-8 bg-primary/20 backdrop-blur-sm border border-primary animate-pulse" />
+                  <div className="absolute w-[120px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent rotate-45" />
+                  <div className="absolute w-[120px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent -rotate-45" />
+                  <div className="absolute h-[120px] w-[1px] bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
+                  <div className="absolute -top-8 -left-8 w-2 h-2 bg-primary neural-node" />
+                  <div className="absolute -bottom-6 -right-10 w-1.5 h-1.5 bg-primary/80 neural-node" />
+                  <div className="absolute top-10 -right-8 w-2 h-2 bg-primary neural-node" />
                 </div>
 
                 {/* XP display */}
-                <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                  <div className="text-[9px] font-mono text-primary/60 tracking-[0.4em] uppercase mb-1">XP_SYNC</div>
-                  <div className="text-3xl font-headline font-black text-primary drop-shadow-[0_0_10px_rgba(0,242,255,0.5)]">
+                <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                  <div className="text-[8px] font-mono text-primary/60 tracking-[0.4em] uppercase mb-0.5">XP_SYNC</div>
+                  <div className="text-2xl font-headline font-black text-primary drop-shadow-[0_0_10px_rgba(0,242,255,0.5)]">
                     {stats.totalXp.toLocaleString()}
                   </div>
                 </div>
 
                 {/* Left stat — Streak */}
-                <div className="absolute top-1/2 -left-48 -translate-y-1/2 text-right hidden lg:block">
-                  <div className="border-r border-primary/30 pr-4 py-2">
-                    <div className="text-[9px] font-mono text-primary/50 tracking-widest uppercase">Streak</div>
-                    <div className="text-xl font-headline font-bold text-on-surface">
+                <div className="absolute top-1/2 -left-36 -translate-y-1/2 text-right hidden lg:block">
+                  <div className="border-r border-primary/30 pr-3 py-1">
+                    <div className="text-[8px] font-mono text-primary/50 tracking-widest uppercase">Streak</div>
+                    <div className="text-base font-headline font-bold text-on-surface">
                       {stats.currentStreak} days
                     </div>
                   </div>
                 </div>
 
                 {/* Right stat — Progress */}
-                <div className="absolute top-1/2 -right-48 -translate-y-1/2 text-left hidden lg:block">
-                  <div className="border-l border-primary/30 pl-4 py-2">
-                    <div className="text-[9px] font-mono text-primary/50 tracking-widest uppercase">Progress</div>
-                    <div className="text-xl font-headline font-bold text-primary">
+                <div className="absolute top-1/2 -right-36 -translate-y-1/2 text-left hidden lg:block">
+                  <div className="border-l border-primary/30 pl-3 py-1">
+                    <div className="text-[8px] font-mono text-primary/50 tracking-widest uppercase">Progress</div>
+                    <div className="text-base font-headline font-bold text-primary">
                       {overallProgress}%
                     </div>
                   </div>
@@ -260,8 +260,8 @@ export const HomeDashboard = ({
           </div>
 
           {/* Segmented progress bar */}
-          <div className="max-w-xl mx-auto w-full mt-12 px-8 relative z-10">
-            <div className="flex gap-1.5 h-1.5">
+          <div className="max-w-md mx-auto w-full mt-6 px-6 relative z-10">
+            <div className="flex gap-1 h-1.5">
               {Array.from({ length: 12 }, (_, i) => (
                 <div
                   key={i}
@@ -269,7 +269,7 @@ export const HomeDashboard = ({
                 />
               ))}
             </div>
-            <div className="flex justify-between mt-4 font-mono text-[9px] text-primary/40 uppercase tracking-widest">
+            <div className="flex justify-between mt-2 font-mono text-[8px] text-primary/40 uppercase tracking-widest">
               <span>{firstName}&apos;s progress</span>
               <span>{stats.totalXp.toLocaleString()} XP total</span>
             </div>
