@@ -158,9 +158,9 @@ export const TheorySessionPicker = ({
                 const stats = METHOD_STATS[methodId];
                 const hz = METHOD_HZ[methodId];
                 const timeLabel = methodId === 'pomodoro'
-                  ? `${config.focusMinutes}+${config.breakMinutes}m`
+                  ? `${totalMinutes} min`
                   : `${totalMinutes} min`;
-                const targetLabel = methodId === 'sprint' ? 'Interval_Target' : methodId === 'pomodoro' ? 'Cycle_Target' : 'Uptime_Target';
+                const targetLabel = methodId === 'sprint' ? `${config.focusMinutes} min focus` : methodId === 'pomodoro' ? `${config.focusMinutes} min focus · ${config.breakMinutes} min break` : `${config.focusMinutes} min focus`;
                 const filledBars = methodId === 'sprint' ? 4 : methodId === 'pomodoro' ? 3 : 5;
                 const monitorId = methodId === 'sprint' ? 'S1' : methodId === 'pomodoro' ? 'P2' : 'D3';
 
