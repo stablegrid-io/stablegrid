@@ -266,8 +266,7 @@ export const HomeDashboard = ({
                   ? Math.round((session.sectionsRead / Math.max(1, session.sectionsTotal)) * 4)
                   : 0;
 
-                return (
-                  {isCompleted ? (
+                return isCompleted ? (
                   /* Compact completed row */
                   <Link
                     key={num}
@@ -320,7 +319,6 @@ export const HomeDashboard = ({
                       )}
                     </div>
                   </Link>
-                )}
                 );
               });
             })()}
