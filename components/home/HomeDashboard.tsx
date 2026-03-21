@@ -13,6 +13,9 @@ import {
 } from '@/lib/energy';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { HOME_TOPIC_ORDER, getHomeTopicMeta } from '@/components/home/home/topicMeta';
+import { theoryDocs } from '@/data/learn/theory';
+import { getTheoryTracks } from '@/data/learn/theory/tracks';
+import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 
 interface HomeDashboardProps {
   user: User;
@@ -237,80 +240,74 @@ export const HomeDashboard = ({
           </div>
           <div className="relative pl-4 space-y-2 before:absolute before:left-[15px] before:top-3 before:bottom-3 before:w-[1px] before:bg-outline-variant/30">
             {(() => {
-              // Build module nodes from the active topic's chapters
+              // Get real module titles from theory doc
+              const doc = theoryDocs[moduleTopicId];
+              const tracks = doc ? getTheoryTracks(doc) : [];
+              const allModules = tracks.length > 0
+                ? tracks.flatMap((t) => sortModulesByOrder(t.chapters))
+                : doc ? sortModulesByOrder(doc.modules ?? doc.chapters) : [];
+
               const activeTopicSessions = recentSessions
                 .filter((s) => s.topic === moduleTopicId)
                 .sort((a, b) => a.chapterNumber - b.chapterNumber);
-              const completedChapterNumbers = new Set(
-                activeTopicSessions.filter((s) => s.completedAt).map((s) => s.chapterNumber)
+              const completedChapterIds = new Set(
+                activeTopicSessions.filter((s) => s.completedAt).map((s) => s.chapterId)
               );
               const activeChapterNumber = latestSession?.topic === moduleTopicId
                 ? latestSession.chapterNumber
                 : (activeTopicSessions[activeTopicSessions.length - 1]?.chapterNumber ?? 1);
-              const totalModules = Math.max(recommendedTopic.theoryTotal, activeChapterNumber);
-              const chapterTitleMap = new Map(
-                activeTopicSessions.map((s) => [s.chapterNumber, s.chapterId.replace(/^module-/, 'Module ')])
-              );
 
-              // Show all chapters that fit — completed ones are compact,
-              // current is highlighted, future are dimmed
-              return Array.from({ length: totalModules }, (_, i) => i + 1).map((num) => {
-                const isCompleted = completedChapterNumbers.has(num);
+              const stripModulePrefix = (title: string) =>
+                title.replace(/^module\s*\d+\s*:\s*/i, '').trim();
+
+              return allModules.map((mod, index) => {
+                const num = index + 1;
+                const isCompleted = completedChapterIds.has(mod.id);
                 const isActive = num === activeChapterNumber && !isCompleted;
                 const isLocked = num > activeChapterNumber && !isCompleted;
-                const session = activeTopicSessions.find((s) => s.chapterNumber === num);
-                const title = session
-                  ? session.chapterId.replace(/^module-\d+-?/, '').replace(/-/g, ' ') || `Chapter ${num}`
-                  : `Chapter ${num}`;
+                const title = stripModulePrefix(mod.title) || mod.title;
+                const session = activeTopicSessions.find((s) => s.chapterId === mod.id);
                 const progressBars = session && !isCompleted
                   ? Math.round((session.sectionsRead / Math.max(1, session.sectionsTotal)) * 4)
                   : 0;
 
-                return isCompleted ? (
-                  /* Compact completed row */
+                return (
                   <Link
-                    key={num}
+                    key={mod.id}
                     href={`/learn/${moduleTopicId}/theory`}
-                    className="relative flex items-center gap-2 group py-0.5"
+                    className="relative flex items-center gap-3 group py-1.5"
                   >
-                    <div className="z-10 w-5 h-5 border border-primary/30 bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-primary text-[8px]">✓</span>
-                    </div>
-                    <span className="font-mono text-[8px] text-primary/50 truncate">
-                      M-{String(num).padStart(2, '0')} {title}
-                    </span>
-                  </Link>
-                ) : (
-                  /* Active or locked — fuller display */
-                  <Link
-                    key={num}
-                    href={`/learn/${moduleTopicId}/theory`}
-                    className="relative flex items-center gap-3 group py-1"
-                  >
-                    <div className={`z-10 w-7 h-7 border flex items-center justify-center flex-shrink-0 ${
-                      isActive
-                        ? 'border-2 border-primary bg-primary/20 shadow-[0_0_12px_rgba(153,247,255,0.3)]'
-                        : 'border-outline-variant bg-surface-container opacity-40'
+                    <div className={`z-10 w-8 h-8 border flex items-center justify-center flex-shrink-0 ${
+                      isCompleted
+                        ? 'border-primary/40 bg-primary/10'
+                        : isActive
+                          ? 'border-2 border-primary bg-primary/20 shadow-[0_0_15px_rgba(153,247,255,0.3)]'
+                          : 'border-outline-variant bg-surface-container opacity-40'
                     }`}>
-                      {isActive ? (
-                        <span className="text-primary text-[10px]">▶</span>
+                      {isCompleted ? (
+                        <span className="text-primary text-xs">✓</span>
+                      ) : isActive ? (
+                        <span className="text-primary text-xs">▶</span>
                       ) : (
-                        <span className="text-outline-variant text-[10px]">○</span>
+                        <span className="text-outline-variant text-xs">○</span>
                       )}
                     </div>
-                    <div className={isActive ? '' : 'opacity-40'}>
+                    <div className={isCompleted || isActive ? '' : 'opacity-40'}>
                       <p className={`text-[8px] font-mono mb-0.5 ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
                         M-{String(num).padStart(2, '0')}{isActive ? ' [ACTIVE]' : ''}
                       </p>
                       <h4 className={`text-[11px] font-bold uppercase tracking-wide leading-tight ${
-                        isActive ? 'font-headline text-primary' : 'font-mono text-on-surface/60'
+                        isActive ? 'font-headline text-primary' : isCompleted ? 'font-mono text-on-surface/80' : 'font-mono text-on-surface/40'
                       }`}>
                         {title}
                       </h4>
+                      {isCompleted && (
+                        <span className="text-[7px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 mt-0.5 inline-block">SYNCED</span>
+                      )}
                       {isActive && (
                         <div className="flex gap-0.5 mt-1">
                           {Array.from({ length: 4 }, (_, i) => (
-                            <div key={i} className={`h-1 w-3 ${i < progressBars ? 'bg-primary' : 'bg-outline-variant/40'}`} />
+                            <div key={i} className={`h-1 w-4 ${i < progressBars ? 'bg-primary' : 'bg-outline-variant/40'}`} />
                           ))}
                         </div>
                       )}
