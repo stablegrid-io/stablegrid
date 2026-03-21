@@ -5,7 +5,7 @@ interface StableGridBrandProps {
 export function StableGridBrand({ className = '' }: StableGridBrandProps) {
   return (
     <span className={`font-headline font-black text-[#99f7ff] tracking-widest ${className}`}>
-      stableGrid
+      STABLEGRID.IO
     </span>
   );
 }
