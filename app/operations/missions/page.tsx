@@ -28,7 +28,7 @@ export default async function OperationsMissionsPage() {
         {featured?.coverImage ? (
           <Image
             src={featured.coverImage}
-            alt={featured.name}
+            alt={featured.codename}
             fill
             className="object-cover opacity-40 brightness-[0.4] grayscale-[0.2]"
             unoptimized
@@ -56,9 +56,9 @@ export default async function OperationsMissionsPage() {
 
             {/* Big title */}
             <h1 className="font-headline font-black text-6xl lg:text-8xl text-on-surface uppercase tracking-tighter leading-[0.85] mb-6">
-              {featured.name.split(' ').slice(0, -1).join(' ')}
+              {featured.codename.split(' ').slice(0, -1).join(' ')}
               <br />
-              <span className="text-on-surface/40">{featured.name.split(' ').pop()}</span>
+              <span className="text-on-surface/40">{featured.codename.split(' ').pop()}</span>
             </h1>
 
             {/* Description */}
@@ -120,7 +120,7 @@ export default async function OperationsMissionsPage() {
               {mission.coverImage && (
                 <Image
                   src={mission.coverImage}
-                  alt={mission.name}
+                  alt={mission.codename}
                   fill
                   className="object-cover grayscale opacity-20 group-hover:opacity-40 transition-all duration-700"
                   unoptimized
@@ -134,7 +134,7 @@ export default async function OperationsMissionsPage() {
               </div>
               <div className="absolute bottom-3 left-3 right-3">
                 <h3 className="font-headline font-bold text-on-surface text-[10px] uppercase tracking-[0.2em] mb-1">
-                  {mission.name}
+                  {mission.codename}
                 </h3>
                 <div className="flex gap-[1px] h-[1.5px] w-12">
                   {Array.from({ length: 4 }, (_, i) => (
