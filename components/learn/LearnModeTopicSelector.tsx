@@ -123,8 +123,12 @@ export function LearnModeTopicSelector({
                   className="group"
                 >
                   <section
-                    className="bg-surface-container-low p-1 relative overflow-hidden"
-                    style={{ border: `1px solid ${borderAccent}` }}
+                    className="bg-surface-container-low p-1 relative overflow-hidden transition-all duration-300"
+                    style={{
+                      border: `1px solid ${borderAccent}`,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 0 30px rgba(${style.accentRgb},0.15)`; e.currentTarget.style.borderColor = `rgba(${style.accentRgb},0.4)`; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = borderAccent; }}
                   >
                     <div className="absolute top-0 right-0 p-2 text-[10px] font-mono" style={{ color: `rgba(${style.accentRgb},0.3)` }}>
                       ID: TR-{String(index + 1).padStart(2, '0')}
