@@ -264,8 +264,11 @@ export const HomeDashboard = ({
                 activeTopicSessions.map((s) => [s.chapterNumber, s.chapterId.replace(/^module-/, 'Module ')])
               );
 
-              return Array.from({ length: totalModules }, (_, i) => {
-                const num = i + 1;
+              // Only show previous, current, and next module
+              const visibleRange = [activeChapterNumber - 1, activeChapterNumber, activeChapterNumber + 1]
+                .filter((n) => n >= 1 && n <= totalModules);
+
+              return visibleRange.map((num) => {
                 const isCompleted = completedChapterNumbers.has(num);
                 const isActive = num === activeChapterNumber && !isCompleted;
                 const isLocked = num > activeChapterNumber && !isCompleted;
