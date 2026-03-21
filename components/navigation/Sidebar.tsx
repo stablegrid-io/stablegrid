@@ -12,6 +12,7 @@ import { useGridOpsStore } from '@/lib/stores/useGridOpsStore';
 import { StableGridIcon } from '@/components/brand/StableGridLogo';
 import {
   isNavItemActive,
+  isCompactDesktopNavPath,
   navItems,
   shouldHideNav
 } from './navigation-config';
@@ -54,6 +55,7 @@ export const Sidebar = () => {
   const { user } = useAuthStore();
   const activeIncidentCount = useGridOpsStore((s) => s.activeIncidentCount);
   const hideNav = shouldHideNav(pathname, Boolean(user));
+  const isCompact = isCompactDesktopNavPath(pathname);
   const nickname = toNickname(user);
 
   const profileAvatarUrlRaw = user?.user_metadata?.avatar_url;
@@ -150,17 +152,22 @@ export const Sidebar = () => {
   const filteredItems = navItems.filter((item) => !item.disabled);
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-[#0c0e10] border-r border-[#99f7ff]/10 flex-col pt-14 pb-6 z-40 hidden lg:flex">
+    <aside
+      data-compact={isCompact ? 'true' : undefined}
+      className={`fixed left-0 top-0 h-full bg-[#0c0e10] border-r border-[#99f7ff]/10 flex-col pt-14 pb-6 z-40 hidden lg:flex transition-[width] duration-200 ${
+        isCompact ? 'w-16' : 'w-64'
+      }`}
+    >
       {/* User section */}
-      <div className="px-6 py-6 border-b border-[#99f7ff]/10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 border border-primary/30 p-0.5 flex-shrink-0">
+      <div className={`border-b border-[#99f7ff]/10 ${isCompact ? 'px-3 py-4 flex justify-center' : 'px-6 py-6'}`}>
+        <div className={`flex items-center ${isCompact ? 'justify-center' : 'gap-3'}`}>
+          <div className={`border border-primary/30 p-0.5 flex-shrink-0 ${isCompact ? 'w-8 h-8' : 'w-10 h-10'}`}>
             {resolvedAvatarUrl ? (
               <Image
                 src={resolvedAvatarUrl}
                 alt="Avatar"
-                width={36}
-                height={36}
+                width={isCompact ? 28 : 36}
+                height={isCompact ? 28 : 36}
                 unoptimized
                 className="w-full h-full object-cover"
               />
@@ -170,14 +177,16 @@ export const Sidebar = () => {
               </div>
             )}
           </div>
-          <div>
-            <div className="font-mono text-xs font-bold uppercase text-[#00F2FF]">
-              {nickname}
+          {!isCompact && (
+            <div>
+              <div className="font-mono text-xs font-bold uppercase text-[#00F2FF]">
+                {nickname}
+              </div>
+              <div className="font-mono text-[9px] text-primary/40">
+                ONLINE
+              </div>
             </div>
-            <div className="font-mono text-[9px] text-primary/40">
-              ONLINE
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -192,17 +201,29 @@ export const Sidebar = () => {
               key={item.href}
               href={item.href}
               onMouseEnter={() => prefetchRoute(item.href)}
-              className={`flex items-center gap-4 px-6 py-3 font-mono text-xs uppercase tracking-widest transition-colors duration-100 ${
+              title={isCompact ? item.label : undefined}
+              className={`group relative flex items-center ${isCompact ? 'justify-center px-0 py-3 mx-2' : 'gap-4 px-6 py-3'} font-mono text-xs uppercase tracking-widest transition-colors duration-100 ${
                 isActive
                   ? 'bg-[#99f7ff]/10 text-[#99f7ff] border-l-4 border-[#00F2FF] font-bold'
                   : 'text-slate-500 hover:text-[#99f7ff]/70 hover:bg-[#00F2FF]/5'
               }`}
             >
-              <Icon className="h-5 w-5" />
-              <span>{item.label}</span>
-              {item.href === '/energy' && activeIncidentCount > 0 && (
+              <Icon className="h-5 w-5 flex-shrink-0" />
+              {!isCompact && <span>{item.label}</span>}
+              {!isCompact && item.href === '/energy' && activeIncidentCount > 0 && (
                 <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center bg-error px-1 text-[9px] font-bold text-on-error">
                   {activeIncidentCount > 9 ? '9+' : activeIncidentCount}
+                </span>
+              )}
+              {isCompact && item.href === '/energy' && activeIncidentCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center bg-error px-0.5 text-[8px] font-bold text-on-error">
+                  {activeIncidentCount > 9 ? '9+' : activeIncidentCount}
+                </span>
+              )}
+              {/* Tooltip for compact mode */}
+              {isCompact && (
+                <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap border border-outline-variant/30 bg-surface-container px-2 py-1 font-mono text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                  {item.label}
                 </span>
               )}
             </Link>
@@ -211,31 +232,34 @@ export const Sidebar = () => {
       </nav>
 
       {/* Bottom section */}
-      <div className="px-6 pt-4 border-t border-[#99f7ff]/10 space-y-2">
+      <div className={`pt-4 border-t border-[#99f7ff]/10 space-y-2 ${isCompact ? 'px-2' : 'px-6'}`}>
         {adminAccess?.enabled && (
           <Link
             href="/admin"
             onMouseEnter={() => prefetchRoute('/admin')}
-            className="flex items-center gap-4 py-2 text-[#99f7ff]/40 hover:text-[#99f7ff] font-mono text-[10px] uppercase tracking-widest transition-colors"
+            title={isCompact ? 'Admin' : undefined}
+            className={`group relative flex items-center ${isCompact ? 'justify-center py-2' : 'gap-4 py-2'} text-[#99f7ff]/40 hover:text-[#99f7ff] font-mono text-[10px] uppercase tracking-widest transition-colors`}
           >
             <Shield className="h-4 w-4" />
-            <span>Admin</span>
+            {!isCompact && <span>Admin</span>}
           </Link>
         )}
         <Link
           href="/settings"
           onMouseEnter={() => prefetchRoute('/settings')}
-          className="flex items-center gap-4 py-2 text-[#99f7ff]/40 hover:text-[#99f7ff] font-mono text-[10px] uppercase tracking-widest transition-colors"
+          title={isCompact ? 'Settings' : undefined}
+          className={`group relative flex items-center ${isCompact ? 'justify-center py-2' : 'gap-4 py-2'} text-[#99f7ff]/40 hover:text-[#99f7ff] font-mono text-[10px] uppercase tracking-widest transition-colors`}
         >
           <Settings className="h-4 w-4" />
-          <span>Settings</span>
+          {!isCompact && <span>Settings</span>}
         </Link>
         <Link
           href="/support"
-          className="flex items-center gap-4 py-2 text-[#99f7ff]/40 hover:text-[#99f7ff] font-mono text-[10px] uppercase tracking-widest transition-colors"
+          title={isCompact ? 'Support' : undefined}
+          className={`group relative flex items-center ${isCompact ? 'justify-center py-2' : 'gap-4 py-2'} text-[#99f7ff]/40 hover:text-[#99f7ff] font-mono text-[10px] uppercase tracking-widest transition-colors`}
         >
           <HelpCircle className="h-4 w-4" />
-          <span>Support</span>
+          {!isCompact && <span>Support</span>}
         </Link>
       </div>
     </aside>

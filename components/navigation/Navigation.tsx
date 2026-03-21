@@ -6,12 +6,13 @@ import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
-import { shouldHideNav } from './navigation-config';
+import { isCompactDesktopNavPath, shouldHideNav } from './navigation-config';
 
 export const Navigation = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const hideNav = shouldHideNav(pathname, Boolean(user));
+  const isCompact = isCompactDesktopNavPath(pathname);
 
   return (
     <>
@@ -24,7 +25,9 @@ export const Navigation = ({ children }: { children: ReactNode }) => {
 
       <div
         data-testid="navigation-shell-content"
-        className={`relative z-10 pb-16 lg:pb-0 ${hideNav ? '' : 'lg:pl-64 pt-14'}`}
+        className={`relative z-10 pb-16 lg:pb-0 transition-[padding] duration-200 ${
+          hideNav ? '' : isCompact ? 'lg:pl-16 pt-14' : 'lg:pl-64 pt-14'
+        }`}
       >
         {children}
       </div>
