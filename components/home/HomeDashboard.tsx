@@ -220,6 +220,7 @@ export const HomeDashboard = ({
               // Get real module titles from theory doc
               const doc = theoryDocs[moduleTopicId];
               const tracks = doc ? getTheoryTracks(doc) : [];
+              const firstTrackSlug = tracks.length > 0 ? tracks[0].slug : 'all';
               const allModules = tracks.length > 0
                 ? tracks.flatMap((t) => sortModulesByOrder(t.chapters))
                 : doc ? sortModulesByOrder(doc.modules ?? doc.chapters) : [];
@@ -251,7 +252,7 @@ export const HomeDashboard = ({
                 return (
                   <Link
                     key={mod.id}
-                    href={`/learn/${moduleTopicId}/theory`}
+                    href={`/learn/${moduleTopicId}/theory/${firstTrackSlug}?chapter=${encodeURIComponent(mod.id)}`}
                     className="relative flex items-center gap-3 group py-1.5"
                   >
                     <div className={`z-10 w-8 h-8 border flex items-center justify-center flex-shrink-0 ${
