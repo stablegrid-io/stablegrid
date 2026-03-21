@@ -184,10 +184,10 @@ const SectionHeading = ({
   body: string;
   action?: React.ReactNode;
 }) => (
-  <div className="flex flex-col gap-4 border-b border-white/10 px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+  <div className="flex flex-col gap-4 border-b border-outline-variant/20 px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
     <div>
       <p className="text-[0.68rem] uppercase tracking-[0.28em] text-[#7fbba7]">{eyebrow}</p>
-      <h2 className="mt-2 text-xl font-semibold text-white sm:text-2xl">{title}</h2>
+      <h2 className="mt-2 text-xl font-semibold text-on-surface sm:text-2xl">{title}</h2>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-[#9fb1aa]">{body}</p>
     </div>
     {action}
@@ -197,7 +197,7 @@ const SectionHeading = ({
 const InlineMessage = AdminInlineMessage;
 
 const SmallBadge = ({ children }: { children: React.ReactNode }) => (
-  <span className="inline-flex items-center rounded-full border border-white/12 bg-white/[0.04] px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[#9db6aa]">
+  <span className="inline-flex items-center  border border-outline-variant/20 bg-white/[0.04] px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[#9db6aa]">
     {children}
   </span>
 );
@@ -209,7 +209,7 @@ const FieldLabel = ({ children }: { children: React.ReactNode }) => (
 );
 
 const InputClassName =
-  'mt-2 w-full rounded-[16px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-brand-400/40 focus:bg-white/[0.06] focus:ring-2 focus:ring-brand-500/15';
+  'mt-2 w-full rounded-[16px] border border-outline-variant/20 bg-white/[0.04] px-4 py-3 text-sm text-on-surface outline-none transition focus:border-brand-400/40 focus:bg-surface-container-high focus:ring-2 focus:ring-brand-500/15';
 
 function TrackEditorCard({
   track,
@@ -256,16 +256,16 @@ function TrackEditorCard({
   };
 
   return (
-    <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+    <div className=" border border-outline-variant/20 bg-white/[0.04] p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-white">{track.slug}</p>
+          <p className="text-sm font-semibold text-on-surface">{track.slug}</p>
           <p className="mt-1 text-xs text-[#8fa69b]">Track metadata and assignment visibility</p>
         </div>
         <span
-          className={`rounded-full px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.16em] ${
+          className={` px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.16em] ${
             isActive
-              ? 'bg-brand-500/18 text-[#d5f4ea]'
+              ? 'bg-brand-500/18 text-primary'
               : 'bg-white/[0.08] text-[#98a7a1]'
           }`}
         >
@@ -284,7 +284,7 @@ function TrackEditorCard({
         <button
           type="button"
           onClick={() => setIsActive((current) => !current)}
-          className="rounded-[16px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.06]"
+          className="rounded-[16px] border border-outline-variant/20 bg-white/[0.04] px-4 py-3 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high"
         >
           {isActive ? 'Deactivate' : 'Activate'}
         </button>
@@ -535,7 +535,7 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
             <button
               type="button"
               onClick={resetForm}
-              className="rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.08]"
+              className=" border border-outline-variant/20 bg-white/[0.05] px-4 py-2 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-white/[0.08]"
             >
               New item
             </button>
@@ -544,17 +544,17 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
         <div className="px-5 py-5 sm:px-6">
           {error ? <InlineMessage tone="error" message={error} /> : null}
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
+            <div className="rounded-[20px] border border-outline-variant/20 bg-white/[0.04] p-4">
               <p className="text-sm text-[#8fa69b]">Total content items</p>
-              <p className="mt-3 text-3xl font-semibold text-white">{totalItems}</p>
+              <p className="mt-3 text-3xl font-semibold text-on-surface">{totalItems}</p>
             </div>
-            <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
+            <div className="rounded-[20px] border border-outline-variant/20 bg-white/[0.04] p-4">
               <p className="text-sm text-[#8fa69b]">Active in rotation</p>
-              <p className="mt-3 text-3xl font-semibold text-white">{activeItems}</p>
+              <p className="mt-3 text-3xl font-semibold text-on-surface">{activeItems}</p>
             </div>
-            <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
+            <div className="rounded-[20px] border border-outline-variant/20 bg-white/[0.04] p-4">
               <p className="text-sm text-[#8fa69b]">Hidden from future picks</p>
-              <p className="mt-3 text-3xl font-semibold text-white">{inactiveItems}</p>
+              <p className="mt-3 text-3xl font-semibold text-on-surface">{inactiveItems}</p>
             </div>
           </div>
 
@@ -605,10 +605,10 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
             </div>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-[24px] border border-white/10 bg-[#07100f]/65">
+          <div className="mt-6 overflow-hidden rounded-[24px] border border-outline-variant/20 bg-[#07100f]/65">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-white/10 text-left text-sm">
-                <thead className="bg-white/[0.03] text-[#8ca79a]">
+                <thead className="bg-surface-container-low text-[#8ca79a]">
                   <tr>
                     <th className="px-4 py-3 font-medium">Item</th>
                     <th className="px-4 py-3 font-medium">Type</th>
@@ -635,7 +635,7 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                     filteredItems.map((item) => (
                       <tr key={item.id}>
                         <td className="px-4 py-4 align-top">
-                          <p className="font-medium text-white">{item.title}</p>
+                          <p className="font-medium text-on-surface">{item.title}</p>
                           <p className="mt-1 text-xs text-[#8fa69b]">{item.sourceRef}</p>
                         </td>
                         <td className="px-4 py-4 align-top">{CONTENT_TYPE_LABELS[item.contentType]}</td>
@@ -643,9 +643,9 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                         <td className="px-4 py-4 align-top">#{item.sequenceOrder}</td>
                         <td className="px-4 py-4 align-top">
                           <span
-                            className={`rounded-full px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.16em] ${
+                            className={` px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.16em] ${
                               item.isActive
-                                ? 'bg-brand-500/18 text-[#d5f4ea]'
+                                ? 'bg-brand-500/18 text-primary'
                                 : 'bg-white/[0.08] text-[#98a7a1]'
                             }`}
                           >
@@ -657,21 +657,21 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                             <button
                               type="button"
                               onClick={() => handleReorder(item, 'up')}
-                              className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.05]"
+                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-white/[0.05]"
                             >
                               Up
                             </button>
                             <button
                               type="button"
                               onClick={() => handleReorder(item, 'down')}
-                              className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.05]"
+                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-white/[0.05]"
                             >
                               Down
                             </button>
                             <button
                               type="button"
                               onClick={() => handleEdit(item)}
-                              className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.05]"
+                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-white/[0.05]"
                             >
                               Edit
                             </button>
@@ -680,14 +680,14 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                                 <button
                                   type="button"
                                   onClick={() => void handleQuickToggle(item)}
-                                  className="rounded-[12px] border border-rose-300/35 bg-rose-500/12 px-3 py-2 text-xs font-medium text-rose-100 transition hover:bg-rose-500/18"
+                                  className=" border border-rose-300/35 bg-rose-500/12 px-3 py-2 text-xs font-medium text-rose-100 transition hover:bg-rose-500/18"
                                 >
                                   Confirm
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setPendingDeleteToggleId(null)}
-                                  className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-medium text-white transition hover:bg-white/[0.05]"
+                                  className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:bg-white/[0.05]"
                                 >
                                   Cancel
                                 </button>
@@ -696,7 +696,7 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                               <button
                                 type="button"
                                 onClick={() => setPendingDeleteToggleId(item.id)}
-                                className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-medium text-white transition hover:border-rose-300/30 hover:bg-rose-500/10"
+                                className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-rose-300/30 hover:bg-rose-500/10"
                               >
                                 {item.isActive ? 'Deactivate' : 'Activate'}
                               </button>
@@ -824,7 +824,7 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                 onClick={() =>
                   setFormState((current) => ({ ...current, isActive: !current.isActive }))
                 }
-                className="rounded-[16px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.06]"
+                className="rounded-[16px] border border-outline-variant/20 bg-white/[0.04] px-4 py-3 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high"
               >
                 {formState.isActive ? 'Visible in picker' : 'Hidden from picker'}
               </button>
@@ -841,7 +841,7 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
               <button
                 type="button"
                 onClick={resetForm}
-                className="rounded-[16px] border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.06]"
+                className="rounded-[16px] border border-outline-variant/20 bg-white/[0.04] px-5 py-3 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high"
               >
                 Reset
               </button>
@@ -1245,13 +1245,13 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
                     key={result.id}
                     type="button"
                     onClick={() => void loadBoard(result.id)}
-                    className={`w-full rounded-[18px] border px-4 py-3 text-left transition ${
+                    className={`w-full  border px-4 py-3 text-left transition ${
                       selectedUser?.id === result.id
-                        ? 'border-brand-400/30 bg-brand-500/10'
-                        : 'border-white/10 bg-white/[0.04] hover:border-brand-400/20 hover:bg-white/[0.06]'
+                        ? 'border-primary/30 bg-brand-500/10'
+                        : 'border-outline-variant/20 bg-white/[0.04] hover:border-primary/20 hover:bg-surface-container-high'
                     }`}
                   >
-                    <p className="font-medium text-white">{result.name ?? 'Unnamed user'}</p>
+                    <p className="font-medium text-on-surface">{result.name ?? 'Unnamed user'}</p>
                     <p className="mt-1 text-sm text-[#8fa69b]">{result.email ?? 'No email on profile'}</p>
                   </button>
                 ))
@@ -1269,7 +1269,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
           <form className="space-y-4 px-5 py-5 sm:px-6" onSubmit={submitTaskForm}>
             {taskFormError ? <InlineMessage tone="error" message={taskFormError} /> : null}
             {!selectedUser ? (
-              <p className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-4 text-sm text-[#8fa69b]">
+              <p className=" border border-outline-variant/20 bg-white/[0.04] px-4 py-4 text-sm text-[#8fa69b]">
                 Pick a user first, then this form will target their activation board.
               </p>
             ) : null}
@@ -1338,10 +1338,10 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
                       }))
                     }
                     disabled={!selectedUser}
-                    className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                    className={` border px-4 py-2 text-sm font-medium transition ${
                       taskForm.selectionMode === mode
-                        ? 'border-brand-400/30 bg-brand-500/12 text-[#d5f4ea]'
-                        : 'border-white/10 bg-white/[0.04] text-white hover:border-brand-400/20 hover:bg-white/[0.06]'
+                        ? 'border-primary/30 bg-primary/12 text-primary'
+                        : 'border-outline-variant/20 bg-white/[0.04] text-on-surface hover:border-primary/20 hover:bg-surface-container-high'
                     }`}
                   >
                     {mode === 'auto' ? 'Smart pick' : 'Specific item'}
@@ -1414,9 +1414,9 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
               </div>
             )}
 
-            <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+            <div className=" border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
               <div className="mb-4">
-                <p className="text-sm font-semibold text-white">Task copy</p>
+                <p className="text-sm font-semibold text-on-surface">Task copy</p>
                 <p className="mt-1 text-xs leading-5 text-[#8fa69b]">
                   Leave these blank to keep the smart-generated copy, or write custom copy when this task needs a clearer instruction.
                 </p>
@@ -1466,7 +1466,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
               <button
                 type="button"
                 onClick={resetTaskForm}
-                className="rounded-[16px] border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.06]"
+                className="rounded-[16px] border border-outline-variant/20 bg-white/[0.04] px-5 py-3 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high"
               >
                 Reset
               </button>
@@ -1489,7 +1489,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
               <button
                 type="button"
                 onClick={() => void loadBoard(selectedUser.id)}
-                className="rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.08]"
+                className=" border border-outline-variant/20 bg-white/[0.05] px-4 py-2 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-white/[0.08]"
               >
                 Refresh board
               </button>
@@ -1501,7 +1501,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
           {boardLoading ? (
             <p className="text-sm text-[#8fa69b]">Loading activation board...</p>
           ) : !selectedUser || !boardData ? (
-            <p className="rounded-[20px] border border-white/10 bg-white/[0.04] px-4 py-4 text-sm text-[#8fa69b]">
+            <p className="rounded-[20px] border border-outline-variant/20 bg-white/[0.04] px-4 py-4 text-sm text-[#8fa69b]">
               No user selected yet.
             </p>
           ) : (
@@ -1509,7 +1509,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
               {columns.map((column) => (
                 <div
                   key={column.id}
-                  className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4"
+                  className="rounded-[24px] border border-outline-variant/20 bg-white/[0.04] p-4"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#9eb7ab]">
@@ -1519,18 +1519,18 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
                   </div>
                   <div className="mt-4 space-y-3">
                     {column.tasks.length === 0 ? (
-                      <div className="rounded-[18px] border border-dashed border-white/10 bg-black/10 px-4 py-6 text-sm text-[#7f9690]">
+                      <div className=" border border-dashed border-outline-variant/20 bg-black/10 px-4 py-6 text-sm text-[#7f9690]">
                         No tasks in this column.
                       </div>
                     ) : (
                       column.tasks.map((task, index) => (
                         <div
                           key={task.id}
-                          className="rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-4"
+                          className="rounded-[20px] border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-4"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="font-medium text-white">{task.title}</p>
+                              <p className="font-medium text-on-surface">{task.title}</p>
                               <p className="mt-1 text-sm leading-6 text-[#8fa69b]">{task.description}</p>
                             </div>
                             <SmallBadge>{TASK_GROUP_LABELS[task.taskGroup]}</SmallBadge>
@@ -1547,7 +1547,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
                               type="button"
                               onClick={() => void handleColumnReorder(column.id, task.id, 'up')}
                               disabled={index === 0 || busyActionKey !== null}
-                              className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-50"
+                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               Up
                             </button>
@@ -1555,7 +1555,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
                               type="button"
                               onClick={() => void handleColumnReorder(column.id, task.id, 'down')}
                               disabled={index === column.tasks.length - 1 || busyActionKey !== null}
-                              className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-50"
+                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               Down
                             </button>
@@ -1564,7 +1564,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
                                 type="button"
                                 onClick={() => void handleTaskAction(task.id, 'start')}
                                 disabled={busyActionKey !== null}
-                                className="rounded-[12px] border border-brand-300/35 bg-brand-500/14 px-3 py-2 text-xs font-medium text-[#d7f6ec] transition hover:bg-brand-500/18 disabled:cursor-not-allowed disabled:opacity-50"
+                                className=" border border-brand-300/35 bg-brand-500/14 px-3 py-2 text-xs font-medium text-[#d7f6ec] transition hover:bg-brand-500/18 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {busyActionKey === `${task.id}:start` ? 'Starting...' : 'Start'}
                               </button>
@@ -1575,7 +1575,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
                                   type="button"
                                   onClick={() => void handleTaskAction(task.id, 'move_to_todo')}
                                   disabled={busyActionKey !== null}
-                                  className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-50"
+                                  className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   Back to To Do
                                 </button>
@@ -1583,7 +1583,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
                                   type="button"
                                   onClick={() => void handleTaskAction(task.id, 'move_to_completed')}
                                   disabled={busyActionKey !== null}
-                                  className="rounded-[12px] border border-brand-300/35 bg-brand-500/14 px-3 py-2 text-xs font-medium text-[#d7f6ec] transition hover:bg-brand-500/18 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className=" border border-brand-300/35 bg-brand-500/14 px-3 py-2 text-xs font-medium text-[#d7f6ec] transition hover:bg-brand-500/18 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   Complete
                                 </button>
@@ -1592,7 +1592,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
                             <button
                               type="button"
                               onClick={() => startEditingTask(task)}
-                              className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.05]"
+                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-white/[0.05]"
                             >
                               Edit
                             </button>
@@ -1602,14 +1602,14 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
                                   type="button"
                                   onClick={() => void handleDeleteTask(task.id)}
                                   disabled={busyActionKey !== null}
-                                  className="rounded-[12px] border border-rose-300/35 bg-rose-500/12 px-3 py-2 text-xs font-medium text-rose-100 transition hover:bg-rose-500/18 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className=" border border-rose-300/35 bg-rose-500/12 px-3 py-2 text-xs font-medium text-rose-100 transition hover:bg-rose-500/18 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   Confirm delete
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setPendingDeleteTaskId(null)}
-                                  className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-medium text-white transition hover:bg-white/[0.05]"
+                                  className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:bg-white/[0.05]"
                                 >
                                   Cancel
                                 </button>
@@ -1618,7 +1618,7 @@ function AssignmentsSection({ onMutation }: { onMutation: (message: string) => v
                               <button
                                 type="button"
                                 onClick={() => setPendingDeleteTaskId(task.id)}
-                                className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-medium text-white transition hover:border-rose-300/30 hover:bg-rose-500/10"
+                                className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-rose-300/30 hover:bg-rose-500/10"
                               >
                                 Delete
                               </button>
@@ -1679,7 +1679,7 @@ function AuditSection({
               void loadAudit();
               onMutation('Audit log refreshed.');
             }}
-            className="rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm font-medium text-white transition hover:border-brand-400/30 hover:bg-white/[0.08]"
+            className=" border border-outline-variant/20 bg-white/[0.05] px-4 py-2 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-white/[0.08]"
           >
             Refresh audit
           </button>
@@ -1687,10 +1687,10 @@ function AuditSection({
       />
       <div className="px-5 py-5 sm:px-6">
         {error ? <InlineMessage tone="error" message={error} /> : null}
-        <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#07100f]/65">
+        <div className="overflow-hidden rounded-[24px] border border-outline-variant/20 bg-[#07100f]/65">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-white/10 text-left text-sm">
-              <thead className="bg-white/[0.03] text-[#8ca79a]">
+              <thead className="bg-surface-container-low text-[#8ca79a]">
                 <tr>
                   <th className="px-4 py-3 font-medium">Action</th>
                   <th className="px-4 py-3 font-medium">Actor</th>
@@ -1717,7 +1717,7 @@ function AuditSection({
                   entries.map((entry) => (
                     <tr key={entry.id}>
                       <td className="px-4 py-4 align-top">
-                        <p className="font-medium text-white">{toTitleCase(entry.action)}</p>
+                        <p className="font-medium text-on-surface">{toTitleCase(entry.action)}</p>
                         <p className="mt-1 text-xs text-[#8fa69b]">{entry.entityType}</p>
                       </td>
                       <td className="px-4 py-4 align-top">
@@ -1729,25 +1729,25 @@ function AuditSection({
                         <p className="mt-1 text-xs text-[#8fa69b]">{entry.targetEmail ?? '-'}</p>
                       </td>
                       <td className="px-4 py-4 align-top">
-                        <p className="font-medium text-white">{toTitleCase(entry.entityType)}</p>
+                        <p className="font-medium text-on-surface">{toTitleCase(entry.entityType)}</p>
                         <p className="mt-1 text-xs text-[#8fa69b]">{entry.entityId}</p>
                       </td>
                       <td className="px-4 py-4 align-top text-[#9fb1aa]">{formatDateTime(entry.createdAt)}</td>
                       <td className="px-4 py-4 align-top">
-                        <details className="rounded-[16px] border border-white/10 bg-white/[0.03] p-3">
+                        <details className="rounded-[16px] border border-outline-variant/20 bg-surface-container-low p-3">
                           <summary className="cursor-pointer text-xs font-medium uppercase tracking-[0.16em] text-[#9db6aa]">
                             View state diff
                           </summary>
                           <div className="mt-3 grid gap-3 lg:grid-cols-2">
                             <div>
                               <p className="mb-2 text-[0.72rem] uppercase tracking-[0.16em] text-[#8ca79a]">Before</p>
-                              <pre className="max-h-56 overflow-auto rounded-[14px] border border-white/10 bg-black/20 p-3 text-xs text-[#b9c8c2]">
+                              <pre className="max-h-56 overflow-auto  border border-outline-variant/20 bg-black/20 p-3 text-xs text-[#b9c8c2]">
                                 {JSON.stringify(entry.beforeState, null, 2)}
                               </pre>
                             </div>
                             <div>
                               <p className="mb-2 text-[0.72rem] uppercase tracking-[0.16em] text-[#8ca79a]">After</p>
-                              <pre className="max-h-56 overflow-auto rounded-[14px] border border-white/10 bg-black/20 p-3 text-xs text-[#b9c8c2]">
+                              <pre className="max-h-56 overflow-auto  border border-outline-variant/20 bg-black/20 p-3 text-xs text-[#b9c8c2]">
                                 {JSON.stringify(entry.afterState, null, 2)}
                               </pre>
                             </div>
@@ -1798,20 +1798,20 @@ export function AdminConsole({
               <div className="max-w-3xl">
                 <p className="text-[0.7rem] uppercase tracking-[0.32em] text-[#83bea9]">Internal admin</p>
                 <h1
-                  className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-5xl"
+                  className="mt-3 text-4xl font-semibold tracking-tight text-on-surface sm:text-5xl"
                   style={{ fontFamily: 'var(--font-serif)' }}
                 >
                   Content ops console
                 </h1>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:hidden lg:min-w-[20rem]">
-                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+                <div className=" border border-outline-variant/20 bg-white/[0.04] p-4">
                   <p className="text-[0.72rem] uppercase tracking-[0.16em] text-[#8ca79a]">Admin role</p>
-                  <p className="mt-2 text-lg font-semibold text-white">{toTitleCase(role)}</p>
+                  <p className="mt-2 text-lg font-semibold text-on-surface">{toTitleCase(role)}</p>
                 </div>
-                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+                <div className=" border border-outline-variant/20 bg-white/[0.04] p-4">
                   <p className="text-[0.72rem] uppercase tracking-[0.16em] text-[#8ca79a]">Signed in as</p>
-                  <p className="mt-2 text-lg font-semibold text-white">{adminEmail ?? 'Unknown admin'}</p>
+                  <p className="mt-2 text-lg font-semibold text-on-surface">{adminEmail ?? 'Unknown admin'}</p>
                 </div>
               </div>
             </div>
@@ -1826,8 +1826,8 @@ export function AdminConsole({
                     href={section.href}
                     className={`rounded-[16px] border px-4 py-3 text-sm font-medium transition ${
                       isActive
-                        ? 'border-brand-400/30 bg-brand-500/12 text-[#d5f4ea]'
-                        : 'border-white/10 bg-white/[0.03] text-[#d3dfda] hover:border-brand-400/20 hover:bg-white/[0.06]'
+                        ? 'border-primary/30 bg-primary/12 text-primary'
+                        : 'border-outline-variant/20 bg-surface-container-low text-on-surface hover:border-primary/20 hover:bg-surface-container-high'
                     }`}
                   >
                     {section.label}

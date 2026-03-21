@@ -44,12 +44,7 @@ export const ADMIN_SECTIONS: Array<{
   { id: 'orders', label: 'Orders', href: '/admin/orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', href: '/admin/customers', icon: Users },
   { id: 'financials', label: 'Financials', href: '/admin/financials', icon: Wallet },
-  {
-    id: 'assignments',
-    label: 'Assignments',
-    href: '/admin/assignments',
-    icon: ClipboardList
-  },
+  { id: 'assignments', label: 'Assignments', href: '/admin/assignments', icon: ClipboardList },
   { id: 'bugs', label: 'Bugs', href: '/admin/bugs', icon: Bug },
   { id: 'spending', label: 'Spending', href: '/admin/spending', icon: Receipt }
 ];
@@ -59,54 +54,34 @@ export const ADMIN_SECTION_GROUPS: Array<{
   label: string;
   sections: AdminNavSectionId[];
 }> = [
-  {
-    id: 'monitor',
-    label: 'Monitor',
-    sections: ['analytics', 'feedback', 'audit']
-  },
-  {
-    id: 'content',
-    label: 'Content',
-    sections: ['lessons', 'catalog']
-  },
-  {
-    id: 'commerce',
-    label: 'Commerce',
-    sections: ['orders', 'customers', 'financials']
-  },
-  {
-    id: 'workflow',
-    label: 'Workflow',
-    sections: ['assignments', 'bugs']
-  },
-  {
-    id: 'devtools',
-    label: 'Dev Tools',
-    sections: ['spending']
-  }
+  { id: 'monitor', label: 'Monitor', sections: ['analytics', 'feedback', 'audit'] },
+  { id: 'content', label: 'Content', sections: ['lessons', 'catalog'] },
+  { id: 'commerce', label: 'Commerce', sections: ['orders', 'customers', 'financials'] },
+  { id: 'workflow', label: 'Workflow', sections: ['assignments', 'bugs'] },
+  { id: 'devtools', label: 'Dev Tools', sections: ['spending'] }
 ];
 
 export function AdminLeftRail({ activeSection }: { activeSection: AdminNavSectionId }) {
   return (
     <AdminSurface className="sticky top-4 p-4">
       <div>
-        <p className="text-[0.64rem] uppercase tracking-[0.28em] text-[#84bea9]">
-          Internal admin
+        <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-primary">
+          ADMIN_CONSOLE
         </p>
-        <p className="mt-2 text-lg font-semibold tracking-tight text-white">Console</p>
+        <p className="mt-2 font-headline text-lg font-bold tracking-tight text-on-surface">
+          System Control
+        </p>
 
         <div className="mt-5 space-y-4">
           {ADMIN_SECTION_GROUPS.map((group) => (
             <div key={group.id}>
-              <p className="text-[0.62rem] uppercase tracking-[0.22em] text-[#8da99d]">
+              <p className="font-mono text-[8px] uppercase tracking-[0.25em] text-on-surface-variant">
                 {group.label}
               </p>
-              <div className="mt-2 space-y-1.5">
+              <div className="mt-2 space-y-1">
                 {group.sections.map((sectionId) => {
                   const section = ADMIN_SECTIONS.find((entry) => entry.id === sectionId);
-                  if (!section) {
-                    return null;
-                  }
+                  if (!section) return null;
 
                   const isActive = activeSection === section.id;
                   const Icon = section.icon;
@@ -115,21 +90,13 @@ export function AdminLeftRail({ activeSection }: { activeSection: AdminNavSectio
                     <Link
                       key={section.id}
                       href={section.href}
-                      className={`flex items-center gap-2.5 rounded-[14px] border px-3 py-2 text-sm font-medium transition ${
+                      className={`flex items-center gap-2.5 border px-3 py-2 font-mono text-xs transition-colors ${
                         isActive
-                          ? 'border-brand-400/30 bg-brand-500/12 text-[#d5f4ea]'
-                          : 'border-white/10 bg-white/[0.03] text-[#d3dfda] hover:border-brand-400/20 hover:bg-white/[0.06]'
+                          ? 'border-primary/30 bg-primary/10 text-primary'
+                          : 'border-transparent text-on-surface-variant hover:border-outline-variant/30 hover:bg-surface-container-high hover:text-on-surface'
                       }`}
                     >
-                      <span
-                        className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                          isActive
-                            ? 'bg-brand-400/15 text-[#bdeedd]'
-                            : 'bg-white/[0.05] text-[#9eb2a9]'
-                        }`}
-                      >
-                        <Icon className="h-3 w-3" />
-                      </span>
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">{section.label}</span>
                     </Link>
                   );
