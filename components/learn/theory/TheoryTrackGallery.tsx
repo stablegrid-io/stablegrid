@@ -254,39 +254,6 @@ export const TheoryTrackGallery = ({
           })}
         </div>
 
-        {/* System Footer */}
-        <div className="mt-16 pt-8 border-t border-outline-variant/10 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
-          <div className="space-y-2">
-            <span className="font-mono text-[10px] text-primary uppercase tracking-[0.3em]">
-              Module Integrity
-            </span>
-            <div className="h-1 w-full bg-surface-container-highest relative overflow-hidden">
-              <div className="absolute left-0 top-0 h-full w-[85%] bg-primary shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
-            </div>
-            <div className="flex justify-between font-mono text-[9px] text-on-surface-variant uppercase">
-              <span>Active Nodes: {totalModules}</span>
-              <span>Status: Stable</span>
-            </div>
-          </div>
-          <div className="space-y-2 opacity-50">
-            <span className="font-mono text-[10px] text-on-surface-variant uppercase tracking-[0.3em]">
-              Sync Latency
-            </span>
-            <div className="h-1 w-full bg-surface-container-highest relative overflow-hidden">
-              <div className="absolute left-0 top-0 h-full w-[12%] bg-on-surface-variant" />
-            </div>
-            <div className="flex justify-between font-mono text-[9px] text-on-surface-variant uppercase">
-              <span>MS: 0.35s</span>
-              <span>Buffer: 1024kb</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-end gap-6">
-            <div className="text-right">
-              <div className="text-[10px] font-mono text-on-surface-variant">SESSION TIME</div>
-              <div className="text-lg font-mono text-primary leading-none">--:--:--</div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
