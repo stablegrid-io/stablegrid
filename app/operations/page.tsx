@@ -201,7 +201,7 @@ export default async function TasksPage() {
       id: 'flashcards',
       title: 'Flashcards',
       description: 'Train high-speed recall and keep your latest theory track fresh.',
-      href: latestPracticeTopic ? `/operations/flashcards/${latestPracticeTopic.topic}` : '/operations/flashcards',
+      href: '/operations/flashcards',
       cta: flashcardsAttempted > 0 ? 'Resume flashcards' : 'Open flashcards',
       icon: Layers3,
       accentRgb: latestPracticeTopic
