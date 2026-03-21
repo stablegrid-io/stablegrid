@@ -17,7 +17,7 @@ interface MissionPageProps {
 
 export default function MissionPage({ params }: MissionPageProps) {
   if (params.slug === 'ghost-regulator') {
-    redirect('/missions/ghost-regulator');
+    redirect('/operations/missions/ghost-regulator');
   }
 
   const mission = MISSIONS.find((item) => item.slug === params.slug);

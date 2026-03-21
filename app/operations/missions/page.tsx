@@ -241,7 +241,7 @@ const MissionDrawer = memo(function MissionDrawer({
   onUpdateMissionState: (missionSlug: string, state: MissionState) => void;
 }) {
   const isLocked = mission.status === 'locked';
-  const missionPath = `/missions/${mission.slug}`;
+  const missionPath = `/operations/missions/${mission.slug}`;
   const diffStyle = DIFFICULTY_BADGE[mission.difficulty] ?? DIFFICULTY_BADGE.Medium;
 
   return (
@@ -473,7 +473,7 @@ const MissionDrawer = memo(function MissionDrawer({
               </button>
             )}
 
-            <Link href={`/missions/${mission.slug}`} className="btn btn-secondary">
+            <Link href={`/operations/missions/${mission.slug}`} className="btn btn-secondary">
               Full Brief
             </Link>
           </div>
