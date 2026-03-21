@@ -307,11 +307,6 @@ export const HomeDashboard = ({
           <div className="absolute bottom-3 left-3 border-l border-b border-primary/30 w-8 h-8" />
           <div className="absolute bottom-3 right-3 border-r border-b border-primary/30 w-8 h-8" />
 
-          {/* Scanning HUD */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 border border-primary/10 rounded-full animate-pulse" />
-            <div className="absolute top-[20%] left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-          </div>
 
           <div className="relative z-10 text-center">
             {/* Level + XP info above */}
@@ -337,13 +332,6 @@ export const HomeDashboard = ({
                   className="object-cover grayscale brightness-125 contrast-125"
                   unoptimized
                 />
-                <div className="absolute bottom-2 left-2 text-left z-10">
-                  <div className="text-[7px] font-mono text-primary bg-surface-dim/80 px-1 border-l-2 border-primary mb-0.5">BIOMETRICS: NOMINAL</div>
-                  <div className="text-[7px] font-mono text-primary bg-surface-dim/80 px-1 border-l-2 border-primary">NEURAL_LOAD: {overallProgress}%</div>
-                </div>
-                <div className="absolute top-2 right-2 text-right z-10">
-                  <div className="text-[7px] font-mono text-primary/60">OP_ID: OP-01</div>
-                </div>
               </div>
 
             </div>
