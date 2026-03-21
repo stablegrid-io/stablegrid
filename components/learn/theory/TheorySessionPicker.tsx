@@ -199,26 +199,36 @@ export const TheorySessionPicker = ({
                     </p>
 
                     <div className="space-y-3 mt-auto">
-                      {/* Rhythm monitor */}
+                      {/* Session structure visualization */}
                       <div className="bg-black/40 p-2 border border-outline-variant/20">
                         <div className="flex justify-between items-center mb-1">
                           <span className="font-mono text-[7px] tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
-                            FOCUS_PATTERN
+                            SESSION_STRUCTURE
                           </span>
-                          <span className="font-mono text-[7px]" style={{ color: a.hex }}>{hz} HZ</span>
+                          <span className="font-mono text-[7px]" style={{ color: a.hex }}>{totalMinutes} MIN</span>
                         </div>
                         <div className="flex gap-0.5 h-2">
-                          {Array.from({ length: 8 }, (_, i) => (
-                            <div
-                              key={i}
-                              className="flex-1"
-                              style={{
-                                backgroundColor: i < filledBars
-                                  ? `rgba(${a.rgb},${0.8 - i * 0.15})`
-                                  : 'rgba(255,255,255,0.05)'
-                              }}
-                            />
-                          ))}
+                          {methodId === 'sprint' ? (
+                            /* Sprint: one solid focus block */
+                            <>
+                              <div className="flex-1" style={{ backgroundColor: a.hex }} />
+                            </>
+                          ) : methodId === 'pomodoro' ? (
+                            /* Pomodoro: alternating focus/break blocks */
+                            <>
+                              {Array.from({ length: config.rounds }, (_, r) => (
+                                <div key={r} className="flex flex-1 gap-0.5">
+                                  <div className="flex-[5]" style={{ backgroundColor: a.hex }} />
+                                  {r < config.rounds - 1 && (
+                                    <div className="flex-1 bg-white/10" />
+                                  )}
+                                </div>
+                              ))}
+                            </>
+                          ) : (
+                            /* Deep: one long sustained block with subtle gradient */
+                            <div className="flex-1" style={{ background: `linear-gradient(90deg, ${a.hex}, rgba(${a.rgb},0.6))` }} />
+                          )}
                         </div>
                       </div>
 
