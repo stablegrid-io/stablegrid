@@ -127,7 +127,7 @@ export const TheorySessionPicker = ({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             role="dialog"
             aria-modal="true"
-            className="relative z-10 w-full max-w-[64rem] overflow-y-auto max-h-[90vh] border border-outline-variant/30 bg-surface pt-10 px-6 pb-6 flex flex-col gap-5"
+            className="relative z-10 w-full max-w-[56rem] overflow-y-auto max-h-[90vh] border border-outline-variant/30 bg-surface pt-8 px-5 pb-5 flex flex-col gap-4"
           >
             {/* Close — positioned outside the content padding */}
             <button
@@ -141,19 +141,19 @@ export const TheorySessionPicker = ({
 
             {/* Free Read banner */}
             <section
-              className="border border-dashed border-primary/20 p-4 flex items-center justify-between cursor-pointer hover:bg-surface-container-high/40 transition-all"
+              className="border border-dashed border-primary/20 p-3 flex items-center justify-between cursor-pointer hover:bg-surface-container-high/40 transition-all"
               onClick={() => onStart(freeReadConfig)}
               onKeyDown={(e) => e.key === 'Enter' && onStart(freeReadConfig)}
               role="button"
               tabIndex={0}
             >
               <div className="flex items-center gap-4">
-                <div className="bg-secondary/10 p-2.5 border border-secondary/20">
-                  <BookOpen className="h-5 w-5 text-secondary" />
+                <div className="bg-secondary/10 p-2 border border-secondary/20">
+                  <BookOpen className="h-4 w-4 text-secondary" />
                 </div>
                 <div>
-                  <h3 className="font-headline text-sm font-bold tracking-widest text-on-surface">OPEN_ARCHIVE_OVERRIDE</h3>
-                  <p className="font-mono text-[9px] text-on-surface-variant mt-0.5 uppercase">
+                  <h3 className="font-headline text-xs font-bold tracking-widest text-on-surface">OPEN_ARCHIVE_OVERRIDE</h3>
+                  <p className="font-mono text-[8px] text-on-surface-variant mt-0.5 uppercase">
                     Direct memory access // Unmetered data stream protocol
                   </p>
                 </div>
@@ -170,7 +170,7 @@ export const TheorySessionPicker = ({
             </section>
 
             {/* 3-column timed method cards */}
-            <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <section className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               {TIMED_METHOD_ORDER.map((methodId) => {
                 const method = getTheorySessionMethod(methodId);
                 if (!method) return null;
@@ -191,7 +191,7 @@ export const TheorySessionPicker = ({
                 return (
                   <div
                     key={methodId}
-                    className="glass-panel border p-6 flex flex-col group transition-all relative"
+                    className="glass-panel border p-4 flex flex-col group transition-all relative"
                     style={{
                       borderColor: `rgba(${a.rgb},0.1)`,
                     }}
@@ -203,34 +203,34 @@ export const TheorySessionPicker = ({
                     <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r" style={{ borderColor: `rgba(${a.rgb},0.3)` }} />
 
                     {/* Icon + time */}
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="p-3 border" style={{ backgroundColor: `rgba(${a.rgb},0.1)`, borderColor: `rgba(${a.rgb},0.2)` }}>
-                        <Icon className="h-6 w-6" style={{ color: a.hex }} />
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="p-2 border" style={{ backgroundColor: `rgba(${a.rgb},0.1)`, borderColor: `rgba(${a.rgb},0.2)` }}>
+                        <Icon className="h-5 w-5" style={{ color: a.hex }} />
                       </div>
                       <div className="text-right">
-                        <div className="font-mono text-[8px] uppercase mb-0.5" style={{ color: a.hex }}>{targetLabel}</div>
-                        <div className="font-headline text-2xl font-light text-on-surface">{timeLabel}</div>
+                        <div className="font-mono text-[7px] uppercase mb-0.5" style={{ color: a.hex }}>{targetLabel}</div>
+                        <div className="font-headline text-xl font-light text-on-surface">{timeLabel}</div>
                       </div>
                     </div>
 
                     {/* Title + description */}
-                    <h2 className="font-headline text-xl font-black tracking-tight text-on-surface mb-1">
+                    <h2 className="font-headline text-base font-black tracking-tight text-on-surface mb-1">
                       {METHOD_NEURAL_LABELS[methodId]}
                     </h2>
-                    <p className="font-mono text-[10px] text-on-surface-variant leading-relaxed mb-4 min-h-[3rem]">
+                    <p className="font-mono text-[9px] text-on-surface-variant leading-relaxed mb-3 min-h-[2.5rem]">
                       {METHOD_DESCRIPTIONS[methodId]}
                     </p>
 
-                    <div className="space-y-4 mt-auto">
+                    <div className="space-y-3 mt-auto">
                       {/* Rhythm monitor */}
-                      <div className="bg-black/40 p-2.5 border border-outline-variant/20">
-                        <div className="flex justify-between items-center mb-1.5">
-                          <span className="font-mono text-[8px] tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
+                      <div className="bg-black/40 p-2 border border-outline-variant/20">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-mono text-[7px] tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
                             Rhythm_Monitor_{monitorId}
                           </span>
-                          <span className="font-mono text-[8px]" style={{ color: a.hex }}>{hz} HZ</span>
+                          <span className="font-mono text-[7px]" style={{ color: a.hex }}>{hz} HZ</span>
                         </div>
-                        <div className="flex gap-1 h-2.5">
+                        <div className="flex gap-0.5 h-2">
                           {Array.from({ length: 8 }, (_, i) => (
                             <div
                               key={i}
@@ -246,14 +246,14 @@ export const TheorySessionPicker = ({
                       </div>
 
                       {/* Stats */}
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-2">
                         <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
-                          <div className="font-mono text-[7px] text-on-surface-variant uppercase">{stats[0]}</div>
-                          <div className="font-headline text-[10px] font-bold text-on-surface uppercase">{stats[1]}</div>
+                          <div className="font-mono text-[6px] text-on-surface-variant uppercase">{stats[0]}</div>
+                          <div className="font-headline text-[9px] font-bold text-on-surface uppercase">{stats[1]}</div>
                         </div>
                         <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
-                          <div className="font-mono text-[7px] text-on-surface-variant uppercase">{stats[2]}</div>
-                          <div className="font-headline text-[10px] font-bold text-on-surface uppercase">{stats[3]}</div>
+                          <div className="font-mono text-[6px] text-on-surface-variant uppercase">{stats[2]}</div>
+                          <div className="font-headline text-[9px] font-bold text-on-surface uppercase">{stats[3]}</div>
                         </div>
                       </div>
 
@@ -261,7 +261,7 @@ export const TheorySessionPicker = ({
                       <button
                         type="button"
                         onClick={() => onStart(config)}
-                        className="w-full py-3 font-headline font-black text-xs tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all uppercase"
+                        className="w-full py-2.5 font-headline font-black text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all uppercase"
                         style={{ backgroundColor: a.hex, color: '#0c0e10' }}
                       >
                         EXECUTE_PROTOCOL
