@@ -820,16 +820,12 @@ export function AdminAnalyticsSection({
               </h2>
             </div>
             <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
-              <div className="flex items-center gap-2 sm:hidden">
-                <label htmlFor="analytics-period-select" className="sr-only">
-                  Analytics period
-                </label>
-                <div className="relative min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <div className="relative">
                   <select
-                    id="analytics-period-select"
                     value={period}
                     onChange={(event) => setPeriod(event.target.value as AdminAnalyticsPeriod)}
-                    className="h-11 w-full appearance-none rounded-full border border-white/12 bg-white/[0.04] px-4 pr-10 text-sm font-medium text-[#d7e5df] outline-none transition focus:border-brand-400/30 focus:bg-white/[0.06]"
+                    className="h-9 appearance-none border border-outline-variant/30 bg-surface-container-low px-3 pr-8 font-mono text-xs text-on-surface uppercase tracking-wider focus:outline-none focus:border-primary transition-colors cursor-pointer"
                   >
                     {PERIOD_OPTIONS.map((option) => (
                       <option key={option.id} value={option.id}>
@@ -837,12 +833,8 @@ export function AdminAnalyticsSection({
                       </option>
                     ))}
                   </select>
-                  <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[#8fa69b]">
-                    <svg
-                      aria-hidden="true"
-                      viewBox="0 0 12 8"
-                      className="h-2.5 w-2.5 fill-current"
-                    >
+                  <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface-variant">
+                    <svg aria-hidden="true" viewBox="0 0 12 8" className="h-2 w-2 fill-current">
                       <path d="M6 8 0 0h12L6 8Z" />
                     </svg>
                   </span>
@@ -853,28 +845,11 @@ export function AdminAnalyticsSection({
                     void loadAnalytics(period);
                     onMutation('Analytics refreshed.');
                   }}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.05] text-white transition hover:border-brand-400/30 hover:bg-white/[0.08]"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center border border-outline-variant/30 bg-surface-container-low text-on-surface-variant transition hover:border-primary/40 hover:text-primary"
                   aria-label="Refresh analytics"
                 >
-                  <RefreshCw className="h-4.5 w-4.5" strokeWidth={2.2} />
+                  <RefreshCw className="h-3.5 w-3.5" strokeWidth={2.2} />
                 </button>
-              </div>
-
-              <div className="hidden flex-wrap gap-2 sm:flex">
-                {PERIOD_OPTIONS.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setPeriod(option.id)}
-                    className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
-                      period === option.id
-                        ? 'border-brand-400/35 bg-brand-500/15 text-[#d5f4ea]'
-                        : 'border-white/12 bg-white/[0.04] text-[#c8d7d1] hover:border-brand-400/20 hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
               </div>
               <div className="flex items-center justify-between gap-3 sm:justify-end">
                 <p className="text-xs text-[#8fa69b]">
