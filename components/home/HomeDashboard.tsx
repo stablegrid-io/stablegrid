@@ -206,27 +206,29 @@ export const HomeDashboard = ({
         {/* Hero section — XP, Level, Role */}
         <section className="mb-8 flex flex-col items-center justify-center py-10 border border-primary/10 glass-panel relative overflow-hidden bg-gradient-to-b from-surface-container-low to-background">
           <div className="relative w-full max-w-3xl flex flex-col items-center justify-center">
-            {/* Decorative rings */}
+            {/* Decorative rings — animated */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[280px] h-[280px] border border-primary/5 rounded-full absolute" />
-              <div className="w-[200px] h-[200px] border border-primary/10 rounded-full absolute border-dashed" />
-              <div className="w-[340px] h-[340px] bg-primary/5 blur-[80px] rounded-full absolute" />
+              <div className="w-[280px] h-[280px] border border-primary/5 rounded-full absolute animate-[spin_60s_linear_infinite]" />
+              <div className="w-[200px] h-[200px] border border-primary/10 rounded-full absolute border-dashed animate-[spin_45s_linear_infinite_reverse]" />
+              <div className="w-[340px] h-[340px] bg-primary/5 blur-[80px] rounded-full absolute animate-[pulse_6s_ease-in-out_infinite]" />
             </div>
 
             <div className="relative flex items-center justify-center w-full min-h-[180px]">
-              {/* Central node */}
+              {/* Central node — animated */}
               <div className="relative z-10 w-40 h-40 flex items-center justify-center">
-                <div className="relative w-20 h-20 flex items-center justify-center">
+                <div className="relative w-20 h-20 flex items-center justify-center animate-[spin_30s_linear_infinite]">
                   <div className="absolute w-16 h-16 border-2 border-primary rotate-[30deg] opacity-80 shadow-[0_0_15px_#00F2FF]" />
                   <div className="absolute w-16 h-16 border-2 border-primary/50 rotate-[-30deg]" />
                   <div className="absolute w-8 h-8 bg-primary/20 backdrop-blur-sm border border-primary animate-pulse" />
-                  <div className="absolute w-[120px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent rotate-45" />
-                  <div className="absolute w-[120px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent -rotate-45" />
-                  <div className="absolute h-[120px] w-[1px] bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
-                  <div className="absolute -top-8 -left-8 w-2 h-2 bg-primary neural-node" />
-                  <div className="absolute -bottom-6 -right-10 w-1.5 h-1.5 bg-primary/80 neural-node" />
-                  <div className="absolute top-10 -right-8 w-2 h-2 bg-primary neural-node" />
                 </div>
+                {/* Cross-hair lines — static */}
+                <div className="absolute w-[120px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent rotate-45" />
+                <div className="absolute w-[120px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent -rotate-45" />
+                <div className="absolute h-[120px] w-[1px] bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
+                {/* Floating neural nodes */}
+                <div className="absolute -top-8 -left-8 w-2 h-2 bg-primary neural-node animate-[pulse_3s_ease-in-out_infinite]" />
+                <div className="absolute -bottom-6 -right-10 w-1.5 h-1.5 bg-primary/80 neural-node animate-[pulse_4s_ease-in-out_infinite_0.5s]" />
+                <div className="absolute top-10 -right-8 w-2 h-2 bg-primary neural-node animate-[pulse_3.5s_ease-in-out_infinite_1s]" />
 
                 {/* XP display */}
                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
