@@ -16,9 +16,9 @@ const TOPIC_ICONS: Record<string, typeof BookOpen> = {
 };
 
 const DECK_NAMES: Record<string, string> = {
-  pyspark: 'QUANTUM LOGIC',
-  fabric: 'KERNEL ARCHITECTURE',
-  airflow: 'CIPHER PROTOCOLS',
+  pyspark: 'PYSPARK',
+  fabric: 'MICROSOFT FABRIC',
+  airflow: 'APACHE AIRFLOW',
 };
 
 export default async function OperationsFlashcardsPage() {
@@ -67,9 +67,7 @@ export default async function OperationsFlashcardsPage() {
             return (
               <div
                 key={topic.id}
-                className="group relative bg-surface-container-low border border-outline-variant/20 transition-all duration-300 backdrop-blur-md overflow-hidden flex flex-col"
-                style={{ borderColor: undefined }}
-                onMouseEnter={undefined}
+                className="group relative bg-surface-container-low border border-outline-variant/20 hover:border-primary/40 hover:shadow-[0_0_30px_rgba(153,247,255,0.1)] transition-all duration-300 backdrop-blur-md overflow-hidden flex flex-col"
               >
                 <div className="absolute top-0 right-0 p-3 font-mono text-[10px] tracking-widest" style={{ color: `rgba(${accent.rgb},0.3)` }}>
                   {modId}
