@@ -174,7 +174,7 @@ export default async function TasksPage() {
       id: 'notebooks',
       title: 'Notebooks',
       description: 'Audit production notebooks and resolve line-level reliability issues.',
-      href: '/operations/notebooks',
+      href: '/practice/notebooks',
       cta: notebookCompletedCount > 0 ? 'Resume notebooks' : 'Open notebooks',
       icon: NotebookPen,
       accentRgb: '34,185,153',
@@ -185,7 +185,7 @@ export default async function TasksPage() {
       id: 'missions',
       title: 'Missions',
       description: 'Run incident scenarios and continue the latest active operations drill.',
-      href: latestMission ? `/operations/missions/${latestMission.mission_slug}` : '/operations/missions',
+      href: latestMission ? `/missions/${latestMission.mission_slug}` : '/missions',
       cta:
         latestMission?.state === 'in_progress'
           ? 'Resume mission'
@@ -201,7 +201,7 @@ export default async function TasksPage() {
       id: 'flashcards',
       title: 'Flashcards',
       description: 'Train high-speed recall and keep your latest theory track fresh.',
-      href: latestPracticeTopic ? `/operations/flashcards/${latestPracticeTopic.topic}` : '/operations/flashcards',
+      href: latestPracticeTopic ? `/practice/${latestPracticeTopic.topic}` : '/flashcards',
       cta: flashcardsAttempted > 0 ? 'Resume flashcards' : 'Open flashcards',
       icon: Layers3,
       accentRgb: latestPracticeTopic
