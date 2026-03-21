@@ -30,8 +30,8 @@ const METHOD_DESCRIPTIONS: Record<TheorySessionMethodId, string> = {
 
 const METHOD_ACCENTS: Record<TheorySessionMethodId, { hex: string; rgb: string }> = {
   sprint:       { hex: '#99f7ff', rgb: '153,247,255' },
-  pomodoro:     { hex: '#bf81ff', rgb: '191,129,255' },
-  'deep-focus': { hex: '#ff716c', rgb: '255,113,108' },
+  pomodoro:     { hex: '#ff716c', rgb: '255,113,108' },
+  'deep-focus': { hex: '#bf81ff', rgb: '191,129,255' },
   'free-read':  { hex: '#bf81ff', rgb: '191,129,255' }
 };
 
