@@ -30,7 +30,7 @@ export default async function OperationsMissionsPage() {
             src={featured.coverImage}
             alt={featured.codename}
             fill
-            className="object-cover opacity-40 brightness-[0.4] grayscale-[0.2]"
+            className="object-cover opacity-60 brightness-[0.6] grayscale-[0.3]"
             unoptimized
           />
         ) : (
