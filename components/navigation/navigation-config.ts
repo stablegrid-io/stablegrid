@@ -26,10 +26,10 @@ export const navItems: NavItem[] = [
     matchPrefixes: ['/theory', '/learn']
   },
   {
-    href: '/assignments',
+    href: '/operations',
     icon: ClipboardCheck,
     label: 'Operations',
-    matchPrefixes: ['/assignments', '/tasks', '/practice', '/missions', '/flashcards']
+    matchPrefixes: ['/operations', '/assignments', '/tasks', '/practice', '/missions', '/flashcards']
   },
   { href: '/energy', icon: Zap, label: 'Grid', disabled: true },
   { href: '/progress', icon: User, label: 'Character', disabled: true }

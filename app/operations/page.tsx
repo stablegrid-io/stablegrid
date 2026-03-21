@@ -1,9 +1,5 @@
-import { OperationsSelect } from '@/components/operations/OperationsSelect';
-
-export const metadata = {
-  title: 'Operations · GRID-FLUX',
-};
+import { redirect } from 'next/navigation';
 
 export default function OperationsPage() {
-  return <OperationsSelect />;
+  redirect('/assignments');
 }
