@@ -341,14 +341,6 @@ export const HomeDashboard = ({
               OPERATOR {firstName.toUpperCase()}
             </h2>
 
-            {/* Title badge */}
-            <div className="mt-2 inline-flex items-center gap-2 border border-primary/30 bg-primary/5 px-3 py-1">
-              <span className="w-1.5 h-1.5 bg-primary" />
-              <span className="font-mono text-[8px] text-primary font-bold tracking-widest uppercase">
-                {stats.currentStreak > 7 ? 'GRID_ARCHITECT' : stats.currentStreak > 3 ? 'GRID_TECHNICIAN' : 'GRID_OPERATOR'}
-              </span>
-            </div>
-            <p className="font-mono text-[7px] text-primary/40 mt-1">LINK_ESTABLISHED · STREAK: {stats.currentStreak}D</p>
           </div>
 
           {/* Bottom HUD stats */}
