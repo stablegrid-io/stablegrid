@@ -129,7 +129,13 @@ export const TheorySessionPicker = ({
             aria-modal="true"
             className="relative z-10 w-full max-w-[56rem] overflow-y-auto max-h-[90vh] border border-outline-variant/30 bg-surface pt-8 px-5 pb-5 flex flex-col gap-4"
           >
-            {/* Close — positioned outside the content padding */}
+            {/* Title */}
+            <div className="mb-1">
+              <h2 className="font-headline text-lg font-bold text-on-surface tracking-tight">Pick Your Learning Approach</h2>
+              <p className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest mt-0.5">SELECT_PROTOCOL · INITIALIZE_SESSION</p>
+            </div>
+
+            {/* Close */}
             <button
               ref={closeButtonRef}
               type="button"
