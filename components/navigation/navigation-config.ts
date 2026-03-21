@@ -31,7 +31,7 @@ export const navItems: NavItem[] = [
     label: 'Tasks',
     matchPrefixes: ['/assignments', '/tasks', '/practice', '/missions', '/flashcards']
   },
-  { href: '/energy', icon: Zap, label: 'Grid' },
+  { href: '/energy', icon: Zap, label: 'Grid', disabled: true },
   { href: '/progress', icon: User, label: 'Character' }
 ];
 
