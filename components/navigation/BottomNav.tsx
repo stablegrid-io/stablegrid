@@ -9,53 +9,38 @@ export const BottomNav = () => {
   const router = useRouter();
   const { user } = useAuthStore();
 
-  if (shouldHideNav(pathname, Boolean(user))) {
-    return null;
-  }
+  if (shouldHideNav(pathname, Boolean(user))) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-light-border bg-light-bg/80 backdrop-blur-lg dark:border-dark-border dark:bg-dark-bg/80 lg:hidden">
-      <div className="flex h-16 items-center justify-around px-2">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = isNavItemActive(pathname, item);
+    <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 bg-surface-container-high border-t border-white/10 flex justify-around items-center lg:hidden">
+      {navItems.filter((item) => !item.disabled).map((item) => {
+        const Icon = item.icon;
+        const isActive = isNavItemActive(pathname, item);
 
-          return (
-            <button
-              key={item.href}
-              onClick={() => router.push(item.href)}
-              className="relative flex h-full flex-1 flex-col items-center justify-center gap-1"
-              type="button"
+        return (
+          <button
+            key={item.href}
+            onClick={() => router.push(item.href)}
+            className="flex flex-col items-center justify-center gap-1 flex-1 h-full"
+            type="button"
+          >
+            <Icon
+              className={`h-5 w-5 transition-colors ${
+                isActive ? 'text-primary' : 'text-slate-500'
+              }`}
+            />
+            <span
+              className={`font-mono text-[9px] uppercase tracking-wider transition-colors ${
+                isActive ? 'text-primary' : 'text-slate-500'
+              }`}
             >
-              {isActive && (
-                <div className="absolute left-1/2 top-0 h-1 w-12 -translate-x-1/2 rounded-full bg-brand-500" />
-              )}
+              {item.label}
+            </span>
+          </button>
+        );
+      })}
 
-              <div className="relative">
-                <Icon
-                  className={`h-6 w-6 transition-colors ${
-                    isActive
-                      ? 'text-brand-500'
-                      : 'text-text-light-tertiary dark:text-text-dark-tertiary'
-                  }`}
-                />
-              </div>
-
-              <span
-                className={`text-xs font-medium transition-colors ${
-                  isActive
-                    ? 'text-brand-500'
-                    : 'text-text-light-tertiary dark:text-text-dark-tertiary'
-                }`}
-              >
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="h-safe-bottom bg-light-bg dark:bg-dark-bg" />
+      <div className="h-safe-bottom bg-surface-container-high" />
     </nav>
   );
 };

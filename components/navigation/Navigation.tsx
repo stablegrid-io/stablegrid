@@ -3,28 +3,32 @@
 import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
-import { TopNav } from './TopNav';
+import { Sidebar } from './Sidebar';
+import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
-import { isCompactDesktopNavPath, shouldHideNav } from './navigation-config';
+import { shouldHideNav } from './navigation-config';
 
 export const Navigation = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const hideNav = shouldHideNav(pathname, Boolean(user));
-  const isLessonMode = isCompactDesktopNavPath(pathname);
 
   return (
     <>
-      <TopNav />
+      {/* Background overlays */}
+      <div className="fixed inset-0 grid-overlay pointer-events-none z-0" />
+      <div className="fixed inset-0 scanline pointer-events-none z-0 opacity-20" />
+
+      <Sidebar />
+      <TopBar />
+
       <div
         data-testid="navigation-shell-content"
-        data-nav-mode={hideNav ? 'hidden' : isLessonMode ? 'lesson' : 'default'}
-        className={`pb-16 transition-[padding] duration-300 lg:pb-0 ${
-          hideNav ? '' : isLessonMode ? 'lg:pl-[6.35rem]' : 'lg:pl-[9rem]'
-        }`}
+        className={`relative z-10 pb-16 lg:pb-0 ${hideNav ? '' : 'lg:pl-64 pt-14'}`}
       >
         {children}
       </div>
+
       <BottomNav />
     </>
   );
