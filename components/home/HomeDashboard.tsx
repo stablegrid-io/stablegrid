@@ -206,29 +206,6 @@ export const HomeDashboard = ({
   })();
   return (
     <div className="relative flex flex-col" style={{ minHeight: 'calc(100vh - 3.5rem)' }}>
-      {/* Header Metrics Bar */}
-      <section className="h-10 flex items-center justify-between px-4 border-b border-outline-variant/20 bg-surface-container-low/40 flex-shrink-0">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="text-[7px] font-mono text-primary/40 tracking-widest">LVL</span>
-            <span className="text-sm font-headline font-black text-primary">{Math.floor(stats.totalXp / 1000)}</span>
-              <div className="flex gap-[1px]">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <div key={i} className={`h-2 w-[3px] ${i < Math.min(5, Math.floor(stats.totalXp / 2000)) ? 'bg-primary' : 'bg-outline-variant/30'}`} />
-                ))}
-              </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[7px] font-mono text-primary/40">XP</span>
-            <span className="text-xs font-mono font-bold text-on-surface">{stats.totalXp.toLocaleString()}</span>
-          </div>
-        </div>
-        <div className="hidden lg:flex items-center gap-4">
-          <span className="text-[9px] font-mono text-on-surface-variant uppercase">{firstName}</span>
-          <span className="text-[9px] font-mono font-bold text-tertiary">{stats.currentStreak}D_STREAK</span>
-        </div>
-      </section>
-
       {/* 3-column grid */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
 
