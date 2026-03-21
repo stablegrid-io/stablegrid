@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { User } from '@supabase/supabase-js';
 import { ArrowRight } from 'lucide-react';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
@@ -314,25 +315,27 @@ export const HomeDashboard = ({
 
           <div className="relative z-10 text-center">
             <div className="mb-4">
-              <span className="font-mono text-[9px] text-primary/60 tracking-[0.5em] uppercase">NEURAL_SYNC_PORT</span>
+              <span className="font-mono text-[9px] text-primary/60 tracking-[0.5em] uppercase">AVATAR_SYNC_PORT</span>
             </div>
 
-            {/* Animated neural node */}
-            <div className="relative w-48 h-48 mx-auto flex items-center justify-center mb-6">
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-48 h-48 border border-primary/10 rounded-full animate-[spin_60s_linear_infinite]" />
-                <div className="w-32 h-32 border border-primary/15 rounded-full absolute border-dashed animate-[spin_45s_linear_infinite_reverse]" />
+            {/* Operator avatar */}
+            <div className="relative w-64 h-80 bg-primary/5 border border-primary/20 flex items-center justify-center overflow-hidden group mb-4">
+              <Image
+                src="/grid-assets/operator-avatar.jpg"
+                alt={`Operator ${firstName}`}
+                fill
+                className="object-cover grayscale brightness-125 contrast-125"
+                unoptimized
+              />
+              {/* HUD overlays on image */}
+              <div className="absolute bottom-3 left-3 text-left z-10">
+                <div className="text-[8px] font-mono text-primary bg-surface-dim/80 px-1 border-l-2 border-primary mb-0.5">BIOMETRICS: NOMINAL</div>
+                <div className="text-[8px] font-mono text-primary bg-surface-dim/80 px-1 border-l-2 border-primary">NEURAL_LOAD: {overallProgress}%</div>
               </div>
-              <div className="relative animate-[spin_30s_linear_infinite]">
-                <div className="w-20 h-20 border-2 border-primary rotate-[30deg] opacity-80 shadow-[0_0_20px_#00F2FF]" />
-                <div className="absolute inset-0 w-20 h-20 border-2 border-primary/50 rotate-[-30deg]" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-8 h-8 bg-primary/20 backdrop-blur-sm border border-primary animate-pulse" />
-                </div>
+              <div className="absolute top-3 right-3 text-right z-10">
+                <div className="text-[8px] font-mono text-primary/60">OP_ID: OP-01</div>
+                <div className="text-[8px] font-mono text-primary/60">LOC: SECTOR_G7</div>
               </div>
-              <div className="absolute -top-2 -left-2 w-2 h-2 bg-primary neural-node animate-[pulse_3s_ease-in-out_infinite]" />
-              <div className="absolute -bottom-2 -right-4 w-1.5 h-1.5 bg-primary/80 neural-node animate-[pulse_4s_ease-in-out_infinite_0.5s]" />
-              <div className="absolute top-12 -right-4 w-2 h-2 bg-primary neural-node animate-[pulse_3.5s_ease-in-out_infinite_1s]" />
             </div>
 
             <h2 className="font-headline text-lg font-black text-on-surface tracking-widest uppercase">
