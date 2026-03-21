@@ -226,5 +226,5 @@ export function formatMemberSince(createdAt: string | null): string {
     return '—';
   }
 
-  return new Date(createdAt).toLocaleDateString();
+  return new Date(createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
