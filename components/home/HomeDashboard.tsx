@@ -201,230 +201,256 @@ export const HomeDashboard = ({
     };
   })();
   return (
-    <div className="relative min-h-screen pb-24 lg:pb-10">
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col px-4 pb-16 pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-4">
-
-        {/* Top stats bar */}
-        <div className="flex flex-wrap items-center gap-6 mb-6 border-b border-outline-variant/20 pb-4">
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-[9px] text-on-surface-variant uppercase">SYSTEM_LVL</span>
-            <span className="font-headline text-2xl font-black text-on-surface">
-              {Math.floor(stats.totalXp / 1000)}
-            </span>
-            <div className="flex gap-0.5">
-              {Array.from({ length: 4 }, (_, i) => (
-                <div key={i} className={`w-1 h-4 ${i < Math.min(4, Math.floor(stats.totalXp / 2500)) ? 'bg-primary' : 'bg-surface-container-highest'}`} />
-              ))}
+    <div className="relative flex flex-col" style={{ minHeight: 'calc(100vh - 3.5rem)' }}>
+      {/* Header Metrics Bar */}
+      <section className="h-14 flex items-center justify-between px-6 border-b border-outline-variant/20 bg-surface-container-low/40 flex-shrink-0">
+        <div className="flex items-center gap-10">
+          <div className="flex flex-col">
+            <span className="text-[8px] font-mono text-primary/40 tracking-widest">SYSTEM_LVL</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl font-headline font-black text-primary">{Math.floor(stats.totalXp / 1000)}</span>
+              <div className="flex gap-[2px]">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <div key={i} className={`h-3 w-1 ${i < Math.min(5, Math.floor(stats.totalXp / 2000)) ? 'bg-primary' : 'bg-outline-variant/30'}`} />
+                ))}
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[9px] text-on-surface-variant uppercase">XP_TOTAL</span>
-            <span className="font-headline text-2xl font-black text-on-surface">
-              {stats.totalXp.toLocaleString()}
+          <div className="flex flex-col">
+            <span className="text-[8px] font-mono text-primary/40 tracking-widest">XP_TOTAL</span>
+            <span className="text-base font-mono font-bold text-on-surface">
+              {stats.totalXp.toLocaleString()} <span className="text-[10px] text-primary/50">/ {((Math.floor(stats.totalXp / 10000) + 1) * 10000).toLocaleString()}</span>
             </span>
-            <span className="font-mono text-sm text-on-surface-variant">/ {((Math.floor(stats.totalXp / 10000) + 1) * 10000).toLocaleString()}</span>
-          </div>
-          <div className="ml-auto hidden lg:flex items-center gap-6">
-            <div>
-              <span className="font-mono text-[8px] text-on-surface-variant uppercase block">CURRENT_TITLE</span>
-              <span className="font-headline text-sm font-bold text-on-surface uppercase">{firstName}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[8px] text-on-surface-variant uppercase">STREAK_ACTIVE</span>
-              <span className="font-headline text-sm font-bold text-primary">{stats.currentStreak}_DAYS</span>
-            </div>
           </div>
         </div>
-
-        {/* 3-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_280px] gap-6">
-
-          {/* Left: Theory Tree */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-headline text-sm font-bold text-on-surface uppercase tracking-wider">THEORY_TREE</h2>
-              <span className="font-mono text-[9px] text-on-surface-variant">[MOD: {recommendedTopic.theoryCompleted}/{recommendedTopic.theoryTotal}]</span>
+        <div className="hidden lg:flex items-center gap-6">
+          <div className="flex items-center gap-3 bg-surface-container-high px-4 py-1.5 border-x border-primary/20">
+            <div className="flex flex-col">
+              <span className="text-[8px] font-mono text-primary/40">CURRENT_TITLE</span>
+              <span className="text-xs font-mono font-bold text-on-surface tracking-widest uppercase">{firstName}</span>
             </div>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-mono text-tertiary/40 tracking-widest">STREAK_ACTIVE</span>
+            <span className="text-lg font-headline font-bold text-tertiary">{stats.currentStreak}_DAYS</span>
+          </div>
+        </div>
+      </section>
 
+      {/* 3-column grid */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
+
+        {/* Left: Theory Tree */}
+        <section className="lg:col-span-3 border-r border-outline-variant/20 overflow-y-auto p-5 bg-surface-dim/40">
+          <div className="mb-5 flex items-center justify-between">
+            <h3 className="font-headline font-bold text-sm tracking-widest text-primary">THEORY_TREE</h3>
+            <span className="font-mono text-[9px] text-primary/40">[MOD: {recommendedTopic.theoryCompleted}/{recommendedTopic.theoryTotal}]</span>
+          </div>
+          <div className="relative pl-4 space-y-8 before:absolute before:left-[15px] before:top-4 before:bottom-4 before:w-[1px] before:bg-outline-variant/30">
             {topicSnapshots.map((snapshot, index) => {
               const isActive = snapshot.topicId === moduleTopicId;
               const isCompleted = snapshot.theoryPct >= 100;
               const filledBars = Math.round((snapshot.theoryPct / 100) * 4);
 
               return (
-                <Link
-                  key={snapshot.topicId}
-                  href={`/learn/${snapshot.topicId}/theory`}
-                  className={`block border p-3 transition-all ${
-                    isActive
-                      ? 'border-primary/30 bg-primary/5'
-                      : 'border-outline-variant/15 hover:border-outline-variant/30'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-7 h-7 flex items-center justify-center border text-[10px] font-mono font-bold flex-shrink-0 ${
-                      isCompleted
-                        ? 'border-primary bg-primary/20 text-primary'
-                        : isActive
-                          ? 'border-primary/50 bg-primary/10 text-primary'
-                          : 'border-outline-variant/30 text-on-surface-variant'
+                <Link key={snapshot.topicId} href={`/learn/${snapshot.topicId}/theory`} className="relative flex items-center gap-3 group">
+                  <div className={`z-10 w-8 h-8 border flex items-center justify-center flex-shrink-0 ${
+                    isCompleted
+                      ? 'border-primary/40 bg-primary/10'
+                      : isActive
+                        ? 'border-2 border-primary bg-primary/20 shadow-[0_0_15px_rgba(153,247,255,0.3)]'
+                        : 'border-outline-variant bg-surface-container opacity-40'
+                  }`}>
+                    {isCompleted ? (
+                      <span className="text-primary text-xs">✓</span>
+                    ) : isActive ? (
+                      <span className="text-primary text-xs">▶</span>
+                    ) : (
+                      <span className="text-outline-variant text-xs">○</span>
+                    )}
+                  </div>
+                  <div className={isCompleted || isActive ? '' : 'opacity-40'}>
+                    <p className={`text-[9px] font-mono mb-0.5 ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
+                      M-{String(index + 1).padStart(2, '0')}{isActive ? ' [ACTIVE]' : ''}
+                    </p>
+                    <h4 className={`text-xs font-bold uppercase tracking-wide leading-tight ${
+                      isActive ? 'font-headline text-primary' : 'font-mono text-on-surface/60'
                     }`}>
-                      {isCompleted ? '✓' : isActive ? '▶' : '○'}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-mono text-[9px] text-on-surface-variant">M-{String(index + 1).padStart(2, '0')}{isActive ? ' [ACTIVE]' : ''}</div>
-                      <div className={`font-headline text-xs font-bold uppercase leading-tight ${isActive ? 'text-primary' : isCompleted ? 'text-on-surface' : 'text-on-surface-variant'}`}>
-                        {snapshot.label}
+                      {snapshot.label}
+                    </h4>
+                    {isCompleted && (
+                      <span className="text-[7px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 mt-1 inline-block">SYNCED</span>
+                    )}
+                    {isActive && !isCompleted && (
+                      <div className="flex gap-1 mt-1.5">
+                        {Array.from({ length: 4 }, (_, i) => (
+                          <div key={i} className={`h-1 w-4 ${i < filledBars ? 'bg-primary' : 'bg-outline-variant/40'}`} />
+                        ))}
                       </div>
-                      {isCompleted && (
-                        <span className="font-mono text-[8px] text-primary bg-primary/10 px-1.5 py-0.5 mt-1 inline-block">SYNCED</span>
-                      )}
-                      {!isCompleted && (
-                        <div className="flex gap-0.5 mt-1.5">
-                          {Array.from({ length: 4 }, (_, i) => (
-                            <div key={i} className={`w-3 h-1 ${i < filledBars ? 'bg-primary' : 'bg-surface-container-highest'}`} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    )}
+                    {!isCompleted && !isActive && (
+                      <span className="text-[7px] font-mono text-outline-variant">LOCKED</span>
+                    )}
                   </div>
                 </Link>
               );
             })}
           </div>
+        </section>
 
-          {/* Center: Main content area */}
-          <div className="space-y-6">
-            {/* Theory resume card */}
-            <Link
-              href={theoryAction.href}
-              className="glass-panel border border-primary/10 p-6 flex flex-col group relative overflow-hidden transition-all hover:border-primary/30"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-1.5 h-1.5 bg-primary shadow-[0_0_5px_#99f7ff]" />
-                <span className="font-mono text-[10px] text-primary/60 tracking-widest uppercase">
-                  ACTIVE_THEORY
-                </span>
-              </div>
-              <h3 className="font-headline font-bold text-xl text-on-surface mb-2">
-                {theoryTrackLabel}
-              </h3>
-              <p className="text-on-surface-variant text-sm mb-6 leading-relaxed">
-                {theoryAction.progressLine}
-              </p>
-              <div className="flex justify-between items-end mb-2">
-                <span className="font-mono text-[10px] text-primary">PROGRESS: {theoryProgressPct}%</span>
-                <span className="font-mono text-[10px] text-on-surface-variant">{theoryProgressValueLabel}</span>
-              </div>
-              <div className="h-1 w-full bg-surface-container-highest mb-6">
-                <div className="h-full bg-primary shadow-[0_0_10px_rgba(153,247,255,0.3)] transition-all" style={{ width: `${theoryProgressPct}%` }} />
-              </div>
-              <div className="w-full bg-primary text-on-primary font-headline font-bold text-xs py-3 tracking-widest flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98] transition-all uppercase">
-                <span>{theoryAction.label}</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </div>
-            </Link>
+        {/* Center: Neural Sync Port */}
+        <section className="lg:col-span-6 relative flex flex-col items-center justify-center overflow-hidden bg-surface-container-lowest">
+          {/* HUD corners */}
+          <div className="absolute top-5 left-5 border-l border-t border-primary/30 w-12 h-12" />
+          <div className="absolute top-5 right-5 border-r border-t border-primary/30 w-12 h-12" />
+          <div className="absolute bottom-5 left-5 border-l border-b border-primary/30 w-12 h-12" />
+          <div className="absolute bottom-5 right-5 border-r border-b border-primary/30 w-12 h-12" />
 
-            {/* Operations card */}
-            <Link
-              href={latestTaskAction.actionHref}
-              className="glass-panel border border-tertiary/10 p-6 flex flex-col group relative overflow-hidden transition-all hover:border-tertiary/30"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-1.5 h-1.5 bg-tertiary shadow-[0_0_5px_#ffc965]" />
-                <span className="font-mono text-[10px] text-tertiary/60 tracking-widest uppercase">
-                  ACTIVE_OPERATION
-                </span>
-              </div>
-              <h3 className="font-headline font-bold text-xl text-on-surface mb-2">
-                {latestTaskAction.title}
-              </h3>
-              <p className="text-on-surface-variant text-sm mb-4 leading-relaxed">
-                {latestTaskAction.summary}
-              </p>
-              {tasksProgressPct !== null && (
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: 10 }, (_, i) => (
-                    <div key={i} className={`flex-1 h-1.5 ${i < Math.round(tasksProgressPct / 10) ? 'bg-tertiary' : 'bg-surface-container-highest'}`} />
-                  ))}
-                </div>
-              )}
-              <div className="flex items-center justify-between font-mono text-[10px]">
-                <span className="text-on-surface-variant">{latestTaskAction.statLine}</span>
-                <span className="text-tertiary font-bold">{latestTaskAction.actionLabel} &gt;&gt;</span>
-              </div>
-            </Link>
+          {/* Scanning HUD */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 border border-primary/10 rounded-full animate-pulse" />
+            <div className="absolute top-[20%] left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
           </div>
 
-          {/* Right: Mission briefing cards */}
-          <div className="space-y-4">
-            <h2 className="font-headline text-sm font-bold text-on-surface uppercase tracking-wider">
-              MISSION_BRIEFING
-            </h2>
+          <div className="relative z-10 text-center">
+            <div className="mb-4">
+              <span className="font-mono text-[9px] text-primary/60 tracking-[0.5em] uppercase">NEURAL_SYNC_PORT</span>
+            </div>
 
-            {/* Active assignment */}
-            <div className="border border-outline-variant/20 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-1 h-1 bg-primary" />
-                <span className="font-mono text-[8px] text-primary uppercase tracking-widest">ACTIVE_ASSIGNMENT</span>
+            {/* Animated neural node */}
+            <div className="relative w-48 h-48 mx-auto flex items-center justify-center mb-6">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-48 h-48 border border-primary/10 rounded-full animate-[spin_60s_linear_infinite]" />
+                <div className="w-32 h-32 border border-primary/15 rounded-full absolute border-dashed animate-[spin_45s_linear_infinite_reverse]" />
               </div>
-              <h4 className="font-headline text-xs font-bold text-on-surface uppercase mb-2">{theoryTrackLabel}</h4>
-              <div className="flex gap-0.5 mb-2">
-                {Array.from({ length: 6 }, (_, i) => (
-                  <div key={i} className={`w-3 h-1 ${i < Math.round((theoryProgressPct / 100) * 6) ? 'bg-primary' : 'bg-surface-container-highest'}`} />
+              <div className="relative animate-[spin_30s_linear_infinite]">
+                <div className="w-20 h-20 border-2 border-primary rotate-[30deg] opacity-80 shadow-[0_0_20px_#00F2FF]" />
+                <div className="absolute inset-0 w-20 h-20 border-2 border-primary/50 rotate-[-30deg]" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-8 h-8 bg-primary/20 backdrop-blur-sm border border-primary animate-pulse" />
+                </div>
+              </div>
+              <div className="absolute -top-2 -left-2 w-2 h-2 bg-primary neural-node animate-[pulse_3s_ease-in-out_infinite]" />
+              <div className="absolute -bottom-2 -right-4 w-1.5 h-1.5 bg-primary/80 neural-node animate-[pulse_4s_ease-in-out_infinite_0.5s]" />
+              <div className="absolute top-12 -right-4 w-2 h-2 bg-primary neural-node animate-[pulse_3.5s_ease-in-out_infinite_1s]" />
+            </div>
+
+            <h2 className="font-headline text-lg font-black text-on-surface tracking-widest uppercase">
+              OPERATOR {firstName.toUpperCase()}
+            </h2>
+            <p className="font-mono text-[9px] text-primary mt-1">LINK_ESTABLISHED_SUCCESSFULLY</p>
+          </div>
+
+          {/* Bottom HUD stats */}
+          <div className="absolute bottom-5 w-full px-10 flex justify-between items-end">
+            <div className="flex flex-col gap-1">
+              <span className="text-[7px] font-mono text-primary/40">HULL_INTEGRITY</span>
+              <div className="flex gap-0.5">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <div key={i} className={`h-2 w-2 ${i < Math.round((overallProgress / 100) * 8) ? 'bg-primary' : 'bg-outline-variant/20'}`} />
                 ))}
               </div>
-              <Link href={theoryAction.href} className="font-mono text-[9px] text-primary hover:underline uppercase tracking-wider">
-                RESUME &gt;&gt;
-              </Link>
+            </div>
+            <div className="flex flex-col gap-1 items-end">
+              <span className="text-[7px] font-mono text-primary/40">THROUGHPUT</span>
+              <div className="flex gap-0.5">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <div key={i} className={`h-2 w-2 ${i < Math.min(stats.currentStreak, 4) ? 'bg-secondary' : 'bg-outline-variant/20'}`} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Right: Mission Briefing */}
+        <section className="lg:col-span-3 overflow-y-auto p-5 bg-surface-dim/40 border-l border-outline-variant/20">
+          <div className="mb-5 flex items-center justify-between">
+            <h3 className="font-headline font-bold text-sm tracking-widest text-primary">MISSION_BRIEFING</h3>
+            <span className="font-mono text-[9px] text-tertiary">[{topicSnapshots.filter(s => s.theoryPct > 0 && s.theoryPct < 100).length} ACTIVE]</span>
+          </div>
+          <div className="space-y-4">
+            {/* System update */}
+            <div className="p-3 bg-tertiary/10 border-l-4 border-tertiary">
+              <div className="flex items-start justify-between mb-2">
+                <span className="text-[8px] font-mono text-tertiary font-bold px-1.5 py-0.5 bg-tertiary/20">SYSTEM UPDATE</span>
+              </div>
+              <h4 className="text-xs font-headline font-bold text-on-surface mb-1">SYNC_STATUS: {overallProgress}%</h4>
+              <p className="text-[9px] font-mono text-on-surface-variant leading-relaxed">
+                {overallProgress < 50 ? 'Continue theory modules to increase sync rate.' : 'Neural integration progressing well.'}
+              </p>
             </div>
 
-            {/* XP Stats */}
-            <div className="border border-outline-variant/20 p-4">
-              <div className="flex items-center gap-2 mb-3">
+            {/* Active assignment */}
+            <Link href={theoryAction.href} className="block p-3 bg-surface-container-high/60 border border-outline-variant/30 hover:border-primary/40 transition-colors group">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-1 h-1 bg-primary" />
+                <span className="text-[8px] font-mono text-primary/60">ACTIVE_ASSIGNMENT</span>
+              </div>
+              <h4 className="text-xs font-headline font-bold text-on-surface mb-1 uppercase tracking-tight">{theoryTrackLabel}</h4>
+              <div className="flex justify-between items-center mt-2">
+                <div className="flex gap-0.5">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <div key={i} className={`h-1.5 w-3 ${i < Math.round((theoryProgressPct / 100) * 5) ? 'bg-primary' : 'bg-outline-variant/30'}`} />
+                  ))}
+                </div>
+                <span className="text-[9px] font-mono text-primary font-bold group-hover:translate-x-1 transition-transform">RESUME &gt;&gt;</span>
+              </div>
+            </Link>
+
+            {/* Operations task */}
+            <Link href={latestTaskAction.actionHref} className="block p-3 bg-surface-container-high/60 border border-outline-variant/30 hover:border-primary/40 transition-colors group">
+              <div className="flex items-center gap-2 mb-2">
                 <div className="w-1 h-1 bg-secondary" />
-                <span className="font-mono text-[8px] text-secondary uppercase tracking-widest">OPERATOR_STATS</span>
+                <span className="text-[8px] font-mono text-secondary/60">DAILY_OPERATION</span>
               </div>
-              <div className="space-y-2 font-mono text-[10px]">
-                <div className="flex justify-between">
-                  <span className="text-on-surface-variant">QUESTIONS</span>
-                  <span className="text-on-surface font-bold">{stats.questionsCompleted}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-on-surface-variant">ACCURACY</span>
-                  <span className="text-on-surface font-bold">{stats.overallAccuracy}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-on-surface-variant">OVERALL</span>
-                  <span className="text-primary font-bold">{overallProgress}%</span>
-                </div>
+              <h4 className="text-xs font-headline font-bold text-on-surface mb-1 uppercase tracking-tight">{latestTaskAction.title}</h4>
+              <p className="text-[9px] font-mono text-on-surface-variant">{latestTaskAction.summary}</p>
+              <div className="mt-2 flex justify-between items-center">
+                <span className="text-[9px] font-mono text-tertiary">{latestTaskAction.statLine}</span>
+                <span className="text-[9px] font-mono text-on-surface-variant">START_TASK</span>
               </div>
-            </div>
+            </Link>
 
             {/* Grid telemetry */}
-            <div className="border border-outline-variant/20 p-4">
+            <div className="mt-8 p-3 glass-panel border-dashed">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-1 h-1 bg-tertiary" />
-                <span className="font-mono text-[8px] text-tertiary uppercase tracking-widest">GRID_TELEMETRY</span>
+                <div className="w-1 h-1 bg-primary" />
+                <span className="text-[8px] font-mono text-primary tracking-widest uppercase font-bold">GRID_TELEMETRY</span>
               </div>
-              <div className="space-y-2 font-mono text-[10px]">
-                <div className="flex justify-between">
-                  <span className="text-on-surface-variant">TOPICS</span>
-                  <span className="text-on-surface font-bold">{topicSnapshots.length}</span>
+              <div className="space-y-2">
+                <div className="flex justify-between font-mono text-[9px]">
+                  <span className="text-on-surface-variant">QUESTIONS</span>
+                  <span className="text-on-surface">{stats.questionsCompleted}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-on-surface-variant">STREAK</span>
-                  <span className="text-on-surface font-bold">{stats.currentStreak} DAYS</span>
+                <div className="flex justify-between font-mono text-[9px]">
+                  <span className="text-on-surface-variant">ACCURACY</span>
+                  <span className="text-primary">{stats.overallAccuracy}%</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="w-full h-px bg-outline-variant/20" />
+                <div className="flex justify-between font-mono text-[9px]">
                   <span className="text-on-surface-variant">NETWORK</span>
-                  <span className="text-primary font-bold">ENCRYPTED</span>
+                  <span className="text-primary">ENCRYPTED</span>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
       </div>
+
+      {/* Footer shell */}
+      <footer className="h-9 border-t border-outline-variant/20 flex items-center justify-between px-5 bg-surface-dim flex-shrink-0">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <span className="text-[8px] font-mono text-primary font-bold">SYSTEM_LOGS</span>
+          <div className="h-3 w-[1px] bg-outline-variant/30" />
+          <span className="text-[8px] font-mono text-on-surface-variant">
+            <span className="text-primary">INFO</span> :: Neural buffer synchronized.
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-1.5 h-1.5 bg-primary animate-pulse" />
+          <span className="text-[8px] font-mono text-primary tracking-widest uppercase">NEURAL_LINK: ACTIVE</span>
+        </div>
+      </footer>
     </div>
   );
 };
