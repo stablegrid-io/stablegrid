@@ -33,7 +33,7 @@ export function BriefPanel({ task }: BriefPanelProps) {
         <p className="data-mono text-xs uppercase tracking-[0.2em] text-text-light-tertiary dark:text-text-dark-tertiary">
           Data Preview
         </p>
-        <pre className="mt-3 max-h-48 overflow-auto text-xs text-text-light-secondary dark:text-text-dark-secondary">
+        <pre className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-xs text-text-light-secondary dark:text-text-dark-secondary">
 {task.dataPreview}
         </pre>
       </div>

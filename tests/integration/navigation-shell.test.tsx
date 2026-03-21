@@ -15,8 +15,12 @@ vi.mock('@/lib/stores/useAuthStore', () => ({
   })
 }));
 
-vi.mock('@/components/navigation/TopNav', () => ({
-  TopNav: () => <div data-testid="top-nav" />
+vi.mock('@/components/navigation/Sidebar', () => ({
+  Sidebar: () => <div data-testid="sidebar" />
+}));
+
+vi.mock('@/components/navigation/TopBar', () => ({
+  TopBar: () => <div data-testid="top-bar" />
 }));
 
 vi.mock('@/components/navigation/BottomNav', () => ({
@@ -29,7 +33,7 @@ describe('Navigation shell', () => {
     currentUser = { id: 'user-1' };
   });
 
-  it('applies the default desktop rail offset on standard app pages', () => {
+  it('applies the sidebar offset on standard app pages', () => {
     render(
       <Navigation>
         <div data-testid="child">Content</div>
@@ -37,27 +41,14 @@ describe('Navigation shell', () => {
     );
 
     const shell = screen.getByTestId('navigation-shell-content');
-    expect(shell).toHaveAttribute('data-nav-mode', 'default');
-    expect(shell.className).toContain('lg:pl-[9rem]');
-    expect(screen.getByTestId('top-nav')).toBeInTheDocument();
+    expect(shell.className).toContain('lg:pl-64');
+    expect(shell.className).toContain('pt-14');
+    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('top-bar')).toBeInTheDocument();
     expect(screen.getByTestId('bottom-nav')).toBeInTheDocument();
   });
 
-  it('switches to compact lesson spacing when a theory lesson is open', () => {
-    currentPathname = '/learn/pyspark/theory/full-stack';
-
-    render(
-      <Navigation>
-        <div data-testid="child">Lesson</div>
-      </Navigation>
-    );
-
-    const shell = screen.getByTestId('navigation-shell-content');
-    expect(shell).toHaveAttribute('data-nav-mode', 'lesson');
-    expect(shell.className).toContain('lg:pl-[6.35rem]');
-  });
-
-  it('marks the shell as hidden when navigation should not render', () => {
+  it('removes padding when navigation should not render', () => {
     currentUser = null;
 
     render(
@@ -67,7 +58,6 @@ describe('Navigation shell', () => {
     );
 
     const shell = screen.getByTestId('navigation-shell-content');
-    expect(shell).toHaveAttribute('data-nav-mode', 'hidden');
-    expect(shell.className).not.toContain('lg:pl-[9rem]');
+    expect(shell.className).not.toContain('lg:pl-64');
   });
 });

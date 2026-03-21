@@ -4,6 +4,7 @@ import {
   createActivationTask,
   deleteActivationTask,
   editActivationTask,
+  getActivationBoardData,
   moveActivationTaskToCompleted,
   moveActivationTaskToTodo,
   reorderActivationTasks,
@@ -31,7 +32,25 @@ const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const createDb = (): InMemoryDb => ({
   tracks: [
     { id: 'track-pyspark', slug: 'pyspark', title: 'PySpark', is_active: true },
+    {
+      id: 'track-pyspark-de',
+      slug: 'pyspark-data-engineering-track',
+      title: 'PySpark: Data Engineering Track',
+      is_active: true
+    },
     { id: 'track-fabric', slug: 'fabric', title: 'Microsoft Fabric', is_active: true },
+    {
+      id: 'track-fabric-de',
+      slug: 'fabric-data-engineering-track',
+      title: 'Fabric: Data Engineering Track',
+      is_active: true
+    },
+    {
+      id: 'track-fabric-bi',
+      slug: 'fabric-business-intelligence-track',
+      title: 'Fabric: Business Intelligence Track',
+      is_active: true
+    },
     { id: 'track-global', slug: 'global', title: 'Global', is_active: true }
   ],
   content_items: [],
@@ -46,11 +65,13 @@ const createDb = (): InMemoryDb => ({
 const matchesFilters = (
   row: Row,
   equalsFilters: Array<{ column: string; value: unknown }>,
-  inFilters: Array<{ column: string; values: unknown[] }>
+  inFilters: Array<{ column: string; values: unknown[] }>,
+  notEqualsFilters: Array<{ column: string; value: unknown }>
 ) => {
   const eqMatch = equalsFilters.every(({ column, value }) => row[column] === value);
   const inMatch = inFilters.every(({ column, values }) => values.includes(row[column]));
-  return eqMatch && inMatch;
+  const neqMatch = notEqualsFilters.every(({ column, value }) => row[column] !== value);
+  return eqMatch && inMatch && neqMatch;
 };
 
 const projectRow = (db: InMemoryDb, table: keyof InMemoryDb, row: Row, columns: string) => {
@@ -73,7 +94,21 @@ const projectRow = (db: InMemoryDb, table: keyof InMemoryDb, row: Row, columns: 
     if (columns.includes('user_activation_task_items(')) {
       projected.user_activation_task_items = db.user_activation_task_items
         .filter((item) => item.activation_task_id === row.id)
-        .map((item) => ({ ...item }));
+        .map((item) => {
+          const projectedItem = { ...item };
+
+          if (columns.includes('content_items(')) {
+            const contentItem = db.content_items.find((entry) => entry.id === item.content_item_id);
+            projectedItem.content_items = contentItem
+              ? {
+                  content_type: contentItem.content_type,
+                  source_ref: contentItem.source_ref
+                }
+              : null;
+          }
+
+          return projectedItem;
+        });
     }
     return projected;
   }
@@ -102,12 +137,13 @@ const createQuery = (
 ) => {
   const equalsFilters: Array<{ column: string; value: unknown }> = [];
   const inFilters: Array<{ column: string; values: unknown[] }> = [];
+  const notEqualsFilters: Array<{ column: string; value: unknown }> = [];
   let orderBy: { column: string; ascending: boolean } | null = null;
   let maxRows: number | null = null;
 
   const runSelect = () => {
     const rows = db[table]
-      .filter((row) => matchesFilters(row, equalsFilters, inFilters))
+      .filter((row) => matchesFilters(row, equalsFilters, inFilters, notEqualsFilters))
       .map((row) => (columns ? projectRow(db, table, row, columns) : { ...row }));
 
     if (orderBy) {
@@ -129,7 +165,9 @@ const createQuery = (
   };
 
   const runUpdate = () => {
-    const rows = db[table].filter((row) => matchesFilters(row, equalsFilters, inFilters));
+    const rows = db[table].filter((row) =>
+      matchesFilters(row, equalsFilters, inFilters, notEqualsFilters)
+    );
     rows.forEach((row) => {
       Object.assign(row, updatePayload ?? {});
     });
@@ -137,7 +175,9 @@ const createQuery = (
   };
 
   const runDelete = () => {
-    const retained = db[table].filter((row) => !matchesFilters(row, equalsFilters, inFilters));
+    const retained = db[table].filter(
+      (row) => !matchesFilters(row, equalsFilters, inFilters, notEqualsFilters)
+    );
     db[table] = retained;
     return { data: null, error: null };
   };
@@ -159,6 +199,10 @@ const createQuery = (
     },
     in(column: string, values: unknown[]) {
       inFilters.push({ column, values });
+      return query;
+    },
+    neq(column: string, value: unknown) {
+      notEqualsFilters.push({ column, value });
       return query;
     },
     order(column: string, options: { ascending: boolean }) {
@@ -1401,5 +1445,132 @@ describe('activation service', () => {
     ).rejects.toMatchObject({
       status: 409
     });
+  });
+
+  it('surfaces Fabric subtracks in the board catalog and builds track-aware theory links', async () => {
+    const seed = createDb();
+    seed.content_items.push({
+      id: 'fabric-de-module-1',
+      track_id: 'track-fabric-de',
+      content_type: 'theory_module',
+      source_ref: 'module-F1',
+      title: 'Platform Foundations & Architecture',
+      sequence_order: 1,
+      is_active: true
+    });
+    seed.user_activation_tasks.push({
+      id: 'task-fabric-de-1',
+      user_id: 'user-1',
+      task_type: 'theory',
+      task_group: 'theory',
+      title: 'Complete Platform Foundations & Architecture',
+      description: 'Continue through this theory module in your track.',
+      scope_type: 'count',
+      requested_count: 1,
+      status: 'in_progress',
+      sort_order: 1000,
+      track_id: 'track-fabric-de',
+      created_at: '2026-03-19T10:00:00.000Z',
+      started_at: '2026-03-19T10:05:00.000Z',
+      completed_at: null
+    });
+    seed.user_activation_task_items.push({
+      id: 'task-item-fabric-de-1',
+      user_id: 'user-1',
+      activation_task_id: 'task-fabric-de-1',
+      content_item_id: 'fabric-de-module-1',
+      item_status: 'in_progress',
+      started_at: '2026-03-19T10:05:00.000Z',
+      completed_at: null,
+      created_at: '2026-03-19T10:05:00.000Z',
+      updated_at: '2026-03-19T10:05:00.000Z'
+    });
+    seed.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const { client } = createSupabase(seed);
+    const board = await getActivationBoardData({
+      supabase: client,
+      userId: 'user-1',
+      shouldReconcile: false
+    });
+
+    expect(board.catalog.tracks.map((track) => track.slug)).toEqual([
+      'fabric',
+      'fabric-business-intelligence-track',
+      'fabric-data-engineering-track',
+      'pyspark',
+      'pyspark-data-engineering-track'
+    ]);
+    expect(board.inProgress[0]?.trackSlug).toBe('fabric-data-engineering-track');
+    expect(board.inProgress[0]?.actionHref).toBe(
+      '/learn/fabric/theory/data-engineering-track?chapter=module-F1'
+    );
+  });
+
+  it('routes airflow theory tasks through the beginner track path', async () => {
+    const seed = createDb();
+    seed.tracks.push({
+      id: 'track-airflow',
+      slug: 'airflow',
+      title: 'Apache Airflow',
+      is_active: true
+    });
+    seed.content_items.push({
+      id: 'airflow-module-1',
+      track_id: 'track-airflow',
+      content_type: 'theory_module',
+      source_ref: 'module-01',
+      title: 'What Is Airflow?',
+      sequence_order: 1,
+      is_active: true
+    });
+    seed.user_activation_tasks.push({
+      id: 'task-airflow-1',
+      user_id: 'user-1',
+      task_type: 'theory',
+      task_group: 'theory',
+      title: 'Complete What Is Airflow?',
+      description: 'Continue through this theory module in your track.',
+      scope_type: 'count',
+      requested_count: 1,
+      status: 'in_progress',
+      sort_order: 1000,
+      track_id: 'track-airflow',
+      created_at: '2026-03-19T10:00:00.000Z',
+      started_at: '2026-03-19T10:05:00.000Z',
+      completed_at: null
+    });
+    seed.user_activation_task_items.push({
+      id: 'task-item-airflow-1',
+      user_id: 'user-1',
+      activation_task_id: 'task-airflow-1',
+      content_item_id: 'airflow-module-1',
+      item_status: 'in_progress',
+      started_at: '2026-03-19T10:05:00.000Z',
+      completed_at: null,
+      created_at: '2026-03-19T10:05:00.000Z',
+      updated_at: '2026-03-19T10:05:00.000Z'
+    });
+    seed.user_progress.push({
+      user_id: 'user-1',
+      completed_questions: [],
+      topic_progress: {}
+    });
+
+    const { client } = createSupabase(seed);
+    const board = await getActivationBoardData({
+      supabase: client,
+      userId: 'user-1',
+      shouldReconcile: false
+    });
+
+    expect(board.inProgress[0]?.trackSlug).toBe('airflow');
+    expect(board.inProgress[0]?.actionHref).toBe(
+      '/learn/airflow/theory/beginner-track?chapter=module-01'
+    );
   });
 });

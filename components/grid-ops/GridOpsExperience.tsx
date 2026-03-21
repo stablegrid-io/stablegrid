@@ -17,6 +17,7 @@ import { MissionControlDrawer } from '@/components/grid-ops/MissionControlDrawer
 import { GridSceneErrorBoundary } from '@/components/grid-ops/scene/GridSceneErrorBoundary';
 import { GridSceneCanvas } from '@/components/grid-ops/scene/GridSceneCanvas';
 import { GridMapCanvas } from '@/components/grid-ops/GridMapCanvas';
+import { VoltageZoneMap } from '@/components/grid-ops/VoltageZoneMap';
 import { TechDeckDock } from '@/components/grid-ops/TechDeckDock';
 import { IncidentAlertModal } from '@/components/grid-ops/IncidentAlertModal';
 import { DispatchCallModal } from '@/components/grid-ops/DispatchCallModal';
@@ -476,7 +477,7 @@ export function GridOpsExperience({ scenarioId }: GridOpsExperienceProps) {
                 </div>
 
                 {viewMode === '2d' ? (
-                  <GridMapCanvas
+                  <VoltageZoneMap
                     state={state}
                     highlightedAssetId={highlightedAssetId}
                     deployingAssetId={deployingAssetId}

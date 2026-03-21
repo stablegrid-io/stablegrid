@@ -1,0 +1,54 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - region "Cookie consent" [ref=e2]:
+    - generic [ref=e3]:
+      - heading "Cookies" [level=2] [ref=e4]
+      - paragraph [ref=e5]:
+        - text: We use cookies to collect data and improve our services.
+        - link "Learn more" [ref=e6] [cursor=pointer]:
+          - /url: /privacy#cookie-policy
+      - generic [ref=e7]:
+        - button "Accept" [ref=e8] [cursor=pointer]
+        - button "Reject all" [ref=e9] [cursor=pointer]: Opt out
+        - button "Privacy settings" [ref=e10] [cursor=pointer]
+  - generic [ref=e16]:
+    - link "Microsoft Fabric logo Track Microsoft Fabric 0% 0/20 read Build Microsoft Fabric capability across platform foundations, analytics workflows, governance controls, and production delivery practices. 0/20 Browse categories" [ref=e17] [cursor=pointer]:
+      - /url: /learn/fabric/theory
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - generic [ref=e20]:
+            - img "Microsoft Fabric logo" [ref=e22]
+            - generic [ref=e23]:
+              - paragraph [ref=e24]: Track
+              - generic [ref=e26]: Microsoft Fabric
+          - generic [ref=e27]:
+            - generic [ref=e28]: 0%
+            - generic [ref=e29]: 0/20 read
+        - paragraph [ref=e30]: Build Microsoft Fabric capability across platform foundations, analytics workflows, governance controls, and production delivery practices.
+        - generic [ref=e31]:
+          - generic [ref=e34]: 0/20
+          - generic [ref=e36]:
+            - text: Browse categories
+            - img [ref=e37]
+    - link "PySpark logo Track PySpark 0% 0/30 read Build PySpark capability across foundations, data engineering workflows, optimization, and production-ready governance patterns. 0/30 Browse categories" [ref=e39] [cursor=pointer]:
+      - /url: /learn/pyspark/theory
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - generic [ref=e42]:
+            - img "PySpark logo" [ref=e44]
+            - generic [ref=e45]:
+              - paragraph [ref=e46]: Track
+              - generic [ref=e48]: PySpark
+          - generic [ref=e49]:
+            - generic [ref=e50]: 0%
+            - generic [ref=e51]: 0/30 read
+        - paragraph [ref=e52]: Build PySpark capability across foundations, data engineering workflows, optimization, and production-ready governance patterns.
+        - generic [ref=e53]:
+          - generic [ref=e56]: 0/30
+          - generic [ref=e58]:
+            - text: Browse categories
+            - img [ref=e59]
+  - alert [ref=e61]
+```

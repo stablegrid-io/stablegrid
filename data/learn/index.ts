@@ -1,11 +1,13 @@
 import type { CheatSheet } from '@/types/learn';
+import { airflowData } from '@/data/learn/airflow';
 import { fabricData } from '@/data/learn/fabric';
 import { pysparkData } from '@/data/learn/pyspark';
 import { getTheoryMeta } from '@/data/learn/theory';
 
 export const cheatSheets: Record<string, CheatSheet> = {
   pyspark: pysparkData,
-  fabric: fabricData
+  fabric: fabricData,
+  airflow: airflowData
 };
 
 export const learnTopics = Object.values(cheatSheets).map((sheet) => {

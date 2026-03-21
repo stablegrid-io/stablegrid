@@ -138,7 +138,7 @@ const getCategoryConfig = (
     return PYSPARK_CATEGORY_CONFIG[slug] as CategoryConfig;
   }
 
-  return DEFAULT_CATEGORY_CONFIG[slug];
+  return DEFAULT_CATEGORY_CONFIG[slug] ?? { label: slug, description: '' };
 };
 
 const inferCategory = (doc: TheoryDoc, chapter: TheoryChapter): TheoryCategorySlug => {
@@ -281,6 +281,15 @@ export const filterTheoryDocByCategory = (
     ...doc,
     chapters: selected.chapters
   };
+};
+
+export const getChapterCategorySlug = (
+  doc: TheoryDoc,
+  chapterId: string
+): TheoryCategorySlug | null => {
+  const chapter = doc.chapters.find((c) => c.id === chapterId);
+  if (!chapter) return null;
+  return inferCategory(doc, chapter);
 };
 
 export const getTheoryCategoryMeta = (

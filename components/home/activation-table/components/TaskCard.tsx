@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 
 export type TaskCardState = 'todo' | 'in-progress' | 'completed';
@@ -18,6 +19,7 @@ export interface TaskCardData {
   actionDisabled?: boolean;
   onEdit?: (() => void) | null;
   editDisabled?: boolean;
+  href?: string | null;
   draggable?: boolean;
   onDragStart?: (() => void) | null;
   onDragEnd?: (() => void) | null;
@@ -29,66 +31,74 @@ interface TaskCardProps {
 }
 
 const titleToneByState: Record<TaskCardState, string> = {
-  todo: 'text-[#e7eeeb]',
-  'in-progress': 'text-[#edf3fb]',
-  completed: 'text-[#c8d7cf]'
+  todo: 'text-[#e8e0d0]',
+  'in-progress': 'text-[#f5f0e8]',
+  completed: 'text-[#8a9a8a]'
 };
 
 const subtitleToneByState: Record<TaskCardState, string> = {
-  todo: 'text-[#8d9892]',
-  'in-progress': 'text-[#97a8c1]',
-  completed: 'text-[#7b8f84]'
+  todo: 'text-[#6a6050]',
+  'in-progress': 'text-[#8a7a5a]',
+  completed: 'text-[#4a5a4a]'
 };
 
 const statusToneByState: Record<TaskCardState, string> = {
-  todo: 'text-[#73807a]',
-  'in-progress': 'text-[#95afd6]',
-  completed: 'text-[#81ba9d]'
+  todo: 'text-[#6a5a3a]',
+  'in-progress': 'text-[#f0a030]/80',
+  completed: 'text-[#4a9a6a]'
 };
 
-const statusDotByState: Record<TaskCardState, string> = {
-  todo: 'bg-[#7b8680]',
-  'in-progress': 'bg-[#7a96c0]',
-  completed: 'bg-[#79d0ab]'
+const statusMarkerByState: Record<TaskCardState, string> = {
+  todo: '▶',
+  'in-progress': '●',
+  completed: '✓'
 };
 
 const edgeToneByState: Record<TaskCardState, ReactNode> = {
-  todo: null,
-  'in-progress': <div aria-hidden className="absolute inset-y-3 left-0 w-px bg-[#7a96c0]/85" />,
-  completed: <div aria-hidden className="absolute inset-y-3 left-0 w-px bg-[#79d0ab]/75" />
+  todo: <div aria-hidden className="absolute inset-y-0 left-0 w-[2px] bg-[#3a2a10]/70" />,
+  'in-progress': <div aria-hidden className="absolute inset-y-0 left-0 w-[2px] bg-[#f0a030]/70" style={{ boxShadow: '0 0 6px rgba(240,160,48,0.4)' }} />,
+  completed: <div aria-hidden className="absolute inset-y-0 left-0 w-[2px] bg-[#4a9a6a]/60" />
 };
 
 const kindChipToneByKind: Record<TaskCardKind, string> = {
   theory:
-    'border-[#314354] bg-[rgba(17,28,39,0.86)] text-[#cad7eb] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]',
+    'border-[#f0a030]/25 bg-[rgba(20,15,5,0.9)] text-[#f0a030]/80',
   task:
-    'border-[#30463d] bg-[rgba(14,27,22,0.88)] text-[#cfe2d8] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+    'border-[#4a9a6a]/25 bg-[rgba(5,15,10,0.9)] text-[#4a9a6a]/80'
 };
 
 const kindDotToneByKind: Record<TaskCardKind, string> = {
-  theory: 'bg-[#88a9d8]',
-  task: 'bg-[#8cc6a9]'
+  theory: 'bg-[#f0a030]',
+  task: 'bg-[#4a9a6a]'
 };
 
 const kindAuraByKind: Record<TaskCardKind, string> = {
   theory:
-    'bg-[radial-gradient(circle_at_14%_0%,rgba(97,125,170,0.16),transparent_36%)]',
+    'bg-[radial-gradient(circle_at_0%_0%,rgba(240,160,48,0.06),transparent_40%)]',
   task:
-    'bg-[radial-gradient(circle_at_14%_0%,rgba(100,151,126,0.14),transparent_36%)]'
+    'bg-[radial-gradient(circle_at_0%_0%,rgba(74,154,106,0.05),transparent_40%)]'
 };
 
 export const TASK_CARD_BASE_CLASS =
-  'group relative overflow-hidden rounded-[14px] border border-[#2d3531] bg-[linear-gradient(180deg,#0a1011_0%,#070a0b_100%)] px-4 py-3.5 transition-[transform,border-color,background-color,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#43524b] hover:bg-[linear-gradient(180deg,#0c1315_0%,#090d0f_100%)] hover:shadow-[0_18px_30px_-22px_rgba(0,0,0,0.8)]';
+  'group relative overflow-hidden border border-[#1e1a12] bg-[#0a0b08] px-4 py-4 transition-[transform,border-color,box-shadow] duration-200 ease-out hover:-translate-y-px hover:border-[#f0a030]/20 hover:shadow-[0_0_16px_-4px_rgba(240,160,48,0.12)]';
 
 export function TaskCard({ task, state }: TaskCardProps) {
   const isDraggable = Boolean(task.draggable);
   const [isDragging, setIsDragging] = useState(false);
   const cardKind = task.kind ?? 'theory';
+  const router = useRouter();
 
-  return (
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (!task.href) return;
+    if ((e.target as HTMLElement).closest('button, a')) return;
+    router.push(task.href);
+  };
+
+  const article = (
     <article
-      aria-grabbed={isDraggable ? isDragging : undefined}
+      onClick={handleCardClick}
       draggable={isDraggable}
+      aria-description={isDraggable && isDragging ? 'Being dragged' : undefined}
       onDragStart={(event) => {
         if (!isDraggable) return;
         event.dataTransfer.effectAllowed = 'move';
@@ -102,14 +112,14 @@ export function TaskCard({ task, state }: TaskCardProps) {
         task.onDragEnd?.();
       }}
       className={`${TASK_CARD_BASE_CLASS} ${
-        isDraggable ? 'cursor-grab active:cursor-grabbing' : ''
+        isDraggable ? 'cursor-grab active:cursor-grabbing' : task.href ? 'cursor-pointer' : ''
       } ${
         task.readyToComplete
-          ? 'border-[#4e6d61] bg-[linear-gradient(180deg,#0a1212_0%,#07100d_100%)] shadow-[0_22px_44px_-34px_rgba(67,119,100,0.62)]'
+          ? 'border-[#f0a030]/35 bg-[#0c0d08] shadow-[0_0_20px_-6px_rgba(240,160,48,0.2)]'
           : ''
       } ${
         isDragging
-          ? 'scale-[0.988] border-[#5a6f63] bg-[linear-gradient(180deg,#0c1415_0%,#090d0e_100%)] shadow-[0_30px_52px_-36px_rgba(0,0,0,0.95)]'
+          ? 'scale-[0.988] border-[#f0a030]/50 shadow-[0_0_24px_-8px_rgba(240,160,48,0.3)]'
           : ''
       }`}
     >
@@ -121,9 +131,9 @@ export function TaskCard({ task, state }: TaskCardProps) {
       {task.readyToComplete ? (
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(112deg,transparent_0%,rgba(146,232,196,0.14)_45%,transparent_72%)]"
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(112deg,transparent_0%,rgba(240,160,48,0.1)_45%,transparent_72%)]"
           initial={{ x: '-140%', opacity: 0 }}
-          animate={{ x: ['-140%', '185%'], opacity: [0.08, 0.42, 0.08] }}
+          animate={{ x: ['-140%', '185%'], opacity: [0.08, 0.5, 0.08] }}
           transition={{ duration: 2.4, ease: 'easeInOut', repeat: Number.POSITIVE_INFINITY, repeatDelay: 1.1 }}
         />
       ) : null}
@@ -134,21 +144,21 @@ export function TaskCard({ task, state }: TaskCardProps) {
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {task.kindLabel ? (
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-medium tracking-[0.08em] ${kindChipToneByKind[cardKind]}`}
+                  className={`inline-flex items-center gap-1.5 border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.18em] ${kindChipToneByKind[cardKind]}`}
                 >
-                  <span className={`h-1.5 w-1.5 rounded-full ${kindDotToneByKind[cardKind]}`} />
+                  <span className={`h-1.5 w-1.5 ${kindDotToneByKind[cardKind]}`} />
                   <span>{task.kindLabel}</span>
                 </span>
               ) : null}
               {task.contextLabel ? (
-                <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#7b8984]">
+                <span className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#5a5040]">
                   {task.contextLabel}
                 </span>
               ) : null}
             </div>
           ) : null}
-          <h4 className={`text-sm font-medium leading-snug ${titleToneByState[state]}`}>{task.title}</h4>
-          <p className={`mt-1.5 text-xs leading-relaxed ${subtitleToneByState[state]}`}>{task.subtitle}</p>
+          <h4 className={`font-mono text-[12px] font-bold leading-snug tracking-[0.04em] ${titleToneByState[state]}`}>{task.title}</h4>
+          <p className={`mt-1.5 text-[11px] leading-relaxed tracking-[0.02em] ${subtitleToneByState[state]}`}>{task.subtitle}</p>
         </div>
 
         {task.actionLabel ? (
@@ -157,12 +167,12 @@ export function TaskCard({ task, state }: TaskCardProps) {
               type="button"
               onClick={task.onAction}
               disabled={task.actionDisabled}
-              className="mt-0.5 shrink-0 rounded-md border border-[#2d3531] bg-[#0c1012] px-2 py-1 text-[11px] font-medium text-[#a6b4ad] transition-colors duration-200 hover:border-[#495a52] hover:text-[#d0dbd5] focus-visible:ring-1 focus-visible:ring-[#7a96c0]/70 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-0.5 shrink-0 border border-[#f0a030]/30 bg-[#0d0e0a] px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[#f0a030]/70 transition-colors duration-200 hover:border-[#f0a030]/60 hover:text-[#f0a030] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {task.actionLabel}
             </button>
           ) : (
-            <span className="mt-0.5 shrink-0 text-[11px] font-medium text-[#8e9b95] transition-colors duration-200 group-hover:text-[#c7d3cd]">
+            <span className="mt-0.5 shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[#5a5040] transition-colors duration-200 group-hover:text-[#8a7a5a]">
               {task.actionLabel}
             </span>
           )
@@ -170,9 +180,9 @@ export function TaskCard({ task, state }: TaskCardProps) {
       </div>
 
       {task.statusLabel ? (
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <p className={`inline-flex items-center gap-2 text-[11px] ${statusToneByState[state]}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${statusDotByState[state]}`} />
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className={`inline-flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] ${statusToneByState[state]}`}>
+            <span className="text-[8px]">{statusMarkerByState[state]}</span>
             <span>{task.statusLabel}</span>
           </p>
 
@@ -180,25 +190,25 @@ export function TaskCard({ task, state }: TaskCardProps) {
             <div className="inline-flex flex-wrap items-center justify-end gap-2">
               {task.readyToComplete ? (
                 <motion.span
-                  className="relative overflow-hidden rounded-full border border-[#47685b] bg-[#0b1612] px-2 py-1 text-[10px] font-medium text-[#c0ebd8]"
+                  className="relative overflow-hidden border border-[#f0a030]/40 bg-[#0d0e08] px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[#f0a030]"
                   animate={{
-                    borderColor: ['rgba(71,104,91,0.9)', 'rgba(123,193,163,0.95)', 'rgba(71,104,91,0.9)'],
+                    borderColor: ['rgba(240,160,48,0.4)', 'rgba(240,160,48,0.8)', 'rgba(240,160,48,0.4)'],
                     boxShadow: [
-                      '0 0 0 rgba(121,208,171,0)',
-                      '0 0 0.8rem rgba(121,208,171,0.18)',
-                      '0 0 0 rgba(121,208,171,0)'
+                      '0 0 0 rgba(240,160,48,0)',
+                      '0 0 0.8rem rgba(240,160,48,0.25)',
+                      '0 0 0 rgba(240,160,48,0)'
                     ]
                   }}
                   transition={{ duration: 1.8, ease: 'easeInOut', repeat: Number.POSITIVE_INFINITY }}
                 >
                   <motion.span
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 bg-[linear-gradient(108deg,transparent_0%,rgba(219,255,238,0.22)_48%,transparent_76%)]"
+                    className="pointer-events-none absolute inset-0 bg-[linear-gradient(108deg,transparent_0%,rgba(240,160,48,0.12)_48%,transparent_76%)]"
                     initial={{ x: '-120%', opacity: 0 }}
-                    animate={{ x: ['-120%', '160%'], opacity: [0.1, 0.55, 0.1] }}
+                    animate={{ x: ['-120%', '160%'], opacity: [0.1, 0.6, 0.1] }}
                     transition={{ duration: 1.9, ease: 'easeInOut', repeat: Number.POSITIVE_INFINITY }}
                   />
-                  <span className="relative">Ready to complete</span>
+                  <span className="relative">✓ Ready</span>
                 </motion.span>
               ) : null}
               {task.onEdit ? (
@@ -206,9 +216,9 @@ export function TaskCard({ task, state }: TaskCardProps) {
                   type="button"
                   onClick={task.onEdit}
                   disabled={task.editDisabled}
-                  className="rounded px-1 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-[#8da1bf] transition-colors hover:text-[#c4d4ec] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#f0a030]/50 transition-colors hover:text-[#f0a030] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Edit
+                  [ Edit ]
                 </button>
               ) : null}
             </div>
@@ -217,4 +227,6 @@ export function TaskCard({ task, state }: TaskCardProps) {
       ) : null}
     </article>
   );
+
+  return article;
 }

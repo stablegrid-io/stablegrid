@@ -11,6 +11,7 @@ const topicColor: Record<string, string> = {
   python: '#10b981',
   pyspark: '#f59e0b',
   fabric: '#06b6d4',
+  airflow: '#e24d42',
   visualization: '#06b6d4',
   etl: '#f97316'
 };

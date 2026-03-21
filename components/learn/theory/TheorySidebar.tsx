@@ -38,6 +38,11 @@ export const TheorySidebar = ({
     modules.find((module) => module.id === activeChapterId) ?? modules[0];
   const orderedLessons = sortLessonsByOrder(activeModule.sections);
   const completedLessonIdSet = new Set(completedLessonIds);
+  const completedLessonCount = completedLessonIds.length;
+  const lessonProgressPct =
+    orderedLessons.length > 0
+      ? Math.min(100, Math.round((completedLessonCount / orderedLessons.length) * 100))
+      : 0;
   const checkpointMeta = getModuleCheckpointMeta({
     topic: doc.topic,
     chapter: activeModule,
@@ -53,7 +58,7 @@ export const TheorySidebar = ({
         : 'border-light-border bg-light-bg text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary';
 
   return (
-    <div className="flex h-full flex-col bg-light-surface dark:bg-dark-surface">
+    <div className="flex h-full flex-col bg-light-surface/95 dark:bg-dark-surface/95">
       <div className="border-b border-light-border px-4 py-4 dark:border-dark-border">
         <Link
           href={`/learn/${doc.topic}/theory`}
@@ -70,6 +75,22 @@ export const TheorySidebar = ({
           <Clock3 className="h-3.5 w-3.5" />
           {orderedLessons.length} lessons · {activeModule.totalMinutes} min
         </div>
+
+        <div className="mt-4 rounded-[16px] border border-light-border/70 bg-white/45 p-3 dark:border-dark-border/70 dark:bg-white/[0.03]">
+          <div className="flex items-center justify-between gap-3 text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+            <span>Module progress</span>
+            <span>
+              {completedLessonCount}/{orderedLessons.length} lessons completed
+            </span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-light-border/60 dark:bg-dark-border/60">
+            <div
+              className="h-full rounded-full bg-brand-500 transition-[width]"
+              style={{ width: `${lessonProgressPct}%` }}
+            />
+          </div>
+        </div>
+
         {checkpointMeta.hasCheckpoint ? (
           <div
             className={`mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium ${checkpointBadgeClass}`}
@@ -90,8 +111,8 @@ export const TheorySidebar = ({
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        <div className="space-y-1">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2 pt-1">
+        <div className="space-y-1.5">
           {orderedLessons.map((section, sectionIndex) => {
             const isActiveLesson = section.id === activeLessonId;
             const lessonOrder = section.order ?? sectionIndex + 1;
@@ -111,12 +132,12 @@ export const TheorySidebar = ({
                 }}
                 disabled={isLockedLesson}
                 title={lessonLabel}
-                className={`w-full rounded-lg px-3 py-2.5 text-left transition-colors ${
+                className={`w-full rounded-[14px] border px-3 py-2.5 text-left transition-colors ${
                   isActiveLesson
-                    ? 'bg-light-bg shadow-[0_0_0_1px_rgba(0,0,0,0.08)] dark:bg-dark-bg dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'
+                    ? 'border-brand-500/25 bg-brand-500/8 shadow-[0_0_0_1px_rgba(34,185,153,0.08)] dark:border-brand-400/20 dark:bg-brand-500/10'
                     : isLockedLesson
-                      ? 'cursor-not-allowed opacity-55'
-                      : 'hover:bg-light-hover dark:hover:bg-dark-hover'
+                      ? 'cursor-not-allowed border-transparent opacity-55'
+                      : 'border-transparent hover:border-light-border hover:bg-light-hover dark:hover:border-dark-border dark:hover:bg-dark-hover'
                 }`}
               >
                 <div className="flex items-start gap-3">

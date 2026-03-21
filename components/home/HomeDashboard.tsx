@@ -2,8 +2,16 @@
 
 import { useMemo } from 'react';
 import { format } from 'date-fns';
+import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
+import { ArrowRight, BookOpen, ClipboardCheck } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { HomeActivationTable } from '@/components/home/activation-table/HomeActivationTable';
+
+const CharacterHeroCard = dynamic(
+  () => import('@/components/progress/CharacterHeroCard').then((m) => m.CharacterHeroCard),
+  { ssr: false }
+);
 import type { HomeActivationTableData } from '@/components/home/activation-table/types';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
@@ -50,7 +58,8 @@ interface TopicSnapshot {
 
 const ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC: Record<Topic, string> = {
   pyspark: '245,158,11',
-  fabric: '34,185,153'
+  fabric: '34,185,153',
+  airflow: '226,77,66'
 };
 
 const clampPct = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
@@ -316,19 +325,24 @@ export const HomeDashboard = ({
   const featureEnabled = process.env.NEXT_PUBLIC_HOME_ACTIVATION_TABLE !== '0';
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-light-bg pb-24 dark:bg-dark-bg lg:pb-10">
-      <div className="pointer-events-none absolute inset-0 dark:hidden bg-[radial-gradient(circle_at_20%_18%,rgba(10,10,10,0.06),transparent_26%),radial-gradient(circle_at_84%_12%,rgba(10,10,10,0.04),transparent_30%)]" />
-      <div className="pointer-events-none absolute inset-0 hidden dark:block bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.03),transparent_24%),radial-gradient(circle_at_84%_14%,rgba(34,185,153,0.08),transparent_30%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-[#060809] pb-24 lg:pb-10">
+      {/* Scanline overlay */}
       <div
-        className="pointer-events-none absolute inset-0 dark:hidden"
+        className="pointer-events-none fixed inset-0 opacity-[0.025]"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(10,10,10,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(10,10,10,0.04) 1px, transparent 1px)',
-          backgroundSize: '42px 42px'
+            'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)',
+          backgroundSize: '100% 3px'
         }}
       />
+      {/* Ambient glow */}
       <div
-        className="pointer-events-none absolute inset-0 hidden dark:block"
+        className="pointer-events-none absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 opacity-[0.04]"
+        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(34,185,153,1), transparent 70%)' }}
+      />
+      {/* Tactical dot grid */}
+      <div
+        className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
             'linear-gradient(rgba(250,250,250,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(250,250,250,0.03) 1px, transparent 1px)',
@@ -337,10 +351,103 @@ export const HomeDashboard = ({
       />
 
       <div className="relative mx-auto flex w-full max-w-7xl flex-col px-4 pb-16 pt-6 sm:px-6 lg:pb-10 lg:pt-8">
-        <HomeActivationTable
-          data={activationData}
-          featureEnabled={featureEnabled}
-        />
+        <CharacterHeroCard serverXp={stats.totalXp} />
+
+        {/* Continue panels */}
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Theory panel */}
+          <Link
+            href={theoryAction.href}
+            className="group relative flex flex-col justify-between overflow-hidden rounded-[16px] border border-white/[0.06] bg-[rgba(8,12,10,0.95)] p-6 transition-all duration-200 hover:border-white/[0.12] hover:bg-[rgba(12,18,14,0.95)]"
+          >
+            <div className="pointer-events-none absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+            <div className="relative">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04]">
+                  <BookOpen className="h-4 w-4 text-[#34d399]" />
+                </div>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
+                  Theory
+                </p>
+              </div>
+
+              <h3 className="font-mono text-lg font-bold uppercase tracking-[0.04em] text-white">
+                {theoryTrackLabel}
+              </h3>
+              <p className="mt-2 text-[13px] leading-relaxed text-white/40">
+                {theoryAction.progressLine}
+              </p>
+
+              {/* Progress bar */}
+              <div className="mt-5 space-y-1.5">
+                <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.2em] text-white/25">
+                  <span>{theoryProgressValueLabel}</span>
+                  <span>{theoryProgressPct}%</span>
+                </div>
+                <div className="h-[3px] overflow-hidden rounded-full bg-white/[0.06]">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${theoryProgressPct}%`, background: `rgb(${theoryAccentRgb})` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="relative mt-6 flex items-center gap-2 font-mono text-[11px] font-semibold text-[#34d399] transition-colors group-hover:text-[#6ee7b7]">
+              <span>{theoryAction.label}</span>
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+            </div>
+          </Link>
+
+          {/* Assignments panel */}
+          <Link
+            href={latestTaskAction.actionHref}
+            className="group relative flex flex-col justify-between overflow-hidden rounded-[16px] border border-white/[0.06] bg-[rgba(8,12,10,0.95)] p-6 transition-all duration-200 hover:border-white/[0.12] hover:bg-[rgba(12,18,14,0.95)]"
+          >
+            <div className="pointer-events-none absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+            <div className="relative">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04]">
+                  <ClipboardCheck className="h-4 w-4" style={{ color: `rgb(${tasksAccentRgb})` }} />
+                </div>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
+                  Assignments
+                </p>
+              </div>
+
+              <h3 className="font-mono text-lg font-bold uppercase tracking-[0.04em] text-white">
+                {latestTaskAction.title}
+              </h3>
+              <p className="mt-2 text-[13px] leading-relaxed text-white/40">
+                {latestTaskAction.summary}
+              </p>
+
+              {/* Progress bar (if available) */}
+              {tasksProgressPct !== null && (
+                <div className="mt-5 space-y-1.5">
+                  <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.2em] text-white/25">
+                    <span>{latestTaskAction.statLine}</span>
+                    <span>{tasksProgressPct}%</span>
+                  </div>
+                  <div className="h-[3px] overflow-hidden rounded-full bg-white/[0.06]">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${tasksProgressPct}%`, background: `rgb(${tasksAccentRgb})` }}
+                    />
+                  </div>
+                </div>
+              )}
+              {tasksProgressPct === null && (
+                <p className="mt-5 font-mono text-[10px] text-white/20">{latestTaskAction.statLine}</p>
+              )}
+            </div>
+
+            <div className="relative mt-6 flex items-center gap-2 font-mono text-[11px] font-semibold transition-colors group-hover:text-white/80" style={{ color: `rgb(${tasksAccentRgb})` }}>
+              <span>{latestTaskAction.actionLabel}</span>
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+            </div>
+          </Link>
+        </div>
       </div>
     </div>
   );

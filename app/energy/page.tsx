@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation';
 import { CampaignOverview } from '@/components/grid-ops/CampaignOverview';
 import { GridOpsExperience } from '@/components/grid-ops/GridOpsExperience';
 import { isValidScenarioId } from '@/lib/grid-ops/config';
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default async function EnergyLabPage({ searchParams }: Props) {
+  notFound();
   const params = await searchParams;
   const scenarioParam = params.scenario;
 

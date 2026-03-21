@@ -1,5 +1,3 @@
-import type { Topic } from '@/types/progress';
-
 type SupabaseClient = any;
 
 export type ActivationTaskType = 'theory' | 'task';
@@ -15,7 +13,6 @@ type ActivationTaskOptionGroup =
   | 'notebooks'
   | 'missions';
 
-const TRACK_SET = new Set<Topic>(['pyspark', 'fabric']);
 const MODULE_PROGRESS_MISSING_TABLE_PATTERN =
   /module_progress.*(does not exist|42P01)/i;
 const OPTIONAL_READING_COLUMN_PATTERN =
@@ -84,6 +81,7 @@ interface ActivationTaskRow {
     started_at: string | null;
     completed_at: string | null;
     content_item_id: string;
+    content_items: { content_type: ActivationContentType; source_ref: string } | null;
   }>;
 }
 
@@ -129,7 +127,7 @@ interface NormalizedActivationTaskInput {
   taskGroup: ActivationTaskGroup;
   scopeType: ActivationScopeType;
   requestedCount: number | null;
-  trackSlug: Topic | null;
+  trackSlug: string | null;
   contentItemIds: string[];
 }
 
@@ -159,6 +157,7 @@ export interface ActivationBoardCard {
   primaryContentItemId: string | null;
   statusLabel: string | null;
   actionLabel: 'Start' | 'Open' | null;
+  actionHref: string | null;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -185,7 +184,35 @@ export class ActivationServiceError extends Error {
   }
 }
 
-const isTopic = (value: string): value is Topic => TRACK_SET.has(value as Topic);
+const isSelectableTrackSlug = (value: string | null | undefined): value is string =>
+  typeof value === 'string' && value.length > 0 && value !== 'global';
+
+const TRACK_ROUTE_META: Record<
+  string,
+  { topic: string; theoryCategorySlug?: string; practiceTopic?: string }
+> = {
+  pyspark: { topic: 'pyspark', practiceTopic: 'pyspark' },
+  'pyspark-data-engineering-track': {
+    topic: 'pyspark',
+    theoryCategorySlug: 'data-engineering-track',
+    practiceTopic: 'pyspark'
+  },
+  fabric: { topic: 'fabric', practiceTopic: 'fabric' },
+  'fabric-data-engineering-track': {
+    topic: 'fabric',
+    theoryCategorySlug: 'data-engineering-track',
+    practiceTopic: 'fabric'
+  },
+  'fabric-business-intelligence-track': {
+    topic: 'fabric',
+    theoryCategorySlug: 'business-intelligence-track',
+    practiceTopic: 'fabric'
+  },
+  airflow: {
+    topic: 'airflow',
+    theoryCategorySlug: 'beginner-track'
+  }
+};
 
 const toRecord = (value: unknown): Record<string, unknown> => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -211,7 +238,7 @@ const assertSuccess = (error: { message?: string } | null) => {
 
 const getStatusLabel = (status: ActivationTaskStatus, completed: number, total: number) => {
   if (total === 0) return null;
-  if (status === 'todo') return `${total} linked ${total === 1 ? 'item' : 'items'}`;
+  if (status === 'todo') return `${total} ${total === 1 ? 'item' : 'items'} queued`;
   return `${completed}/${total} complete`;
 };
 
@@ -377,7 +404,7 @@ const getActiveTrackCatalog = async (supabase: SupabaseClient) => {
   const { data, error } = await supabase
     .from('tracks')
     .select('slug,title,is_active')
-    .in('slug', ['pyspark', 'fabric'])
+    .neq('slug', 'global')
     .eq('is_active', true)
     .order('slug', { ascending: true });
 
@@ -424,7 +451,7 @@ const getTaskOptionCatalog = async (
     if (!taskOptionGroup) return;
 
     if (taskOptionGroup === 'theory') {
-      if (!item.tracks || !item.tracks.is_active || !isTopic(item.tracks.slug)) {
+      if (!item.tracks || !item.tracks.is_active || !isSelectableTrackSlug(item.tracks.slug)) {
         return;
       }
 
@@ -467,7 +494,7 @@ const getTaskOptionCatalog = async (
       return;
     }
 
-    if (!item.tracks || !item.tracks.is_active || !isTopic(item.tracks.slug)) {
+    if (!item.tracks || !item.tracks.is_active || !isSelectableTrackSlug(item.tracks.slug)) {
       return;
     }
 
@@ -728,11 +755,11 @@ const normalizeCreateInput = (input: CreateActivationTaskInput): NormalizedActiv
       throw new ActivationServiceError('trackSlug must be omitted for missions.', 400);
     }
   } else {
-    if (!trackSlugRaw || !isTopic(trackSlugRaw)) {
+    if (!isSelectableTrackSlug(trackSlugRaw)) {
       if (hasSpecificItemSelection) {
         // For explicit task-item selection we can derive track from the selected item.
       } else {
-        throw new ActivationServiceError('trackSlug must be pyspark or fabric.', 400);
+        throw new ActivationServiceError('trackSlug is required for non-mission tasks.', 400);
       }
     }
   }
@@ -757,10 +784,7 @@ const normalizeCreateInput = (input: CreateActivationTaskInput): NormalizedActiv
     taskGroup,
     scopeType: hasSpecificItemSelection ? 'count' : scopeType,
     requestedCount,
-    trackSlug:
-      taskGroup === 'missions' || !trackSlugRaw || !isTopic(trackSlugRaw)
-        ? null
-        : (trackSlugRaw as Topic),
+    trackSlug: taskGroup === 'missions' || !isSelectableTrackSlug(trackSlugRaw) ? null : trackSlugRaw,
     contentItemIds
   };
 };
@@ -846,12 +870,14 @@ const resolveTaskSelectionPlan = async ({
       }
     } else {
       const firstTrack = selectedItems[0]?.tracks;
-      if (!firstTrack || !firstTrack.is_active || !isTopic(firstTrack.slug)) {
+      if (!firstTrack || !firstTrack.is_active || !isSelectableTrackSlug(firstTrack.slug)) {
         throw new ActivationServiceError('Selected track is not available.', 400);
       }
 
       const mixedTrackSelection = selectedItems.some((item) => {
-        if (!item.tracks || !item.tracks.is_active || !isTopic(item.tracks.slug)) return true;
+        if (!item.tracks || !item.tracks.is_active || !isSelectableTrackSlug(item.tracks.slug)) {
+          return true;
+        }
         return item.tracks.slug !== firstTrack.slug;
       });
       if (mixedTrackSelection) {
@@ -897,7 +923,7 @@ const resolveTaskSelectionPlan = async ({
         ...normalized,
         scopeType: 'count',
         requestedCount: selectedItems.length,
-        trackSlug: track && isTopic(track.slug) ? track.slug : null
+        trackSlug: track && isSelectableTrackSlug(track.slug) ? track.slug : null
       },
       track,
       selectedItems,
@@ -1201,7 +1227,7 @@ const loadUserTasksWithItems = async (supabase: SupabaseClient, userId: string) 
   const { data, error } = await supabase
     .from('user_activation_tasks')
     .select(
-      'id,user_id,task_type,task_group,title,description,scope_type,requested_count,status,sort_order,created_at,started_at,completed_at,tracks:track_id(slug,title),user_activation_task_items(id,item_status,started_at,completed_at,content_item_id)'
+      'id,user_id,task_type,task_group,title,description,scope_type,requested_count,status,sort_order,created_at,started_at,completed_at,tracks:track_id(slug,title),user_activation_task_items(id,item_status,started_at,completed_at,content_item_id,content_items(content_type,source_ref))'
     )
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
@@ -1211,10 +1237,13 @@ const loadUserTasksWithItems = async (supabase: SupabaseClient, userId: string) 
 };
 
 const loadUserTasksForReconcile = async (supabase: SupabaseClient, userId: string) => {
+  // Exclude completed tasks: reconciliation must never revert an explicitly
+  // completed task back to in_progress if signals are temporarily absent.
   const { data, error } = await supabase
     .from('user_activation_tasks')
     .select('id,status,started_at,completed_at')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .in('status', ['todo', 'in_progress']);
 
   assertSuccess(error);
   return (data ?? []) as ActivationTaskReconcileRow[];
@@ -1229,6 +1258,37 @@ const runInBatches = async <T>(
     const batch = items.slice(index, index + batchSize);
     await Promise.all(batch.map((item) => worker(item)));
   }
+};
+
+const buildActionHref = (
+  taskGroup: ActivationTaskGroup,
+  trackSlug: string | null,
+  firstItem: { content_items: { content_type: ActivationContentType; source_ref: string } | null } | undefined
+): string | null => {
+  const sourceRef = firstItem?.content_items?.source_ref ?? null;
+  if (taskGroup === 'theory') {
+    if (!trackSlug || !sourceRef) return null;
+    const routeMeta = TRACK_ROUTE_META[trackSlug];
+    if (!routeMeta) return null;
+
+    if (routeMeta.theoryCategorySlug) {
+      return `/learn/${routeMeta.topic}/theory/${routeMeta.theoryCategorySlug}?chapter=${encodeURIComponent(sourceRef)}`;
+    }
+
+    return `/learn/${routeMeta.topic}/theory/${sourceRef}`;
+  }
+  if (taskGroup === 'missions') {
+    if (!sourceRef) return null;
+    return `/missions/${sourceRef}`;
+  }
+  if (taskGroup === 'notebooks') return '/practice/notebooks';
+  if (taskGroup === 'flashcards') {
+    if (!trackSlug) return null;
+    const routeMeta = TRACK_ROUTE_META[trackSlug];
+    if (!routeMeta?.practiceTopic) return null;
+    return `/practice/${routeMeta.practiceTopic}`;
+  }
+  return null;
 };
 
 const mapTaskRowsToBoardData = (
@@ -1263,6 +1323,7 @@ const mapTaskRowsToBoardData = (
       primaryContentItemId: items[0]?.content_item_id ?? null,
       statusLabel: getStatusLabel(row.status, completedCount, total),
       actionLabel: getActionLabel(row.status),
+      actionHref: buildActionHref(row.task_group, row.tracks?.slug ?? null, items[0]),
       createdAt: row.created_at,
       startedAt: row.started_at,
       completedAt: row.completed_at

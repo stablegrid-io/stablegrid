@@ -4,11 +4,25 @@ import Link from 'next/link';
 import { BookOpen, Code2 } from 'lucide-react';
 import type { TopicProgress } from '@/types/progress';
 
-const TOPIC_META: Record<string, { label: string; icon: string; color: string }> = {
-  pyspark: { label: 'PySpark', icon: '⚡', color: '#f59e0b' },
-  sql: { label: 'SQL', icon: '🗄️', color: '#6b7fff' },
-  python: { label: 'Python', icon: '🐍', color: '#10b981' },
-  fabric: { label: 'Microsoft Fabric', icon: '🏗️', color: '#06b6d4' }
+const TOPIC_META: Record<
+  string,
+  { label: string; icon: string; color: string; hasPractice: boolean }
+> = {
+  pyspark: { label: 'PySpark', icon: '⚡', color: '#f59e0b', hasPractice: true },
+  sql: { label: 'SQL', icon: '🗄️', color: '#6b7fff', hasPractice: true },
+  python: { label: 'Python', icon: '🐍', color: '#10b981', hasPractice: true },
+  fabric: {
+    label: 'Microsoft Fabric',
+    icon: '🏗️',
+    color: '#06b6d4',
+    hasPractice: true
+  },
+  airflow: {
+    label: 'Apache Airflow',
+    icon: '🌀',
+    color: '#e24d42',
+    hasPractice: false
+  }
 };
 
 interface TopicProgressCardProps {
@@ -35,7 +49,7 @@ export const TopicProgressCard = ({ topic, progress }: TopicProgressCardProps) =
 
   const minutesRead = progress?.theoryTotalMinutesRead ?? 0;
   const isStarted = Boolean(progress?.firstActivityAt);
-  const overallPct = Math.round((theoryPct + practicePct) / 2);
+  const overallPct = meta.hasPractice ? Math.round((theoryPct + practicePct) / 2) : theoryPct;
 
   return (
     <div className="rounded-xl border border-neutral-100 bg-white p-5 transition-all duration-200 hover:border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-700">
@@ -93,19 +107,21 @@ export const TopicProgressCard = ({ topic, progress }: TopicProgressCardProps) =
               Practice
             </div>
             <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
-              {questionsAttempted > 0 ? `${accuracy}% acc` : '—'}
+              {meta.hasPractice ? (questionsAttempted > 0 ? `${accuracy}% acc` : '—') : 'Theory only'}
             </span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
             <div
               className="h-full rounded-full bg-brand-500 transition-all duration-700"
-              style={{ width: `${practicePct}%` }}
+              style={{ width: `${meta.hasPractice ? practicePct : 0}%` }}
             />
           </div>
           <div className="mt-1 text-xs text-neutral-400">
-            {questionsAttempted === 0
-              ? 'No questions yet'
-              : `${questionsCorrect}/${questionsAttempted} correct`}
+            {meta.hasPractice
+              ? questionsAttempted === 0
+                ? 'No questions yet'
+                : `${questionsCorrect}/${questionsAttempted} correct`
+              : 'This track currently focuses on theory.'}
           </div>
         </div>
       </div>
@@ -118,13 +134,15 @@ export const TopicProgressCard = ({ topic, progress }: TopicProgressCardProps) =
           <BookOpen className="h-3.5 w-3.5" />
           {chaptersCompleted === 0 ? 'Start Theory' : 'Continue Reading'}
         </Link>
-        <Link
-          href={`/practice/${topic}`}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-neutral-50 py-2 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
-        >
-          <Code2 className="h-3.5 w-3.5" />
-          Practice
-        </Link>
+        {meta.hasPractice ? (
+          <Link
+            href={`/practice/${topic}`}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-neutral-50 py-2 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+          >
+            <Code2 className="h-3.5 w-3.5" />
+            Practice
+          </Link>
+        ) : null}
       </div>
     </div>
   );

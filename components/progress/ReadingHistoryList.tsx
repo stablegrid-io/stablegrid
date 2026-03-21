@@ -6,9 +6,13 @@ import type { ReadingHistoryEntry } from '@/types/progress';
 
 const TOPIC_LABELS: Record<string, string> = {
   pyspark: 'PySpark',
+  'pyspark-data-engineering-track': 'PySpark Data Engineering',
   sql: 'SQL',
   python: 'Python',
-  fabric: 'Microsoft Fabric'
+  fabric: 'Microsoft Fabric',
+  'fabric-data-engineering-track': 'Fabric Data Engineering',
+  'fabric-business-intelligence-track': 'Fabric Business Intelligence',
+  airflow: 'Apache Airflow'
 };
 
 interface ReadingHistoryListProps {

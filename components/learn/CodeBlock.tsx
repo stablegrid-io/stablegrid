@@ -265,7 +265,7 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
         </button>
       </div>
 
-      <div className="overflow-x-auto bg-[#f8fafc] px-3 py-3 dark:bg-[#0d1117]">
+      <div className="bg-[#f8fafc] px-3 py-3 dark:bg-[#0d1117]">
         <pre className="font-mono text-sm text-slate-900 dark:text-slate-200">
           <code>
             {codeLines.map((line, index) => {
@@ -282,7 +282,7 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
                   <span className="select-none text-right text-[11px] leading-7 text-slate-500 dark:text-slate-500">
                     {index + 1}
                   </span>
-                  <span className="block whitespace-pre text-[13px] leading-7 tracking-[0.01em] text-slate-900 dark:text-slate-200">
+                  <span className="block whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[13px] leading-7 tracking-[0.01em] text-slate-900 dark:text-slate-200">
                     {highlightRegex
                       ? highlightLine(line, highlightRegex, `line-${index}`)
                       : line}
@@ -301,8 +301,8 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
               Output
             </span>
           </div>
-          <div className="overflow-x-auto bg-[#f8fafc] p-4 dark:bg-[#0d1117]">
-            <pre className="text-xs text-slate-700 dark:text-slate-300">
+          <div className="bg-[#f8fafc] p-4 dark:bg-[#0d1117]">
+            <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-xs text-slate-700 dark:text-slate-300">
               {output}
             </pre>
           </div>

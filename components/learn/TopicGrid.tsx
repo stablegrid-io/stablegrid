@@ -5,7 +5,8 @@ import {
   Code2,
   Cpu,
   Database,
-  Sparkles
+  Sparkles,
+  Wind
 } from 'lucide-react';
 
 interface TopicItem {
@@ -51,6 +52,12 @@ const iconMap: Record<
     iconClass: 'text-cyan-600 dark:text-cyan-400',
     badgeClass:
       'bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-300'
+  },
+  airflow: {
+    Icon: Wind,
+    iconClass: 'text-rose-600 dark:text-rose-400',
+    badgeClass:
+      'bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300'
   }
 };
 

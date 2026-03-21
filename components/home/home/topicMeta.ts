@@ -34,10 +34,21 @@ export const HOME_TOPICS: Record<Topic, HomeTopicMeta> = {
     softBorder: 'rgba(6, 182, 212, 0.25)',
     fallbackChapters: 1,
     fallbackQuestions: 40
+  },
+  airflow: {
+    id: 'airflow',
+    label: 'Apache Airflow',
+    trackLabel: 'Apache Airflow: Beginner Track',
+    icon: '🌀',
+    color: '#e24d42',
+    softBg: 'rgba(226, 77, 66, 0.10)',
+    softBorder: 'rgba(226, 77, 66, 0.25)',
+    fallbackChapters: 10,
+    fallbackQuestions: 0
   }
 };
 
-export const HOME_TOPIC_ORDER: Topic[] = ['pyspark', 'fabric'];
+export const HOME_TOPIC_ORDER: Topic[] = ['pyspark', 'fabric', 'airflow'];
 
 export const getHomeTopicMeta = (topic: string): HomeTopicMeta =>
   HOME_TOPICS[(topic as Topic) ?? 'pyspark'] ?? HOME_TOPICS.pyspark;

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logError } from '@/lib/logger';
 
 export type JsonObject = Record<string, unknown>;
 
@@ -56,6 +57,8 @@ export const toApiErrorResponse = (error: unknown, fallbackMessage: string) => {
       }
     );
   }
+
+  logError('api.unhandled_error', error, { fallbackMessage });
 
   return NextResponse.json(
     {

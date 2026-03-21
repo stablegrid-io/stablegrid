@@ -2,6 +2,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ApiRouteError, type JsonObject } from '@/lib/api/http';
+import { logWarn } from '@/lib/logger';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -274,6 +275,12 @@ export const enforceRateLimit = async ({
   }
 
   if (!row.allowed) {
+    logWarn('api.rate_limit_exceeded', {
+      scope,
+      requestCount: row.request_count,
+      retryAfterSeconds: row.retry_after_seconds
+    });
+
     throw new ApiRouteError('Too many requests. Please try again later.', 429, {
       details: {
         retryAfterSeconds: row.retry_after_seconds

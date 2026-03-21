@@ -49,6 +49,8 @@ export const STABILITY_TIERS: StabilityTier[] = [
   { id: 'critical', label: 'CRITICAL', minPct: 0, maxPct: 25, color: '#f87171' }
 ];
 
+export type VoltageZone = '330kv' | '110kv' | '35kv' | '10kv' | '0.4kv';
+
 export interface InfrastructureNode {
   id: string;
   name: string;
@@ -59,6 +61,7 @@ export interface InfrastructureNode {
   unlocks: string;
   position: { x: number; y: number };
   connects: string[];
+  voltageZone: VoltageZone;
 }
 
 export const CONTROL_CENTER_ID = 'control-center';
@@ -73,7 +76,8 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     function: 'Base monitoring operations',
     unlocks: 'Infrastructure telemetry',
     position: { x: 180, y: 210 },
-    connects: ['smart-transformer']
+    connects: ['smart-transformer'],
+    voltageZone: '330kv'
   },
   {
     id: 'smart-transformer',
@@ -84,7 +88,8 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     function: 'Regulates prosumer injection',
     unlocks: 'Mission 003: Prosumer Swarm',
     position: { x: 320, y: 100 },
-    connects: ['frequency-controller']
+    connects: ['frequency-controller'],
+    voltageZone: '110kv'
   },
   {
     id: 'solar-forecasting-array',
@@ -95,7 +100,8 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     function: 'Predicts solar output 6h ahead',
     unlocks: 'Mission 001: Solar Surge',
     position: { x: 460, y: 55 },
-    connects: ['smart-transformer']
+    connects: ['smart-transformer'],
+    voltageZone: '35kv'
   },
   {
     id: 'battery-storage',
@@ -106,7 +112,8 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     function: 'Absorbs surges and discharges on peaks',
     unlocks: 'Mission 002: Evening Peak',
     position: { x: 580, y: 165 },
-    connects: ['demand-response-system']
+    connects: ['demand-response-system'],
+    voltageZone: '35kv'
   },
   {
     id: 'frequency-controller',
@@ -117,7 +124,8 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     function: 'Maintains 50 Hz +/-0.5',
     unlocks: 'Mission 004: Frequency Drop',
     position: { x: 720, y: 120 },
-    connects: ['ai-grid-optimizer']
+    connects: ['ai-grid-optimizer'],
+    voltageZone: '110kv'
   },
   {
     id: 'demand-response-system',
@@ -128,7 +136,8 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     function: 'Shifts EV charging to off-peak windows',
     unlocks: 'Advanced load balancing missions',
     position: { x: 860, y: 220 },
-    connects: []
+    connects: [],
+    voltageZone: '0.4kv'
   },
   {
     id: 'grid-flywheel',
@@ -139,7 +148,8 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     function: 'Instant mechanical frequency response',
     unlocks: 'Fast transient damping scenarios',
     position: { x: 620, y: 310 },
-    connects: ['demand-response-system']
+    connects: ['demand-response-system'],
+    voltageZone: '10kv'
   },
   {
     id: 'hvdc-interconnector',
@@ -150,7 +160,8 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     function: 'Cross-border power import/export',
     unlocks: 'Cross-region balancing operations',
     position: { x: 580, y: 355 },
-    connects: ['demand-response-system']
+    connects: ['demand-response-system'],
+    voltageZone: '330kv'
   },
   {
     id: 'ai-grid-optimizer',
@@ -161,7 +172,8 @@ export const INFRASTRUCTURE_NODES: InfrastructureNode[] = [
     function: 'Autonomous predictive balancing',
     unlocks: 'Mission 005: The Ghost Regulator',
     position: { x: 900, y: 180 },
-    connects: ['hvdc-interconnector', 'battery-storage', 'grid-flywheel', 'demand-response-system']
+    connects: ['hvdc-interconnector', 'battery-storage', 'grid-flywheel', 'demand-response-system'],
+    voltageZone: '110kv'
   }
 ];
 
@@ -302,7 +314,7 @@ export const LEVEL_TABLE: LevelDefinition[] = (() => {
 })();
 
 export const TIER_COLORS: Record<CharacterTierId, { primary: string; glow: string }> = {
-  cadet: { primary: '#5ba3f5', glow: 'rgba(91,163,245,0.35)' },
+  cadet: { primary: '#34d399', glow: 'rgba(52,211,153,0.35)' },
   engineer: { primary: '#22b999', glow: 'rgba(34,185,153,0.35)' },
   architect: { primary: '#f5b942', glow: 'rgba(245,185,66,0.35)' },
   commander: { primary: '#c0392b', glow: 'rgba(192,57,43,0.40)' }

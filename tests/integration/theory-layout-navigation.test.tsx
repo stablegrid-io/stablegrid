@@ -339,6 +339,28 @@ describe('TheoryLayout navigation', () => {
     expect(screen.getAllByText('Lesson 1: Intro').length).toBeGreaterThan(0);
   });
 
+  it('keeps a single lesson title in the reader shell while idle', async () => {
+    const user = userEvent.setup();
+
+    render(<TheoryLayout doc={doc} />);
+
+    await user.click(
+      await screen.findByRole('button', { name: /continue without session/i })
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('dialog', { name: /session picker/i })
+      ).not.toBeInTheDocument();
+    });
+
+    expect(screen.getAllByRole('heading', { name: 'Intro' })).toHaveLength(1);
+    expect(screen.getByText('Module 1')).toBeInTheDocument();
+    expect(screen.getAllByText('Lesson 1 of 3').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Reading mode')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lesson at a glance')).not.toBeInTheDocument();
+  });
+
   it('shows a recovery banner when progress load fails and clears it after retry', async () => {
     const user = userEvent.setup();
     let getAttempts = 0;

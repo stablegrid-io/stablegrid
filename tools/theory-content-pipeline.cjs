@@ -10,6 +10,7 @@ const LESSON_OR_PART_PREFIX_REGEX = /^(?:lesson|part)\s*\d+\s*:\s*/i;
 const MODULE_HEADER_REGEX = /^module\s*(\d+)\s*:?\s*$/i;
 const MODULE_PREFIX_REGEX = /^module\s*(\d+)\s*:\s*/i;
 const PART_HEADER_REGEX = /^part\s*(\d+)\s*:\s*(.+)$/i;
+const PHASE_HEADER_REGEX = /^phase\s*(\d+)\s*:\s*(.+)$/i;
 const WELCOME_HEADER_REGEX = /^welcome to module\s*(\d+)$/i;
 const CHECKPOINT_HEADER_REGEX = /^module\s*(\d+)\s*checkpoint$/i;
 const ESTIMATED_TIME_REGEX = /^estimated time\s*:\s*(\d+)\s*minutes?$/i;
@@ -67,12 +68,28 @@ const asArray = (value) => {
   return Array.isArray(value) ? value.map(String) : [String(value)];
 };
 
+const extractFileSequenceNumber = (filePath) => {
+  const base = path.basename(filePath, path.extname(filePath));
+  const moduleMatch = base.match(/module[\s_-]*(\d+)/i);
+  if (moduleMatch) {
+    return Number(moduleMatch[1]);
+  }
+
+  const leadingCodeMatch = base.match(/^[a-z]+[\s_-]*(\d+)\b/i);
+  if (leadingCodeMatch) {
+    return Number(leadingCodeMatch[1]);
+  }
+
+  const anyNumberMatch = base.match(/\b(\d+)\b/);
+  if (anyNumberMatch) {
+    return Number(anyNumberMatch[1]);
+  }
+
+  return Number.MAX_SAFE_INTEGER;
+};
+
 const naturalSortByModule = (files) => {
-  const moduleNumber = (filePath) => {
-    const base = path.basename(filePath);
-    const match = base.match(/module[\s_-]*(\d+)/i);
-    return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
-  };
+  const moduleNumber = (filePath) => extractFileSequenceNumber(filePath);
 
   return [...files].sort((left, right) => {
     const leftNum = moduleNumber(left);
@@ -214,9 +231,9 @@ const extractParagraphsFromDocx = (docxPath) => {
 };
 
 const parseModuleOrder = (paragraphs, filePath, fallbackOrder) => {
-  const fromFile = path.basename(filePath).match(/module[\s_-]*(\d+)/i);
-  if (fromFile) {
-    return Number(fromFile[1]);
+  const fromFile = extractFileSequenceNumber(filePath);
+  if (Number.isFinite(fromFile) && fromFile !== Number.MAX_SAFE_INTEGER) {
+    return fromFile;
   }
 
   const fromHeader = paragraphs
@@ -290,13 +307,21 @@ const buildModuleTitleAndDescription = ({
   };
 };
 
-const parseSectionMarker = (paragraph, moduleOrder) => {
-  const normalized = normalizeInlineText(paragraph);
+const parseSectionMarkerLine = (line, moduleOrder) => {
+  const normalized = normalizeInlineText(line);
   const partMatch = normalized.match(PART_HEADER_REGEX);
   if (partMatch) {
     return {
       kind: 'part',
       title: partMatch[2].trim()
+    };
+  }
+
+  const phaseMatch = normalized.match(PHASE_HEADER_REGEX);
+  if (phaseMatch) {
+    return {
+      kind: 'phase',
+      title: phaseMatch[2].trim()
     };
   }
 
@@ -319,6 +344,34 @@ const parseSectionMarker = (paragraph, moduleOrder) => {
   return null;
 };
 
+const parseSectionMarker = (paragraph, moduleOrder) => {
+  const rawLines = String(paragraph ?? '')
+    .split('\n')
+    .map((line) => line.replace(/\s+$/g, ''));
+  const normalizedLines = rawLines
+    .map((line) => normalizeInlineText(line))
+    .filter(Boolean);
+  const markerLine = normalizedLines[0];
+  if (!markerLine) {
+    return null;
+  }
+
+  const marker = parseSectionMarkerLine(markerLine, moduleOrder);
+  if (!marker) {
+    return null;
+  }
+
+  const bodyLines = rawLines
+    .slice(Math.max(1, rawLines.findIndex((line) => normalizeInlineText(line).length > 0) + 1))
+    .map((line) => line.replace(/\s+$/g, ''))
+    .filter((line) => line.trim().length > 0);
+
+  return {
+    ...marker,
+    bodyParagraph: bodyLines.length > 0 ? bodyLines.join('\n') : null
+  };
+};
+
 const splitModuleIntoSections = (paragraphs, moduleOrder) => {
   const sections = [];
   const introParagraphs = [];
@@ -335,6 +388,9 @@ const splitModuleIntoSections = (paragraphs, moduleOrder) => {
         kind: marker.kind,
         paragraphs: []
       };
+      if (marker.bodyParagraph) {
+        current.paragraphs.push(marker.bodyParagraph);
+      }
       return;
     }
 
@@ -719,10 +775,31 @@ const parseModuleFromParagraphs = ({ lines, filePath, fallbackOrder }) => {
 
   const titleLines = [];
   let cursor = moduleHeaderIndex >= 0 ? moduleHeaderIndex : 0;
+  let moduleEstimatedMinutes = null;
+  let moduleObjective = '';
   if (moduleHeaderIndex >= 0) {
     const headerLines = getNormalizedLines(paragraphs[moduleHeaderIndex]);
     const headerLineIndex = headerLines.findIndex((line) => MODULE_HEADER_REGEX.test(line));
-    titleLines.push(...headerLines.slice(headerLineIndex + 1));
+    const trailingHeaderLines = headerLines.slice(headerLineIndex + 1);
+    trailingHeaderLines.forEach((line) => {
+      const estimatedMatch = line.match(ESTIMATED_TIME_REGEX);
+      if (estimatedMatch) {
+        moduleEstimatedMinutes = Number(estimatedMatch[1]);
+        return;
+      }
+
+      const objectiveMatch = line.match(MODULE_OBJECTIVE_REGEX);
+      if (objectiveMatch) {
+        moduleObjective = objectiveMatch[1].trim();
+        return;
+      }
+
+      if (parseSectionMarkerLine(line, moduleOrder)) {
+        return;
+      }
+
+      titleLines.push(line);
+    });
     cursor = moduleHeaderIndex + 1;
   }
 
@@ -741,8 +818,6 @@ const parseModuleFromParagraphs = ({ lines, filePath, fallbackOrder }) => {
     cursor += 1;
   }
 
-  let moduleEstimatedMinutes = null;
-  let moduleObjective = '';
   while (cursor < paragraphs.length) {
     const paragraphLines = getNormalizedLines(paragraphs[cursor]);
     const estimatedMatch = paragraphLines

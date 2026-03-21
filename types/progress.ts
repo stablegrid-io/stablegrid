@@ -1,4 +1,4 @@
-export type Topic = 'pyspark' | 'fabric';
+export type Topic = 'pyspark' | 'fabric' | 'airflow';
 
 export interface ReadingSession {
   id: string;

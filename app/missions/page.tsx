@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   CheckCircle2,
   ChevronRight,
+  Circle,
   Clock3,
   Lock,
   MapPin,
@@ -14,6 +15,7 @@ import {
   X,
   Zap
 } from 'lucide-react';
+import { ViewToggle, type ViewMode } from '@/components/ui/ViewToggle';
 import { MISSIONS, type MissionDefinition } from '@/data/missions';
 import { createMissionProgressRequestKey } from '@/lib/api/requestKeys';
 import { formatKwh, getMissionRewardKwh } from '@/lib/energy';
@@ -59,17 +61,12 @@ const TEAM = [
   { name: 'Alert System', role: 'Automated Incident Feed' }
 ];
 
-const DIFFICULTY_BADGE: Record<string, string> = {
-  Easy:   'border-success-200 bg-success-50 text-success-700 dark:border-success-700/60 dark:bg-success-900/30 dark:text-success-300',
-  Medium: 'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-700/60 dark:bg-warning-900/30 dark:text-warning-300',
-  Hard:   'border-error-200 bg-error-50 text-error-700 dark:border-error-700/60 dark:bg-error-900/30 dark:text-error-300',
-  Expert: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-700/60 dark:bg-fuchsia-900/30 dark:text-fuchsia-300',
+const DIFFICULTY_BADGE: Record<string, { border: string; bg: string; text: string }> = {
+  Easy:   { border: 'rgba(34,185,154,0.3)',  bg: 'rgba(34,185,154,0.07)',  text: '#22b99a' },
+  Medium: { border: 'rgba(230,160,40,0.3)',  bg: 'rgba(230,160,40,0.07)',  text: '#e6a028' },
+  Hard:   { border: 'rgba(220,60,60,0.3)',   bg: 'rgba(220,60,60,0.07)',   text: '#dc3c3c' },
+  Expert: { border: 'rgba(180,80,220,0.3)',  bg: 'rgba(180,80,220,0.07)',  text: '#b450dc' },
 };
-
-const DRAWER_SHELL_DARK = 'dark:border-white/10 dark:bg-[#0a0a0a]';
-const DRAWER_PANEL_DARK = 'dark:border-white/10 dark:bg-[#101010]';
-const DRAWER_INSET_DARK = 'dark:border-white/10 dark:bg-[#141414]';
-const DRAWER_CARD_DARK = 'dark:border-white/10 dark:bg-[#0d0d0d]';
 
 const MissionCard = memo(function MissionCard({
   mission,
@@ -108,80 +105,127 @@ const MissionCard = memo(function MissionCard({
       type="button"
       onClick={() => { if (!locked) onOpen(mission); }}
       disabled={locked}
-      className="group relative overflow-hidden rounded-[32px] border border-light-border bg-light-surface p-6 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(var(--mission-accent),0.42)] hover:shadow-[0_30px_90px_-44px_rgba(var(--mission-accent),0.42)] disabled:!cursor-not-allowed disabled:!opacity-100 dark:border-dark-border dark:bg-dark-surface"
-      style={cardVars}
+      className="group relative overflow-hidden rounded-[10px] border text-left transition-all duration-300 hover:-translate-y-0.5 disabled:!cursor-not-allowed disabled:!opacity-100"
+      style={{
+        ...cardVars,
+        background: 'rgba(12,17,14,0.85)',
+        backdropFilter: 'blur(20px)',
+        borderColor: 'rgba(255,255,255,0.06)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.7)'
+      }}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(var(--mission-accent),0.18),transparent_32%),linear-gradient(180deg,rgba(var(--mission-accent),0.08),transparent_46%)]" />
-      <div className="pointer-events-none absolute -right-12 top-10 h-44 w-44 rounded-full bg-[rgba(var(--mission-accent),0.1)] blur-3xl" />
+      {/* Top accent stripe */}
+      <div className="h-[1px] w-full" style={{ background: `linear-gradient(90deg, rgba(var(--mission-accent),0.4), transparent 60%)` }} />
 
-      <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-        <div className="max-w-3xl">
-          <div
-            className="mb-4 inline-flex items-center gap-2 rounded-full border border-[rgba(var(--mission-accent),0.34)] bg-[rgba(var(--mission-accent),0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[rgb(var(--mission-accent))]"
-          >
-            <span className="text-sm leading-none">{mission.icon}</span>
-            Mission {String(index + 1).padStart(2, '0')}
-          </div>
+      {/* Corner brackets */}
+      <span className="absolute left-3 top-3 h-4 w-4 border-l border-t" style={{ borderColor: `rgba(var(--mission-accent),0.3)` }} />
+      <span className="absolute right-3 top-3 h-4 w-4 border-r border-t" style={{ borderColor: `rgba(var(--mission-accent),0.3)` }} />
+      <span className="absolute bottom-3 left-3 h-4 w-4 border-b border-l" style={{ borderColor: `rgba(var(--mission-accent),0.3)` }} />
+      <span className="absolute bottom-3 right-3 h-4 w-4 border-b border-r" style={{ borderColor: `rgba(var(--mission-accent),0.3)` }} />
 
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-3xl font-semibold text-text-light-primary dark:text-text-dark-primary">
-              {mission.codename}
-            </h2>
-            <span className="rounded-full border border-[rgba(var(--mission-accent),0.34)] bg-[rgba(var(--mission-accent),0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[rgb(var(--mission-accent))]">
-              {mission.difficulty}
-            </span>
-          </div>
-
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
-            {mission.summary}
-          </p>
-
-          <div className="mt-5 flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
-              {mission.tagline}
-            </span>
-          </div>
-        </div>
-
-        <div className="w-full max-w-sm rounded-3xl border border-[rgba(var(--mission-accent),0.18)] bg-light-bg/85 p-5 dark:bg-dark-bg/70">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-text-light-tertiary dark:text-text-dark-tertiary">
-              Mission Status
-            </span>
-            <span className="text-xl font-semibold text-text-light-primary dark:text-text-dark-primary">
-              {statusValue}
-            </span>
-          </div>
-
-          <div className="h-2 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+      <div className="p-6">
+        <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl">
             <div
-              className="h-full rounded-full bg-[rgb(var(--mission-accent))] transition-all duration-500"
-              style={{ width: `${progressValue}%` }}
-            />
+              className="mb-4 inline-flex items-center gap-2 rounded-[3px] border px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.2em]"
+              style={{
+                borderColor: `rgba(var(--mission-accent),0.34)`,
+                background: `rgba(var(--mission-accent),0.08)`,
+                color: `rgb(var(--mission-accent))`
+              }}
+            >
+              <span className="text-sm leading-none">{mission.icon}</span>
+              Mission {String(index + 1).padStart(2, '0')}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-[2.25rem] font-bold leading-none tracking-[-0.02em] text-white">
+                {mission.codename}
+              </h2>
+              <span
+                className="rounded-[3px] border px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.2em]"
+                style={{
+                  borderColor: `rgba(var(--mission-accent),0.34)`,
+                  background: `rgba(var(--mission-accent),0.08)`,
+                  color: `rgb(var(--mission-accent))`
+                }}
+              >
+                {mission.difficulty}
+              </span>
+            </div>
+
+            <p className="mt-4 max-w-2xl text-[13px] leading-[1.75] text-[#8ab8ae]">
+              {mission.summary}
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span
+                className="rounded-[3px] border px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a]"
+                style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
+              >
+                {mission.tagline}
+              </span>
+            </div>
           </div>
 
-          <p className="mt-4 text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
-            {statusCopy}
-          </p>
-        </div>
-      </div>
+          <div
+            className="w-full max-w-sm rounded-[8px] border p-5"
+            style={{
+              background: 'rgba(8,12,10,0.7)',
+              borderColor: `rgba(var(--mission-accent),0.14)`
+            }}
+          >
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-[#3a5a4a]">
+                Mission Status
+              </span>
+              <span className="text-xl font-bold text-white">
+                {statusValue}
+              </span>
+            </div>
 
-      <div className="relative mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-light-border/80 pt-5 dark:border-dark-border">
-        <div className="flex flex-wrap gap-2">
-          {bottomChips.map((chip) => (
-            <span
-              key={`${mission.slug}-${chip}`}
-              className="rounded-full border border-light-border bg-light-bg px-3 py-1 text-xs text-text-light-tertiary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-tertiary"
-            >
-              {chip}
-            </span>
-          ))}
+            {/* Segmented progress bar */}
+            <div className="flex gap-[3px]">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-[6px] flex-1 rounded-[2px]"
+                  style={{
+                    background: i < Math.round(progressValue / 10)
+                      ? `rgb(var(--mission-accent))`
+                      : 'rgba(255,255,255,0.06)'
+                  }}
+                />
+              ))}
+            </div>
+
+            <p className="mt-4 text-[13px] leading-[1.75] text-[#8ab8ae]">
+              {statusCopy}
+            </p>
+          </div>
         </div>
 
-        <span className="inline-flex items-center gap-2 text-sm font-medium text-text-light-primary transition-transform group-hover:translate-x-0.5 dark:text-text-dark-primary">
-          {ctaLabel}
-          {!locked ? <ChevronRight className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-        </span>
+        <div
+          className="relative mt-6 flex flex-wrap items-center justify-between gap-4 border-t pt-5"
+          style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+        >
+          <div className="flex flex-wrap gap-2">
+            {bottomChips.map((chip) => (
+              <span
+                key={`${mission.slug}-${chip}`}
+                className="rounded-[4px] border px-3 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a]"
+                style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+
+          <span className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.2em] text-[#8ab8ae] transition-transform group-hover:translate-x-0.5">
+            {ctaLabel}
+            {!locked ? <ChevronRight className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+          </span>
+        </div>
       </div>
     </button>
   );
@@ -198,6 +242,7 @@ const MissionDrawer = memo(function MissionDrawer({
 }) {
   const isLocked = mission.status === 'locked';
   const missionPath = `/missions/${mission.slug}`;
+  const diffStyle = DIFFICULTY_BADGE[mission.difficulty] ?? DIFFICULTY_BADGE.Medium;
 
   return (
     <>
@@ -208,59 +253,109 @@ const MissionDrawer = memo(function MissionDrawer({
         className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px]"
       />
 
-      <aside className={`fixed inset-y-0 left-0 z-50 w-full max-w-md overflow-y-auto border-r border-light-border bg-light-bg shadow-2xl ${DRAWER_SHELL_DARK}`}>
-        <div className="h-1 bg-gradient-to-r from-brand-500 to-transparent" />
+      <aside
+        className="fixed inset-y-0 left-0 z-50 w-full max-w-md overflow-y-auto border-r shadow-2xl"
+        style={{
+          background: 'rgba(8,12,10,0.98)',
+          backdropFilter: 'blur(20px)',
+          borderColor: 'rgba(255,255,255,0.06)'
+        }}
+      >
+        {/* Top gradient stripe */}
+        <div className="h-[2px] bg-gradient-to-r from-[#22b99a] to-transparent" />
 
-        <div className={`sticky top-0 z-10 flex items-center justify-between border-b border-light-border bg-light-bg/95 px-5 py-4 backdrop-blur ${DRAWER_SHELL_DARK} dark:bg-[#0a0a0a]/95`}>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
+        <div
+          className="sticky top-0 z-10 flex items-center justify-between border-b px-5 py-4 backdrop-blur"
+          style={{
+            background: 'rgba(8,12,10,0.97)',
+            borderColor: 'rgba(255,255,255,0.06)'
+          }}
+        >
+          <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#2a4038]">
             Mission Briefing
           </p>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-light-border p-2 text-text-light-tertiary transition hover:text-text-light-primary dark:border-white/10 dark:text-text-dark-tertiary dark:hover:text-text-dark-primary"
+            className="rounded-[4px] border p-2 text-[#3a5a4a] transition hover:text-[#8ab8ae]"
+            style={{ borderColor: 'rgba(255,255,255,0.06)' }}
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="space-y-5 p-5">
-          <section className={`rounded-xl border border-light-border bg-light-surface p-4 ${DRAWER_PANEL_DARK}`}>
+          <section
+            className="relative overflow-hidden rounded-[8px] border p-4"
+            style={{
+              background: 'rgba(12,17,14,0.85)',
+              backdropFilter: 'blur(20px)',
+              borderColor: 'rgba(255,255,255,0.06)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.7)'
+            }}
+          >
+            <div className="h-[1px] w-full mb-3" style={{ background: 'linear-gradient(90deg, rgba(34,185,154,0.4), transparent 60%)' }} />
+            <span className="absolute left-3 top-3 h-4 w-4 border-l border-t" style={{ borderColor: 'rgba(34,185,154,0.3)' }} />
+            <span className="absolute right-3 top-3 h-4 w-4 border-r border-t" style={{ borderColor: 'rgba(34,185,154,0.3)' }} />
+            <span className="absolute bottom-3 left-3 h-4 w-4 border-b border-l" style={{ borderColor: 'rgba(34,185,154,0.3)' }} />
+            <span className="absolute bottom-3 right-3 h-4 w-4 border-b border-r" style={{ borderColor: 'rgba(34,185,154,0.3)' }} />
+
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className={`flex h-11 w-11 items-center justify-center rounded-xl border border-light-border bg-light-muted text-xl ${DRAWER_INSET_DARK}`}>
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-[4px] border text-xl"
+                  style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.03)' }}
+                >
                   {mission.icon}
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                  <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-[#2a4038]">
                     Operation
                   </p>
-                  <h2 className="text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+                  <h2 className="text-lg font-bold text-white">
                     {mission.codename}
                   </h2>
                 </div>
               </div>
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${DIFFICULTY_BADGE[mission.difficulty] ?? DIFFICULTY_BADGE.Medium}`}>
+              <span
+                className="rounded-[3px] border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em]"
+                style={{
+                  borderColor: diffStyle.border,
+                  background: diffStyle.bg,
+                  color: diffStyle.text
+                }}
+              >
                 {mission.difficulty}
               </span>
             </div>
 
-            <p className="text-sm leading-relaxed text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="text-[13px] leading-[1.75] text-[#8ab8ae]">
               {mission.summary}
             </p>
 
-            <div className={`mt-4 rounded-lg border border-light-border bg-light-muted p-3 ${DRAWER_CARD_DARK}`}>
-              <p className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+            <div
+              className="mt-4 rounded-[4px] border p-3"
+              style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
+            >
+              <p className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.25em] text-[#2a4038]">
                 <ShieldAlert className="h-3.5 w-3.5" />
                 Stakes
               </p>
-              <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              <p className="mt-1 text-[13px] leading-[1.75] text-[#8ab8ae]">
                 {mission.stakes}
               </p>
             </div>
           </section>
 
-          <section className={`rounded-xl border border-light-border bg-light-surface p-4 ${DRAWER_PANEL_DARK}`}>
+          <section
+            className="rounded-[8px] border p-4"
+            style={{
+              background: 'rgba(12,17,14,0.85)',
+              backdropFilter: 'blur(20px)',
+              borderColor: 'rgba(255,255,255,0.06)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.7)'
+            }}
+          >
             <div className="grid grid-cols-2 gap-3 text-sm">
               <MetaItem label="Duration" value={mission.duration} />
               <MetaItem
@@ -272,23 +367,32 @@ const MissionDrawer = memo(function MissionDrawer({
             </div>
           </section>
 
-          <section className={`rounded-xl border border-light-border bg-light-surface p-4 ${DRAWER_PANEL_DARK}`}>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <section
+            className="rounded-[8px] border p-4"
+            style={{
+              background: 'rgba(12,17,14,0.85)',
+              backdropFilter: 'blur(20px)',
+              borderColor: 'rgba(255,255,255,0.06)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.7)'
+            }}
+          >
+            <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#2a4038]">
               Mission Flow
             </p>
             <div className="mt-3 space-y-3">
               {ACTS.map((act, index) => (
                 <div
                   key={act.title}
-                  className={`rounded-lg border border-light-border bg-light-bg p-3 ${DRAWER_INSET_DARK}`}
+                  className="rounded-[4px] border p-3"
+                  style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
                 >
-                  <p className="text-[10px] uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                  <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#2a4038]">
                     Act {index + 1} · {act.duration}
                   </p>
-                  <p className="mt-1 text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                  <p className="mt-1 text-sm font-medium text-white">
                     {act.title}
                   </p>
-                  <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+                  <p className="mt-1 text-[13px] leading-[1.75] text-[#8ab8ae]">
                     {act.description}
                   </p>
                 </div>
@@ -296,20 +400,29 @@ const MissionDrawer = memo(function MissionDrawer({
             </div>
           </section>
 
-          <section className={`rounded-xl border border-light-border bg-light-surface p-4 ${DRAWER_PANEL_DARK}`}>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <section
+            className="rounded-[8px] border p-4"
+            style={{
+              background: 'rgba(12,17,14,0.85)',
+              backdropFilter: 'blur(20px)',
+              borderColor: 'rgba(255,255,255,0.06)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.7)'
+            }}
+          >
+            <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#2a4038]">
               Team
             </p>
             <div className="mt-3 space-y-2">
               {TEAM.map((member) => (
                 <div
                   key={member.name}
-                  className={`flex items-center justify-between rounded-lg border border-light-border bg-light-bg px-3 py-2 text-sm ${DRAWER_INSET_DARK}`}
+                  className="flex items-center justify-between rounded-[4px] border px-3 py-2 text-sm"
+                  style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
                 >
-                  <span className="font-medium text-text-light-primary dark:text-text-dark-primary">
+                  <span className="font-medium text-white">
                     {member.name}
                   </span>
-                  <span className="text-text-light-tertiary dark:text-text-dark-tertiary">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a]">
                     {member.role}
                   </span>
                 </div>
@@ -317,8 +430,16 @@ const MissionDrawer = memo(function MissionDrawer({
             </div>
           </section>
 
-          <section className={`rounded-xl border border-light-border bg-light-surface p-4 ${DRAWER_PANEL_DARK}`}>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <section
+            className="rounded-[8px] border p-4"
+            style={{
+              background: 'rgba(12,17,14,0.85)',
+              backdropFilter: 'blur(20px)',
+              borderColor: 'rgba(255,255,255,0.06)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.7)'
+            }}
+          >
+            <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#2a4038]">
               Rewards
             </p>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
@@ -364,11 +485,14 @@ const MissionDrawer = memo(function MissionDrawer({
 
 const MetaItem = memo(function MetaItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className={`rounded-lg border border-light-border bg-light-bg px-3 py-2 ${DRAWER_INSET_DARK}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+    <div
+      className="rounded-[4px] border px-3 py-2"
+      style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
+    >
+      <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-[#2a4038]">
         {label}
       </p>
-      <p className="mt-1 text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+      <p className="mt-1 text-sm font-medium text-white">
         {value}
       </p>
     </div>
@@ -377,11 +501,14 @@ const MetaItem = memo(function MetaItem({ label, value }: { label: string; value
 
 const RewardCell = memo(function RewardCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className={`rounded-lg border border-light-border bg-light-bg px-2 py-2 ${DRAWER_INSET_DARK}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+    <div
+      className="rounded-[4px] border px-2 py-2"
+      style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
+    >
+      <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-[#2a4038]">
         {label}
       </p>
-      <p className="mt-1 text-xs font-medium text-text-light-primary dark:text-text-dark-primary">
+      <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-[#8ab8ae]">
         {value}
       </p>
     </div>
@@ -392,6 +519,7 @@ export default function MissionsPage() {
   const addXP = useProgressStore((state) => state.addXP);
   const [filter, setFilter] = useState<MissionFilter>('all');
   const deferredFilter = useDeferredValue(filter);
+  const [viewMode, setViewMode] = useState<ViewMode>('gallery');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [selectedMission, setSelectedMission] = useState<MissionDefinition | null>(
     null
@@ -562,73 +690,122 @@ export default function MissionsPage() {
   }, [selectedMission]);
 
   return (
-    <main className="min-h-screen bg-light-bg px-6 pb-16 pt-10 dark:bg-dark-bg">
+    <main className="min-h-screen bg-[#060809] px-6 pb-16 pt-10">
+      {/* Scanline overlay */}
+      <div
+        className="pointer-events-none fixed inset-0 opacity-[0.025]"
+        style={{
+          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)',
+          backgroundSize: '100% 3px'
+        }}
+      />
+      {/* Ambient glow */}
+      <div
+        className="pointer-events-none fixed left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 opacity-[0.04]"
+        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(34,185,154,1), transparent 70%)' }}
+      />
+
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-7">
         <header className="max-w-4xl">
-          <p className="data-mono mb-2 text-xs uppercase tracking-[0.32em] text-brand-500/80">
+          <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.35em] text-[#2a4038]">
             Mission Gallery
           </p>
-          <h1 className="text-4xl font-semibold text-text-light-primary dark:text-text-dark-primary md:text-5xl font-display">
+          <h1 className="text-[2.25rem] font-bold leading-none tracking-[-0.02em] text-white">
             Missions
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-8 text-text-light-secondary dark:text-text-dark-secondary md:text-base">
+          <p className="mt-3 max-w-3xl text-[13px] leading-[1.75] text-[#8ab8ae] md:text-[13px]">
             Real infrastructure incidents with production-style constraints. Browse
             fast, then open a full briefing only when you decide to run one.
           </p>
         </header>
 
-        <section className="rounded-2xl border border-light-border bg-light-surface p-3 dark:border-dark-border dark:bg-dark-surface">
+        <section
+          className="rounded-[10px] border p-3"
+          style={{
+            background: 'rgba(12,17,14,0.85)',
+            backdropFilter: 'blur(20px)',
+            borderColor: 'rgba(255,255,255,0.06)',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.7)'
+          }}
+        >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <button
-              type="button"
-              onClick={() => setIsFilterPanelOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-light-border bg-light-bg px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
-            >
-              <SlidersHorizontal className="h-4 w-4 text-brand-500" />
-              Filters
-              {filter !== 'all' ? (
-                <span className="rounded-full border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-500">
-                  1 active
-                </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsFilterPanelOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-[4px] border px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em] text-[#8ab8ae] transition-colors hover:border-[#22b99a]/40 hover:text-[#22b99a]"
+                style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
+              >
+                <SlidersHorizontal className="h-4 w-4 text-[#22b99a]" />
+                Filters
+                {filter !== 'all' ? (
+                  <span
+                    className="rounded-[3px] border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-[#22b99a]"
+                    style={{ borderColor: 'rgba(34,185,154,0.4)', background: 'rgba(34,185,154,0.1)' }}
+                  >
+                    1 active
+                  </span>
                 ) : null}
               </button>
-
-              <div className="flex flex-wrap items-center gap-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
-                  Showing {filteredMissions.length} of {missions.length} missions
-                </span>
-                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
-                  {stats.active} available
-                </span>
-                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
-                  {stats.locked} locked
-                </span>
-                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
-                  Filter: {FILTERS.find((option) => option.id === filter)?.label ?? 'All'}
-                </span>
-              </div>
+              <ViewToggle view={viewMode} onChange={setViewMode} />
             </div>
 
-            <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
-                {stats.completed}/{stats.total} missions completed
-              </div>
-              <div className="flex items-center gap-3">
-                <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-                  Completion
-                </p>
-                <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className="rounded-[4px] border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a]"
+                style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
+              >
+                Showing {filteredMissions.length} of {missions.length} missions
+              </span>
+              <span
+                className="rounded-[4px] border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a]"
+                style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
+              >
+                {stats.active} available
+              </span>
+              <span
+                className="rounded-[4px] border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a]"
+                style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
+              >
+                {stats.locked} locked
+              </span>
+              <span
+                className="rounded-[4px] border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a]"
+                style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}
+              >
+                Filter: {FILTERS.find((option) => option.id === filter)?.label ?? 'All'}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a]">
+              {stats.completed}/{stats.total} missions completed
+            </div>
+            <div className="flex items-center gap-3">
+              <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-[#3a5a4a]">
+                Completion
+              </p>
+              {/* Segmented completion progress bar */}
+              <div className="flex gap-[3px]">
+                {Array.from({ length: 10 }).map((_, i) => (
                   <div
-                    className="h-full rounded-full bg-brand-500 transition-all duration-500"
-                    style={{ width: `${stats.completionPct}%` }}
+                    key={i}
+                    className="h-[6px] w-4 rounded-[2px]"
+                    style={{
+                      background: i < Math.round(stats.completionPct / 10)
+                        ? '#22b99a'
+                        : 'rgba(255,255,255,0.06)'
+                    }}
                   />
-                </div>
-                <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-                  {stats.completionPct}%
-                </p>
+                ))}
               </div>
+              <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8ab8ae]">
+                {stats.completionPct}%
+              </p>
             </div>
-          </section>
+          </div>
+        </section>
 
         {isFilterPanelOpen ? (
           <button
@@ -640,34 +817,47 @@ export default function MissionsPage() {
         ) : null}
 
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-[380px] max-w-[94vw] border-r border-light-border bg-light-bg/95 p-4 shadow-2xl backdrop-blur-md transition-transform duration-300 ease-in-out dark:border-dark-border dark:bg-[#02060f]/95 ${
+          className={`fixed inset-y-0 left-0 z-50 w-[380px] max-w-[94vw] border-r p-4 shadow-2xl backdrop-blur-md transition-transform duration-300 ease-in-out ${
             isFilterPanelOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
           }`}
+          style={{
+            background: 'rgba(8,12,10,0.98)',
+            backdropFilter: 'blur(20px)',
+            borderColor: 'rgba(255,255,255,0.06)'
+          }}
         >
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
+            <h2 className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#2a4038]">
               Filters
             </h2>
             <button
               type="button"
               onClick={() => setIsFilterPanelOpen(false)}
-              className="rounded-md p-1.5 text-text-light-secondary transition-colors hover:bg-light-surface hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-surface dark:hover:text-text-dark-primary"
+              className="rounded-[4px] p-1.5 text-[#3a5a4a] transition-colors hover:text-[#8ab8ae]"
               aria-label="Close filter panel"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          <section className="flex h-[calc(100%-2.2rem)] flex-col rounded-2xl border border-light-border bg-light-surface/95 p-4 dark:border-dark-border dark:bg-dark-surface/95">
+          <section
+            className="flex h-[calc(100%-2.2rem)] flex-col rounded-[10px] border p-4"
+            style={{
+              background: 'rgba(12,17,14,0.85)',
+              backdropFilter: 'blur(20px)',
+              borderColor: 'rgba(255,255,255,0.06)'
+            }}
+          >
             <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">
+              <div className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.3em] text-[#22b99a]">
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Filter Panel
               </div>
               <button
                 type="button"
                 onClick={() => { setFilter('all'); setIsFilterPanelOpen(false); }}
-                className="inline-flex items-center gap-1 rounded-md border border-light-border px-2.5 py-1.5 text-xs font-medium text-text-light-secondary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-400 dark:hover:text-brand-300"
+                className="inline-flex items-center gap-1 rounded-[4px] border px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a] transition-colors hover:border-[#22b99a]/40 hover:text-[#22b99a]"
+                style={{ borderColor: 'rgba(255,255,255,0.06)' }}
               >
                 <X className="h-3.5 w-3.5" />
                 Reset
@@ -675,8 +865,11 @@ export default function MissionsPage() {
             </div>
 
             <div className="space-y-3 overflow-y-auto pr-1">
-              <section className="rounded-xl border border-light-border p-3 dark:border-dark-border">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
+              <section
+                className="rounded-[8px] border p-3"
+                style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+              >
+                <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#2a4038]">
                   Status
                 </p>
                 <div className="mt-2 space-y-2">
@@ -693,27 +886,28 @@ export default function MissionsPage() {
                         type="button"
                         onClick={() => setFilter(option.id)}
                         aria-pressed={selected}
-                        className={`w-full rounded-lg border p-2.5 text-left transition ${
-                          selected
-                            ? 'border-brand-500/40 bg-brand-500/10'
-                            : 'border-light-border hover:border-brand-500/40 dark:border-dark-border'
-                        }`}
+                        className="w-full rounded-[4px] border p-2.5 text-left transition"
+                        style={{
+                          borderColor: selected ? 'rgba(34,185,154,0.3)' : 'rgba(255,255,255,0.06)',
+                          background: selected ? 'rgba(34,185,154,0.06)' : 'transparent'
+                        }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                            <p className="text-sm font-medium text-white">
                               {option.label}
                             </p>
-                            <p className="mt-0.5 text-[11px] text-text-light-secondary dark:text-text-dark-secondary">
+                            <p className="mt-0.5 text-[11px] text-[#8ab8ae]">
                               {descriptions[option.id]}
                             </p>
                           </div>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                              selected
-                                ? 'border border-brand-500/40 bg-brand-500/10 text-brand-500'
-                                : 'border border-light-border text-text-light-secondary dark:border-dark-border dark:text-text-dark-secondary'
-                            }`}
+                            className="rounded-[3px] border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em]"
+                            style={{
+                              borderColor: selected ? 'rgba(34,185,154,0.4)' : 'rgba(255,255,255,0.06)',
+                              background: selected ? 'rgba(34,185,154,0.1)' : 'rgba(255,255,255,0.02)',
+                              color: selected ? '#22b99a' : '#3a5a4a'
+                            }}
                           >
                             {selected ? 'Applied' : 'Use'}
                           </span>
@@ -728,22 +922,96 @@ export default function MissionsPage() {
         </aside>
 
         {filteredMissions.length > 0 ? (
-          <section className="grid grid-cols-1 gap-6">
-            {filteredMissions.map((mission, index) => (
-              <MissionCard
-                key={mission.slug}
-                mission={mission}
-                index={index}
-                onOpen={handleSelectMission}
-              />
-            ))}
-          </section>
+          viewMode === 'gallery' ? (
+            <section className="grid grid-cols-1 gap-6">
+              {filteredMissions.map((mission, index) => (
+                <MissionCard
+                  key={mission.slug}
+                  mission={mission}
+                  index={index}
+                  onOpen={handleSelectMission}
+                />
+              ))}
+            </section>
+          ) : (
+            <section
+              className="overflow-hidden rounded-[10px] border"
+              style={{
+                background: 'rgba(12,17,14,0.85)',
+                backdropFilter: 'blur(20px)',
+                borderColor: 'rgba(255,255,255,0.06)',
+                boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.7)'
+              }}
+            >
+              {/* Header row */}
+              <div
+                className="grid grid-cols-[2rem_2rem_1fr_auto_auto_auto] items-center gap-4 border-b px-4 py-2.5"
+                style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+              >
+                {['Status', '#', 'Title', 'Difficulty', 'Duration', 'Reward'].map((col) => (
+                  <span key={col} className="font-mono text-[9px] uppercase tracking-[0.25em] text-[#2a4038] first:col-span-1">
+                    {col}
+                  </span>
+                ))}
+              </div>
+              {filteredMissions.map((mission, index) => {
+                const locked = mission.status === 'locked';
+                const difficultyColor =
+                  mission.difficulty === 'Medium' ? '#e6a028' :
+                  mission.difficulty === 'Hard' ? '#dc3c3c' :
+                  '#b450dc';
+                return (
+                  <button
+                    key={mission.slug}
+                    type="button"
+                    onClick={() => { if (!locked) handleSelectMission(mission); }}
+                    disabled={locked}
+                    className="grid w-full grid-cols-[2rem_2rem_1fr_auto_auto_auto] items-center gap-4 border-b px-4 py-3 text-left transition last:border-0 hover:bg-white/[0.02] disabled:cursor-not-allowed"
+                    style={{ borderColor: 'rgba(255,255,255,0.04)' }}
+                  >
+                    <span className="flex items-center">
+                      {mission.completed ? (
+                        <CheckCircle2 className="h-4 w-4 text-[#22b99a]" />
+                      ) : locked ? (
+                        <Lock className="h-4 w-4 text-[#2a4038]" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-[#2a4038]" />
+                      )}
+                    </span>
+                    <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a] tabular-nums">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="truncate text-sm font-medium text-white">
+                      {mission.icon} {mission.codename}
+                    </span>
+                    <span className="font-mono text-[9px] uppercase tracking-[0.2em]" style={{ color: difficultyColor }}>
+                      {mission.difficulty}
+                    </span>
+                    <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a]">
+                      {mission.duration}
+                    </span>
+                    <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#3a5a4a]">
+                      {formatKwh(getMissionRewardKwh(mission.difficulty), 1)}
+                    </span>
+                  </button>
+                );
+              })}
+            </section>
+          )
         ) : (
-          <section className="rounded-[28px] border border-light-border bg-light-surface p-10 text-center dark:border-dark-border dark:bg-dark-surface">
-            <p className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
+          <section
+            className="rounded-[10px] border p-10 text-center"
+            style={{
+              background: 'rgba(12,17,14,0.85)',
+              backdropFilter: 'blur(20px)',
+              borderColor: 'rgba(255,255,255,0.06)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.7)'
+            }}
+          >
+            <p className="text-base font-bold text-white">
               No missions match this filter
             </p>
-            <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="mt-1 text-[13px] leading-[1.75] text-[#8ab8ae]">
               Adjust the status filter to widen the gallery.
             </p>
           </section>

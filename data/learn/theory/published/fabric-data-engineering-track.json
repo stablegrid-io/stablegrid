@@ -1,7 +1,8 @@
 {
-  "topic": "fabric-data-engineering-track",
+  "topic": "fabric",
   "title": "Microsoft Fabric: Data Engineering Track",
   "description": "A comprehensive data engineering learning path covering Microsoft Fabric platform foundations, OneLake storage, lakehouse architecture, data warehousing, T-SQL analytics, and ETL pipelines.",
+  "version": "DOCX import 2026-03-19",
   "chapters": [
     {
       "id": "module-F1",

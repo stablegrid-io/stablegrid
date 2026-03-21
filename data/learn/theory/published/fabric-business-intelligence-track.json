@@ -2,6 +2,7 @@
   "topic": "fabric",
   "title": "Microsoft Fabric: Business Intelligence Track",
   "description": "A comprehensive 7-module track on Business Intelligence with Microsoft Fabric, covering data layers, semantic models, DAX, reporting, distribution, governance, and a capstone project.",
+  "version": "DOCX import 2026-03-19",
   "chapters": [
     {
       "id": "module-BI1",

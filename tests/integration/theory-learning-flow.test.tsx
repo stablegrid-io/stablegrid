@@ -77,6 +77,10 @@ const categories: TheoryCategorySummary[] = [
   }
 ];
 
+const createScrollContainerRef = () => ({
+  current: document.createElement('div') as HTMLDivElement
+});
+
 const buildTheoryContentProps = (
   overrides: Partial<Parameters<typeof TheoryContent>[0]> = {}
 ) => ({
@@ -94,6 +98,7 @@ const buildTheoryContentProps = (
   completedLessonCount: 0,
   onCompleteModule: vi.fn().mockResolvedValue(true),
   completionActionPending: false,
+  scrollContainerRef: createScrollContainerRef(),
   ...overrides
 });
 
@@ -195,6 +200,60 @@ describe('Theory learning flow', () => {
     expect(onSelectLesson).not.toHaveBeenCalled();
   });
 
+  it('renders a single lesson heading with a scan-friendly intro and lesson progress', () => {
+    const readingChapter: TheoryChapter = {
+      ...chapterOne,
+      sections: [
+        {
+          ...chapterOne.sections[0],
+          blocks: [
+            {
+              type: 'paragraph',
+              content:
+                'Spark started as a cluster engine for fast analytics. This lesson explains why it matters for data teams.'
+            },
+            {
+              type: 'heading',
+              content: 'Core idea'
+            },
+            {
+              type: 'paragraph',
+              content:
+                'The driver plans work, the executors run work, and Spark keeps the logic distributed for you.'
+            },
+            {
+              type: 'callout',
+              variant: 'info',
+              title: 'Why it matters',
+              content: 'You can reason about jobs without manually wiring every machine.'
+            }
+          ]
+        },
+        ...chapterOne.sections.slice(1)
+      ]
+    };
+
+    render(
+      <TheoryContent
+        {...buildTheoryContentProps({
+          chapter: readingChapter,
+          allChapters: [readingChapter, chapterTwo]
+        })}
+      />
+    );
+
+    expect(screen.getAllByRole('heading', { name: 'Intro to Spark' })).toHaveLength(1);
+    expect(screen.getByText('Module 1')).toBeInTheDocument();
+    expect(screen.getByText('Lesson 1 of 3')).toBeInTheDocument();
+    expect(screen.getByText('20 min')).toBeInTheDocument();
+    expect(screen.getAllByText('Core idea').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Why it matters').length).toBeGreaterThan(0);
+    expect(screen.getByText('Progress')).toBeInTheDocument();
+    expect(screen.getAllByText('1 / 3').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Reading mode')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lesson at a glance')).not.toBeInTheDocument();
+  });
+
   it('renders neutral lesson navigation and only shows lessons for the active module', async () => {
     const user = userEvent.setup();
     const onSelectLesson = vi.fn();
@@ -231,6 +290,8 @@ describe('Theory learning flow', () => {
     expect(within(lessonThreeButton).getByText('3')).toHaveClass(
       'text-text-light-tertiary'
     );
+    expect(screen.getByText('Module progress')).toBeInTheDocument();
+    expect(screen.getByText('2/3 lessons completed')).toBeInTheDocument();
     expect(screen.getAllByText('20 min')).toHaveLength(3);
 
     await user.click(screen.getByRole('button', { name: /lesson 3: lazy evaluation/i }));

@@ -18,8 +18,6 @@ interface QuestionSearchPayload {
   questions?: QuestionSearchRow[];
 }
 
-const LEARN_TOPICS: Topic[] = ['pyspark', 'fabric'];
-
 const QUESTION_BANKS: Array<{ topic: Topic; payload: QuestionSearchPayload }> = [
   {
     topic: 'pyspark',
@@ -31,13 +29,15 @@ const QUESTION_BANKS: Array<{ topic: Topic; payload: QuestionSearchPayload }> = 
   }
 ];
 
+const LEARN_TOPICS: Topic[] = ['pyspark', 'fabric', 'airflow'];
+
 const getTopicLabel = (topic: Topic) => {
   const sheet = cheatSheets[topic];
   if (sheet) {
     return sheet.title.replace(' Reference', '');
   }
 
-  return topic.charAt(0).toUpperCase() + topic.slice(1);
+  return theoryDocs[topic]?.title ?? `${topic.charAt(0).toUpperCase()}${topic.slice(1)}`;
 };
 
 const buildLearnSearchItems = (): HomeSearchItem[] => {
@@ -108,4 +108,3 @@ const buildLearnSearchItems = (): HomeSearchItem[] => {
 };
 
 export const learnSearchItems = buildLearnSearchItems();
-

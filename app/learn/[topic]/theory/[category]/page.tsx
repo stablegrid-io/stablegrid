@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { TheoryLayout } from '@/components/learn/theory/TheoryLayout';
 import { TheoryTrackPath } from '@/components/learn/theory/TheoryTrackPath';
@@ -6,6 +6,7 @@ import { learnTopics } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
 import {
   filterTheoryDocByCategory,
+  getChapterCategorySlug,
   getTheoryCategories,
   getTheoryCategoryMeta,
   type TheoryCategorySlug
@@ -73,6 +74,11 @@ export default async function LearnTopicTheoryCategoryPage({
   const isAllCategory = categoryParam === ALL_CATEGORY;
 
   if (!isAllCategory && !validSlugs.includes(categoryParam as TheoryCategorySlug)) {
+    // Maybe the param is a chapter ID (e.g. /theory/module-09) — redirect to the right category
+    const chapterCategory = getChapterCategorySlug(doc, categoryParam);
+    if (chapterCategory) {
+      redirect(`/learn/${params.topic}/theory/${chapterCategory}?chapter=${categoryParam}`);
+    }
     notFound();
   }
 

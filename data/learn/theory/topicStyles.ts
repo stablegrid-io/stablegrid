@@ -41,6 +41,22 @@ export const THEORY_TOPIC_STYLE_MAP: Record<string, TheoryTopicStyle> = {
     badgeClass:
       'border-brand-200/80 bg-brand-50/90 text-brand-700 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300',
     progressClass: 'bg-brand-500'
+  },
+  airflow: {
+    accentRgb: '226,77,66',
+    eyebrow: 'Beginner Track',
+    highlights: [
+      'DAGs, tasks, and operator mental models',
+      'Scheduling, sensors, and dependency control',
+      'Testing, monitoring, and orchestration capstone'
+    ],
+    accentTextClass: 'text-rose-600 dark:text-rose-300',
+    iconClass: 'text-rose-600 dark:text-rose-400',
+    iconWrapClass:
+      'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300',
+    badgeClass:
+      'border-rose-200/80 bg-rose-50/90 text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300',
+    progressClass: 'bg-rose-500'
   }
 };
 

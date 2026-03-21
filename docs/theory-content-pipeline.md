@@ -6,6 +6,10 @@ This pipeline standardizes theory ingestion:
 2. Normalized JSON -> preview markdown
 3. Validated JSON -> published artifact
 
+For the target JSON structure and the reader-UX authoring rules, see:
+
+- `docs/theory-json-authoring-guide.md`
+
 ## CLI
 
 Use:

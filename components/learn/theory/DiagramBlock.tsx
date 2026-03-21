@@ -14,7 +14,7 @@ export const DiagramBlock = ({ title, content, caption }: DiagramBlockProps) => 
           {title}
         </div>
       ) : null}
-      <pre className="overflow-x-auto bg-light-muted p-4 text-xs leading-relaxed text-text-light-primary dark:bg-dark-muted dark:text-text-dark-primary">
+      <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] bg-light-muted p-4 text-xs leading-relaxed text-text-light-primary dark:bg-dark-muted dark:text-text-dark-primary">
         {content}
       </pre>
       {caption ? (

@@ -148,7 +148,7 @@ export const HeroSection = () => {
               </span>
             </div>
 
-            <pre className="overflow-x-auto p-5 font-mono text-xs leading-relaxed text-[#d5ecdf]">
+            <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] p-5 font-mono text-xs leading-relaxed text-[#d5ecdf]">
               <code>{HERO_SNIPPET}</code>
             </pre>
 

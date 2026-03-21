@@ -193,7 +193,7 @@ interface ActivationTaskAuditRow {
   }>;
 }
 
-const TRACK_SLUGS = new Set(['pyspark', 'fabric']);
+const TRACK_SLUGS = new Set(['pyspark', 'fabric', 'airflow']);
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing']);
 const PRO_MONTHLY_PRICE_EUR = 12;
 const FINANCIALS_WINDOW_DAYS = 30;
@@ -366,7 +366,10 @@ const escapeLikeQuery = (value: string) => value.replace(/[%_,]/g, '').trim();
 const TOPIC_LABELS: Record<string, string> = {
   pyspark: 'PySpark: The Full Stack',
   'pyspark-data-engineering-track': 'PySpark: Data Engineering Track',
-  fabric: 'Fabric: End-to-End Platform'
+  fabric: 'Fabric: End-to-End Platform',
+  'fabric-data-engineering-track': 'Fabric: Data Engineering Track',
+  'fabric-business-intelligence-track': 'Fabric: Business Intelligence Track',
+  airflow: 'Apache Airflow: Beginner Track'
 };
 
 const formatWeekLabel = (value: Date) =>
@@ -549,7 +552,7 @@ const inferBugModuleFromPageUrl = (pageUrl: string | null) => {
 
   const normalized = pageUrl.toLowerCase();
   if (normalized.includes('/learn/')) return 'Theory';
-  if (normalized.includes('/tasks') || normalized.includes('/practice')) return 'Tasks';
+  if (normalized.includes('/assignments') || normalized.includes('/practice')) return 'Tasks';
   if (normalized.includes('/missions')) return 'Missions';
   if (normalized.includes('/energy') || normalized.includes('grid')) return 'Grid';
   if (normalized.includes('/settings')) return 'Settings';
@@ -754,7 +757,7 @@ const normalizeFeedbackModuleFromPath = (path: string | null) => {
     return 'Notebooks';
   }
 
-  if (normalized.includes('/practice') || normalized.includes('/tasks')) {
+  if (normalized.includes('/practice') || normalized.includes('/assignments')) {
     return 'Task Pages';
   }
 

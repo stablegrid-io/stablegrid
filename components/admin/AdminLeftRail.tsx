@@ -8,6 +8,7 @@ import {
   ClipboardList,
   FileText,
   MessageSquare,
+  Receipt,
   Shield,
   ShoppingCart,
   Users,
@@ -26,7 +27,8 @@ export type AdminNavSectionId =
   | 'orders'
   | 'audit'
   | 'customers'
-  | 'financials';
+  | 'financials'
+  | 'spending';
 
 export const ADMIN_SECTIONS: Array<{
   id: AdminNavSectionId;
@@ -48,11 +50,12 @@ export const ADMIN_SECTIONS: Array<{
     href: '/admin/assignments',
     icon: ClipboardList
   },
-  { id: 'bugs', label: 'Bugs', href: '/admin/bugs', icon: Bug }
+  { id: 'bugs', label: 'Bugs', href: '/admin/bugs', icon: Bug },
+  { id: 'spending', label: 'Spending', href: '/admin/spending', icon: Receipt }
 ];
 
 export const ADMIN_SECTION_GROUPS: Array<{
-  id: 'monitor' | 'content' | 'commerce' | 'workflow';
+  id: 'monitor' | 'content' | 'commerce' | 'workflow' | 'devtools';
   label: string;
   sections: AdminNavSectionId[];
 }> = [
@@ -75,6 +78,11 @@ export const ADMIN_SECTION_GROUPS: Array<{
     id: 'workflow',
     label: 'Workflow',
     sections: ['assignments', 'bugs']
+  },
+  {
+    id: 'devtools',
+    label: 'Dev Tools',
+    sections: ['spending']
   }
 ];
 

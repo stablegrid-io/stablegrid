@@ -1378,7 +1378,7 @@ function MissionBriefingCard({ isLightMode }: { isLightMode: boolean }) {
       description: 'Audit production notebooks and resolve line-level reliability issues.',
       progress: '0/3 reviewed',
       cta: 'Open notebooks',
-      href: '/tasks',
+      href: '/assignments',
       icon: NotebookPen,
       tone: 'mint'
     },
@@ -1398,7 +1398,7 @@ function MissionBriefingCard({ isLightMode }: { isLightMode: boolean }) {
       description: 'Train high-speed recall and keep your latest theory track fresh.',
       progress: '4 attempted',
       cta: 'Resume flashcards',
-      href: '/tasks',
+      href: '/assignments',
       icon: Layers3,
       tone: 'gold'
     }

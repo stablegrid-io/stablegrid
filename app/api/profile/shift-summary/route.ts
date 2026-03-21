@@ -42,7 +42,7 @@ interface UserProgressRow {
   topic_progress: Record<string, unknown> | null;
 }
 
-const LEARN_TOPICS: Topic[] = ['pyspark', 'fabric'];
+const LEARN_TOPICS: Topic[] = ['pyspark', 'fabric', 'airflow'];
 
 const TOPIC_DEFAULTS: Record<Topic, { practiceTotal: number; functionsTotal: number }> = {
   pyspark: {
@@ -52,6 +52,10 @@ const TOPIC_DEFAULTS: Record<Topic, { practiceTotal: number; functionsTotal: num
   fabric: {
     practiceTotal: 40,
     functionsTotal: 40
+  },
+  airflow: {
+    practiceTotal: 0,
+    functionsTotal: 0
   }
 };
 

@@ -7,6 +7,7 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
+  Circle,
   Clock3,
   Flag,
   Lightbulb,
@@ -15,6 +16,7 @@ import {
   SlidersHorizontal,
   X
 } from 'lucide-react';
+import { ViewToggle, type ViewMode } from '@/components/ui/ViewToggle';
 import { NOTEBOOKS, type NotebookDefinition, type NotebookIssue } from '@/data/notebooks';
 import { createNotebookProgressRequestKey } from '@/lib/api/requestKeys';
 import { LightbulbPulseFeedback } from '@/components/feedback/LightbulbPulseFeedback';
@@ -34,22 +36,40 @@ const DIFFICULTY_STYLES: Record<
   { badge: string; accentRgb: string; eyebrow: string }
 > = {
   Beginner: {
-    badge:
-      'border-success-300/70 bg-success-500/10 text-success-600 dark:border-success-500/30 dark:bg-success-500/15 dark:text-success-300',
+    badge: '',
     accentRgb: '16,185,129',
     eyebrow: 'Starter review'
   },
   Intermediate: {
-    badge:
-      'border-warning-300/70 bg-warning-500/10 text-warning-600 dark:border-warning-500/30 dark:bg-warning-500/15 dark:text-warning-300',
+    badge: '',
     accentRgb: '245,158,11',
     eyebrow: 'Operations review'
   },
   Advanced: {
-    badge:
-      'border-error-300/70 bg-error-500/10 text-error-600 dark:border-error-500/30 dark:bg-error-500/15 dark:text-error-300',
+    badge: '',
     accentRgb: '239,68,68',
     eyebrow: 'Critical review'
+  }
+};
+
+const DIFFICULTY_BADGE_STYLES: Record<
+  NotebookDefinition['difficulty'],
+  { border: string; background: string; color: string }
+> = {
+  Beginner: {
+    border: 'rgba(16,185,129,0.3)',
+    background: 'rgba(16,185,129,0.08)',
+    color: '#10b981'
+  },
+  Intermediate: {
+    border: 'rgba(245,158,11,0.3)',
+    background: 'rgba(245,158,11,0.08)',
+    color: '#f59e0b'
+  },
+  Advanced: {
+    border: 'rgba(239,68,68,0.3)',
+    background: 'rgba(239,68,68,0.08)',
+    color: '#ef4444'
   }
 };
 
@@ -60,20 +80,38 @@ const SEVERITY_STYLES: Record<
   performance: {
     label: 'Performance',
     icon: '⚡',
-    badge:
-      'border-error-200 bg-error-50 text-error-700 dark:border-error-700/60 dark:bg-error-900/30 dark:text-error-300'
+    badge: ''
   },
   practice: {
     label: 'Best Practice',
     icon: '🧩',
-    badge:
-      'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-700/60 dark:bg-warning-900/30 dark:text-warning-300'
+    badge: ''
   },
   redundant: {
     label: 'Redundant',
     icon: '♻',
-    badge:
-      'border-light-border bg-light-bg text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary'
+    badge: ''
+  }
+};
+
+const SEVERITY_BADGE_STYLES: Record<
+  NotebookIssue['severity'],
+  { border: string; background: string; color: string }
+> = {
+  performance: {
+    border: 'rgba(239,68,68,0.3)',
+    background: 'rgba(239,68,68,0.08)',
+    color: '#ef4444'
+  },
+  practice: {
+    border: 'rgba(245,158,11,0.3)',
+    background: 'rgba(245,158,11,0.08)',
+    color: '#f59e0b'
+  },
+  redundant: {
+    border: 'rgba(255,255,255,0.08)',
+    background: 'rgba(255,255,255,0.04)',
+    color: '#5a8878'
   }
 };
 
@@ -263,6 +301,7 @@ const sanitizeCompletedNotebookIds = (value: unknown) => {
 
 export function NotebooksPracticePage() {
   const [view, setView] = useState<NotebookView>('catalog');
+  const [viewMode, setViewMode] = useState<ViewMode>('gallery');
   const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null);
   const [flaggedLineIds, setFlaggedLineIds] = useState<Set<string>>(new Set());
   const [showHint, setShowHint] = useState(false);
@@ -471,71 +510,161 @@ export function NotebooksPracticePage() {
 
   if (view === 'catalog') {
     return (
-      <main className="min-h-screen bg-light-bg px-6 pb-16 pt-10 dark:bg-dark-bg">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-7">
+      <main className="min-h-screen bg-[#060809] px-6 pb-16 pt-10">
+        {/* Scanline overlay */}
+        <div
+          className="pointer-events-none fixed inset-0 opacity-[0.025]"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)',
+            backgroundSize: '100% 3px'
+          }}
+        />
+        {/* Ambient glow */}
+        <div
+          className="pointer-events-none fixed left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 opacity-[0.04]"
+          style={{
+            background:
+              'radial-gradient(ellipse at 50% 0%, rgba(34,185,154,1), transparent 70%)'
+          }}
+        />
+
+        <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-7">
           <header className="max-w-4xl">
-            <p className="data-mono mb-2 text-xs uppercase tracking-[0.32em] text-brand-500/80">
+            <p className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#2a4038] mb-2">
               Notebook Gallery
             </p>
-            <h1 className="text-4xl font-semibold text-text-light-primary dark:text-text-dark-primary md:text-5xl font-display">
+            <h1 className="text-4xl font-semibold text-white md:text-5xl">
               Notebooks
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-8 text-text-light-secondary dark:text-text-dark-secondary md:text-base">
+            <p className="mt-3 max-w-3xl text-[13px] leading-8 text-[#8ab8ae] md:text-base">
               Review production-style notebooks before they hit operations. Each
               notebook opens into the same line-by-line audit flow, with progress
               tracked separately once you submit it.
             </p>
           </header>
 
-          <section className="rounded-2xl border border-light-border bg-light-surface p-3 dark:border-dark-border dark:bg-dark-surface">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={() => setIsFilterPanelOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-light-border bg-light-bg px-3 py-2 text-sm font-medium text-text-light-primary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300"
-              >
-                <SlidersHorizontal className="h-4 w-4 text-brand-500" />
-                Filters
-                {filter !== 'all' ? (
-                  <span className="rounded-full border border-brand-500/40 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-500">
-                    1 active
-                  </span>
-                ) : null}
-              </button>
+          {/* Stats/filter bar */}
+          <section
+            className="relative overflow-hidden rounded-[10px] border p-3"
+            style={{
+              background: 'rgba(12,17,14,0.85)',
+              backdropFilter: 'blur(20px)',
+              borderColor: 'rgba(255,255,255,0.06)'
+            }}
+          >
+            {/* Corner brackets */}
+            <span className="pointer-events-none absolute left-0 top-0 h-3 w-3 border-l border-t" style={{ borderColor: 'rgba(34,185,154,0.3)' }} />
+            <span className="pointer-events-none absolute right-0 top-0 h-3 w-3 border-r border-t" style={{ borderColor: 'rgba(34,185,154,0.3)' }} />
+            <span className="pointer-events-none absolute bottom-0 left-0 h-3 w-3 border-b border-l" style={{ borderColor: 'rgba(34,185,154,0.3)' }} />
+            <span className="pointer-events-none absolute bottom-0 right-0 h-3 w-3 border-b border-r" style={{ borderColor: 'rgba(34,185,154,0.3)' }} />
 
-              <div className="flex flex-wrap items-center gap-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFilterPanelOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-[6px] border px-3 py-2 text-sm font-medium text-white transition-colors"
+                  style={{
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    background: 'rgba(8,12,10,0.9)'
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(34,185,154,0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.06)';
+                  }}
+                >
+                  <SlidersHorizontal className="h-4 w-4" style={{ color: '#22b99a' }} />
+                  Filters
+                  {filter !== 'all' ? (
+                    <span
+                      className="rounded-[4px] border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em]"
+                      style={{
+                        borderColor: 'rgba(34,185,154,0.3)',
+                        background: 'rgba(34,185,154,0.08)',
+                        color: '#22b99a'
+                      }}
+                    >
+                      1 active
+                    </span>
+                  ) : null}
+                </button>
+                <ViewToggle view={viewMode} onChange={setViewMode} />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-[#3a5a4a]">
+                <span
+                  className="rounded-[4px] border px-2.5 py-1"
+                  style={{
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    background: 'rgba(8,12,10,0.9)'
+                  }}
+                >
                   Showing {filteredNotebooks.length} of {NOTEBOOKS.length} notebooks
                 </span>
-                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                <span
+                  className="rounded-[4px] border px-2.5 py-1"
+                  style={{
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    background: 'rgba(8,12,10,0.9)'
+                  }}
+                >
                   {completionStats.completed} completed
                 </span>
-                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                <span
+                  className="rounded-[4px] border px-2.5 py-1"
+                  style={{
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    background: 'rgba(8,12,10,0.9)'
+                  }}
+                >
                   {completionStats.total - completionStats.completed} pending
                 </span>
-                <span className="rounded-full border border-light-border bg-light-bg px-2.5 py-1 dark:border-dark-border dark:bg-dark-bg">
+                <span
+                  className="rounded-[4px] border px-2.5 py-1"
+                  style={{
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    background: 'rgba(8,12,10,0.9)'
+                  }}
+                >
                   Filter: {FILTERS.find((option) => option.id === filter)?.label ?? 'All'}
                 </span>
               </div>
             </div>
 
             <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              <div className="text-[13px] text-[#8ab8ae]">
                 {isLoadingCompletion
                   ? 'Loading notebook review history...'
                   : `${completionStats.completed}/${completionStats.total} notebook reviews submitted`}
               </div>
               <div className="flex items-center gap-3">
-                <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                <p className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#3a5a4a]">
                   Completion
                 </p>
-                <div className="h-1.5 w-40 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                  <div
-                    className="h-full rounded-full bg-brand-500 transition-all duration-500"
-                    style={{ width: `${completionStats.completionPct}%` }}
-                  />
+                {/* Segmented progress bar — 10 blocks */}
+                <div className="flex items-center gap-[3px]">
+                  {Array.from({ length: 10 }).map((_, i) => {
+                    const filled = i < Math.round(completionStats.completionPct / 10);
+                    return (
+                      <div
+                        key={i}
+                        className="h-[10px] w-3 rounded-[2px] transition-all duration-500"
+                        style={{
+                          background: filled
+                            ? 'rgba(34,185,154,0.85)'
+                            : 'rgba(255,255,255,0.05)',
+                          border: filled
+                            ? '1px solid rgba(34,185,154,0.4)'
+                            : '1px solid rgba(255,255,255,0.05)'
+                        }}
+                      />
+                    );
+                  })}
                 </div>
-                <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                <p className="font-mono text-sm font-medium text-white">
                   {completionStats.completionPct}%
                 </p>
               </div>
@@ -545,41 +674,57 @@ export function NotebooksPracticePage() {
           {isFilterPanelOpen ? (
             <button
               type="button"
-              className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[1px]"
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]"
               aria-label="Close filter panel backdrop"
               onClick={() => setIsFilterPanelOpen(false)}
             />
           ) : null}
 
           <aside
-            className={`fixed inset-y-0 left-0 z-50 w-[380px] max-w-[94vw] border-r border-light-border bg-light-bg/95 p-4 shadow-2xl backdrop-blur-md transition-transform duration-300 ease-in-out dark:border-dark-border dark:bg-[#02060f]/95 ${
+            className={`fixed inset-y-0 left-0 z-50 w-[380px] max-w-[94vw] border-r p-4 shadow-2xl transition-transform duration-300 ease-in-out ${
               isFilterPanelOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
             }`}
+            style={{
+              background: 'rgba(8,12,10,0.98)',
+              backdropFilter: 'blur(20px)',
+              borderColor: 'rgba(255,255,255,0.06)'
+            }}
           >
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
+              <h2 className="text-base font-semibold text-white">
                 Filters
               </h2>
               <button
                 type="button"
                 onClick={() => setIsFilterPanelOpen(false)}
-                className="rounded-md p-1.5 text-text-light-secondary transition-colors hover:bg-light-surface hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-surface dark:hover:text-text-dark-primary"
+                className="rounded-[4px] p-1.5 text-[#8ab8ae] transition-colors hover:text-white"
+                style={{ background: 'rgba(255,255,255,0.04)' }}
                 aria-label="Close filter panel"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <section className="flex h-[calc(100%-2.2rem)] flex-col rounded-2xl border border-light-border bg-light-surface/95 p-4 dark:border-dark-border dark:bg-dark-surface/95">
+            <section
+              className="flex h-[calc(100%-2.2rem)] flex-col rounded-[10px] border p-4"
+              style={{
+                background: 'rgba(12,17,14,0.85)',
+                borderColor: 'rgba(255,255,255,0.06)'
+              }}
+            >
               <div className="mb-3 flex items-center justify-between gap-2">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">
+                <div className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.35em]" style={{ color: '#22b99a' }}>
                   <SlidersHorizontal className="h-3.5 w-3.5" />
                   Filter Panel
                 </div>
                 <button
                   type="button"
                   onClick={() => { setFilter('all'); setIsFilterPanelOpen(false); }}
-                  className="inline-flex items-center gap-1 rounded-md border border-light-border px-2.5 py-1.5 text-xs font-medium text-text-light-secondary transition-colors hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-400 dark:hover:text-brand-300"
+                  className="inline-flex items-center gap-1 rounded-[4px] border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[#8ab8ae] transition-colors hover:text-white"
+                  style={{
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    background: 'rgba(8,12,10,0.9)'
+                  }}
                 >
                   <X className="h-3.5 w-3.5" />
                   Reset
@@ -587,8 +732,11 @@ export function NotebooksPracticePage() {
               </div>
 
               <div className="space-y-3 overflow-y-auto pr-1">
-                <section className="rounded-xl border border-light-border p-3 dark:border-dark-border">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                <section
+                  className="rounded-[8px] border p-3"
+                  style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+                >
+                  <p className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#3a5a4a]">
                     Status
                   </p>
                   <div className="mt-2 space-y-2">
@@ -605,27 +753,40 @@ export function NotebooksPracticePage() {
                           type="button"
                           onClick={() => setFilter(option.id)}
                           aria-pressed={selected}
-                          className={`w-full rounded-lg border p-2.5 text-left transition ${
-                            selected
-                              ? 'border-brand-500/40 bg-brand-500/10'
-                              : 'border-light-border hover:border-brand-500/40 dark:border-dark-border'
-                          }`}
+                          className="w-full rounded-[6px] border p-2.5 text-left transition"
+                          style={{
+                            borderColor: selected
+                              ? 'rgba(34,185,154,0.3)'
+                              : 'rgba(255,255,255,0.06)',
+                            background: selected
+                              ? 'rgba(34,185,154,0.06)'
+                              : 'transparent'
+                          }}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                              <p className="text-sm font-medium text-white">
                                 {option.label}
                               </p>
-                              <p className="mt-0.5 text-[11px] text-text-light-secondary dark:text-text-dark-secondary">
+                              <p className="mt-0.5 text-[11px] text-[#8ab8ae]">
                                 {descriptions[option.id]}
                               </p>
                             </div>
                             <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              className="rounded-[4px] border px-2 py-0.5 font-mono text-[10px] font-medium"
+                              style={
                                 selected
-                                  ? 'border border-brand-500/40 bg-brand-500/10 text-brand-500'
-                                  : 'border border-light-border text-text-light-secondary dark:border-dark-border dark:text-text-dark-secondary'
-                              }`}
+                                  ? {
+                                      borderColor: 'rgba(34,185,154,0.3)',
+                                      background: 'rgba(34,185,154,0.08)',
+                                      color: '#22b99a'
+                                    }
+                                  : {
+                                      borderColor: 'rgba(255,255,255,0.06)',
+                                      background: 'transparent',
+                                      color: '#3a5a4a'
+                                    }
+                              }
                             >
                               {selected ? 'Applied' : 'Use'}
                             </span>
@@ -640,9 +801,76 @@ export function NotebooksPracticePage() {
           </aside>
 
           {filteredNotebooks.length > 0 ? (
+            viewMode === 'list' ? (
+              <section
+                className="overflow-hidden rounded-[10px] border"
+                style={{
+                  background: 'rgba(12,17,14,0.85)',
+                  borderColor: 'rgba(255,255,255,0.06)'
+                }}
+              >
+                <div
+                  className="grid grid-cols-[2rem_2rem_1fr_auto_auto_auto] items-center gap-4 border-b px-4 py-2.5"
+                  style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+                >
+                  {['Status', '#', 'Title', 'Difficulty', 'Issues', 'Est.'].map((col) => (
+                    <span key={col} className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#2a4038]">
+                      {col}
+                    </span>
+                  ))}
+                </div>
+                {filteredNotebooks.map((notebook, index) => {
+                  const difficultyStyle = DIFFICULTY_STYLES[notebook.difficulty];
+                  const completed = completedNotebookIds.has(notebook.id);
+                  const accentColor =
+                    notebook.difficulty === 'Beginner' ? '#10b981' :
+                    notebook.difficulty === 'Intermediate' ? '#f59e0b' :
+                    '#ef4444';
+                  return (
+                    <button
+                      key={notebook.id}
+                      type="button"
+                      onClick={() => startNotebook(notebook.id)}
+                      className="grid w-full grid-cols-[2rem_2rem_1fr_auto_auto_auto] items-center gap-4 border-b px-4 py-3 text-left transition last:border-0"
+                      style={{ borderColor: 'rgba(255,255,255,0.04)' }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(34,185,154,0.03)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                      }}
+                    >
+                      <span className="flex items-center">
+                        {completed ? (
+                          <CheckCircle2 className="h-4 w-4" style={{ color: '#22b99a' }} />
+                        ) : (
+                          <Circle className="h-4 w-4" style={{ color: '#1e3028' }} />
+                        )}
+                      </span>
+                      <span className="font-mono text-xs tabular-nums text-[#3a5a4a]">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <span className="truncate text-sm font-medium text-white">
+                        {notebook.title}
+                      </span>
+                      <span className="font-mono text-sm font-medium" style={{ color: accentColor }}>
+                        {notebook.difficulty}
+                      </span>
+                      <span className="font-mono text-sm text-[#3a5a4a]">
+                        {notebook.totalIssues}
+                      </span>
+                      <span className="font-mono text-sm text-[#3a5a4a]">
+                        ~{notebook.estimatedMinutes}m
+                      </span>
+                    </button>
+                  );
+                })}
+              </section>
+            ) : (
             <section className="grid grid-cols-1 gap-6">
               {filteredNotebooks.map((notebook) => {
                 const difficultyStyle = DIFFICULTY_STYLES[notebook.difficulty];
+                const difficultyBadgeStyle = DIFFICULTY_BADGE_STYLES[notebook.difficulty];
                 const completed = completedNotebookIds.has(notebook.id);
                 const completionPct = completed ? 100 : 0;
                 const cardVars = {
@@ -663,93 +891,167 @@ export function NotebooksPracticePage() {
                     key={notebook.id}
                     type="button"
                     onClick={() => startNotebook(notebook.id)}
-                    className="group relative overflow-hidden rounded-[32px] border border-light-border bg-light-surface p-6 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(var(--notebook-accent),0.42)] hover:shadow-[0_30px_90px_-44px_rgba(var(--notebook-accent),0.42)] dark:border-dark-border dark:bg-dark-surface"
-                    style={cardVars}
+                    className="group relative overflow-hidden rounded-[10px] border p-6 text-left transition-all duration-300 hover:-translate-y-0.5"
+                    style={{
+                      ...cardVars,
+                      background: 'rgba(12,17,14,0.85)',
+                      backdropFilter: 'blur(20px)',
+                      borderColor: `rgba(${difficultyStyle.accentRgb},0.18)`
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = `rgba(${difficultyStyle.accentRgb},0.42)`;
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 30px 90px -44px rgba(${difficultyStyle.accentRgb},0.42)`;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = `rgba(${difficultyStyle.accentRgb},0.18)`;
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
+                    }}
                   >
+                    {/* Top accent stripe */}
+                    <div
+                      className="pointer-events-none absolute inset-x-0 top-0 h-[2px]"
+                      style={{ background: `rgba(${difficultyStyle.accentRgb},0.5)` }}
+                    />
+                    {/* Corner brackets */}
+                    <span className="pointer-events-none absolute left-2 top-2 h-3 w-3 border-l border-t" style={{ borderColor: `rgba(${difficultyStyle.accentRgb},0.4)` }} />
+                    <span className="pointer-events-none absolute right-2 top-2 h-3 w-3 border-r border-t" style={{ borderColor: `rgba(${difficultyStyle.accentRgb},0.4)` }} />
+                    <span className="pointer-events-none absolute bottom-2 left-2 h-3 w-3 border-b border-l" style={{ borderColor: `rgba(${difficultyStyle.accentRgb},0.4)` }} />
+                    <span className="pointer-events-none absolute bottom-2 right-2 h-3 w-3 border-b border-r" style={{ borderColor: `rgba(${difficultyStyle.accentRgb},0.4)` }} />
+
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(var(--notebook-accent),0.18),transparent_32%),linear-gradient(180deg,rgba(var(--notebook-accent),0.08),transparent_46%)]" />
-                    <div className="pointer-events-none absolute -right-12 top-10 h-44 w-44 rounded-full bg-[rgba(var(--notebook-accent),0.1)] blur-3xl" />
+                    <div className="pointer-events-none absolute -right-12 top-10 h-44 w-44 rounded-full blur-3xl" style={{ background: `rgba(${difficultyStyle.accentRgb},0.1)` }} />
 
                     <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                       <div className="max-w-3xl">
                         <div
-                          className={`mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${difficultyStyle.badge}`}
+                          className="mb-4 inline-flex items-center gap-2 rounded-[4px] border px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.18em]"
+                          style={{
+                            borderColor: difficultyBadgeStyle.border,
+                            background: difficultyBadgeStyle.background,
+                            color: difficultyBadgeStyle.color
+                          }}
                         >
                           <NotebookPen className="h-3.5 w-3.5" />
                           {difficultyStyle.eyebrow}
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3">
-                          <h2 className="text-3xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+                          <h2 className="text-3xl font-semibold text-white">
                             {notebook.title}
                           </h2>
                           <span
-                            className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${difficultyStyle.badge}`}
+                            className="rounded-[4px] border px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.16em]"
+                            style={{
+                              borderColor: difficultyBadgeStyle.border,
+                              background: difficultyBadgeStyle.background,
+                              color: difficultyBadgeStyle.color
+                            }}
                           >
                             {notebook.difficulty}
                           </span>
                         </div>
 
-                        <p className="mt-4 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+                        <p className="mt-4 max-w-2xl text-[13px] leading-7 text-[#8ab8ae]">
                           {notebook.context}
                         </p>
 
-                        <div className="mt-5 flex flex-wrap gap-2 text-xs">
-                          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+                        <div className="mt-5 flex flex-wrap gap-2">
+                          <span
+                            className="rounded-[4px] border px-3 py-1.5 font-mono text-[11px] text-[#8ab8ae]"
+                            style={{
+                              borderColor: 'rgba(255,255,255,0.06)',
+                              background: 'rgba(8,12,10,0.9)'
+                            }}
+                          >
                             {completed ? 'Submitted' : 'Ready for review'}
                           </span>
                         </div>
                       </div>
 
-                      <div className="w-full max-w-sm rounded-3xl border border-[rgba(var(--notebook-accent),0.18)] bg-light-bg/85 p-5 dark:bg-dark-bg/70">
+                      <div
+                        className="w-full max-w-sm rounded-[8px] border p-5"
+                        style={{
+                          borderColor: `rgba(${difficultyStyle.accentRgb},0.18)`,
+                          background: 'rgba(8,12,10,0.9)'
+                        }}
+                      >
                         <div className="mb-2 flex items-center justify-between gap-3">
-                          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                          <span className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#3a5a4a]">
                             Review Status
                           </span>
-                          <span className="text-xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+                          <span className="font-mono text-xl font-semibold text-white">
                             {completionPct}%
                           </span>
                         </div>
 
-                        <div className="h-2 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                          <div
-                            className="h-full rounded-full bg-[rgb(var(--notebook-accent))] transition-all duration-500"
-                            style={{ width: `${completionPct}%` }}
-                          />
+                        {/* Segmented progress bar — 10 blocks */}
+                        <div className="flex items-center gap-[3px]">
+                          {Array.from({ length: 10 }).map((_, i) => {
+                            const filled = i < Math.round(completionPct / 10);
+                            return (
+                              <div
+                                key={i}
+                                className="h-[10px] flex-1 rounded-[2px] transition-all duration-500"
+                                style={{
+                                  background: filled
+                                    ? `rgba(${difficultyStyle.accentRgb},0.85)`
+                                    : 'rgba(255,255,255,0.05)',
+                                  border: filled
+                                    ? `1px solid rgba(${difficultyStyle.accentRgb},0.4)`
+                                    : '1px solid rgba(255,255,255,0.05)'
+                                }}
+                              />
+                            );
+                          })}
                         </div>
 
-                        <p className="mt-4 text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+                        <p className="mt-4 text-[13px] leading-7 text-[#8ab8ae]">
                           {statusCopy}
                         </p>
                       </div>
                     </div>
 
-                    <div className="relative mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-light-border/80 pt-5 dark:border-dark-border">
+                    <div
+                      className="relative mt-6 flex flex-wrap items-center justify-between gap-4 border-t pt-5"
+                      style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+                    >
                       <div className="flex flex-wrap gap-2">
                         {bottomChips.map((chip) => (
                           <span
                             key={`${notebook.id}-${chip}`}
-                            className="rounded-full border border-light-border bg-light-bg px-3 py-1 text-xs text-text-light-tertiary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-tertiary"
+                            className="rounded-[4px] border px-3 py-1 font-mono text-[11px] text-[#3a5a4a]"
+                            style={{
+                              borderColor: 'rgba(255,255,255,0.06)',
+                              background: 'rgba(8,12,10,0.9)'
+                            }}
                           >
                             {chip}
                           </span>
                         ))}
                       </div>
 
-                      <span className="inline-flex items-center gap-2 text-sm font-medium text-text-light-primary transition-transform group-hover:translate-x-0.5 dark:text-text-dark-primary">
+                      <span className="inline-flex items-center gap-2 text-sm font-medium text-white transition-transform group-hover:translate-x-0.5">
                         {ctaLabel}
-                        <ArrowRight className="h-4 w-4" />
+                        <ArrowRight className="h-4 w-4" style={{ color: '#22b99a' }} />
                       </span>
                     </div>
                   </button>
                 );
               })}
             </section>
+            )
           ) : (
-            <section className="rounded-[28px] border border-light-border bg-light-surface p-10 text-center dark:border-dark-border dark:bg-dark-surface">
-              <p className="text-base font-semibold text-text-light-primary dark:text-text-dark-primary">
+            <section
+              className="rounded-[10px] border p-10 text-center"
+              style={{
+                background: 'rgba(12,17,14,0.85)',
+                borderColor: 'rgba(255,255,255,0.06)'
+              }}
+            >
+              <p className="text-base font-semibold text-white">
                 No notebook reviews match this filter
               </p>
-              <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              <p className="mt-1 text-[13px] text-[#8ab8ae]">
                 Adjust the status filter to widen the gallery.
               </p>
             </section>
@@ -781,57 +1083,108 @@ export function NotebooksPracticePage() {
     'Kernel',
     'Help'
   ];
-  const difficultyChipClassByLevel: Record<NotebookDefinition['difficulty'], string> = {
-    Beginner: 'border-emerald-500/40 bg-emerald-500/12 text-emerald-200',
-    Intermediate: 'border-amber-500/40 bg-amber-500/12 text-amber-200',
-    Advanced: 'border-rose-500/40 bg-rose-500/12 text-rose-200'
-  };
-  const severityBadgeClassByLevel: Record<NotebookIssue['severity'], string> = {
-    performance: 'border-rose-500/35 bg-rose-500/15 text-rose-200',
-    practice: 'border-amber-500/35 bg-amber-500/15 text-amber-200',
-    redundant: 'border-slate-500/35 bg-slate-500/15 text-slate-200'
+  const difficultyChipStyleByLevel: Record<
+    NotebookDefinition['difficulty'],
+    { borderColor: string; background: string; color: string }
+  > = {
+    Beginner: {
+      borderColor: 'rgba(16,185,129,0.3)',
+      background: 'rgba(16,185,129,0.08)',
+      color: '#10b981'
+    },
+    Intermediate: {
+      borderColor: 'rgba(245,158,11,0.3)',
+      background: 'rgba(245,158,11,0.08)',
+      color: '#f59e0b'
+    },
+    Advanced: {
+      borderColor: 'rgba(239,68,68,0.3)',
+      background: 'rgba(239,68,68,0.08)',
+      color: '#ef4444'
+    }
   };
 
   let renderedLineCount = 0;
 
   return (
-    <main className="dark min-h-screen bg-[#0f1117] px-4 pb-16 pt-4 text-slate-100 sm:px-6">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-        <section className="overflow-hidden rounded-xl border border-slate-700/60 bg-[#141923] shadow-[0_30px_70px_-46px_rgba(0,0,0,0.9)]">
-          <div className="flex items-center gap-4 border-b border-slate-700/70 px-4 py-2 text-xs text-slate-300">
-            <span className="font-semibold tracking-[0.04em] text-slate-100">
+    <main className="min-h-screen bg-[#060809] px-4 pb-16 pt-4 text-white sm:px-6">
+      {/* Scanline overlay */}
+      <div
+        className="pointer-events-none fixed inset-0 opacity-[0.025]"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)',
+          backgroundSize: '100% 3px'
+        }}
+      />
+      {/* Ambient glow */}
+      <div
+        className="pointer-events-none fixed left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 opacity-[0.04]"
+        style={{
+          background:
+            'radial-gradient(ellipse at 50% 0%, rgba(34,185,154,1), transparent 70%)'
+        }}
+      />
+
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-4">
+        {/* Notebook shell header */}
+        <section
+          className="overflow-hidden rounded-[10px] border"
+          style={{
+            background: 'rgba(6,10,8,0.95)',
+            borderColor: 'rgba(255,255,255,0.06)',
+            boxShadow: '0 30px 70px -46px rgba(0,0,0,0.9)'
+          }}
+        >
+          <div
+            className="flex items-center gap-4 border-b px-4 py-2 font-mono text-xs text-[#8ab8ae]"
+            style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+          >
+            <span className="font-semibold tracking-[0.04em] text-white">
               Jupyter Notebook
             </span>
             <div className="hidden items-center gap-3 sm:flex">
               {reviewShellMenuItems.map((item) => (
-                <span key={item} className="text-slate-400">
+                <span key={item} className="text-[#3a5a4a]">
                   {item}
                 </span>
               ))}
             </div>
-            <span className="ml-auto inline-flex items-center gap-1 text-slate-400">
+            <span className="ml-auto inline-flex items-center gap-1 text-[#3a5a4a]">
               <Clock3 className="h-3.5 w-3.5" />
               Python 3 (ipykernel)
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/70 px-4 py-2.5">
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-2.5"
+            style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+          >
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={handleBackToCatalog}
-                className="inline-flex items-center gap-1.5 rounded-md border border-slate-600/80 bg-[#0f1420] px-2.5 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:border-slate-500 hover:bg-[#111a2b]"
+                className="inline-flex items-center gap-1.5 rounded-[6px] border px-2.5 py-1.5 font-mono text-xs font-medium text-white transition-colors"
+                style={{
+                  borderColor: 'rgba(255,255,255,0.08)',
+                  background: 'rgba(8,12,10,0.9)'
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(34,185,154,0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.08)';
+                }}
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back
               </button>
-              <span className="truncate text-sm font-semibold text-slate-100">
+              <span className="truncate text-sm font-semibold text-white">
                 {activeNotebook.title}
               </span>
               <span
-                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-                  difficultyChipClassByLevel[activeNotebook.difficulty]
-                }`}
+                className="rounded-[4px] border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em]"
+                style={difficultyChipStyleByLevel[activeNotebook.difficulty]}
               >
                 {activeNotebook.difficulty}
               </span>
@@ -840,17 +1193,32 @@ export function NotebooksPracticePage() {
             <div className="flex flex-wrap items-center gap-2">
               {isReview ? (
                 <>
-                  <span className="rounded-full border border-slate-600/70 bg-[#0f1420] px-2.5 py-1 text-[11px] font-medium text-slate-300">
+                  <span
+                    className="rounded-[4px] border px-2.5 py-1 font-mono text-[11px] font-medium text-[#8ab8ae]"
+                    style={{
+                      borderColor: 'rgba(255,255,255,0.06)',
+                      background: 'rgba(8,12,10,0.9)'
+                    }}
+                  >
                     {flaggedLineIds.size} flagged
                   </span>
                   <button
                     type="button"
                     onClick={() => setShowHint((previous) => !previous)}
-                    className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    className="inline-flex items-center gap-1.5 rounded-[6px] border px-2.5 py-1.5 font-mono text-xs font-medium transition-colors"
+                    style={
                       showHint
-                        ? 'border-cyan-400/50 bg-cyan-500/18 text-cyan-100'
-                        : 'border-slate-600/80 bg-[#0f1420] text-slate-200 hover:border-slate-500 hover:bg-[#111a2b]'
-                    }`}
+                        ? {
+                            borderColor: 'rgba(34,185,154,0.4)',
+                            background: 'rgba(34,185,154,0.1)',
+                            color: '#22b99a'
+                          }
+                        : {
+                            borderColor: 'rgba(255,255,255,0.08)',
+                            background: 'rgba(8,12,10,0.9)',
+                            color: '#8ab8ae'
+                          }
+                    }
                   >
                     <Lightbulb className="h-3.5 w-3.5" />
                     Hint
@@ -859,7 +1227,12 @@ export function NotebooksPracticePage() {
                     type="button"
                     disabled={flaggedLineIds.size === 0}
                     onClick={handleSubmitReview}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-cyan-400/55 bg-cyan-500/85 px-3 py-1.5 text-xs font-semibold text-[#031116] transition disabled:cursor-not-allowed disabled:border-slate-600/80 disabled:bg-slate-700/40 disabled:text-slate-400"
+                    className="inline-flex items-center gap-1.5 rounded-[6px] border px-3 py-1.5 font-mono text-xs font-semibold transition disabled:cursor-not-allowed"
+                    style={{
+                      borderColor: flaggedLineIds.size === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(34,185,154,0.5)',
+                      background: flaggedLineIds.size === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(34,185,154,0.85)',
+                      color: flaggedLineIds.size === 0 ? '#1e3028' : '#031116'
+                    }}
                   >
                     Submit Review
                   </button>
@@ -869,7 +1242,17 @@ export function NotebooksPracticePage() {
                   <button
                     type="button"
                     onClick={handleRetry}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-600/80 bg-[#0f1420] px-3 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:border-slate-500 hover:bg-[#111a2b]"
+                    className="inline-flex items-center gap-1.5 rounded-[6px] border px-3 py-1.5 font-mono text-xs font-medium text-[#8ab8ae] transition-colors"
+                    style={{
+                      borderColor: 'rgba(255,255,255,0.08)',
+                      background: 'rgba(8,12,10,0.9)'
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(34,185,154,0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.08)';
+                    }}
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     Retry
@@ -877,7 +1260,18 @@ export function NotebooksPracticePage() {
                   <button
                     type="button"
                     onClick={handleBackToCatalog}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-cyan-400/55 bg-cyan-500/85 px-3 py-1.5 text-xs font-semibold text-[#031116] transition hover:bg-cyan-400"
+                    className="inline-flex items-center gap-1.5 rounded-[6px] border px-3 py-1.5 font-mono text-xs font-semibold transition"
+                    style={{
+                      borderColor: 'rgba(34,185,154,0.5)',
+                      background: 'rgba(34,185,154,0.85)',
+                      color: '#031116'
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'rgba(34,185,154,1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'rgba(34,185,154,0.85)';
+                    }}
                   >
                     Back to Notebooks
                   </button>
@@ -886,17 +1280,23 @@ export function NotebooksPracticePage() {
             </div>
           </div>
 
-          <div className="px-4 py-2 text-xs text-slate-400">
+          <div className="px-4 py-2 font-mono text-[11px] text-[#2a4038]">
             notebook/{activeNotebook.id}.ipynb
           </div>
         </section>
 
         {showHint && isReview ? (
-          <section className="rounded-lg border border-amber-500/40 bg-amber-500/12 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-200">
+          <section
+            className="rounded-[8px] border p-4"
+            style={{
+              borderColor: 'rgba(240,192,64,0.3)',
+              background: 'rgba(240,192,64,0.06)'
+            }}
+          >
+            <p className="font-mono text-[9px] uppercase tracking-[0.35em]" style={{ color: '#f0c040' }}>
               Hint
             </p>
-            <p className="mt-1 text-sm text-amber-100">
+            <p className="mt-1 text-[13px]" style={{ color: '#f0c040' }}>
               There are {uniqueIssues.length} unique issues. Focus on repeated actions,
               driver-side conversions, and anti-pattern imports.
             </p>
@@ -904,13 +1304,19 @@ export function NotebooksPracticePage() {
         ) : null}
 
         {isResults ? (
-          <section className="rounded-lg border border-cyan-500/35 bg-cyan-500/12 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">
+          <section
+            className="rounded-[8px] border p-5"
+            style={{
+              borderColor: 'rgba(34,185,154,0.25)',
+              background: 'rgba(34,185,154,0.06)'
+            }}
+          >
+            <p className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#22b99a]">
               Review Score
             </p>
             <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-              <div className="text-4xl font-bold leading-none text-slate-100">{score}%</div>
-              <div className="flex items-center gap-5 text-xs text-slate-300">
+              <div className="font-mono text-4xl font-bold leading-none text-white">{score}%</div>
+              <div className="flex items-center gap-5 font-mono text-xs text-[#8ab8ae]">
                 <span>
                   Found {foundIssueIds.size}/{uniqueIssues.length}
                 </span>
@@ -948,31 +1354,44 @@ export function NotebooksPracticePage() {
               return (
                 <article
                   key={cell.id}
-                  className="overflow-hidden rounded-lg border border-slate-700/70 bg-[#101623]"
+                  className="overflow-hidden rounded-[8px] border"
+                  style={{
+                    background: 'rgba(6,10,8,0.95)',
+                    borderColor: 'rgba(255,255,255,0.06)'
+                  }}
                 >
                   <div className="grid grid-cols-[86px_minmax(0,1fr)]">
-                    <div className="border-r border-slate-700/70 px-3 py-4 font-mono text-xs text-slate-500">
+                    <div
+                      className="border-r px-3 py-4 font-mono text-xs text-[#3a5a4a]"
+                      style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+                    >
                       Md [{cellIndex}]:
                     </div>
                     <div className="px-4 py-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      <p className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#3a5a4a]">
                         Markdown Cell
                       </p>
-                      <h2 className="mt-2 text-xl font-semibold text-slate-100">
+                      <h2 className="mt-2 text-xl font-semibold text-white">
                         {headingText}
                       </h2>
-                      <div className="mt-3 rounded-md border border-slate-700/70 bg-[#0b1220] p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      <div
+                        className="mt-3 rounded-[6px] border p-3"
+                        style={{
+                          borderColor: 'rgba(255,255,255,0.06)',
+                          background: 'rgba(8,12,10,0.9)'
+                        }}
+                      >
+                        <p className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#3a5a4a]">
                           Requirements
                         </p>
                         {requirementBullets.length > 0 ? (
-                          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-relaxed text-slate-300">
+                          <ul className="mt-2 list-disc space-y-2 pl-5 text-[13px] leading-relaxed text-[#8ab8ae]">
                             {requirementBullets.map((bullet) => (
                               <li key={`${cell.id}-${bullet}`}>{bullet}</li>
                             ))}
                           </ul>
                         ) : (
-                          <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                          <p className="mt-2 text-[13px] leading-relaxed text-[#3a5a4a]">
                             No requirements listed in this markdown cell.
                           </p>
                         )}
@@ -988,34 +1407,63 @@ export function NotebooksPracticePage() {
             return (
               <article
                 key={cell.id}
-                className="overflow-hidden rounded-lg border border-slate-700/70 bg-[#101623]"
+                className="overflow-hidden rounded-[8px] border"
+                style={{
+                  background: 'rgba(6,10,8,0.95)',
+                  borderColor: 'rgba(255,255,255,0.06)'
+                }}
               >
                 <div className="grid grid-cols-[86px_minmax(0,1fr)]">
-                  <div className="border-r border-slate-700/70 px-3 py-3 font-mono text-xs text-cyan-300">
+                  <div
+                    className="border-r px-3 py-3 font-mono text-xs"
+                    style={{ borderColor: 'rgba(255,255,255,0.06)', color: '#22b99a' }}
+                  >
                     In [{cellIndex}]:
                   </div>
                   <div>
-                    <div className="flex items-center justify-between border-b border-slate-700/70 bg-[#151d2b] px-4 py-2.5">
+                    <div
+                      className="flex items-center justify-between border-b px-4 py-2.5"
+                      style={{
+                        borderColor: 'rgba(255,255,255,0.06)',
+                        background: 'rgba(8,12,10,0.9)'
+                      }}
+                    >
                       <div className="flex items-center gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        <p className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#3a5a4a]">
                           Python Cell
                         </p>
-                        <span className="rounded-full border border-cyan-400/35 bg-cyan-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-200">
+                        <span
+                          className="rounded-[4px] border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em]"
+                          style={{
+                            borderColor: 'rgba(34,185,154,0.25)',
+                            background: 'rgba(34,185,154,0.06)',
+                            color: '#22b99a'
+                          }}
+                        >
                           PySpark
                         </span>
-                        <span className="rounded-full border border-slate-600/75 bg-[#101623] px-2 py-0.5 text-[10px] font-medium text-slate-400">
+                        <span
+                          className="rounded-[4px] border px-2 py-0.5 font-mono text-[10px] font-medium text-[#3a5a4a]"
+                          style={{
+                            borderColor: 'rgba(255,255,255,0.06)',
+                            background: 'rgba(6,10,8,0.95)'
+                          }}
+                        >
                           {lines.length} lines
                         </span>
                       </div>
                       {isResults ? (
-                        <p className="text-[11px] text-slate-400">
+                        <p className="font-mono text-[11px] text-[#3a5a4a]">
                           {cell.issues?.filter((issue) => foundIssueIds.has(issue.id)).length}/
                           {cell.issues?.length ?? 0} found
                         </p>
                       ) : null}
                     </div>
 
-                    <div className="bg-[#0b1220] py-2.5">
+                    <div
+                      className="py-2.5"
+                      style={{ background: 'rgba(4,8,6,0.98)' }}
+                    >
                       {lines.map((line, lineIndex) => {
                         renderedLineCount += 1;
                         const previousLine = lineIndex > 0 ? lines[lineIndex - 1]?.text ?? '' : '';
@@ -1026,19 +1474,33 @@ export function NotebooksPracticePage() {
                         const missedIssue = isResults && !flagged && hasIssue;
                         const falseFlag = isResults && flagged && !hasIssue;
 
-                        let rowClass =
-                          'border-l-2 border-transparent bg-transparent hover:bg-white/[0.04]';
+                        let rowStyle: React.CSSProperties = {
+                          borderLeft: '2px solid transparent',
+                          background: 'transparent'
+                        };
                         if (isReview && flagged) {
-                          rowClass = 'border-l-2 border-cyan-400 bg-cyan-500/10';
+                          rowStyle = {
+                            borderLeft: '2px solid rgba(34,185,154,0.8)',
+                            background: 'rgba(34,185,154,0.07)'
+                          };
                         }
                         if (correctFlag) {
-                          rowClass = 'border-l-2 border-emerald-400 bg-emerald-500/12';
+                          rowStyle = {
+                            borderLeft: '2px solid rgba(16,185,129,0.8)',
+                            background: 'rgba(16,185,129,0.07)'
+                          };
                         }
                         if (missedIssue) {
-                          rowClass = 'border-l-2 border-amber-400 bg-amber-500/14';
+                          rowStyle = {
+                            borderLeft: '2px solid rgba(240,192,64,0.8)',
+                            background: 'rgba(240,192,64,0.06)'
+                          };
                         }
                         if (falseFlag) {
-                          rowClass = 'border-l-2 border-rose-400 bg-rose-500/16';
+                          rowStyle = {
+                            borderLeft: '2px solid rgba(240,64,96,0.8)',
+                            background: 'rgba(240,64,96,0.07)'
+                          };
                         }
 
                         const clickable = isReview && Boolean(line.flaggable);
@@ -1058,28 +1520,39 @@ export function NotebooksPracticePage() {
                                 toggleLineFlag(line.id);
                               }
                             }}
-                            className={`group relative grid grid-cols-[2.25rem_minmax(0,1fr)_1rem] items-start gap-3 px-3 py-1 ${rowClass} ${
+                            className={`group relative grid grid-cols-[2.25rem_minmax(0,1fr)_1rem] items-start gap-3 px-3 py-1 transition-colors ${
                               addGroupGap ? 'mt-2' : ''
                             } ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
+                            style={rowStyle}
+                            onMouseEnter={(e) => {
+                              if (clickable && !flagged) {
+                                (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.02)';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (clickable && !flagged && !correctFlag && !missedIssue && !falseFlag) {
+                                (e.currentTarget as HTMLDivElement).style.background = rowStyle.background as string;
+                              }
+                            }}
                           >
-                            <span className="w-8 pt-1 text-right font-mono text-[11px] leading-7 text-slate-500">
+                            <span className="w-8 pt-1 text-right font-mono text-[11px] leading-7 text-[#2a4038]">
                               {renderedLineCount}
                             </span>
-                            <code className="flex-1 whitespace-pre font-mono text-[13px] leading-7 tracking-[0.01em]">
+                            <code className="flex-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono text-[13px] leading-7 tracking-[0.01em]">
                               {highlightNotebookLine(line.text || ' ', `line-${line.id}`)}
                             </code>
-                            <span className="pt-2 text-[11px] text-slate-400">
+                            <span className="pt-2 text-[11px] text-[#3a5a4a]">
                               {isReview && flagged ? (
-                                <Flag className="h-3.5 w-3.5 text-cyan-300" />
+                                <Flag className="h-3.5 w-3.5" style={{ color: '#22b99a' }} />
                               ) : null}
                               {correctFlag ? (
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+                                <CheckCircle2 className="h-3.5 w-3.5" style={{ color: '#10b981' }} />
                               ) : null}
                               {missedIssue ? (
-                                <AlertTriangle className="h-3.5 w-3.5 text-amber-300" />
+                                <AlertTriangle className="h-3.5 w-3.5" style={{ color: '#f0c040' }} />
                               ) : null}
                               {falseFlag ? (
-                                <AlertTriangle className="h-3.5 w-3.5 text-rose-300" />
+                                <AlertTriangle className="h-3.5 w-3.5" style={{ color: '#f04060' }} />
                               ) : null}
                             </span>
                           </div>
@@ -1094,76 +1567,116 @@ export function NotebooksPracticePage() {
         </section>
 
         {isResults ? (
-          <section className="rounded-lg border border-slate-700/70 bg-[#101623] p-5">
-            <h2 className="text-base font-semibold text-slate-100">Issue Breakdown</h2>
+          <section
+            className="rounded-[10px] border p-5"
+            style={{
+              background: 'rgba(6,10,8,0.95)',
+              borderColor: 'rgba(255,255,255,0.06)'
+            }}
+          >
+            <h2 className="text-base font-semibold text-white">Issue Breakdown</h2>
             <div className="mt-4 space-y-3">
               {uniqueIssues.map((issue) => {
                 const found = foundIssueIds.has(issue.id);
                 const severity = SEVERITY_STYLES[issue.severity];
+                const severityBadge = SEVERITY_BADGE_STYLES[issue.severity];
                 return (
                   <article
                     key={issue.id}
-                    className={`rounded-lg border p-4 ${
+                    className="rounded-[8px] border p-4"
+                    style={
                       found
-                        ? 'border-emerald-500/40 bg-emerald-500/10'
-                        : 'border-amber-500/40 bg-amber-500/10'
-                    }`}
+                        ? {
+                            borderColor: 'rgba(16,185,129,0.3)',
+                            background: 'rgba(16,185,129,0.06)'
+                          }
+                        : {
+                            borderColor: 'rgba(240,192,64,0.3)',
+                            background: 'rgba(240,192,64,0.05)'
+                          }
+                    }
                   >
                     <div className="mb-2 flex items-center gap-2">
                       <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-                          severityBadgeClassByLevel[issue.severity]
-                        }`}
+                        className="rounded-[4px] border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em]"
+                        style={{
+                          borderColor: severityBadge.border,
+                          background: severityBadge.background,
+                          color: severityBadge.color
+                        }}
                       >
                         {severity.icon} {severity.label}
                       </span>
-                      <span className="text-sm font-semibold text-slate-100">{issue.title}</span>
+                      <span className="text-sm font-semibold text-white">{issue.title}</span>
                       <span
-                        className={`ml-auto text-[11px] font-semibold uppercase tracking-[0.1em] ${
-                          found ? 'text-emerald-300' : 'text-amber-300'
-                        }`}
+                        className="ml-auto font-mono text-[11px] font-semibold uppercase tracking-[0.1em]"
+                        style={{ color: found ? '#10b981' : '#f0c040' }}
                       >
                         {found ? 'Found' : 'Missed'}
                       </span>
                     </div>
-                    <p className="text-sm leading-relaxed text-slate-300">{issue.explanation}</p>
+                    <p className="text-[13px] leading-relaxed text-[#8ab8ae]">{issue.explanation}</p>
                   </article>
                 );
               })}
             </div>
           </section>
         ) : (
-          <div className="pb-8 text-center text-xs uppercase tracking-[0.14em] text-slate-500">
+          <div className="pb-8 text-center font-mono text-[9px] uppercase tracking-[0.35em] text-[#1e3028]">
             Flag lines that contain issues, then submit your review
           </div>
         )}
 
         {isReview ? (
-          <section className="rounded-lg border border-slate-700/70 bg-[#101623] p-4">
+          <section
+            className="rounded-[10px] border p-4"
+            style={{
+              background: 'rgba(6,10,8,0.95)',
+              borderColor: 'rgba(255,255,255,0.06)'
+            }}
+          >
             <div className="grid gap-3 text-xs sm:grid-cols-3">
-              <div className="rounded-lg border border-slate-700/70 bg-[#141c2a] p-3">
-                <p className="font-semibold uppercase tracking-[0.12em] text-slate-400">
+              <div
+                className="rounded-[8px] border p-3"
+                style={{
+                  borderColor: 'rgba(255,255,255,0.06)',
+                  background: 'rgba(8,12,10,0.9)'
+                }}
+              >
+                <p className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#3a5a4a]">
                   Issues
                 </p>
-                <p className="mt-1 text-lg font-semibold text-slate-100">
+                <p className="mt-1 font-mono text-lg font-semibold text-white">
                   {uniqueIssues.length}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-700/70 bg-[#141c2a] p-3">
-                <p className="font-semibold uppercase tracking-[0.12em] text-slate-400">
+              <div
+                className="rounded-[8px] border p-3"
+                style={{
+                  borderColor: 'rgba(255,255,255,0.06)',
+                  background: 'rgba(8,12,10,0.9)'
+                }}
+              >
+                <p className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#3a5a4a]">
                   Severity Mix
                 </p>
-                <p className="mt-1 text-sm text-slate-300">
+                <p className="mt-1 text-[13px] text-[#8ab8ae]">
                   Perf {issueCountBySeverity.performance ?? 0} · Practice{' '}
                   {issueCountBySeverity.practice ?? 0} · Redundant{' '}
                   {issueCountBySeverity.redundant ?? 0}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-700/70 bg-[#141c2a] p-3">
-                <p className="font-semibold uppercase tracking-[0.12em] text-slate-400">
+              <div
+                className="rounded-[8px] border p-3"
+                style={{
+                  borderColor: 'rgba(255,255,255,0.06)',
+                  background: 'rgba(8,12,10,0.9)'
+                }}
+              >
+                <p className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#3a5a4a]">
                   Flagged
                 </p>
-                <p className="mt-1 text-lg font-semibold text-slate-100">
+                <p className="mt-1 font-mono text-lg font-semibold text-white">
                   {flaggedLineIds.size}
                 </p>
               </div>

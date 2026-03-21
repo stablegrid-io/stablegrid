@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, CheckCircle2, ChevronRight, Loader2, Zap } from 'lucide-react';
+import { Lock, Loader2 } from 'lucide-react';
 import type {
   GridOpsCampaignScenarioProgress,
   GridOpsCampaignView,
@@ -13,149 +13,193 @@ interface CampaignResponse {
   data: GridOpsCampaignView;
 }
 
-const STATE_STYLES = {
+const STATE_CONFIG = {
   locked: {
-    card: 'border-white/6 bg-[rgba(12,16,22,0.6)] opacity-55',
-    badge: 'border-white/10 bg-white/5 text-[#4a5f75]',
+    cardBorder: 'border-[#1a1f1a]',
+    cardBg: 'bg-[#09090a]',
+    cardOpacity: 'opacity-40',
+    cardHover: '',
     badgeText: 'LOCKED',
-    button: null
+    badgeBorder: 'border-[#2a2f2a]',
+    badgeBg: 'bg-transparent',
+    badgeColor: 'text-[#3a4a3a]',
+    accentBar: 'bg-[#1a2a1a]',
+    buttonText: null
   },
   available: {
-    card: 'border-brand-500/25 bg-[rgba(0,180,120,0.04)] hover:border-brand-500/45 hover:bg-[rgba(0,180,120,0.07)] transition-all cursor-pointer',
-    badge: 'border-brand-500/40 bg-brand-500/12 text-brand-300',
+    cardBorder: 'border-[#f0a030]/30',
+    cardBg: 'bg-[#0a0b08]',
+    cardOpacity: '',
+    cardHover: 'hover:border-[#f0a030]/55 hover:shadow-[0_0_32px_-10px_rgba(240,160,48,0.2)] cursor-pointer transition-all duration-200',
     badgeText: 'AVAILABLE',
-    button: 'Deploy'
+    badgeBorder: 'border-[#f0a030]/40',
+    badgeBg: 'bg-transparent',
+    badgeColor: 'text-[#f0a030]',
+    accentBar: 'bg-[#f0a030]',
+    buttonText: 'DEPLOY'
   },
   in_progress: {
-    card: 'border-amber-400/30 bg-[rgba(245,185,66,0.04)] hover:border-amber-400/50 hover:bg-[rgba(245,185,66,0.07)] transition-all cursor-pointer',
-    badge: 'border-amber-400/40 bg-amber-400/10 text-amber-300',
-    badgeText: 'IN PROGRESS',
-    button: 'Continue'
+    cardBorder: 'border-[#f0a030]/50',
+    cardBg: 'bg-[#0b0c08]',
+    cardOpacity: '',
+    cardHover: 'hover:border-[#f0a030]/75 hover:shadow-[0_0_40px_-10px_rgba(240,160,48,0.3)] cursor-pointer transition-all duration-200',
+    badgeText: 'ACTIVE OPS',
+    badgeBorder: 'border-[#f0a030]/60',
+    badgeBg: 'bg-[#f0a030]/8',
+    badgeColor: 'text-[#f0a030]',
+    accentBar: 'bg-[#f0a030]',
+    buttonText: 'CONTINUE'
   },
   completed: {
-    card: 'border-emerald-500/30 bg-[rgba(0,208,132,0.04)] hover:border-emerald-500/50 hover:bg-[rgba(0,208,132,0.07)] transition-all cursor-pointer',
-    badge: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
-    badgeText: 'COMPLETED',
-    button: 'Review'
+    cardBorder: 'border-[#4a9a6a]/35',
+    cardBg: 'bg-[#09100c]',
+    cardOpacity: '',
+    cardHover: 'hover:border-[#4a9a6a]/55 hover:shadow-[0_0_32px_-10px_rgba(74,154,106,0.15)] cursor-pointer transition-all duration-200',
+    badgeText: 'NEUTRALIZED',
+    badgeBorder: 'border-[#4a9a6a]/40',
+    badgeBg: 'bg-transparent',
+    badgeColor: 'text-[#4a9a6a]',
+    accentBar: 'bg-[#4a9a6a]',
+    buttonText: 'REVIEW'
   }
 };
 
 function ScenarioCard({
   progress,
+  index,
   onPlay
 }: {
   progress: GridOpsCampaignScenarioProgress;
+  index: number;
   onPlay: (id: GridOpsScenarioId) => void;
 }) {
   const { scenario, state, stability_pct, deployed_count } = progress;
-  const styles = STATE_STYLES[state];
+  const cfg = STATE_CONFIG[state];
   const isPlayable = state !== 'locked';
 
   return (
     <div
-      className={`relative flex flex-col gap-3 rounded-[22px] border p-5 ${styles.card}`}
+      className={`group relative flex flex-col overflow-hidden border ${cfg.cardBorder} ${cfg.cardBg} ${cfg.cardOpacity} ${cfg.cardHover}`}
+      style={{ boxShadow: state === 'in_progress' ? '0 0 0 1px rgba(240,160,48,0.08) inset' : undefined }}
       onClick={() => isPlayable && onPlay(scenario.id)}
       onKeyDown={(e) => { if (isPlayable && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onPlay(scenario.id); } }}
       role={isPlayable ? 'button' : undefined}
       tabIndex={isPlayable ? 0 : undefined}
       aria-disabled={!isPlayable}
     >
-      {/* Mission order + flag */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <span className="text-2xl leading-none">{scenario.flag}</span>
-          <div>
-            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[#4a5f75]">
-              Mission {scenario.order}
-            </p>
-            <h3 className="text-[1.05rem] font-bold leading-tight text-[#e0eaf5]">
-              {scenario.name}
-            </h3>
+      {/* Top accent stripe */}
+      <div className={`h-[2px] w-full ${cfg.accentBar}`}
+        style={state === 'in_progress' ? { boxShadow: '0 0 12px rgba(240,160,48,0.6)' } : state === 'completed' ? { boxShadow: '0 0 8px rgba(74,154,106,0.4)' } : undefined}
+      />
+
+      {/* Corner brackets (top-left, top-right) */}
+      <span aria-hidden className={`pointer-events-none absolute left-0 top-[2px] h-4 w-4 border-l border-t ${state === 'locked' ? 'border-[#2a2f2a]' : state === 'completed' ? 'border-[#4a9a6a]/40' : 'border-[#f0a030]/40'}`} />
+      <span aria-hidden className={`pointer-events-none absolute right-0 top-[2px] h-4 w-4 border-r border-t ${state === 'locked' ? 'border-[#2a2f2a]' : state === 'completed' ? 'border-[#4a9a6a]/40' : 'border-[#f0a030]/40'}`} />
+
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        {/* Mission number + flag + badge */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl leading-none">{scenario.flag}</span>
+            <div>
+              <p className={`font-mono text-[8px] font-bold uppercase tracking-[0.4em] ${state === 'locked' ? 'text-[#2a3a2a]' : state === 'completed' ? 'text-[#4a9a6a]/60' : 'text-[#f0a030]/60'}`}>
+                MISSION {String(index + 1).padStart(2, '0')}
+              </p>
+              <h3 className={`font-mono text-base font-black uppercase tracking-[0.06em] ${state === 'locked' ? 'text-[#3a4a3a]' : 'text-[#f5f0e8]'}`}>
+                {scenario.name}
+              </h3>
+            </div>
           </div>
+
+          {/* State badge */}
+          <span className={`shrink-0 border px-2 py-0.5 font-mono text-[8px] font-bold tracking-[0.2em] ${cfg.badgeBorder} ${cfg.badgeBg} ${cfg.badgeColor}`}>
+            {cfg.badgeText}
+          </span>
         </div>
 
-        {/* State badge */}
-        <span
-          className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.6rem] font-bold tracking-[0.10em] ${styles.badge}`}
-        >
-          {styles.badgeText}
-        </span>
-      </div>
+        {/* Subtitle */}
+        <p className={`font-mono text-[10px] font-semibold uppercase tracking-[0.12em] ${state === 'locked' ? 'text-[#2a3a2a]' : state === 'completed' ? 'text-[#4a9a6a]/80' : 'text-[#f0a030]/70'}`}>
+          {scenario.subtitle}
+        </p>
 
-      {/* Subtitle */}
-      <p className="text-[0.78rem] font-semibold text-[#7a9ab8]">{scenario.subtitle}</p>
+        {/* Thin separator */}
+        <div className={`h-px w-full ${state === 'locked' ? 'bg-[#1a2a1a]' : state === 'completed' ? 'bg-[#4a9a6a]/15' : 'bg-[#f0a030]/12'}`} />
 
-      {/* Description */}
-      {state !== 'locked' && (
-        <p className="text-[0.74rem] leading-relaxed text-[#5a7090]">{scenario.description}</p>
-      )}
+        {/* Description */}
+        {state !== 'locked' && (
+          <p className="text-[11px] leading-relaxed text-[#6a7a5a]">{scenario.description}</p>
+        )}
 
-      {/* Progress bar (in_progress / completed) */}
-      {(state === 'in_progress' || state === 'completed') && stability_pct !== null && (
-        <div className="mt-1 space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-[0.68rem] text-[#5a7090]">Grid Stability</span>
-            <span
-              className={`text-[0.72rem] font-bold ${
-                state === 'completed' ? 'text-emerald-400' : 'text-amber-300'
-              }`}
-            >
-              {stability_pct}%
+        {/* Lock message */}
+        {state === 'locked' && (
+          <div className="flex items-center gap-1.5">
+            <Lock className="h-3 w-3 text-[#2a3a2a]" />
+            <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-[#2a3a2a]">
+              Neutralize previous region to unlock
             </span>
           </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-white/8">
-            <div
-              className={`h-full rounded-full transition-all ${
-                state === 'completed' ? 'bg-emerald-500/70' : 'bg-amber-400/70'
-              }`}
-              style={{ width: `${Math.min(stability_pct, 100)}%` }}
-            />
+        )}
+
+        {/* Progress */}
+        {(state === 'in_progress' || state === 'completed') && stability_pct !== null && (
+          <div className="mt-auto space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#5a6a4a]">Grid Stability</span>
+              <span className={`font-mono text-[11px] font-bold ${state === 'completed' ? 'text-[#4a9a6a]' : 'text-[#f0a030]'}`}
+                style={state === 'in_progress' ? { textShadow: '0 0 8px rgba(240,160,48,0.5)' } : undefined}
+              >
+                {stability_pct}%
+              </span>
+            </div>
+            <div className="h-[3px] w-full bg-[#1a1f14]">
+              <div
+                className={`h-full transition-all ${state === 'completed' ? 'bg-[#4a9a6a]' : 'bg-[#f0a030]'}`}
+                style={{
+                  width: `${Math.min(stability_pct, 100)}%`,
+                  boxShadow: state === 'completed' ? '0 0 6px rgba(74,154,106,0.5)' : '0 0 8px rgba(240,160,48,0.5)'
+                }}
+              />
+            </div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-[#4a5a3a]">
+              {deployed_count} asset{deployed_count !== 1 ? 's' : ''} deployed
+            </p>
           </div>
-          <p className="text-[0.66rem] text-[#4a5f75]">{deployed_count} asset{deployed_count !== 1 ? 's' : ''} deployed</p>
-        </div>
-      )}
+        )}
 
-      {/* Completed check */}
-      {state === 'completed' && (
-        <div className="flex items-center gap-1.5 text-emerald-400">
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          <span className="text-[0.72rem] font-semibold">Mission complete — next region unlocked</span>
-        </div>
-      )}
+        {/* Completed status */}
+        {state === 'completed' && (
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] text-[#4a9a6a]">✓</span>
+            <span className="font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-[#4a9a6a]">
+              Mission complete — next region unlocked
+            </span>
+          </div>
+        )}
 
-      {/* Lock icon */}
-      {state === 'locked' && (
-        <div className="flex items-center gap-1.5 text-[#3a4f63]">
-          <Lock className="h-3.5 w-3.5" />
-          <span className="text-[0.72rem]">Complete the previous mission to unlock</span>
-        </div>
-      )}
-
-      {/* CTA */}
-      {styles.button && (
-        <div className="mt-auto flex items-center justify-end">
-          <div
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.72rem] font-semibold ${
+        {/* CTA button */}
+        {cfg.buttonText && (
+          <div className="mt-auto pt-1 flex items-center justify-end">
+            <div className={`flex items-center gap-2 border px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.2em] transition-colors duration-150 ${
               state === 'completed'
-                ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                : state === 'in_progress'
-                  ? 'border border-amber-400/30 bg-amber-400/10 text-amber-300'
-                  : 'border border-brand-500/30 bg-brand-500/12 text-brand-300'
-            }`}
-          >
-            {styles.button}
-            <ChevronRight className="h-3 w-3" />
+                ? 'border-[#4a9a6a]/40 text-[#4a9a6a] group-hover:border-[#4a9a6a]/70 group-hover:text-[#6aba8a]'
+                : 'border-[#f0a030]/40 text-[#f0a030] group-hover:border-[#f0a030]/70 group-hover:text-[#f5b84a]'
+            }`}>
+              {cfg.buttonText}
+              <span className="text-[10px]">›</span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-function ConnectorArrow() {
+function ConnectorArrow({ completed }: { completed: boolean }) {
   return (
     <div className="hidden items-center justify-center xl:flex">
-      <ChevronRight className="h-5 w-5 text-[#2a3f53]" />
+      <span className={`font-mono text-xs ${completed ? 'text-[#4a9a6a]/60' : 'text-[#f0a030]/30'}`}>
+        //
+      </span>
     </div>
   );
 }
@@ -196,52 +240,58 @@ export function CampaignOverview() {
   );
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-transparent px-4 pb-16 pt-12 text-[#e6ebf2] sm:px-6">
-      {/* Background grid lines */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_12%,rgba(144,216,196,0.10),transparent_26%),radial-gradient(circle_at_86%_10%,rgba(126,170,255,0.08),transparent_24%)]" />
+    <main className="relative min-h-screen overflow-hidden bg-[#08090b] px-4 pb-20 pt-12 text-[#e6ebf2] sm:px-6">
+      {/* Tactical grid overlay */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-70"
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.03]"
         style={{
           backgroundImage:
-            'linear-gradient(to right, var(--app-grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--app-grid-line) 1px, transparent 1px)',
-          backgroundSize: '54px 54px',
-          backgroundPosition: '-1px -1px',
-          maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.7), rgba(0,0,0,0.15))'
+            'linear-gradient(rgba(240,160,48,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(240,160,48,0.8) 1px, transparent 1px)',
+          backgroundSize: '40px 40px'
         }}
       />
+      {/* Ambient orange glow top */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(240,160,48,0.06),transparent_40%)]" />
 
       <div className="relative mx-auto max-w-[1280px]">
         {/* Header */}
-        <div className="mb-10 text-center">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-500/25 bg-brand-500/8 px-3 py-1.5">
-            <Zap className="h-3.5 w-3.5 text-brand-400" />
-            <span className="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-brand-300">
-              stableGrid.io
-            </span>
-          </div>
-          <h1 className="text-[2rem] font-bold leading-tight tracking-tight text-[#e0eaf5] sm:text-[2.4rem]">
+        <div className="mb-12 text-center">
+          <p className="mb-3 font-mono text-[9px] font-bold uppercase tracking-[0.6em] text-[#f0a030]/50">
+            // STABLEGRID.IO · GRID OPS ·
+          </p>
+          <h1 className="font-mono text-[clamp(1.8rem,4vw,3rem)] font-black uppercase tracking-[0.18em] text-[#f5f0e8]"
+            style={{ textShadow: '0 0 40px rgba(240,160,48,0.18)' }}
+          >
             Grid Campaign
           </h1>
-          <p className="mt-2 text-[0.9rem] text-[#5a7090]">
-            Restore stability across 5 European power grids — from the Baltics to the Continental Interconnect.
+          {/* Orange underline */}
+          <div aria-hidden className="mx-auto mt-3 h-px w-32 bg-gradient-to-r from-transparent via-[#f0a030]/60 to-transparent"
+            style={{ boxShadow: '0 0 10px rgba(240,160,48,0.35)' }}
+          />
+          <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.12em] text-[#5a6a4a]">
+            Restore stability across 5 European power grids — Baltics to Continental Interconnect
           </p>
         </div>
 
         {/* Loading */}
         {loading && (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+            <Loader2 className="h-5 w-5 animate-spin text-[#f0a030]/60" />
+            <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.3em] text-[#f0a030]/40">
+              Loading campaign data...
+            </span>
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div className="mx-auto max-w-md rounded-[18px] border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-center">
-            <p className="text-sm text-rose-200">{error}</p>
+          <div className="mx-auto max-w-md border border-rose-500/30 bg-[#0f0808] px-4 py-3 text-center">
+            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-rose-400">{error}</p>
             <button
               type="button"
               onClick={() => void fetchCampaign()}
-              className="mt-2 text-[0.8rem] text-rose-300 underline underline-offset-2 hover:text-rose-200"
+              className="mt-2 font-mono text-[9px] uppercase tracking-[0.2em] text-rose-500/70 underline underline-offset-2 hover:text-rose-400"
             >
               Retry
             </button>
@@ -250,27 +300,33 @@ export function CampaignOverview() {
 
         {/* Campaign grid */}
         {campaign && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr]">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-[1fr_28px_1fr_28px_1fr_28px_1fr_28px_1fr]">
             {campaign.scenarios.flatMap((progress, index) => {
               const items = [
                 <ScenarioCard
                   key={progress.scenario.id}
                   progress={progress}
+                  index={index}
                   onPlay={handlePlay}
                 />
               ];
               if (index < campaign.scenarios.length - 1) {
-                items.push(<ConnectorArrow key={`arrow-${progress.scenario.id}`} />);
+                items.push(
+                  <ConnectorArrow
+                    key={`arrow-${progress.scenario.id}`}
+                    completed={progress.state === 'completed'}
+                  />
+                );
               }
               return items;
             })}
           </div>
         )}
 
-        {/* Footer hint */}
+        {/* Footer */}
         {campaign && (
-          <p className="mt-8 text-center text-[0.72rem] text-[#3a4f63]">
-            Complete each mission by reaching 100% grid stability to unlock the next region.
+          <p className="mt-8 text-center font-mono text-[9px] uppercase tracking-[0.3em] text-[#3a4a3a]">
+            ▶ Complete each mission by reaching 100% grid stability to unlock the next region
           </p>
         )}
       </div>

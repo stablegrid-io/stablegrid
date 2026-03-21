@@ -36,22 +36,40 @@ interface BoardColumnProps {
 }
 
 const countToneByState: Record<TaskCardState, string> = {
-  todo: 'text-[#a1aea8]',
-  'in-progress': 'text-[#aec2df]',
-  completed: 'text-[#8ec7ab]'
+  todo: 'text-[#8a7a5a]',
+  'in-progress': 'text-[#f0a030]',
+  completed: 'text-[#5aaa7a]'
 };
 
 const sectionDotByState: Record<TaskCardState, string> = {
-  todo: 'bg-[#77827d]',
-  'in-progress': 'bg-[#7a96c0]',
-  completed: 'bg-[#79d0ab]'
+  todo: 'bg-[#6a5a3a]',
+  'in-progress': 'bg-[#f0a030]',
+  completed: 'bg-[#4a9a6a]'
+};
+
+const columnTitleByState: Record<TaskCardState, string> = {
+  todo: 'TO DO',
+  'in-progress': 'IN PROGRESS',
+  completed: 'COMPLETED'
+};
+
+const columnBorderByState: Record<TaskCardState, string> = {
+  todo: 'border-[#2a2010]',
+  'in-progress': 'border-[#f0a030]/35',
+  completed: 'border-[#1a3020]'
+};
+
+const columnGlowByState: Record<TaskCardState, string> = {
+  todo: '',
+  'in-progress': 'shadow-[inset_0_1px_0_rgba(240,160,48,0.08),0_0_30px_-10px_rgba(240,160,48,0.12)]',
+  completed: 'shadow-[inset_0_1px_0_rgba(74,154,106,0.06)]'
 };
 
 export const BOARD_COLUMN_SURFACE_CLASS =
-  'relative overflow-hidden rounded-[18px] border border-[#2a312e] bg-[linear-gradient(180deg,#070a0b_0%,#050607_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-5';
+  'relative overflow-hidden border bg-[#0a0b0d] p-5 sm:p-7';
 
 export const BOARD_COLUMN_TITLE_CLASS =
-  'text-sm font-medium tracking-[0.01em] text-[#deebe5]';
+  'font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-[#c8bfa8]';
 
 export function BoardColumn({
   title,
@@ -108,35 +126,43 @@ export function BoardColumn({
         }
         onBlockedDrop?.(state);
       }}
-      className={`${BOARD_COLUMN_SURFACE_CLASS} transition-[border-color,box-shadow,background-color] duration-220 ease-out md:snap-start ${
+      className={`${BOARD_COLUMN_SURFACE_CLASS} ${columnBorderByState[state]} ${columnGlowByState[state]} transition-[border-color,box-shadow,background-color] duration-220 ease-out md:snap-start ${
         dropActive
           ? dropEnabled
-            ? 'border-[#5c7267] bg-[linear-gradient(180deg,#081011_0%,#050809_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_46px_-38px_rgba(78,103,92,0.62)]'
-            : 'border-[#5f6764] bg-[linear-gradient(180deg,#080d0d_0%,#060909_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_24px_44px_-36px_rgba(57,66,63,0.54)]'
+            ? 'border-[#f0a030]/60 shadow-[0_0_24px_-8px_rgba(240,160,48,0.2)]'
+            : 'border-[#5f6764]'
           : ambientHighlight
-            ? 'border-[#3d564c] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_24px_44px_-40px_rgba(76,125,107,0.42)]'
+            ? 'border-[#f0a030]/25 shadow-[0_0_20px_-10px_rgba(240,160,48,0.15)]'
           : ''
       }`}
     >
+      {/* Top accent stripe per column state */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
+        className={`pointer-events-none absolute inset-x-0 top-0 h-[2px] ${
+          state === 'in-progress'
+            ? 'bg-gradient-to-r from-transparent via-[#f0a030]/70 to-transparent'
+            : state === 'completed'
+              ? 'bg-gradient-to-r from-transparent via-[#4a9a6a]/50 to-transparent'
+              : 'bg-gradient-to-r from-transparent via-[#6a5a3a]/40 to-transparent'
+        }`}
       />
       <header className="flex items-center justify-between gap-3">
         <div className="inline-flex items-center gap-2">
-          <span className={`h-1.5 w-1.5 rounded-full ${sectionDotByState[state]}`} />
-          <h3 className={BOARD_COLUMN_TITLE_CLASS}>{title}</h3>
+          <span className={`h-1.5 w-1.5 ${sectionDotByState[state]}`} />
+          <h3 className={BOARD_COLUMN_TITLE_CLASS}>{columnTitleByState[state]}</h3>
         </div>
         <motion.span
-          className={`rounded-full border border-[#2d3531] bg-[#0c1110] px-2.5 py-0.5 text-[11px] font-medium ${countToneByState[state]}`}
+          className={`border bg-[#0a0b0d] px-2 py-0.5 font-mono text-[10px] font-bold ${countToneByState[state]}`}
+          style={{ borderColor: state === 'in-progress' ? 'rgba(240,160,48,0.25)' : state === 'completed' ? 'rgba(74,154,106,0.2)' : 'rgba(60,50,30,0.6)' }}
           animate={
             ambientHighlight
               ? {
-                  borderColor: ['rgba(45,53,49,1)', 'rgba(121,208,171,0.5)', 'rgba(45,53,49,1)'],
+                  borderColor: ['rgba(240,160,48,0.25)', 'rgba(240,160,48,0.6)', 'rgba(240,160,48,0.25)'],
                   boxShadow: [
-                    '0 0 0 rgba(121,208,171,0)',
-                    '0 0 0.75rem rgba(121,208,171,0.18)',
-                    '0 0 0 rgba(121,208,171,0)'
+                    '0 0 0 rgba(240,160,48,0)',
+                    '0 0 0.6rem rgba(240,160,48,0.2)',
+                    '0 0 0 rgba(240,160,48,0)'
                   ]
                 }
               : undefined
@@ -147,16 +173,16 @@ export function BoardColumn({
               : undefined
           }
         >
-          {tasks.length}
+          [{tasks.length}]
         </motion.span>
       </header>
       {dropBlocked && dropActive && blockedHint ? (
-        <p className="mt-2 text-[11px] text-[#8f9b97]">{blockedHint}</p>
+        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.1em] text-[#6a5a3a]">{blockedHint}</p>
       ) : ambientHint ? (
         <motion.div
-          className="relative mt-2 overflow-hidden rounded-[12px] border border-[#355247] bg-[linear-gradient(180deg,rgba(7,16,13,0.92),rgba(8,18,15,0.84))] px-3 py-2 text-[11px] text-[#b6dfcf]"
+          className="relative mt-2 overflow-hidden border border-[#f0a030]/25 bg-[#0c0d09] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[#f0a030]/70"
           animate={{
-            borderColor: ['rgba(53,82,71,0.95)', 'rgba(121,208,171,0.65)', 'rgba(53,82,71,0.95)']
+            borderColor: ['rgba(240,160,48,0.25)', 'rgba(240,160,48,0.55)', 'rgba(240,160,48,0.25)']
           }}
           transition={{ duration: 2.2, ease: 'easeInOut', repeat: Number.POSITIVE_INFINITY }}
         >
@@ -171,7 +197,7 @@ export function BoardColumn({
         </motion.div>
       ) : null}
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-5 space-y-4">
         <AnimatePresence initial={false}>
           {showDropSlot ? (
             <motion.div
@@ -184,12 +210,12 @@ export function BoardColumn({
               className="overflow-hidden"
             >
               <motion.div
-                className={`relative h-full rounded-[14px] border bg-[#0c1110]/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors duration-150 ${
+                className={`relative h-full border bg-[#0c0d09] transition-colors duration-150 ${
                   dropActive
                     ? dropEnabled
-                      ? 'border-[#5d7568]/85'
+                      ? 'border-[#f0a030]/50'
                       : 'border-[#5b6661]/78'
-                    : 'border-[#32403a]/75'
+                    : 'border-[#f0a030]/20'
                 }`}
               >
                 <motion.div
@@ -209,8 +235,8 @@ export function BoardColumn({
                 {dropSlotLabel ? (
                   <div className="absolute inset-0 flex items-center justify-center px-4 text-center">
                     <p
-                      className={`text-[11px] font-medium ${
-                        dropEnabled ? 'text-[#d6efe4]' : 'text-[#aeb8b3]'
+                      className={`font-mono text-[10px] font-bold uppercase tracking-[0.15em] ${
+                        dropEnabled ? 'text-[#f0a030]/80' : 'text-[#6a5a3a]'
                       }`}
                     >
                       {dropSlotLabel}
@@ -267,7 +293,7 @@ export function BoardColumn({
                   transition={{ duration: 0.16, ease: 'easeOut' }}
                   className="mb-2 overflow-hidden rounded-full"
                 >
-                  <div className="h-[3px] rounded-full bg-[linear-gradient(90deg,rgba(160,210,188,0.08),rgba(221,236,230,0.92),rgba(160,210,188,0.08))] shadow-[0_0_18px_rgba(177,225,203,0.18)]" />
+                  <div className="h-[2px] bg-[linear-gradient(90deg,rgba(240,160,48,0.08),rgba(240,160,48,0.9),rgba(240,160,48,0.08))] shadow-[0_0_12px_rgba(240,160,48,0.35)]" />
                 </motion.div>
               ) : null}
             </AnimatePresence>
@@ -291,7 +317,7 @@ export function BoardColumn({
                   transition={{ duration: 0.16, ease: 'easeOut' }}
                   className="mt-2 overflow-hidden rounded-full"
                 >
-                  <div className="h-[3px] rounded-full bg-[linear-gradient(90deg,rgba(160,210,188,0.08),rgba(221,236,230,0.92),rgba(160,210,188,0.08))] shadow-[0_0_18px_rgba(177,225,203,0.18)]" />
+                  <div className="h-[2px] bg-[linear-gradient(90deg,rgba(240,160,48,0.08),rgba(240,160,48,0.9),rgba(240,160,48,0.08))] shadow-[0_0_12px_rgba(240,160,48,0.35)]" />
                 </motion.div>
               ) : null}
             </AnimatePresence>

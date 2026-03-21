@@ -110,7 +110,19 @@ describe('TheoryLessonsSection', () => {
             10,
             120
           ),
-          buildSummary('fabric', 'Microsoft Fabric Modules', 20, 199)
+          buildSummary('fabric', 'Microsoft Fabric Modules', 20, 199),
+          buildSummary(
+            'fabric-data-engineering-track',
+            'Microsoft Fabric: Data Engineering Track',
+            8,
+            8
+          ),
+          buildSummary(
+            'fabric-business-intelligence-track',
+            'Microsoft Fabric: Business Intelligence Track',
+            7,
+            7
+          )
         ]);
       }
 
@@ -138,7 +150,9 @@ describe('TheoryLessonsSection', () => {
     expect(optionLabels).toEqual([
       'PySpark: The Full Stack',
       'PySpark: Data Engineering Track',
-      'Fabric: End-to-End Platform'
+      'Fabric: End-to-End Platform',
+      'Fabric: Data Engineering Track',
+      'Fabric: Business Intelligence Track'
     ]);
     expect(screen.getAllByText('PySpark: The Full Stack')).toHaveLength(2);
   });
