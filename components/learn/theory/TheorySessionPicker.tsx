@@ -167,10 +167,11 @@ export const TheorySessionPicker = ({
                 return (
                   <div
                     key={methodId}
-                    className="glass-panel border p-4 flex flex-col group transition-all relative"
+                    className="glass-panel border p-4 flex flex-col group transition-all relative cursor-pointer"
                     style={{
                       borderColor: `rgba(${a.rgb},0.1)`,
                     }}
+                    onClick={() => onStart(config)}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = `rgba(${a.rgb},0.4)`; (e.currentTarget as HTMLElement).style.boxShadow = `0 0 30px rgba(${a.rgb},0.15)`; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = `rgba(${a.rgb},0.1)`; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
                   >
