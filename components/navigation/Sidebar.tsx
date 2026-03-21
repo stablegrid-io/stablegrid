@@ -186,11 +186,6 @@ export const Sidebar = () => {
             <div className="font-mono text-xs font-bold uppercase text-[#00F2FF]">
               {nickname}
             </div>
-            {/* Level badge */}
-            <div className="mt-1.5 inline-flex items-center gap-1.5 border border-primary/20 bg-primary/5 px-2 py-0.5">
-              <span className="w-1 h-1 bg-primary" />
-              <span className="font-mono text-[8px] text-primary/70 tracking-widest uppercase">ONLINE</span>
-            </div>
           </div>
         )}
       </div>
