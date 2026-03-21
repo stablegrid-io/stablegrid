@@ -19,12 +19,14 @@ export interface MissionDefinition {
   rewardBadge: string;
   rewardTitle: string;
   workspaceTaskId?: string;
+  coverImage?: string;
 }
 
 export const MISSIONS: MissionDefinition[] = [
   {
     slug: 'blackout-berlin',
     codename: 'BLACKOUT BERLIN',
+    coverImage: '/grid-assets/missions/blackout-berlin.jpg',
     icon: '⚡',
     status: 'available',
     completed: false,
@@ -46,6 +48,7 @@ export const MISSIONS: MissionDefinition[] = [
   {
     slug: 'solar-surge',
     codename: 'SOLAR SURGE',
+    coverImage: '/grid-assets/missions/solar-surge.jpg',
     icon: '☀️',
     status: 'available',
     completed: true,
@@ -66,6 +69,7 @@ export const MISSIONS: MissionDefinition[] = [
   {
     slug: 'battery-arbitrage-texas',
     codename: 'BATTERY ARBITRAGE',
+    coverImage: '/grid-assets/missions/battery-arbitrage.jpg',
     icon: '🔋',
     status: 'available',
     completed: true,
