@@ -20,7 +20,7 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { href: '/home', icon: Home, label: 'Home', matchPrefixes: ['/home', '/'] },
   {
-    href: '/theory',
+    href: '/learn/theory',
     icon: BookOpen,
     label: 'Theory',
     matchPrefixes: ['/theory', '/learn']
@@ -32,7 +32,7 @@ export const navItems: NavItem[] = [
     matchPrefixes: ['/assignments', '/tasks', '/practice', '/missions', '/flashcards']
   },
   { href: '/energy', icon: Zap, label: 'Grid', disabled: true },
-  { href: '/progress', icon: User, label: 'Character' }
+  { href: '/progress', icon: User, label: 'Character', disabled: true }
 ];
 
 export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
