@@ -1,22 +1,12 @@
 'use client';
 
 import { useMemo } from 'react';
-import { format } from 'date-fns';
 import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
-import { ArrowRight, BookOpen, ClipboardCheck } from 'lucide-react';
-import dynamic from 'next/dynamic';
-import { HomeActivationTable } from '@/components/home/activation-table/HomeActivationTable';
-
-const CharacterHeroCard = dynamic(
-  () => import('@/components/progress/CharacterHeroCard').then((m) => m.CharacterHeroCard),
-  { ssr: false }
-);
-import type { HomeActivationTableData } from '@/components/home/activation-table/types';
+import { ArrowRight } from 'lucide-react';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import {
-  formatUnitsAsKwh,
   getAvailableBudgetUnits,
   INFRASTRUCTURE_NODES
 } from '@/lib/energy';
@@ -74,19 +64,8 @@ export const HomeDashboard = ({
   readingSignals,
   stats
 }: HomeDashboardProps) => {
-  const dailyEnergy = useProgressStore((state) => state.dailyXP);
   const deployedNodeIds = useProgressStore((state) => state.deployedNodeIds);
 
-  const todayKey = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
-  const studySessionsToday = useMemo(
-    () =>
-      recentSessions.filter(
-        (session) => format(new Date(session.lastActiveAt), 'yyyy-MM-dd') === todayKey
-      ).length,
-    [recentSessions, todayKey]
-  );
-
-  const energyTodayUnits = dailyEnergy[todayKey] ?? 0;
   const availableBudgetUnits = getAvailableBudgetUnits(stats.totalXp, deployedNodeIds);
   const nextGridNode =
     INFRASTRUCTURE_NODES.find((node) => !deployedNodeIds.includes(node.id)) ?? null;
@@ -143,7 +122,6 @@ export const HomeDashboard = ({
   const moduleLabel = moduleMeta.label;
   const theoryTrackLabel = moduleMeta.trackLabel;
   const theoryAccentRgb = ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC[moduleTopicId];
-  const tasksAccentRgb = latestTaskAction.accentRgb ?? '34,185,153';
   const theoryRouteHref = `/learn/${moduleTopicId}/theory`;
   const inferredChapterFromTrackProgress = Math.min(
     Math.max(1, recommendedTopic.theoryTotal),
@@ -171,14 +149,6 @@ export const HomeDashboard = ({
     user.email?.split('@')[0] ??
     'Operator';
   const firstName = userDisplayName.split(' ')[0] ?? userDisplayName;
-  const lastClockedInLabel = useMemo(() => {
-    if (!lastClockedInAt) return null;
-    const clockedInDate = new Date(lastClockedInAt);
-    if (Number.isNaN(clockedInDate.getTime())) {
-      return null;
-    }
-    return `Last checkpoint: ${format(clockedInDate, 'yyyy-MM-dd HH:mm:ss')}`;
-  }, [lastClockedInAt]);
   const remainingSections = latestSession
     ? Math.max(0, latestSession.sectionsTotal - latestSession.sectionsRead)
     : 0;
@@ -196,14 +166,6 @@ export const HomeDashboard = ({
     typeof latestTaskAction.progressPct === 'number'
       ? clampPct(latestTaskAction.progressPct)
       : null;
-  const gridUnlockProgressPct = (() => {
-    if (!nextGridNode) {
-      return 100;
-    }
-    const unlockRequiredUnits = Math.max(1, Math.round(nextGridNode.kwhRequired * 1000));
-    return clampPct((Math.min(availableBudgetUnits, unlockRequiredUnits) / unlockRequiredUnits) * 100);
-  })();
-
   const theoryAction = (() => {
     if (latestSession) {
       if (latestSession.isCompleted) {
@@ -238,213 +200,173 @@ export const HomeDashboard = ({
       progressLine: `${recommendedTopic.theoryCompleted}/${recommendedTopic.theoryTotal} chapters complete.`
     };
   })();
-  const canDeployNextNode = Boolean(nextGridNode && remainingGridUnits === 0);
-
-  const activationData: HomeActivationTableData = {
-    greeting: {
-      title: `Welcome back, ${firstName}`,
-      subtitle: [
-        latestSession ? `${moduleLabel} · Chapter ${latestSession.chapterNumber}` : `${moduleLabel} route`,
-        `${overallProgress}% complete`,
-        studySessionsToday > 0
-          ? 'Active today'
-          : stats.currentStreak > 0
-            ? `${stats.currentStreak}-day momentum`
-            : 'Momentum inactive'
-      ].join(' · '),
-      lastClockedIn: lastClockedInLabel ?? undefined
-    },
-    categories: [
-      {
-        kind: 'theory',
-        label: 'Theory',
-        title: theoryTrackLabel,
-        summary: latestSession && !latestSession.isCompleted
-          ? 'Resume the active chapter and keep continuity.'
-          : latestSession && latestSession.isCompleted
-            ? 'Continue from your latest completed chapter.'
-          : 'Continue the clearest theory route to maintain momentum.',
-        statLine: theoryAction.progressLine,
-        accentRgb: theoryAccentRgb,
-        progress: {
-          valuePct: theoryProgressPct,
-          label: latestSession ? 'Chapter progress' : 'Track progress',
-          valueLabel: theoryProgressValueLabel
-        },
-        primaryAction: {
-          label: theoryAction.label,
-          href: theoryAction.href
-        }
-      },
-      {
-        kind: 'tasks',
-        label: 'Tasks',
-        title: latestTaskAction.title,
-        summary: latestTaskAction.summary,
-        statLine: latestTaskAction.statLine,
-        accentRgb: tasksAccentRgb,
-        progress:
-          tasksProgressPct !== null
-            ? {
-                valuePct: tasksProgressPct,
-                label: 'Task progress'
-              }
-            : undefined,
-        primaryAction: {
-          label: latestTaskAction.actionLabel,
-          href: latestTaskAction.actionHref
-        }
-      },
-      {
-        kind: 'grid',
-        label: 'Grid',
-        title: nextGridNode ? nextGridNode.name : 'Grid Ops',
-        summary: nextGridNode
-          ? remainingGridUnits === 0
-            ? 'Unlock threshold reached. Deploy this node to stabilize your grid.'
-            : `${formatUnitsAsKwh(remainingGridUnits)} still needed to unlock this node.`
-          : 'All listed infrastructure nodes are unlocked and operational.',
-        statLine:
-          energyTodayUnits > 0
-            ? `${formatUnitsAsKwh(energyTodayUnits)} earned today`
-            : `${formatUnitsAsKwh(availableBudgetUnits)} currently available`,
-        progress: {
-          valuePct: gridUnlockProgressPct,
-          label: nextGridNode ? 'Unlock progress' : 'Grid completion'
-        },
-        primaryAction: canDeployNextNode
-          ? {
-              label: 'Deploy node',
-              href: '/energy'
-            }
-          : undefined
-      }
-    ]
-  };
-
-  const featureEnabled = process.env.NEXT_PUBLIC_HOME_ACTIVATION_TABLE !== '0';
-
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#060809] pb-24 lg:pb-10">
-      {/* Scanline overlay */}
-      <div
-        className="pointer-events-none fixed inset-0 opacity-[0.025]"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)',
-          backgroundSize: '100% 3px'
-        }}
-      />
-      {/* Ambient glow */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 opacity-[0.04]"
-        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(34,185,153,1), transparent 70%)' }}
-      />
-      {/* Tactical dot grid */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(250,250,250,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(250,250,250,0.03) 1px, transparent 1px)',
-          backgroundSize: '42px 42px'
-        }}
-      />
+    <div className="relative min-h-screen pb-24 lg:pb-10">
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col px-4 pb-16 pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
+        {/* Hero section — XP, Level, Role */}
+        <section className="mb-12 flex flex-col items-center justify-center py-20 border border-primary/10 glass-panel relative overflow-hidden bg-gradient-to-b from-surface-container-low to-background">
+          <div className="relative w-full max-w-4xl flex flex-col items-center justify-center">
+            {/* Decorative rings */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-[500px] h-[500px] border border-primary/5 rounded-full absolute" />
+              <div className="w-[350px] h-[350px] border border-primary/10 rounded-full absolute border-dashed" />
+              <div className="w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full absolute" />
+            </div>
 
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col px-4 pb-16 pt-6 sm:px-6 lg:pb-10 lg:pt-8">
-        <CharacterHeroCard serverXp={stats.totalXp} />
-
-        {/* Continue panels */}
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* Theory panel */}
-          <Link
-            href={theoryAction.href}
-            className="group relative flex flex-col justify-between overflow-hidden rounded-[16px] border border-white/[0.06] bg-[rgba(8,12,10,0.95)] p-6 transition-all duration-200 hover:border-white/[0.12] hover:bg-[rgba(12,18,14,0.95)]"
-          >
-            <div className="pointer-events-none absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-            <div className="relative">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04]">
-                  <BookOpen className="h-4 w-4 text-[#34d399]" />
+            <div className="relative flex items-center justify-center w-full min-h-[300px]">
+              {/* Central node */}
+              <div className="relative z-10 w-64 h-64 flex items-center justify-center">
+                <div className="relative w-32 h-32 flex items-center justify-center">
+                  <div className="absolute w-24 h-24 border-2 border-primary rotate-[30deg] opacity-80 shadow-[0_0_20px_#00F2FF]" />
+                  <div className="absolute w-24 h-24 border-2 border-primary/50 rotate-[-30deg]" />
+                  <div className="absolute w-12 h-12 bg-primary/20 backdrop-blur-sm border border-primary animate-pulse" />
+                  <div className="absolute w-[200px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent rotate-45" />
+                  <div className="absolute w-[200px] h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent -rotate-45" />
+                  <div className="absolute h-[200px] w-[1px] bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
+                  <div className="absolute -top-12 -left-12 w-3 h-3 bg-primary neural-node" />
+                  <div className="absolute -bottom-8 -right-16 w-2 h-2 bg-primary/80 neural-node" />
+                  <div className="absolute top-16 -right-12 w-3 h-3 bg-primary neural-node" />
                 </div>
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
-                  Theory
-                </p>
-              </div>
 
-              <h3 className="font-mono text-lg font-bold uppercase tracking-[0.04em] text-white">
-                {theoryTrackLabel}
-              </h3>
-              <p className="mt-2 text-[13px] leading-relaxed text-white/40">
-                {theoryAction.progressLine}
-              </p>
-
-              {/* Progress bar */}
-              <div className="mt-5 space-y-1.5">
-                <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.2em] text-white/25">
-                  <span>{theoryProgressValueLabel}</span>
-                  <span>{theoryProgressPct}%</span>
+                {/* XP display */}
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                  <div className="text-[9px] font-mono text-primary/60 tracking-[0.4em] uppercase mb-1">XP_SYNC</div>
+                  <div className="text-3xl font-headline font-black text-primary drop-shadow-[0_0_10px_rgba(0,242,255,0.5)]">
+                    {stats.totalXp.toLocaleString()}
+                  </div>
                 </div>
-                <div className="h-[3px] overflow-hidden rounded-full bg-white/[0.06]">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${theoryProgressPct}%`, background: `rgb(${theoryAccentRgb})` }}
-                  />
+
+                {/* Left stat — Streak */}
+                <div className="absolute top-1/2 -left-48 -translate-y-1/2 text-right hidden lg:block">
+                  <div className="border-r border-primary/30 pr-4 py-2">
+                    <div className="text-[9px] font-mono text-primary/50 tracking-widest uppercase">Streak</div>
+                    <div className="text-xl font-headline font-bold text-on-surface">
+                      {stats.currentStreak} days
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right stat — Progress */}
+                <div className="absolute top-1/2 -right-48 -translate-y-1/2 text-left hidden lg:block">
+                  <div className="border-l border-primary/30 pl-4 py-2">
+                    <div className="text-[9px] font-mono text-primary/50 tracking-widest uppercase">Progress</div>
+                    <div className="text-xl font-headline font-bold text-primary">
+                      {overallProgress}%
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="relative mt-6 flex items-center gap-2 font-mono text-[11px] font-semibold text-[#34d399] transition-colors group-hover:text-[#6ee7b7]">
-              <span>{theoryAction.label}</span>
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+          {/* Segmented progress bar */}
+          <div className="max-w-xl mx-auto w-full mt-12 px-8 relative z-10">
+            <div className="flex gap-1.5 h-1.5">
+              {Array.from({ length: 12 }, (_, i) => (
+                <div
+                  key={i}
+                  className={`flex-1 ${i < Math.round((overallProgress / 100) * 12) ? 'bg-primary' : 'bg-white/5'}`}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between mt-4 font-mono text-[9px] text-primary/40 uppercase tracking-widest">
+              <span>{firstName}&apos;s progress</span>
+              <span>{stats.totalXp.toLocaleString()} XP total</span>
+            </div>
+          </div>
+
+          <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+        </section>
+
+        {/* Theory + Assignments cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Theory card */}
+          <Link
+            href={theoryAction.href}
+            className="glass-panel border border-primary/10 p-8 flex flex-col h-full group relative overflow-hidden transition-all hover:border-primary/30"
+          >
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1.5 h-1.5 bg-primary shadow-[0_0_5px_#99f7ff]" />
+              <span className="font-mono text-[10px] text-primary/60 tracking-widest uppercase">
+                Theory
+              </span>
+            </div>
+
+            <h3 className="font-headline font-bold text-2xl text-on-surface mb-2">
+              {theoryTrackLabel}
+            </h3>
+            <p className="text-on-surface-variant text-sm mb-8 leading-relaxed max-w-md">
+              {theoryAction.progressLine}
+            </p>
+
+            <div className="mt-auto">
+              <div className="flex justify-between items-end mb-3">
+                <span className="font-mono text-[10px] text-primary">
+                  Progress: {theoryProgressPct}%
+                </span>
+                <span className="font-mono text-[10px] text-on-surface-variant">
+                  {theoryProgressValueLabel}
+                </span>
+              </div>
+              <div className="h-1 w-full bg-surface-container-highest mb-8">
+                <div
+                  className="h-full bg-primary shadow-[0_0_10px_rgba(153,247,255,0.3)] transition-all duration-500"
+                  style={{ width: `${theoryProgressPct}%` }}
+                />
+              </div>
+              <div className="w-full bg-primary-container text-on-primary-container font-headline font-bold text-xs py-4 tracking-widest flex items-center justify-center gap-2 hover:bg-primary transition-all active:scale-[0.98] duration-150 uppercase border border-primary/20">
+                <span>{theoryAction.label}</span>
+                <ArrowRight className="h-4 w-4" />
+              </div>
             </div>
           </Link>
 
-          {/* Assignments panel */}
+          {/* Assignments card */}
           <Link
             href={latestTaskAction.actionHref}
-            className="group relative flex flex-col justify-between overflow-hidden rounded-[16px] border border-white/[0.06] bg-[rgba(8,12,10,0.95)] p-6 transition-all duration-200 hover:border-white/[0.12] hover:bg-[rgba(12,18,14,0.95)]"
+            className="glass-panel border border-tertiary/10 p-8 flex flex-col h-full group relative overflow-hidden transition-all hover:border-tertiary/30"
           >
-            <div className="pointer-events-none absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-            <div className="relative">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04]">
-                  <ClipboardCheck className="h-4 w-4" style={{ color: `rgb(${tasksAccentRgb})` }} />
-                </div>
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
-                  Assignments
-                </p>
-              </div>
-
-              <h3 className="font-mono text-lg font-bold uppercase tracking-[0.04em] text-white">
-                {latestTaskAction.title}
-              </h3>
-              <p className="mt-2 text-[13px] leading-relaxed text-white/40">
-                {latestTaskAction.summary}
-              </p>
-
-              {/* Progress bar (if available) */}
-              {tasksProgressPct !== null && (
-                <div className="mt-5 space-y-1.5">
-                  <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.2em] text-white/25">
-                    <span>{latestTaskAction.statLine}</span>
-                    <span>{tasksProgressPct}%</span>
-                  </div>
-                  <div className="h-[3px] overflow-hidden rounded-full bg-white/[0.06]">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${tasksProgressPct}%`, background: `rgb(${tasksAccentRgb})` }}
-                    />
-                  </div>
-                </div>
-              )}
-              {tasksProgressPct === null && (
-                <p className="mt-5 font-mono text-[10px] text-white/20">{latestTaskAction.statLine}</p>
-              )}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1.5 h-1.5 bg-tertiary shadow-[0_0_5px_#ffc965]" />
+              <span className="font-mono text-[10px] text-tertiary/60 tracking-widest uppercase">
+                Assignments
+              </span>
             </div>
 
-            <div className="relative mt-6 flex items-center gap-2 font-mono text-[11px] font-semibold transition-colors group-hover:text-white/80" style={{ color: `rgb(${tasksAccentRgb})` }}>
-              <span>{latestTaskAction.actionLabel}</span>
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+            <h3 className="font-headline font-bold text-2xl text-on-surface mb-2">
+              {latestTaskAction.title}
+            </h3>
+            <p className="text-on-surface-variant text-sm mb-8 leading-relaxed max-w-md">
+              {latestTaskAction.summary}
+            </p>
+
+            <div className="mt-auto">
+              {tasksProgressPct !== null ? (
+                <>
+                  <div className="flex justify-between items-end mb-3">
+                    <span className="font-mono text-[10px] text-tertiary">
+                      Progress: {tasksProgressPct}%
+                    </span>
+                    <span className="font-mono text-[10px] text-on-surface-variant">
+                      {latestTaskAction.statLine}
+                    </span>
+                  </div>
+                  <div className="h-1 w-full bg-surface-container-highest mb-8">
+                    <div
+                      className="h-full bg-tertiary shadow-[0_0_10px_rgba(255,201,101,0.3)] transition-all duration-500"
+                      style={{ width: `${tasksProgressPct}%` }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <p className="font-mono text-[10px] text-on-surface-variant mb-8">
+                  {latestTaskAction.statLine}
+                </p>
+              )}
+              <div className="w-full border border-tertiary/20 text-tertiary font-headline font-bold text-xs py-4 tracking-widest flex items-center justify-center gap-2 hover:bg-tertiary/5 transition-all active:scale-[0.98] duration-150 uppercase">
+                <span>{latestTaskAction.actionLabel}</span>
+                <ArrowRight className="h-4 w-4" />
+              </div>
             </div>
           </Link>
         </div>
