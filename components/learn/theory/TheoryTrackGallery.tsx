@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Zap, CheckCircle, Lock } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { summarizeTrackLessonProgress } from '@/lib/learn/theoryTrackProgress';
@@ -41,30 +41,35 @@ export const TheoryTrackGallery = ({
   const accentColor = `rgb(${accentRgb})`;
   const accentVars = { '--theory-accent': accentRgb } as CSSProperties;
 
+  // Per-track accent: first track uses primary cyan, subsequent use error red
+  const trackAccentColors = tracks.map((_, i) =>
+    i === 0 ? { color: '#99f7ff', bgClass: 'primary', rgb: '153,247,255' }
+            : { color: '#ff716c', bgClass: 'error', rgb: '255,113,108' }
+  );
+
   return (
     <div className="relative min-h-screen pb-24 lg:pb-10" style={accentVars}>
-      <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
 
-        {/* Page header — Stitch Journey Manifest style */}
-        <header className="mb-12 relative overflow-hidden glass-panel border border-primary/20 p-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 relative z-10">
-            <div className="space-y-4">
-              <h2 className="font-mono text-xs tracking-[0.3em] text-primary">JOURNEY_MANIFEST</h2>
-              <h1 className="font-headline text-4xl lg:text-5xl font-black text-on-surface tracking-tighter">
-                {doc.title}
-              </h1>
-              <p className="max-w-xl text-sm text-on-surface-variant">
-                Select a guided track before opening modules. Each track groups the course into an intentional progression.
-              </p>
-            </div>
+        {/* Header — Stitch Airflow Modules style */}
+        <header className="mb-12 max-w-5xl">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-px w-8" style={{ backgroundColor: accentColor }} />
+            <span className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: accentColor }}>
+              {topicStyle.eyebrow ?? `${doc.topic} Track`} / Core Selection
+            </span>
           </div>
-          {/* L-bracket corners */}
-          <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary" />
-          <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary" />
+          <h1 className="font-headline font-bold text-5xl lg:text-6xl tracking-tighter uppercase text-on-surface mb-4">
+            {doc.title.replace(/\s+modules?$/i, '')} <span className="text-primary opacity-50">MODULES</span>
+          </h1>
+          <p className="font-mono text-sm text-on-surface-variant max-w-2xl leading-relaxed">
+            System access granted. Select a specialized track to initialize neural mapping.
+            Each track groups the course into an intentional progression.
+          </p>
         </header>
 
         {/* Track cards */}
-        <div className="grid grid-cols-1 gap-5">
+        <div className="grid grid-cols-1 gap-8 max-w-6xl">
           {tracks.map((track, trackIndex) => {
             const { completedModules, progressPct } = summarizeTrackLessonProgress({
               chapters: track.chapters,
@@ -75,205 +80,209 @@ export const TheoryTrackGallery = ({
               .sort((left, right) => {
                 const leftUpdatedAt =
                   liveModuleProgressById[left.id]?.updatedAt ??
-                  chapterProgressById[left.id]?.lastActiveAt ??
-                  '';
+                  chapterProgressById[left.id]?.lastActiveAt ?? '';
                 const rightUpdatedAt =
                   liveModuleProgressById[right.id]?.updatedAt ??
-                  chapterProgressById[right.id]?.lastActiveAt ??
-                  '';
+                  chapterProgressById[right.id]?.lastActiveAt ?? '';
                 return new Date(rightUpdatedAt || 0).getTime() - new Date(leftUpdatedAt || 0).getTime();
               })
               .find((chapter) => {
-                const moduleProgress = liveModuleProgressById[chapter.id];
-                const chapterProgress = chapterProgressById[chapter.id];
-                return Boolean(
-                  moduleProgress?.lastVisitedRoute ||
-                    moduleProgress?.currentLessonId ||
-                    chapterProgress?.lastVisitedRoute ||
-                    chapterProgress?.currentLessonId
-                );
+                const mp = liveModuleProgressById[chapter.id];
+                const cp = chapterProgressById[chapter.id];
+                return Boolean(mp?.lastVisitedRoute || mp?.currentLessonId || cp?.lastVisitedRoute || cp?.currentLessonId);
               });
 
-            const segmentCount = 16;
+            const segmentCount = 10;
             const filledSegments = Math.round((progressPct / 100) * segmentCount);
             const isStarted = progressPct > 0;
             const isComplete = progressPct >= 100;
+            const ta = trackAccentColors[trackIndex] ?? trackAccentColors[0];
+            const trackCode = track.slug.replace(/[^a-z]/gi, '').substring(0, 2).toUpperCase();
 
             return (
               <Link
                 key={track.slug}
                 href={`/learn/${doc.topic}/theory/${track.slug}`}
-                className="group relative block overflow-hidden glass-panel transition-all duration-200"
-                style={{
-                  border: `1px solid rgba(${accentRgb},${isStarted ? '0.35' : '0.1'})`,
-                }}
+                className="group"
               >
-                {/* Top accent stripe */}
-                <div
-                  className="h-[2px] w-full"
-                  style={{
-                    background: `linear-gradient(90deg, rgba(${accentRgb},${isStarted ? '0.7' : '0.25'}), transparent 60%)`
-                  }}
-                />
+                <section
+                  className="relative bg-surface-container-low p-1 overflow-hidden transition-all duration-300"
+                  style={{ borderLeft: `4px solid ${ta.color}` }}
+                >
+                  {/* Hover glow */}
+                  <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ backgroundColor: `rgba(${ta.rgb},0.05)` }}
+                  />
+                  <div
+                    className="absolute -right-20 -top-20 w-64 h-64 blur-[100px] pointer-events-none"
+                    style={{ backgroundColor: `rgba(${ta.rgb},0.1)` }}
+                  />
 
-                {/* Corner brackets */}
-                <span className="absolute left-3 top-3 h-4 w-4 border-l border-t" style={{ borderColor: `rgba(${accentRgb},0.3)` }} />
-                <span className="absolute right-3 top-3 h-4 w-4 border-r border-t" style={{ borderColor: `rgba(${accentRgb},0.3)` }} />
-                <span className="absolute bottom-3 left-3 h-4 w-4 border-b border-l" style={{ borderColor: `rgba(${accentRgb},0.15)` }} />
-                <span className="absolute bottom-3 right-3 h-4 w-4 border-b border-r" style={{ borderColor: `rgba(${accentRgb},0.15)` }} />
-
-                <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-stretch lg:gap-8">
-
-                  {/* Left: track index + info */}
-                  <div className="flex flex-1 flex-col gap-4">
-
-                    {/* Track number + eyebrow */}
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-7 w-7 flex-shrink-0 items-center justify-center border font-mono text-[11px] font-black"
-                        style={{
-                          borderColor: `rgba(${accentRgb},0.45)`,
-                          background: `rgba(${accentRgb},0.08)`,
-                          color: accentColor
-                        }}
-                      >
-                        {String(trackIndex + 1).padStart(2, '0')}
+                  <div className="relative bg-surface p-8 flex flex-col md:flex-row gap-10 border border-outline-variant/20">
+                    {/* Left: Track Info */}
+                    <div className="flex-1 space-y-6">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span
+                              className="font-mono text-[10px] px-2 py-0.5 border"
+                              style={{
+                                backgroundColor: `rgba(${ta.rgb},0.2)`,
+                                color: ta.color,
+                                borderColor: `rgba(${ta.rgb},0.3)`
+                              }}
+                            >
+                              L-{String(trackIndex + 1).padStart(2, '0')}
+                            </span>
+                            <span
+                              className="font-mono text-[10px] tracking-widest uppercase"
+                              style={{ color: `rgba(${ta.rgb},0.7)` }}
+                            >
+                              {track.eyebrow}
+                            </span>
+                          </div>
+                          <h2 className="font-headline font-bold text-3xl lg:text-4xl text-on-surface uppercase tracking-tight">
+                            {track.title || track.label}
+                          </h2>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="font-mono text-2xl" style={{ color: ta.color }}>
+                            {String(track.chapterCount).padStart(2, '0')}
+                          </span>
+                          <span className="font-mono text-[10px] text-on-surface-variant uppercase">
+                            MODULES LOADED
+                          </span>
+                        </div>
                       </div>
-                      <span
-                        className="font-mono text-[9px] font-bold uppercase tracking-[0.4em]"
-                        style={{ color: `rgba(${accentRgb},0.6)` }}
-                      >
-                        {track.eyebrow}
-                      </span>
-                    </div>
 
-                    {/* Title + module count */}
-                    <div>
-                      <div className="flex flex-wrap items-baseline gap-3">
-                        <h2 className="font-headline text-xl font-bold uppercase tracking-tight text-on-surface leading-tight">
-                          {track.title || track.label}
-                        </h2>
-                        <span
-                          className="border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.2em]"
+                      <p className="text-on-surface-variant font-body text-sm leading-relaxed max-w-md">
+                        {track.description}
+                      </p>
+
+                      {/* Status chips */}
+                      <div className="flex gap-4">
+                        <div
+                          className="flex items-center gap-2 px-3 py-1 border"
                           style={{
-                            borderColor: `rgba(${accentRgb},0.3)`,
-                            color: `rgba(${accentRgb},0.7)`
+                            backgroundColor: `rgba(${ta.rgb},0.1)`,
+                            borderColor: `rgba(${ta.rgb},0.2)`
                           }}
                         >
-                          {track.chapterCount} modules
-                        </span>
-                      </div>
-                      {track.subtitle && (
-                        <p className="mt-1.5 font-mono text-[11px] font-semibold text-on-surface-variant">
-                          {track.subtitle}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Description */}
-                    <p className="max-w-2xl text-sm leading-relaxed text-on-surface-variant">
-                      {track.description}
-                    </p>
-
-                    {/* Footer chips */}
-                    <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-outline-variant/20 pt-4">
-                      <span className="border border-outline-variant/30 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-on-surface-variant">
-                        {track.totalMinutes} min
-                      </span>
-                      <span
-                        className="border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em]"
-                        style={{
-                          borderColor: `rgba(${accentRgb},0.2)`,
-                          color: `rgba(${accentRgb},0.6)`
-                        }}
-                      >
-                        {completedModules}/{track.chapterCount} complete
-                      </span>
-                      {isComplete && (
-                        <span className="border border-success-700/30 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-success-400">
-                          ✓ Cleared
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right: progress panel */}
-                  <div
-                    className="flex w-full flex-shrink-0 flex-col justify-between border p-5 lg:w-64"
-                    style={{
-                      borderColor: `rgba(${accentRgb},0.15)`,
-                      background: `rgba(${accentRgb},0.04)`
-                    }}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="font-mono text-[8px] font-bold uppercase tracking-[0.35em] text-on-surface-variant">
-                          Track Progress
-                        </p>
-                        <span
-                          className="font-mono text-lg font-black tabular-nums"
-                          style={{ color: progressPct > 0 ? accentColor : 'rgba(255,255,255,0.2)' }}
-                        >
-                          {progressPct}%
-                        </span>
-                      </div>
-
-                      {/* Segmented progress bar */}
-                      <div className="flex gap-[3px]">
-                        {Array.from({ length: segmentCount }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="h-[5px] flex-1 transition-all duration-500"
-                            style={{
-                              background: i < filledSegments
-                                ? accentColor
-                                : `rgba(${accentRgb},0.1)`,
-                              boxShadow: i < filledSegments
-                                ? `0 0 4px rgba(${accentRgb},0.5)`
-                                : 'none'
-                            }}
-                          />
-                        ))}
+                          <CheckCircle className="h-3.5 w-3.5" style={{ color: ta.color }} />
+                          <span className="font-mono text-[10px] font-bold uppercase" style={{ color: ta.color }}>
+                            {completedModules}/{track.chapterCount} COMPLETE
+                          </span>
+                        </div>
+                        {isComplete ? (
+                          <div className="flex items-center gap-2 border border-outline-variant px-3 py-1 opacity-60">
+                            <span className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">
+                              CLEARED
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 border border-outline-variant px-3 py-1">
+                            <Lock className="h-3.5 w-3.5 text-on-surface-variant" />
+                            <span className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">
+                              LOCKED
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Resume line */}
-                    <div className="mt-4 border-t pt-4" style={{ borderColor: `rgba(${accentRgb},0.12)` }}>
-                      <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-on-surface-variant mb-1">
-                        {mostRecentModule ? 'Last active' : 'Entry point'}
-                      </p>
-                      <p className="font-mono text-[11px] font-semibold text-on-surface leading-tight">
-                        {mostRecentModule ? mostRecentModule.title : 'Module 01'}
-                      </p>
-                    </div>
+                    {/* Right: Progress & Action */}
+                    <div className="w-full md:w-80 flex flex-col justify-between border-l border-outline-variant/20 pl-0 md:pl-10 space-y-6 md:space-y-0">
+                      {/* Progress */}
+                      <div>
+                        <div className="flex justify-between items-end mb-3">
+                          <span className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">
+                            PROGRESS STATUS
+                          </span>
+                          <span className="font-mono text-xl" style={{ color: ta.color }}>
+                            {progressPct}%
+                          </span>
+                        </div>
+                        <div className="flex gap-1 h-3">
+                          {Array.from({ length: segmentCount }, (_, i) => (
+                            <div
+                              key={i}
+                              className="flex-1"
+                              style={{
+                                backgroundColor: i < filledSegments ? ta.color : 'rgba(255,255,255,0.05)'
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
 
-                    {/* CTA */}
-                    <div className="mt-4">
+                      {/* Last active module */}
+                      <div className="bg-surface-container p-4 border-t border-b border-outline-variant/30">
+                        <span className="font-mono text-[10px] text-on-surface-variant block mb-1">
+                          LAST ACTIVE MODULE
+                        </span>
+                        <div className="font-mono text-xs font-bold truncate" style={{ color: ta.color }}>
+                          {mostRecentModule ? mostRecentModule.title.toUpperCase() : 'MODULE 01'}
+                        </div>
+                      </div>
+
+                      {/* CTA */}
                       <div
-                        className="flex items-center justify-between border px-3 py-2 transition-all duration-200 group-hover:opacity-100"
+                        className="w-full font-mono font-bold py-4 px-6 flex items-center justify-between transition-colors"
                         style={{
-                          borderColor: `rgba(${accentRgb},0.4)`,
-                          background: `rgba(${accentRgb},0.08)`,
-                          opacity: 0.7
+                          backgroundColor: ta.color,
+                          color: '#0c0e10'
                         }}
                       >
-                        <span
-                          className="font-mono text-[10px] font-bold uppercase tracking-[0.2em]"
-                          style={{ color: accentColor }}
-                        >
-                          {isStarted ? 'Resume track' : 'Begin track'}
+                        <span>
+                          {isComplete ? 'REVIEW' : isStarted ? 'RESUME' : 'BEGIN'} TRACK [{trackCode}-{String(trackIndex + 1).padStart(2, '0')}]
                         </span>
-                        <ArrowRight
-                          className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5"
-                          style={{ color: accentColor }}
-                        />
+                        {isStarted && !isComplete ? (
+                          <Zap className="h-4 w-4" />
+                        ) : (
+                          <ArrowRight className="h-4 w-4" />
+                        )}
                       </div>
                     </div>
                   </div>
-                </div>
+                </section>
               </Link>
             );
           })}
+        </div>
+
+        {/* System Footer */}
+        <div className="mt-16 pt-8 border-t border-outline-variant/10 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl">
+          <div className="space-y-2">
+            <span className="font-mono text-[10px] text-primary uppercase tracking-[0.3em]">
+              Module Integrity
+            </span>
+            <div className="h-1 w-full bg-surface-container-highest relative overflow-hidden">
+              <div className="absolute left-0 top-0 h-full w-[85%] bg-primary shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
+            </div>
+            <div className="flex justify-between font-mono text-[9px] text-on-surface-variant uppercase">
+              <span>Active Nodes: {tracks.reduce((sum, t) => sum + t.chapterCount, 0)}</span>
+              <span>Status: Stable</span>
+            </div>
+          </div>
+          <div className="space-y-2 opacity-50">
+            <span className="font-mono text-[10px] text-on-surface-variant uppercase tracking-[0.3em]">
+              Sync Latency
+            </span>
+            <div className="h-1 w-full bg-surface-container-highest relative overflow-hidden">
+              <div className="absolute left-0 top-0 h-full w-[12%] bg-on-surface-variant" />
+            </div>
+            <div className="flex justify-between font-mono text-[9px] text-on-surface-variant uppercase">
+              <span>MS: 0.35s</span>
+              <span>Buffer: 1024kb</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-6">
+            <div className="text-right">
+              <div className="text-[10px] font-mono text-on-surface-variant">SESSION TIME</div>
+              <div className="text-lg font-mono text-primary leading-none">--:--:--</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
