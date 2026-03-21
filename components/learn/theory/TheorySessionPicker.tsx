@@ -234,16 +234,6 @@ export const TheorySessionPicker = ({
                         </div>
                       </div>
 
-                      {/* CTA */}
-                      <button
-                        type="button"
-                        onClick={() => onStart(config)}
-                        className="w-full py-2.5 font-headline font-black text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all uppercase"
-                        style={{ backgroundColor: a.hex, color: '#0c0e10' }}
-                      >
-                        EXECUTE_PROTOCOL
-                        <CtaIcon className="h-3.5 w-3.5" />
-                      </button>
                     </div>
                   </div>
                 );
