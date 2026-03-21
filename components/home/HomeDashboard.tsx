@@ -205,9 +205,9 @@ export const HomeDashboard = ({
     };
   })();
   return (
-    <div className="relative flex flex-col" style={{ minHeight: 'calc(100vh - 3.5rem)' }}>
+    <div className="relative pb-16 lg:pb-8">
       {/* 3-column grid */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
 
         {/* Left: Theory Tree */}
         <section className="lg:col-span-3 border-r border-outline-variant/20 overflow-y-auto p-4 bg-surface-dim/40">
@@ -301,7 +301,7 @@ export const HomeDashboard = ({
         </section>
 
         {/* Center: Neural Sync Port */}
-        <section className="lg:col-span-6 relative flex flex-col items-center justify-center overflow-hidden bg-surface-container-lowest">
+        <section className="lg:col-span-6 relative flex flex-col items-center justify-center overflow-hidden bg-surface-container-lowest py-8">
           {/* HUD corners */}
           <div className="absolute top-3 left-3 border-l border-t border-primary/30 w-8 h-8" />
           <div className="absolute top-3 right-3 border-r border-t border-primary/30 w-8 h-8" />
