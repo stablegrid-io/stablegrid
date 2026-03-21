@@ -1,0 +1,718 @@
+{
+  "topic": "airflow",
+  "title": "Apache Airflow: Intermediate Track - TaskFlow API",
+  "description": "Master the TaskFlow API as the modern interface for writing Airflow DAGs - replacing verbose operator boilerplate with decorated Python functions, automatic XCom, and inferred dependencies.",
+  "version": "authored 2026-03-20",
+  "chapters": [
+    {
+      "id": "module-AFI1",
+      "number": 1,
+      "title": "TaskFlow API - The Modern Interface",
+      "description": "Replace verbose operator boilerplate with the @task decorator pattern, understand how TaskFlow manages XCom automatically, and convert existing DAGs to the modern interface.",
+      "totalMinutes": 120,
+      "sections": [
+        {
+          "id": "module-AFI1-lesson-01",
+          "title": "Lesson 1: Why TaskFlow Exists",
+          "estimatedMinutes": 12,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Every DAG you built in the beginner track used PythonOperator to wrap your task functions. It worked, but it came with a tax: manual XCom push and pull, explicit task_instance references, **context unpacking, and >> dependency declarations even when the data flow was obvious. TaskFlow eliminates all of that tax."
+            },
+            {
+              "type": "heading",
+              "content": "The Boilerplate Problem"
+            },
+            {
+              "type": "paragraph",
+              "content": "Consider a simple three-step pipeline for NordGrid's meter readings: extract the file path from SFTP, validate the row count, and load to Silver. In the classic pattern, each step requires a PythonOperator, each inter-task data transfer requires explicit XCom push/pull calls, and the dependency chain requires a separate >> line at the bottom."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# Classic pattern - NordGrid meter pipeline\nfrom airflow import DAG\nfrom airflow.operators.python import PythonOperator\nfrom datetime import datetime\n\ndef extract_meters(**context):\n    file_path = f\"s3://nordgrid-raw/meters/{context['ds_nodash']}.csv\"\n    row_count = 1_200_000  # simulated\n    context['ti'].xcom_push(key='file_path', value=file_path)\n    context['ti'].xcom_push(key='row_count', value=row_count)\n\ndef validate_meters(**context):\n    file_path = context['ti'].xcom_pull(task_ids='extract', key='file_path')\n    row_count = context['ti'].xcom_pull(task_ids='extract', key='row_count')\n    if row_count < 100_000:\n        raise ValueError(f\"Row count {row_count} below threshold for {file_path}\")\n    context['ti'].xcom_push(key='validated_path', value=file_path)\n\ndef load_to_silver(**context):\n    path = context['ti'].xcom_pull(task_ids='validate', key='validated_path')\n    print(f\"Loading {path} to silver layer\")\n\nwith DAG('classic_meter_pipeline', start_date=datetime(2026, 1, 1),\n         schedule='@daily', catchup=False) as dag:\n\n    extract = PythonOperator(task_id='extract', python_callable=extract_meters)\n    validate = PythonOperator(task_id='validate', python_callable=validate_meters)\n    load = PythonOperator(task_id='load', python_callable=load_to_silver)\n\n    extract >> validate >> load"
+            },
+            {
+              "type": "paragraph",
+              "content": "Count the boilerplate: six xcom_push/pull calls, three context dictionary unpacks, three PythonOperator instantiations, and a dependency chain that duplicates what the data flow already implies. For three tasks this is manageable. For a Silver layer pipeline with twelve tasks, it becomes a maintenance burden."
+            },
+            {
+              "type": "heading",
+              "content": "The TaskFlow Solution"
+            },
+            {
+              "type": "paragraph",
+              "content": "TaskFlow replaces all of that with decorated Python functions. You return values instead of pushing XCom. You pass arguments instead of pulling XCom. Airflow infers dependencies from the function call graph. The same pipeline becomes:"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# TaskFlow pattern - same pipeline, half the code\nfrom airflow.decorators import dag, task\nfrom datetime import datetime\n\n@dag(schedule='@daily', start_date=datetime(2026, 1, 1), catchup=False)\ndef taskflow_meter_pipeline():\n\n    @task\n    def extract_meters(ds_nodash=None):\n        file_path = f\"s3://nordgrid-raw/meters/{ds_nodash}.csv\"\n        return {'file_path': file_path, 'row_count': 1_200_000}\n\n    @task\n    def validate_meters(metadata: dict):\n        if metadata['row_count'] < 100_000:\n            raise ValueError(f\"Row count below threshold for {metadata['file_path']}\")\n        return metadata['file_path']\n\n    @task\n    def load_to_silver(validated_path: str):\n        print(f\"Loading {validated_path} to silver layer\")\n\n    metadata = extract_meters()\n    path = validate_meters(metadata)\n    load_to_silver(path)\n\ntaskflow_meter_pipeline()"
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Key insight",
+              "content": "Zero XCom calls. Zero PythonOperator instantiations. Zero >> declarations. The dependency graph is inferred entirely from the Python function call chain. What you return flows to whoever calls for it."
+            },
+            {
+              "type": "heading",
+              "content": "What Changed and What Stayed"
+            },
+            {
+              "type": "comparison",
+              "left": {
+                "label": "Classic Pattern",
+                "points": [
+                  "PythonOperator wraps each function",
+                  "Manual xcom_push() / xcom_pull()",
+                  "Explicit >> dependency chain",
+                  "context['ti'] for every interaction",
+                  "DAG and tasks are separate objects"
+                ]
+              },
+              "right": {
+                "label": "TaskFlow Pattern",
+                "points": [
+                  "@task decorator marks each function",
+                  "Return values and function arguments",
+                  "Dependencies inferred from calls",
+                  "Template variables as keyword args",
+                  "@dag wraps the entire pipeline function"
+                ]
+              }
+            },
+            {
+              "type": "paragraph",
+              "content": "Everything under the hood is identical. The same Airflow scheduler parses the DAG. The same executor runs the tasks. The same XCom backend stores inter-task data. TaskFlow is syntactic sugar - but it is the kind of sugar that eliminates entire categories of bugs."
+            },
+            {
+              "type": "key-concept",
+              "term": "New concept",
+              "definition": "asaa"
+            }
+          ]
+        },
+        {
+          "id": "module-AFI1-lesson-02",
+          "title": "Lesson 2: The @task Decorator",
+          "estimatedMinutes": 14,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The @task decorator is the foundation of TaskFlow. It transforms a regular Python function into an Airflow task. Understanding exactly what happens when you apply it - at parse time and at execution time - is the key to using it correctly."
+            },
+            {
+              "type": "heading",
+              "content": "Anatomy of a TaskFlow Function"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from airflow.decorators import task\n\n@task(\n    task_id='validate_readings',       # optional: defaults to function name\n    retries=3,                          # same params as PythonOperator\n    retry_delay=timedelta(minutes=5),\n    pool='nordgrid_validation_pool',\n    doc_md='Validates meter reading row counts and null percentages.'\n)\ndef validate_readings(file_path: str, min_rows: int = 100_000) -> dict:\n    \"\"\"Check that the readings file meets quality thresholds.\"\"\"\n    row_count = count_rows(file_path)\n    null_pct = compute_null_percentage(file_path, 'meter_id')\n\n    return {\n        'file_path': file_path,\n        'row_count': row_count,\n        'null_pct': null_pct,\n        'passed': row_count >= min_rows and null_pct < 0.05\n    }"
+            },
+            {
+              "type": "paragraph",
+              "content": "The decorator accepts every parameter that PythonOperator accepts: retries, retry_delay, pool, priority_weight, execution_timeout, queue, and more. If you omit task_id, Airflow uses the function name. The function's return value is automatically serialized and stored in XCom."
+            },
+            {
+              "type": "heading",
+              "content": "Parse Time vs Execution Time"
+            },
+            {
+              "type": "paragraph",
+              "content": "This distinction matters because it explains a common source of confusion. At parse time - every 30 seconds when the scheduler reads your DAG file - Airflow sees the @task decorator and creates a task object. The function body does not execute. At execution time - when the scheduler assigns the task to a worker - the function body runs, receives its arguments from upstream XCom, and its return value is stored."
+            },
+            {
+              "type": "callout",
+              "variant": "warning",
+              "title": "Common mistake",
+              "content": "Do not put slow operations (API calls, database queries, heavy imports) outside the @task function body. Code at module level runs every scheduler parse cycle. Only code inside the decorated function runs at execution time."
+            },
+            {
+              "type": "heading",
+              "content": "Return Value Serialization"
+            },
+            {
+              "type": "paragraph",
+              "content": "When your function returns a value, Airflow serializes it to JSON and stores it in the XCom table of the metadata database. This means your return values must be JSON-serializable: strings, numbers, booleans, lists, dicts, and None. You cannot return DataFrames, file handles, database connections, or custom objects unless you implement custom serialization."
+            },
+            {
+              "type": "key-concept",
+              "term": "XCom Serialization",
+              "definition": "The process by which TaskFlow return values are converted to JSON and stored in the Airflow metadata database. All values passed between tasks go through this serialization layer.",
+              "analogy": "Think of XCom as a message board between shift workers at NordGrid's control room. A departing operator writes a note ('file is at s3://path, 1.2M rows, checksummed') on the board. The next operator reads the note. The board only holds text - you cannot pin a physical turbine to it."
+            },
+            {
+              "type": "heading",
+              "content": "Accessing Template Variables"
+            },
+            {
+              "type": "paragraph",
+              "content": "In classic PythonOperator, you access the execution date through context['ds'] or context['data_interval_start']. In TaskFlow, you declare these as keyword arguments with default None. Airflow recognizes them and injects the values at runtime."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "@task\ndef extract_meters(ds_nodash=None, data_interval_start=None):\n    \"\"\"Both ds_nodash and data_interval_start are injected by Airflow.\"\"\"\n    file_path = f\"s3://nordgrid-raw/meters/{ds_nodash}.csv\"\n    print(f\"Processing interval starting {data_interval_start}\")\n    return file_path"
+            },
+            {
+              "type": "bullet-list",
+              "items": [
+                "ds, ds_nodash, ts, ts_nodash - date/time strings for the logical execution date",
+                "data_interval_start, data_interval_end - datetime objects for the data interval boundaries",
+                "run_id - the unique identifier for this DAG run",
+                "dag_run - the full DagRun object (use sparingly - it is not JSON-serializable)"
+              ]
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "Production note",
+              "content": "Always use data_interval_start and data_interval_end for partition-aware processing. Never use datetime.now() - it breaks idempotency because re-runs and backfills will process the wrong date."
+            }
+          ]
+        },
+        {
+          "id": "module-AFI1-lesson-03",
+          "title": "Lesson 3: Automatic Dependency Inference",
+          "estimatedMinutes": 10,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The most powerful feature of TaskFlow is not the decorator itself - it is what happens when you pass the return value of one task as an argument to another. Airflow infers the dependency automatically. No >> operator needed."
+            },
+            {
+              "type": "heading",
+              "content": "How Inference Works"
+            },
+            {
+              "type": "paragraph",
+              "content": "When the DAG parser encounters extract_result = extract_meters() followed by validate_meters(extract_result), it does not execute the functions. Instead, extract_meters() returns an XComArg object - a lazy placeholder that represents 'the future return value of the extract_meters task.' When validate_meters receives this placeholder as an argument, Airflow registers the dependency: validate_meters depends on extract_meters."
+            },
+            {
+              "type": "diagram",
+              "title": "TaskFlow dependency inference",
+              "content": "extract_meters()  ->  returns XComArg (placeholder)\n        |\nvalidate_meters(XComArg)  ->  Airflow registers dependency\n        |\nload_to_silver(XComArg)   ->  Airflow registers dependency\n\nResult: extract >> validate >> load  (inferred, not declared)",
+              "caption": "At parse time, function calls create XComArg objects. Airflow reads these to build the dependency graph without any explicit >> declarations."
+            },
+            {
+              "type": "heading",
+              "content": "When You Still Need >>"
+            },
+            {
+              "type": "paragraph",
+              "content": "Dependency inference only works when data flows between tasks. If two tasks must run in sequence but do not exchange data, Airflow cannot infer the dependency from function calls alone. In that case, you still use the >> operator."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "@task\ndef send_start_notification():\n    \"\"\"Notify Slack that the pipeline is starting. Returns nothing.\"\"\"\n    post_to_slack(\"Meter pipeline starting\")\n\n@task\ndef extract_meters(ds_nodash=None):\n    return f\"s3://nordgrid-raw/meters/{ds_nodash}.csv\"\n\n# No data flows from notification to extract - must use >>\nnotify = send_start_notification()\nfile_path = extract_meters()\n\nnotify >> file_path  # explicit ordering, no data dependency"
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Design principle",
+              "content": "If data flows between tasks, let TaskFlow infer the dependency. If only execution order matters (no data exchange), use >>. Mixing both in the same DAG is normal and expected."
+            },
+            {
+              "type": "heading",
+              "content": "Diamond Dependencies"
+            },
+            {
+              "type": "paragraph",
+              "content": "TaskFlow handles diamond patterns naturally. If task C depends on the outputs of both task A and task B, you simply pass both outputs as arguments. Airflow infers that C depends on A and B, and will not run C until both complete."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "@task\ndef extract_meters(ds_nodash=None):\n    return {'source': 'meters', 'path': f's3://raw/meters/{ds_nodash}.csv'}\n\n@task\ndef extract_weather(ds_nodash=None):\n    return {'source': 'weather', 'path': f's3://raw/weather/{ds_nodash}.json'}\n\n@task\ndef merge_sources(meter_data: dict, weather_data: dict):\n    \"\"\"Both inputs must complete before merge runs.\"\"\"\n    return [meter_data['path'], weather_data['path']]\n\nmeters = extract_meters()\nweather = extract_weather()\nmerged = merge_sources(meters, weather)  # diamond: depends on both"
+            }
+          ]
+        },
+        {
+          "id": "module-AFI1-lesson-04",
+          "title": "Lesson 4: Multiple Return Values",
+          "estimatedMinutes": 12,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Real tasks rarely return a single value. NordGrid's extract task needs to communicate a file path, a row count, a checksum, and a timestamp to downstream tasks. TaskFlow provides clean patterns for structured return values and selective downstream access."
+            },
+            {
+              "type": "heading",
+              "content": "Returning Dictionaries"
+            },
+            {
+              "type": "paragraph",
+              "content": "The most common pattern is returning a dictionary. Each key becomes an independently accessible XCom value that downstream tasks can pick from selectively."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "@task(multiple_outputs=True)\ndef extract_meters(ds_nodash=None):\n    file_path = f\"s3://nordgrid-raw/meters/{ds_nodash}.csv\"\n    return {\n        'file_path': file_path,\n        'row_count': 1_200_000,\n        'checksum': 'abc123def456',\n        'extract_ts': '2026-03-15T06:12:34Z'\n    }\n\n@task\ndef validate_meters(file_path: str, row_count: int):\n    \"\"\"Only needs file_path and row_count - ignores checksum and timestamp.\"\"\"\n    if row_count < 100_000:\n        raise ValueError(f\"Too few rows in {file_path}\")\n    return file_path\n\n@task\ndef log_audit(file_path: str, checksum: str, extract_ts: str):\n    \"\"\"Only needs file_path, checksum, and timestamp - ignores row_count.\"\"\"\n    print(f\"Audit: {file_path} checksum={checksum} at {extract_ts}\")\n\n# Selective access with .output[]\nresult = extract_meters()\nvalidated = validate_meters(\n    file_path=result['file_path'],\n    row_count=result['row_count']\n)\nlog_audit(\n    file_path=result['file_path'],\n    checksum=result['checksum'],\n    extract_ts=result['extract_ts']\n)"
+            },
+            {
+              "type": "key-concept",
+              "term": "multiple_outputs=True",
+              "definition": "When set on @task, Airflow stores each dictionary key as a separate XCom entry rather than storing the entire dictionary as one value. This allows downstream tasks to depend on individual keys using result['key'] syntax.",
+              "analogy": "Instead of writing one long note on the control room board ('file at path X, 1.2M rows, checksum Y, extracted at time Z'), the operator writes four separate sticky notes - one per fact. The next operator can grab just the ones they need."
+            },
+            {
+              "type": "heading",
+              "content": "Without multiple_outputs"
+            },
+            {
+              "type": "paragraph",
+              "content": "If you omit multiple_outputs=True, the entire dictionary is stored as a single XCom value. Downstream tasks receive the full dictionary and must unpack it themselves. This still works, but it means every downstream task depends on the entire return value - you lose the selective access pattern."
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "When to use each",
+              "content": "Use multiple_outputs=True when different downstream tasks need different subsets of the return value. Omit it when the return value is a single logical unit (like a file path string) or when only one downstream task consumes it."
+            },
+            {
+              "type": "heading",
+              "content": "XCom Size Limits"
+            },
+            {
+              "type": "paragraph",
+              "content": "Remember that XCom is stored in the metadata database. The default backend has a practical limit of about 48KB per XCom value (depending on the database). Return references - file paths, table names, S3 URIs - not the data itself. Never return a DataFrame or a large list of records through XCom."
+            },
+            {
+              "type": "callout",
+              "variant": "danger",
+              "title": "Anti-pattern",
+              "content": "Never return actual data rows through XCom. Return a reference to where the data lives. Bad: return df.to_dict(). Good: return 's3://nordgrid-silver/meters/2026-03-15.parquet'. The data lives in storage. XCom carries the address."
+            }
+          ]
+        },
+        {
+          "id": "module-AFI1-lesson-05",
+          "title": "Lesson 5: Mixing TaskFlow and Operators",
+          "estimatedMinutes": 14,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "TaskFlow does not replace operators - it complements them. Sensors, transfer operators, and custom operators still serve critical roles that @task functions cannot fill. The real power comes from mixing both in the same DAG, choosing whichever is clearest for each step."
+            },
+            {
+              "type": "heading",
+              "content": "When to Use @task vs Operators"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Use Case",
+                "Best Choice",
+                "Why"
+              ],
+              "rows": [
+                [
+                  "Custom Python logic (validation, transformation)",
+                  "@task",
+                  "Clean, testable, return values flow naturally"
+                ],
+                [
+                  "Waiting for a file or condition",
+                  "Sensor (FileSensor, HttpSensor)",
+                  "Built-in poke/reschedule, timeout, exponential backoff"
+                ],
+                [
+                  "Transferring data between systems",
+                  "Transfer operator (S3ToLocal, SFTPOperator)",
+                  "Handles connections, retries, streaming large files"
+                ],
+                [
+                  "Running a Bash command or script",
+                  "BashOperator",
+                  "No Python wrapper needed"
+                ],
+                [
+                  "Triggering external systems (Spark, dbt, Databricks)",
+                  "Specialized operator",
+                  "Handles API auth, polling, status checking"
+                ],
+                [
+                  "Business logic specific to your company",
+                  "@task or custom operator",
+                  "Use @task for one-off logic, custom operator for reusable patterns"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "Wiring TaskFlow to Operators"
+            },
+            {
+              "type": "paragraph",
+              "content": "The key to mixing is understanding that @task functions return XComArg objects, and most operator parameters accept XComArg as input. This means you can pass a TaskFlow return value directly into an operator parameter."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from airflow.decorators import dag, task\nfrom airflow.sensors.filesystem import FileSensor\nfrom airflow.providers.amazon.aws.transfers.local_to_s3 import LocalFilesystemToS3Operator\nfrom datetime import datetime\n\n@dag(schedule='@daily', start_date=datetime(2026, 1, 1), catchup=False)\ndef nordgrid_meter_pipeline():\n\n    # Sensor: wait for the meter file to land on local disk\n    wait_for_file = FileSensor(\n        task_id='wait_for_meters',\n        filepath='/data/incoming/meters_{{ ds_nodash }}.csv',\n        poke_interval=300,\n        timeout=7200,\n        mode='reschedule'\n    )\n\n    # TaskFlow: validate the file\n    @task\n    def validate_file(ds_nodash=None) -> dict:\n        path = f'/data/incoming/meters_{ds_nodash}.csv'\n        row_count = count_rows(path)\n        if row_count < 100_000:\n            raise ValueError(f'Only {row_count} rows in {path}')\n        return {'local_path': path, 'row_count': row_count}\n\n    # TaskFlow: generate S3 destination\n    @task\n    def build_s3_path(ds_nodash=None) -> str:\n        return f's3://nordgrid-bronze/meters/{ds_nodash}/readings.csv'\n\n    # Operator: upload to S3\n    upload = LocalFilesystemToS3Operator(\n        task_id='upload_to_s3',\n        filename=\"{{ ti.xcom_pull(task_ids='validate_file', key='local_path') }}\",\n        dest_key=build_s3_path(),  # XComArg from TaskFlow!\n        aws_conn_id='aws_nordgrid'\n    )\n\n    # Wire: sensor >> taskflow >> operator\n    metadata = validate_file()\n    wait_for_file >> metadata >> upload\n\nnordgrid_meter_pipeline()"
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Hybrid pattern",
+              "content": "The most effective production DAGs mix all three: sensors for waiting, @task for business logic, operators for system integration. Do not force everything into @task just because it looks cleaner. Use the right tool for each step."
+            },
+            {
+              "type": "heading",
+              "content": "XComArg in Operator Parameters"
+            },
+            {
+              "type": "paragraph",
+              "content": "Not every operator parameter accepts XComArg directly. Jinja-templated parameters (those listed in the operator's template_fields) work with the {{ ti.xcom_pull() }} pattern. Non-templated parameters require the XComArg to be passed as a Python object, which only works if the parameter is evaluated at runtime, not parse time."
+            },
+            {
+              "type": "callout",
+              "variant": "warning",
+              "title": "Common pitfall",
+              "content": "If you pass an XComArg to a non-templated operator parameter, the operator receives the XComArg placeholder object - not the actual value. Check the operator's template_fields before wiring. When in doubt, use a Jinja template string with xcom_pull()."
+            }
+          ]
+        },
+        {
+          "id": "module-AFI1-lesson-06",
+          "title": "Lesson 6: TaskFlow with Task Groups",
+          "estimatedMinutes": 12,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "As DAGs grow, the graph view becomes cluttered. NordGrid's Silver pipeline has twelve validation tasks, four transformation tasks, and three quality gates. Without visual grouping, the UI is a wall of boxes. Task Groups solve this by collapsing related tasks into named sections."
+            },
+            {
+              "type": "heading",
+              "content": "The @task_group Decorator"
+            },
+            {
+              "type": "paragraph",
+              "content": "Just as @task decorates a function to create a task, @task_group decorates a function to create a collapsible group of tasks. Every @task defined inside the group function belongs to that group."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from airflow.decorators import dag, task, task_group\nfrom datetime import datetime\n\n@dag(schedule='@daily', start_date=datetime(2026, 1, 1), catchup=False)\ndef nordgrid_silver_pipeline():\n\n    @task_group(group_id='quality_gates')\n    def quality_gates(bronze_paths: dict):\n        \"\"\"Validate all Bronze sources before transformation.\"\"\"\n\n        @task\n        def validate_meters(path: str) -> dict:\n            count = count_rows(path)\n            return {'source': 'meters', 'rows': count, 'passed': count > 100_000}\n\n        @task\n        def validate_scada(path: str) -> dict:\n            count = count_rows(path)\n            return {'source': 'scada', 'rows': count, 'passed': count > 50_000}\n\n        @task\n        def validate_weather(path: str) -> dict:\n            count = count_rows(path)\n            return {'source': 'weather', 'rows': count, 'passed': count > 1_000}\n\n        @task\n        def aggregate_results(meter_r: dict, scada_r: dict, weather_r: dict) -> bool:\n            all_passed = all([meter_r['passed'], scada_r['passed'], weather_r['passed']])\n            if not all_passed:\n                raise ValueError('Quality gate failed')\n            return True\n\n        m = validate_meters(bronze_paths['meters'])\n        s = validate_scada(bronze_paths['scada'])\n        w = validate_weather(bronze_paths['weather'])\n        return aggregate_results(m, s, w)\n\n    @task\n    def extract_bronze_paths(ds_nodash=None) -> dict:\n        return {\n            'meters': f's3://bronze/meters/{ds_nodash}/',\n            'scada': f's3://bronze/scada/{ds_nodash}/',\n            'weather': f's3://bronze/weather/{ds_nodash}/'\n        }\n\n    @task\n    def transform_to_silver(gate_passed: bool, ds_nodash=None):\n        if gate_passed:\n            print(f'Transforming data for {ds_nodash} to Silver')\n\n    paths = extract_bronze_paths()\n    gate_result = quality_gates(paths)\n    transform_to_silver(gate_result)\n\nnordgrid_silver_pipeline()"
+            },
+            {
+              "type": "heading",
+              "content": "What the UI Shows"
+            },
+            {
+              "type": "paragraph",
+              "content": "In the Airflow graph view, the quality_gates group appears as a single collapsible box. Click it to expand and see the four tasks inside. This keeps the top-level view clean: extract - quality_gates - transform. The complexity is there when you need it, hidden when you do not."
+            },
+            {
+              "type": "diagram",
+              "title": "Task Group UI representation",
+              "content": "Top level (collapsed):\n  [extract_bronze_paths] -> [quality_gates] -> [transform_to_silver]\n\nExpanded:\n  [extract_bronze_paths] -> quality_gates group:\n                              [validate_meters]  -->\n                              [validate_scada]   --> [aggregate_results]\n                              [validate_weather] -->\n                           -> [transform_to_silver]",
+              "caption": "Task Groups collapse related tasks into a single visual unit. Click to expand and see the internal structure."
+            },
+            {
+              "type": "heading",
+              "content": "Nesting Groups"
+            },
+            {
+              "type": "paragraph",
+              "content": "Task Groups can be nested. For a complex Silver pipeline, you might have a top-level quality_gates group containing a meters_validation subgroup and a scada_validation subgroup. Keep nesting to two levels maximum - deeper nesting makes the UI confusing rather than helpful."
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "Naming convention",
+              "content": "Use group_id names that describe the phase, not the implementation: 'quality_gates' rather than 'validation_tasks', 'bronze_ingestion' rather than 'sftp_downloads'. The group name appears in the UI and in log paths."
+            }
+          ]
+        },
+        {
+          "id": "module-AFI1-lesson-07",
+          "title": "Lesson 7: Error Handling in TaskFlow",
+          "estimatedMinutes": 12,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "When a TaskFlow function raises an exception, Airflow treats it exactly like a failed PythonOperator task: the task is marked as failed, retries are attempted according to the retry policy, and failure callbacks fire. But there are subtleties in how you should handle errors inside @task functions versus relying on Airflow's retry machinery."
+            },
+            {
+              "type": "heading",
+              "content": "Let Airflow Retry vs Handle Yourself"
+            },
+            {
+              "type": "paragraph",
+              "content": "The decision is simple: if the error is transient (network timeout, API rate limit, temporary file lock), let Airflow retry. If the error is a data quality issue that retrying will not fix (null percentage too high, row count too low, schema mismatch), raise an exception immediately with a clear message."
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Error Type",
+                "Strategy",
+                "Example"
+              ],
+              "rows": [
+                [
+                  "Transient (network, timeout)",
+                  "Let Airflow retry automatically",
+                  "SFTP connection refused - retry in 5 minutes"
+                ],
+                [
+                  "Data quality (bad data)",
+                  "Raise immediately with clear message",
+                  "Null percentage 12% exceeds 5% threshold"
+                ],
+                [
+                  "Partial failure (some regions ok)",
+                  "Handle in code, return partial result",
+                  "Region EAST-3 missing but 11 others succeeded"
+                ],
+                [
+                  "Configuration error (bad connection)",
+                  "Raise immediately - retrying will not help",
+                  "Connection 'sftp_nordgrid' not found"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "The on_failure_callback Pattern"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "def notify_on_failure(context):\n    \"\"\"Send Slack alert with failure details.\"\"\"\n    task_instance = context['task_instance']\n    dag_id = context['dag'].dag_id\n    task_id = task_instance.task_id\n    exception = context.get('exception', 'Unknown')\n    log_url = task_instance.log_url\n\n    message = (\n        f\":red_circle: *Task Failed*\\n\"\n        f\"DAG: {dag_id}\\n\"\n        f\"Task: {task_id}\\n\"\n        f\"Error: {exception}\\n\"\n        f\"Log: {log_url}\"\n    )\n    post_to_slack(channel='#nordgrid-alerts', text=message)\n\n@task(on_failure_callback=notify_on_failure, retries=3)\ndef validate_meters(file_path: str) -> dict:\n    row_count = count_rows(file_path)\n    if row_count < 100_000:\n        raise ValueError(\n            f\"Row count {row_count} below 100K threshold in {file_path}. \"\n            f\"Check source system for data delivery issues.\"\n        )\n    return {'file_path': file_path, 'row_count': row_count, 'passed': True}"
+            },
+            {
+              "type": "callout",
+              "variant": "warning",
+              "title": "Common mistake",
+              "content": "Do not wrap your entire function body in try/except and silently return None on error. This makes the task 'succeed' when it actually failed. Airflow cannot retry what it thinks succeeded. Let real failures propagate as exceptions."
+            },
+            {
+              "type": "heading",
+              "content": "AirflowSkipException"
+            },
+            {
+              "type": "paragraph",
+              "content": "Sometimes you want a task to be skipped rather than failed - for example, when a region has no data for a given day and that is expected behavior, not an error. Raising AirflowSkipException marks the task as 'skipped' in the UI (yellow, not red) and downstream tasks follow the trigger rule logic."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from airflow.exceptions import AirflowSkipException\n\n@task\ndef process_region(region: str, ds_nodash=None):\n    path = f's3://bronze/meters/{region}/{ds_nodash}.csv'\n    if not file_exists(path):\n        raise AirflowSkipException(f'No data for {region} on {ds_nodash} - skipping')\n    return process(path)"
+            }
+          ]
+        },
+        {
+          "id": "module-AFI1-lesson-08",
+          "title": "Lesson 8: TaskFlow Type Hints",
+          "estimatedMinutes": 10,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Python type hints do not change TaskFlow's behavior at runtime - Airflow does not enforce types. But they dramatically improve code readability, IDE autocomplete, and team communication. In a production codebase with 60 DAGs and 15 engineers, type hints are not optional."
+            },
+            {
+              "type": "heading",
+              "content": "Basic Type Annotations"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from typing import TypedDict\n\nclass MeterExtractionResult(TypedDict):\n    file_path: str\n    row_count: int\n    null_pct: float\n    checksum: str\n    extract_ts: str\n\n@task(multiple_outputs=True)\ndef extract_meters(ds_nodash: str = None) -> MeterExtractionResult:\n    file_path = f\"s3://nordgrid-raw/meters/{ds_nodash}.csv\"\n    return MeterExtractionResult(\n        file_path=file_path,\n        row_count=1_200_000,\n        null_pct=0.02,\n        checksum='abc123',\n        extract_ts='2026-03-15T06:12:34Z'\n    )\n\n@task\ndef validate_meters(file_path: str, row_count: int, null_pct: float) -> str:\n    if row_count < 100_000:\n        raise ValueError(f'Too few rows: {row_count}')\n    if null_pct > 0.05:\n        raise ValueError(f'Null percentage too high: {null_pct}')\n    return file_path"
+            },
+            {
+              "type": "heading",
+              "content": "Why TypedDict"
+            },
+            {
+              "type": "paragraph",
+              "content": "TypedDict gives you a structured definition of what a task returns. IDE tools like mypy and PyCharm can now flag errors: if you typo result['flie_path'] instead of result['file_path'], the type checker catches it before runtime. This is especially valuable in multi-team environments where one team produces data and another consumes it."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Team standard",
+              "content": "For NordGrid's codebase: every @task with multiple_outputs=True must define a TypedDict for its return type. This is enforced by the linting rules in CI. The TypedDict serves as the contract between producer and consumer tasks."
+            },
+            {
+              "type": "heading",
+              "content": "Limitations"
+            },
+            {
+              "type": "bullet-list",
+              "items": [
+                "Airflow does not validate types at runtime. If you annotate a return as int but return a string, Airflow will not raise an error - the downstream task receives a string.",
+                "Type hints on template variables (ds_nodash, data_interval_start) are informational only. Airflow injects the correct type regardless of your annotation.",
+                "Complex types (Optional, Union, List[Dict]) work with type checkers but have no effect on Airflow's XCom serialization.",
+                "TypedDict requires Python 3.8+. All modern Airflow versions support this."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "module-AFI1-lesson-09",
+          "title": "Lesson 9: Converting Classic DAGs",
+          "estimatedMinutes": 14,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "NordGrid has 40 DAGs built with the classic PythonOperator pattern during the beginner track. Converting them all to TaskFlow at once is impractical. This lesson gives you a systematic conversion procedure that you can apply one DAG at a time without breaking production."
+            },
+            {
+              "type": "heading",
+              "content": "The Conversion Procedure"
+            },
+            {
+              "type": "numbered-list",
+              "items": [
+                "Identify the PythonOperator tasks in the DAG. List which ones push/pull XCom and which do not exchange data.",
+                "Convert each PythonOperator function to a @task function. Replace xcom_push with return values. Replace xcom_pull with function parameters.",
+                "Replace PythonOperator instantiations with direct function calls inside the @dag function.",
+                "Remove >> declarations where data flow is now implicit. Keep >> for execution-order-only dependencies.",
+                "Convert non-Python operators (sensors, transfers) to remain as operators. Wire them to TaskFlow using >> or XComArg.",
+                "Replace the DAG context manager with @dag decorator.",
+                "Run the existing DAG integrity tests to verify the conversion is structurally correct.",
+                "Run the existing unit tests against the new @task functions (they should pass without modification if the logic is unchanged).",
+                "Deploy to staging and trigger a test run. Compare task states and XCom values to the classic version."
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "Before and After: Meter Pipeline"
+            },
+            {
+              "type": "paragraph",
+              "content": "Here is the NordGrid beginner-track meter pipeline converted step by step. The classic version has three PythonOperators with manual XCom. The TaskFlow version has three @task functions with automatic data flow."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# AFTER: TaskFlow version of the beginner-track meter pipeline\nfrom airflow.decorators import dag, task\nfrom airflow.sensors.filesystem import FileSensor\nfrom datetime import datetime, timedelta\n\n@dag(\n    schedule='@daily',\n    start_date=datetime(2026, 1, 1),\n    catchup=False,\n    default_args={\n        'owner': 'data-engineering',\n        'retries': 3,\n        'retry_delay': timedelta(minutes=5)\n    },\n    tags=['nordgrid', 'meters', 'production']\n)\ndef nordgrid_meter_daily():\n\n    wait = FileSensor(\n        task_id='wait_for_meters',\n        filepath='/data/incoming/meters_{{ ds_nodash }}.csv',\n        mode='reschedule',\n        timeout=7200\n    )\n\n    @task\n    def extract(ds_nodash=None) -> dict:\n        path = f'/data/incoming/meters_{ds_nodash}.csv'\n        return {'path': path, 'rows': count_rows(path)}\n\n    @task\n    def validate(metadata: dict) -> str:\n        if metadata['rows'] < 100_000:\n            raise ValueError(f\"Only {metadata['rows']} rows\")\n        return metadata['path']\n\n    @task\n    def load_silver(validated_path: str, ds_nodash=None):\n        dest = f's3://nordgrid-silver/meters/{ds_nodash}/'\n        copy_to_silver(validated_path, dest)\n\n    metadata = extract()\n    path = validate(metadata)\n    wait >> metadata  # sensor must complete before extract\n    load_silver(path)\n\nnordgrid_meter_daily()"
+            },
+            {
+              "type": "heading",
+              "content": "Common Pitfalls During Conversion"
+            },
+            {
+              "type": "bullet-list",
+              "items": [
+                "Forgetting to call the @dag function at module level. Without the final nordgrid_meter_daily() call, Airflow never registers the DAG.",
+                "Changing task_id names during conversion. If a task was called 'extract_meters' in the classic version, keep the same name in TaskFlow to preserve run history and XCom references.",
+                "Converting sensors to @task. Sensors should stay as operators - they have built-in poke/reschedule logic that @task does not replicate.",
+                "Breaking existing downstream DAGs. If another DAG uses ExternalTaskSensor to wait for a specific task_id in this DAG, changing the task_id will break the sensor."
+              ]
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "Migration strategy",
+              "content": "Convert one DAG at a time, starting with the simplest. Deploy to staging, run a full comparison test, then promote to production. Do not attempt a batch conversion of all 40 DAGs - the risk of cascading breakage is too high."
+            }
+          ]
+        },
+        {
+          "id": "module-AFI1-lesson-10",
+          "title": "Lesson 10: Module Checkpoint",
+          "estimatedMinutes": 10,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "You now understand the TaskFlow API - the modern interface for writing Airflow DAGs. This lesson reviews the key decisions and gives you a framework for choosing between TaskFlow and classic operators in production."
+            },
+            {
+              "type": "heading",
+              "content": "The Decision Framework"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Question",
+                "TaskFlow (@task)",
+                "Classic (Operator)"
+              ],
+              "rows": [
+                [
+                  "Is it custom Python logic?",
+                  "Yes - use @task",
+                  "No - use the built-in operator"
+                ],
+                [
+                  "Does it exchange data with other tasks?",
+                  "@task with return values",
+                  "Operator with XCom templates"
+                ],
+                [
+                  "Is it waiting for a condition?",
+                  "No - use a Sensor",
+                  "Yes - Sensor"
+                ],
+                [
+                  "Is it a reusable pattern across DAGs?",
+                  "@task for simple, custom operator for complex",
+                  "Custom operator with hooks"
+                ],
+                [
+                  "Does it need connection management?",
+                  "Use hooks inside @task",
+                  "Operator wraps the hook"
+                ],
+                [
+                  "Is it triggering an external system?",
+                  "@task if simple API call",
+                  "Specialized operator (Spark, dbt, etc.)"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "What You Now Know"
+            },
+            {
+              "type": "bullet-list",
+              "items": [
+                "The @task decorator transforms Python functions into Airflow tasks with automatic XCom handling",
+                "Dependencies are inferred from function call chains - no >> needed when data flows between tasks",
+                "multiple_outputs=True splits dictionary returns into separate XCom entries for selective downstream access",
+                "TaskFlow and classic operators coexist naturally - sensors wait, @task validates, operators transfer",
+                "@task_group collapses related tasks into visual groups for cleaner graph views",
+                "Error handling follows the same Airflow retry machinery - let transient errors retry, raise immediately on data quality failures",
+                "Type hints with TypedDict create contracts between producer and consumer tasks",
+                "Converting classic DAGs follows a systematic 9-step procedure - one DAG at a time, preserving task IDs"
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "Hands-On Exercise"
+            },
+            {
+              "type": "paragraph",
+              "content": "Convert the weather forecast DAG from the beginner capstone to TaskFlow. The original DAG uses PythonOperator for API extraction, validation, and loading, with an HttpSensor waiting for the weather API to be available. Your conversion should:"
+            },
+            {
+              "type": "numbered-list",
+              "items": [
+                "Replace the three PythonOperator tasks with @task functions",
+                "Keep the HttpSensor as-is (sensors stay as operators)",
+                "Use multiple_outputs=True on the extraction task to return both the forecast data path and the station count",
+                "Add a TypedDict for the extraction return type",
+                "Group the validation tasks into a @task_group called 'quality_checks'",
+                "Add an on_failure_callback that formats a Slack notification with the DAG name, task name, and error message",
+                "Run the existing DAG integrity test to verify the conversion"
+              ]
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Looking ahead",
+              "content": "In Module 2, you will build custom operators and hooks that encapsulate NordGrid's reusable patterns - the SFTP download, the API pull, the quality gate. TaskFlow handles the glue logic between these operators. Together, they form the foundation of a production DAG library."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

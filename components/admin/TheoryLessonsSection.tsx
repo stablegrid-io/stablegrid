@@ -36,7 +36,11 @@ type DropIndicator = { index: number; edge: 'before' | 'after' } | null;
 const THEORY_TRACK_FALLBACKS: Array<{ value: AdminTheoryDocId; label: string }> = [
   { value: 'pyspark', label: 'PySpark: The Full Stack' },
   { value: 'pyspark-data-engineering-track', label: 'PySpark: Data Engineering Track' },
-  { value: 'fabric', label: 'Fabric: End-to-End Platform' }
+  { value: 'fabric', label: 'Fabric: End-to-End Platform' },
+  { value: 'fabric-data-engineering-track', label: 'Fabric: Data Engineering Track' },
+  { value: 'fabric-business-intelligence-track', label: 'Fabric: Business Intelligence Track' },
+  { value: 'airflow', label: 'Apache Airflow: Beginner Track' },
+  { value: 'airflow-intermediate-track', label: 'Apache Airflow: Intermediate Track' }
 ];
 
 const EDIT_TARGET_OPTIONS: Array<{ value: EditTarget; label: string; helper: string }> = [

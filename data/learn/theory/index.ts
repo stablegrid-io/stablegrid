@@ -1,17 +1,27 @@
 import type { FrozenTheoryDoc } from '@/types/theory';
+import { airflowTheory } from '@/data/learn/theory/airflow';
+import { airflowIntermediateTrack } from '@/data/learn/theory/airflow-intermediate-track';
 import { fabricTheory } from '@/data/learn/theory/fabric';
+import { fabricBusinessIntelligenceTrack } from '@/data/learn/theory/fabric-business-intelligence-track';
+import { fabricDataEngineeringTrack } from '@/data/learn/theory/fabric-data-engineering-track';
 import { pysparkTheory } from '@/data/learn/theory/pyspark';
+import { pysparkDataEngineeringTrackTheory } from '@/data/learn/theory/pysparkDataEngineeringTrack';
 import { freezeTheoryDoc } from '@/lib/learn/freezeTheoryDoc';
 
 const rawTheoryDocs = {
   pyspark: pysparkTheory,
-  fabric: fabricTheory
+  'pyspark-data-engineering-track': pysparkDataEngineeringTrackTheory,
+  fabric: fabricTheory,
+  'fabric-data-engineering-track': fabricDataEngineeringTrack,
+  'fabric-business-intelligence-track': fabricBusinessIntelligenceTrack,
+  airflow: airflowTheory,
+  'airflow-intermediate-track': airflowIntermediateTrack
 };
 
 export const theoryDocs: Record<string, FrozenTheoryDoc> = Object.entries(
   rawTheoryDocs
-).reduce<Record<string, FrozenTheoryDoc>>((accumulator, [topic, doc]) => {
-  accumulator[topic] = freezeTheoryDoc(doc);
+).reduce<Record<string, FrozenTheoryDoc>>((accumulator, [key, doc]) => {
+  accumulator[key] = freezeTheoryDoc({ ...doc, id: key });
   return accumulator;
 }, {});
 

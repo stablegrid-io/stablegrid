@@ -3,6 +3,7 @@ import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import { pysparkDataEngineeringTrackTheory } from '@/data/learn/theory/pysparkDataEngineeringTrack';
 import { fabricDataEngineeringTrack } from '@/data/learn/theory/fabric-data-engineering-track';
 import { fabricBusinessIntelligenceTrack } from '@/data/learn/theory/fabric-business-intelligence-track';
+import { airflowIntermediateTrack } from '@/data/learn/theory/airflow-intermediate-track';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -129,6 +130,39 @@ const getTheoryTrackConfigs = (doc: TheoryDoc): TheoryTrackConfig[] => {
             'Reports, dashboards, distribution, governance, and capstone project (BI4-BI7)'
           ],
           sourceDoc: fabricBusinessIntelligenceTrack
+        }
+      ];
+    case 'airflow':
+      return [
+        {
+          slug: 'beginner-track',
+          label: 'Apache Airflow: Beginner Track',
+          title: 'Beginner Track',
+          subtitle: 'Learn DAGs, scheduling, sensors, and monitoring from the ground up',
+          eyebrow: 'Track 01',
+          description:
+            'A guided beginner route through Airflow fundamentals: mental models, DAG authoring, task design, scheduling, sensors, configuration, debugging, and a capstone pipeline.',
+          highlights: [
+            'Airflow foundations, local setup, and your first DAG',
+            'Tasks, dependencies, scheduling, sensors, branching, and dynamic task mapping',
+            'Configuration, secrets, monitoring, debugging, and a full capstone build'
+          ],
+          sourceDoc: doc
+        },
+        {
+          slug: 'intermediate-track',
+          label: 'Apache Airflow: Intermediate Track',
+          title: 'Intermediate Track',
+          subtitle: 'Master the TaskFlow API, automatic XCom, and modern DAG patterns',
+          eyebrow: 'Track 02',
+          description:
+            'A mid-level route through the TaskFlow API: replacing operator boilerplate with decorated functions, automatic dependency inference, task groups, error handling, and classic DAG conversion.',
+          highlights: [
+            'The @task decorator, automatic XCom, and dependency inference',
+            'Multiple outputs, task groups, and mixing TaskFlow with operators',
+            'Error handling, type hints, and systematic classic DAG conversion'
+          ],
+          sourceDoc: airflowIntermediateTrack
         }
       ];
     default:

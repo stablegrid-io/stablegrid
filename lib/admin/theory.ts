@@ -12,7 +12,15 @@ import type {
 } from '@/lib/admin/types';
 
 const THEORY_DOCS_DIR = path.join(process.cwd(), 'data', 'learn', 'theory', 'published');
-const THEORY_DOC_ORDER = ['pyspark', 'pyspark-data-engineering-track', 'fabric'];
+const THEORY_DOC_ORDER = [
+  'pyspark',
+  'pyspark-data-engineering-track',
+  'fabric',
+  'fabric-data-engineering-track',
+  'fabric-business-intelligence-track',
+  'airflow',
+  'airflow-intermediate-track'
+];
 
 const getTheoryDocPath = (docId: AdminTheoryDocId) =>
   path.join(THEORY_DOCS_DIR, `${docId}.json`);
