@@ -32,6 +32,7 @@ interface TheoryContentProps {
   hasModuleCheckpoint: boolean;
   isProgressLoaded: boolean;
   completedLessonCount: number;
+  completedLessonIds?: string[];
   onCompleteModule: () => Promise<boolean>;
   completionActionPending: boolean;
   scrollContainerRef: RefObject<HTMLDivElement | null>;
@@ -51,6 +52,7 @@ export const TheoryContent = ({
   hasModuleCheckpoint,
   isProgressLoaded,
   completedLessonCount,
+  completedLessonIds = [],
   onCompleteModule,
   completionActionPending,
   scrollContainerRef,
@@ -279,7 +281,7 @@ export const TheoryContent = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.16 }}
-        className={`mx-auto w-full px-5 py-10 sm:px-6 lg:px-10 ${editingLessonId ? 'max-w-[110rem]' : 'max-w-[54rem]'}`}
+        className={`relative w-full px-5 py-10 sm:px-6 lg:px-10 ${editingLessonId ? 'max-w-[110rem] mx-auto' : 'max-w-[54rem] mx-auto'}`}
       >
         {visibleLesson ? (
           <TheoryLessonIntro
@@ -290,6 +292,9 @@ export const TheoryContent = ({
             lessonProgressLabel={lessonProgressLabel}
             lessonProgressPercent={lessonProgressPercent}
             showCheckpointTag={isCheckpointLesson}
+            completedLessonCount={completedLessonCount}
+            orderedLessonIds={orderedLessons.map((l) => l.id)}
+            completedLessonIds={completedLessonIds}
           />
         ) : null}
 

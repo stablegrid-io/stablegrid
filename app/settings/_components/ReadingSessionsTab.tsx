@@ -30,21 +30,27 @@ const methodIconMap = {
   'free-read': BookOpen
 } satisfies Record<TheorySessionMethodId, typeof Clock3>;
 
+const methodAccentMap: Record<TheorySessionMethodId, { color: string; rgb: string }> = {
+  sprint: { color: '#99f7ff', rgb: '153,247,255' },
+  pomodoro: { color: '#ff716c', rgb: '255,113,108' },
+  'deep-focus': { color: '#bf81ff', rgb: '191,129,255' },
+  'free-read': { color: '#ffc965', rgb: '255,201,101' },
+};
+
 const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
   const method = getTheorySessionMethod(config.methodId);
+  const accent = methodAccentMap[config.methodId];
 
-  if (!method) {
-    return null;
-  }
+  if (!method) return null;
 
   if (!method.isTimed) {
     return (
-      <div className="rounded-[1.25rem] border border-light-border bg-light-surface px-4 py-4 dark:border-dark-border dark:bg-dark-surface">
-        <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
-          <span>Rhythm</span>
+      <div className="border border-outline-variant/20 bg-surface-container-low p-4">
+        <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-widest text-on-surface-variant">
+          <span>RHYTHM</span>
           <span>No timer</span>
         </div>
-        <div className="mt-4 h-2 rounded-full bg-[repeating-linear-gradient(90deg,rgba(17,17,17,0.18)_0_10px,transparent_10px_18px)] dark:bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.22)_0_10px,transparent_10px_18px)]" />
+        <div className="mt-3 h-1.5 bg-surface-container-highest/20" style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0 10px, transparent 10px 18px)' }} />
       </div>
     );
   }
@@ -53,34 +59,29 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
   const totalMinutes = getTheorySessionTotalMinutes(config);
 
   return (
-    <div className="rounded-[1.25rem] border border-light-border bg-light-surface px-4 py-4 dark:border-dark-border dark:bg-dark-surface">
-      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
-        <span>Rhythm</span>
+    <div className="border border-outline-variant/20 bg-surface-container-low p-4">
+      <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-widest text-on-surface-variant">
+        <span>RHYTHM</span>
         <span>{formatTheorySessionDuration(totalMinutes * 60)}</span>
       </div>
 
-      <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
+      <div className="mt-3 flex h-2 gap-0.5 overflow-hidden">
         {segments.map((segment) => (
           <div
             key={segment.key}
-            style={{ flex: segment.minutes }}
-            className={
-              segment.kind === 'focus'
-                ? 'bg-text-light-primary dark:bg-text-dark-primary'
-                : 'bg-light-hover dark:bg-dark-hover'
-            }
+            style={{ flex: segment.minutes, backgroundColor: segment.kind === 'focus' ? accent.color : `rgba(${accent.rgb},0.2)` }}
           />
         ))}
       </div>
 
-      <div className="mt-3 flex items-center gap-4 text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+      <div className="mt-2 flex items-center gap-4 font-mono text-[9px] text-on-surface-variant">
         <span className="inline-flex items-center gap-2">
-          <span className="h-1.5 w-3 rounded-full bg-text-light-primary dark:bg-text-dark-primary" />
+          <span className="h-1.5 w-3" style={{ backgroundColor: accent.color }} />
           Focus
         </span>
         {config.breakMinutes > 0 ? (
           <span className="inline-flex items-center gap-2">
-            <span className="h-1.5 w-3 rounded-full bg-light-hover dark:bg-dark-hover" />
+            <span className="h-1.5 w-3" style={{ backgroundColor: `rgba(${accent.rgb},0.2)` }} />
             Break
           </span>
         ) : null}
@@ -89,18 +90,10 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
   );
 };
 
-const MetaPill = ({
-  label,
-  value
-}: {
-  label: string;
-  value: string;
-}) => (
-  <div className="inline-flex items-center gap-2 rounded-full border border-light-border bg-light-surface px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface">
-    <span className="text-text-light-tertiary dark:text-text-dark-tertiary">{label}</span>
-    <span className="font-medium text-text-light-primary dark:text-text-dark-primary">
-      {value}
-    </span>
+const MetaPill = ({ label, value }: { label: string; value: string }) => (
+  <div className="inline-flex items-center gap-2 border border-outline-variant/20 bg-surface-container px-3 py-1.5 font-mono text-[10px]">
+    <span className="text-on-surface-variant uppercase tracking-widest">{label}</span>
+    <span className="font-bold text-on-surface">{value}</span>
   </div>
 );
 
@@ -116,42 +109,41 @@ const MethodSelectorCard = ({
   onSelect: () => void;
 }) => {
   const method = getTheorySessionMethod(methodId);
-
-  if (!method) {
-    return null;
-  }
+  if (!method) return null;
 
   const Icon = methodIconMap[methodId];
+  const accent = methodAccentMap[methodId];
   const totalMinutes = getTheorySessionTotalMinutes(config);
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`rounded-[1.25rem] border px-4 py-4 text-left transition-colors ${
+      className={`p-4 text-left transition-all border ${
         isSelected
-          ? 'border-text-light-primary bg-light-bg dark:border-text-dark-primary dark:bg-dark-bg'
-          : 'border-light-border bg-light-surface hover:border-text-light-primary/30 dark:border-dark-border dark:bg-dark-surface dark:hover:border-text-dark-primary/30'
+          ? 'border-primary/40 bg-surface-container-low shadow-[0_0_12px_rgba(153,247,255,0.1)]'
+          : 'border-outline-variant/20 bg-surface-container hover:border-primary/20'
       }`}
     >
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-light-border bg-light-bg text-text-light-primary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary">
-          <Icon className="h-4 w-4" />
+        <div
+          className="flex h-9 w-9 shrink-0 items-center justify-center border"
+          style={{ borderColor: `rgba(${accent.rgb},0.3)`, backgroundColor: `rgba(${accent.rgb},0.1)` }}
+        >
+          <Icon className="h-4 w-4" style={{ color: accent.color }} />
         </div>
-
         <div className="min-w-0">
-          <div className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
+          <div className="font-mono text-xs font-bold uppercase tracking-widest text-on-surface">
             {method.label}
           </div>
-          <div className="mt-1 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+          <div className="mt-0.5 font-mono text-[9px] text-on-surface-variant">
             {method.isTimed
-              ? `${config.focusMinutes} / ${config.breakMinutes} · ${config.rounds} rounds`
+              ? `${config.focusMinutes} / ${config.breakMinutes} \u00b7 ${config.rounds} rounds`
               : 'No timer'}
           </div>
         </div>
       </div>
-
-      <div className="mt-4 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+      <div className="mt-3 font-mono text-[10px] text-on-surface-variant">
         {method.isTimed ? formatTheorySessionDuration(totalMinutes * 60) : 'Open-ended'}
       </div>
     </button>
@@ -173,37 +165,36 @@ const AdjustableRow = ({
   range: TheorySessionRange;
   onChange: (next: number) => void;
 }) => (
-  <div className="rounded-[1.25rem] border border-light-border bg-light-surface px-4 py-4 dark:border-dark-border dark:bg-dark-surface">
+  <div className="border border-outline-variant/20 bg-surface-container-low p-4">
     <div className="flex items-center justify-between gap-4">
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
+        <div className="font-mono text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">
           {label}
         </div>
-        <div className="mt-2 text-xl font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">
+        <div className="mt-2 font-headline text-xl font-bold text-on-surface">
           {displayValue}
         </div>
-        <div className="mt-1 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+        <div className="mt-1 font-mono text-[9px] text-on-surface-variant/60">
           {hint}
         </div>
       </div>
-
-      <div className="inline-flex items-center rounded-full border border-light-border bg-light-bg dark:border-dark-border dark:bg-dark-bg">
+      <div className="inline-flex items-center border border-outline-variant/30 bg-surface-container">
         <button
           type="button"
           aria-label={`Decrease ${label}`}
           onClick={() => onChange(Math.max(range.min, value - range.step))}
           disabled={value <= range.min}
-          className="flex h-10 w-10 items-center justify-center text-base text-text-light-secondary transition-colors hover:text-text-light-primary disabled:cursor-not-allowed disabled:opacity-35 dark:text-text-dark-secondary dark:hover:text-text-dark-primary"
+          className="flex h-9 w-9 items-center justify-center font-mono text-on-surface-variant transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
         >
           -
         </button>
-        <div className="h-4 w-px bg-light-border dark:bg-dark-border" />
+        <div className="h-5 w-px bg-outline-variant/30" />
         <button
           type="button"
           aria-label={`Increase ${label}`}
           onClick={() => onChange(Math.min(range.max, value + range.step))}
           disabled={value >= range.max}
-          className="flex h-10 w-10 items-center justify-center text-base text-text-light-secondary transition-colors hover:text-text-light-primary disabled:cursor-not-allowed disabled:opacity-35 dark:text-text-dark-secondary dark:hover:text-text-dark-primary"
+          className="flex h-9 w-9 items-center justify-center font-mono text-on-surface-variant transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
         >
           +
         </button>
@@ -221,14 +212,14 @@ const StaticRow = ({
   value: string;
   hint: string;
 }) => (
-  <div className="rounded-[1.25rem] border border-light-border bg-light-surface px-4 py-4 dark:border-dark-border dark:bg-dark-surface">
-    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
+  <div className="border border-outline-variant/20 bg-surface-container-low p-4">
+    <div className="font-mono text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">
       {label}
     </div>
-    <div className="mt-2 text-xl font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">
+    <div className="mt-2 font-headline text-xl font-bold text-on-surface">
       {value}
     </div>
-    <div className="mt-1 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+    <div className="mt-1 font-mono text-[9px] text-on-surface-variant/60">
       {hint}
     </div>
   </div>
@@ -257,8 +248,8 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
         description="Loading your session tracker presets."
         icon={<Clock3 className="h-4 w-4" />}
       >
-        <p className="text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
-          Each learning approach keeps its own saved timing, and the theory popup lets the user choose between them before starting.
+        <p className="font-mono text-[10px] text-on-surface-variant">
+          Loading session configuration...
         </p>
       </SettingsCard>
     );
@@ -267,11 +258,10 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
   const activeMethod = getTheorySessionMethod(selectedMethodId);
   const activeConfig = resolvedConfigs[selectedMethodId];
   const ActiveIcon = methodIconMap[selectedMethodId];
+  const activeAccent = methodAccentMap[selectedMethodId];
   const totalMinutes = getTheorySessionTotalMinutes(activeConfig);
 
-  if (!activeMethod) {
-    return null;
-  }
+  if (!activeMethod) return null;
 
   return (
     <div className="space-y-5">
@@ -280,7 +270,7 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
         description="Adjust the saved timing for each learning approach. The theory popup lets the user choose an approach, then starts it with the preset saved here."
         icon={<Clock3 className="h-4 w-4" />}
       >
-        <p className="text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
+        <p className="font-mono text-[10px] text-on-surface-variant">
           Saved automatically on this browser. The popup only chooses the approach.
         </p>
 
@@ -296,18 +286,20 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
           ))}
         </div>
 
-        <section className="mt-5 rounded-[1.75rem] border border-light-border bg-light-bg p-5 dark:border-dark-border dark:bg-dark-bg">
-          <div className="flex flex-col gap-4 border-b border-light-border pb-5 dark:border-dark-border lg:flex-row lg:items-start lg:justify-between">
+        <section className="mt-5 border border-outline-variant/20 bg-surface-container-low p-5">
+          <div className="flex flex-col gap-4 border-b border-outline-variant/20 pb-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-light-border bg-light-surface text-text-light-primary dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-primary">
-                <ActiveIcon className="h-5 w-5" />
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center border"
+                style={{ borderColor: `rgba(${activeAccent.rgb},0.3)`, backgroundColor: `rgba(${activeAccent.rgb},0.1)` }}
+              >
+                <ActiveIcon className="h-5 w-5" style={{ color: activeAccent.color }} />
               </div>
-
               <div>
-                <h3 className="text-2xl font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">
+                <h3 className="font-headline text-xl font-bold text-on-surface uppercase tracking-wider">
                   {activeMethod.label}
                 </h3>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-text-light-secondary dark:text-text-dark-secondary">
+                <p className="mt-1 max-w-2xl font-mono text-[10px] leading-relaxed text-on-surface-variant">
                   {activeMethod.bestFor}
                 </p>
               </div>
@@ -319,9 +311,9 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
                 resetMethodConfig(activeMethod.id);
                 onToast(`${activeMethod.label} reset to its default timing.`, 'info');
               }}
-              className="inline-flex items-center gap-1 self-start rounded-full border border-light-border px-3 py-2 text-sm font-medium text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-text-dark-primary dark:hover:text-text-dark-primary"
+              className="inline-flex items-center gap-1.5 self-start border border-outline-variant/30 px-3 py-1.5 font-mono text-[10px] font-medium text-on-surface-variant uppercase tracking-widest transition-colors hover:border-primary/40 hover:text-primary"
             >
-              <RotateCcw className="h-4 w-4" />
+              <RotateCcw className="h-3.5 w-3.5" />
               Reset
             </button>
           </div>
@@ -329,16 +321,11 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
           <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(22rem,1fr)]">
             <div className="space-y-4">
               <TimelinePreview config={activeConfig} />
-
               <div className="flex flex-wrap gap-2">
                 <MetaPill label="Cadence" value={activeMethod.cadenceLabel} />
                 <MetaPill
                   label="Total"
-                  value={
-                    activeMethod.isTimed
-                      ? formatTheorySessionDuration(totalMinutes * 60)
-                      : 'Open'
-                  }
+                  value={activeMethod.isTimed ? formatTheorySessionDuration(totalMinutes * 60) : 'Open'}
                 />
               </div>
             </div>
@@ -352,21 +339,11 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
                   hint={`${activeMethod.focusRange.min}-${activeMethod.focusRange.max} min`}
                   range={activeMethod.focusRange}
                   onChange={(focusMinutes) =>
-                    setMethodConfig(
-                      activeMethod.id,
-                      clampTheorySessionConfig({
-                        ...activeConfig,
-                        focusMinutes
-                      })
-                    )
+                    setMethodConfig(activeMethod.id, clampTheorySessionConfig({ ...activeConfig, focusMinutes }))
                   }
                 />
               ) : (
-                <StaticRow
-                  label="Focus"
-                  value="Open"
-                  hint="This approach has no countdown."
-                />
+                <StaticRow label="Focus" value="Open" hint="This approach has no countdown." />
               )}
 
               {activeMethod.breakRange ? (
@@ -377,24 +354,14 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
                   hint={`${activeMethod.breakRange.min}-${activeMethod.breakRange.max} min`}
                   range={activeMethod.breakRange}
                   onChange={(breakMinutes) =>
-                    setMethodConfig(
-                      activeMethod.id,
-                      clampTheorySessionConfig({
-                        ...activeConfig,
-                        breakMinutes
-                      })
-                    )
+                    setMethodConfig(activeMethod.id, clampTheorySessionConfig({ ...activeConfig, breakMinutes }))
                   }
                 />
               ) : (
                 <StaticRow
                   label="Break"
                   value={activeMethod.isTimed ? `${activeConfig.breakMinutes} min` : 'No timer'}
-                  hint={
-                    activeMethod.isTimed
-                      ? 'Break timing is fixed for this approach.'
-                      : 'No break countdown.'
-                  }
+                  hint={activeMethod.isTimed ? 'Break timing is fixed for this approach.' : 'No break countdown.'}
                 />
               )}
 
@@ -406,13 +373,7 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
                   hint={`${activeMethod.roundRange.min}-${activeMethod.roundRange.max} rounds`}
                   range={activeMethod.roundRange}
                   onChange={(rounds) =>
-                    setMethodConfig(
-                      activeMethod.id,
-                      clampTheorySessionConfig({
-                        ...activeConfig,
-                        rounds
-                      })
-                    )
+                    setMethodConfig(activeMethod.id, clampTheorySessionConfig({ ...activeConfig, rounds }))
                   }
                 />
               ) : (

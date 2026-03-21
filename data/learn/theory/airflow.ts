@@ -3,7 +3,7 @@ import airflowTheoryJson from '@/data/learn/theory/published/airflow.json';
 
 export const airflowTheory = {
   ...(airflowTheoryJson as TheoryDoc),
-  title: 'Apache Airflow Modules',
+  title: 'Apache Airflow: Beginner Track',
   description:
-    'Build Apache Airflow capability across orchestration foundations, DAG authoring, scheduling, monitoring, and production debugging.'
+    'Beginner-first Airflow curriculum covering DAGs, scheduling, sensors, configuration, monitoring, and a capstone orchestration project.'
 } satisfies TheoryDoc;

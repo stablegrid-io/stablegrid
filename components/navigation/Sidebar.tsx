@@ -163,7 +163,7 @@ export const Sidebar = () => {
     <aside
       data-compact={isCompact ? 'true' : undefined}
       className={`fixed left-0 top-0 h-full bg-[#0c0e10] border-r border-[#99f7ff]/10 flex-col pt-14 pb-6 z-40 hidden lg:flex transition-[width] duration-200 ${
-        isCompact ? 'w-16' : 'w-64'
+        isCompact ? 'w-16' : 'w-48'
       }`}
     >
       {/* User section */}

@@ -206,26 +206,20 @@ export const TheoryTrackGallery = ({
                             {progressPct}%
                           </span>
                         </div>
-                        <div className="flex gap-1 h-3">
-                          {Array.from({ length: segmentCount }, (_, i) => (
-                            <div
-                              key={i}
-                              className="flex-1"
-                              style={{
-                                backgroundColor: i < filledSegments ? ta.color : 'rgba(255,255,255,0.05)'
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Last active module */}
-                      <div className="bg-surface-container p-4 border-t border-b border-outline-variant/30">
-                        <span className="font-mono text-[10px] text-on-surface-variant block mb-1">
-                          LAST ACTIVE MODULE
-                        </span>
-                        <div className="font-mono text-xs font-bold truncate" style={{ color: ta.color }}>
-                          {mostRecentModule ? mostRecentModule.title.toUpperCase() : 'MODULE 01'}
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-3" style={{ backgroundColor: `${ta.color}30` }} />
+                          <div className="flex-1 flex gap-0.5 p-1 bg-black/30" style={{ border: `2px solid ${ta.color}33` }}>
+                            {Array.from({ length: segmentCount }, (_, i) => (
+                              <div
+                                key={i}
+                                className="flex-1 h-3"
+                                style={{
+                                  backgroundColor: i < filledSegments ? ta.color : 'rgba(255,255,255,0.05)',
+                                  border: i >= filledSegments ? `1px solid ${ta.color}1a` : 'none'
+                                }}
+                              />
+                            ))}
+                          </div>
                         </div>
                       </div>
 

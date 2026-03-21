@@ -76,20 +76,22 @@ export const TheorySidebar = ({
           {orderedLessons.length} lessons · {activeModule.totalMinutes} min
         </div>
 
-        <div className="mt-4 border border-outline-variant/30 bg-surface-container-low p-3">
-          <div className="flex items-center justify-between gap-3 font-mono text-[10px] text-on-surface-variant uppercase">
-            <span>Module progress</span>
-            <span>
-              {completedLessonCount}/{orderedLessons.length}
-            </span>
-          </div>
-          <div className="mt-2 flex gap-1 h-1.5">
-            {Array.from({ length: Math.max(orderedLessons.length, 1) }, (_, i) => (
-              <div
-                key={i}
-                className={`flex-1 ${i < completedLessonCount ? 'bg-primary' : 'bg-surface-container-highest/30'}`}
-              />
-            ))}
+        <div className="mt-4 flex items-center gap-3">
+          <span className="font-mono text-[9px] text-primary/50 font-bold">
+            {completedLessonCount}/{orderedLessons.length}
+          </span>
+          <div className="flex items-center gap-1 flex-1">
+            {/* Battery cap */}
+            <div className="w-1.5 h-3 bg-primary/30" />
+            {/* Battery body (horizontal) */}
+            <div className="border-2 border-primary/20 p-1 flex gap-0.5 bg-surface-container-lowest/80 flex-1">
+              {Array.from({ length: Math.max(orderedLessons.length, 1) }, (_, i) => (
+                <div
+                  key={i}
+                  className={`flex-1 h-4 ${i < completedLessonCount ? 'bg-primary/80' : 'bg-surface-container-highest/20 border border-primary/10'}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
 

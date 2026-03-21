@@ -131,8 +131,8 @@ export const TheorySessionPicker = ({
           >
             {/* Title */}
             <div className="mb-1">
-              <h2 className="font-headline text-lg font-bold text-on-surface tracking-tight">Pick Your Learning Approach</h2>
-              <p className="font-mono text-[9px] text-on-surface-variant mt-0.5">Structured sessions improve retention by up to 40% and sustain deeper focus.</p>
+              <h2 className="font-headline text-2xl font-bold text-on-surface tracking-tight">Pick Your Learning Approach</h2>
+              <p className="font-mono text-xs text-on-surface-variant mt-1">Structured sessions improve retention by up to 40% and sustain deeper focus.</p>
             </div>
 
             {/* Close */}
@@ -185,16 +185,16 @@ export const TheorySessionPicker = ({
                         <Icon className="h-5 w-5" style={{ color: a.hex }} />
                       </div>
                       <div className="text-right">
-                        <div className="font-mono text-[7px] uppercase mb-0.5" style={{ color: a.hex }}>{targetLabel}</div>
-                        <div className="font-headline text-xl font-light text-on-surface">{timeLabel}</div>
+                        <div className="font-mono text-[9px] uppercase mb-0.5" style={{ color: a.hex }}>{targetLabel}</div>
+                        <div className="font-headline text-2xl font-light text-on-surface">{timeLabel}</div>
                       </div>
                     </div>
 
                     {/* Title + description */}
-                    <h2 className="font-headline text-base font-black tracking-tight text-on-surface mb-1">
+                    <h2 className="font-headline text-lg font-black tracking-tight text-on-surface mb-1">
                       {METHOD_NEURAL_LABELS[methodId]}
                     </h2>
-                    <p className="font-mono text-[9px] text-on-surface-variant leading-relaxed mb-3 min-h-[2.5rem]">
+                    <p className="font-mono text-[11px] text-on-surface-variant leading-relaxed mb-3 min-h-[2.5rem]">
                       {METHOD_DESCRIPTIONS[methodId]}
                     </p>
 
@@ -202,10 +202,10 @@ export const TheorySessionPicker = ({
                       {/* Session structure visualization */}
                       <div className="bg-black/40 p-2 border border-outline-variant/20">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="font-mono text-[7px] tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
+                          <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
                             SESSION_STRUCTURE
                           </span>
-                          <span className="font-mono text-[7px]" style={{ color: a.hex }}>{totalMinutes} MIN</span>
+                          <span className="font-mono text-[9px]" style={{ color: a.hex }}>{totalMinutes} MIN</span>
                         </div>
                         <div className="flex gap-0.5 h-2">
                           {methodId === 'sprint' ? (
@@ -235,12 +235,12 @@ export const TheorySessionPicker = ({
                       {/* Stats */}
                       <div className="grid grid-cols-2 gap-2">
                         <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
-                          <div className="font-mono text-[6px] text-on-surface-variant uppercase">{stats[0]}</div>
-                          <div className="font-headline text-[9px] font-bold text-on-surface uppercase">{stats[1]}</div>
+                          <div className="font-mono text-[8px] text-on-surface-variant uppercase">{stats[0]}</div>
+                          <div className="font-headline text-[11px] font-bold text-on-surface uppercase">{stats[1]}</div>
                         </div>
                         <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
-                          <div className="font-mono text-[6px] text-on-surface-variant uppercase">{stats[2]}</div>
-                          <div className="font-headline text-[9px] font-bold text-on-surface uppercase">{stats[3]}</div>
+                          <div className="font-mono text-[8px] text-on-surface-variant uppercase">{stats[2]}</div>
+                          <div className="font-headline text-[11px] font-bold text-on-surface uppercase">{stats[3]}</div>
                         </div>
                       </div>
 

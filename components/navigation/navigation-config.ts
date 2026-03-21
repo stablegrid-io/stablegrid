@@ -35,11 +35,10 @@ export const navItems: NavItem[] = [
   { href: '/progress', icon: User, label: 'Character', disabled: true }
 ];
 
-export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
+export const shouldHideNav = (pathname?: string | null, _isAuthenticated?: boolean) => {
   if (!pathname) return false;
-  if (!isAuthenticated) {
-    return true;
-  }
+  const authPages = ['/login', '/signup', '/reset-password', '/update-password'];
+  if (authPages.includes(pathname)) return true;
   if (
     pathname.startsWith('/practice/') &&
     pathname !== '/practice/setup' &&
@@ -47,7 +46,7 @@ export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolea
   ) {
     return true;
   }
-  return ['/login', '/signup', '/reset-password', '/update-password'].includes(pathname);
+  return false;
 };
 
 export const isTheoryLessonPath = (pathname?: string | null) =>

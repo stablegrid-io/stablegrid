@@ -644,25 +644,26 @@ export function NotebooksPracticePage() {
                 <p className="font-mono text-[9px] uppercase tracking-[0.35em] text-[#3a5a4a]">
                   Completion
                 </p>
-                {/* Segmented progress bar — 10 blocks */}
-                <div className="flex items-center gap-[3px]">
-                  {Array.from({ length: 10 }).map((_, i) => {
-                    const filled = i < Math.round(completionStats.completionPct / 10);
-                    return (
-                      <div
-                        key={i}
-                        className="h-[10px] w-3 rounded-[2px] transition-all duration-500"
-                        style={{
-                          background: filled
-                            ? 'rgba(34,185,154,0.85)'
-                            : 'rgba(255,255,255,0.05)',
-                          border: filled
-                            ? '1px solid rgba(34,185,154,0.4)'
-                            : '1px solid rgba(255,255,255,0.05)'
-                        }}
-                      />
-                    );
-                  })}
+                {/* Battery progress bar */}
+                <div className="flex items-center gap-1">
+                  <div className="w-1 h-2.5" style={{ backgroundColor: 'rgba(34,185,154,0.3)' }} />
+                  <div className="flex gap-0.5 p-0.5" style={{ border: '1.5px solid rgba(34,185,154,0.2)', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                    {Array.from({ length: 10 }).map((_, i) => {
+                      const filled = i < Math.round(completionStats.completionPct / 10);
+                      return (
+                        <div
+                          key={i}
+                          className="h-2.5 w-3 transition-all duration-500"
+                          style={{
+                            backgroundColor: filled
+                              ? 'rgba(34,185,154,0.8)'
+                              : 'rgba(255,255,255,0.03)',
+                            border: !filled ? '1px solid rgba(34,185,154,0.1)' : 'none'
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
                 <p className="font-mono text-sm font-medium text-white">
                   {completionStats.completionPct}%
@@ -984,25 +985,26 @@ export function NotebooksPracticePage() {
                           </span>
                         </div>
 
-                        {/* Segmented progress bar — 10 blocks */}
-                        <div className="flex items-center gap-[3px]">
-                          {Array.from({ length: 10 }).map((_, i) => {
-                            const filled = i < Math.round(completionPct / 10);
-                            return (
-                              <div
-                                key={i}
-                                className="h-[10px] flex-1 rounded-[2px] transition-all duration-500"
-                                style={{
-                                  background: filled
-                                    ? `rgba(${difficultyStyle.accentRgb},0.85)`
-                                    : 'rgba(255,255,255,0.05)',
-                                  border: filled
-                                    ? `1px solid rgba(${difficultyStyle.accentRgb},0.4)`
-                                    : '1px solid rgba(255,255,255,0.05)'
-                                }}
-                              />
-                            );
-                          })}
+                        {/* Battery progress bar */}
+                        <div className="flex items-center gap-1">
+                          <div className="w-1 h-2.5" style={{ backgroundColor: `rgba(${difficultyStyle.accentRgb},0.3)` }} />
+                          <div className="flex-1 flex gap-0.5 p-0.5" style={{ border: `1.5px solid rgba(${difficultyStyle.accentRgb},0.2)`, backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                            {Array.from({ length: 10 }).map((_, i) => {
+                              const filled = i < Math.round(completionPct / 10);
+                              return (
+                                <div
+                                  key={i}
+                                  className="h-2.5 flex-1 transition-all duration-500"
+                                  style={{
+                                    backgroundColor: filled
+                                      ? `rgba(${difficultyStyle.accentRgb},0.8)`
+                                      : 'rgba(255,255,255,0.03)',
+                                    border: !filled ? `1px solid rgba(${difficultyStyle.accentRgb},0.1)` : 'none'
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
                         </div>
 
                         <p className="mt-4 text-[13px] leading-7 text-[#8ab8ae]">

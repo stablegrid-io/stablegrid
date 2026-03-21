@@ -4,6 +4,7 @@ import { pysparkDataEngineeringTrackTheory } from '@/data/learn/theory/pysparkDa
 import { fabricDataEngineeringTrack } from '@/data/learn/theory/fabric-data-engineering-track';
 import { fabricBusinessIntelligenceTrack } from '@/data/learn/theory/fabric-business-intelligence-track';
 import { airflowIntermediateTrack } from '@/data/learn/theory/airflow-intermediate-track';
+import { airflowSeniorTrack } from '@/data/learn/theory/airflow-senior-track';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -163,6 +164,21 @@ const getTheoryTrackConfigs = (doc: TheoryDoc): TheoryTrackConfig[] => {
             'Error handling, type hints, and systematic classic DAG conversion'
           ],
           sourceDoc: airflowIntermediateTrack
+        },
+        {
+          slug: 'senior-track',
+          label: 'Apache Airflow: Senior Track',
+          title: 'Senior Track',
+          subtitle: 'Enterprise-scale platform architecture and advanced patterns',
+          eyebrow: 'Track 03',
+          description:
+            'An advanced route through enterprise Airflow: DAG factories, KubernetesExecutor, custom XCom backends, provider development, REST API mastery, scheduler internals, version upgrades, multi-environment architecture, and governance.',
+          highlights: [
+            'DAG factories, KubernetesExecutor, and custom XCom backends',
+            'Provider development, REST API mastery, and scheduler internals',
+            'Version upgrades, multi-environment architecture, governance, and capstone'
+          ],
+          sourceDoc: airflowSeniorTrack
         }
       ];
     default:

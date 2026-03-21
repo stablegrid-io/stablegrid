@@ -120,10 +120,10 @@ export function LearnModeTopicSelector({
                 <Link
                   key={`${mode}-${topic.id}`}
                   href={`/learn/${topic.id}/${mode}`}
-                  className="group"
+                  className="group h-full"
                 >
                   <section
-                    className="bg-surface-container-low p-1 relative overflow-hidden transition-all duration-300"
+                    className="bg-surface-container-low p-1 relative overflow-hidden transition-all duration-300 h-full"
                     style={{
                       border: `1px solid ${borderAccent}`,
                     }}
@@ -178,17 +178,27 @@ export function LearnModeTopicSelector({
                           </span>
                         </div>
 
-                        {/* Segmented bar */}
-                        <div className="flex gap-1 h-3 mb-8">
-                          {Array.from({ length: 10 }, (_, i) => (
-                            <div
-                              key={i}
-                              className="flex-1"
-                              style={{
-                                backgroundColor: i < filledBlocks ? accent : `rgba(${style.accentRgb},0.2)`
-                              }}
-                            />
-                          ))}
+                        {/* Battery bar */}
+                        <div className="flex items-center gap-1 mb-8">
+                          <div
+                            className="w-1.5 h-3"
+                            style={{ backgroundColor: `rgba(${style.accentRgb},0.3)` }}
+                          />
+                          <div
+                            className="flex-1 flex gap-0.5 p-1"
+                            style={{ border: `2px solid rgba(${style.accentRgb},0.2)`, backgroundColor: 'rgba(0,0,0,0.3)' }}
+                          >
+                            {Array.from({ length: 10 }, (_, i) => (
+                              <div
+                                key={i}
+                                className="flex-1 h-3"
+                                style={{
+                                  backgroundColor: i < filledBlocks ? accent : `rgba(${style.accentRgb},0.1)`,
+                                  border: i >= filledBlocks ? `1px solid rgba(${style.accentRgb},0.1)` : 'none'
+                                }}
+                              />
+                            ))}
+                          </div>
                         </div>
 
                         {/* CTA */}

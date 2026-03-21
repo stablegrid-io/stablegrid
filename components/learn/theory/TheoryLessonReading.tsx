@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import type { TheoryChapter, TheorySection as TheorySectionType } from '@/types/theory';
 
 const SENTENCE_SPLIT_PATTERN = /(?<=[.!?])\s+(?=[A-Z0-9“"'])/;
@@ -201,6 +202,9 @@ interface TheoryLessonIntroProps {
   lessonProgressLabel?: string;
   lessonProgressPercent?: number;
   showCheckpointTag?: boolean;
+  completedLessonCount?: number;
+  orderedLessonIds?: string[];
+  completedLessonIds?: string[];
 }
 
 export const TheoryLessonIntro = ({
@@ -210,11 +214,40 @@ export const TheoryLessonIntro = ({
   lessonTotal,
   lessonProgressLabel,
   lessonProgressPercent = 0,
-  showCheckpointTag = false
+  showCheckpointTag = false,
+  completedLessonCount = 0,
+  orderedLessonIds = [],
+  completedLessonIds = []
 }: TheoryLessonIntroProps) => {
   const estimatedMinutes = lesson.durationMinutes ?? lesson.estimatedMinutes ?? 0;
   const normalizedLessonTitle = stripLessonPrefix(lesson.title);
   const keywordPills = buildLessonKeywords(lesson);
+
+  // Track seconds spent on this lesson for the active segment animation
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const lessonIdRef = useRef(lesson.id);
+  const completedSet = new Set(completedLessonIds);
+  const hasLessonIds = orderedLessonIds.length > 0;
+  const isCurrentLessonCompleted = hasLessonIds
+    ? completedSet.has(lesson.id)
+    : lessonIndex < completedLessonCount;
+
+  useEffect(() => {
+    if (lessonIdRef.current !== lesson.id) {
+      lessonIdRef.current = lesson.id;
+      setElapsedSeconds(0);
+    }
+  }, [lesson.id]);
+
+  useEffect(() => {
+    if (isCurrentLessonCompleted) return;
+    const interval = setInterval(() => {
+      setElapsedSeconds((s) => Math.min(s + 1, 30));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isCurrentLessonCompleted, lesson.id]);
+
+  const activeSegmentProgress = isCurrentLessonCompleted ? 100 : Math.round((elapsedSeconds / 30) * 100);
 
   return (
     <section className="mb-10 border-b border-light-border/80 pb-8 dark:border-dark-border/80">
@@ -239,32 +272,8 @@ export const TheoryLessonIntro = ({
         >
           {normalizedLessonTitle}
         </h1>
-        {keywordPills.length > 0 ? (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {keywordPills.map((keyword) => (
-              <span
-                key={keyword}
-                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm font-medium text-[#cfdad5]"
-              >
-                {keyword}
-              </span>
-            ))}
-          </div>
-        ) : null}
       </div>
 
-      <div className="mt-6 max-w-xl">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[#8ca79a]">
-          <span>Progress</span>
-          <span>{lessonProgressLabel ?? 'Ready'}</span>
-        </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full rounded-full bg-[#8fe1c5] transition-[width] duration-300"
-            style={{ width: `${Math.max(0, Math.min(100, lessonProgressPercent))}%` }}
-          />
-        </div>
-      </div>
     </section>
   );
 };

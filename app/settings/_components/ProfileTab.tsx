@@ -265,22 +265,22 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
           </div>
 
           <SettingsField label="Profile picture (PNG)" hint="PNG only. Max 4 MB.">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading || avatarProcessing}
-                className="btn btn-secondary"
+                className="inline-flex items-center gap-2 border border-primary/20 bg-primary/5 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10 hover:border-primary/40 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ImagePlus className="h-4 w-4" />
-                {avatarProcessing ? 'Preparing PNG...' : 'Upload PNG'}
+                {avatarProcessing ? 'Processing...' : 'Upload PNG'}
               </button>
               {avatarUrl ? (
                 <button
                   type="button"
                   onClick={() => setAvatarUrl(null)}
                   disabled={loading || avatarProcessing}
-                  className="btn btn-ghost"
+                  className="inline-flex items-center gap-2 border border-error/20 px-4 py-2 font-mono text-xs uppercase tracking-widest text-error/70 transition-colors hover:bg-error/10 hover:border-error/40 hover:text-error disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Trash2 className="h-4 w-4" />
                   Remove

@@ -269,13 +269,16 @@ export const TheoryTrackPath = ({
                   <span>PROGRESS_CORE</span>
                   <span>{overallProgressPct}%</span>
                 </div>
-                <div className="flex gap-1 h-3">
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <div
-                      key={i}
-                      className={`flex-1 ${i < Math.round((overallProgressPct / 100) * 12) ? 'bg-primary' : 'bg-surface-container-highest/30'}`}
-                    />
-                  ))}
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-3 bg-primary/30" />
+                  <div className="flex-1 flex gap-0.5 p-1 border-2 border-primary/20 bg-black/30">
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`flex-1 h-3 ${i < Math.round((overallProgressPct / 100) * 12) ? 'bg-primary/80' : 'bg-surface-container-highest/20 border border-primary/10'}`}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

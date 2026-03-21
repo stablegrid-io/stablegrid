@@ -26,7 +26,7 @@ export const Navigation = ({ children }: { children: ReactNode }) => {
       <div
         data-testid="navigation-shell-content"
         className={`relative z-10 pb-16 lg:pb-0 transition-[padding] duration-200 ${
-          hideNav ? '' : isCompact ? 'lg:pl-16 pt-14' : 'lg:pl-64 pt-14'
+          hideNav ? '' : isCompact ? 'lg:pl-16 pt-14' : 'lg:pl-48 pt-14'
         }`}
       >
         {children}

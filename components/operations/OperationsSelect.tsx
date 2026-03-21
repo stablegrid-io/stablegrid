@@ -319,19 +319,21 @@ export function OperationsSelect() {
                         {progressPct}%
                       </span>
                     </div>
-                    <div className="flex gap-[3px]">
-                      {Array.from({ length: 10 }, (_, i) => (
-                        <div
-                          key={i}
-                          className="h-1.5 flex-1 transition-all duration-500"
-                          style={{
-                            backgroundColor:
-                              i < filledBlocks ? accent : `rgba(${accentRgb},0.12)`,
-                            boxShadow:
-                              i < filledBlocks ? `0 0 4px ${accentGlow}` : 'none',
-                          }}
-                        />
-                      ))}
+                    <div className="flex items-center gap-1">
+                      <div className="w-1 h-2" style={{ backgroundColor: `rgba(${accentRgb},0.3)` }} />
+                      <div className="flex-1 flex gap-0.5 p-0.5" style={{ border: `1.5px solid rgba(${accentRgb},0.2)`, backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                        {Array.from({ length: 10 }, (_, i) => (
+                          <div
+                            key={i}
+                            className="h-2 flex-1 transition-all duration-500"
+                            style={{
+                              backgroundColor:
+                                i < filledBlocks ? accent : `rgba(${accentRgb},0.08)`,
+                              border: i >= filledBlocks ? `1px solid rgba(${accentRgb},0.1)` : 'none',
+                            }}
+                          />
+                        ))}
+                      </div>
                     </div>
                     <p className="mt-1.5 font-mono text-[9px] tracking-[0.1em] text-[#2a4038]">
                       {passed

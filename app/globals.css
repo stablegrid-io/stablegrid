@@ -152,6 +152,11 @@
   }
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-10px) scale(1.02); }
+}
+
 @layer utilities {
   .transition-smooth {
     @apply transition-all duration-150 ease-out;

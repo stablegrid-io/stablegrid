@@ -35,9 +35,123 @@ import {
 } from '@/lib/learn/freezeTheoryDoc';
 import { useAdminStatus } from '@/lib/hooks/useAdminStatus';
 
+const SessionExitModal = ({
+  onContinue,
+  onEndSession
+}: {
+  onContinue: () => void;
+  onEndSession: () => void;
+}) => (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="w-full max-w-sm border-2 border-primary/20 bg-surface-container p-6">
+      {/* L-bracket corners */}
+      <div className="relative">
+        <div className="absolute -top-6 -left-6 w-4 h-4 border-t-2 border-l-2 border-primary/40" />
+        <div className="absolute -top-6 -right-6 w-4 h-4 border-t-2 border-r-2 border-primary/40" />
+        <div className="absolute -bottom-6 -left-6 w-4 h-4 border-b-2 border-l-2 border-primary/40" />
+        <div className="absolute -bottom-6 -right-6 w-4 h-4 border-b-2 border-r-2 border-primary/40" />
+
+        <h3 className="font-headline font-bold text-lg text-on-surface uppercase tracking-wider mb-2">
+          Session Active
+        </h3>
+        <p className="font-mono text-[11px] text-on-surface-variant leading-relaxed mb-6">
+          You have an active reading session. Would you like to end the session or continue reading?
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onEndSession}
+            className="flex-1 border border-error/30 bg-error/10 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-error transition-colors hover:bg-error/20"
+          >
+            End Session
+          </button>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="flex-1 bg-primary text-on-primary py-2.5 font-mono text-xs font-bold uppercase tracking-widest transition-colors hover:bg-primary-dim"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 interface TheoryLayoutProps {
   doc: TheoryDoc;
 }
+
+const ModuleProgressRail = ({
+  orderedLessons,
+  completedLessonIds,
+  activeLessonId
+}: {
+  orderedLessons: { id: string }[];
+  completedLessonIds: string[];
+  activeLessonId: string | null;
+}) => {
+  const completedSet = useMemo(() => new Set(completedLessonIds), [completedLessonIds]);
+  const activeIndex = orderedLessons.findIndex((l) => l.id === activeLessonId);
+  const isActiveLessonCompleted = activeLessonId ? completedSet.has(activeLessonId) : true;
+
+  const [elapsed, setElapsed] = useState(0);
+  const lessonIdRef = useRef(activeLessonId);
+
+  useEffect(() => {
+    if (lessonIdRef.current !== activeLessonId) {
+      lessonIdRef.current = activeLessonId;
+      setElapsed(0);
+    }
+  }, [activeLessonId]);
+
+  useEffect(() => {
+    if (isActiveLessonCompleted) return;
+    const interval = setInterval(() => setElapsed((s) => Math.min(s + 1, 30)), 1000);
+    return () => clearInterval(interval);
+  }, [isActiveLessonCompleted, activeLessonId]);
+
+  const activeProgress = isActiveLessonCompleted ? 100 : Math.round((elapsed / 30) * 100);
+
+  if (orderedLessons.length === 0) return null;
+
+  return (
+    <div className="hidden lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-30 flex-col items-center">
+      {/* Battery cap */}
+      <div className="w-5 h-2 bg-primary/30 mb-0.5" />
+      {/* Battery body */}
+      <div className="border-2 border-primary/20 p-1.5 flex flex-col-reverse gap-1 bg-surface-container-lowest/80 backdrop-blur-sm">
+        {orderedLessons.map((l, i) => {
+          const isCompleted = completedSet.has(l.id);
+          const isActive = i === activeIndex && !isActiveLessonCompleted;
+
+          return (
+            <div
+              key={l.id}
+              className={`w-5 h-5 relative overflow-hidden transition-all duration-500 ${
+                isCompleted
+                  ? 'bg-primary/80'
+                  : 'bg-surface-container-highest/20 border border-primary/10'
+              }`}
+            >
+              {isActive && (
+                <div
+                  className="absolute inset-x-0 bottom-0 bg-primary/70 transition-[height] duration-1000 ease-linear"
+                  style={{ height: `${activeProgress}%` }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* Label */}
+      <span className="font-mono text-[8px] text-primary/50 mt-2 font-bold">
+        {completedLessonIds.length}/{orderedLessons.length}
+      </span>
+    </div>
+  );
+};
 
 interface ResumeTarget {
   chapterId: string;
@@ -146,8 +260,54 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     () => resolveTheorySessionMethodConfigs(sessionMethodConfigs),
     [sessionMethodConfigs]
   );
-  const theorySession = useTheorySessionTimer(pathname);
+  const theorySession = useTheorySessionTimer('global');
   const startTheorySession = theorySession.start;
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const pendingNavigationRef = useRef<string | null>(null);
+
+  // Browser beforeunload guard
+  useEffect(() => {
+    if (!theorySession.hasActiveSession) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [theorySession.hasActiveSession]);
+
+  // Intercept browser back/popstate
+  useEffect(() => {
+    if (!theorySession.hasActiveSession) return;
+    const handler = () => {
+      window.history.pushState(null, '', window.location.href);
+      setShowExitConfirm(true);
+    };
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handler);
+    return () => window.removeEventListener('popstate', handler);
+  }, [theorySession.hasActiveSession]);
+
+  // Intercept all client-side link clicks when session is active
+  useEffect(() => {
+    if (!theorySession.hasActiveSession) return;
+    const handler = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest('a[href]');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href');
+      if (!href || href.startsWith('#') || href.startsWith('javascript')) return;
+      // Allow navigation within the current theory page (lesson switching)
+      if (href.includes(pathname ?? '')) return;
+      // Allow external links
+      if (href.startsWith('http')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      pendingNavigationRef.current = href;
+      setShowExitConfirm(true);
+    };
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
+  }, [theorySession.hasActiveSession, pathname]);
+
   const retryProgressSync = useCallback(() => {
     setProgressIssue(null);
     setProgressReloadToken((value) => value + 1);
@@ -774,8 +934,27 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   ]);
 
   return (
-    <div className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface lg:h-[100dvh]">
-      <div className="flex h-11 flex-shrink-0 items-center gap-3 border-b border-outline-variant/30 bg-surface px-4">
+    <div className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface lg:h-[calc(100dvh-3.5rem)]">
+      {/* Session exit confirmation modal */}
+      {showExitConfirm && (
+        <SessionExitModal
+          onContinue={() => {
+            setShowExitConfirm(false);
+            pendingNavigationRef.current = null;
+          }}
+          onEndSession={() => {
+            theorySession.stop();
+            setShowExitConfirm(false);
+            if (pendingNavigationRef.current) {
+              router.push(pendingNavigationRef.current);
+              pendingNavigationRef.current = null;
+            }
+          }}
+        />
+      )}
+
+
+      <div className="flex h-11 flex-shrink-0 items-center gap-3 border-b border-outline-variant/30 bg-surface px-4 sticky top-0 z-40">
         <button
           type="button"
           onClick={() => setSidebarOpen((value) => !value)}
@@ -866,6 +1045,13 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           />
         ) : null}
 
+        {/* Vertical module progress rail */}
+        <ModuleProgressRail
+          orderedLessons={orderedActiveLessons}
+          completedLessonIds={completedLessonIds}
+          activeLessonId={activeLessonId}
+        />
+
         <div
           ref={contentRef}
           aria-hidden={sessionPickerVisible && !theorySession.hasActiveSession}
@@ -885,6 +1071,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             hasModuleCheckpoint={hasActiveModuleCheckpoint}
             isProgressLoaded={isHydrated}
             completedLessonCount={completedLessonIds.length}
+            completedLessonIds={completedLessonIds}
             onCompleteModule={completeCurrentModule}
             completionActionPending={completionActionPending}
             scrollContainerRef={contentRef}
