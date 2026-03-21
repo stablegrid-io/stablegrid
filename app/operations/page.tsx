@@ -185,7 +185,7 @@ export default async function TasksPage() {
       id: 'missions',
       title: 'Missions',
       description: 'Run incident scenarios and continue the latest active operations drill.',
-      href: latestMission ? `/operations/missions/${latestMission.mission_slug}` : '/operations/missions',
+      href: '/operations/missions',
       cta:
         latestMission?.state === 'in_progress'
           ? 'Resume mission'
