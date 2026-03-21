@@ -145,36 +145,6 @@ export const TheorySessionPicker = ({
               <X className="h-4 w-4" />
             </button>
 
-            {/* Free Read banner */}
-            <section
-              className="border border-dashed border-primary/20 p-3 flex items-center justify-between cursor-pointer hover:bg-surface-container-high/40 transition-all"
-              onClick={() => onStart(freeReadConfig)}
-              onKeyDown={(e) => e.key === 'Enter' && onStart(freeReadConfig)}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="flex items-center gap-4">
-                <div className="bg-secondary/10 p-2 border border-secondary/20">
-                  <BookOpen className="h-4 w-4 text-secondary" />
-                </div>
-                <div>
-                  <h3 className="font-headline text-xs font-bold tracking-widest text-on-surface">OPEN_ARCHIVE_OVERRIDE</h3>
-                  <p className="font-mono text-[8px] text-on-surface-variant mt-0.5 uppercase">
-                    Direct memory access // Unmetered data stream protocol
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-6">
-                <div className="hidden md:block text-right">
-                  <div className="font-mono text-[8px] text-on-surface-variant uppercase">System_State</div>
-                  <div className="font-headline text-xs text-secondary font-bold">READY_FOR_SEQUENCING</div>
-                </div>
-                <div className="border border-secondary px-4 py-1.5 font-mono text-[9px] text-secondary tracking-widest hover:bg-secondary hover:text-surface transition-all uppercase">
-                  INITIATE_MANUAL_READ
-                </div>
-              </div>
-            </section>
-
             {/* 3-column timed method cards */}
             <section className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               {TIMED_METHOD_ORDER.map((methodId) => {
@@ -280,11 +250,7 @@ export const TheorySessionPicker = ({
             </section>
 
             {/* Footer */}
-            <footer className="border-t border-outline-variant/20 pt-4 flex justify-between items-end">
-              <div className="bg-black/60 p-3 border border-outline-variant/30 font-mono text-[9px] text-primary/40 leading-tight max-w-md">
-                <p>&gt; SYSTEM_READY: WAITING FOR OPERATOR INPUT_</p>
-                <p>&gt; {lessonTitle}</p>
-              </div>
+            <footer className="border-t border-outline-variant/20 pt-4 flex justify-end">
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -295,10 +261,10 @@ export const TheorySessionPicker = ({
                 </button>
                 <button
                   type="button"
-                  onClick={onDismiss}
+                  onClick={() => onStart(freeReadConfig)}
                   className="border border-outline-variant/40 px-3 py-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
                 >
-                  SKIP
+                  FREE READ
                 </button>
               </div>
             </footer>
