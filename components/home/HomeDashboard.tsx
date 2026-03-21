@@ -314,34 +314,77 @@ export const HomeDashboard = ({
           </div>
 
           <div className="relative z-10 text-center">
-            <div className="mb-2">
-              <span className="font-mono text-[8px] text-primary/60 tracking-[0.4em] uppercase">AVATAR_SYNC_PORT</span>
-            </div>
-
-            {/* Operator avatar */}
-            <div className="relative w-72 h-96 bg-primary/5 border border-primary/20 flex items-center justify-center overflow-hidden group mb-3">
-              <Image
-                src="/grid-assets/operator-avatar.jpg"
-                alt={`Operator ${firstName}`}
-                fill
-                className="object-cover grayscale brightness-125 contrast-125"
-                unoptimized
-              />
-              {/* HUD overlays on image */}
-              <div className="absolute bottom-3 left-3 text-left z-10">
-                <div className="text-[8px] font-mono text-primary bg-surface-dim/80 px-1 border-l-2 border-primary mb-0.5">BIOMETRICS: NOMINAL</div>
-                <div className="text-[8px] font-mono text-primary bg-surface-dim/80 px-1 border-l-2 border-primary">NEURAL_LOAD: {overallProgress}%</div>
+            {/* Level + XP info above */}
+            <div className="mb-3 flex items-center justify-center gap-4">
+              <div className="text-right">
+                <div className="font-mono text-[7px] text-primary/40 uppercase tracking-widest">SYSTEM_LVL</div>
+                <div className="font-headline text-xl font-black text-primary">{Math.floor(stats.totalXp / 1000)}</div>
               </div>
-              <div className="absolute top-3 right-3 text-right z-10">
-                <div className="text-[8px] font-mono text-primary/60">OP_ID: OP-01</div>
-                <div className="text-[8px] font-mono text-primary/60">LOC: SECTOR_G7</div>
+              <div className="h-6 w-px bg-primary/20" />
+              <div className="text-left">
+                <div className="font-mono text-[7px] text-primary/40 uppercase tracking-widest">XP_TOTAL</div>
+                <div className="font-mono text-sm font-bold text-on-surface">{stats.totalXp.toLocaleString()}</div>
               </div>
             </div>
 
-            <h2 className="font-headline text-sm font-black text-on-surface tracking-widest uppercase">
+            {/* Avatar with SVG progress ring */}
+            <div className="relative inline-block mb-3">
+              {/* SVG circular progress */}
+              <svg className="absolute -inset-4 w-[calc(100%+2rem)] h-[calc(100%+2rem)] -rotate-90 z-20 pointer-events-none" viewBox="0 0 200 260">
+                {/* Background ring */}
+                <ellipse cx="100" cy="130" rx="96" ry="126" fill="none" stroke="rgba(153,247,255,0.08)" strokeWidth="2" />
+                {/* Progress ring */}
+                <ellipse
+                  cx="100" cy="130" rx="96" ry="126"
+                  fill="none"
+                  stroke="#99f7ff"
+                  strokeWidth="2.5"
+                  strokeDasharray={`${2 * Math.PI * 110}`}
+                  strokeDashoffset={`${2 * Math.PI * 110 * (1 - (stats.totalXp % 10000) / 10000)}`}
+                  strokeLinecap="butt"
+                  className="drop-shadow-[0_0_6px_rgba(0,242,255,0.5)]"
+                />
+              </svg>
+
+              {/* Avatar image */}
+              <div className="relative w-56 h-72 bg-primary/5 border border-primary/20 flex items-center justify-center overflow-hidden group">
+                <Image
+                  src="/grid-assets/operator-avatar.jpg"
+                  alt={`Operator ${firstName}`}
+                  fill
+                  className="object-cover grayscale brightness-125 contrast-125"
+                  unoptimized
+                />
+                <div className="absolute bottom-2 left-2 text-left z-10">
+                  <div className="text-[7px] font-mono text-primary bg-surface-dim/80 px-1 border-l-2 border-primary mb-0.5">BIOMETRICS: NOMINAL</div>
+                  <div className="text-[7px] font-mono text-primary bg-surface-dim/80 px-1 border-l-2 border-primary">NEURAL_LOAD: {overallProgress}%</div>
+                </div>
+                <div className="absolute top-2 right-2 text-right z-10">
+                  <div className="text-[7px] font-mono text-primary/60">OP_ID: OP-01</div>
+                </div>
+              </div>
+
+              {/* Level badge at bottom of ring */}
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-30 bg-surface border border-primary/40 px-3 py-1 shadow-[0_0_12px_rgba(0,242,255,0.2)]">
+                <span className="font-mono text-[8px] text-primary font-bold tracking-widest">
+                  LVL {Math.floor(stats.totalXp / 1000)} · {Math.round((stats.totalXp % 10000) / 100)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Operator name */}
+            <h2 className="font-headline text-sm font-black text-on-surface tracking-widest uppercase mt-2">
               OPERATOR {firstName.toUpperCase()}
             </h2>
-            <p className="font-mono text-[8px] text-primary mt-0.5">LINK_ESTABLISHED</p>
+
+            {/* Title badge */}
+            <div className="mt-2 inline-flex items-center gap-2 border border-primary/30 bg-primary/5 px-3 py-1">
+              <span className="w-1.5 h-1.5 bg-primary" />
+              <span className="font-mono text-[8px] text-primary font-bold tracking-widest uppercase">
+                {stats.currentStreak > 7 ? 'GRID_ARCHITECT' : stats.currentStreak > 3 ? 'GRID_TECHNICIAN' : 'GRID_OPERATOR'}
+              </span>
+            </div>
+            <p className="font-mono text-[7px] text-primary/40 mt-1">LINK_ESTABLISHED · STREAK: {stats.currentStreak}D</p>
           </div>
 
           {/* Bottom HUD stats */}
