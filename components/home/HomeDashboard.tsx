@@ -248,54 +248,83 @@ export const HomeDashboard = ({
             <span className="font-mono text-[9px] text-primary/40">[MOD: {recommendedTopic.theoryCompleted}/{recommendedTopic.theoryTotal}]</span>
           </div>
           <div className="relative pl-4 space-y-8 before:absolute before:left-[15px] before:top-4 before:bottom-4 before:w-[1px] before:bg-outline-variant/30">
-            {topicSnapshots.map((snapshot, index) => {
-              const isActive = snapshot.topicId === moduleTopicId;
-              const isCompleted = snapshot.theoryPct >= 100;
-              const filledBars = Math.round((snapshot.theoryPct / 100) * 4);
-
-              return (
-                <Link key={snapshot.topicId} href={`/learn/${snapshot.topicId}/theory`} className="relative flex items-center gap-3 group">
-                  <div className={`z-10 w-8 h-8 border flex items-center justify-center flex-shrink-0 ${
-                    isCompleted
-                      ? 'border-primary/40 bg-primary/10'
-                      : isActive
-                        ? 'border-2 border-primary bg-primary/20 shadow-[0_0_15px_rgba(153,247,255,0.3)]'
-                        : 'border-outline-variant bg-surface-container opacity-40'
-                  }`}>
-                    {isCompleted ? (
-                      <span className="text-primary text-xs">✓</span>
-                    ) : isActive ? (
-                      <span className="text-primary text-xs">▶</span>
-                    ) : (
-                      <span className="text-outline-variant text-xs">○</span>
-                    )}
-                  </div>
-                  <div className={isCompleted || isActive ? '' : 'opacity-40'}>
-                    <p className={`text-[9px] font-mono mb-0.5 ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
-                      M-{String(index + 1).padStart(2, '0')}{isActive ? ' [ACTIVE]' : ''}
-                    </p>
-                    <h4 className={`text-xs font-bold uppercase tracking-wide leading-tight ${
-                      isActive ? 'font-headline text-primary' : 'font-mono text-on-surface/60'
-                    }`}>
-                      {snapshot.label}
-                    </h4>
-                    {isCompleted && (
-                      <span className="text-[7px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 mt-1 inline-block">SYNCED</span>
-                    )}
-                    {isActive && !isCompleted && (
-                      <div className="flex gap-1 mt-1.5">
-                        {Array.from({ length: 4 }, (_, i) => (
-                          <div key={i} className={`h-1 w-4 ${i < filledBars ? 'bg-primary' : 'bg-outline-variant/40'}`} />
-                        ))}
-                      </div>
-                    )}
-                    {!isCompleted && !isActive && (
-                      <span className="text-[7px] font-mono text-outline-variant">LOCKED</span>
-                    )}
-                  </div>
-                </Link>
+            {(() => {
+              // Build module nodes from the active topic's chapters
+              const activeTopicSessions = recentSessions
+                .filter((s) => s.topic === moduleTopicId)
+                .sort((a, b) => a.chapterNumber - b.chapterNumber);
+              const completedChapterNumbers = new Set(
+                activeTopicSessions.filter((s) => s.completedAt).map((s) => s.chapterNumber)
               );
-            })}
+              const activeChapterNumber = latestSession?.topic === moduleTopicId
+                ? latestSession.chapterNumber
+                : (activeTopicSessions[activeTopicSessions.length - 1]?.chapterNumber ?? 1);
+              const totalModules = Math.max(recommendedTopic.theoryTotal, activeChapterNumber);
+              const chapterTitleMap = new Map(
+                activeTopicSessions.map((s) => [s.chapterNumber, s.chapterId.replace(/^module-/, 'Module ')])
+              );
+
+              return Array.from({ length: totalModules }, (_, i) => {
+                const num = i + 1;
+                const isCompleted = completedChapterNumbers.has(num);
+                const isActive = num === activeChapterNumber && !isCompleted;
+                const isLocked = num > activeChapterNumber && !isCompleted;
+                const session = activeTopicSessions.find((s) => s.chapterNumber === num);
+                const title = session
+                  ? session.chapterId.replace(/^module-\d+-?/, '').replace(/-/g, ' ') || `Chapter ${num}`
+                  : `Chapter ${num}`;
+                const progressBars = session && !isCompleted
+                  ? Math.round((session.sectionsRead / Math.max(1, session.sectionsTotal)) * 4)
+                  : 0;
+
+                return (
+                  <Link
+                    key={num}
+                    href={`/learn/${moduleTopicId}/theory`}
+                    className="relative flex items-center gap-3 group"
+                  >
+                    <div className={`z-10 w-8 h-8 border flex items-center justify-center flex-shrink-0 ${
+                      isCompleted
+                        ? 'border-primary/40 bg-primary/10'
+                        : isActive
+                          ? 'border-2 border-primary bg-primary/20 shadow-[0_0_15px_rgba(153,247,255,0.3)]'
+                          : 'border-outline-variant bg-surface-container opacity-40'
+                    }`}>
+                      {isCompleted ? (
+                        <span className="text-primary text-xs">✓</span>
+                      ) : isActive ? (
+                        <span className="text-primary text-xs">▶</span>
+                      ) : (
+                        <span className="text-outline-variant text-xs">○</span>
+                      )}
+                    </div>
+                    <div className={isCompleted || isActive ? '' : 'opacity-40'}>
+                      <p className={`text-[9px] font-mono mb-0.5 ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
+                        M-{String(num).padStart(2, '0')}{isActive ? ' [ACTIVE]' : ''}
+                      </p>
+                      <h4 className={`text-xs font-bold uppercase tracking-wide leading-tight ${
+                        isActive ? 'font-headline text-primary' : 'font-mono text-on-surface/60'
+                      }`}>
+                        {title}
+                      </h4>
+                      {isCompleted && (
+                        <span className="text-[7px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 mt-1 inline-block">SYNCED</span>
+                      )}
+                      {isActive && !isCompleted && (
+                        <div className="flex gap-1 mt-1.5">
+                          {Array.from({ length: 4 }, (_, i) => (
+                            <div key={i} className={`h-1 w-4 ${i < progressBars ? 'bg-primary' : 'bg-outline-variant/40'}`} />
+                          ))}
+                        </div>
+                      )}
+                      {isLocked && (
+                        <span className="text-[7px] font-mono text-outline-variant">LOCKED</span>
+                      )}
+                    </div>
+                  </Link>
+                );
+              });
+            })()}
           </div>
         </section>
 
