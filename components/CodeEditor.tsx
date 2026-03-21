@@ -2,7 +2,6 @@
 
 import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
-import { useTheme } from 'next-themes';
 import type { editor } from 'monaco-editor';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -21,10 +20,7 @@ interface CodeEditorProps {
 }
 
 export function CodeEditor({ value, onChange, language }: CodeEditorProps) {
-  const { theme, systemTheme } = useTheme();
-  const resolvedTheme = theme === 'system' ? systemTheme : theme;
-  const isDark = resolvedTheme !== 'light';
-  const monacoTheme = isDark ? 'vs-dark' : 'light';
+  const monacoTheme = 'vs-dark';
   const options = useMemo<editor.IStandaloneEditorConstructionOptions>(
     () => ({
       minimap: { enabled: false },

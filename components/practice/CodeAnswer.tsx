@@ -1,7 +1,6 @@
 'use client';
 
 import Editor from '@monaco-editor/react';
-import { useTheme } from 'next-themes';
 
 interface CodeAnswerProps {
   value: string;
@@ -17,9 +16,7 @@ export const CodeAnswer = ({
   disabled,
   language = 'python'
 }: CodeAnswerProps) => {
-  const { theme, systemTheme } = useTheme();
-  const resolvedTheme = theme === 'system' ? systemTheme : theme;
-  const monacoTheme = resolvedTheme === 'dark' ? 'vs-dark' : 'light';
+  const monacoTheme = 'vs-dark';
 
   return (
     <div className="overflow-hidden rounded-lg border border-light-border dark:border-dark-border">

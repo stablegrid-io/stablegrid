@@ -2,7 +2,6 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useTheme } from 'next-themes';
 import { createMissionProgressRequestKey } from '@/lib/api/requestKeys';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import type { MissionState } from '@/types/missions';
@@ -884,7 +883,6 @@ const EnergyToast = memo(function EnergyToast({
 
 export function GhostRegulatorMission() {
   const addXP = useProgressStore((state) => state.addXP);
-  const { resolvedTheme } = useTheme();
 
   const [act, setAct] = useState(0);
   const [visibleMessages, setVisibleMessages] = useState<ChatMessage[]>([]);
@@ -1058,101 +1056,53 @@ export function GhostRegulatorMission() {
   const currentInvestigationDone =
     investigationTaskIndex === 0 ? task1Done : task2Done;
   const currentInvestigationReaction = currentInvestigationTask?.reaction;
-  const isDarkMode = resolvedTheme !== 'light';
   const theme = useMemo<MissionTheme>(
-    () =>
-      isDarkMode
-        ? {
-            rootBg: '#0a0a0a',
-            rootText: '#f0f0f0',
-            isDark: true,
-            headerBg: 'rgba(10,10,10,0.98)',
-            headerBorder: '1px solid rgba(255,255,255,0.08)',
-            missionStripBg: 'linear-gradient(135deg,#111111,#0a0a0a)',
-            missionStripBorder: '1px solid rgba(255,255,255,0.07)',
-            panelBg: '#111111',
-            panelBgStrong: '#191919',
-            panelBorder: '1px solid rgba(255,255,255,0.08)',
-            panelSubBorder: '1px solid rgba(255,255,255,0.07)',
-            textPrimary: '#f0f0f0',
-            textSecondary: '#c8c8c8',
-            textMuted: '#a8a8a8',
-            textTertiary: '#8c8c8c',
-            textQuaternary: '#737373',
-            bubbleBg: '#171717',
-            bubbleBorder: 'rgba(255,255,255,0.08)',
-            selfBubbleBg: 'rgba(229,229,229,0.07)',
-            selfBubbleBorder: 'rgba(229,229,229,0.16)',
-            dangerText: '#f87171',
-            dangerBg: 'rgba(239,68,68,0.1)',
-            dangerBorder: 'rgba(239,68,68,0.28)',
-            accent: '#e5e5e5',
-            accentSoft: 'rgba(229,229,229,0.08)',
-            accentBorder: 'rgba(229,229,229,0.18)',
-            accentGradient: 'linear-gradient(135deg,#2a2a2a,#e5e5e5)',
-            accentShadow: '0 6px 24px rgba(229,229,229,0.14)',
-            warning: '#f59e0b',
-            warningSoft: 'rgba(245,158,11,0.08)',
-            warningBorder: 'rgba(245,158,11,0.2)',
-            success: '#22b999',
-            successSoft: 'rgba(34,185,153,0.1)',
-            successBorder: 'rgba(34,185,153,0.28)',
-            codeBg: '#080808',
-            codeOutputBg: '#0c0c0c',
-            codeText: '#c0c0c0',
-            codeBorder: 'rgba(255,255,255,0.08)',
-            frequencyLine: '#e5e5e5',
-            frequencyGrid: '#2b2b2b',
-            optionBg: 'rgba(255,255,255,0.04)',
-            successBg: 'rgba(255,255,255,0.03)',
-            typingDot: '#737373'
-          }
-        : {
-            rootBg: '#f3f5f9',
-            rootText: '#0f172a',
-            isDark: false,
-            headerBg: 'rgba(255,255,255,0.96)',
-            headerBorder: '1px solid rgba(15,23,42,0.08)',
-            missionStripBg: 'rgba(248,250,252,0.98)',
-            missionStripBorder: '1px solid rgba(15,23,42,0.08)',
-            panelBg: '#ffffff',
-            panelBgStrong: '#f8fafc',
-            panelBorder: '1px solid rgba(15,23,42,0.12)',
-            panelSubBorder: '1px solid rgba(15,23,42,0.08)',
-            textPrimary: '#0f172a',
-            textSecondary: '#1f2937',
-            textMuted: '#334155',
-            textTertiary: '#64748b',
-            textQuaternary: '#475569',
-            bubbleBg: '#ffffff',
-            bubbleBorder: 'rgba(15,23,42,0.14)',
-            selfBubbleBg: 'rgba(37,99,235,0.12)',
-            selfBubbleBorder: 'rgba(37,99,235,0.28)',
-            dangerText: '#dc2626',
-            dangerBg: 'rgba(220,38,38,0.08)',
-            dangerBorder: 'rgba(220,38,38,0.24)',
-            accent: '#2563eb',
-            accentSoft: 'rgba(37,99,235,0.08)',
-            accentBorder: 'rgba(37,99,235,0.24)',
-            accentGradient: 'linear-gradient(135deg,#1a5fa8,#64a0dc)',
-            accentShadow: '0 6px 24px rgba(100,160,220,0.25)',
-            warning: '#d97706',
-            warningSoft: 'rgba(217,119,6,0.08)',
-            warningBorder: 'rgba(217,119,6,0.2)',
-            success: '#16a34a',
-            successSoft: 'rgba(22,163,74,0.08)',
-            successBorder: 'rgba(22,163,74,0.2)',
-            codeBg: '#060d18',
-            codeOutputBg: '#040c14',
-            codeText: '#a5b4fc',
-            codeBorder: 'rgba(100,160,220,0.1)',
-            frequencyLine: '#2563eb',
-            frequencyGrid: '#94a3b8',
-            optionBg: 'rgba(15,23,42,0.03)',
-            successBg: 'rgba(15,23,42,0.03)',
-            typingDot: '#64748b'
-          },
-    [isDarkMode]
+    () => ({
+      rootBg: '#0a0a0a',
+      rootText: '#f0f0f0',
+      isDark: true,
+      headerBg: 'rgba(10,10,10,0.98)',
+      headerBorder: '1px solid rgba(255,255,255,0.08)',
+      missionStripBg: 'linear-gradient(135deg,#111111,#0a0a0a)',
+      missionStripBorder: '1px solid rgba(255,255,255,0.07)',
+      panelBg: '#111111',
+      panelBgStrong: '#191919',
+      panelBorder: '1px solid rgba(255,255,255,0.08)',
+      panelSubBorder: '1px solid rgba(255,255,255,0.07)',
+      textPrimary: '#f0f0f0',
+      textSecondary: '#c8c8c8',
+      textMuted: '#a8a8a8',
+      textTertiary: '#8c8c8c',
+      textQuaternary: '#737373',
+      bubbleBg: '#171717',
+      bubbleBorder: 'rgba(255,255,255,0.08)',
+      selfBubbleBg: 'rgba(229,229,229,0.07)',
+      selfBubbleBorder: 'rgba(229,229,229,0.16)',
+      dangerText: '#f87171',
+      dangerBg: 'rgba(239,68,68,0.1)',
+      dangerBorder: 'rgba(239,68,68,0.28)',
+      accent: '#e5e5e5',
+      accentSoft: 'rgba(229,229,229,0.08)',
+      accentBorder: 'rgba(229,229,229,0.18)',
+      accentGradient: 'linear-gradient(135deg,#2a2a2a,#e5e5e5)',
+      accentShadow: '0 6px 24px rgba(229,229,229,0.14)',
+      warning: '#f59e0b',
+      warningSoft: 'rgba(245,158,11,0.08)',
+      warningBorder: 'rgba(245,158,11,0.2)',
+      success: '#22b999',
+      successSoft: 'rgba(34,185,153,0.1)',
+      successBorder: 'rgba(34,185,153,0.28)',
+      codeBg: '#080808',
+      codeOutputBg: '#0c0c0c',
+      codeText: '#c0c0c0',
+      codeBorder: 'rgba(255,255,255,0.08)',
+      frequencyLine: '#e5e5e5',
+      frequencyGrid: '#2b2b2b',
+      optionBg: 'rgba(255,255,255,0.04)',
+      successBg: 'rgba(255,255,255,0.03)',
+      typingDot: '#737373'
+    }),
+    []
   );
 
   return (

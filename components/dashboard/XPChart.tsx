@@ -9,17 +9,13 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { useTheme } from 'next-themes';
-
 interface XPChartProps {
   data: Array<{ date: string; completed: number }>;
   title?: string;
 }
 
 export const XPChart = ({ data, title = 'Completed Tasks Trend' }: XPChartProps) => {
-  const { theme, systemTheme } = useTheme();
-  const resolvedTheme = theme === 'system' ? systemTheme : theme;
-  const isDark = resolvedTheme === 'dark';
+  const isDark = true;
 
   return (
     <div className="card p-6">

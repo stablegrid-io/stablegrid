@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useTheme } from 'next-themes';
 import { Check, ChevronLeft, ChevronRight, Play, Terminal } from 'lucide-react';
 import { createMissionProgressRequestKey } from '@/lib/api/requestKeys';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
@@ -169,7 +168,6 @@ function TaskEditor({
 
 export function UnifiedMissionExperience({ mission }: { mission: MissionDefinition }) {
   const addXP = useProgressStore((state) => state.addXP);
-  const { resolvedTheme } = useTheme();
 
   const [act, setAct] = useState(0);
   const [sessionEnergy, setSessionEnergy] = useState(0);
@@ -180,8 +178,6 @@ export function UnifiedMissionExperience({ mission }: { mission: MissionDefiniti
   const [missionComplete, setMissionComplete] = useState(false);
 
   const completionPersistedRef = useRef(false);
-
-  const isDark = resolvedTheme !== 'light';
 
   const investigationTasks = useMemo<TaskDefinition[]>(
     () => [

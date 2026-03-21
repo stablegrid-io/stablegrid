@@ -11,7 +11,6 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { useTheme } from 'next-themes';
 import type { ActivityDay } from '@/lib/hooks/useDashboardData';
 
 interface ActivityChartProps {
@@ -28,9 +27,7 @@ const windowOptions: Array<{ value: ChartWindow; label: string }> = [
 
 export const ActivityChart = ({ activityData }: ActivityChartProps) => {
   const [windowDays, setWindowDays] = useState<ChartWindow>(14);
-  const { theme, systemTheme } = useTheme();
-  const resolvedTheme = theme === 'system' ? systemTheme : theme;
-  const isDark = resolvedTheme === 'dark';
+  const isDark = true;
 
   const chartData = useMemo(() => {
     const countsByDay = new Map(activityData.map((entry) => [entry.date, entry.count]));

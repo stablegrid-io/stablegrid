@@ -3,11 +3,10 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { CookieConsentManager } from '@/components/cookies/CookieConsentManager';
-import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { Navigation } from '@/components/navigation/Navigation';
 
 export const metadata: Metadata = {
-  title: 'stableGrid.io',
+  title: 'stableGrid',
   description:
     'Earn kWh deployment credits through data engineering tasks and deploy infrastructure to stabilize a renewable grid simulation.',
   icons: {
@@ -22,19 +21,18 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen font-sans text-text-light-primary dark:text-text-dark-primary">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          storageKey="stablegrid-theme"
-        >
-          <CookieConsentManager />
-          <AuthProvider>
-            <Navigation>{children}</Navigation>
-          </AuthProvider>
-        </ThemeProvider>
+    <html lang="en" className="dark">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="min-h-screen font-sans text-on-surface">
+        <CookieConsentManager />
+        <AuthProvider>
+          <Navigation>{children}</Navigation>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -2,7 +2,6 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
-import { useTheme } from 'next-themes';
 import type { editor } from 'monaco-editor';
 import { Button } from '@/components/ui/Button';
 
@@ -25,10 +24,7 @@ export function CodeEditor({
   onLanguageChange,
   storageKey
 }: CodeEditorProps) {
-  const { theme, systemTheme } = useTheme();
-  const resolvedTheme = theme === 'system' ? systemTheme : theme;
-  const isDark = resolvedTheme !== 'light';
-  const monacoTheme = isDark ? 'vs-dark' : 'light';
+  const monacoTheme = 'vs-dark';
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {

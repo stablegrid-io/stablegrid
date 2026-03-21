@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import { StableGridWordmark } from '@/components/brand/StableGridLogo';
 import { useAuth } from '@/lib/hooks/useAuth';
 
@@ -35,7 +34,6 @@ const GITHUB_ICON = (
 );
 
 export function LoginForm() {
-  const { resolvedTheme } = useTheme();
   const { signIn, signInWithOAuth } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -43,13 +41,8 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [themeMounted, setThemeMounted] = useState(false);
-  const isLightMode = themeMounted && resolvedTheme === 'light';
-  const gridLineColor = isLightMode ? 'rgba(120,131,142,0.24)' : '#59635f';
-
-  useEffect(() => {
-    setThemeMounted(true);
-  }, []);
+  const isLightMode = false;
+  const gridLineColor = '#59635f';
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Check, Eye, EyeOff } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import { trackProductEvent } from '@/lib/analytics/productAnalytics';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { getPasswordIssues, passwordRules } from '@/lib/utils/password';
@@ -41,7 +40,6 @@ const GITHUB_ICON = (
 export function SignupForm() {
   const router = useRouter();
   const { signUp, signInWithOAuth } = useAuth();
-  const { resolvedTheme } = useTheme();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -54,13 +52,8 @@ export function SignupForm() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [themeMounted, setThemeMounted] = useState(false);
-  const isLightMode = themeMounted && resolvedTheme === 'light';
-  const gridLineColor = isLightMode ? 'rgba(120,131,142,0.24)' : '#59635f';
-
-  useEffect(() => {
-    setThemeMounted(true);
-  }, []);
+  const isLightMode = false;
+  const gridLineColor = '#59635f';
 
   const passwordIssues = useMemo(() => getPasswordIssues(password), [password]);
   const passwordScore = passwordRules.length - passwordIssues.length;
