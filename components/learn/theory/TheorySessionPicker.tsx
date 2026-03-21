@@ -132,7 +132,7 @@ export const TheorySessionPicker = ({
             {/* Title */}
             <div className="mb-1">
               <h2 className="font-headline text-lg font-bold text-on-surface tracking-tight">Pick Your Learning Approach</h2>
-              <p className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest mt-0.5">SELECT_PROTOCOL · INITIALIZE_SESSION</p>
+              <p className="font-mono text-[9px] text-on-surface-variant mt-0.5">Structured sessions improve retention by up to 40% and sustain deeper focus.</p>
             </div>
 
             {/* Close */}
