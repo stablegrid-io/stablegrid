@@ -1,7 +1,5 @@
 import Link from 'next/link';
-import type { CSSProperties } from 'react';
 import {
-  ChevronRight,
   Flag,
   Layers3,
   NotebookPen,
@@ -236,182 +234,99 @@ export default async function TasksPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#06080a] pb-24 pt-8 lg:pb-10">
-      {/* Scanline grid overlay */}
-      <div
-        className="pointer-events-none fixed inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)',
-          backgroundSize: '100% 3px'
-        }}
-      />
-
-      <div className="relative mx-auto max-w-5xl px-4">
-        {/* Page header */}
-        <div className="mb-10">
-          <div className="mb-3 flex items-center gap-4">
-            <div className="h-px flex-1 bg-[#1a2420]" />
-            <span className="font-mono text-[9px] uppercase tracking-[0.5em] text-[#2e4a40]">
-              OPS-BOARD · TASK-SELECT
-            </span>
-            <div className="h-px flex-1 bg-[#1a2420]" />
-          </div>
-          <h1 className="font-mono text-3xl font-black uppercase tracking-[0.06em] text-[#deeee6]">
-            Assignments
+    <main className="min-h-screen pb-24 pt-8 lg:pb-10">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Page header — Stitch Assignments style */}
+        <header className="mb-12 relative">
+          <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-1 h-12 bg-primary" />
+          <h1 className="font-headline text-5xl lg:text-6xl font-black tracking-tighter text-on-surface uppercase mb-2">
+            ASSIGNMENTS
           </h1>
-          <p className="mt-1 font-mono text-xs tracking-[0.12em] text-[#3a5a4a]">
-            Select a task type · Commence operations
+          <p className="text-on-surface-variant font-mono text-sm tracking-widest uppercase">
+            Select a task type · <span className="text-primary">Commence operations</span>
           </p>
-        </div>
+        </header>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {/* 3-column cards — Stitch pattern */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {taskLanes.map((lane) => {
             const Icon = lane.icon;
             const meta = LANE_META[lane.id] ?? { classification: 'ACTIVE', label: 'TASK', serial: 'XX-0000' };
             const accent = `rgb(${lane.accentRgb})`;
-            const accentDim = `rgba(${lane.accentRgb},0.15)`;
-            const accentGlow = `rgba(${lane.accentRgb},0.35)`;
             const filledBlocks = Math.round((lane.progressPct / 100) * 10);
 
             return (
               <Link
                 key={lane.id}
                 href={lane.href}
-                className="group relative flex flex-col overflow-hidden rounded-none transition-all duration-300 hover:-translate-y-1"
-                style={{ '--accent': accent } as CSSProperties}
+                className="group"
               >
-                {/* Card body */}
                 <div
-                  className="relative flex flex-1 flex-col overflow-hidden border bg-[#0c0f0e]"
-                  style={{
-                    borderColor: `rgba(${lane.accentRgb},0.22)`,
-                    boxShadow: `0 0 0 1px rgba(${lane.accentRgb},0.08), 0 24px 60px -20px rgba(${lane.accentRgb},0.18), inset 0 1px 0 rgba(255,255,255,0.04)`
-                  }}
+                  className="glass-panel border relative p-8 flex flex-col h-full min-h-[440px] transition-all"
+                  style={{ borderColor: `rgba(${lane.accentRgb},0.1)` }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = `rgba(${lane.accentRgb},0.3)`; e.currentTarget.style.boxShadow = `0 0 30px rgba(${lane.accentRgb},0.1)`; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = `rgba(${lane.accentRgb},0.1)`; e.currentTarget.style.boxShadow = 'none'; }}
                 >
-                  {/* Top accent stripe */}
-                  <div className="h-[3px] w-full" style={{ background: `linear-gradient(90deg, ${accent}, transparent 80%)` }} />
+                  {/* L-bracket corner */}
+                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2" style={{ borderColor: accent }} />
 
-                  {/* Corner targeting brackets */}
-                  <span className="absolute left-2.5 top-2.5 h-5 w-5 border-l-2 border-t-2 transition-all duration-300 group-hover:h-6 group-hover:w-6" style={{ borderColor: accent }} />
-                  <span className="absolute right-2.5 top-2.5 h-5 w-5 border-r-2 border-t-2 transition-all duration-300 group-hover:h-6 group-hover:w-6" style={{ borderColor: accent }} />
-                  <span className="absolute bottom-2.5 left-2.5 h-5 w-5 border-b-2 border-l-2 transition-all duration-300 group-hover:h-6 group-hover:w-6" style={{ borderColor: accent }} />
-                  <span className="absolute bottom-2.5 right-2.5 h-5 w-5 border-b-2 border-r-2 transition-all duration-300 group-hover:h-6 group-hover:w-6" style={{ borderColor: accent }} />
-
-                  {/* Inner glow bg */}
-                  <div
-                    className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                    style={{ background: `radial-gradient(ellipse at 50% 30%, rgba(${lane.accentRgb},0.07), transparent 65%)` }}
-                  />
-
-                  {/* Classification + serial row */}
-                  <div className="flex items-center justify-between px-4 pt-4">
-                    <span
-                      className="font-mono text-[8px] font-bold uppercase tracking-[0.3em]"
-                      style={{ color: accent }}
-                    >
-                      ▶ {meta.classification}
-                    </span>
-                    <span className="font-mono text-[8px] tracking-[0.2em] text-[#2e4a40]">
-                      {meta.serial}
-                    </span>
-                  </div>
-
-                  {/* Icon hero area */}
-                  <div className="flex flex-col items-center justify-center px-6 py-7">
+                  {/* Classification label + icon */}
+                  <div className="mb-6 flex justify-between items-start">
                     <div
-                      className="relative flex h-20 w-20 items-center justify-center"
+                      className="font-mono text-[10px] tracking-widest uppercase border px-2 py-0.5"
+                      style={{ color: `rgba(${lane.accentRgb},0.6)`, borderColor: `rgba(${lane.accentRgb},0.2)` }}
                     >
-                      {/* Glow disc behind icon */}
-                      <div
-                        className="absolute inset-0 rounded-full blur-xl transition-all duration-300 group-hover:scale-125"
-                        style={{ backgroundColor: accentGlow }}
-                      />
-                      {/* Hex ring */}
-                      <div
-                        className="absolute inset-0 rounded-full border-2"
-                        style={{ borderColor: `rgba(${lane.accentRgb},0.3)` }}
-                      />
-                      <div
-                        className="absolute inset-2 rounded-full border"
-                        style={{ borderColor: `rgba(${lane.accentRgb},0.15)` }}
-                      />
-                      <Icon className="relative h-9 w-9" style={{ color: accent }} />
+                      {meta.classification} {meta.serial.split('-')[1]}
                     </div>
-
-                    {/* Label below icon */}
-                    <span
-                      className="mt-4 font-mono text-[9px] font-bold uppercase tracking-[0.35em]"
-                      style={{ color: `rgba(${lane.accentRgb},0.6)` }}
-                    >
-                      {meta.label}
-                    </span>
+                    <Icon className="h-8 w-8" style={{ color: accent }} />
                   </div>
 
                   {/* Title + description */}
-                  <div className="px-5 pb-3">
-                    <h2 className="font-mono text-xl font-black uppercase tracking-[0.06em] text-[#deeee6]">
+                  <div className="flex-1">
+                    <h3 className="font-headline text-3xl font-bold text-on-surface mb-4 uppercase">
                       {lane.title}
-                    </h2>
-                    <p className="mt-2 font-mono text-[11px] leading-5 tracking-[0.02em] text-[#3a5a4a]">
+                    </h3>
+                    <p className="text-on-surface-variant text-sm leading-relaxed max-w-[90%]">
                       {lane.description}
                     </p>
                   </div>
 
-                  {/* Divider */}
-                  <div className="mx-5 my-3 h-px" style={{ background: `linear-gradient(90deg, ${accent}30, transparent)` }} />
-
-                  {/* Segmented progress bar */}
-                  <div className="px-5">
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <span className="font-mono text-[8px] uppercase tracking-[0.25em] text-[#2e4a40]">
-                        Completion
+                  {/* Progress + CTA */}
+                  <div className="mt-8 space-y-4">
+                    <div className="flex justify-between items-end mb-2">
+                      <span className="font-mono text-[10px] uppercase" style={{ color: `rgba(${lane.accentRgb},0.6)` }}>
+                        DRILL_PROGRESS
                       </span>
-                      <span
-                        className="font-mono text-[10px] font-bold tabular-nums"
-                        style={{ color: accent }}
-                      >
+                      <span className="font-mono text-xs" style={{ color: accent }}>
                         {lane.progressPct}%
                       </span>
                     </div>
-                    <div className="flex gap-[3px]">
+
+                    {/* Segmented bar */}
+                    <div className="flex gap-1 h-3">
                       {Array.from({ length: 10 }, (_, i) => (
                         <div
                           key={i}
-                          className="h-1.5 flex-1 transition-all duration-500"
+                          className="flex-1 border"
                           style={{
-                            backgroundColor: i < filledBlocks
-                              ? accent
-                              : `rgba(${lane.accentRgb},0.12)`,
-                            boxShadow: i < filledBlocks ? `0 0 4px ${accentGlow}` : 'none'
+                            backgroundColor: i < filledBlocks ? accent : 'transparent',
+                            borderColor: `rgba(${lane.accentRgb},0.1)`
                           }}
                         />
                       ))}
                     </div>
-                    <p className="mt-1.5 font-mono text-[9px] tracking-[0.1em] text-[#2a4038]">
-                      {lane.progressValue}
-                    </p>
-                  </div>
 
-                  {/* CTA button */}
-                  <div className="p-5 pt-4">
-                    <div
-                      className="relative flex w-full items-center justify-between overflow-hidden px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] transition-all duration-200 group-hover:tracking-[0.24em]"
+                    {/* CTA */}
+                    <button
+                      className="w-full mt-6 py-4 font-headline font-black tracking-widest active:scale-[0.98] transition-all uppercase text-sm"
                       style={{
-                        border: `1px solid rgba(${lane.accentRgb},0.4)`,
-                        color: accent,
-                        background: accentDim
+                        backgroundColor: accent,
+                        color: '#0c0e10',
+                        boxShadow: `0 0 15px rgba(${lane.accentRgb},0.2)`
                       }}
                     >
-                      <span className="relative z-10">{lane.cta}</span>
-                      <ChevronRight className="relative z-10 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                      {/* Button sweep on hover */}
-                      <div
-                        className="absolute inset-0 -translate-x-full transition-transform duration-300 group-hover:translate-x-0"
-                        style={{ background: `linear-gradient(90deg, transparent, rgba(${lane.accentRgb},0.1))` }}
-                      />
-                    </div>
+                      {lane.cta}
+                    </button>
                   </div>
                 </div>
               </Link>
@@ -419,14 +334,18 @@ export default async function TasksPage() {
           })}
         </div>
 
-        {/* Footer serial line */}
-        <div className="mt-8 flex items-center gap-4">
-          <div className="h-px flex-1 bg-[#111a16]" />
-          <span className="font-mono text-[8px] uppercase tracking-[0.4em] text-[#1e3028]">
-            SGR · STABLE-GRID · OPS-CONSOLE
-          </span>
-          <div className="h-px flex-1 bg-[#111a16]" />
-        </div>
+        {/* Footer */}
+        <footer className="mt-20 flex justify-between items-center border-t border-primary/10 pt-6">
+          <div className="flex gap-8">
+            <div className="flex flex-col">
+              <span className="font-mono text-[8px] text-primary/40 tracking-[0.3em] uppercase">SYSTEM_LOCATION</span>
+              <span className="font-mono text-[10px] text-primary tracking-widest uppercase">SGR · STABLE-GRID · OPS-CONSOLE</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="font-mono text-[10px] text-primary/40 uppercase">V2.4.08_BUILD</span>
+          </div>
+        </footer>
       </div>
     </main>
   );
