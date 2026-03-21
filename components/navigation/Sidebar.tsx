@@ -70,7 +70,9 @@ export const Sidebar = () => {
   const [adminAccess, setAdminAccess] = useState<AdminAccessData | null>(null);
   const [hasResolvedAdminAccess, setHasResolvedAdminAccess] = useState(false);
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
   const resolvedAvatarUrl = profileAvatarUrl ?? profileAvatarFallback;
+  const displayName = profileName ?? nickname;
 
   const prefetchRoute = useCallback(
     (route: string) => {
@@ -122,16 +124,22 @@ export const Sidebar = () => {
     return () => ac.abort();
   }, [hasResolvedAdminAccess, user?.id]);
 
-  // Avatar loading
+  // Avatar + profile name loading
   useEffect(() => {
-    if (!user?.id) { setProfileAvatarUrl(null); return; }
+    if (!user?.id) { setProfileAvatarUrl(null); setProfileName(null); return; }
     const ac = new AbortController();
     (async () => {
       try {
         const res = await fetch('/api/profile/avatar', { signal: ac.signal });
         if (ac.signal.aborted || !res.ok) return;
         const payload = (await res.json()) as ProfileAvatarResponse;
-        if (!ac.signal.aborted) setProfileAvatarUrl(toAvatarUrl(payload?.data?.avatarUrl));
+        if (!ac.signal.aborted) {
+          setProfileAvatarUrl(toAvatarUrl(payload?.data?.avatarUrl));
+          const fullName = (payload?.data as Record<string, unknown>)?.fullName;
+          if (typeof fullName === 'string' && fullName.trim().length > 0) {
+            setProfileName(fullName.trim());
+          }
+        }
       } catch { /* ignore */ }
     })();
     return () => ac.abort();
@@ -184,7 +192,7 @@ export const Sidebar = () => {
             </div>
             {/* Name */}
             <div className="font-mono text-xs font-bold uppercase text-[#00F2FF]">
-              {nickname}
+              {displayName}
             </div>
           </div>
         )}
