@@ -281,7 +281,8 @@ export const TheoryContent = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.16 }}
-        className={`relative w-full px-5 py-10 sm:px-6 lg:px-10 ${editingLessonId ? 'max-w-[110rem] mx-auto' : 'max-w-[54rem] mx-auto'}`}
+        className={`mx-auto w-full px-5 py-10 sm:px-6 lg:px-10 ${editingLessonId ? 'max-w-[110rem]' : ''}`}
+        style={editingLessonId ? undefined : { maxWidth: 'var(--rm-content-max-width)' }}
       >
         {visibleLesson ? (
           <TheoryLessonIntro
@@ -326,7 +327,7 @@ export const TheoryContent = ({
           />
         ) : null}
 
-        <div className="mt-10 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 border-t border-light-border pt-5 dark:border-dark-border">
+        <div className="mt-10 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 border-t border-light-border pt-5 dark:border-dark-border" style={{ borderColor: 'var(--rm-border)' }}>
           <button
             type="button"
             onClick={handlePrevious}
@@ -336,6 +337,7 @@ export const TheoryContent = ({
                 ? 'text-text-light-secondary hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:text-text-dark-primary'
                 : 'cursor-default text-text-light-disabled dark:text-text-dark-disabled'
             }`}
+            style={previousLesson || previousChapter ? { color: 'var(--rm-text-secondary)' } : undefined}
           >
             <ArrowLeft className="h-4 w-4 shrink-0" />
             <span className="hidden min-w-0 sm:block">
@@ -347,7 +349,7 @@ export const TheoryContent = ({
             <span className="sm:hidden">Previous</span>
           </button>
 
-          <div className="whitespace-nowrap text-center text-xs tabular-nums text-text-light-tertiary dark:text-text-dark-tertiary">
+          <div className="whitespace-nowrap text-center text-xs tabular-nums text-text-light-tertiary dark:text-text-dark-tertiary" style={{ color: 'var(--rm-text-secondary)' }}>
             {Math.max(activeLessonIndex + 1, 1)} / {orderedLessons.length}
           </div>
 
