@@ -41,6 +41,26 @@ export default async function LearnTopicTheoryCategoryPage({
   }
 
   const categoryParam = params.category.toLowerCase();
+
+  // Redirect legacy track slugs to current ones
+  const LEGACY_SLUG_MAP: Record<string, string> = {
+    'data-engineering-track': 'junior',
+    'full-stack': 'junior',
+    'beginner': 'junior',
+    'intermediate': 'mid',
+    'advanced': 'senior',
+  };
+  const mappedSlug = LEGACY_SLUG_MAP[categoryParam];
+  if (mappedSlug) {
+    const sp = searchParams ?? {};
+    const searchStr = Object.keys(sp).length > 0
+      ? '?' + Object.entries(sp)
+          .flatMap(([k, v]) => Array.isArray(v) ? v.map(val => `${k}=${val}`) : v ? [`${k}=${v}`] : [])
+          .join('&')
+      : '';
+    redirect(`/learn/${params.topic}/theory/${mappedSlug}${searchStr}`);
+  }
+
   const track = getTheoryTrackBySlug(doc, categoryParam);
   if (track) {
     const trackDoc = getTheoryTrackDocBySlug(doc, categoryParam) ?? doc;
