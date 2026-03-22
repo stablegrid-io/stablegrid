@@ -1,0 +1,615 @@
+{
+  "topic": "pyspark",
+  "title": "PySpark for Data Engineers: Senior-Level Track",
+  "description": "Platform architecture, advanced optimizer internals, enterprise governance, and the organizational patterns that make PySpark reliable at scale across multiple teams and countries.",
+  "version": "authored 2026-03-22",
+  "chapters": [
+    {
+      "id": "module-PSS1",
+      "number": 1,
+      "title": "Platform Architecture at Scale",
+      "description": "Design a multi-team data platform on Spark — catalog structure, namespace conventions, table ownership, layer contracts, and the organizational patterns that prevent a 50-pipeline platform from collapsing under its own weight.",
+      "totalMinutes": 420,
+      "sections": [
+        {
+          "id": "module-PSS1-lesson-01",
+          "title": "The Platform Engineering Shift",
+          "estimatedMinutes": 42,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The mid-level track taught you to build production-grade pipelines: idempotent writes, incremental processing, quality gates, Delta Lake, CI/CD, monitoring. You can take a data requirement and deliver a pipeline that runs reliably, performs within SLA, and recovers from failures. That is the skill of a mid-level data engineer. The senior-level shift is from building pipelines to designing the platform that makes pipelines buildable. When NordGrid had one team and ten pipelines, any engineer could hold the entire system in their head: every table name, every dependency, every scheduling slot. When GridUnion Continental acquired three subsidiaries and the platform grew to six teams, fifty pipelines, and two hundred tables across four countries, that mental model collapsed. Engineers on the German billing team did not know which French tables their pipeline depended on. The analytics team's notebook overwrote a Silver table that three production pipelines consumed. A schema change in the Dutch Bronze ingestion broke a Luxembourg Gold dashboard that nobody knew existed."
+            },
+            {
+              "type": "heading",
+              "content": "GridUnion Continental — The Scenario"
+            },
+            {
+              "type": "paragraph",
+              "content": "GridUnion Continental is the post-acquisition entity formed when NordGrid Energy (Germany) acquired Electra Metering (France), DutchGrid Analytics (Netherlands), and LuxPower Systems (Luxembourg). The combined platform serves 3.5 million smart meters across 30 regions in 4 countries, generating 500,000 new rows per day (~8GB). The historical archive is 8TB and growing. Six teams contribute to the platform: three data engineering teams (one per legacy company plus a central platform team), two analytics teams (commercial analytics and regulatory reporting), and one ML team (demand forecasting). Each team operates with partial autonomy — they own their pipelines, their Gold tables, and their deployment schedules — but they share the Silver layer, the cluster resources, and the Unity Catalog infrastructure. The tension between autonomy and shared infrastructure is the central architectural challenge of this module."
+            },
+            {
+              "type": "heading",
+              "content": "Why the Mid-Level Architecture Does Not Scale"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Mid-Level Pattern",
+                "Works For",
+                "Breaks At",
+                "Senior Alternative"
+              ],
+              "rows": [
+                [
+                  "Single YAML config per pipeline",
+                  "1 team, 10 pipelines",
+                  "6 teams with conflicting config conventions",
+                  "Shared config repository with team-specific overrides (lesson 7)"
+                ],
+                [
+                  "One Bronze/Silver/Gold directory tree",
+                  "1 team, clear ownership",
+                  "6 teams writing to shared Silver, unclear who owns what",
+                  "Namespace hierarchy with ownership registry (lessons 2–3)"
+                ],
+                [
+                  "Quality gates per pipeline",
+                  "1 team verifying its own output",
+                  "Consumer team cannot verify producer's quality",
+                  "Data contracts with cross-team SLAs (lesson 5)"
+                ],
+                [
+                  "Airflow DAG per pipeline",
+                  "10 independent pipelines",
+                  "50 pipelines with cross-team dependencies",
+                  "Dependency graph with coordination protocol (lesson 6)"
+                ],
+                [
+                  "Informal table naming",
+                  "Everyone knows the tables",
+                  "New team members cannot discover tables",
+                  "Data product catalog with discoverability (lesson 5)"
+                ],
+                [
+                  "Cost absorbed by one budget",
+                  "Small cluster, one team",
+                  "Large cluster, 6 teams, unequal usage",
+                  "Cost allocation with per-team chargeback (lesson 8)"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "What This Module Covers"
+            },
+            {
+              "type": "paragraph",
+              "content": "This module addresses the organizational architecture of a multi-team data platform. The lessons are not about PySpark code — they are about the structures, contracts, and processes that make PySpark code manageable at scale. Namespace design determines how tables are organized and discovered. Ownership contracts determine who is responsible for each table's quality and freshness. Layer contracts determine what each consumer can expect from the data. Data product design determines how tables are published and documented. Dependency management determines how cross-team pipelines coordinate. Configuration management determines how settings are shared and promoted. Cost allocation determines how cluster resources are charged to the teams that use them. Observability determines how the platform's health is monitored. And the synthesis lesson pulls these components into GridUnion's complete platform architecture. The module reads more like a design document than a code tutorial because at senior level, the architectural decisions matter more than the implementation details."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Architectural principle",
+              "content": "The purpose of platform architecture is to make the default path the correct path. If the default namespace convention prevents naming collisions, engineers do not need to coordinate table names. If the default ownership model prevents unauthorized writes, engineers do not need to negotiate access. If the default dependency model prevents circular references, engineers do not need to audit the dependency graph manually. Every architectural decision in this module is evaluated by this criterion: does it make the correct behavior automatic and the incorrect behavior difficult?"
+            }
+          ]
+        },
+        {
+          "id": "module-PSS1-lesson-02",
+          "title": "Unity Catalog and Namespace Design",
+          "estimatedMinutes": 42,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "A namespace is the hierarchical naming system that organizes every table, view, and function on the platform. In Unity Catalog, the hierarchy is three levels deep: catalog.schema.table. The catalog is the top-level container (typically one per environment or per business unit). The schema groups related tables (typically by data layer or domain). The table is the individual dataset. The design of this hierarchy determines how engineers discover data, how access control is applied, and how naming collisions are prevented. A well-designed namespace makes the platform self-documenting: an engineer who sees gridunion_prod.silver_de.meter_readings knows the environment (production), the layer and country (Silver, Germany), and the domain (meter readings) without reading any documentation. A poorly designed namespace produces names like data.table1 or prod.readings_v3_final that convey nothing and collide constantly."
+            },
+            {
+              "type": "heading",
+              "content": "Three Namespace Strategies"
+            },
+            {
+              "type": "paragraph",
+              "content": "There are three common strategies for organizing the three-level hierarchy, and each optimizes for a different access pattern. The environment-first strategy uses catalogs for environments: dev.silver.meter_readings, staging.silver.meter_readings, prod.silver.meter_readings. This makes environment promotion clean (same schema.table path across catalogs) but puts all domains and countries in a single catalog, making access control coarse-grained. The country-first strategy uses catalogs for countries: germany.silver.meter_readings, france.silver.meter_readings. This aligns with regulatory isolation (the German regulator sees only the germany catalog) but makes cross-country queries require cross-catalog joins. The domain-first strategy uses catalogs for business domains: metering.silver.readings, billing.gold.invoices. This aligns with team ownership but makes layer-level access control harder. No strategy is universally correct — the choice depends on whether regulatory isolation, team ownership, or environment promotion is the primary constraint."
+            },
+            {
+              "type": "heading",
+              "content": "GridUnion’s Namespace Decision"
+            },
+            {
+              "type": "diagram",
+              "title": "GridUnion Continental namespace hierarchy",
+              "content": "Catalog Level (environment)\n│\n├── gridunion_prod\n│   ├── bronze_de          ← Bronze layer, Germany\n│   │   ├── meter_readings\n│   │   └── scada_telemetry\n│   ├── bronze_fr          ← Bronze layer, France\n│   ├── silver_de          ← Silver layer, Germany\n│   │   ├── meter_readings\n│   │   ├── meter_metadata\n│   │   └── substations\n│   ├── silver_fr          ← Silver layer, France\n│   ├── gold_billing       ← Gold layer, billing domain (cross-country)\n│   ├── gold_regulatory    ← Gold layer, regulatory domain\n│   └── platinum_analytics ← Platinum layer, analytics team\n│\n├── gridunion_staging\n│   └── (mirrors prod structure)\n│\n└── gridunion_dev\n    └── (mirrors prod structure)",
+              "caption": "GridUnion uses environment-first catalogs with country-segmented schemas for Bronze and Silver (regulatory isolation) and domain-segmented schemas for Gold and Platinum (team ownership). This hybrid satisfies both the regulatory requirement and the team autonomy requirement."
+            },
+            {
+              "type": "paragraph",
+              "content": "GridUnion chose the environment-first strategy for catalogs because environment promotion is the most frequent operation (every deployment promotes from dev to staging to prod), and having the same schema.table path across catalogs makes promotion scripts trivial. Within each catalog, schemas are segmented by country for Bronze and Silver (to satisfy the German regulator's requirement that German data be physically separable) and by domain for Gold and Platinum (to align with team ownership). This hybrid approach required a naming convention that embeds both layer and country or domain in the schema name: bronze_de, silver_fr, gold_billing, platinum_analytics. The convention is enforced by a CI check that validates schema names against the allowed patterns before any CREATE SCHEMA statement is executed."
+            },
+            {
+              "type": "heading",
+              "content": "Naming Conventions"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# GridUnion namespace naming conventions\n# Enforced by CI validation on every DDL statement\n\nALLOWED_SCHEMA_PATTERNS = {\n    'bronze':   r'^bronze_(de|fr|nl|lu)$',           # bronze_{country}\n    'silver':   r'^silver_(de|fr|nl|lu)$',           # silver_{country}\n    'gold':     r'^gold_[a-z_]+$',                    # gold_{domain}\n    'platinum': r'^platinum_[a-z_]+$',                # platinum_{domain}\n    'state':    r'^state$',                           # pipeline state tables\n    'monitoring': r'^monitoring$',                    # platform metrics\n}\n\nALLOWED_TABLE_PATTERNS = {\n    # Tables use snake_case, no abbreviations, no version numbers\n    'general': r'^[a-z][a-z0-9_]{2,60}$',\n    # Prohibited patterns (caught by CI)\n    'prohibited': [\n        r'_v\\d+$',           # no version suffixes (meter_readings_v2)\n        r'_final$',          # no _final suffix\n        r'_temp$',           # no _temp (use transient schemas instead)\n        r'_backup$',         # no _backup (use Delta time travel)\n        r'^tmp_',            # no tmp_ prefix\n    ],\n}\n\ndef validate_fully_qualified_name(fqn: str) -> list[str]:\n    \"\"\"Validate a catalog.schema.table name against GridUnion conventions.\n    \n    Returns a list of violation messages (empty = valid).\n    \"\"\"\n    parts = fqn.split('.')\n    violations = []\n    \n    if len(parts) != 3:\n        violations.append(f\"Expected 3 parts (catalog.schema.table), got {len(parts)}\")\n        return violations\n    \n    catalog, schema, table = parts\n    \n    # Catalog must be one of the three environments\n    if catalog not in ('gridunion_prod', 'gridunion_staging', 'gridunion_dev'):\n        violations.append(f\"Invalid catalog: {catalog}\")\n    \n    # Schema must match one of the allowed patterns\n    import re\n    schema_valid = any(\n        re.match(pattern, schema) \n        for pattern in ALLOWED_SCHEMA_PATTERNS.values()\n    )\n    if not schema_valid:\n        violations.append(f\"Invalid schema: {schema}\")\n    \n    # Table must match general pattern and not match prohibited patterns\n    if not re.match(ALLOWED_TABLE_PATTERNS['general'], table):\n        violations.append(f\"Invalid table name: {table}\")\n    for prohibited in ALLOWED_TABLE_PATTERNS['prohibited']:\n        if re.search(prohibited, table):\n            violations.append(f\"Prohibited table name pattern: {table} matches {prohibited}\")\n    \n    return violations"
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Architectural principle",
+              "content": "Naming conventions are not style preferences — they are access control boundaries. At GridUnion, the schema name determines who can read and write: GRANT SELECT ON SCHEMA silver_de TO german_billing_team applies to every table in the schema. If a table is placed in the wrong schema (a French table in silver_de), the wrong team gets access and the regulatory isolation is broken. Enforcing naming conventions in CI prevents this at the point of change, not after the data is already misplaced."
+            }
+          ]
+        },
+        {
+          "id": "module-PSS1-lesson-03",
+          "title": "Table Ownership and Access Contracts",
+          "estimatedMinutes": 42,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Every table on the platform must have exactly one owner team. The owner is responsible for the table's schema, data quality, freshness, and documentation. Without clear ownership, tables drift: a Silver table that 'everyone owns' is a table that nobody maintains, nobody monitors, and nobody updates when the source schema changes. GridUnion learned this in the first month after the acquisition. The French subsidiary had a Silver meter readings table that three teams wrote to: the French data engineering team for daily batch, the analytics team for ad-hoc corrections, and the ML team for feature engineering backfills. After a schema conflict between the batch pipeline and the ML backfill, the table was unusable for two days. The root cause was not a technical failure — it was an ownership failure. Three teams believed they had write access because no ownership contract existed."
+            },
+            {
+              "type": "heading",
+              "content": "The Producer-Consumer Contract"
+            },
+            {
+              "type": "paragraph",
+              "content": "The ownership model at GridUnion is formalized as a producer-consumer contract. The producer team owns the table and is solely responsible for writing to it. The contract specifies what the producer guarantees: the schema (exact column names, types, and nullability), the freshness SLA (the table is updated by 7 AM daily), the quality SLA (null rate below 0.5%, row count within expected range), and the documentation (a data product page in the catalog). The consumer teams have read access and agree not to write, not to depend on internal implementation details (partition layout, file format internals), and to use the declared schema as the interface. If the producer needs to change the schema, the contract requires a 30-day deprecation notice to all registered consumers. This contract is not social — it is enforced by Unity Catalog privileges: the producer team has WRITE access, consumer teams have SELECT only."
+            },
+            {
+              "type": "heading",
+              "content": "The Ownership Registry"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# GridUnion's ownership registry — a Delta table in the monitoring schema\n# Every table on the platform has exactly one entry\n\nOWNERSHIP_SCHEMA = StructType([\n    StructField('catalog',         StringType(), False),\n    StructField('schema',          StringType(), False),\n    StructField('table_name',      StringType(), False),\n    StructField('owner_team',      StringType(), False),   # e.g., 'de_germany', 'analytics'\n    StructField('owner_contact',   StringType(), False),   # Slack channel or email\n    StructField('freshness_sla',   StringType(), True),    # e.g., 'daily_by_07:00_UTC'\n    StructField('quality_sla',     StringType(), True),    # e.g., 'null_rate<0.005'\n    StructField('consumers',       StringType(), True),    # JSON array of consumer team names\n    StructField('contract_url',    StringType(), True),    # link to the data contract YAML\n    StructField('registered_at',   TimestampType(), False),\n    StructField('updated_at',      TimestampType(), False),\n])\n\ndef register_table_ownership(spark, catalog, schema, table, owner_team, contact, sla=None):\n    \"\"\"Register or update ownership for a table in the platform registry.\"\"\"\n    from delta.tables import DeltaTable\n    from pyspark.sql.functions import current_timestamp, lit\n    \n    registry = DeltaTable.forName(spark, 'gridunion_prod.monitoring.ownership_registry')\n    new_entry = spark.createDataFrame([(\n        catalog, schema, table, owner_team, contact,\n        sla.get('freshness') if sla else None,\n        sla.get('quality') if sla else None,\n        '[]', None, None, None,\n    )], OWNERSHIP_SCHEMA)\n    \n    (registry.alias('r')\n        .merge(\n            new_entry.alias('n'),\n            'r.catalog = n.catalog AND r.schema = n.schema AND r.table_name = n.table_name'\n        )\n        .whenMatchedUpdate(set={\n            'owner_team': 'n.owner_team',\n            'owner_contact': 'n.owner_contact',\n            'freshness_sla': 'n.freshness_sla',\n            'quality_sla': 'n.quality_sla',\n            'updated_at': current_timestamp(),\n        })\n        .whenNotMatchedInsertAll()\n        .execute()\n    )"
+            },
+            {
+              "type": "heading",
+              "content": "Access Control Enforcement"
+            },
+            {
+              "type": "code",
+              "language": "sql",
+              "content": "-- Unity Catalog access control for the German Silver schema\n-- Only the German DE team can write; everyone else reads\n\n-- Owner team: full access\nGRANT ALL PRIVILEGES ON SCHEMA gridunion_prod.silver_de TO `de_germany_team`;\n\n-- Consumer teams: read-only\nGRANT SELECT ON SCHEMA gridunion_prod.silver_de TO `analytics_team`;\nGRANT SELECT ON SCHEMA gridunion_prod.silver_de TO `ml_team`;\nGRANT SELECT ON SCHEMA gridunion_prod.silver_de TO `de_france_team`;  -- cross-country reads\n\n-- Regulatory team: read-only on country-specific schemas\nGRANT SELECT ON SCHEMA gridunion_prod.silver_de TO `regulatory_de_team`;\nGRANT SELECT ON SCHEMA gridunion_prod.gold_regulatory TO `regulatory_de_team`;\n-- Note: regulatory_de_team has NO access to silver_fr, silver_nl, silver_lu\n\n-- Platform team: admin access for maintenance\nGRANT ALL PRIVILEGES ON CATALOG gridunion_prod TO `platform_admin_team`;"
+            },
+            {
+              "type": "paragraph",
+              "content": "The access control model is schema-level, not table-level. This is a deliberate design decision: granting SELECT on the schema means every table in silver_de is readable by the analytics team, including tables that are added in the future. This eliminates the operational burden of granting per-table access whenever a new table is created. The trade-off is granularity: if one table in silver_de contains PII that the analytics team should not see, you cannot hide it with schema-level grants alone — you need column masks or row filters (Module 8). GridUnion accepts this trade-off because PII masking is handled at the column level (Module 8, lesson 4), not at the table access level. The schema-level grant provides the coarse boundary; column masks provide the fine-grained restrictions."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Architectural principle",
+              "content": "Single ownership prevents the 'tragedy of the commons' for shared data. When everyone can write, nobody is responsible. When one team owns the table, that team's SLA, quality gates, and monitoring cover every consumer. The cost of single ownership is coordination: when the analytics team wants a new column in a Silver table, they must request it from the owning DE team rather than adding it themselves. This coordination cost is deliberate — it is the mechanism that prevents the schema conflicts, write contention, and data corruption that multi-writer access enables."
+            }
+          ]
+        },
+        {
+          "id": "module-PSS1-lesson-04",
+          "title": "The Four-Layer Lakehouse Model",
+          "estimatedMinutes": 42,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The mid-level track used the Bronze-Silver-Gold model: raw data in Bronze, cleansed data in Silver, business aggregates in Gold. This three-layer model works well for a single team because the team controls the entire pipeline from ingestion to consumption. At GridUnion scale, the three-layer model develops a gap: Gold tables are domain-specific (gold_billing, gold_regulatory), but the analytics and ML teams need cross-domain datasets that combine data from multiple Gold tables. The analytics team built their cross-domain tables inside the Gold layer, which created confusion — are these tables Gold (business aggregates) or something else (curated cross-domain views)? GridUnion resolved this by adding a fourth layer: Platinum. The Platinum layer contains cross-domain curated datasets built by consuming Gold tables from multiple domains, providing a clear home for data that serves analytics and ML use cases without polluting the domain-specific Gold layer."
+            },
+            {
+              "type": "heading",
+              "content": "Layer Contracts"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Layer",
+                "Owner",
+                "Content",
+                "Quality Contract",
+                "Consumers"
+              ],
+              "rows": [
+                [
+                  "Bronze",
+                  "Platform team",
+                  "Raw data as received from source systems. No transformation. Schema matches the source.",
+                  "Complete ingestion: every source file is loaded. No quality filtering.",
+                  "Silver pipelines only. Not for direct analytics."
+                ],
+                [
+                  "Silver",
+                  "Country DE teams",
+                  "Cleansed, typed, deduplicated, quality-filtered data. One Silver table per source entity per country.",
+                  "Schema enforced, null rates below threshold, freshness SLA (updated by 7 AM).",
+                  "Gold pipelines, Platinum pipelines, approved analytical notebooks."
+                ],
+                [
+                  "Gold",
+                  "Domain teams (billing, regulatory)",
+                  "Business aggregates and domain-specific transformations. Optimized for the domain's reporting and operational needs.",
+                  "Row counts validated, referential integrity with Silver, domain-specific business rules verified.",
+                  "Dashboards, reports, APIs. Each Gold table serves one business function."
+                ],
+                [
+                  "Platinum",
+                  "Analytics and ML teams",
+                  "Cross-domain curated datasets combining multiple Gold sources. Feature stores, analytical views, ML training sets.",
+                  "Data product SLA: freshness, completeness, and schema declared in the product manifest.",
+                  "Notebooks, ML pipelines, ad-hoc exploration. Not for operational systems."
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "When Platinum Is Justified"
+            },
+            {
+              "type": "paragraph",
+              "content": "Not every platform needs a Platinum layer. It is justified when: (1) multiple Gold tables from different domains must be joined for a consumer use case (the analytics team joins billing Gold with regulatory Gold for a cross-domain report), (2) the join logic is complex enough to warrant a materialized table rather than an on-the-fly query (the ML team needs a pre-computed feature set that joins 5 Gold tables with specific time-window logic), and (3) the cross-domain table will be consumed repeatedly (a one-off analysis does not justify a materialized table). GridUnion's Platinum layer has 8 tables — far fewer than the 40+ Gold tables. Each Platinum table was created because the alternatives (ad-hoc cross-domain joins in notebooks, duplicated join logic across multiple consumers) were more expensive than maintaining a curated dataset."
+            },
+            {
+              "type": "heading",
+              "content": "When Platinum Is Not Justified"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Platinum layer is not a dumping ground for analytical convenience. GridUnion rejected several Platinum proposals that did not meet the criteria: a table that was a simple filter of one Gold table (this is a view, not a new layer), a table that was used by only one notebook (the join logic belongs in the notebook, not materialized), and a table that duplicated Gold data with different column names (this is a naming conflict, not a cross-domain need). The governance committee reviews every Platinum table proposal against the three criteria. Approved tables must have a data product manifest (lesson 5) and a declared consumer list. Tables without active consumers for 90 days are flagged for deprecation review. This discipline prevents the Platinum layer from growing unboundedly and becoming the new 'misc' folder."
+            },
+            {
+              "type": "diagram",
+              "title": "GridUnion four-layer data flow",
+              "content": "Sources (CSV, API, Kafka)                            Consumers\n       │                                                    ▲\n       ▼                                                    │\n┌────────────┐                                       ┌────────────┐\n│   BRONZE     │ Owner: Platform team                  │  PLATINUM   │ Owner: Analytics/ML\n│ bronze_de    │ Raw data, no transforms                │ platinum_   │ Cross-domain curated\n│ bronze_fr    │                                       │ analytics   │ Feature stores\n│ bronze_nl/lu │                                       └─────┬──────┘\n└─────┬──────┘                                             │\n      │                                                    │ reads from\n      ▼                                                    │\n┌────────────┐                                       ┌─────┴──────┐\n│   SILVER     │ Owner: Country DE teams                │    GOLD     │ Owner: Domain teams\n│ silver_de    │ Cleansed, typed, deduplicated          │ gold_billing│ Business aggregates\n│ silver_fr    │ Quality-gated, SLA-bound               │ gold_reg    │ Domain-specific\n│ silver_nl/lu │                                       │ gold_ops    │\n└─────┬──────┘                                       └────────────┘\n      │                                                    ▲\n      └────────────────────────────────────────────┘\n                        reads from",
+              "caption": "Data flows downward from sources through Bronze to Silver to Gold. Platinum reads from Gold. Each layer has a declared owner, a quality contract, and a defined set of consumers. No layer reads from a layer above it — the flow is strictly downward."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Architectural principle",
+              "content": "The number of layers should be the minimum that provides clear ownership boundaries. Three layers (Bronze/Silver/Gold) suffice for single-team platforms. Four layers add value when cross-domain datasets are a recurring need. Five or more layers are almost always a sign of unclear ownership — if you need a fifth layer, the problem is probably that Gold is not well enough organized, not that another layer would help. GridUnion evaluated a fifth 'Sandbox' layer for experimental work and rejected it in favor of a separate dev catalog where experiments live and die without affecting production."
+            }
+          ]
+        },
+        {
+          "id": "module-PSS1-lesson-05",
+          "title": "Data Product Design",
+          "estimatedMinutes": 42,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "A table is a technical artifact: a schema, a set of files, a location in the catalog. A data product is an organizational artifact: a table (or set of tables) with a declared schema, a freshness SLA, a quality guarantee, a documentation page, an owner, and a consumer registration mechanism. The difference matters because tables are discoverable by engineers who know the catalog path, but data products are discoverable by anyone on the platform through a searchable catalog with descriptions, sample data, and quality metrics. At GridUnion, 200+ tables exist in the production catalog. Without data product documentation, a new analyst joining the regulatory team would need to ask colleagues which tables to use, how fresh they are, and whether they can be trusted. With data products, the analyst searches the catalog for 'German meter readings,' finds the data product page, reads the SLA, checks the quality metrics, and starts querying — without asking anyone."
+            },
+            {
+              "type": "heading",
+              "content": "The Data Product Manifest"
+            },
+            {
+              "type": "code",
+              "language": "text",
+              "content": "# data_products/silver_de_meter_readings.yaml\n# Every data product on the platform has a manifest file in the data_products/ repository\n\nproduct:\n  name: German Meter Readings (Silver)\n  fully_qualified_name: gridunion_prod.silver_de.meter_readings\n  description: >\n    Cleansed, deduplicated, and quality-filtered daily meter readings\n    for all German smart meters. Updated daily by 07:00 UTC.\n  owner:\n    team: de_germany\n    contact: '#de-germany-data' # Slack channel\n  \nschema:\n  format: delta\n  partition_columns: [region, date]\n  key_columns: [meter_id, date]  # natural key for deduplication\n  schema_file: schemas/silver_de_meter_readings.json  # golden schema\n\nsla:\n  freshness: 'daily_by_07:00_UTC'\n  quality:\n    null_rate_daily_kw: '< 0.005'\n    row_count_daily: '400000-600000'  # expected range\n    completeness: 'all 8 German regions present'\n  availability: '99.5% monthly'  # table accessible for queries\n\nconsumers:\n  registered:\n    - team: gold_billing\n      usage: 'Monthly billing aggregation'\n    - team: analytics\n      usage: 'Commercial consumption analysis'\n    - team: ml\n      usage: 'Demand forecasting feature engineering'\n    - team: regulatory_de\n      usage: 'Quarterly BNetzA reporting'\n\ndeprecation:\n  status: active  # active | deprecated | sunset\n  notice_period_days: 30\n  sunset_date: null"
+            },
+            {
+              "type": "heading",
+              "content": "The Discovery Catalog"
+            },
+            {
+              "type": "paragraph",
+              "content": "The data product manifests are stored in a Git repository and rendered into a searchable catalog — a web application (or a Delta table that feeds a dashboard) where engineers browse, search, and discover data products. GridUnion's discovery catalog shows each product's name, description, freshness status (green if updated within SLA, red if stale), quality status (green if all checks pass, amber if warnings, red if failures), and the list of registered consumers. The catalog is updated every 15 minutes by a monitoring pipeline that reads the manifest files, queries the table metadata (last updated timestamp, row count), runs the quality checks, and writes the results to a monitoring Delta table. This makes the catalog a live view of the platform's health, not a static documentation page that falls out of date."
+            },
+            {
+              "type": "heading",
+              "content": "Consumer Registration"
+            },
+            {
+              "type": "paragraph",
+              "content": "Consumer registration is the mechanism that closes the feedback loop in the ownership model. When a team wants to use a data product, they add their team name and usage description to the product's manifest file via a pull request. The owner team reviews the PR and approves the registration. This serves three purposes: the owner knows who depends on their table (critical for impact analysis during schema changes), the consumer's usage is documented (critical for understanding whether the table is still needed), and the consumer receives notifications when the product's schema or SLA changes (critical for preventing surprise breakages). GridUnion's automated impact analyzer reads the consumer registrations to determine which teams are affected by a proposed schema change, and generates the notification list for the deprecation process."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Architectural principle",
+              "content": "Data products are the unit of trust on a multi-team platform. When a consumer team queries a data product, they trust that the schema matches the manifest, that the data is as fresh as the SLA promises, and that the quality meets the declared thresholds. This trust is earned through monitoring (the catalog shows real-time status), enforced through contracts (the SLA is measurable and alertable), and maintained through process (schema changes follow the deprecation protocol). Without this trust infrastructure, every consumer builds their own validation, their own monitoring, and their own defensive code — duplicating effort across every team."
+            }
+          ]
+        },
+        {
+          "id": "module-PSS1-lesson-06",
+          "title": "Cross-Team Pipeline Dependencies",
+          "estimatedMinutes": 42,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "At mid-level, pipeline dependencies were simple: Bronze → Silver → Gold, all owned by one team, all orchestrated in one Airflow DAG. At GridUnion scale, the German billing Gold pipeline depends on the German Silver pipeline (owned by the German DE team) and the French Silver pipeline (owned by the French DE team), because the billing team computes cross-country totals. The French Silver pipeline depends on the French Bronze pipeline (owned by the platform team). A delay in the French Bronze pipeline cascades through the French Silver pipeline to the German billing Gold pipeline, breaching the billing SLA. The teams involved may not even know they are in the same dependency chain. Mapping, documenting, and coordinating these cross-team dependencies is one of the hardest operational challenges at enterprise scale."
+            },
+            {
+              "type": "heading",
+              "content": "The Dependency Graph"
+            },
+            {
+              "type": "paragraph",
+              "content": "GridUnion maintains a dependency graph as a Delta table in the monitoring schema. Each row represents a dependency edge: the consumer pipeline, the producer table it reads, and the producer pipeline that writes to that table. The graph is populated automatically by parsing the pipeline code (detecting spark.read and spark.write calls) and supplemented by manual declarations in the pipeline's YAML configuration for dependencies that cannot be inferred from code (such as a pipeline that reads from a JDBC source whose freshness depends on another team's ETL). The graph currently has 180 edges connecting 50 pipelines and 200 tables. A weekly validation job checks for circular dependencies (which would cause deadlocks in the coordination protocol) and orphaned dependencies (edges pointing to tables or pipelines that no longer exist)."
+            },
+            {
+              "type": "heading",
+              "content": "The Coordination Protocol"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# GridUnion's cross-team dependency coordination\n# Implemented as an Airflow ExternalTaskSensor pattern\n\nfrom airflow.sensors.external_task import ExternalTaskSensor\nfrom airflow.operators.bash import BashOperator\nfrom datetime import timedelta\n\n# German billing Gold pipeline depends on:\n# 1. German Silver (owned by de_germany team, DAG: german_silver_daily)\n# 2. French Silver (owned by de_france team, DAG: french_silver_daily)\n\nwait_for_german_silver = ExternalTaskSensor(\n    task_id='wait_for_german_silver',\n    external_dag_id='german_silver_daily',\n    external_task_id='silver_write_complete',\n    execution_delta=timedelta(0),  # same execution date\n    timeout=3600,                   # wait up to 1 hour\n    mode='reschedule',              # free the Airflow worker while waiting\n    poke_interval=120,              # check every 2 minutes\n)\n\nwait_for_french_silver = ExternalTaskSensor(\n    task_id='wait_for_french_silver',\n    external_dag_id='french_silver_daily',\n    external_task_id='silver_write_complete',\n    execution_delta=timedelta(0),\n    timeout=3600,\n    mode='reschedule',\n    poke_interval=120,\n)\n\nbilling_gold_pipeline = BashOperator(\n    task_id='billing_gold_pipeline',\n    bash_command='python scripts/submit.py pipeline_billing_gold.py --date {{ ds }}',\n)\n\n# Dependencies: wait for both Silver pipelines before starting Gold\n[wait_for_german_silver, wait_for_french_silver] >> billing_gold_pipeline"
+            },
+            {
+              "type": "heading",
+              "content": "Preventing Circular Dependencies"
+            },
+            {
+              "type": "paragraph",
+              "content": "Circular dependencies create deadlocks: pipeline A waits for pipeline B, which waits for pipeline C, which waits for pipeline A. In a single-team DAG, Airflow detects cycles and refuses to schedule them. Across teams' DAGs, the cycle is invisible to any single Airflow instance. GridUnion prevents cross-DAG cycles with a pre-merge CI check: the dependency graph is loaded from the monitoring table, the proposed pipeline's new dependencies are added, and a topological sort is attempted. If the sort fails (cycle detected), the CI check fails and the PR is blocked. This catches cycles before they reach production. The CI check also warns (but does not block) when a dependency chain exceeds 5 hops, because long chains amplify latency and make SLA attribution difficult."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Architectural principle",
+              "content": "Cross-team dependencies are not just a scheduling problem — they are an organizational coupling problem. Every dependency between teams creates a communication requirement: the producer must notify the consumer of schema changes, the consumer must escalate delays to the producer, and both must agree on the freshness contract. The dependency graph is the map of these communication requirements. Minimizing the graph (fewer cross-team dependencies) reduces coordination overhead. When a dependency is unavoidable, making it explicit (in the graph and in the Airflow sensors) ensures that delays propagate as controlled waits rather than as silent data staleness."
+            }
+          ]
+        },
+        {
+          "id": "module-PSS1-lesson-07",
+          "title": "Configuration Management at Scale",
+          "estimatedMinutes": 42,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The mid-level track used a config/ directory with dev.yaml, staging.yaml, and production.yaml per pipeline. At GridUnion scale, 50 pipelines across 6 teams produce 150 YAML files (3 environments × 50 pipelines), each with table paths, Spark configurations, quality thresholds, and SLA parameters. Without coordination, each team invents its own configuration format, its own key names, and its own promotion process. The German team uses spark.shuffle_partitions while the French team uses spark.sql.shuffle.partitions (the correct Spark property name). The analytics team promotes configurations by copying files manually; the platform team uses a GitOps workflow. The inconsistency makes it impossible to audit configurations across the platform, impossible to enforce standards, and impossible to automate promotion. GridUnion's solution is a shared configuration repository with a standardized format, team-specific directories, and a GitOps promotion process."
+            },
+            {
+              "type": "heading",
+              "content": "The Configuration Repository Structure"
+            },
+            {
+              "type": "code",
+              "language": "text",
+              "content": "gridunion-config/\n├── shared/                    # Shared across all teams\n│   ├── spark_defaults.yaml     # Default Spark properties (shuffle.partitions, etc.)\n│   ├── quality_defaults.yaml   # Default quality thresholds\n│   └── paths.yaml              # Catalog paths per environment\n│\n├── teams/\n│   ├── de_germany/\n│   │   ├── pipelines/\n│   │   │   ├── silver_meters.yaml\n│   │   │   └── gold_billing.yaml\n│   │   └── overrides/\n│   │       ├── dev.yaml          # Team-specific dev overrides\n│   │       ├── staging.yaml\n│   │       └── production.yaml\n│   ├── de_france/\n│   ├── analytics/\n│   └── ml/\n│\n├── environments/\n│   ├── dev.yaml               # Environment-level settings (cluster URLs, etc.)\n│   ├── staging.yaml\n│   └── production.yaml\n│\n└── schemas/                   # Golden schema files (referenced by pipeline configs)\n    ├── silver_de_meter_readings.json\n    └── ..."
+            },
+            {
+              "type": "heading",
+              "content": "Configuration Resolution Order"
+            },
+            {
+              "type": "paragraph",
+              "content": "When a pipeline loads its configuration, the resolver merges files in a specific priority order: shared defaults are loaded first, then the environment-level settings override them, then the team-level overrides override those, and finally the pipeline-specific configuration overrides everything. This means a team can accept the platform's default spark.sql.shuffle.partitions (48) by not specifying it, or override it for a specific pipeline that needs a different value. The resolution is implemented as a simple dictionary merge: later files overwrite earlier keys. The resolver logs the final merged configuration and the source of each key (which file it came from), making it possible to debug 'why is this pipeline using 200 shuffle partitions?' by tracing the key to its source file."
+            },
+            {
+              "type": "heading",
+              "content": "GitOps Promotion"
+            },
+            {
+              "type": "paragraph",
+              "content": "Every configuration change follows the same Git workflow: the engineer creates a branch, modifies the YAML file, opens a PR, the CI pipeline validates the configuration (YAML syntax, schema validation, path prefix checks from the mid-level track), the team lead reviews, and the merge triggers deployment. For production configurations, the merge to main automatically updates the production settings — there is no separate deployment step. This GitOps model provides a complete audit trail (every configuration change is a git commit with an author, timestamp, and description), a rollback mechanism (git revert), and a review gate (the PR must be approved). GridUnion's quarterly audit for the German regulator produces the configuration change history directly from the git log."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Architectural principle",
+              "content": "Configuration is code. It should be version-controlled, reviewed, tested, and promoted through the same pipeline as application code. The shared repository enforces a standard format, the resolution order provides sensible defaults with team-specific overrides, and the GitOps workflow provides auditability and rollback. The alternative — configurations stored in databases, environment variables, or ad-hoc files on cluster nodes — produces a platform where nobody knows what configuration a pipeline is actually running with, and 'it worked yesterday' debugging consumes hours."
+            }
+          ]
+        },
+        {
+          "id": "module-PSS1-lesson-08",
+          "title": "Cost Allocation and Chargeback",
+          "estimatedMinutes": 42,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "When one team uses the cluster, cost allocation is simple: the team pays the cloud bill. When six teams share a cluster, the cloud bill arrives as a single line item and the finance department asks: 'How much of this $180,000 monthly bill is the ML team's demand forecasting pipeline versus the analytics team's ad-hoc exploration?' Without cost attribution, every team has an incentive to over-provision (request more executors than needed, cache aggressively, run exploratory queries on the production cluster) because the cost is socialized. With cost attribution, each team sees the cost of their usage and has an incentive to optimize. GridUnion's chargeback model allocates cloud costs to teams based on their actual compute and storage consumption, producing a monthly report that the finance department uses for budget planning and the engineering leadership uses for capacity governance."
+            },
+            {
+              "type": "heading",
+              "content": "Cost Attribution via Application Tags"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# Every GridUnion spark-submit includes cost attribution tags\n# These tags flow through to the cloud provider's billing system\n\ndef create_spark_session(config, team, pipeline):\n    \"\"\"Create a SparkSession with cost attribution tags.\n    \n    The tags are propagated to:\n    - YARN application tags (visible in ResourceManager)\n    - Cloud provider labels (visible in AWS Cost Explorer / Azure Cost Management)\n    - Spark UI application name (visible in Spark History Server)\n    \"\"\"\n    return (SparkSession.builder\n        .appName(f\"{team}__{pipeline}__{config['environment']}\")\n        .config('spark.yarn.tags', f\"team:{team},pipeline:{pipeline},env:{config['environment']}\")\n        .config('spark.kubernetes.driver.label.team', team)\n        .config('spark.kubernetes.driver.label.pipeline', pipeline)\n        .config('spark.sql.shuffle.partitions', str(config['spark']['shuffle_partitions']))\n        .config('spark.sql.adaptive.enabled', 'true')\n        .getOrCreate()\n    )\n\n# Usage in every pipeline\nspark = create_spark_session(config, team='de_germany', pipeline='silver_meters')\n\n# The cloud provider aggregates costs by tag:\n# team:de_germany -> $42,000/month (23% of total)\n# team:analytics  -> $31,500/month (18%)\n# team:ml         -> $54,000/month (30%) <- demand forecasting is compute-heavy\n# team:de_france  -> $27,000/month (15%)\n# team:platform   -> $25,500/month (14%)"
+            },
+            {
+              "type": "heading",
+              "content": "The Monthly Chargeback Report"
+            },
+            {
+              "type": "paragraph",
+              "content": "GridUnion's chargeback report breaks costs into three categories: compute (executor-hours by team), storage (Delta table sizes by schema, attributed to the owning team), and data transfer (cross-region reads, attributed to the consuming team). The compute attribution uses the spark.yarn.tags to aggregate executor-hours per team from the YARN ResourceManager logs. Storage attribution sums file sizes per schema from the catalog metadata and assigns costs to the schema's owning team via the ownership registry. Data transfer attribution is the most contentious: when the French billing pipeline reads German Silver data, is the transfer cost charged to France (the consumer who initiated the read) or Germany (the producer who stored the data in the German region)? GridUnion charges the consumer, reasoning that the consumer chose to read cross-region data and could reduce costs by requesting a replicated copy in their region."
+            },
+            {
+              "type": "heading",
+              "content": "Cost Governance"
+            },
+            {
+              "type": "paragraph",
+              "content": "The chargeback report is not just a billing exercise — it is a governance mechanism. When the ML team's costs spiked from $35,000 to $54,000 in one month, the chargeback report identified the cause: the demand forecasting pipeline was retrained with 3x more historical data, producing 3x more executor-hours. The ML team lead reviewed the report, determined that the cost increase was justified (better model accuracy), and approved it. Without the chargeback report, the cost increase would have been invisible until the quarterly budget review, at which point it would have been a surprise rather than a managed decision. GridUnion's governance policy requires that any team whose monthly costs increase by more than 20% must submit a cost justification within 5 business days. Unjustified increases trigger a capacity review with the platform team."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Architectural principle",
+              "content": "Cost visibility changes behavior. When teams see the cost of their compute usage, they optimize: the ML team switched from on-demand to spot instances for training, saving 60%. The analytics team scheduled heavy notebooks for off-peak hours, reducing peak cluster costs by 25%. The German DE team increased their pipeline's partition count to reduce spill, which reduced executor-hours by 15%. None of these optimizations would have happened without the chargeback report making costs visible at the team level. Socialized costs produce tragedy-of-the-commons; attributed costs produce responsible consumption."
+            }
+          ]
+        },
+        {
+          "id": "module-PSS1-lesson-09",
+          "title": "Platform Observability",
+          "estimatedMinutes": 42,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The mid-level track instrumented individual pipelines with the StageMetrics class (Module 9, lesson 5). At platform scale, individual pipeline metrics are necessary but not sufficient. The platform team needs a cross-cutting view: which tables are stale? Which pipelines are trending toward SLA breach? Which teams have the most incidents? Which schemas are growing fastest? Platform observability aggregates metrics from every pipeline, every table, and every team into a unified monitoring layer that shows the health of the entire data platform at a glance. GridUnion's platform health dashboard answers the question that the CTO asks every Monday morning: 'Is our data platform healthy, and if not, what needs attention this week?'"
+            },
+            {
+              "type": "heading",
+              "content": "The Four Observability Signals"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Signal",
+                "What It Measures",
+                "Source",
+                "Alert Threshold"
+              ],
+              "rows": [
+                [
+                  "Freshness",
+                  "How recently each table was updated",
+                  "Delta table metadata (last modified timestamp)",
+                  "Table not updated within its declared SLA window"
+                ],
+                [
+                  "Quality",
+                  "Whether quality gates pass for each table",
+                  "Quality gate results from pipeline metrics table",
+                  "Any quality check fails (null rate, row count, referential integrity)"
+                ],
+                [
+                  "Pipeline health",
+                  "Duration, success rate, and error patterns per pipeline",
+                  "Pipeline metrics table (duration, status, row counts)",
+                  "Duration exceeds 2x the 30-day baseline, or 2+ consecutive failures"
+                ],
+                [
+                  "Resource utilization",
+                  "Cluster utilization, cost trends, and capacity headroom",
+                  "YARN/K8s metrics, cloud billing tags",
+                  "Cluster utilization > 85% sustained, or cost increase > 20% month-over-month"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "The Platform Health Dashboard"
+            },
+            {
+              "type": "paragraph",
+              "content": "GridUnion's platform health dashboard is a single-page view with four panels. The freshness panel shows a heatmap of all data products: green (updated within SLA), amber (approaching SLA boundary), red (SLA breached). The quality panel shows the pass/fail status of each product's quality gates, with drill-down to the specific failing checks. The pipeline panel shows a timeline of pipeline runs across all teams, color-coded by status (success, failure, slow), with the ability to filter by team or by pipeline. The resource panel shows cluster utilization, storage growth, and cost trends. The dashboard reads from a single Delta table — the platform_health table — that is refreshed every 15 minutes by a monitoring pipeline that queries table metadata, pipeline metrics, quality results, and resource manager metrics."
+            },
+            {
+              "type": "heading",
+              "content": "Cross-Team SLA Tracking"
+            },
+            {
+              "type": "paragraph",
+              "content": "SLA tracking at platform scale requires attributing delays to the responsible team. When the billing Gold table is late, the platform must determine whether the delay is in the Gold pipeline itself (billing team's responsibility), in the German Silver pipeline (German DE team's responsibility), or in the Bronze ingestion (platform team's responsibility). GridUnion's SLA tracker uses the dependency graph (lesson 6) to trace delays upstream: when a pipeline misses its SLA, the tracker checks each upstream dependency's completion time to identify the first pipeline in the chain that was late. The responsible team receives the SLA breach notification, not the downstream team that was merely delayed by the upstream failure. This attribution prevents the common anti-pattern where the team at the end of the chain receives all the blame while the root cause team is unaware."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Architectural principle",
+              "content": "Observability is not monitoring. Monitoring answers 'is this pipeline running?' Observability answers 'why did this pipeline fail, and what else was affected?' The difference is the cross-cutting view: observability connects pipeline metrics to table freshness, to dependency chains, to SLA attribution, and to cost trends. A platform with good monitoring but poor observability detects failures quickly but diagnoses them slowly. GridUnion's platform health dashboard took three months to build but reduced mean time to diagnosis from 45 minutes (manually tracing dependencies) to 5 minutes (clicking through the dashboard's drill-down)."
+            }
+          ]
+        },
+        {
+          "id": "module-PSS1-lesson-10",
+          "title": "GridUnion Platform Architecture",
+          "estimatedMinutes": 42,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "This lesson synthesizes the nine preceding lessons into GridUnion Continental's complete platform architecture. The architecture is not a theoretical blueprint — it is the actual system that 6 teams operate daily, refined through 18 months of post-acquisition integration and 12 architectural decisions that were debated, documented, and evaluated. Each component of the architecture exists because a specific problem demanded it: the namespace hierarchy exists because naming collisions broke 3 pipelines in the first week. The ownership registry exists because a multi-writer conflict corrupted a Silver table for 2 days. The four-layer model exists because cross-domain datasets had no clear home. The dependency graph exists because a cascade delay breached the billing SLA without anyone understanding why. Architecture is the accumulated response to real problems, not a pre-planned design."
+            },
+            {
+              "type": "heading",
+              "content": "The Architecture Summary"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Component",
+                "What It Does",
+                "Lesson",
+                "Key Decision"
+              ],
+              "rows": [
+                [
+                  "Namespace hierarchy",
+                  "Organizes 200+ tables into a discoverable, access-controlled structure",
+                  "2",
+                  "Environment-first catalogs, country-segmented Bronze/Silver schemas, domain-segmented Gold/Platinum schemas"
+                ],
+                [
+                  "Ownership registry",
+                  "Assigns exactly one owner team to every table",
+                  "3",
+                  "Schema-level access control; single-writer enforcement via Unity Catalog GRANT"
+                ],
+                [
+                  "Four-layer model",
+                  "Separates raw, cleansed, domain-specific, and cross-domain data",
+                  "4",
+                  "Platinum layer added for cross-domain use cases; governed by 3-criteria approval process"
+                ],
+                [
+                  "Data product catalog",
+                  "Makes tables discoverable with SLAs, quality metrics, and documentation",
+                  "5",
+                  "YAML manifests in Git; live catalog updated every 15 minutes; consumer registration via PR"
+                ],
+                [
+                  "Dependency graph",
+                  "Maps cross-team pipeline dependencies and prevents circular references",
+                  "6",
+                  "Auto-populated from pipeline code; CI check blocks cycles; ExternalTaskSensor for coordination"
+                ],
+                [
+                  "Configuration repository",
+                  "Standardizes and version-controls all pipeline configuration",
+                  "7",
+                  "Shared defaults with team overrides; GitOps promotion; resolution order logged for debugging"
+                ],
+                [
+                  "Cost allocation",
+                  "Attributes compute and storage costs to the consuming team",
+                  "8",
+                  "spark.yarn.tags for compute; schema ownership for storage; consumer-pays for cross-region transfer"
+                ],
+                [
+                  "Platform observability",
+                  "Provides cross-cutting health view of the entire platform",
+                  "9",
+                  "Four signals (freshness, quality, pipeline health, resources); SLA breach attributed via dependency graph"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "The Governance Committee"
+            },
+            {
+              "type": "paragraph",
+              "content": "GridUnion's architectural decisions are not made unilaterally. A quarterly governance committee reviews the platform's health metrics (from the observability dashboard), evaluates proposed architectural changes (new schemas, new Platinum tables, new cross-team dependencies), reviews cost trends, and audits compliance controls. The committee includes the platform team lead, one representative from each team, and the data steward who oversees regulatory compliance. Decisions are documented in Architecture Decision Records (ADRs) — short documents that state the problem, the options considered, the decision, and the rationale. GridUnion has 12 ADRs covering decisions from 'Why country-segmented schemas instead of domain-segmented' to 'Why consumer-pays for cross-region data transfer.' The ADRs serve as institutional memory: when a new team member asks 'why is it designed this way?' the ADR provides the answer, including the alternatives that were considered and rejected."
+            },
+            {
+              "type": "heading",
+              "content": "What Comes Next"
+            },
+            {
+              "type": "paragraph",
+              "content": "This module established the organizational architecture of a multi-team data platform: the structures, contracts, and processes that make the platform governable. Module 2 shifts to the technical internals of the Catalyst optimizer and Adaptive Query Execution — the implementation-level understanding that enables senior engineers to diagnose plan decisions that mid-level engineers accept as black-box behavior. Where this module asked 'how should the platform be organized?' Module 2 asks 'how does the query optimizer actually work, and what happens when its assumptions are wrong?' The organizational architecture from this module provides the governance context; the optimizer internals from Module 2 provide the technical depth."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "100 lessons. 73 hours. From production pipelines to platform architecture.",
+              "content": "The senior-level track is not about learning new PySpark functions or new API patterns. It is about designing systems that other engineers build on: catalog hierarchies that prevent naming collisions, ownership contracts that prevent data corruption, layer models that clarify responsibilities, data products that make tables discoverable, dependency graphs that prevent cascade failures, configuration repositories that provide auditability, cost models that incentivize optimization, and observability infrastructure that makes the platform's health visible. The technical skills from the junior and mid-level tracks are the foundation. The architectural skills from this track are the structure that makes the foundation usable at enterprise scale."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

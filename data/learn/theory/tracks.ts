@@ -1,6 +1,7 @@
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import { pysparkMidTheory } from '@/data/learn/theory/pyspark-mid';
+import { pysparkSeniorTheory } from '@/data/learn/theory/pyspark-senior';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -75,6 +76,16 @@ const TOPIC_TRACK_CONFIGS: Record<string, TheoryTrackConfig[]> = {
         'Performance optimization, advanced join strategies, shuffle mechanics, execution plan analysis, and production-grade pipeline patterns for experienced PySpark engineers.',
       highlights: [],
       sourceDoc: pysparkMidTheory,
+    },
+    {
+      slug: 'senior',
+      label: 'Senior-Level Track',
+      title: 'Senior-Level Track',
+      eyebrow: 'Platform Architecture',
+      description:
+        'Platform architecture, advanced optimizer internals, enterprise governance, and the organizational patterns that make PySpark reliable at scale across multiple teams and countries.',
+      highlights: [],
+      sourceDoc: pysparkSeniorTheory,
     }
   ]
 };
