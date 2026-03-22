@@ -50,16 +50,16 @@ export const CalloutBlock = ({ block }: CalloutBlockProps) => {
   const Icon = entry.Icon;
 
   return (
-    <div className={`rounded-lg border p-4 ${entry.classes}`}>
+    <div className="rounded-lg border p-4" style={{ backgroundColor: 'var(--rm-callout-bg)', borderLeftColor: 'var(--rm-callout-border)' }}>
       <div className="flex items-start gap-3">
         <Icon className={`mt-0.5 h-5 w-5 flex-shrink-0 ${entry.iconClass}`} />
         <div>
           {block.title ? (
-            <div className={`mb-1 text-sm font-semibold ${entry.titleClass}`}>
+            <div className="mb-1 text-sm font-semibold" style={{ color: 'var(--rm-text-heading)' }}>
               {block.title}
             </div>
           ) : null}
-          <p className="text-sm leading-relaxed text-text-light-secondary dark:text-text-dark-secondary">
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--rm-text)' }}>
             {block.content}
           </p>
         </div>

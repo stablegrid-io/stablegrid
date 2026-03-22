@@ -8,17 +8,17 @@ interface DiagramBlockProps {
 
 export const DiagramBlock = ({ title, content, caption }: DiagramBlockProps) => {
   return (
-    <div className="overflow-hidden rounded-lg border border-light-border dark:border-dark-border">
+    <div className="overflow-hidden rounded-lg border" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-bg-elevated)', color: 'var(--rm-text)' }}>
       {title ? (
-        <div className="border-b border-light-border bg-light-surface px-4 py-2 text-xs font-medium text-text-light-secondary dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-secondary">
+        <div className="border-b px-4 py-2 text-xs font-medium" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-bg-elevated)', color: 'var(--rm-text)' }}>
           {title}
         </div>
       ) : null}
-      <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] bg-light-muted p-4 text-xs leading-relaxed text-text-light-primary dark:bg-dark-muted dark:text-text-dark-primary">
+      <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] p-4 text-xs leading-relaxed" style={{ backgroundColor: 'var(--rm-bg-elevated)', color: 'var(--rm-text)' }}>
         {content}
       </pre>
       {caption ? (
-        <div className="border-t border-light-border bg-light-surface px-4 py-2 text-xs italic text-text-light-tertiary dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-tertiary">
+        <div className="border-t px-4 py-2 text-xs italic" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-bg-elevated)', color: 'var(--rm-text)' }}>
           {caption}
         </div>
       ) : null}

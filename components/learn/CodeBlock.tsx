@@ -229,7 +229,7 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-300/70 bg-[#f8fafc] shadow-sm dark:border-[rgba(148,163,184,0.1)] dark:bg-[#0d1117]">
+    <div className="overflow-hidden rounded-xl border border-slate-300/70 shadow-sm dark:border-[rgba(148,163,184,0.1)]" style={{ backgroundColor: 'var(--rm-code-bg)' }}>
       <div className="flex items-center justify-between border-b border-slate-300/70 bg-slate-100 px-4 py-2.5 dark:border-[rgba(148,163,184,0.1)] dark:bg-[rgba(148,163,184,0.05)]">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">

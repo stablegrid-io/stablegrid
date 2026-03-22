@@ -37,9 +37,10 @@ const RenderList = ({ block }: { block: ListBlock }) => {
         {block.items.map((item, index) => (
           <li
             key={`${item}-${index}`}
-            className="flex items-start gap-3 text-sm text-text-light-secondary dark:text-text-dark-secondary"
+            className="flex items-start gap-3 text-sm"
+            style={{ color: 'var(--rm-text)' }}
           >
-            <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
+            <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold" style={{ backgroundColor: 'var(--rm-list-badge-bg)', color: 'var(--rm-list-badge-text)' }}>
               {index + 1}
             </span>
             {item}
@@ -54,7 +55,8 @@ const RenderList = ({ block }: { block: ListBlock }) => {
       {block.items.map((item, index) => (
         <li
           key={`${item}-${index}`}
-          className="flex items-start gap-3 text-sm text-text-light-secondary dark:text-text-dark-secondary"
+          className="flex items-start gap-3 text-sm"
+          style={{ color: 'var(--rm-text)' }}
         >
           <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-brand-500" />
           {item}
@@ -66,14 +68,15 @@ const RenderList = ({ block }: { block: ListBlock }) => {
 
 const RenderTable = ({ block }: { block: TableBlock }) => {
   return (
-    <div className="overflow-x-auto rounded-lg border border-light-border dark:border-dark-border">
+    <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--rm-border)' }}>
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-light-surface dark:bg-dark-surface">
+          <tr>
             {block.headers.map((header) => (
               <th
                 key={header}
-                className="border-b border-light-border px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-light-tertiary dark:border-dark-border dark:text-text-dark-tertiary"
+                className="border-b px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
+                style={{ backgroundColor: 'var(--rm-table-header-bg)', color: 'var(--rm-text-heading)', borderColor: 'var(--rm-border)' }}
               >
                 {header}
               </th>
@@ -84,12 +87,14 @@ const RenderTable = ({ block }: { block: TableBlock }) => {
           {block.rows.map((row, rowIndex) => (
             <tr
               key={`${row.join('|')}-${rowIndex}`}
-              className="border-b border-light-border last:border-b-0 hover:bg-light-hover dark:border-dark-border dark:hover:bg-dark-hover"
+              className="border-b last:border-b-0"
+              style={{ borderColor: 'var(--rm-border)' }}
             >
               {row.map((cell, cellIndex) => (
                 <td
                   key={`${cell}-${cellIndex}`}
-                  className="px-4 py-3 text-text-light-secondary dark:text-text-dark-secondary"
+                  className="px-4 py-3"
+                  style={{ color: 'var(--rm-text)', borderColor: 'var(--rm-border)' }}
                 >
                   {cell}
                 </td>
@@ -99,7 +104,7 @@ const RenderTable = ({ block }: { block: TableBlock }) => {
         </tbody>
       </table>
       {block.caption ? (
-        <div className="border-t border-light-border bg-light-surface px-4 py-2 text-xs italic text-text-light-tertiary dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-tertiary">
+        <div className="border-t px-4 py-2 text-xs italic" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-table-header-bg)', color: 'var(--rm-text)' }}>
           {block.caption}
         </div>
       ) : null}
@@ -109,18 +114,18 @@ const RenderTable = ({ block }: { block: TableBlock }) => {
 
 const RenderKeyConcept = ({ block }: { block: KeyConceptBlock }) => {
   return (
-    <div className="rounded-lg border-l-4 border-brand-500 bg-light-surface p-5 dark:bg-dark-surface">
+    <div className="rounded-lg border-l-4 p-5" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-bg-elevated)', color: 'var(--rm-text)' }}>
       <div className="mb-2 text-xs font-medium uppercase tracking-wider text-brand-500">
         Key Concept
       </div>
-      <div className="mb-2 text-base font-bold text-text-light-primary dark:text-text-dark-primary">
+      <div className="mb-2 text-base font-bold" style={{ color: 'var(--rm-text-heading)' }}>
         {block.term}
       </div>
-      <p className="mb-3 text-sm leading-relaxed text-text-light-secondary dark:text-text-dark-secondary">
+      <p className="mb-3 text-sm leading-relaxed" style={{ color: 'var(--rm-text)' }}>
         {block.definition}
       </p>
       {block.analogy ? (
-        <div className="flex items-start gap-2 text-xs italic text-text-light-tertiary dark:text-text-dark-tertiary">
+        <div className="flex items-start gap-2 text-xs italic" style={{ color: 'var(--rm-text)' }}>
           <Lightbulb className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-warning-500" />
           Analogy: {block.analogy}
         </div>
@@ -131,9 +136,9 @@ const RenderKeyConcept = ({ block }: { block: KeyConceptBlock }) => {
 
 const RenderComparison = ({ block }: { block: ComparisonBlock }) => {
   return (
-    <div className="overflow-hidden rounded-lg border border-light-border dark:border-dark-border">
+    <div className="overflow-hidden rounded-lg border" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-bg-elevated)' }}>
       {block.title ? (
-        <div className="border-b border-light-border bg-light-surface px-4 py-3 text-sm font-medium dark:border-dark-border dark:bg-dark-surface">
+        <div className="border-b px-4 py-3 text-sm font-medium" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-bg-elevated)' }}>
           {block.title}
         </div>
       ) : null}
@@ -141,16 +146,18 @@ const RenderComparison = ({ block }: { block: ComparisonBlock }) => {
         {[block.left, block.right].map((side) => (
           <div
             key={side.label}
-            className="border-b border-light-border p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0 dark:border-dark-border"
+            className="border-b p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0"
+            style={{ borderColor: 'var(--rm-border)' }}
           >
             <div className="mb-3 text-sm font-semibold">{side.label}</div>
             <ul className="space-y-1.5">
               {side.points.map((point, index) => (
                 <li
                   key={`${point}-${index}`}
-                  className="flex items-start gap-2 text-xs text-text-light-secondary dark:text-text-dark-secondary"
+                  className="flex items-start gap-2 text-xs"
+                  style={{ color: 'var(--rm-text)' }}
                 >
-                  <span className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full bg-text-light-tertiary dark:bg-text-dark-tertiary" />
+                  <span className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full" style={{ backgroundColor: 'var(--rm-text)' }} />
                   {point}
                 </li>
               ))}
@@ -171,11 +178,12 @@ const RenderParagraph = ({ content, isLead }: { content: string; isLead?: boolea
       {chunks.map((chunk, index) => (
         <p
           key={`${index}-${chunk.slice(0, 24)}`}
-          className={`leading-8 text-text-light-secondary dark:text-[#cfdad5] ${
+          className={`leading-8 ${
             isLead && index === 0
-              ? 'text-[1.05rem] leading-8 text-text-light-primary dark:text-[#f3f6f4]'
+              ? 'text-[1.05rem] leading-8'
               : 'text-[0.98rem] sm:text-[1rem]'
           }`}
+          style={{ color: isLead && index === 0 ? 'var(--rm-text-lead)' : 'var(--rm-text)', lineHeight: 'var(--rm-line-height)', fontFamily: 'var(--rm-font)' }}
         >
           {chunk}
         </p>
@@ -190,13 +198,13 @@ const RenderBlock = ({ block, isFirstBlock }: { block: ContentBlock; isFirstBloc
       return <RenderParagraph content={block.content} isLead={isFirstBlock} />;
     case 'heading':
       return (
-        <h2 className="mb-3 mt-8 text-xl font-bold tracking-tight text-text-light-primary dark:text-text-dark-primary">
+        <h2 className="mb-3 mt-8 text-xl font-bold tracking-tight" style={{ color: 'var(--rm-text-heading)', fontFamily: 'var(--rm-font-heading)' }}>
           {block.content}
         </h2>
       );
     case 'subheading':
       return (
-        <h3 className="mb-2 mt-6 text-base font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">
+        <h3 className="mb-2 mt-6 text-base font-semibold tracking-tight" style={{ color: 'var(--rm-text-heading)', fontFamily: 'var(--rm-font-heading)' }}>
           {block.content}
         </h3>
       );
@@ -273,7 +281,7 @@ export const TheorySection = ({
               ) : null}
             </div>
           </div>
-          <h2 className="mb-6 border-b border-light-border pb-3 text-xl font-semibold dark:border-dark-border">
+          <h2 className="mb-6 border-b pb-3 text-xl font-semibold" style={{ color: 'var(--rm-text-heading)', fontFamily: 'var(--rm-font-heading)', borderColor: 'var(--rm-border)' }}>
             {section.title}
           </h2>
         </>
