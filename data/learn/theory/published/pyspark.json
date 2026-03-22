@@ -8,227 +8,17 @@
       "id": "module-PS3",
       "number": 3,
       "title": "DataFrames — The Core Abstraction",
-      "description": "Understand DataFrames as Spark's primary data structure, master creation patterns, learn the immutability model, and build the habit of inspecting schemas before transforming data.",
-      "totalMinutes": 120,
+      "description": "Understand DataFrames as Spark's primary distributed data structure, master creation and schema patterns, learn the immutability and lazy evaluation models.",
+      "totalMinutes": 28,
       "sections": [
-        {
-          "id": "module-PS3-lesson-01",
-          "title": "What Is a DataFrame?",
-          "estimatedMinutes": 10,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "A DataFrame is a distributed collection of rows organized into named columns. If you have used a spreadsheet, a SQL table, or a Pandas DataFrame, you already understand the shape. The difference is where it lives: a Spark DataFrame is not stored on one machine. It is split across many machines, and every operation you write runs in parallel across all of them."
-            },
-            {
-              "type": "heading",
-              "content": "The Mental Model"
-            },
-            {
-              "type": "paragraph",
-              "content": "Think of a DataFrame as a table blueprint that spans a cluster. When you write df.filter(col('daily_kw') > 1000), you are not scanning rows on your laptop. You are sending an instruction to dozens of executors, each holding a partition of the data, and they all apply the filter simultaneously."
-            },
-            {
-              "type": "diagram",
-              "title": "DataFrame across a cluster",
-              "content": "DataFrame: meter_readings\n\n  Logical View (what you see):\n  | meter_id | daily_kw | date     | region   |\n  | M-001    | 1,250    | 2026-01  | NORTH    |\n  | M-002    | 890      | 2026-01  | SOUTH    |\n\n  Physical Reality:\n  Executor 1: Partition 0 (170K rows)\n  Executor 2: Partition 1 (170K rows)\n  Executor 3: Partition 2 (160K rows)",
-              "caption": "You see one table. Spark sees partitions spread across executors."
-            },
-            {
-              "type": "heading",
-              "content": "DataFrame vs RDD"
-            },
-            {
-              "type": "paragraph",
-              "content": "Spark has an older API called the RDD. RDDs are low-level — you work with raw Python objects and Spark cannot optimize your code. DataFrames are high-level — you describe columns and transformations, and Spark's Catalyst optimizer figures out the fastest way to execute. In 2026, there is almost no reason to use RDDs directly."
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Key insight",
-              "content": "A DataFrame is not data. It is a plan for computing data. Until you call an action (show, count, write), nothing executes. This laziness is what lets Spark optimize your entire transformation chain before running it."
-            }
-          ]
-        },
-        {
-          "id": "module-PS3-lesson-02",
-          "title": "Creating DataFrames from Scratch",
-          "estimatedMinutes": 12,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Most DataFrames come from reading files — CSV, Parquet, JSON. But sometimes you need a small DataFrame created from scratch: a reference lookup, a configuration table, a set of test data."
-            },
-            {
-              "type": "heading",
-              "content": "From a List of Tuples"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder.appName('nordgrid').getOrCreate()\n\nregions = [\n    ('NORTH', 'Nordic Region', 125000),\n    ('SOUTH', 'Southern Grid', 140000),\n    ('EAST',  'Eastern Zone',  110000),\n    ('WEST',  'Western Block',  95000),\n]\n\ndf = spark.createDataFrame(regions, ['region_code', 'region_name', 'meter_count'])\ndf.show()"
-            },
-            {
-              "type": "heading",
-              "content": "From a List of Dictionaries"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "regions = [\n    {'region_code': 'NORTH', 'region_name': 'Nordic Region', 'meter_count': 125000},\n    {'region_code': 'SOUTH', 'region_name': 'Southern Grid', 'meter_count': 140000},\n]\ndf = spark.createDataFrame(regions)"
-            },
-            {
-              "type": "heading",
-              "content": "From a Pandas DataFrame"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "import pandas as pd\npd_df = pd.DataFrame({'region_code': ['NORTH', 'SOUTH'], 'meter_count': [125000, 140000]})\nspark_df = spark.createDataFrame(pd_df)"
-            },
-            {
-              "type": "callout",
-              "variant": "warning",
-              "title": "Common mistake",
-              "content": "Converting from Pandas collects ALL data onto the driver. This works for small reference tables but will crash the driver if the Pandas DataFrame is large. Never use this pattern for production data."
-            }
-          ]
-        },
-        {
-          "id": "module-PS3-lesson-03",
-          "title": "Schema — The Contract",
-          "estimatedMinutes": 14,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Every DataFrame has a schema: a list of column names and their data types. The schema is the contract between your code and the data."
-            },
-            {
-              "type": "heading",
-              "content": "Inferred Schema"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "df = spark.read.csv('meters.csv', header=True, inferSchema=True)\ndf.printSchema()"
-            },
-            {
-              "type": "paragraph",
-              "content": "Notice that date was inferred as string, not DateType. Spark saw values like '2026-01-15' and had no way to know they represent dates."
-            },
-            {
-              "type": "heading",
-              "content": "Explicit Schema"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "from pyspark.sql.types import StructType, StructField, StringType, DoubleType, DateType\n\nmeter_schema = StructType([\n    StructField('meter_id', StringType(), nullable=False),\n    StructField('daily_kw', DoubleType(), nullable=True),\n    StructField('date',     DateType(),   nullable=False),\n    StructField('region',   StringType(), nullable=False),\n])\n\ndf = spark.read.csv('meters.csv', header=True, schema=meter_schema)"
-            },
-            {
-              "type": "heading",
-              "content": "The StructType Building Blocks"
-            },
-            {
-              "type": "table",
-              "headers": [
-                "Type",
-                "Python Equivalent",
-                "Example Values",
-                "When to Use"
-              ],
-              "rows": [
-                [
-                  "StringType()",
-                  "str",
-                  "'M-001', 'NORTH'",
-                  "IDs, names, codes"
-                ],
-                [
-                  "IntegerType()",
-                  "int (32-bit)",
-                  "42, -7, 0",
-                  "Small integers, counts"
-                ],
-                [
-                  "LongType()",
-                  "int (64-bit)",
-                  "1234567890",
-                  "Large integers"
-                ],
-                [
-                  "DoubleType()",
-                  "float (64-bit)",
-                  "1250.75",
-                  "Measurements, prices"
-                ],
-                [
-                  "DateType()",
-                  "datetime.date",
-                  "2026-01-15",
-                  "Calendar dates"
-                ],
-                [
-                  "TimestampType()",
-                  "datetime.datetime",
-                  "2026-01-15 08:30:00",
-                  "Dates with time"
-                ],
-                [
-                  "DecimalType(p,s)",
-                  "Decimal",
-                  "1234.56",
-                  "Financial values"
-                ]
-              ]
-            },
-            {
-              "type": "callout",
-              "variant": "tip",
-              "title": "Production rule",
-              "content": "Always use explicit schemas in production pipelines. inferSchema is for exploration only. An explicit schema is faster, safer, and documents itself."
-            }
-          ]
-        },
-        {
-          "id": "module-PS3-lesson-04",
-          "title": "Immutability — DataFrames Never Change",
-          "estimatedMinutes": 10,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Every DataFrame operation returns a new DataFrame. The original is never modified. This is the foundation of safe distributed processing."
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "raw = spark.read.csv('meters.csv', header=True, schema=meter_schema)\nfiltered = raw.filter(col('daily_kw') > 0)\nenriched = filtered.withColumn('daily_mw', col('daily_kw') / 1000)\n\n# All three DataFrames exist independently\nraw.count()       # all rows\nfiltered.count()  # only positive\nenriched.count()  # same as filtered, extra column"
-            },
-            {
-              "type": "heading",
-              "content": "The Reassignment Pattern"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "df = spark.read.csv('meters.csv', header=True, schema=meter_schema)\ndf = df.filter(col('daily_kw') > 0)\ndf = df.withColumn('daily_mw', col('daily_kw') / 1000)\ndf = df.drop('daily_kw')\n# Each line creates a new DataFrame. 'df' just points to the latest one."
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Why it matters",
-              "content": "Immutability means you can always go back. If a transformation produces unexpected results, the input DataFrame is untouched. This makes debugging straightforward."
-            }
-          ]
-        },
         {
           "id": "module-PS3-lesson-05",
           "title": "Lazy Evaluation in Practice",
-          "estimatedMinutes": 14,
+          "estimatedMinutes": 28,
           "blocks": [
             {
               "type": "paragraph",
-              "content": "Spark does not execute transformations when you write them. It records them into a plan. Only when you call an action — show(), count(), write() — does Spark optimize and execute."
+              "content": "Spark does not execute your transformations when you write them. It records them into a plan — a sequence of steps that describe what you want but do not actually process any data. Only when you call an action — show(), count(), write(), collect() — does Spark look at the entire plan, optimize it, and execute it. This behavior is called lazy evaluation, and it is the mechanism that makes Spark fast."
             },
             {
               "type": "heading",
@@ -237,7 +27,7 @@
             {
               "type": "code",
               "language": "python",
-              "content": "from pyspark.sql.functions import col, year\n\ndf = spark.read.parquet('bronze/meters/')           # transformation\ndf = df.filter(col('daily_kw') > 0)                 # transformation\ndf = df.filter(col('region') == 'NORTH')            # transformation\ndf = df.withColumn('year', year(col('date')))        # transformation\ndf = df.select('meter_id', 'daily_kw', 'year')       # transformation\n\ndf.show(5)  # THIS triggers execution"
+              "content": "from pyspark.sql.functions import col, year\n\n# Step 1-5: Define transformations — no data is read yet\ndf = spark.read.parquet('bronze/meters/')\ndf = df.filter(col('daily_kw') > 0)\ndf = df.filter(col('region') == 'NORTH')\ndf = df.withColumn('year', year(col('date')))\ndf = df.select('meter_id', 'daily_kw', 'year')\n\n# ZERO data has been read from disk.\n# THIS triggers execution:\ndf.show(5)"
             },
             {
               "type": "heading",
@@ -245,7 +35,31 @@
             },
             {
               "type": "paragraph",
-              "content": "Catalyst pushes filters into the reader, combines filters, and reads only selected columns. You wrote five steps; Spark might execute two."
+              "content": "Catalyst combines the two filters into one, pushes the region filter into the Parquet reader as a partition filter (skipping 75% of data at filesystem level), and applies projection pruning to read only 3 columns. You wrote five steps; Spark executes two."
+            },
+            {
+              "type": "diagram",
+              "title": "Your code vs what Catalyst actually executes",
+              "content": "Your Code (5 steps)                    Catalyst's Execution\n────────────────────────                    ───────────────────────\n1. read all columns, all partitions     Read parquet:\n2. filter daily_kw > 0          ─►       • Partition filter: region=NORTH\n3. filter region == 'NORTH'              • Column pruning: 3 cols only\n4. withColumn year(date)                 • Pushed filter: daily_kw > 0\n5. select 3 columns                    Compute year(date), output\n\nNaive: read 2GB                         Optimized: read ~250MB (8x less)",
+              "caption": "Lazy evaluation lets Catalyst see all five steps before executing any of them."
+            },
+            {
+              "type": "heading",
+              "content": "Seeing the Plan with explain()"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "df.explain(True)  # Shows plan WITHOUT executing"
+            },
+            {
+              "type": "code",
+              "language": "text",
+              "content": "== Optimized Logical Plan ==\nProject [meter_id#0, daily_kw#1, year(date#2) AS year#5]\n+- Filter (isnotnull(daily_kw#1) AND (daily_kw#1 > 0.0))\n   +- FileScan parquet [meter_id#0, daily_kw#1, date#2]\n      PartitionFilters: [region#3 = NORTH]\n      PushedFilters: [IsNotNull(daily_kw), GreaterThan(daily_kw, 0.0)]"
+            },
+            {
+              "type": "paragraph",
+              "content": "The plan reveals every optimization: PartitionFilters skips non-NORTH folders, PushedFilters applies during scan, and ReadSchema shows only 3 columns read. Catalyst even added IsNotNull automatically since null > 0 is always null."
             },
             {
               "type": "heading",
@@ -254,13 +68,13 @@
             {
               "type": "table",
               "headers": [
-                "Transformations (lazy)",
-                "Actions (trigger execution)"
+                "Transformations (lazy — build the plan)",
+                "Actions (eager — execute the plan)"
               ],
               "rows": [
                 [
                   "filter(), where()",
-                  "show(), show(n)"
+                  "show(n)"
                 ],
                 [
                   "select(), drop()",
@@ -271,7 +85,7 @@
                   "collect()"
                 ],
                 [
-                  "groupBy(), agg()",
+                  "groupBy().agg()",
                   "write.parquet(), write.csv()"
                 ],
                 [
@@ -283,179 +97,25 @@
                   "toPandas()"
                 ],
                 [
-                  "distinct()",
+                  "distinct(), dropDuplicates()",
                   "describe()"
                 ]
               ]
             },
             {
+              "type": "heading",
+              "content": "The Cost of Unnecessary Actions"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# DEVELOPMENT — intermediate actions OK for debugging\ndf = spark.read.parquet('bronze/meters/')\ndf = df.filter(col('daily_kw') > 0)\nprint(f\"After filter: {df.count()} rows\")  # reads file from scratch\ndf = df.filter(col('region') == 'NORTH')\ndf.show(5)  # reads file from scratch AGAIN\n# File read TWICE\n\n# PRODUCTION — one action at the end\ndf = (spark.read.parquet('bronze/meters/')\n    .filter(col('daily_kw') > 0)\n    .filter(col('region') == 'NORTH')\n    .withColumn('year', year(col('date')))\n    .select('meter_id', 'daily_kw', 'year'))\ndf.write.parquet('silver/meters_north/')  # file read ONCE"
+            },
+            {
               "type": "callout",
               "variant": "warning",
               "title": "Common mistake",
-              "content": "Calling .count() inside a loop triggers a full execution each time. Use .show(5) during development. Save .count() for validation checkpoints."
-            }
-          ]
-        },
-        {
-          "id": "module-PS3-lesson-06",
-          "title": "The Column Object",
-          "estimatedMinutes": 12,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "A Column in PySpark is not a list of values. It is an expression — a description of a computation that will be applied to every row when an action triggers execution."
-            },
-            {
-              "type": "heading",
-              "content": "Four Ways to Reference a Column"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "from pyspark.sql.functions import col\n\ndf.select('daily_kw')              # string name\ndf.select(col('daily_kw'))         # col() function — recommended\ndf.select(df.daily_kw)             # dot notation\ndf.select(df['daily_kw'])          # bracket notation"
-            },
-            {
-              "type": "heading",
-              "content": "Columns Are Expressions"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "from pyspark.sql.functions import col, when\n\nexpr = col('daily_kw') / 1000\ntier = when(col('daily_kw') < 500, 'Low') \\\n       .when(col('daily_kw') < 2000, 'Medium') \\\n       .otherwise('High')\n\ndf = df.withColumn('daily_mw', expr)\ndf = df.withColumn('usage_tier', tier)"
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Key insight",
-              "content": "Think of Column objects as formulas in a spreadsheet cell. The formula =A1/1000 is not a number — it is an instruction. PySpark columns work the same way."
-            }
-          ]
-        },
-        {
-          "id": "module-PS3-lesson-07",
-          "title": "Renaming and Dropping Columns",
-          "estimatedMinutes": 10,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Raw data rarely arrives with clean column names. Spark can handle messy names, but downstream code is cleaner with snake_case, no spaces, lowercase."
-            },
-            {
-              "type": "heading",
-              "content": "Renaming with alias() in select()"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "df = df.select(\n    col('Meter ID').alias('meter_id'),\n    col('Daily kW').alias('daily_kw'),\n    col('Reading Date').alias('date'),\n    col('Region')  # no rename needed\n)"
-            },
-            {
-              "type": "heading",
-              "content": "Dropping Columns"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "df = df.drop('raw_timestamp', 'source_file', 'batch_id')"
-            },
-            {
-              "type": "callout",
-              "variant": "tip",
-              "title": "Production pattern",
-              "content": "Use select() to whitelist columns. Use drop() to remove one or two extras. Whitelisting is safer because it fails loudly if a column is missing."
-            }
-          ]
-        },
-        {
-          "id": "module-PS3-lesson-08",
-          "title": "Chaining Transformations",
-          "estimatedMinutes": 12,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "PySpark's immutability creates a natural coding pattern: method chaining. Each transformation returns a new DataFrame, so you can stack calls into a readable pipeline."
-            },
-            {
-              "type": "heading",
-              "content": "The Chain Pattern"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "from pyspark.sql.functions import col, year, upper, when\n\ncleaned = (\n    spark.read.csv('bronze/meters.csv', header=True, schema=meter_schema)\n    .filter(col('daily_kw').isNotNull())\n    .filter(col('daily_kw') > 0)\n    .filter(col('daily_kw') < 50000)\n    .withColumn('region', upper(col('region')))\n    .withColumn('daily_mw', col('daily_kw') / 1000)\n    .withColumn('year', year(col('date')))\n    .withColumn('usage_tier',\n        when(col('daily_kw') < 500, 'Low')\n        .when(col('daily_kw') < 2000, 'Medium')\n        .otherwise('High')\n    )\n    .select('meter_id', 'date', 'region', 'daily_kw', 'daily_mw', 'year', 'usage_tier')\n)"
-            },
-            {
-              "type": "callout",
-              "variant": "tip",
-              "title": "Readability rule",
-              "content": "If another engineer cannot understand your chain in 30 seconds, break it up. Name intermediates after what they represent: raw, validated, enriched, aggregated."
-            }
-          ]
-        },
-        {
-          "id": "module-PS3-lesson-09",
-          "title": "printSchema() Deep Dive",
-          "estimatedMinutes": 12,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "printSchema() is the single most underused tool in PySpark development. It shows every column name, type, and nullable flag. Reading the schema before writing transformations prevents entire categories of bugs."
-            },
-            {
-              "type": "heading",
-              "content": "What Nullable Means"
-            },
-            {
-              "type": "paragraph",
-              "content": "nullable = true means the column can contain null values. This matters for joins (nulls never match), aggregations (nulls are skipped), and filters (null comparisons return null, not true or false)."
-            },
-            {
-              "type": "heading",
-              "content": "Programmatic Schema Access"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "print(df.columns)         # ['meter_id', 'daily_kw', 'date', ...]\nprint(df.dtypes)          # [('meter_id', 'string'), ('daily_kw', 'double'), ...]\n\nif 'daily_kw' in df.columns:\n    df = df.withColumn('daily_mw', col('daily_kw') / 1000)"
-            },
-            {
-              "type": "callout",
-              "variant": "tip",
-              "title": "Production habit",
-              "content": "Run printSchema() at the start of every notebook or pipeline step. It takes zero time (schemas are metadata) and prevents the most common errors: wrong column names, wrong types, unexpected nulls."
-            }
-          ]
-        },
-        {
-          "id": "module-PS3-lesson-10",
-          "title": "DataFrame Lineage and the DAG",
-          "estimatedMinutes": 14,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Every transformation adds a node to an invisible structure called the DAG. The DAG is Spark's complete recipe from source data to final output. Understanding it explains how Spark plans execution, recovers from failures, and optimizes your code."
-            },
-            {
-              "type": "heading",
-              "content": "Stages and Tasks"
-            },
-            {
-              "type": "paragraph",
-              "content": "Catalyst compiles the DAG into stages. Narrow transformations like filter() stay in the same stage. Wide transformations like groupBy() force a stage boundary because data must shuffle. Within each stage, one task per partition runs in parallel."
-            },
-            {
-              "type": "heading",
-              "content": "Lineage and Fault Tolerance"
-            },
-            {
-              "type": "paragraph",
-              "content": "If an executor crashes and a partition is lost, Spark looks at the DAG, identifies which source partitions fed the lost partition, and recomputes just that slice. This is lineage-based fault tolerance."
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Key insight",
-              "content": "The DAG is why immutability and lazy evaluation exist. Immutability means every transformation is a pure function. Laziness means Spark builds the complete DAG before executing. Together, they let Spark optimize, parallelize, and recover from any failure."
+              "content": "Calling count() inside a loop or after every transformation in production. Each count() triggers a full execution from scratch. Use show(5) during development (cheap — stops after 5 rows). In production, chain transformations and trigger one action (write) at the end."
             }
           ]
         }
@@ -465,294 +125,119 @@
       "id": "module-PSI3",
       "number": 13,
       "title": "Join Performance and Shuffle Optimization",
-      "description": "Understand why joins are the most performance-sensitive operation in Spark, master broadcast and shuffle join strategies, detect and resolve data skew.",
-      "totalMinutes": 200,
+      "description": "Master the performance characteristics of distributed joins — broadcast strategies, shuffle mechanics, skew detection, and optimizer behaviors.",
+      "totalMinutes": 35,
       "sections": [
-        {
-          "id": "module-PSI3-lesson-01",
-          "title": "Why Joins Are Expensive",
-          "estimatedMinutes": 18,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "In the junior-level track, you learned that joins combine two DataFrames on a matching key. Now we look at the cost — and the answer is: more than any other operation. A join that works on 100,000 rows can bring a cluster to its knees at 100 million rows, not because the logic is wrong but because the physical execution strategy is wrong."
-            },
-            {
-              "type": "heading",
-              "content": "The Shuffle Problem"
-            },
-            {
-              "type": "paragraph",
-              "content": "When you write readings.join(metadata, 'meter_id'), Spark must ensure that every row with the same meter_id ends up on the same executor. This movement of data across the network is called a shuffle, and it is the single most expensive operation in distributed computing."
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "result = readings.join(metadata, 'meter_id')\nresult.explain()"
-            },
-            {
-              "type": "code",
-              "language": "text",
-              "content": "== Physical Plan ==\n*(5) SortMergeJoin [meter_id#0], [meter_id#10], Inner\n:- *(2) Sort [meter_id#0 ASC]\n:  +- Exchange hashpartitioning(meter_id#0, 200)    ← SHUFFLE\n+- *(4) Sort [meter_id#10 ASC]\n   +- Exchange hashpartitioning(meter_id#10, 200)    ← SHUFFLE"
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Key insight",
-              "content": "The cost of a join is not determined by the complexity of your join condition. It is determined by how much data must move across the network."
-            }
-          ]
-        },
-        {
-          "id": "module-PSI3-lesson-02",
-          "title": "Broadcast Joins — Eliminating Shuffle",
-          "estimatedMinutes": 22,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "What if instead of shuffling both sides, we sent the entire metadata table (50MB) to every executor? Each executor would have a complete local copy and could join locally. This is a broadcast join — the single most impactful performance optimization for joins where one side is small."
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "from pyspark.sql.functions import broadcast\n\nresult = readings.join(broadcast(metadata), 'meter_id')\nresult.explain()"
-            },
-            {
-              "type": "code",
-              "language": "text",
-              "content": "== Physical Plan ==\n*(2) BroadcastHashJoin [meter_id#0], [meter_id#10], Inner\n:- *(1) FileScan parquet\n+- BroadcastExchange HashedRelationBroadcastMode\n   +- FileScan parquet"
-            },
-            {
-              "type": "paragraph",
-              "content": "No 'Exchange hashpartitioning' — no shuffle. Network I/O reduced from 2.05GB to 150MB — a 13x improvement."
-            },
-            {
-              "type": "heading",
-              "content": "When to Broadcast"
-            },
-            {
-              "type": "table",
-              "headers": [
-                "Broadcast Side Size",
-                "Recommendation"
-              ],
-              "rows": [
-                [
-                  "< 10MB",
-                  "Automatic. Spark broadcasts without any hint."
-                ],
-                [
-                  "10MB – 200MB",
-                  "Use explicit broadcast() hint."
-                ],
-                [
-                  "200MB – 1GB",
-                  "Test carefully. Monitor executor memory."
-                ],
-                [
-                  "&gt; 1GB",
-                  "Never broadcast. Use shuffle join or bucketed join."
-                ]
-              ]
-            },
-            {
-              "type": "callout",
-              "variant": "warning",
-              "title": "Common mistake",
-              "content": "Raising autoBroadcastJoinThreshold to 2GB to 'always use broadcast.' This causes OutOfMemoryError when tables are actually large."
-            }
-          ]
-        },
-        {
-          "id": "module-PSI3-lesson-03",
-          "title": "Sort-Merge Join Internals",
-          "estimatedMinutes": 20,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "When broadcast is not an option, Spark falls back to SortMergeJoin. This is the workhorse for production pipelines where both DataFrames contain millions or billions of rows."
-            },
-            {
-              "type": "heading",
-              "content": "The Three Phases"
-            },
-            {
-              "type": "paragraph",
-              "content": "Phase 1: Shuffle both sides by join key. Phase 2: Sort each partition. Phase 3: Merge-walk both sorted partitions linearly. The merge is O(n) and cheap. The shuffle and sort are where cost lives."
-            },
-            {
-              "type": "callout",
-              "variant": "tip",
-              "title": "Production pattern",
-              "content": "Always check the physical plan. Run result.explain() and look for 'Exchange' lines. Each Exchange is a shuffle."
-            }
-          ]
-        },
         {
           "id": "module-PSI3-lesson-04",
           "title": "Data Skew — The Silent Killer",
-          "estimatedMinutes": 22,
+          "estimatedMinutes": 35,
           "blocks": [
             {
               "type": "paragraph",
-              "content": "Your pipeline ran fine for six months. Then it started taking 4 hours. One region grew from 25% to 60% of all readings. The shuffle sends 60% of data to one executor while others sit idle. This is data skew."
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "readings.groupBy('region').count().orderBy('count', ascending=False).show()"
+              "content": "NordGrid's daily meter pipeline ran reliably for six months at 22 minutes. Then it started taking 3 hours. Nothing in the code changed. The Spark UI showed 19 of 20 tasks completed in under 2 minutes, but one task ran for 2 hours 48 minutes. NORTH region grew from 25% to 65% of all readings. The shuffle sent 65% of data to one executor. This is data skew."
             },
             {
               "type": "heading",
-              "content": "Three Strategies for Skew Resolution"
-            },
-            {
-              "type": "paragraph",
-              "content": "Salting splits the hot key into sub-keys. AQE detects and fixes skew automatically. Pre-aggregation reduces volume before the join."
+              "content": "What Skew Looks Like"
             },
             {
               "type": "code",
               "language": "python",
-              "content": "# Strategy 1: Salting\nSALT_BUCKETS = 10\nreadings_salted = readings.withColumn(\n    'salt', floor(rand() * SALT_BUCKETS).cast('int')\n).withColumn(\n    'meter_id_salted', concat(col('meter_id'), lit('_'), col('salt'))\n)"
-            },
-            {
-              "type": "callout",
-              "variant": "warning",
-              "title": "Salting trade-off",
-              "content": "Salting multiplies the small side by the number of buckets. A 50MB table becomes 500MB with 10 buckets."
-            }
-          ]
-        },
-        {
-          "id": "module-PSI3-lesson-05",
-          "title": "Shuffle Partition Tuning",
-          "estimatedMinutes": 20,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "spark.sql.shuffle.partitions defaults to 200. This single parameter affects every groupBy, join, distinct, and window function. Target 128-256MB per partition."
+              "content": "readings.groupBy('region').agg(\n    count('*').alias('row_count')\n).orderBy(desc('row_count')).show()"
             },
             {
               "type": "code",
-              "language": "python",
-              "content": "# Calculate optimal partitions\ntotal_gb = 2.0\ntarget_mb = 200\noptimal = int((total_gb * 1024) / target_mb)\nspark.conf.set('spark.sql.shuffle.partitions', str(optimal))"
+              "language": "text",
+              "content": "+------+---------+\n|region|row_count|\n+------+---------+\n| NORTH|  6500000|  ← 65% of all rows\n| SOUTH|  1800000|\n|  EAST|  1200000|\n|  WEST|   500000|\n+------+---------+"
+            },
+            {
+              "type": "diagram",
+              "title": "Skewed shuffle — one executor overwhelmed",
+              "content": "Executor 1 (NORTH)     Executor 2 (SOUTH)     Executor 3 (EAST)      Executor 4 (WEST)\n6,500,000 rows          1,800,000 rows          1,200,000 rows         500,000 rows\nTakes 6.5 min           Takes 1.8 min           Takes 1.2 min          Takes 0.5 min\n\nExecutors 2-4 idle for 4-6 minutes waiting for Executor 1\nJob time: 6.5 min (determined by slowest executor)\nEffective utilization: 40%",
+              "caption": "Skew turns a parallel job into a sequential bottleneck."
             },
             {
               "type": "heading",
-              "content": "Adaptive Query Execution"
+              "content": "Strategy 1: Salting"
+            },
+            {
+              "type": "paragraph",
+              "content": "Salting splits a hot key into multiple sub-keys. Add a random suffix so NORTH rows distribute across 10 partitions (NORTH_0 through NORTH_9). Expand the small side to match all salt values."
             },
             {
               "type": "code",
               "language": "python",
-              "content": "spark.conf.set('spark.sql.adaptive.enabled', 'true')\nspark.conf.set('spark.sql.adaptive.coalescePartitions.enabled', 'true')\nspark.conf.set('spark.sql.shuffle.partitions', '2000')\nspark.conf.set('spark.sql.adaptive.advisoryPartitionSizeInBytes', '200m')"
+              "content": "from pyspark.sql.functions import col, concat, lit, floor, rand, explode, array\n\nSALT_BUCKETS = 10\n\n# Add random salt to the LARGE side\nreadings_salted = readings.withColumn(\n    'salt', floor(rand() * SALT_BUCKETS).cast('int')\n).withColumn(\n    'region_salted', concat(col('region'), lit('_'), col('salt'))\n)\n\n# Explode the SMALL side to match all salt values\nmetadata_exploded = metadata.withColumn(\n    'salt', explode(array([lit(i) for i in range(SALT_BUCKETS)]))\n).withColumn(\n    'region_salted', concat(col('region'), lit('_'), col('salt'))\n)\n\n# Join on salted key\nresult = readings_salted.join(metadata_exploded, 'region_salted', 'inner')\n    .drop('salt', 'region_salted')"
             },
             {
-              "type": "callout",
-              "variant": "tip",
-              "title": "Production rule",
-              "content": "On Spark 3.2+, enable AQE and set shuffle.partitions high (2000-4000). Let AQE handle coalescing."
-            }
-          ]
-        },
-        {
-          "id": "module-PSI3-lesson-06",
-          "title": "Join Ordering and Predicate Pushdown",
-          "estimatedMinutes": 20,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Catalyst rearranges your operations automatically — pushing filters toward the data source even if you wrote them after the join. Understanding what Catalyst will and will not optimize helps you cooperate with the optimizer."
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "# You write filter AFTER join — Catalyst pushes it down automatically\nresult = readings.join(metadata, 'meter_id').filter(col('region') == 'NORTH')"
-            },
-            {
-              "type": "paragraph",
-              "content": "Catalyst cannot push filters through UDFs, cross-table conditions, or post-aggregation filters. In those cases, manually restructure your code."
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Key insight",
-              "content": "Trust Catalyst for simple column filters. Do not trust it for UDFs or cross-table conditions. Manually restructure for those cases."
-            }
-          ]
-        },
-        {
-          "id": "module-PSI3-lesson-07",
-          "title": "Bucketed Joins — Pre-Sorted, Pre-Shuffled",
-          "estimatedMinutes": 22,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Bucketing pays the shuffle cost once at write time so every subsequent join is free. Both tables must use the same number of buckets and the same column."
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "readings.write.mode('overwrite').bucketBy(200, 'meter_id').sortBy('meter_id').saveAsTable('silver.readings_bucketed')\nmetadata.write.mode('overwrite').bucketBy(200, 'meter_id').sortBy('meter_id').saveAsTable('silver.metadata_bucketed')\n\n# Join is now shuffle-free\nresult = spark.table('silver.readings_bucketed').join(spark.table('silver.metadata_bucketed'), 'meter_id')"
-            },
-            {
-              "type": "callout",
-              "variant": "warning",
-              "title": "Common mistake",
-              "content": "Both tables MUST use the same number of buckets. If readings uses 200 and metadata uses 100, Spark falls back to shuffle join."
-            }
-          ]
-        },
-        {
-          "id": "module-PSI3-lesson-08",
-          "title": "Join Strategy Decision Framework",
-          "estimatedMinutes": 18,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "You now know four strategies: broadcast, sort-merge, bucketed, and salting. The question is which to choose for each specific join."
+              "type": "comparison",
+              "leftLabel": "Before Salting (Skewed)",
+              "rightLabel": "After Salting (Balanced)",
+              "rows": [
+                {
+                  "left": "NORTH partition: 6.5M rows on one executor",
+                  "right": "NORTH split into 10 partitions of ~650K each"
+                },
+                {
+                  "left": "Job time: 6.5 min (slowest executor)",
+                  "right": "All partitions similar: ~1.8 min max"
+                },
+                {
+                  "left": "3 executors idle 4-6 minutes",
+                  "right": "All executors utilized throughout"
+                },
+                {
+                  "left": "Metadata: 50MB shuffled once",
+                  "right": "Metadata: 500MB (10x explosion)"
+                }
+              ]
             },
             {
               "type": "heading",
-              "content": "Strategy Summary"
+              "content": "Strategy 2: AQE Skew Handling"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# Enable AQE — no code changes to the join itself\nspark.conf.set('spark.sql.adaptive.enabled', 'true')\nspark.conf.set('spark.sql.adaptive.skewJoin.enabled', 'true')\nspark.conf.set('spark.sql.adaptive.skewJoin.skewedPartitionFactor', '5')\nspark.conf.set('spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes', '256m')\n\n# Normal join — AQE detects and splits skewed partitions automatically\nresult = readings.join(metadata, 'region', 'inner')"
+            },
+            {
+              "type": "heading",
+              "content": "Choosing Between Strategies"
             },
             {
               "type": "table",
               "headers": [
-                "Strategy",
-                "When to Use",
-                "Network Cost",
-                "Setup Cost"
+                "Factor",
+                "Salting",
+                "AQE",
+                "Pre-Aggregation"
               ],
               "rows": [
                 [
-                  "Broadcast",
-                  "One side < 200MB",
-                  "Small side × executor count",
-                  "None"
+                  "Spark version",
+                  "Any",
+                  "3.0+ (reliable since 3.2)",
+                  "Any"
                 ],
                 [
-                  "Sort-Merge (shuffle)",
-                  "Both sides large, no bucketing",
-                  "Both sides fully shuffled",
-                  "None (default)"
+                  "Code changes",
+                  "Significant",
+                  "None — config only",
+                  "Moderate"
                 ],
                 [
-                  "Sort-Merge (bucketed)",
-                  "Both large, joined repeatedly on same key",
-                  "Zero (pre-shuffled)",
-                  "High (must bucket both)"
+                  "Extreme skew (90%+)",
+                  "Yes, with high bucket count",
+                  "May struggle",
+                  "Yes, if aggregation is valid"
                 ],
                 [
-                  "Salting",
-                  "Skewed key",
-                  "Both shuffled, small side multiplied",
-                  "Medium (code complexity)"
-                ],
-                [
-                  "AQE skew join",
-                  "Skewed key, Spark 3.2+",
-                  "Both shuffled, auto-split",
-                  "None (just config)"
+                  "Small side impact",
+                  "Multiplied by salt count",
+                  "Handled internally",
+                  "No impact"
                 ]
               ]
             },
@@ -760,89 +245,7 @@
               "type": "callout",
               "variant": "tip",
               "title": "Production pattern",
-              "content": "For NordGrid daily: broadcast metadata (50MB), default sort-merge for readings-SCADA, enable AQE for skew. For yearly reprocessing: bucket both sides."
-            }
-          ]
-        },
-        {
-          "id": "module-PSI3-lesson-09",
-          "title": "AQE Join Optimizations",
-          "estimatedMinutes": 20,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "AQE optimizes during execution based on actual observed data. It provides three critical optimizations: converting sort-merge to broadcast at runtime, coalescing small partitions, and splitting skewed partitions."
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "spark.conf.set('spark.sql.adaptive.enabled', 'true')\nspark.conf.set('spark.sql.adaptive.skewJoin.enabled', 'true')\nspark.conf.set('spark.sql.adaptive.skewJoin.skewedPartitionFactor', '5')"
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Key insight",
-              "content": "AQE is not a replacement for understanding join performance — it is a safety net. Enable it everywhere. But when you see unexpected slowness, diagnose the join strategy yourself."
-            }
-          ]
-        },
-        {
-          "id": "module-PSI3-lesson-10",
-          "title": "Monitoring Joins in Production",
-          "estimatedMinutes": 18,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Knowing the right strategy is necessary but not sufficient. You need to detect join performance degradation before it causes an SLA breach."
-            },
-            {
-              "type": "heading",
-              "content": "Key Metrics"
-            },
-            {
-              "type": "table",
-              "headers": [
-                "Metric",
-                "Healthy Range",
-                "Warning Signal"
-              ],
-              "rows": [
-                [
-                  "Shuffle Read Size",
-                  "Consistent (±20%)",
-                  "Sudden 2x+ increase"
-                ],
-                [
-                  "Task Duration Skew",
-                  "Max < 3x median",
-                  "Max > 5x median"
-                ],
-                [
-                  "Spill (Memory)",
-                  "Zero",
-                  "Any nonzero value"
-                ],
-                [
-                  "GC Time",
-                  "< 5% of task",
-                  "&gt; 10%"
-                ]
-              ]
-            },
-            {
-              "type": "heading",
-              "content": "Join Health Check Function"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "def join_health_check(left_df, right_df, join_key):\n    left_count = left_df.count()\n    right_count = right_df.count()\n    left_keys = left_df.select(countDistinct(join_key)).collect()[0][0]\n    key_dist = left_df.groupBy(join_key).count()\n    stats = key_dist.agg(spark_max('count'), spark_min('count')).collect()[0]\n    skew_ratio = stats[0] / max(stats[1], 1)\n    print(f'Skew ratio: {skew_ratio:.1f}x')\n    if skew_ratio > 10:\n        print('WARNING: Significant skew detected')"
-            },
-            {
-              "type": "callout",
-              "variant": "tip",
-              "title": "Production pattern",
-              "content": "Add a join health check to every pipeline with an SLA. It costs one extra pass but catches problems that would otherwise cost hours of debugging."
+              "content": "Enable AQE as baseline defense for moderate skew. For extreme skew in annual reprocessing, add manual salting with 20 buckets. Monitor max/median task duration ratio weekly — if it exceeds 10x, investigate."
             }
           ]
         }
@@ -853,255 +256,54 @@
       "number": 23,
       "title": "Partition Strategy at Scale",
       "description": "Design, implement, and maintain partition strategies for multi-terabyte datasets.",
-      "totalMinutes": 240,
+      "totalMinutes": 45,
       "sections": [
         {
-          "id": "module-PSS3-lesson-01",
-          "title": "The Partition Problem at 30 Regions",
-          "estimatedMinutes": 22,
+          "id": "module-PSS3-lesson-08",
+          "title": "Repartitioning a Live Table",
+          "estimatedMinutes": 45,
           "blocks": [
             {
               "type": "paragraph",
-              "content": "You know how partitioning works. You used partitionBy('region', 'date') and it was straightforward: 4 regions × 365 days = 1,460 partitions per year. GridUnion Continental operates 30 regions across 4 countries with 5 million smart meters. The same strategy produces 262,800 partitions per year at hourly granularity. The file system strains, the metastore becomes a bottleneck, and partition discovery takes minutes."
+              "content": "GridUnion's Silver meter readings table was partitioned by date only. It holds 8TB spanning 3 years. Twelve downstream pipelines and 40 Power BI reports depend on it. After acquiring three subsidiaries, the EU regulator requires country-level data isolation — the partition scheme must change to country/date within 90 days."
             },
             {
               "type": "heading",
-              "content": "What This Module Covers"
+              "content": "The Three Migration Approaches"
+            },
+            {
+              "type": "heading",
+              "content": "Approach 1: Dual-Write Migration"
             },
             {
               "type": "paragraph",
-              "content": "This module is about designing partition strategies that work at scale and survive production for years. We cover partition column selection, granularity trade-offs, dynamic partition pruning, small file remediation, and repartitioning live tables."
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Architectural principle",
-              "content": "A partition strategy is not a performance optimization — it is a data architecture decision with a 2-3 year lifespan. Changing it after deployment requires rewriting terabytes. Get it right at design time."
-            }
-          ]
-        },
-        {
-          "id": "module-PSS3-lesson-02",
-          "title": "Partition Column Selection",
-          "estimatedMinutes": 26,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "The partition column determines how data is physically organized on disk. Every query that filters on it skips irrelevant data at the file system level. This makes partition column selection the highest-leverage decision in table design."
-            },
-            {
-              "type": "heading",
-              "content": "Selection Criteria"
-            },
-            {
-              "type": "paragraph",
-              "content": "The ideal partition column satisfies four criteria: appears in WHERE clauses of frequent queries, has moderate cardinality (30-500 values), distributes data roughly evenly, and is immutable after write."
-            },
-            {
-              "type": "heading",
-              "content": "GridUnion's Meter Readings: The Decision"
-            },
-            {
-              "type": "table",
-              "headers": [
-                "Column",
-                "Query Frequency",
-                "Cardinality",
-                "Distribution",
-                "Verdict"
-              ],
-              "rows": [
-                [
-                  "date",
-                  "Very high",
-                  "365/year",
-                  "Even",
-                  "Strong candidate"
-                ],
-                [
-                  "region",
-                  "High",
-                  "30",
-                  "Uneven (Germany 40%)",
-                  "Good as secondary"
-                ],
-                [
-                  "country",
-                  "Medium",
-                  "4",
-                  "Uneven",
-                  "Too few alone"
-                ],
-                [
-                  "customer_type",
-                  "Low",
-                  "3",
-                  "Uneven (80% residential)",
-                  "Not useful"
-                ],
-                [
-                  "meter_id",
-                  "Low",
-                  "5M",
-                  "Even",
-                  "Creates 5M partitions — catastrophic"
-                ]
-              ]
-            },
-            {
-              "type": "heading",
-              "content": "Modeling Partition Sizes"
+              "content": "Create a new table alongside the old one. Modify the write pipeline to write to both simultaneously. Migrate consumers one by one. Once all switched, backfill historical data, decommission the old table. Zero downtime, but 2x storage and write cost during migration (2-6 weeks)."
             },
             {
               "type": "code",
               "language": "python",
-              "content": "def model_partition_strategy(total_data_gb, partition_columns, cardinalities):\n    partition_count = 1\n    for col_name in partition_columns:\n        partition_count *= cardinalities[col_name]\n    avg_partition_mb = (total_data_gb * 1024) / partition_count\n    assessment = 'optimal' if 128 <= avg_partition_mb <= 1024 else 'too small' if avg_partition_mb < 128 else 'too large'\n    print(f'{\" / \".join(partition_columns)}: {partition_count:,} partitions, {avg_partition_mb:.0f} MB avg [{assessment}]')\n\ncardinalities = {'country': 4, 'region': 30, 'date': 365}\nmodel_partition_strategy(10_000, ['country', 'date'], cardinalities)\nmodel_partition_strategy(10_000, ['country', 'region', 'date'], cardinalities)"
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Design principle",
-              "content": "Always model partition sizes before implementing. Target 128MB-1GB per partition. Run the model for current volumes and projected volumes 2 years out."
-            }
-          ]
-        },
-        {
-          "id": "module-PSS3-lesson-03",
-          "title": "Granularity Trade-Offs",
-          "estimatedMinutes": 24,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Finer granularity means better pruning but more partitions. Coarser means fewer partitions but more data scanned. The right granularity depends on query patterns and data volume."
+              "content": "def write_daily_batch_dual(batch_df, batch_date):\n    batch_df = batch_df.withColumn('country',\n        when(col('region').startswith('DE-'), lit('DE'))\n        .when(col('region').startswith('FR-'), lit('FR'))\n        .when(col('region').startswith('NL-'), lit('NL'))\n        .otherwise(lit('UNKNOWN'))\n    )\n    batch_df.cache()\n    batch_df.count()  # materialize cache\n    \n    # Write to BOTH tables\n    batch_df.write.mode('append').partitionBy('date').parquet('silver/meter_readings/')\n    batch_df.write.mode('append').partitionBy('country', 'date').parquet('silver/meter_readings_v2/')\n    batch_df.unpersist()"
             },
             {
               "type": "heading",
-              "content": "The Granularity Spectrum"
+              "content": "Approach 2: View Abstraction"
             },
-            {
-              "type": "table",
-              "headers": [
-                "Granularity",
-                "Partitions/Year (30 regions)",
-                "Avg Size at 10TB",
-                "Best Query Pattern"
-              ],
-              "rows": [
-                [
-                  "Hourly",
-                  "262,800",
-                  "~39MB (too small)",
-                  "Point-in-time queries"
-                ],
-                [
-                  "Daily",
-                  "10,950",
-                  "~935MB (optimal)",
-                  "Daily reports, date-range analytics"
-                ],
-                [
-                  "Weekly",
-                  "1,560",
-                  "~6.5GB (large)",
-                  "Weekly summaries"
-                ],
-                [
-                  "Monthly",
-                  "360",
-                  "~28GB (very large)",
-                  "Monthly regulatory reports"
-                ]
-              ]
-            },
-            {
-              "type": "callout",
-              "variant": "warning",
-              "title": "Architectural trap",
-              "content": "Do not let ingestion cadence determine partition granularity. Data arriving hourly does not require hourly partitions. Granularity is determined by query patterns and partition size targets."
-            }
-          ]
-        },
-        {
-          "id": "module-PSS3-lesson-04",
-          "title": "Dynamic Partition Pruning",
-          "estimatedMinutes": 26,
-          "blocks": [
             {
               "type": "paragraph",
-              "content": "Dynamic partition pruning (DPP) extends static pruning to join predicates, where pruning values come from another query at runtime. DPP is the most impactful optimization for star schema queries."
+              "content": "Create a UNION ALL view combining new data (new partition scheme) and historical data (old scheme). Consumers read the view transparently. Gradually backfill historical data. Requires all consumers to use catalog names, not direct paths."
+            },
+            {
+              "type": "heading",
+              "content": "Approach 3: Delta Lake CRAS"
+            },
+            {
+              "type": "paragraph",
+              "content": "CREATE OR REPLACE TABLE AS SELECT rewrites the entire 8TB table atomically. Delta's MVCC ensures readers see the pre-migration snapshot until the commit. One command, 4-8 hours, zero consumer code changes."
             },
             {
               "type": "code",
               "language": "python",
-              "content": "# Star schema query — DPP optimizes automatically\nresult = (\n    fact_readings\n    .join(dim_regions, 'region_id')\n    .filter(col('country') == 'DE')\n    .groupBy('date')\n    .agg(F.sum('daily_kw').alias('total_kw'))\n)\n# With DPP: Spark reads dim_regions, gets DE region_ids, prunes fact partitions\n# Without DPP: Spark reads ALL partitions then filters after join"
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Architectural principle",
-              "content": "Design partition columns to align with star schema join paths. Partition strategy is not just a storage decision — it is a query optimization decision designed from the consumer backward."
-            }
-          ]
-        },
-        {
-          "id": "module-PSS3-lesson-05",
-          "title": "The Small Files Problem",
-          "estimatedMinutes": 24,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Every partition strategy eventually produces small files. A 1MB file and a 256MB file take almost the same time to open. When Spark reads 10,000 small files, it spends more time opening files than reading data."
-            },
-            {
-              "type": "table",
-              "headers": [
-                "Metric",
-                "10,000 × 1MB Files",
-                "40 × 256MB Files"
-              ],
-              "rows": [
-                [
-                  "File open overhead",
-                  "10,000 operations",
-                  "40 operations"
-                ],
-                [
-                  "Task count",
-                  "10,000 tasks",
-                  "40 tasks"
-                ],
-                [
-                  "Read throughput",
-                  "~50 MB/s effective",
-                  "~500 MB/s effective"
-                ]
-              ]
-            },
-            {
-              "type": "heading",
-              "content": "Delta Lake OPTIMIZE"
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "# Delta Lake compaction — one command\nspark.sql(\"OPTIMIZE silver.meter_readings WHERE country = 'DE' AND date = '2026-01-15'\")\n\n# Z-ORDER for multi-column optimization\nspark.sql(\"OPTIMIZE silver.meter_readings WHERE country = 'DE' ZORDER BY (meter_id)\")"
-            },
-            {
-              "type": "callout",
-              "variant": "tip",
-              "title": "Production pattern",
-              "content": "OPTIMIZE runs nightly on previous day's partitions. Budget 15-30 minutes per TB. This is non-negotiable operational cost of partitioning."
-            }
-          ]
-        },
-        {
-          "id": "module-PSS3-lesson-06",
-          "title": "When NOT to Partition",
-          "estimatedMinutes": 22,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Small tables, lookup tables, dimension tables, and tables with unpredictable query patterns are all worse off with partitioning."
+              "content": "spark.sql(\"\"\"\n    CREATE OR REPLACE TABLE silver.meter_readings\n    USING DELTA\n    PARTITIONED BY (country, date)\n    AS SELECT\n        meter_id, daily_kw, date, region,\n        CASE WHEN region LIKE 'DE-%' THEN 'DE'\n             WHEN region LIKE 'FR-%' THEN 'FR'\n             WHEN region LIKE 'NL-%' THEN 'NL'\n             ELSE 'UNKNOWN'\n        END AS country,\n        customer_type, substation_id\n    FROM silver.meter_readings\n\"\"\")\n\n-- After: OPTIMIZE + VACUUM\nspark.sql(\"OPTIMIZE silver.meter_readings ZORDER BY (meter_id)\")\nspark.sql(\"VACUUM silver.meter_readings RETAIN 168 HOURS\")"
             },
             {
               "type": "heading",
@@ -1110,247 +312,76 @@
             {
               "type": "table",
               "headers": [
-                "Table Size",
-                "Query Pattern",
-                "Recommendation"
+                "Factor",
+                "Dual-Write",
+                "View Abstraction",
+                "Delta CRAS"
               ],
               "rows": [
                 [
-                  "< 1GB",
-                  "Any",
-                  "Do not partition"
-                ],
-                [
-                  "1-10GB",
-                  "Consistent filter column",
-                  "Consider partitioning"
-                ],
-                [
-                  "1-10GB",
-                  "Unpredictable / ad-hoc",
-                  "Do not partition"
-                ],
-                [
-                  "10-100GB",
-                  "Consistent filter column",
-                  "Partition"
-                ],
-                [
-                  "&gt; 100GB",
-                  "Any",
-                  "Partition (required)"
-                ],
-                [
-                  "Any",
-                  "Broadcast dimension table",
-                  "Do not partition"
-                ]
-              ]
-            },
-            {
-              "type": "callout",
-              "variant": "danger",
-              "title": "Anti-pattern: over-partitioning",
-              "content": "A platform audit found 40% of tables were partitioned unnecessarily — including tables under 100MB. Cleanup removed 200,000 empty partition directories and reduced catalog listing time by 60%."
-            }
-          ]
-        },
-        {
-          "id": "module-PSS3-lesson-07",
-          "title": "Z-ORDER and Data Skipping",
-          "estimatedMinutes": 26,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Partitioning organizes data into directories. Z-ORDER organizes data within files. Where partitioning answers 'which directory?', Z-ORDER answers 'which row groups within this file can I skip?'"
-            },
-            {
-              "type": "paragraph",
-              "content": "Z-ORDER works best on high-cardinality columns frequently filtered but not suitable as partition columns. meter_id is canonical: 5M distinct values, frequently filtered, highly selective."
-            },
-            {
-              "type": "code",
-              "language": "python",
-              "content": "spark.sql(\"\"\"\n    OPTIMIZE silver.meter_readings\n    WHERE country = 'DE' AND date >= '2026-01-01'\n    ZORDER BY (meter_id)\n\"\"\")"
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Two-tier optimization",
-              "content": "Partitioning is coarse-grained (directory level). Z-ORDER is fine-grained (within-file level). Use partitioning for low-cardinality filters. Use Z-ORDER for high-cardinality filters. Together they form a two-tier optimization."
-            }
-          ]
-        },
-        {
-          "id": "module-PSS3-lesson-08",
-          "title": "Repartitioning a Live Table",
-          "estimatedMinutes": 26,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "GridUnion's meter readings table was partitioned by date only. Regulatory requirements now mandate country-level isolation. The table holds 8TB. 12 pipelines and 40 dashboards depend on it. Zero downtime required."
-            },
-            {
-              "type": "heading",
-              "content": "Three Approaches"
-            },
-            {
-              "type": "table",
-              "headers": [
-                "Approach",
-                "Downtime",
-                "Duration",
-                "Risk"
-              ],
-              "rows": [
-                [
-                  "Dual-Write Migration",
+                  "Downtime",
                   "Zero",
-                  "2-4 weeks",
-                  "Low (rollback = stop dual write)"
-                ],
-                [
-                  "View Abstraction",
                   "Zero",
-                  "1-3 weeks",
-                  "Medium (view logic errors)"
+                  "Zero (MVCC)"
                 ],
                 [
-                  "Delta Lake CRAS",
-                  "Zero (MVCC)",
-                  "3-6 hours",
-                  "Low (Delta handles atomicity)"
+                  "Duration",
+                  "2-6 weeks",
+                  "1-4 weeks",
+                  "4-8 hours"
+                ],
+                [
+                  "Storage cost",
+                  "2x for weeks",
+                  "1.5x declining",
+                  "2x for 7 days"
+                ],
+                [
+                  "Complexity",
+                  "High",
+                  "Medium",
+                  "Low — one command"
+                ],
+                [
+                  "Rollback",
+                  "Delete new table",
+                  "Drop view",
+                  "Delta time travel"
+                ],
+                [
+                  "Requires Delta",
+                  "No",
+                  "No",
+                  "Yes"
+                ],
+                [
+                  "Consumer changes",
+                  "Yes — switch table name",
+                  "No — view abstracts",
+                  "No — same table name"
                 ]
               ]
             },
             {
-              "type": "code",
-              "language": "python",
-              "content": "# Delta Lake CRAS — atomic repartitioning\nspark.sql(\"\"\"\n    CREATE OR REPLACE TABLE silver.meter_readings\n    USING DELTA\n    PARTITIONED BY (country, date)\n    AS SELECT *, CASE WHEN region LIKE 'DE-%' THEN 'DE' END AS country\n    FROM silver.meter_readings\n\"\"\")"
-            },
-            {
-              "type": "callout",
-              "variant": "insight",
-              "title": "Architectural principle",
-              "content": "The best repartitioning is the one you never need. Invest time upfront to model for 2-year volumes. If unavoidable, Delta CRAS is lowest-risk."
-            }
-          ]
-        },
-        {
-          "id": "module-PSS3-lesson-09",
-          "title": "Partition Governance",
-          "estimatedMinutes": 22,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Without governance, each of 12 teams chooses its own strategy. Cross-country queries become nightmarish because each table has different partition columns and granularity."
-            },
-            {
               "type": "heading",
-              "content": "The Partition Standard"
+              "content": "Operational Playbook"
             },
             {
-              "type": "table",
-              "headers": [
-                "Table Category",
-                "Required Partitioning",
-                "Required Compaction"
-              ],
-              "rows": [
-                [
-                  "Silver fact tables",
-                  "country, date",
-                  "Nightly OPTIMIZE"
-                ],
-                [
-                  "Silver dimensions",
-                  "None (unpartitioned)",
-                  "Weekly OPTIMIZE"
-                ],
-                [
-                  "Gold fact tables",
-                  "country, date",
-                  "Nightly OPTIMIZE"
-                ],
-                [
-                  "Gold aggregates",
-                  "None if < 1GB, date if > 1GB",
-                  "Weekly OPTIMIZE"
-                ],
-                [
-                  "Bronze raw tables",
-                  "ingestion_date",
-                  "Weekly OPTIMIZE"
-                ]
-              ]
-            },
-            {
-              "type": "callout",
-              "variant": "tip",
-              "title": "Governance pattern",
-              "content": "Publish the partition standard as machine-readable YAML — not a wiki page. CI/CD hooks can validate automatically. Wiki pages drift from reality within months."
-            }
-          ]
-        },
-        {
-          "id": "module-PSS3-lesson-10",
-          "title": "Partition Strategy Review Template",
-          "estimatedMinutes": 22,
-          "blocks": [
-            {
-              "type": "paragraph",
-              "content": "Every new table >10GB must go through a partition strategy review. The review ensures the design accounts for current and projected volumes, query patterns, consumer needs, and compaction obligations."
-            },
-            {
-              "type": "heading",
-              "content": "The Review Template"
-            },
-            {
-              "type": "table",
-              "headers": [
-                "Section",
-                "Required Content"
-              ],
-              "rows": [
-                [
-                  "Table identity",
-                  "Name, catalog location, owner team, category"
-                ],
-                [
-                  "Data volume",
-                  "Current size, 12-month and 24-month projections"
-                ],
-                [
-                  "Proposed partitioning",
-                  "Columns, modeled partition count and average size"
-                ],
-                [
-                  "Query pattern analysis",
-                  "Top 5 queries, which columns in WHERE clauses"
-                ],
-                [
-                  "Compaction plan",
-                  "Frequency, duration, responsible pipeline"
-                ],
-                [
-                  "Consumer impact",
-                  "Downstream pipelines and dashboards"
-                ],
-                [
-                  "Z-ORDER columns",
-                  "Proposed columns with justification"
-                ],
-                [
-                  "Risk assessment",
-                  "What if volume doubles? Repartitioning fallback?"
-                ]
+              "type": "numbered-list",
+              "items": [
+                "Pre-migration audit (Week 1): Inventory consumers, document current scheme, model target scheme, get budget approval for storage.",
+                "Communication (Week 2): Notify consumer owners, schedule maintenance window, alert on-call rotation.",
+                "Dry run (Week 3): Execute in staging on 1TB sample. Verify downstream outputs match. Measure duration.",
+                "Production execution (Week 4): Execute during maintenance window. Monitor Spark UI. Validate row counts and checksums.",
+                "Post-migration validation (Week 4-5): Run all downstream pipelines. Compare outputs. Confirm regulatory compliance. Monitor for one week.",
+                "Cleanup (Week 6): VACUUM old files. Remove migration code. Update documentation."
               ]
             },
             {
               "type": "callout",
               "variant": "insight",
               "title": "Architectural principle",
-              "content": "The partition strategy review is the cheapest point to catch design errors. A 30-minute review saves a 6-hour repartitioning, a 2-week migration, and the inevitable 3 AM incident."
+              "content": "The best repartitioning is the one you never need. Invest 30 minutes in design review during initial table creation. Model partition sizes for 2-3 year volumes. A 30-minute review prevents a 6-week migration project."
             }
           ]
         }
