@@ -1,0 +1,7 @@
+{
+  "topic": "docker",
+  "title": "Docker + Containers",
+  "description": "Containerization, Dockerfiles, compose, orchestration, and production deployment.",
+  "version": "placeholder 2026-03-22",
+  "chapters": []
+}

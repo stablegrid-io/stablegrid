@@ -1,0 +1,7 @@
+{
+  "topic": "iceberg",
+  "title": "Apache Iceberg",
+  "description": "Table format internals, schema evolution, time travel, and catalog integration.",
+  "version": "placeholder 2026-03-22",
+  "chapters": []
+}

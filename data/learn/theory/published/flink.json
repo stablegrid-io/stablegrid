@@ -1,0 +1,7 @@
+{
+  "topic": "flink",
+  "title": "Apache Flink",
+  "description": "Stream processing, event time, windowing, state management, and exactly-once semantics.",
+  "version": "placeholder 2026-03-22",
+  "chapters": []
+}

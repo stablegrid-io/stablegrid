@@ -1,0 +1,7 @@
+{
+  "topic": "terraform",
+  "title": "Terraform",
+  "description": "Infrastructure as code, providers, modules, state management, and cloud provisioning.",
+  "version": "placeholder 2026-03-22",
+  "chapters": []
+}

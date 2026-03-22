@@ -60,5 +60,38 @@ export const THEORY_TOPIC_STYLE_MAP: Record<string, TheoryTopicStyle> = {
   }
 };
 
+// Placeholder styles for new topics — all use the same structure
+const placeholderStyle = (rgb: string, eyebrow: string): TheoryTopicStyle => ({
+  accentRgb: rgb,
+  eyebrow,
+  highlights: [],
+  accentTextClass: 'text-on-surface-variant',
+  iconClass: 'text-on-surface-variant',
+  iconWrapClass: 'border-outline-variant bg-surface-container',
+  badgeClass: 'border-outline-variant bg-surface-container text-on-surface-variant',
+  progressClass: 'bg-primary'
+});
+
+const newTopics: Record<string, TheoryTopicStyle> = {
+  kafka:            placeholderStyle('0,150,136',   'Streaming'),
+  sql:              placeholderStyle('66,133,244',   'Foundations'),
+  docker:           placeholderStyle('36,150,237',   'Infrastructure'),
+  dbt:              placeholderStyle('255,105,51',    'Analytics Engineering'),
+  databricks:       placeholderStyle('255,59,48',     'Platform'),
+  'data-modeling':  placeholderStyle('156,39,176',    'Architecture'),
+  'python-de':      placeholderStyle('55,118,171',    'Foundations'),
+  'cloud-infra':    placeholderStyle('255,152,0',     'Infrastructure'),
+  'data-quality':   placeholderStyle('76,175,80',     'Engineering'),
+  iceberg:          placeholderStyle('0,188,212',     'Table Format'),
+  'git-cicd':       placeholderStyle('240,80,50',     'DevOps'),
+  flink:            placeholderStyle('226,69,115',    'Streaming'),
+  snowflake:        placeholderStyle('41,128,185',    'Warehouse'),
+  terraform:        placeholderStyle('98,75,192',     'Infrastructure'),
+  'spark-streaming': placeholderStyle('230,126,34',   'Streaming'),
+  governance:       placeholderStyle('96,125,139',    'Management'),
+};
+
+Object.assign(THEORY_TOPIC_STYLE_MAP, newTopics);
+
 export const getTheoryTopicStyle = (topicId: string): TheoryTopicStyle =>
   THEORY_TOPIC_STYLE_MAP[topicId] ?? THEORY_TOPIC_STYLE_MAP.pyspark;

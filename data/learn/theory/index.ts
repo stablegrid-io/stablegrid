@@ -1,23 +1,45 @@
 import type { FrozenTheoryDoc } from '@/types/theory';
 import { airflowTheory } from '@/data/learn/theory/airflow';
-import { airflowIntermediateTrack } from '@/data/learn/theory/airflow-intermediate-track';
-import { airflowSeniorTrack } from '@/data/learn/theory/airflow-senior-track';
 import { fabricTheory } from '@/data/learn/theory/fabric';
-import { fabricBusinessIntelligenceTrack } from '@/data/learn/theory/fabric-business-intelligence-track';
-import { fabricDataEngineeringTrack } from '@/data/learn/theory/fabric-data-engineering-track';
 import { pysparkTheory } from '@/data/learn/theory/pyspark';
-import { pysparkDataEngineeringTrackTheory } from '@/data/learn/theory/pysparkDataEngineeringTrack';
+import { kafkaTheory } from '@/data/learn/theory/kafka';
+import { sqlTheory } from '@/data/learn/theory/sql';
+import { dockerTheory } from '@/data/learn/theory/docker';
+import { dbtTheory } from '@/data/learn/theory/dbt';
+import { databricksTheory } from '@/data/learn/theory/databricks';
+import { data_modelingTheory } from '@/data/learn/theory/data-modeling';
+import { python_deTheory } from '@/data/learn/theory/python-de';
+import { cloud_infraTheory } from '@/data/learn/theory/cloud-infra';
+import { data_qualityTheory } from '@/data/learn/theory/data-quality';
+import { icebergTheory } from '@/data/learn/theory/iceberg';
+import { git_cicdTheory } from '@/data/learn/theory/git-cicd';
+import { flinkTheory } from '@/data/learn/theory/flink';
+import { snowflakeTheory } from '@/data/learn/theory/snowflake';
+import { terraformTheory } from '@/data/learn/theory/terraform';
+import { spark_streamingTheory } from '@/data/learn/theory/spark-streaming';
+import { governanceTheory } from '@/data/learn/theory/governance';
 import { freezeTheoryDoc } from '@/lib/learn/freezeTheoryDoc';
 
 const rawTheoryDocs = {
   pyspark: pysparkTheory,
-  'pyspark-data-engineering-track': pysparkDataEngineeringTrackTheory,
   fabric: fabricTheory,
-  'fabric-data-engineering-track': fabricDataEngineeringTrack,
-  'fabric-business-intelligence-track': fabricBusinessIntelligenceTrack,
   airflow: airflowTheory,
-  'airflow-intermediate-track': airflowIntermediateTrack,
-  'airflow-senior-track': airflowSeniorTrack
+  kafka: kafkaTheory,
+  sql: sqlTheory,
+  docker: dockerTheory,
+  dbt: dbtTheory,
+  databricks: databricksTheory,
+  'data-modeling': data_modelingTheory,
+  'python-de': python_deTheory,
+  'cloud-infra': cloud_infraTheory,
+  'data-quality': data_qualityTheory,
+  iceberg: icebergTheory,
+  'git-cicd': git_cicdTheory,
+  flink: flinkTheory,
+  snowflake: snowflakeTheory,
+  terraform: terraformTheory,
+  'spark-streaming': spark_streamingTheory,
+  governance: governanceTheory,
 };
 
 export const theoryDocs: Record<string, FrozenTheoryDoc> = Object.entries(

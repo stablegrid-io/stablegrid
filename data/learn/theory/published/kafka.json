@@ -1,0 +1,7 @@
+{
+  "topic": "kafka",
+  "title": "Apache Kafka",
+  "description": "Event streaming, producers, consumers, partitions, and real-time data pipelines.",
+  "version": "placeholder 2026-03-22",
+  "chapters": []
+}

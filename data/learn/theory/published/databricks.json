@@ -1,0 +1,7 @@
+{
+  "topic": "databricks",
+  "title": "Databricks + Delta Lake",
+  "description": "Unified analytics, Delta Lake internals, Unity Catalog, and Photon engine.",
+  "version": "placeholder 2026-03-22",
+  "chapters": []
+}

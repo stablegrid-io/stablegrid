@@ -1,10 +1,5 @@
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
-import { pysparkDataEngineeringTrackTheory } from '@/data/learn/theory/pysparkDataEngineeringTrack';
-import { fabricDataEngineeringTrack } from '@/data/learn/theory/fabric-data-engineering-track';
-import { fabricBusinessIntelligenceTrack } from '@/data/learn/theory/fabric-business-intelligence-track';
-import { airflowIntermediateTrack } from '@/data/learn/theory/airflow-intermediate-track';
-import { airflowSeniorTrack } from '@/data/learn/theory/airflow-senior-track';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -58,132 +53,8 @@ interface TheoryTrackConfig {
   sourceDoc: TheoryDoc;
 }
 
-const getTheoryTrackConfigs = (doc: TheoryDoc): TheoryTrackConfig[] => {
-  switch (doc.topic) {
-    case 'pyspark':
-      return [
-        {
-          slug: 'full-stack',
-          label: 'PySpark: The Full Stack',
-          eyebrow: 'Track 01',
-          description:
-            'A single guided route through all 20 modules, from why Spark exists to optimization, lakehouse design, streaming, governance, and career readiness.',
-          highlights: [
-            'Foundations, internals, and distributed execution',
-            'Delta, modeling, quality, and performance engineering',
-            'Streaming, platform design, governance, and interview depth'
-          ],
-          sourceDoc: doc
-        },
-        {
-          slug: 'data-engineering-track',
-          label: 'PySpark: Data Engineering Track',
-          eyebrow: 'Track 02',
-          description:
-            'A focused data engineering route: platform foundations, OneLake, lakehouse workflows, orchestration, Spark, and capstone delivery.',
-          highlights: [
-            'Platform and OneLake fundamentals first (F1 + F2)',
-            'Core data engineering modules from DE1 through DE8',
-            'Applied production patterns across pipeline, SQL, and medallion layers'
-          ],
-          sourceDoc: pysparkDataEngineeringTrackTheory
-        }
-      ];
-    case 'fabric':
-      return [
-        {
-          slug: 'full-stack',
-          label: 'Fabric: End-to-End Platform',
-          eyebrow: 'Track 01',
-          description:
-            'A single guided route through all 20 modules, from platform foundations and OneLake to Spark, SQL, realtime intelligence, BI, governance, and capstone delivery.',
-          highlights: [
-            'Platform architecture, OneLake, and core workloads',
-            'Data movement, Spark engineering, warehousing, and SQL analytics',
-            'Realtime intelligence, BI, governance, operations, and capstone'
-          ],
-          sourceDoc: doc
-        },
-        {
-          slug: 'data-engineering-track',
-          label: 'Fabric: Data Engineering Track',
-          eyebrow: 'Track 02',
-          description:
-            'A focused data engineering route: platform foundations, OneLake, lakehouse workflows, data warehousing, T-SQL analytics, and ETL pipelines.',
-          highlights: [
-            'Platform and OneLake fundamentals (F1 + F2)',
-            'Lakehouse architecture, warehousing, and SQL analytics (DW1-DW4)',
-            'Medallion architecture, T-SQL, and pipeline orchestration (DW5-DW6)'
-          ],
-          sourceDoc: fabricDataEngineeringTrack
-        },
-        {
-          slug: 'business-intelligence-track',
-          label: 'Fabric: Business Intelligence Track',
-          title: 'Business Intelligence Track',
-          subtitle: 'Master semantic modeling, DAX analytics, and report design',
-          eyebrow: 'Track 03',
-          description:
-            'A specialized BI route: lakehouse foundations, semantic modeling, DAX analytics, report design, app distribution, governance, and capstone delivery.',
-          highlights: [
-            'Lakehouse, warehouse fundamentals, and BI foundations (BI1)',
-            'Semantic models, DirectLake, DAX language, and analytics (BI2-BI3)',
-            'Reports, dashboards, distribution, governance, and capstone project (BI4-BI7)'
-          ],
-          sourceDoc: fabricBusinessIntelligenceTrack
-        }
-      ];
-    case 'airflow':
-      return [
-        {
-          slug: 'beginner-track',
-          label: 'Apache Airflow: Beginner Track',
-          title: 'Beginner Track',
-          subtitle: 'Learn DAGs, scheduling, sensors, and monitoring from the ground up',
-          eyebrow: 'Track 01',
-          description:
-            'A guided beginner route through Airflow fundamentals: mental models, DAG authoring, task design, scheduling, sensors, configuration, debugging, and a capstone pipeline.',
-          highlights: [
-            'Airflow foundations, local setup, and your first DAG',
-            'Tasks, dependencies, scheduling, sensors, branching, and dynamic task mapping',
-            'Configuration, secrets, monitoring, debugging, and a full capstone build'
-          ],
-          sourceDoc: doc
-        },
-        {
-          slug: 'intermediate-track',
-          label: 'Apache Airflow: Intermediate Track',
-          title: 'Intermediate Track',
-          subtitle: 'Master the TaskFlow API, automatic XCom, and modern DAG patterns',
-          eyebrow: 'Track 02',
-          description:
-            'A mid-level route through the TaskFlow API: replacing operator boilerplate with decorated functions, automatic dependency inference, task groups, error handling, and classic DAG conversion.',
-          highlights: [
-            'The @task decorator, automatic XCom, and dependency inference',
-            'Multiple outputs, task groups, and mixing TaskFlow with operators',
-            'Error handling, type hints, and systematic classic DAG conversion'
-          ],
-          sourceDoc: airflowIntermediateTrack
-        },
-        {
-          slug: 'senior-track',
-          label: 'Apache Airflow: Senior Track',
-          title: 'Senior Track',
-          subtitle: 'Enterprise-scale platform architecture and advanced patterns',
-          eyebrow: 'Track 03',
-          description:
-            'An advanced route through enterprise Airflow: DAG factories, KubernetesExecutor, custom XCom backends, provider development, REST API mastery, scheduler internals, version upgrades, multi-environment architecture, and governance.',
-          highlights: [
-            'DAG factories, KubernetesExecutor, and custom XCom backends',
-            'Provider development, REST API mastery, and scheduler internals',
-            'Version upgrades, multi-environment architecture, governance, and capstone'
-          ],
-          sourceDoc: airflowSeniorTrack
-        }
-      ];
-    default:
-      return [];
-  }
+const getTheoryTrackConfigs = (_doc: TheoryDoc): TheoryTrackConfig[] => {
+  return [];
 };
 
 export const getTheoryTracks = (doc: TheoryDoc): TheoryTrackSummary[] => {

@@ -28,13 +28,45 @@ interface TopicEntry {
 const TRACK_ICON_SRC_BY_TOPIC: Record<string, string> = {
   pyspark: '/brand/pyspark-track-star.svg',
   fabric: '/brand/microsoft-fabric-track.svg',
-  airflow: '/brand/apache-airflow-logo.svg'
+  airflow: '/brand/apache-airflow-logo.svg',
+  kafka: '/brand/apache-kafka-logo.svg',
+  sql: '/brand/sql-logo.svg',
+  docker: '/brand/docker-logo.svg',
+  dbt: '/brand/dbt-logo.svg',
+  databricks: '/brand/databricks-logo.svg',
+  'data-modeling': '/brand/data-modeling-logo.svg',
+  'python-de': '/brand/python-logo.svg',
+  'cloud-infra': '/brand/cloud-infra-logo.svg',
+  'data-quality': '/brand/data-quality-logo.svg',
+  iceberg: '/brand/apache-iceberg-logo.svg',
+  'git-cicd': '/brand/git-logo.svg',
+  flink: '/brand/apache-flink-logo.svg',
+  snowflake: '/brand/snowflake-logo.svg',
+  terraform: '/brand/terraform-logo.svg',
+  'spark-streaming': '/brand/spark-streaming-logo.svg',
+  governance: '/brand/governance-logo.svg',
 };
 
 const TRACK_META_BY_TOPIC: Record<string, { classification: string; label: string }> = {
   pyspark: { classification: 'FLAGSHIP', label: 'FLAGSHIP TRACK' },
   fabric: { classification: 'PLATFORM', label: 'PLATFORM TRACK' },
-  airflow: { classification: 'ORCHESTRATION', label: 'BEGINNER TRACK' }
+  airflow: { classification: 'ORCHESTRATION', label: 'ORCHESTRATION' },
+  kafka: { classification: 'STREAMING', label: 'STREAMING' },
+  sql: { classification: 'FOUNDATIONS', label: 'FOUNDATIONS' },
+  docker: { classification: 'INFRASTRUCTURE', label: 'INFRASTRUCTURE' },
+  dbt: { classification: 'ANALYTICS', label: 'ANALYTICS ENG.' },
+  databricks: { classification: 'PLATFORM', label: 'PLATFORM' },
+  'data-modeling': { classification: 'ARCHITECTURE', label: 'ARCHITECTURE' },
+  'python-de': { classification: 'FOUNDATIONS', label: 'FOUNDATIONS' },
+  'cloud-infra': { classification: 'INFRASTRUCTURE', label: 'INFRASTRUCTURE' },
+  'data-quality': { classification: 'ENGINEERING', label: 'ENGINEERING' },
+  iceberg: { classification: 'TABLE FORMAT', label: 'TABLE FORMAT' },
+  'git-cicd': { classification: 'DEVOPS', label: 'DEVOPS' },
+  flink: { classification: 'STREAMING', label: 'STREAMING' },
+  snowflake: { classification: 'WAREHOUSE', label: 'WAREHOUSE' },
+  terraform: { classification: 'INFRASTRUCTURE', label: 'INFRA AS CODE' },
+  'spark-streaming': { classification: 'STREAMING', label: 'STREAMING' },
+  governance: { classification: 'MANAGEMENT', label: 'MANAGEMENT' },
 };
 
 const getSimpleTrackName = (title: string) => {
