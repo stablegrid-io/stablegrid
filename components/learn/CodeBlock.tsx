@@ -160,14 +160,14 @@ const shouldAddVisualGap = (previousLine: string, currentLine: string) => {
   return false;
 };
 
-const tokenClass = (type: string) => {
-  if (type === 'comment') return 'text-slate-500 dark:text-slate-500';
-  if (type === 'string') return 'text-brand-700 dark:text-brand-300';
-  if (type === 'number') return 'text-slate-600 dark:text-slate-300';
-  if (type === 'decorator') return 'text-violet-700 dark:text-violet-300';
-  if (type === 'keyword') return 'font-medium text-violet-700 dark:text-violet-300';
-  if (type === 'function') return 'text-slate-600 dark:text-slate-300';
-  return 'text-slate-900 dark:text-slate-200';
+const tokenStyle = (type: string): React.CSSProperties => {
+  if (type === 'comment') return { color: 'var(--rm-code-comment)', fontStyle: 'italic' };
+  if (type === 'string') return { color: 'var(--rm-code-string)' };
+  if (type === 'number') return { color: 'var(--rm-code-number)' };
+  if (type === 'decorator') return { color: 'var(--rm-code-keyword)' };
+  if (type === 'keyword') return { color: 'var(--rm-code-keyword)', fontWeight: 500 };
+  if (type === 'function') return { color: 'var(--rm-code-text)' };
+  return { color: 'var(--rm-code-text)' };
 };
 
 const highlightLine = (
@@ -192,7 +192,7 @@ const highlightLine = (
       Object.keys(groups).find((key) => Boolean(groups[key])) ?? 'plain';
 
     parts.push(
-      <span key={`${lineKey}-${index}`} className={tokenClass(type)}>
+      <span key={`${lineKey}-${index}`} style={tokenStyle(type)}>
         {token}
       </span>
     );
@@ -229,19 +229,40 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-300/70 shadow-sm dark:border-[rgba(148,163,184,0.1)]" style={{ backgroundColor: 'var(--rm-code-bg)' }}>
-      <div className="flex items-center justify-between border-b border-slate-300/70 bg-slate-100 px-4 py-2.5 dark:border-[rgba(148,163,184,0.1)] dark:bg-[rgba(148,163,184,0.05)]">
+    <div
+      className="overflow-hidden shadow-sm"
+      style={{
+        backgroundColor: 'var(--rm-code-bg)',
+        border: '1px solid var(--rm-code-border)',
+        borderRadius: 'var(--rm-code-radius)',
+      }}
+    >
+      <div
+        className="flex items-center justify-between px-4 py-2.5"
+        style={{
+          borderBottom: '1px solid var(--rm-code-border)',
+          backgroundColor: 'var(--rm-code-label-bg)',
+        }}
+      >
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">
             <span className="h-3 w-3 rounded-full bg-error-400" />
             <span className="h-3 w-3 rounded-full bg-warning-400" />
             <span className="h-3 w-3 rounded-full bg-success-400" />
           </div>
-          <span className="ml-1 rounded-full border border-slate-400/60 bg-slate-200/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600 dark:border-slate-500/40 dark:bg-slate-500/15 dark:text-slate-300">
+          <span
+            className="ml-1 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
+            style={{
+              border: '1px solid var(--rm-code-border)',
+              backgroundColor: 'var(--rm-code-label-bg)',
+              color: 'var(--rm-code-label-text)',
+              borderRadius: 'var(--rm-code-radius)',
+            }}
+          >
             {detectedLanguage}
           </span>
           {label ? (
-            <span className="ml-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+            <span className="ml-2 text-xs" style={{ color: 'var(--rm-code-label-text)' }}>
               {label}
             </span>
           ) : null}
@@ -249,7 +270,8 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
         <button
           type="button"
           onClick={handleCopy}
-          className="flex items-center gap-1.5 text-xs text-text-light-tertiary transition-colors hover:text-text-light-primary dark:text-text-dark-tertiary dark:hover:text-text-dark-primary"
+          className="flex items-center gap-1.5 text-xs transition-colors"
+          style={{ color: 'var(--rm-code-label-text)' }}
         >
           {copied ? (
             <>
@@ -265,8 +287,8 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
         </button>
       </div>
 
-      <div className="bg-[#f8fafc] px-3 py-3 dark:bg-[#0d1117]">
-        <pre className="font-mono text-sm text-slate-900 dark:text-slate-200">
+      <div className="px-3 py-3" style={{ backgroundColor: 'var(--rm-code-bg)' }}>
+        <pre className="font-mono text-sm" style={{ color: 'var(--rm-code-text)' }}>
           <code>
             {codeLines.map((line, index) => {
               const previousLine = index > 0 ? codeLines[index - 1] : '';
@@ -279,7 +301,7 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
                     addGroupGap ? 'mt-2' : ''
                   }`}
                 >
-                  <span className="select-none text-right text-[11px] leading-7 text-slate-500 dark:text-slate-500">
+                  <span className="select-none text-right text-[11px] leading-7" style={{ color: 'var(--rm-code-comment)' }}>
                     {index + 1}
                   </span>
                   <span className="block whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[13px] leading-7 tracking-[0.01em] text-slate-900 dark:text-slate-200">
