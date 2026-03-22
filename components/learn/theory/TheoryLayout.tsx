@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
-import { Clock3, Menu, X } from 'lucide-react';
+import { ArrowLeft, Clock3, Menu, X } from 'lucide-react';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import type { Topic } from '@/types/progress';
 import type { PracticeTopic } from '@/lib/types';
@@ -34,6 +35,8 @@ import {
   sortModulesByOrder
 } from '@/lib/learn/freezeTheoryDoc';
 import { useAdminStatus } from '@/lib/hooks/useAdminStatus';
+import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
+import { ReadingModeDropdown } from '@/components/learn/theory/ReadingModeDropdown';
 
 const SessionExitModal = ({
   onContinue,
@@ -216,6 +219,8 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const requestedChapterId = searchParams.get('chapter');
   const requestedLessonId = searchParams.get('lesson');
   const { isAdmin } = useAdminStatus();
+  const readingMode = useReadingModeStore((s) => s.mode);
+  const focusMode = useReadingModeStore((s) => s.focusMode);
   const activeTrackSlug = useMemo(
     () => parseTheoryTrackSlugFromPathname(pathname),
     [pathname]
@@ -932,7 +937,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   ]);
 
   return (
-    <div className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface lg:h-[calc(100dvh-3.5rem)]">
+    <div
+      className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface lg:h-[calc(100dvh-3.5rem)]"
+      data-focus-mode={focusMode ? 'true' : undefined}
+    >
       {/* Session exit confirmation modal */}
       {showExitConfirm && (
         <SessionExitModal
@@ -953,6 +961,13 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
 
 
       <div className="flex h-11 flex-shrink-0 items-center gap-3 border-b border-outline-variant/30 bg-surface px-4 sticky top-0 z-40">
+        <Link
+          href={activeTrackSlug ? `/learn/${doc.topic}/theory/${activeTrackSlug}` : `/learn/${doc.topic}/theory`}
+          className="inline-flex h-8 items-center gap-1.5 border border-outline-variant/50 bg-surface-container px-3 text-xs font-mono font-medium text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline uppercase tracking-wider">Modules</span>
+        </Link>
         <button
           type="button"
           onClick={() => setSidebarOpen((value) => !value)}
@@ -960,6 +975,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           aria-controls="theory-sidebar"
           className="inline-flex h-8 items-center gap-2 border border-outline-variant/50 bg-surface-container px-3 text-xs font-mono font-medium text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
           aria-label="Toggle module navigation"
+          data-hide-on-focus
         >
           {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           <span className="hidden sm:inline uppercase tracking-wider">{sidebarOpen ? 'Close' : 'Modules'}</span>
@@ -978,11 +994,13 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             </div>
 
             <div className="ml-auto flex items-center gap-3 font-mono text-[10px] text-on-surface-variant">
+              <ReadingModeDropdown />
               <button
                 type="button"
                 onClick={openSessionPicker}
                 disabled={!sessionDefaultsHydrated}
                 className="inline-flex items-center gap-1 border border-outline-variant/50 px-2.5 py-1 text-xs font-mono text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary uppercase tracking-wider"
+                data-hide-on-focus
               >
                 <Clock3 className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Session</span>
@@ -991,6 +1009,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
                 type="button"
                 onClick={() => router.push('/settings?tab=reading')}
                 className="hidden border border-outline-variant/50 px-2.5 py-1 text-xs font-mono text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary uppercase tracking-wider sm:inline-flex"
+                data-hide-on-focus
               >
                 Settings
               </button>
@@ -1052,8 +1071,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
 
         <div
           ref={contentRef}
+          data-reading-mode={readingMode}
           aria-hidden={sessionPickerVisible && !theorySession.hasActiveSession}
-          className="min-h-0 flex-1 overflow-y-auto bg-surface"
+          className="min-h-0 flex-1 overflow-y-auto"
+          style={{ backgroundColor: 'var(--rm-bg)' }}
         >
           <TheoryContent
             topic={doc.topic}
