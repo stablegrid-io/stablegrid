@@ -172,26 +172,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Before Salting (Skewed)",
-              "rightLabel": "After Salting (Balanced)",
-              "rows": [
-                {
-                  "left": "NORTH partition: 6.5M rows on one executor",
-                  "right": "NORTH split into 10 partitions of ~650K each"
-                },
-                {
-                  "left": "Job time: 6.5 min (slowest executor)",
-                  "right": "All partitions similar: ~1.8 min max"
-                },
-                {
-                  "left": "3 executors idle 4-6 minutes",
-                  "right": "All executors utilized throughout"
-                },
-                {
-                  "left": "Metadata: 50MB shuffled once",
-                  "right": "Metadata: 500MB (10x explosion)"
-                }
-              ]
+              "left": {
+                "label": "Before Salting (Skewed)",
+                "points": [
+                  "NORTH partition: 6.5M rows on one executor",
+                  "Job time: 6.5 min (slowest executor)",
+                  "3 executors idle 4-6 minutes",
+                  "Metadata: 50MB shuffled once"
+                ]
+              },
+              "right": {
+                "label": "After Salting (Balanced)",
+                "points": [
+                  "NORTH split into 10 partitions of ~650K each",
+                  "All partitions similar: ~1.8 min max",
+                  "All executors utilized throughout",
+                  "Metadata: 500MB (10x explosion)"
+                ]
+              }
             },
             {
               "type": "heading",
