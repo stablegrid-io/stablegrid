@@ -157,6 +157,105 @@
   50% { transform: translateY(-10px) scale(1.02); }
 }
 
+/* ── Reading Mode Tokens ── */
+[data-reading-mode="dark"] {
+  --rm-bg: #141a1e;
+  --rm-bg-elevated: #1d2023;
+  --rm-text: #cfdad5;
+  --rm-text-heading: #f3f6f4;
+  --rm-text-secondary: #8ca79a;
+  --rm-text-lead: #f3f6f4;
+  --rm-border: rgba(255,255,255,0.08);
+  --rm-accent: #99f7ff;
+  --rm-callout-bg: rgba(153,247,255,0.05);
+  --rm-callout-border: rgba(153,247,255,0.2);
+  --rm-code-bg: #0d1117;
+  --rm-font: Inter, system-ui, sans-serif;
+  --rm-font-heading: 'Space Grotesk', sans-serif;
+  --rm-line-height: 1.8;
+  --rm-content-max-width: 54rem;
+  --rm-table-header-bg: rgba(255,255,255,0.03);
+  --rm-table-hover: rgba(255,255,255,0.02);
+  --rm-list-badge-bg: rgba(153,247,255,0.1);
+  --rm-list-badge-text: #99f7ff;
+  --rm-hr: rgba(255,255,255,0.06);
+}
+
+[data-reading-mode="light"] {
+  --rm-bg: #f8f9fa;
+  --rm-bg-elevated: #ffffff;
+  --rm-text: #374151;
+  --rm-text-heading: #111827;
+  --rm-text-secondary: #6b7280;
+  --rm-text-lead: #1f2937;
+  --rm-border: #e5e7eb;
+  --rm-accent: #3b82f6;
+  --rm-callout-bg: #eff6ff;
+  --rm-callout-border: #3b82f6;
+  --rm-code-bg: #1e293b;
+  --rm-font: -apple-system, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
+  --rm-font-heading: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
+  --rm-line-height: 1.85;
+  --rm-content-max-width: 50rem;
+  --rm-table-header-bg: #f3f4f6;
+  --rm-table-hover: #f9fafb;
+  --rm-list-badge-bg: #dbeafe;
+  --rm-list-badge-text: #1d4ed8;
+  --rm-hr: #e5e7eb;
+}
+
+[data-reading-mode="book"] {
+  --rm-bg: #faf7f2;
+  --rm-bg-elevated: #f3efe8;
+  --rm-text: #3d3529;
+  --rm-text-heading: #1a1510;
+  --rm-text-secondary: #8a7e6b;
+  --rm-text-lead: #2c2416;
+  --rm-border: #e0d9cc;
+  --rm-accent: #c4a97d;
+  --rm-callout-bg: #f3efe8;
+  --rm-callout-border: #c4a97d;
+  --rm-code-bg: #2d2a24;
+  --rm-font: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  --rm-font-heading: Georgia, 'Iowan Old Style', serif;
+  --rm-line-height: 1.9;
+  --rm-content-max-width: 48rem;
+  --rm-table-header-bg: #efe9dd;
+  --rm-table-hover: #f5f0e8;
+  --rm-list-badge-bg: rgba(196,169,125,0.15);
+  --rm-list-badge-text: #8a7e6b;
+  --rm-hr: #e0d9cc;
+}
+
+/* Transition on container */
+[data-reading-mode] {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Targeted child transitions (NOT wildcard — avoids Framer Motion jank) */
+[data-reading-mode] h1, [data-reading-mode] h2, [data-reading-mode] h3,
+[data-reading-mode] p, [data-reading-mode] li, [data-reading-mode] td,
+[data-reading-mode] th, [data-reading-mode] section,
+[data-reading-mode] blockquote, [data-reading-mode] pre {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reading-mode], [data-reading-mode] * {
+    transition: none !important;
+  }
+}
+
+/* Focus Mode */
+[data-focus-mode="true"] [data-hide-on-focus] {
+  display: none !important;
+}
+
+[data-focus-mode="true"] [data-reading-mode] {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
 @layer utilities {
   .transition-smooth {
     @apply transition-all duration-150 ease-out;
