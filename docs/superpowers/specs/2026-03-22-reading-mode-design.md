@@ -185,15 +185,14 @@ export const useReadingModeStore = create<ReadingModeState>()(
 ### Modified: `TheoryLayout.tsx`
 
 - Import `useReadingModeStore` and `ReadingModeDropdown`.
-- Render `ReadingModeDropdown` in the header bar, before the SESSION button.
-- When `focusMode` is true: add a CSS class that hides the sidebar toggle and simplifies the header to just the back button, mode dropdown, and lesson counter.
-- The content wrapper div already exists — add `data-reading-mode={mode}` to it.
+- Render `ReadingModeDropdown` in the header bar, before the SESSION button (use an icon-only trigger for compactness, with "APPEARANCE" as the dropdown title inside the popover).
+- When `focusMode` is true: add `data-focus-mode="true"` that hides the sidebar toggle, simplifies the header to back button + lesson counter + appearance dropdown, and removes sidebar padding.
+- Add `data-reading-mode={mode}` to the content wrapper div (`ref={contentRef}`, around line 1061). This is the single source of truth — it wraps all content but excludes the shell. Do NOT also add it to TheoryContent's `motion.div` (which remounts on lesson change and would cause a flash during AnimatePresence transitions).
 
 ### Modified: `TheoryContent.tsx`
 
-- The outer `motion.div` gets `data-reading-mode={mode}` from the store.
 - Add `style={{ maxWidth: 'var(--rm-content-max-width)' }}` for mode-responsive width.
-- Add `transition: background-color 0.2s ease, color 0.2s ease` to the wrapper.
+- The bottom prev/next navigation bar must also use CSS variables for text, border, and background colors (it currently uses hardcoded `border-light-border`, `text-text-light-secondary` etc.).
 
 ### Modified: `TheorySection.tsx`
 
@@ -204,7 +203,9 @@ Affected elements:
 - Heading text color and font-family
 - List item text and badge colors
 - Table header, cell, and border colors
-- Diagram/comparison container backgrounds and borders
+- Diagram container backgrounds and borders
+- Comparison block (RenderComparison) backgrounds and borders
+- KeyConcept block (RenderKeyConcept) backgrounds, borders, and text colors
 - Horizontal rule colors
 
 ### Modified: `TheoryLessonReading.tsx` (TheoryLessonIntro)
@@ -262,11 +263,41 @@ Add approximately 80 lines of CSS variable definitions:
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* All children inherit the transition */
-[data-reading-mode] * {
+/* Targeted transitions — NOT wildcard * (causes jank with Framer Motion) */
+[data-reading-mode] h1, [data-reading-mode] h2, [data-reading-mode] h3,
+[data-reading-mode] p, [data-reading-mode] li, [data-reading-mode] td,
+[data-reading-mode] th, [data-reading-mode] section,
+[data-reading-mode] blockquote, [data-reading-mode] pre {
   transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reading-mode], [data-reading-mode] * {
+    transition: none !important;
+  }
+}
 ```
+
+---
+
+## Hydration Strategy
+
+SSR renders with `mode: 'dark'` (the default). After client hydration, the store reads localStorage and may switch to `light` or `book`. The 200ms crossfade transition masks this switch — the content area smoothly fades from dark to the stored mode. This is acceptable because:
+- The dark shell never changes, so there is no full-page flash.
+- The content area is the only part that transitions, and the 200ms fade is perceptually smooth.
+- No `suppressHydrationWarning` is needed because the `data-reading-mode` attribute is applied client-side after mount, not during SSR.
+
+## Callout Variant Colors
+
+For the initial implementation, callout variants (insight, warning, tip, danger) use the **generic** `--rm-callout-bg` and `--rm-callout-border` variables. The existing Tailwind `dark:` variant classes in `CalloutBlock.tsx` continue to work in Dark mode because the html element retains the `dark` class. In Light and Book modes, the callout background and border fall back to the generic reading mode variables, which is visually acceptable — all callouts get the mode's accent tint. Per-variant overrides (e.g., red for danger in Book mode) can be added in a follow-up if needed.
+
+## Unchanged UI Elements
+
+The following elements are explicitly unchanged by reading mode (they are shell/UI elements, not content):
+- Sidebar, TopBar, BottomNav — dark shell
+- Module progress battery (ModuleProgressRail) — fixed-position UI element
+- Session topbar — session timer and controls
+- Navigation prev/next buttons — styled as UI buttons, not content
 
 ---
 
@@ -300,7 +331,8 @@ Implementation: a `data-focus-mode="true"` attribute on the TheoryLayout root, w
 | `components/learn/theory/TheorySection.tsx` | Swap hardcoded colors to CSS variables |
 | `components/learn/theory/TheoryLessonReading.tsx` | Swap hardcoded colors to CSS variables |
 | `components/learn/theory/CalloutBlock.tsx` | Swap hardcoded colors to CSS variables |
-| `components/learn/theory/CodeBlock.tsx` | Minor: use --rm-code-bg for background tint |
+| `components/learn/theory/DiagramBlock.tsx` | Swap hardcoded colors to CSS variables |
+| `components/learn/CodeBlock.tsx` | Minor: use --rm-code-bg for background tint. Syntax highlighting stays unchanged — `dark:` Tailwind prefixes are class-based and unaffected by the data attribute. |
 
 ### Unchanged
 | File | Reason |
