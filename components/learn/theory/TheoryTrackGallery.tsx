@@ -22,10 +22,10 @@ interface TheoryTrackGalleryProps {
 }
 
 const TRACK_ACCENT_CYCLE = [
-  { color: '#99f7ff', rgb: '153,247,255' },
-  { color: '#ff716c', rgb: '255,113,108' },
-  { color: '#ffc965', rgb: '255,201,101' },
-  { color: '#bf81ff', rgb: '191,129,255' },
+  { color: '#99f7ff', rgb: '153,247,255' },   // Beginner — cyan/blue
+  { color: '#ffc965', rgb: '255,201,101' },   // Intermediate — yellow/amber
+  { color: '#ff716c', rgb: '255,113,108' },   // Senior — red
+  { color: '#bf81ff', rgb: '191,129,255' },   // Additional — purple
 ];
 
 export const TheoryTrackGallery = ({
@@ -178,20 +178,11 @@ export const TheoryTrackGallery = ({
                             {completedModules}/{track.chapterCount} COMPLETE
                           </span>
                         </div>
-                        {isComplete ? (
-                          <div className="flex items-center gap-2 border border-outline-variant px-3 py-1 opacity-60">
-                            <span className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">
-                              CLEARED
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 border border-outline-variant px-3 py-1">
-                            <Lock className="h-3.5 w-3.5 text-on-surface-variant" />
-                            <span className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">
-                              LOCKED
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2 border border-outline-variant px-3 py-1 opacity-60">
+                          <span className="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">
+                            {isComplete ? 'CLEARED' : 'OPEN'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 

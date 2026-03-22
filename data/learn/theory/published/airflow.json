@@ -630,15 +630,53 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "DAG stands for Directed Acyclic Graph. Graph – tasks connected by dependencies. Directed – one-way arrows (A must finish before B starts). Acyclic – no loops. If you accidentally create a cycle, Airflow rejects the DAG."
+              "content": "In Module 1 we defined a DAG as ‘a pipeline.’ That is good enough to get started, but now let’s understand what the letters actually mean, because the concept behind them is the reason Airflow works the way it does."
             },
             {
               "type": "paragraph",
-              "content": "A DAG is like a recipe for cooking. Step 1: Chop vegetables (no dependencies). Step 2: Fillet fish (can run parallel with Step 1). Step 3: Make broth (needs chopped vegetables). Step 4: Add fish to broth (needs both). Step 5: Serve (needs Step 4)."
+              "content": "DAG stands for Directed Acyclic Graph. Let’s break that down:"
             },
             {
               "type": "paragraph",
-              "content": "NordGrid’s daily meter pipeline: [Download meters] → [Clean data] → [Validate quality] → [Load to warehouse]. Four tasks. Each depends on the previous one."
+              "content": "Graph – A collection of things (called nodes) connected by lines (called edges). In Airflow, tasks are nodes and dependencies are edges."
+            },
+            {
+              "type": "paragraph",
+              "content": "Directed – The connections have a direction. Task A points to Task B, meaning ‘A must finish before B starts.’ It is a one-way arrow."
+            },
+            {
+              "type": "paragraph",
+              "content": "Acyclic – There are no loops. You cannot follow the arrows and end up back where you started. If Task A depends on B and B depends on A, neither can ever start – it is a deadlock. Airflow does not allow this."
+            },
+            {
+              "type": "heading",
+              "content": "The Recipe Analogy"
+            },
+            {
+              "type": "paragraph",
+              "content": "A DAG is like a recipe for cooking a meal. Consider making a NordGrid engineer’s favourite: a hearty Norwegian fish stew."
+            },
+            {
+              "type": "bullet-list",
+              "items": [
+                "Step 1: Chop the vegetables. (No dependencies – you can start immediately.)",
+                "Step 2: Fillet the fish. (No dependencies – can run in parallel with Step 1.)",
+                "Step 3: Make the broth. (Depends on Step 1 – needs the chopped vegetables.)",
+                "Step 4: Add fish to broth. (Depends on Steps 2 AND 3.)",
+                "Step 5: Serve. (Depends on Step 4.)"
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": "Now map this to NordGrid’s daily meter pipeline: [Download meters] → [Clean data] → [Validate quality] → [Load to warehouse]. Four tasks. Each depends on the previous one. This is a simple linear DAG."
+            },
+            {
+              "type": "heading",
+              "content": "Why Acyclic Matters"
+            },
+            {
+              "type": "paragraph",
+              "content": "Imagine if the ‘validate quality’ task could send data back to the ‘clean data’ task for re-cleaning. That creates a loop: clean → validate → clean → validate… forever. The pipeline never finishes. Airflow prevents this by checking for cycles at parse time."
             }
           ]
         },
@@ -649,16 +687,36 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "Let’s write a real DAG for NordGrid’s daily meter readings pipeline with four tasks: start, extract, validate, and end."
+              "content": "Let’s write a real DAG for NordGrid’s daily meter readings pipeline. This DAG has four tasks: start the pipeline, extract meter readings, validate the data, and mark the pipeline as complete."
             },
             {
               "type": "code",
               "language": "python",
-              "content": "# dags/energy_meter_daily.py\nfrom airflow import DAG\nfrom airflow.operators.python import PythonOperator\nfrom airflow.operators.empty import EmptyOperator\nfrom datetime import datetime, timedelta\n\ndefault_args = {\n    'owner': 'grid-engineering',\n    'retries': 2,\n    'retry_delay': timedelta(minutes=5),\n}\n\ndef extract_meter_readings():\n    print('Downloading meter readings for NORTH region...')\n    print('Downloaded 4,200,000 rows')\n\ndef validate_meter_data():\n    total_rows = 4_200_000\n    null_rows = 1_234\n    valid_rows = total_rows - null_rows\n    print(f'Quality score: {valid_rows / total_rows * 100:.2f}%')\n\nwith DAG(\n    dag_id='energy_meter_daily',\n    default_args=default_args,\n    schedule=None,\n    start_date=datetime(2026, 1, 1),\n    catchup=False,\n    tags=['energy', 'meters'],\n) as dag:\n    start = EmptyOperator(task_id='start')\n    extract = PythonOperator(task_id='extract_meter_readings', python_callable=extract_meter_readings)\n    validate = PythonOperator(task_id='validate_meter_data', python_callable=validate_meter_data)\n    end = EmptyOperator(task_id='end')\n    start >> extract >> validate >> end"
+              "content": "# dags/energy_meter_daily.py\nfrom airflow import DAG\nfrom airflow.operators.python import PythonOperator\nfrom airflow.operators.empty import EmptyOperator\nfrom datetime import datetime, timedelta\n\ndefault_args = {\n    'owner': 'grid-engineering',\n    'depends_on_past': False,\n    'retries': 2,\n    'retry_delay': timedelta(minutes=5),\n    'email_on_failure': False,\n}\n\ndef extract_meter_readings():\n    print('Connecting to NordGrid SFTP server...')\n    print('Downloaded 4,200,000 rows from meters_north_20260315.csv')\n\ndef validate_meter_data():\n    total_rows = 4_200_000\n    null_rows = 1_234\n    valid_rows = total_rows - null_rows\n    print(f'Quality score: {valid_rows / total_rows * 100:.2f}%')\n\nwith DAG(\n    dag_id='energy_meter_daily',\n    default_args=default_args,\n    description='Daily pipeline: extract and validate NordGrid meter readings',\n    schedule=None,\n    start_date=datetime(2026, 1, 1),\n    catchup=False,\n    tags=['energy', 'meters', 'nordgrid'],\n) as dag:\n    start = EmptyOperator(task_id='start')\n    extract = PythonOperator(task_id='extract_meter_readings', python_callable=extract_meter_readings)\n    validate = PythonOperator(task_id='validate_meter_data', python_callable=validate_meter_data)\n    end = EmptyOperator(task_id='end')\n    start >> extract >> validate >> end"
             },
             {
               "type": "paragraph",
-              "content": "Every line has a purpose. Imports bring in tools. default_args set rules for all tasks. Task functions contain business logic. The DAG definition wraps everything. Dependencies are set with >> operators."
+              "content": "That is 60 lines of Python. It defines a complete pipeline with four tasks and clear dependencies. Let’s examine every section."
+            },
+            {
+              "type": "heading",
+              "content": "Section 1: Imports"
+            },
+            {
+              "type": "paragraph",
+              "content": "Four imports. DAG represents your pipeline. PythonOperator runs a Python function. EmptyOperator does nothing (structural marker). datetime and timedelta handle dates and durations. These imports are all fast and lightweight – the scheduler re-reads your file every 30 seconds."
+            },
+            {
+              "type": "heading",
+              "content": "Section 2: Task Functions"
+            },
+            {
+              "type": "paragraph",
+              "content": "These are regular Python functions. There is nothing special about them. In a real pipeline, extract_meter_readings would connect to an SFTP server and download a file. validate_meter_data would read the file and count invalid rows."
+            },
+            {
+              "type": "paragraph",
+              "content": "Key insight: Your task functions are where your business logic lives. The DAG definition is the orchestration wrapper. Keeping them separate makes your code easier to test, read, and change."
             }
           ]
         },
@@ -669,7 +727,36 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "default_args defines rules that apply to every task in the DAG unless overridden. Think of it as company policy at NordGrid."
+              "content": "The default_args dictionary defines rules that apply to every task in the DAG, unless a specific task overrides them. Think of default_args as the company policy at NordGrid."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "default_args = {\n    'owner': 'grid-engineering',\n    'depends_on_past': False,\n    'retries': 2,\n    'retry_delay': timedelta(minutes=5),\n    'email_on_failure': False,\n}"
+            },
+            {
+              "type": "paragraph",
+              "content": "owner – A label that identifies who is responsible for this DAG. This appears in the UI and is useful for filtering."
+            },
+            {
+              "type": "paragraph",
+              "content": "depends_on_past – When False (the most common setting), each day’s run is independent. Monday’s extract can run even if Sunday’s extract failed."
+            },
+            {
+              "type": "paragraph",
+              "content": "retries – A value of 2 means: try once, and if it fails, try again up to 2 more times (3 attempts total). NordGrid’s SFTP server occasionally hiccups during heavy load."
+            },
+            {
+              "type": "paragraph",
+              "content": "retry_delay – timedelta(minutes=5) means wait 5 minutes after a failure before trying again. This gives transient issues time to resolve."
+            },
+            {
+              "type": "paragraph",
+              "content": "email_on_failure – Whether Airflow sends an email when a task fails. Set to False for now because we have not configured an email server."
+            },
+            {
+              "type": "heading",
+              "content": "The Full List of default_args Options"
             },
             {
               "type": "table",
@@ -681,8 +768,13 @@
               "rows": [
                 [
                   "owner",
-                  "Who is responsible",
+                  "Who is responsible for this DAG",
                   "'grid-engineering'"
+                ],
+                [
+                  "depends_on_past",
+                  "Must yesterday succeed before today runs?",
+                  "False"
                 ],
                 [
                   "retries",
@@ -695,19 +787,29 @@
                   "timedelta(minutes=5)"
                 ],
                 [
-                  "depends_on_past",
-                  "Must yesterday succeed before today runs?",
-                  "False"
+                  "retry_exponential_backoff",
+                  "Increase retry delay each time",
+                  "True (production)"
                 ],
                 [
                   "email_on_failure",
-                  "Send email when task fails",
+                  "Send email when a task fails",
                   "True (production)"
+                ],
+                [
+                  "on_failure_callback",
+                  "Python function to call on failure",
+                  "send_slack_alert"
                 ],
                 [
                   "execution_timeout",
                   "Maximum time a task can run",
                   "timedelta(hours=2)"
+                ],
+                [
+                  "pool",
+                  "Resource pool for shared resources",
+                  "'default_pool'"
                 ]
               ]
             }
@@ -720,16 +822,38 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "The PythonOperator runs a Python function as a task. Pass the function without parentheses – let Airflow call it at the right time."
+              "content": "The PythonOperator is the workhorse of Airflow. It takes a Python function and runs it as a task."
             },
             {
               "type": "code",
               "language": "python",
-              "content": "# CORRECT - No parentheses\npython_callable=extract_meter_readings\n\n# WRONG - Parentheses call the function immediately\npython_callable=extract_meter_readings()"
+              "content": "extract = PythonOperator(\n    task_id='extract_meter_readings',\n    python_callable=extract_meter_readings,\n)"
             },
             {
               "type": "paragraph",
-              "content": "Use op_kwargs for named arguments: op_kwargs={'region': 'NORTH', 'load_date': '2026-03-15'}."
+              "content": "Three things happen: a task is created, it gets an ID (task_id) that appears in the UI, and it is linked to a function (python_callable)."
+            },
+            {
+              "type": "heading",
+              "content": "A Common Mistake: Calling the Function at Definition Time"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# WRONG - Do NOT do this\npython_callable=extract_meter_readings()  # <-- parentheses!\n\n# CORRECT - No parentheses\npython_callable=extract_meter_readings"
+            },
+            {
+              "type": "paragraph",
+              "content": "Adding parentheses calls the function immediately when the scheduler parses the file. The function would run every 30 seconds, not once per day."
+            },
+            {
+              "type": "heading",
+              "content": "Passing Arguments to Your Function"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# op_kwargs is preferred because arguments are named\nextract = PythonOperator(\n    task_id='extract_north',\n    python_callable=extract_for_region,\n    op_kwargs={'region': 'NORTH', 'load_date': '2026-03-15'},\n)"
             }
           ]
         },
@@ -740,15 +864,46 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "The >> operator declares dependencies. Read it as 'then': start >> extract >> validate >> end means 'start, then extract, then validate, then end.'"
+              "content": "Dependencies define the order in which tasks run. The >> operator (think of it as ‘then’) declares dependencies."
             },
             {
-              "type": "heading",
-              "content": "Dependency Patterns"
+              "type": "code",
+              "language": "python",
+              "content": "start >> extract >> validate >> end"
             },
             {
               "type": "paragraph",
-              "content": "Linear chain: a >> b >> c >> d. Fan-out: extract >> [clean_north, clean_south, clean_east, clean_west]. Fan-in: [clean_north, clean_south, clean_east, clean_west] >> quality_gate. Diamond: combine fan-out and fan-in."
+              "content": "Read this as: start runs first, then extract runs, then validate runs, then end runs. Each task waits for the previous one to finish successfully."
+            },
+            {
+              "type": "heading",
+              "content": "Multiple Dependency Patterns"
+            },
+            {
+              "type": "paragraph",
+              "content": "Linear chain: a >> b >> c >> d"
+            },
+            {
+              "type": "paragraph",
+              "content": "Fan-out (one task triggers many parallel tasks):"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "extract >> [clean_north, clean_south, clean_east, clean_west]"
+            },
+            {
+              "type": "paragraph",
+              "content": "Fan-in (multiple tasks must finish before one can start):"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "[clean_north, clean_south, clean_east, clean_west] >> quality_gate"
+            },
+            {
+              "type": "paragraph",
+              "content": "Diamond (fan-out then fan-in): the most common pattern in production pipelines. We will build increasingly complex diamonds throughout the course."
             }
           ]
         },
@@ -759,12 +914,20 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "EmptyOperator creates a task that does nothing. Use it for visual structure (start/end markers), convergence points in diamond patterns, and future expansion placeholders."
+              "content": "The EmptyOperator creates a task that does absolutely nothing. It succeeds immediately and moves on."
             },
             {
               "type": "code",
               "language": "python",
               "content": "from airflow.operators.empty import EmptyOperator\nstart = EmptyOperator(task_id='start')\nend = EmptyOperator(task_id='end')"
+            },
+            {
+              "type": "paragraph",
+              "content": "Why use it? Visual structure (clear start/end markers), convergence points in diamond patterns, and future expansion placeholders."
+            },
+            {
+              "type": "paragraph",
+              "content": "EmptyOperator vs DummyOperator: In older tutorials you will see DummyOperator. It was renamed to EmptyOperator in Airflow 2.4. Both still work, but use EmptyOperator in new code."
             }
           ]
         },
@@ -775,7 +938,19 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "Three ways to trigger: UI play button (development), CLI command, or REST API. Watch colors change in real time: grey → teal → lime → dark green."
+              "content": "You have written the energy_meter_daily DAG. Now let’s run it."
+            },
+            {
+              "type": "heading",
+              "content": "Three Ways to Trigger"
+            },
+            {
+              "type": "paragraph",
+              "content": "Method 1: The UI play button. Method 2: The CLI (docker compose exec airflow-worker airflow dags trigger energy_meter_daily). Method 3: The REST API."
+            },
+            {
+              "type": "heading",
+              "content": "Watch the Colors Change"
             },
             {
               "type": "table",
@@ -788,39 +963,48 @@
                 [
                   "Light grey",
                   "no_status",
-                  "Not evaluated yet"
+                  "Task exists but has not been evaluated yet"
                 ],
                 [
                   "Turquoise",
                   "scheduled",
-                  "Dependencies met, waiting for worker"
+                  "Dependencies are met. Waiting for a worker slot"
+                ],
+                [
+                  "Dark grey",
+                  "queued",
+                  "Sent to the executor. A worker will pick it up soon"
                 ],
                 [
                   "Lime green",
                   "running",
-                  "Executing now"
+                  "A worker is executing the task right now"
                 ],
                 [
                   "Dark green",
                   "success",
-                  "Completed successfully"
+                  "Task completed without errors"
                 ],
                 [
                   "Red",
                   "failed",
-                  "Raised an exception"
+                  "Task raised an exception or timed out"
                 ],
                 [
-                  "Gold",
+                  "Gold/orange",
                   "up_for_retry",
-                  "Failed but has retries remaining"
+                  "Task failed but has retries remaining"
                 ],
                 [
                   "Pink",
                   "skipped",
-                  "Intentionally skipped"
+                  "Task was intentionally skipped"
                 ]
               ]
+            },
+            {
+              "type": "paragraph",
+              "content": "In a healthy run, you will see each task turn from grey to teal to lime to dark green, one after another, left to right."
             }
           ]
         },
@@ -831,13 +1015,29 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "Task logs are your window into what actually happened. The log shows: timestamp, source module, attempt number, your print output, and the final SUCCESS or FAILED marker."
+              "content": "Task logs are your window into what actually happened during execution. At NordGrid, when the billing team calls at 8:15 AM saying ‘where’s today’s data?’, your first action is always: open the logs."
+            },
+            {
+              "type": "heading",
+              "content": "Anatomy of a Task Log"
+            },
+            {
+              "type": "paragraph",
+              "content": "The timestamp tells you exactly when each log line was produced. The source ({taskinstance.py}) tells you which Airflow module generated the line. ‘Starting attempt 1 of 3’ tells you the current attempt number. Your print output is where you verify your code ran correctly. ‘Marking task as SUCCESS’ confirms the task completed without errors."
+            },
+            {
+              "type": "heading",
+              "content": "What a Failed Task Log Looks Like"
+            },
+            {
+              "type": "paragraph",
+              "content": "When a task fails, the log shows the full Python traceback, the error message, and ‘Marking task as UP_FOR_RETRY. Next retry in 300 seconds.’"
             },
             {
               "type": "callout",
               "variant": "tip",
               "title": "Debugging tip",
-              "content": "Start at the bottom of the log and scroll up. The most useful information – the error message and final state – is at the end."
+              "content": "Always start at the bottom of the log and scroll up. The most useful information – the error message and the final state – is at the end."
             }
           ]
         },
@@ -848,12 +1048,58 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "Naming: use snake_case, prefix with domain (energy_meter_daily). One DAG per file. Keep top-level code light – heavy imports inside task functions. Add doc_md for documentation."
+              "content": "Following these practices from the start will save you from painful debugging sessions later."
+            },
+            {
+              "type": "heading",
+              "content": "Naming Conventions"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Good",
+                "Bad",
+                "Why"
+              ],
+              "rows": [
+                [
+                  "energy_meter_daily",
+                  "dag1",
+                  "Tells you the domain, source, and frequency"
+                ],
+                [
+                  "energy_scada_hourly",
+                  "scada_pipeline",
+                  "Consistent prefix makes filtering easy"
+                ],
+                [
+                  "extract_meter_readings",
+                  "task_1",
+                  "Describes what the task does"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "The Top-Level Code Rule"
             },
             {
               "type": "code",
               "language": "python",
-              "content": "# GOOD: Heavy import inside the task function\ndef process_meter_data():\n    import pandas as pd\n    df = pd.read_csv('/data/meters.csv')\n\n# BAD: Heavy import at the top level\nimport pandas as pd  # Runs every 30 seconds!"
+              "content": "# GOOD: Heavy import inside the task function\ndef process_meter_data():\n    import pandas as pd  # Only runs when the task executes\n    df = pd.read_csv('/data/meters.csv')\n\n# BAD: Heavy import at the top level\nimport pandas as pd  # Runs every 30 seconds by the scheduler!"
+            },
+            {
+              "type": "heading",
+              "content": "Add Documentation"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "with DAG(\n    dag_id='energy_meter_daily',\n    description='Daily pipeline: extract and validate NordGrid meter readings',\n    doc_md=\"\"\"\n    ## NordGrid Meter Readings Pipeline\n    **Owner:** Grid Engineering Team\n    **Schedule:** Daily at 06:00 UTC\n    **SLA:** Must complete by 08:00 UTC for billing\n    \"\"\",\n    ...\n) as dag:"
+            },
+            {
+              "type": "paragraph",
+              "content": "The doc_md content renders as Markdown in the Airflow UI when someone clicks the DAG’s ‘Doc’ tab."
             }
           ]
         },
@@ -864,7 +1110,27 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "Build energy_meter_checkpoint with six tasks: [start] → [download_file] → [count_rows] → [check_quality] → [log_result] → [end]. Verify in Graph View, read logs, check XCom values."
+              "content": "Time to build something on your own. Create a DAG called energy_meter_checkpoint with six tasks:"
+            },
+            {
+              "type": "paragraph",
+              "content": "[start] --> [download_file] --> [count_rows] --> [check_quality] --> [log_result] --> [end]"
+            },
+            {
+              "type": "heading",
+              "content": "Requirements"
+            },
+            {
+              "type": "numbered-list",
+              "items": [
+                "DAG settings: dag_id 'energy_meter_checkpoint', schedule None, start_date Jan 1 2026, catchup False, tags ['energy', 'checkpoint', 'module2']",
+                "default_args: owner 'grid-engineering', retries 1, retry_delay 3 minutes",
+                "download_file: Print download messages with file name and size",
+                "count_rows: Define total_rows = 4_200_000, print with comma formatting",
+                "check_quality: Calculate valid percentage, print PASS or FAIL based on 99% threshold",
+                "log_result: Print completion message with current timestamp",
+                "start and end use EmptyOperator"
+              ]
             },
             {
               "type": "heading",
@@ -873,12 +1139,21 @@
             {
               "type": "numbered-list",
               "items": [
-                "Save the file, wait for it to appear in the UI.",
-                "Unpause and trigger a manual run.",
-                "Open Graph View, verify six tasks in a chain.",
-                "Watch all tasks turn green.",
-                "Click check_quality and verify quality percentage in logs."
+                "Save the file, wait for it to appear in the UI",
+                "Unpause and trigger a manual run",
+                "Open the Graph View, verify six tasks in a linear chain",
+                "Watch all six tasks turn green",
+                "Click check_quality and verify quality percentage in logs",
+                "Go to the Grid View, verify one column of green cells"
               ]
+            },
+            {
+              "type": "heading",
+              "content": "Bonus Challenges"
+            },
+            {
+              "type": "paragraph",
+              "content": "Bonus 1: Make check_quality intentionally fail when quality is below 99.99%. Watch the retry mechanism. Bonus 2: Add a tag and filter the DAGs list. Bonus 3: Add doc_md to the DAG."
             }
           ]
         },
@@ -889,7 +1164,21 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "You now understand: What a DAG is (Directed Acyclic Graph), DAG file anatomy, default_args, PythonOperator, the >> operator, EmptyOperator, three ways to trigger, how to read logs, and best practices."
+              "content": "You now understand:"
+            },
+            {
+              "type": "bullet-list",
+              "items": [
+                "What a DAG actually is – a Directed Acyclic Graph: tasks with directional dependencies and no cycles",
+                "The anatomy of a DAG file – imports, default_args, task functions, the with DAG() context manager, task definitions, dependency chain",
+                "default_args – company policy for your pipeline: owner, retries, retry_delay, depends_on_past",
+                "PythonOperator – pass the function without parentheses. Use op_kwargs for named arguments",
+                "The >> operator – a >> b means ‘a must finish before b starts.’ Supports linear, fan-out, fan-in, and diamonds",
+                "EmptyOperator – visual anchor and convergence point",
+                "Three ways to trigger a DAG – UI play button, CLI, REST API",
+                "How to read task logs – timestamps, attempt numbers, print output, SUCCESS/FAILED marker",
+                "DAG file best practices – descriptive names, one DAG per file, light top-level code, doc_md"
+              ]
             },
             {
               "type": "paragraph",
@@ -903,7 +1192,7 @@
       "id": "module-AF3",
       "number": 3,
       "title": "Tasks and Operators – The Workers on the Grid",
-      "description": "Master PythonOperator, BashOperator, SQLExecuteQueryOperator, context, XCom, and the conductor pattern.",
+      "description": "Master PythonOperator, BashOperator, SQLExecuteQueryOperator, the context dictionary, XCom data passing, and the conductor pattern.",
       "totalMinutes": 120,
       "sections": [
         {
@@ -913,15 +1202,64 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "This lesson covers what is an operator? as part of the Apache Airflow Beginner Track. It uses the NordGrid Energy scenario to teach production-ready orchestration patterns."
-            },
-            {
-              "type": "heading",
-              "content": "Key Concepts"
+              "content": "An operator is a class that defines a type of task. When you write PythonOperator(task_id='extract', python_callable=my_func), you are creating a task instance from the PythonOperator template."
             },
             {
               "type": "paragraph",
-              "content": "Understanding what is an operator? is essential for building reliable data pipelines with Apache Airflow. This lesson provides hands-on examples using NordGrid’s meter readings, SCADA telemetry, and weather forecast data."
+              "content": "The analogy: an operator is a job description. A task is a person hired for that job. The job description says ‘this role runs Python functions.’ The task says ‘specifically, run the extract_meter_readings function.’"
+            },
+            {
+              "type": "heading",
+              "content": "Common Operators"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Operator",
+                "What It Does",
+                "NordGrid Example"
+              ],
+              "rows": [
+                [
+                  "PythonOperator",
+                  "Runs a Python function",
+                  "Call an API, validate data, compute statistics"
+                ],
+                [
+                  "BashOperator",
+                  "Runs a shell command or script",
+                  "Download a file via curl, run an ETL script"
+                ],
+                [
+                  "EmptyOperator",
+                  "Does nothing. Structural marker.",
+                  "Start/end markers, convergence points"
+                ],
+                [
+                  "SQLExecuteQueryOperator",
+                  "Runs a SQL query against any database",
+                  "INSERT readings, run COUNT for quality checks"
+                ],
+                [
+                  "SparkSubmitOperator",
+                  "Submits a job to a Spark cluster",
+                  "Clean 50 million meter readings"
+                ],
+                [
+                  "BranchPythonOperator",
+                  "Returns which task to execute next",
+                  "Check if weekday; if yes, run pricing; if no, skip"
+                ],
+                [
+                  "TriggerDagRunOperator",
+                  "Starts another DAG",
+                  "After Silver finishes, trigger Gold layer"
+                ]
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": "This module focuses on the first four: PythonOperator, BashOperator, EmptyOperator, and SQLExecuteQueryOperator."
             }
           ]
         },
@@ -932,34 +1270,111 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "This lesson covers pythonoperator – the all-purpose worker as part of the Apache Airflow Beginner Track. It uses the NordGrid Energy scenario to teach production-ready orchestration patterns."
+              "content": "The PythonOperator is the operator you will use most often because Python can do almost anything: call APIs, parse files, run computations, send alerts."
             },
             {
               "type": "heading",
-              "content": "Key Concepts"
+              "content": "Example 1: Counting Rows"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "def count_meter_rows():\n    import csv\n    file_path = '/data/landing/meters/2026-03-15/meters_north.csv'\n    with open(file_path, 'r') as f:\n        reader = csv.reader(f)\n        next(reader)  # Skip header\n        row_count = sum(1 for _ in reader)\n    print(f'Row count: {row_count:,}')\n    return row_count  # Stored in XCom"
+            },
+            {
+              "type": "heading",
+              "content": "Example 2: Checking All Regions Reported"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "def check_all_regions_reported():\n    import os\n    expected_regions = ['NORTH', 'SOUTH', 'EAST', 'WEST']\n    landing_path = '/data/landing/meters/2026-03-15/'\n    missing_regions = []\n    for region in expected_regions:\n        file_path = os.path.join(landing_path, f'meters_{region.lower()}.csv')\n        if not os.path.exists(file_path):\n            missing_regions.append(region)\n    if missing_regions:\n        raise ValueError(f'Missing data for regions: {missing_regions}')"
             },
             {
               "type": "paragraph",
-              "content": "Understanding pythonoperator – the all-purpose worker is essential for building reliable data pipelines with Apache Airflow. This lesson provides hands-on examples using NordGrid’s meter readings, SCADA telemetry, and weather forecast data."
+              "content": "When a task function raises an exception, Airflow marks the task as failed. If retries are configured, Airflow waits and tries again. This is how you build quality gates into your pipeline."
+            },
+            {
+              "type": "heading",
+              "content": "Example 3: Sending a Summary"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "def send_daily_summary(**context):\n    dag_id = context['dag'].dag_id\n    run_date = context['data_interval_start'].strftime('%Y-%m-%d')\n    print(f'NordGrid Daily Summary - Date: {run_date}, DAG: {dag_id}')"
             }
           ]
         },
         {
           "id": "module-AF3-lesson-03",
-          "title": "The Context Dictionary",
+          "title": "The Context Dictionary – What Airflow Tells Your Function",
           "estimatedMinutes": 11,
           "blocks": [
             {
               "type": "paragraph",
-              "content": "This lesson covers the context dictionary as part of the Apache Airflow Beginner Track. It uses the NordGrid Energy scenario to teach production-ready orchestration patterns."
+              "content": "When Airflow calls your task function, it can pass a dictionary of information called the context. To receive it, add **context to your function signature."
             },
             {
               "type": "heading",
-              "content": "Key Concepts"
+              "content": "Most Useful Context Keys"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Key",
+                "What It Contains",
+                "When You Use It"
+              ],
+              "rows": [
+                [
+                  "data_interval_start",
+                  "Start of the data period this run covers",
+                  "Building date-based file paths and SQL queries"
+                ],
+                [
+                  "data_interval_end",
+                  "End of the data period",
+                  "Defining the upper bound of a date range"
+                ],
+                [
+                  "ds",
+                  "data_interval_start as 'YYYY-MM-DD'",
+                  "Quick date string for file paths"
+                ],
+                [
+                  "ds_nodash",
+                  "data_interval_start as 'YYYYMMDD'",
+                  "File names with compact date formats"
+                ],
+                [
+                  "dag",
+                  "The DAG object itself",
+                  "Accessing the DAG ID or metadata"
+                ],
+                [
+                  "task_instance (ti)",
+                  "The current TaskInstance object",
+                  "Pulling XCom values from upstream tasks"
+                ],
+                [
+                  "params",
+                  "User-defined parameters",
+                  "Making tasks configurable at runtime"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "Using the Context in Practice"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "def extract_meter_readings(**context):\n    load_date = context['ds']  # e.g., '2026-03-15'\n    source_path = f'sftp://sftp.nordgrid.com/exports/meters/{load_date}/'\n    dest_path = f'/data/landing/meters/{load_date}/'\n    print(f'Extracting meters for date: {load_date}')\n    return {'load_date': load_date, 'dest_path': dest_path, 'row_count': 4_200_000}"
             },
             {
               "type": "paragraph",
-              "content": "Understanding the context dictionary is essential for building reliable data pipelines with Apache Airflow. This lesson provides hands-on examples using NordGrid’s meter readings, SCADA telemetry, and weather forecast data."
+              "content": "This function is date-aware. When Airflow runs it for March 15th, context['ds'] is '2026-03-15'. When it runs for March 16th, context['ds'] is '2026-03-16'. The function never uses datetime.now()."
             }
           ]
         },
@@ -970,34 +1385,95 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "This lesson covers bashoperator – running shell commands as part of the Apache Airflow Beginner Track. It uses the NordGrid Energy scenario to teach production-ready orchestration patterns."
+              "content": "The BashOperator runs a shell command or script on the Airflow worker. Useful for downloading files with curl, running existing ETL scripts, or executing system commands."
             },
             {
               "type": "heading",
-              "content": "Key Concepts"
+              "content": "Example: Downloading a File"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from airflow.operators.bash import BashOperator\n\ndownload_weather = BashOperator(\n    task_id='download_weather_forecast',\n    bash_command=(\n        'curl -s -o /data/landing/weather/{{ ds }}/forecast.json '\n        'https://api.weather.nordgrid.com/forecast?date={{ ds }}'\n    ),\n)"
             },
             {
               "type": "paragraph",
-              "content": "Understanding bashoperator – running shell commands is essential for building reliable data pipelines with Apache Airflow. This lesson provides hands-on examples using NordGrid’s meter readings, SCADA telemetry, and weather forecast data."
+              "content": "Notice: {{ ds }} is a Jinja template variable. Airflow replaces it with the actual date before executing. If the command returns exit code 0, the task succeeds. Any non-zero exit code means failure."
+            },
+            {
+              "type": "heading",
+              "content": "Example: Running a Python Script"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "run_etl_script = BashOperator(\n    task_id='run_meter_etl',\n    bash_command='python /scripts/etl/clean_meters.py --date {{ ds }} --region NORTH',\n)"
+            },
+            {
+              "type": "heading",
+              "content": "When to Use BashOperator vs PythonOperator"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Use BashOperator When",
+                "Use PythonOperator When"
+              ],
+              "rows": [
+                [
+                  "Running an existing shell script or CLI tool",
+                  "Writing new logic in Python"
+                ],
+                [
+                  "Using system commands (curl, rsync, aws cli)",
+                  "Needing complex logic (loops, conditionals)"
+                ],
+                [
+                  "The task is a one-line command",
+                  "Needing to return structured data via XCom"
+                ],
+                [
+                  "Calling a pre-existing ETL script",
+                  "Connecting to databases using Python libraries"
+                ]
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": "Rule of thumb: If you are writing new code, use PythonOperator. If you are calling an existing script, use BashOperator. PythonOperator handles about 80% of tasks."
             }
           ]
         },
         {
           "id": "module-AF3-lesson-05",
-          "title": "SQLExecuteQueryOperator",
+          "title": "SQLExecuteQueryOperator – Running Database Queries",
           "estimatedMinutes": 11,
           "blocks": [
             {
               "type": "paragraph",
-              "content": "This lesson covers sqlexecutequeryoperator as part of the Apache Airflow Beginner Track. It uses the NordGrid Energy scenario to teach production-ready orchestration patterns."
+              "content": "The SQLExecuteQueryOperator runs SQL against any database Airflow can connect to. It uses Connections to manage credentials securely."
             },
             {
               "type": "heading",
-              "content": "Key Concepts"
+              "content": "Example: Inserting an Audit Log Entry"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator\n\nlog_start = SQLExecuteQueryOperator(\n    task_id='log_pipeline_start',\n    conn_id='postgres_default',\n    sql=\"\"\"\n        INSERT INTO pipeline_audit_log (dag_id, run_date, event, created_at)\n        VALUES ('energy_meter_daily', '{{ ds }}', 'PIPELINE_STARTED', NOW());\n    \"\"\",\n)"
             },
             {
               "type": "paragraph",
-              "content": "Understanding sqlexecutequeryoperator is essential for building reliable data pipelines with Apache Airflow. This lesson provides hands-on examples using NordGrid’s meter readings, SCADA telemetry, and weather forecast data."
+              "content": "conn_id='postgres_default' references a Connection configured in the Airflow UI. The sql parameter supports Jinja templates. You can write any valid SQL: INSERT, UPDATE, DELETE, CREATE TABLE, SELECT."
+            },
+            {
+              "type": "heading",
+              "content": "Example: Running a SQL File"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "refresh_silver = SQLExecuteQueryOperator(\n    task_id='refresh_silver_meters',\n    conn_id='postgres_warehouse',\n    sql='sql/silver_meters_refresh.sql',  # Path relative to dags/ folder\n)"
             }
           ]
         },
@@ -1008,15 +1484,39 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "This lesson covers the conductor pattern – orchestrate, don’t process as part of the Apache Airflow Beginner Track. It uses the NordGrid Energy scenario to teach production-ready orchestration patterns."
+              "content": "This is the most important lesson in this module. Airflow should tell other systems what to do. It should not do the heavy work itself."
             },
             {
               "type": "heading",
-              "content": "Key Concepts"
+              "content": "The Wrong Way: Processing Inside Airflow"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# BAD PATTERN: Heavy data processing inside the Airflow task\ndef transform_bad(**context):\n    import pandas as pd\n    df = pd.read_csv('/data/meters.csv')  # 50 million rows in memory!\n    df = df.dropna(subset=['daily_kwh'])\n    df = df[df['daily_kwh'] >= 0]\n    df.to_parquet('/data/silver/meters.parquet')"
             },
             {
               "type": "paragraph",
-              "content": "Understanding the conductor pattern – orchestrate, don’t process is essential for building reliable data pipelines with Apache Airflow. This lesson provides hands-on examples using NordGrid’s meter readings, SCADA telemetry, and weather forecast data."
+              "content": "This will crash the Airflow worker (50M rows exceed worker memory), block other tasks, and not scale."
+            },
+            {
+              "type": "heading",
+              "content": "The Right Way: Triggering an External Engine"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# GOOD PATTERN: Airflow triggers Spark, Spark does the heavy lifting\ndef transform_good(**context):\n    spark_job_id = submit_spark_job(\n        script='spark_jobs/clean_meters.py',\n        args={'input_path': f's3://raw/meters/{context[\"ds\"]}/'},\n    )\n    wait_for_spark_job(spark_job_id, timeout=3600)\n    return {'spark_job_id': spark_job_id}"
+            },
+            {
+              "type": "paragraph",
+              "content": "The actual data processing happens on the Spark cluster with 100 GB of distributed memory. The Airflow worker just sends the request and waits – using a few megabytes, not gigabytes."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "The rule",
+              "content": "Airflow orchestrates. External engines process. The conductor waves the baton. The orchestra plays the music."
             }
           ]
         },
@@ -1027,15 +1527,60 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "This lesson covers returning values from tasks – xcom basics as part of the Apache Airflow Beginner Track. It uses the NordGrid Energy scenario to teach production-ready orchestration patterns."
+              "content": "Tasks share small pieces of information through XCom (cross-communication). The simplest way: return a value from your task function."
             },
             {
               "type": "heading",
-              "content": "Key Concepts"
+              "content": "Pushing Values"
             },
             {
-              "type": "paragraph",
-              "content": "Understanding returning values from tasks – xcom basics is essential for building reliable data pipelines with Apache Airflow. This lesson provides hands-on examples using NordGrid’s meter readings, SCADA telemetry, and weather forecast data."
+              "type": "code",
+              "language": "python",
+              "content": "def extract_meter_readings(**context):\n    file_path = f'/data/landing/meters/{context[\"ds\"]}/meters_north.csv'\n    return {'file_path': file_path, 'row_count': 4_200_000, 'region': 'NORTH'}"
+            },
+            {
+              "type": "heading",
+              "content": "Pulling Values"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "def validate_meter_data(**context):\n    ti = context['ti']\n    extract_result = ti.xcom_pull(task_ids='extract_meter_readings')\n    file_path = extract_result['file_path']\n    row_count = extract_result['row_count']\n    print(f'Validating {file_path} with {row_count:,} rows')"
+            },
+            {
+              "type": "heading",
+              "content": "What NOT to Put in XCom"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Put in XCom (small references)",
+                "Do NOT put in XCom (actual data)"
+              ],
+              "rows": [
+                [
+                  "File paths: '/data/meters/2026-03-15.csv'",
+                  "File contents: the entire CSV as a string"
+                ],
+                [
+                  "Row counts: 4200000",
+                  "DataFrames: a pandas DataFrame"
+                ],
+                [
+                  "Job IDs: 'spark-job-abc123'",
+                  "Query results: 10,000 rows from SELECT"
+                ],
+                [
+                  "Status flags: 'PASS' or 'FAIL'",
+                  "Binary data: images, PDFs, archives"
+                ]
+              ]
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "The rule",
+              "content": "Pass references, not data. Tell the next task where to find the data, not the data itself."
             }
           ]
         },
@@ -1046,34 +1591,88 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "This lesson covers the taskflow api – decorators instead of operators as part of the Apache Airflow Beginner Track. It uses the NordGrid Energy scenario to teach production-ready orchestration patterns."
+              "content": "The TaskFlow API offers a cleaner alternative using Python decorators. Data passing is automatic through function arguments."
             },
             {
               "type": "heading",
-              "content": "Key Concepts"
+              "content": "Classic Style vs TaskFlow Style"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# TaskFlow Style (The Modern Way)\nfrom airflow.decorators import dag, task\nfrom datetime import datetime\n\n@dag(dag_id='energy_meter_taskflow', schedule=None,\n     start_date=datetime(2026, 1, 1), catchup=False)\ndef energy_meter_pipeline():\n\n    @task()\n    def extract(ds=None):\n        return {'file_path': f'/data/meters/{ds}.csv', 'rows': 4_200_000}\n\n    @task()\n    def validate(extract_result: dict):\n        print(f'Validating {extract_result[\"file_path\"]}')\n        return True\n\n    @task()\n    def notify(is_valid: bool):\n        print(f'Pipeline status: {\"SUCCESS\" if is_valid else \"FAILURE\"}')\n\n    extracted = extract()\n    validated = validate(extracted)\n    notify(validated)\n\nenergy_meter_pipeline()"
             },
             {
               "type": "paragraph",
-              "content": "Understanding the taskflow api – decorators instead of operators is essential for building reliable data pipelines with Apache Airflow. This lesson provides hands-on examples using NordGrid’s meter readings, SCADA telemetry, and weather forecast data."
+              "content": "Key differences: @dag replaces with DAG(). @task replaces PythonOperator. Data passing is automatic through function arguments. Dependencies are set by function calls, not >> operators."
+            },
+            {
+              "type": "paragraph",
+              "content": "You can mix both styles in the same DAG. Use @task for Python logic and classic operators for Bash, SQL, and external triggers."
             }
           ]
         },
         {
           "id": "module-AF3-lesson-09",
-          "title": "Choosing the Right Operator",
+          "title": "Choosing the Right Operator – A Decision Guide",
           "estimatedMinutes": 11,
           "blocks": [
             {
               "type": "paragraph",
-              "content": "This lesson covers choosing the right operator as part of the Apache Airflow Beginner Track. It uses the NordGrid Energy scenario to teach production-ready orchestration patterns."
+              "content": "When you need a new task, ask: what does it need to do, should work happen inside or outside Airflow, and does a specialized operator already exist?"
             },
             {
-              "type": "heading",
-              "content": "Key Concepts"
+              "type": "table",
+              "headers": [
+                "If the task needs to…",
+                "Use this operator"
+              ],
+              "rows": [
+                [
+                  "Run a Python function",
+                  "PythonOperator or @task"
+                ],
+                [
+                  "Run a shell command",
+                  "BashOperator"
+                ],
+                [
+                  "Execute SQL against a database",
+                  "SQLExecuteQueryOperator"
+                ],
+                [
+                  "Do nothing (placeholder)",
+                  "EmptyOperator"
+                ],
+                [
+                  "Submit a Spark job",
+                  "SparkSubmitOperator"
+                ],
+                [
+                  "Run in a Docker container",
+                  "DockerOperator"
+                ],
+                [
+                  "Trigger a different DAG",
+                  "TriggerDagRunOperator"
+                ],
+                [
+                  "Wait for a file",
+                  "FileSensor or S3KeySensor"
+                ],
+                [
+                  "Choose which branch to follow",
+                  "BranchPythonOperator"
+                ],
+                [
+                  "Send an HTTP request",
+                  "SimpleHttpOperator"
+                ]
+              ]
             },
             {
               "type": "paragraph",
-              "content": "Understanding choosing the right operator is essential for building reliable data pipelines with Apache Airflow. This lesson provides hands-on examples using NordGrid’s meter readings, SCADA telemetry, and weather forecast data."
+              "content": "If the task processes more than a few thousand rows or takes more than a few minutes of CPU time, it should happen outside Airflow (conductor pattern). Before writing custom code, check if Airflow has a built-in operator – there are over 2,000 in the provider packages."
             }
           ]
         },
@@ -1084,15 +1683,43 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "This lesson covers multi-operator meter pipeline as part of the Apache Airflow Beginner Track. It uses the NordGrid Energy scenario to teach production-ready orchestration patterns."
-            },
-            {
-              "type": "heading",
-              "content": "Key Concepts"
+              "content": "Build a DAG called energy_multi_operator with three different operator types, XCom data passing, and the conductor pattern."
             },
             {
               "type": "paragraph",
-              "content": "Understanding multi-operator meter pipeline is essential for building reliable data pipelines with Apache Airflow. This lesson provides hands-on examples using NordGrid’s meter readings, SCADA telemetry, and weather forecast data."
+              "content": "Structure: [start] --> [download_file] --> [count_and_validate] --> [log_to_db] --> [end]"
+            },
+            {
+              "type": "heading",
+              "content": "Requirements"
+            },
+            {
+              "type": "numbered-list",
+              "items": [
+                "Task 1 (BashOperator): Simulate downloading a meter file using bash_command with {{ ds }} templates",
+                "Task 2 (PythonOperator): Read the CSV, count rows, validate quality, return results via XCom",
+                "Task 3 (SQLExecuteQueryOperator): Insert an audit record with conn_id='postgres_default'",
+                "start and end use EmptyOperator",
+                "Linear chain dependencies"
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "Verification"
+            },
+            {
+              "type": "numbered-list",
+              "items": [
+                "Save, unpause, trigger. Verify four tasks plus start/end in Graph View.",
+                "BashOperator task shows 'File created' message in logs",
+                "PythonOperator task shows row counts and quality percentage",
+                "SQLExecuteQueryOperator may fail if audit table doesn't exist – that's expected and realistic",
+                "Click count_and_validate XCom tab, verify the return dictionary is visible"
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": "Bonus: Fix the SQL task by adding a CREATE TABLE IF NOT EXISTS task. Rewrite using TaskFlow API. Make the quality check raise an exception below 50%."
             }
           ]
         },
@@ -1103,31 +1730,25 @@
           "blocks": [
             {
               "type": "paragraph",
-              "content": "This lesson covers module checkpoint as part of the Apache Airflow Beginner Track. It uses the NordGrid Energy scenario to teach production-ready orchestration patterns."
+              "content": "You now understand:"
             },
             {
-              "type": "heading",
-              "content": "Key Concepts"
-            },
-            {
-              "type": "paragraph",
-              "content": "Understanding module checkpoint is essential for building reliable data pipelines with Apache Airflow. This lesson provides hands-on examples using NordGrid’s meter readings, SCADA telemetry, and weather forecast data."
-            },
-            {
-              "type": "heading",
-              "content": "What You Now Know"
-            },
-            {
-              "type": "paragraph",
-              "content": "Review the key concepts from this module and verify your understanding with the hands-on exercise."
-            },
-            {
-              "type": "heading",
-              "content": "Looking Ahead"
+              "type": "bullet-list",
+              "items": [
+                "What an operator is – a template for a type of work. PythonOperator runs Python, BashOperator runs shell commands, SQLExecuteQueryOperator runs SQL.",
+                "PythonOperator in depth – counting rows, checking regions, raising exceptions for quality gates, returning results.",
+                "The context dictionary – **context gives you ds (the date), data_interval_start, ti (for XCom), params, and more.",
+                "BashOperator – runs shell commands with {{ ds }} Jinja templates. Non-zero exit codes = failure.",
+                "SQLExecuteQueryOperator – runs SQL via conn_id. Supports templates and .sql files.",
+                "The conductor pattern – Airflow orchestrates, external engines process. Never load 50 million rows inside an Airflow task.",
+                "XCom basics – return values to push, ti.xcom_pull() to read. Pass references, not data.",
+                "The TaskFlow API – @dag and @task decorators. Automatic data passing. Mix with classic operators freely.",
+                "Choosing the right operator – PythonOperator for custom logic, BashOperator for shell, SQL for databases, check for specialized operators first."
+              ]
             },
             {
               "type": "paragraph",
-              "content": "The next module builds on these foundations to introduce more advanced patterns for production Airflow deployments."
+              "content": "In Module 4, we master dependencies and data flow: the diamond pattern, the chain() helper, advanced XCom patterns, and TaskFlow data passing."
             }
           ]
         }

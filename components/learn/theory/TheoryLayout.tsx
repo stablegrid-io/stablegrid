@@ -321,12 +321,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     );
     setCompletionsLoaded(true);
   }, []);
+  // All modules unlocked (locking disabled)
   const unlockedModuleIds = useMemo(() => {
-    if (!completionsLoaded) {
-      return new Set(modules.map((module) => module.id));
-    }
-    return new Set(unlockedChapterIds);
-  }, [completionsLoaded, modules, unlockedChapterIds]);
+    return new Set(modules.map((module) => module.id));
+  }, [modules]);
   const activeModuleIndex = modules.findIndex((module) => module.id === activeChapter.id);
   const upcomingModule =
     activeModuleIndex >= 0 && activeModuleIndex < modules.length - 1

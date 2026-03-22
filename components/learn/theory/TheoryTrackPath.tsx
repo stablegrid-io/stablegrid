@@ -109,45 +109,10 @@ export const TheoryTrackPath = ({
     Object.keys(chapterProgressById).length > 0 ||
     Object.keys(liveModuleProgressById).length > 0;
 
+  // All modules are unlocked (locking disabled)
   const unlockedModuleIds = hasAuthoritativeModuleProgress
-    ? modules.reduce<Set<string>>((set, module, index) => {
-        if (index === 0) {
-          set.add(module.id);
-          return set;
-        }
-
-        const previousModule = modules[index - 1];
-        const derivedUnlock =
-          Boolean(previousModule && completedSet.has(previousModule.id)) ||
-          completedSet.has(module.id);
-
-        if (liveModuleProgressById[module.id]?.isUnlocked || derivedUnlock) {
-          set.add(module.id);
-        }
-        return set;
-      }, new Set<string>())
-    : hasPersistedProgress
-      ? modules.reduce<Set<string>>((set, module, index) => {
-          if (index === 0) {
-            set.add(module.id);
-            return set;
-          }
-
-          const previousModule = modules[index - 1];
-          const previousCompleted = previousModule
-            ? completedSet.has(previousModule.id)
-            : false;
-          const hasInlineProgress = Boolean(
-            chapterProgressById[module.id]?.sectionsRead ||
-              chapterProgressById[module.id]?.currentLessonId ||
-              chapterProgressById[module.id]?.lastVisitedRoute
-          );
-          if (previousCompleted || completedSet.has(module.id) || hasInlineProgress) {
-            set.add(module.id);
-          }
-          return set;
-        }, new Set<string>())
-      : new Set(modules.map((module) => module.id));
+    ? new Set<string>(modules.map((m) => m.id))
+    : new Set(modules.map((module) => module.id));
 
   const baseCards = modules.map((module) => {
     const moduleProgress = liveModuleProgressById[module.id];
