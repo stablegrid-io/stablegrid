@@ -115,11 +115,16 @@ Add after the existing `@layer utilities` block in `globals.css`:
 [data-focus-mode="true"] [data-hide-on-focus] {
   display: none !important;
 }
+
+[data-focus-mode="true"] [data-reading-mode] {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
 ```
 
-- [ ] **Step 2: Verify CSS is valid**
+- [ ] **Step 2: Verify the dev server compiles without errors**
 
-Run: `npx next lint --file app/globals.css`
+Run: Start the dev server and load any page. CSS errors will surface as compilation failures.
 Expected: No errors
 
 - [ ] **Step 3: Commit**
@@ -215,62 +220,91 @@ const MODE_OPTIONS: { id: ReadingMode; label: string; icon: typeof Moon; swatch:
 export const ReadingModeDropdown = () => {
   const { mode, focusMode, setMode, toggleFocus } = useReadingModeStore();
   const [open, setOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
+  const [announcement, setAnnouncement] = useState('');
 
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => { setOpen(false); setFocusedIndex(-1); }, []);
 
   useEffect(() => {
     if (!open) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) close();
     };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
-    };
     document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open, close]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') { close(); return; }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex((i) => Math.min(i + 1, MODE_OPTIONS.length - 1));
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((i) => Math.max(i - 1, 0));
+    }
+    if ((e.key === 'Enter' || e.key === ' ') && focusedIndex >= 0) {
+      e.preventDefault();
+      const selected = MODE_OPTIONS[focusedIndex];
+      setMode(selected.id);
+      setAnnouncement(`Reading mode changed to ${selected.label}`);
+    }
+  };
+
+  const handleModeClick = (id: ReadingMode, label: string) => {
+    setMode(id);
+    setAnnouncement(`Reading mode changed to ${label}`);
+  };
 
   return (
     <div ref={ref} className="relative">
+      {/* Screen reader announcement */}
+      <div className="sr-only" aria-live="polite" role="status">{announcement}</div>
+
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="inline-flex h-8 items-center gap-1.5 border border-outline-variant/50 bg-surface-container px-2.5 text-xs font-mono text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
         aria-label="Appearance settings"
         aria-expanded={open}
+        aria-haspopup="true"
       >
         <Eye className="h-3.5 w-3.5" />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-52 border border-outline-variant/30 bg-surface-container shadow-xl">
+        <div
+          className="absolute right-0 top-full mt-1 z-50 w-52 border border-outline-variant/30 bg-surface-container shadow-xl"
+          onKeyDown={handleKeyDown}
+        >
           <div className="px-3 py-2 border-b border-outline-variant/20">
             <span className="font-mono text-[9px] text-on-surface-variant tracking-widest uppercase">
               APPEARANCE
             </span>
           </div>
 
-          <div className="p-1.5">
-            {MODE_OPTIONS.map((opt) => {
+          <div className="p-1.5" role="radiogroup" aria-label="Reading mode">
+            {MODE_OPTIONS.map((opt, index) => {
               const Icon = opt.icon;
               const isActive = mode === opt.id;
+              const isFocused = focusedIndex === index;
               return (
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => { setMode(opt.id); }}
+                  onClick={() => handleModeClick(opt.id, opt.label)}
                   className={`w-full flex items-center gap-3 px-2.5 py-2 text-left transition-colors ${
                     isActive
                       ? 'bg-primary/10 text-primary'
-                      : 'text-on-surface-variant hover:bg-surface-container-high'
+                      : isFocused
+                        ? 'bg-surface-container-high text-on-surface'
+                        : 'text-on-surface-variant hover:bg-surface-container-high'
                   }`}
                   role="radio"
                   aria-checked={isActive}
+                  tabIndex={isFocused || (focusedIndex === -1 && isActive) ? 0 : -1}
                 >
                   <div
                     className="w-4 h-4 border border-outline-variant/40 flex-shrink-0"
@@ -294,6 +328,8 @@ export const ReadingModeDropdown = () => {
                   ? 'bg-primary/10 text-primary'
                   : 'text-on-surface-variant hover:bg-surface-container-high'
               }`}
+              role="switch"
+              aria-checked={focusMode}
             >
               <Maximize2 className="h-3.5 w-3.5 flex-shrink-0" />
               <span className="font-mono text-[10px] tracking-widest uppercase">
@@ -391,11 +427,15 @@ Find the SESSION button area in the header bar (the `ml-auto flex items-center g
 - [ ] **Step 6: Add data-hide-on-focus to elements that should hide in focus mode**
 
 Add `data-hide-on-focus` attribute to:
-- The sidebar toggle button (the MODULES button)
+- The sidebar toggle button (≡ MODULES button) — hides in focus mode
 - The SESSION button
 - The SETTINGS button
 
-These elements will be hidden by the CSS rule `[data-focus-mode="true"] [data-hide-on-focus] { display: none !important; }` defined in Task 1.
+Keep the ← MODULES (back) Link visible — it's the user's way to exit the lesson.
+
+The sidebar panel itself is overlay-based (absolute positioned with translate-x), NOT padding-based, so no padding removal is needed. If the sidebar is open when focus mode is toggled, close it by calling `setSidebarOpen(false)` in the focus toggle handler.
+
+Note: The bottom prev/next navigation bar is themed in Task 9 with CSS variables. This is an intentional departure from the spec's "unchanged" list because the navigation bar uses hardcoded light/dark classes that would look wrong against a light/book content background.
 
 - [ ] **Step 7: Lint and verify**
 
@@ -563,10 +603,14 @@ git commit -m "feat(reading-mode): theme DiagramBlock and CodeBlock backgrounds"
 
 - [ ] **Step 1: Apply max-width from CSS variable**
 
-Find the outer content wrapper and add:
+Find the outer content wrapper (the `motion.div` around line 284 of TheoryContent.tsx). It currently has a conditional class: `editingLessonId ? 'max-w-[110rem]' : 'max-w-[54rem]'`. Replace the non-editing max-width with the CSS variable but preserve the editing override:
+
 ```tsx
-style={{ maxWidth: 'var(--rm-content-max-width)' }}
+className={`mx-auto w-full px-5 py-10 sm:px-6 lg:px-10 ${editingLessonId ? 'max-w-[110rem]' : ''}`}
+style={editingLessonId ? undefined : { maxWidth: 'var(--rm-content-max-width)' }}
 ```
+
+This ensures editing mode still uses 110rem while reading mode respects the CSS variable (54rem/50rem/48rem).
 
 - [ ] **Step 2: Theme the bottom prev/next navigation**
 
