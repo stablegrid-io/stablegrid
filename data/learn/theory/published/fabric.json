@@ -1,7 +1,884 @@
 {
   "topic": "fabric",
-  "title": "Microsoft Fabric Modules",
-  "description": "A complete 20-module Microsoft Fabric crash course covering platform foundations, OneLake, Lakehouse, orchestration, Spark, SQL, realtime intelligence, BI, security, administration, and capstone delivery.",
-  "version": "DOCX import 2026-03-05",
-  "chapters": []
+  "title": "Microsoft Fabric for Data Engineers: Junior-Level Track",
+  "description": "Build Fabric capability from the ground up: the unified analytics platform, OneLake, Lakehouses, Spark notebooks, Data Factory pipelines, and production pipeline patterns.",
+  "version": "authored 2026-03-23",
+  "chapters": [
+    {
+      "id": "module-F1",
+      "number": 1,
+      "title": "Why Fabric Exists",
+      "description": "Understand why unified analytics platforms emerged, how Microsoft Fabric solves the data platform sprawl problem, and how the NordGrid Energy scenario maps to a real-world Fabric deployment.",
+      "totalMinutes": 240,
+      "sections": [
+        {
+          "id": "module-F1-lesson-01",
+          "title": "When Platforms Multiply",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Every data team starts with one tool. Maybe it is a single database that stores everything, or a shared folder on a file server, or a Python script that reads CSV files and writes results to a spreadsheet. For small teams with small data, one tool is enough. But data grows, and as it grows, the team adds more tools. A new tool to ingest data from an API. Another tool to store large files cheaply. A separate service for running SQL queries at scale. A reporting platform for dashboards. A scheduling service to run pipelines on time. Before long, the team manages five, six, or ten separate services — each with its own login, its own storage, its own security model, and its own way of breaking. This lesson is about why that multiplication happens and what it costs."
+            },
+            {
+              "type": "heading",
+              "content": "NordGrid's Tool Collection"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid Energy, a Northern European grid operator, started its data journey with a single Azure SQL database. Meter readings arrived daily as CSV files, a Python script loaded them into the database, and analysts queried the database directly. It worked perfectly for 10,000 meters. Over five years, NordGrid grew to 500,000 meters. The CSV files grew to 1.5 gigabytes per day. The SQL database could not handle the volume, so the team added Azure Data Lake Storage for raw file storage. They added Azure Data Factory for pipeline orchestration. They added Azure Synapse Analytics for large-scale SQL queries. They added Azure Databricks for Spark-based transformations. They added Power BI for dashboards. Each tool solved a real problem — but collectively, they created a new one."
+            },
+            {
+              "type": "diagram",
+              "title": "NordGrid's fragmented Azure architecture",
+              "content": "┌─────────────┐   ┌──────────────┐   ┌───────────────┐\n│  Azure Data │   │ Azure Data   │   │    Azure      │\n│   Factory   │──▶│ Lake Storage │──▶│  Databricks   │\n│ (ingest)    │   │ (raw files)  │   │ (transform)   │\n└─────────────┘   └──────────────┘   └───────┬───────┘\n                                             │\n                                             ▼\n                  ┌──────────────┐   ┌───────────────┐\n                  │   Power BI   │◀──│Azure Synapse  │\n                  │ (dashboards) │   │(SQL queries)  │\n                  └──────────────┘   └───────────────┘\n\n5 services, 5 logins, 5 billing models, 5 security configurations",
+              "caption": "Each tool in NordGrid's architecture was chosen to solve a specific problem. Together, they form a fragmented platform where data must be copied between services and security must be configured separately in each one."
+            },
+            {
+              "type": "heading",
+              "content": "The Five Costs of Fragmentation"
+            },
+            {
+              "type": "paragraph",
+              "content": "A fragmented platform is not just inconvenient — it has real costs that compound over time. NordGrid's team experienced all five. First, data duplication: the same meter readings existed in Data Lake Storage, in Databricks' Delta tables, and in Synapse's managed storage. Three copies of the same data, each consuming storage and each potentially out of sync. When a data quality fix corrected readings in Databricks, the Synapse copy was stale until someone remembered to refresh it."
+            },
+            {
+              "type": "paragraph",
+              "content": "Second, security gaps. Each service had its own permission model. A data engineer who should have read-only access to production data had admin rights in Databricks because someone copied a role template from the development environment. The team discovered this six months later during an audit. Third, billing complexity. Five services meant five separate cost centers, five sets of usage metrics, and no unified view of what the data platform actually cost per month. The finance team spent two days each quarter reconciling the bills."
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Cost",
+                "What Happens",
+                "NordGrid's Experience"
+              ],
+              "rows": [
+                [
+                  "Data duplication",
+                  "Same data stored in multiple services, consuming extra storage and risking staleness",
+                  "Meter readings existed in 3 services. A fix in Databricks took 2 weeks to reach Synapse."
+                ],
+                [
+                  "Security gaps",
+                  "Each service has its own permissions. Misconfigurations go unnoticed across tools.",
+                  "An engineer had admin rights in Databricks for 6 months before an audit caught it."
+                ],
+                [
+                  "Billing complexity",
+                  "No unified cost view. Finance reconciles 5 separate bills quarterly.",
+                  "Two analyst-days per quarter spent reconciling Azure service costs."
+                ],
+                [
+                  "Integration fragility",
+                  "Pipelines that move data between services break when APIs change.",
+                  "A Synapse API update broke the nightly pipeline. Took 8 hours to diagnose."
+                ],
+                [
+                  "Onboarding overhead",
+                  "New engineers must learn 5 tools, 5 logins, 5 paradigms.",
+                  "New hires needed 3 weeks to navigate the full tool stack confidently."
+                ]
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": "Fourth, integration fragility. The pipeline that moved data from Data Lake Storage to Databricks to Synapse relied on each service's API remaining stable. When Azure updated the Synapse connector, the nightly pipeline failed silently — it completed without error but wrote zero rows. The team did not notice until the next morning's dashboard was blank. Eight hours of diagnosis later, they traced the issue to a changed API parameter. Fifth, onboarding overhead. Every new engineer joining NordGrid's team had to learn five tools, each with its own documentation, its own query language, and its own operational quirks. A new hire who was productive with Python and SQL still needed three weeks before they could navigate the full platform confidently."
+            },
+            {
+              "type": "heading",
+              "content": "The Pattern Is Universal"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid's story is not unusual. Every organization that processes data at scale eventually accumulates a collection of specialized tools. The industry calls this data platform sprawl — the gradual accumulation of services that individually solve real problems but collectively create a fragmented, expensive, and fragile platform. The costs are predictable: duplicated data, inconsistent security, complex billing, brittle integrations, and slow onboarding. The question is not whether your organization will experience sprawl, but how to solve it. The next lesson introduces the idea that motivated Microsoft Fabric: what if all of these tools were one platform?"
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Why it matters",
+              "content": "Platform sprawl is not a technical failure — each tool was chosen for a good reason. It is an organizational problem that emerges over time as data needs grow. Understanding this problem is essential because Fabric was designed specifically to solve it. Every feature you will learn in this course — OneLake, workspaces, Lakehouses, the SQL endpoint — exists because fragmentation made the old approach unsustainable."
+            }
+          ]
+        },
+        {
+          "id": "module-F1-lesson-02",
+          "title": "The Unified Platform Idea",
+          "estimatedMinutes": 24,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The previous lesson described the platform sprawl problem: organizations accumulate separate tools for ingestion, storage, transformation, querying, and reporting, and the cost of managing those tools grows faster than the value they deliver. The unified platform idea is the solution: instead of five separate services that must be integrated, build one platform that does all five things. Shared storage eliminates data duplication. Shared security eliminates permission gaps. Shared billing eliminates reconciliation. Shared APIs eliminate integration fragility. This lesson explains what unification means in practice and why it is harder than it sounds."
+            },
+            {
+              "type": "heading",
+              "content": "The Office Building Analogy"
+            },
+            {
+              "type": "paragraph",
+              "content": "Imagine NordGrid's data engineering team works in five separate office buildings, each dedicated to one function: one building for data ingestion, one for storage, one for transformation, one for SQL queries, and one for reporting. To move data from ingestion to transformation, someone physically carries a box of files across the parking lot. Security badges are different for each building — you might have access to the storage building but not the query building, and no one has a master badge that works everywhere. The electricity bill comes as five separate invoices, one per building, and no one knows the total cost of running the operation."
+            },
+            {
+              "type": "paragraph",
+              "content": "A unified platform is like consolidating into one building with five departments. The departments still specialize — the ingestion team still does ingestion, the reporting team still builds dashboards — but they share the same hallways, the same security badges, the same electrical grid, and the same address. Moving data from ingestion to transformation means walking down the hall, not crossing a parking lot. One security badge works everywhere. One electricity bill covers the whole operation. The work is the same; the overhead is dramatically less."
+            },
+            {
+              "type": "heading",
+              "content": "What Unification Actually Means"
+            },
+            {
+              "type": "paragraph",
+              "content": "A unified platform is not one giant tool that does everything the same way. Data ingestion, SQL querying, Spark transformation, and report building are genuinely different activities that require different interfaces. A SQL analyst does not want a Spark notebook, and a data engineer does not want a drag-and-drop report builder. Unification means that these different tools share a common foundation — common storage, common security, common governance, and common billing — while each tool provides the interface its users need. The tools are different on the surface but connected underneath."
+            },
+            {
+              "type": "comparison",
+              "left": {
+                "label": "Fragmented Platform",
+                "points": [
+                  "Each tool has its own storage. Data is copied between services.",
+                  "Each tool has its own security model. Permissions drift apart.",
+                  "Five separate bills. Finance reconciles quarterly.",
+                  "Integrations break when APIs change between services.",
+                  "New engineers learn five tools with different paradigms."
+                ]
+              },
+              "right": {
+                "label": "Unified Platform",
+                "points": [
+                  "All tools share one storage layer. No copies needed.",
+                  "One security model applies everywhere. Set it once.",
+                  "One bill with usage broken down by workload.",
+                  "No cross-service APIs needed. Tools read from shared storage.",
+                  "One portal, one set of concepts, one learning curve."
+                ]
+              }
+            },
+            {
+              "type": "heading",
+              "content": "Why Unification Is Hard"
+            },
+            {
+              "type": "paragraph",
+              "content": "If unification is so obviously better, why did NordGrid end up with five separate tools in the first place? Because building a unified platform is genuinely difficult. Each specialized tool evolved independently over years, optimized for its specific use case. Azure Data Lake Storage was designed to store petabytes of files cheaply. Azure Synapse was designed for fast SQL queries over large datasets. Databricks was designed for interactive Spark development. Each tool makes trade-offs that optimize for its primary use case — and those trade-offs often conflict with what the other tools need."
+            },
+            {
+              "type": "paragraph",
+              "content": "Merging these capabilities into one platform requires solving deep engineering problems: how to share storage without sacrificing query performance, how to apply a single security model across SQL queries, Spark jobs, and Power BI reports simultaneously, and how to bill fairly when one team runs a 30-second SQL query and another runs a 4-hour Spark job on the same underlying data. These problems are the reason unified platforms did not exist until recently — the engineering was too hard. What changed is that cloud-native architecture, the lakehouse pattern, and advances in query engine design made unification technically feasible for the first time."
+            },
+            {
+              "type": "heading",
+              "content": "The Lakehouse Pattern"
+            },
+            {
+              "type": "paragraph",
+              "content": "The key technical breakthrough that enables unified platforms is the lakehouse pattern. A traditional data lake stores files cheaply but cannot answer SQL queries fast. A traditional data warehouse answers SQL queries fast but cannot store unstructured data or run Spark jobs. The lakehouse pattern combines both: it stores data as open-format files in a data lake (cheap, flexible, accessible to Spark) but adds a metadata layer that enables SQL-quality query performance, ACID transactions, and schema enforcement. The open-format file layer is what makes unification possible — every tool reads the same files, so no data movement is needed."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Key insight",
+              "content": "Unification does not mean one tool does everything. It means many specialized tools share a common foundation — especially storage. When the SQL engine and the Spark engine read the same files from the same lake, there is no need to copy data between them. That single change eliminates NordGrid's biggest pain point: data duplication and the staleness it causes."
+            },
+            {
+              "type": "paragraph",
+              "content": "Microsoft Fabric is Microsoft's implementation of this unified platform idea. It combines data engineering, data warehousing, real-time analytics, data science, and business intelligence into a single SaaS platform built on a shared storage layer called OneLake. The next lesson introduces Fabric in detail — what it includes, how it is structured, and how it solves each of NordGrid's fragmentation problems."
+            }
+          ]
+        },
+        {
+          "id": "module-F1-lesson-03",
+          "title": "What Microsoft Fabric Is",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The previous lesson described the unified platform idea: specialized tools sharing common storage, security, governance, and billing. Microsoft Fabric is Microsoft's implementation of that idea. It is a software-as-a-service analytics platform that integrates data engineering, data warehousing, real-time analytics, data science, and business intelligence into a single product. You access it through a web portal, and everything — storage, compute, security, and governance — is managed by Microsoft. This lesson introduces what Fabric includes, where it came from, and how it maps to NordGrid's needs."
+            },
+            {
+              "type": "heading",
+              "content": "The Origins"
+            },
+            {
+              "type": "paragraph",
+              "content": "Fabric did not appear from nowhere. It evolved from Microsoft's existing data services. Power BI, Microsoft's reporting platform, has been available since 2015 and is used by millions of organizations worldwide. Azure Synapse Analytics combined data warehousing and Spark processing into one Azure service. Azure Data Factory provided pipeline orchestration. Fabric takes these mature, battle-tested technologies and integrates them under a single experience with shared storage, shared security, and a unified portal. If you have used Power BI before, Fabric will feel partially familiar. If you have used Azure Synapse, you will recognize many of the query patterns. The difference is that in Fabric, these tools are not separate services that you must integrate — they are built-in workloads that share everything."
+            },
+            {
+              "type": "heading",
+              "content": "The Platform at a Glance"
+            },
+            {
+              "type": "diagram",
+              "title": "Microsoft Fabric's layered architecture",
+              "content": "┌──────────────────────────────────────────────────────────────┐\n│                    FABRIC PORTAL (UI)                         │\n│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────────┐  │\n│  │  Data     │ │  Data    │ │  Data    │ │  Real-Time     │  │\n│  │Engineering│ │ Factory  │ │Warehouse │ │ Intelligence   │  │\n│  └──────────┘ └──────────┘ └──────────┘ └────────────────┘  │\n│  ┌──────────┐ ┌──────────┐                                   │\n│  │ Power BI │ │  Data    │                                   │\n│  │          │ │ Science  │                                   │\n│  └──────────┘ └──────────┘                                   │\n├──────────────────────────────────────────────────────────────┤\n│              SHARED COMPUTE (Spark, SQL, KQL)                │\n├──────────────────────────────────────────────────────────────┤\n│              SHARED GOVERNANCE (Microsoft Purview)            │\n├──────────────────────────────────────────────────────────────┤\n│              SHARED STORAGE (OneLake)                         │\n└──────────────────────────────────────────────────────────────┘",
+              "caption": "Fabric's architecture has four layers: the portal at the top, workloads in the middle, shared compute and governance, and OneLake at the foundation. Every workload reads from and writes to the same OneLake storage."
+            },
+            {
+              "type": "heading",
+              "content": "The Foundation — OneLake"
+            },
+            {
+              "type": "paragraph",
+              "content": "At the bottom of Fabric's architecture is OneLake — a single, organization-wide data lake that every Fabric workload shares. When the Data Engineering workload writes a table, it goes to OneLake. When the Data Warehouse workload queries that table, it reads from OneLake. When Power BI builds a report on that table, it reads from the same OneLake. There is one copy of the data, and every tool reads from that one copy. This is the single design decision that solves NordGrid's data duplication problem. You will learn OneLake in depth in Module 3."
+            },
+            {
+              "type": "heading",
+              "content": "The Workloads"
+            },
+            {
+              "type": "paragraph",
+              "content": "Fabric organizes its capabilities into workloads, each designed for a specific role and task. Data Engineering provides Apache Spark for large-scale data processing through notebooks. Data Factory provides pipelines and dataflows for moving and transforming data. Data Warehouse provides a T-SQL engine for SQL-based analytics. Real-Time Intelligence provides tools for streaming data and event processing. Power BI provides interactive reports and dashboards. Data Science provides machine learning tools. Each workload has its own interface optimized for its audience, but they all share OneLake and the same governance model."
+            },
+            {
+              "type": "paragraph",
+              "content": "As a data engineer, you will spend most of your time in two workloads: Data Engineering (writing PySpark code in notebooks) and Data Factory (building pipelines that orchestrate your notebooks). You will interact with Data Warehouse when you query your Lakehouse data using T-SQL, and you will see Power BI when validating that your pipeline output feeds reports correctly. Lesson 5 covers each workload in more detail. For now, the important concept is that these workloads are not separate products — they are different views into the same platform, sharing the same storage and security."
+            },
+            {
+              "type": "heading",
+              "content": "How Fabric Solves NordGrid's Problems"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Problem",
+                "Old Architecture",
+                "Fabric Solution"
+              ],
+              "rows": [
+                [
+                  "Data duplication",
+                  "Meter readings copied to 3 services",
+                  "One copy in OneLake, read by all workloads"
+                ],
+                [
+                  "Security gaps",
+                  "5 separate permission models",
+                  "One governance model via Microsoft Purview"
+                ],
+                [
+                  "Billing complexity",
+                  "5 separate Azure bills",
+                  "One capacity-based bill with workload breakdown"
+                ],
+                [
+                  "Integration fragility",
+                  "Custom APIs between services",
+                  "No APIs needed — workloads share OneLake directly"
+                ],
+                [
+                  "Onboarding overhead",
+                  "5 tools, 5 paradigms, 3 weeks",
+                  "One portal, one set of concepts, shorter ramp-up"
+                ]
+              ]
+            },
+            {
+              "type": "callout",
+              "variant": "warning",
+              "title": "Fabric does not eliminate all complexity",
+              "content": "Fabric is simpler than five separate services, but it is not simple. You still need to understand workspaces, Lakehouses, pipelines, Spark, SQL, and security. You still need to design your data architecture thoughtfully. What Fabric eliminates is the accidental complexity of managing and integrating separate tools. The essential complexity of data engineering — designing schemas, writing transformations, ensuring data quality — remains. That is what the rest of this course teaches."
+            }
+          ]
+        },
+        {
+          "id": "module-F1-lesson-04",
+          "title": "SaaS vs Build-It-Yourself",
+          "estimatedMinutes": 23,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Fabric is delivered as software-as-a-service, often abbreviated SaaS. This means Microsoft manages the infrastructure — the servers, the storage, the networking, the patching, the scaling — and you use the platform through a web browser. You do not provision virtual machines, configure Spark clusters, install software updates, or manage storage capacity. Microsoft does that for you. This lesson explains what the SaaS model means for a data engineer, what you control, what Microsoft controls, and why this distinction matters when you start building pipelines."
+            },
+            {
+              "type": "heading",
+              "content": "The Restaurant Analogy"
+            },
+            {
+              "type": "paragraph",
+              "content": "Think of two ways to eat dinner. You can cook at home: buy ingredients, prepare the meal, cook it, serve it, and clean up afterward. You control everything — the recipe, the ingredients, the timing — but you also do all the work. Alternatively, you can eat at a restaurant: you choose from the menu, the kitchen prepares the food, and the staff handles serving and cleanup. You give up control over how the kitchen operates, but you get your meal faster and with less effort."
+            },
+            {
+              "type": "paragraph",
+              "content": "A build-it-yourself data platform is like cooking at home. You select the servers, install Spark, configure networking, manage storage, and handle upgrades. You control every detail, but every detail is your responsibility. A SaaS platform like Fabric is like the restaurant. You choose what to build (the menu items), write your transformation logic (your order), and Fabric handles the infrastructure (the kitchen). You do not manage the Spark cluster, allocate storage, or patch security vulnerabilities — Fabric does that behind the scenes."
+            },
+            {
+              "type": "heading",
+              "content": "What Microsoft Manages"
+            },
+            {
+              "type": "bullet-list",
+              "items": [
+                "Compute infrastructure: Spark clusters start automatically when you run a notebook and stop when the notebook finishes. You do not provision, configure, or terminate clusters manually.",
+                "Storage management: OneLake handles replication, redundancy, and scaling. You do not manage disk space, configure RAID, or worry about running out of storage.",
+                "Security patches and updates: Fabric updates automatically. You do not schedule maintenance windows, apply patches, or test updates against your workloads — Microsoft handles compatibility.",
+                "High availability: Fabric runs across multiple Azure data centers with automatic failover. You do not design redundancy architectures or manage disaster recovery."
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "What You Control"
+            },
+            {
+              "type": "paragraph",
+              "content": "SaaS does not mean you hand over everything. The data engineer's responsibilities in Fabric are significant and intellectually demanding. You design the data architecture: how many workspaces, how many Lakehouses, which tables belong where. You write the transformation logic: PySpark code in notebooks, T-SQL queries in the Warehouse, Power Query steps in dataflows. You define the schema: column names, data types, partitioning strategy. You configure security: who can access which workspace, which tables are sensitive. You build and schedule pipelines: which notebooks run in what order, at what time, with what parameters."
+            },
+            {
+              "type": "comparison",
+              "left": {
+                "label": "Microsoft Manages",
+                "points": [
+                  "Spark cluster provisioning and scaling",
+                  "OneLake storage capacity and redundancy",
+                  "Security patches and platform updates",
+                  "Network infrastructure and availability",
+                  "Query engine optimization"
+                ]
+              },
+              "right": {
+                "label": "You Manage",
+                "points": [
+                  "PySpark transformation logic in notebooks",
+                  "Data architecture: workspaces, Lakehouses, tables",
+                  "Access control: workspace roles and permissions",
+                  "Pipeline design: scheduling, parameters, error handling",
+                  "Schema design: column types, partitioning, naming"
+                ]
+              }
+            },
+            {
+              "type": "heading",
+              "content": "The Trade-off"
+            },
+            {
+              "type": "paragraph",
+              "content": "SaaS is a trade-off, not a free lunch. You gain speed — NordGrid can deploy a new Lakehouse in minutes instead of the days it took to provision a Databricks workspace with custom networking. You gain simplicity — no Spark cluster management, no storage provisioning. But you give up some control. You cannot choose which version of Spark runs on Fabric's compute (Microsoft decides). You cannot tune low-level JVM settings that a self-managed Spark cluster would expose. You cannot run Fabric on your own hardware in your own data center. For NordGrid, these trade-offs are acceptable. The team spends less time managing infrastructure and more time building pipelines. For organizations with strict regulatory requirements that mandate on-premises data processing, the trade-off may not work."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Why this matters for your career",
+              "content": "In a SaaS world, the data engineer's value shifts from infrastructure management to data architecture and transformation design. Knowing how to provision a Spark cluster is less important than knowing how to design a Lakehouse schema that serves three different consumer teams efficiently. This course focuses on the skills that SaaS makes more important, not less: architecture, transformation logic, pipeline design, and data quality."
+            }
+          ]
+        },
+        {
+          "id": "module-F1-lesson-05",
+          "title": "Fabric Workloads at a Glance",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Fabric organizes its capabilities into workloads — specialized tools that share the same portal, storage, and security model. Each workload is designed for a specific type of work and a specific audience. A data engineer uses different workloads than a business analyst, but both access the same data through the same platform. This lesson introduces each workload, explains what it does, and establishes the vocabulary you will use throughout the course. You do not need to memorize every detail — the reference table at the end of this lesson is there for exactly that reason."
+            },
+            {
+              "type": "heading",
+              "content": "Data Engineering"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Data Engineering workload provides Apache Spark for processing large datasets. Its primary tool is the notebook — an interactive code editor where you write PySpark, Spark SQL, Scala, or R code to transform data. Notebooks are where NordGrid's data engineers spend most of their time: reading raw meter files, applying quality filters, casting types, joining reference tables, and writing clean Delta tables. The Data Engineering workload also provides environments for managing Python libraries and Spark configurations. Modules 5 and 6 of this course cover notebooks and transformations in depth."
+            },
+            {
+              "type": "heading",
+              "content": "Data Factory"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Data Factory workload provides two tools for moving and transforming data: pipelines and dataflows. Pipelines are visual workflows that orchestrate activities — copying files from external sources, running notebooks, triggering dataflows, and sending notifications. Dataflows (called Dataflow Gen2 in Fabric) are a low-code transformation tool powered by Power Query that lets you filter, merge, and reshape data without writing code. NordGrid uses pipelines to schedule the daily meter ingestion and uses dataflows to refresh reference tables. Modules 7 and 8 cover pipelines and dataflows in depth."
+            },
+            {
+              "type": "heading",
+              "content": "Data Warehouse"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Data Warehouse workload provides a full T-SQL engine for SQL-based analytics. Unlike the Lakehouse's auto-generated SQL analytics endpoint (which is read-only), the Warehouse supports full read-write operations: CREATE TABLE, INSERT, UPDATE, DELETE, stored procedures, and cross-database queries. NordGrid uses the Warehouse for its Gold layer — pre-computed aggregation tables that the reporting team queries directly. Module 9 covers the SQL analytics endpoint and the Warehouse."
+            },
+            {
+              "type": "heading",
+              "content": "Real-Time Intelligence"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Real-Time Intelligence workload handles streaming data — data that arrives continuously rather than in daily batches. Its tools include Eventstreams for capturing live data feeds and KQL (Kusto Query Language) databases for querying streaming data with low latency. NordGrid's SCADA telemetry — turbine RPM and temperature readings that arrive every 10 seconds — is a natural fit for Real-Time Intelligence. This course introduces the workload conceptually but does not cover it in depth; real-time processing is a mid-level topic."
+            },
+            {
+              "type": "heading",
+              "content": "Power BI"
+            },
+            {
+              "type": "paragraph",
+              "content": "Power BI is Fabric's reporting and visualization workload. It lets analysts and business users build interactive charts, dashboards, and reports from the data that data engineers prepare. Power BI in Fabric connects directly to OneLake through a mode called Direct Lake, which means reports read from the same storage as notebooks and SQL queries — no data import or copy needed. NordGrid's operations dashboard, which shows daily energy consumption by region, is a Power BI report that reads from a Gold-layer semantic model. Module 10 introduces how the data engineer's work connects to Power BI."
+            },
+            {
+              "type": "heading",
+              "content": "Data Science"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Data Science workload provides tools for building, training, and deploying machine learning models. It integrates with MLflow for experiment tracking and model registry, and it shares the same Spark compute as the Data Engineering workload. NordGrid's forecasting team uses the Data Science workload to predict next-week energy demand based on historical meter readings and weather data. This course does not cover the Data Science workload — it is a specialized topic with its own learning path."
+            },
+            {
+              "type": "heading",
+              "content": "The Workload Map"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Workload",
+                "Primary Tool",
+                "Primary Audience",
+                "NordGrid Use Case",
+                "Covered In"
+              ],
+              "rows": [
+                [
+                  "Data Engineering",
+                  "Spark Notebooks",
+                  "Data engineers",
+                  "Bronze-to-Silver transformation",
+                  "Modules 5-6"
+                ],
+                [
+                  "Data Factory",
+                  "Pipelines, Dataflows",
+                  "Data engineers",
+                  "Daily ingestion scheduling",
+                  "Modules 7-8"
+                ],
+                [
+                  "Data Warehouse",
+                  "T-SQL Editor",
+                  "Data engineers, analysts",
+                  "Gold-layer aggregation tables",
+                  "Module 9"
+                ],
+                [
+                  "Real-Time Intelligence",
+                  "Eventstreams, KQL",
+                  "Streaming engineers",
+                  "SCADA turbine telemetry",
+                  "Conceptual only"
+                ],
+                [
+                  "Power BI",
+                  "Report Builder",
+                  "Business analysts",
+                  "Operations dashboard",
+                  "Module 10"
+                ],
+                [
+                  "Data Science",
+                  "Notebooks, MLflow",
+                  "Data scientists",
+                  "Demand forecasting",
+                  "Not covered"
+                ]
+              ]
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "The mental model",
+              "content": "Think of workloads as departments in one building. Each department has its own specialized tools and its own staff, but they all share the same lobby (the portal), the same filing system (OneLake), and the same security badges (governance). You do not need to master every department — a data engineer primarily works in Data Engineering and Data Factory. But understanding what the other departments do helps you collaborate with analysts, data scientists, and streaming engineers who share the same platform."
+            }
+          ]
+        },
+        {
+          "id": "module-F1-lesson-06",
+          "title": "The NordGrid Energy Scenario",
+          "estimatedMinutes": 24,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Every lesson in this course uses the same fictional company to illustrate Fabric concepts: NordGrid Energy, a Northern European grid operator that manages renewable energy infrastructure across four geographic regions. NordGrid is not a toy example — it is modeled on the data realities of real European energy operators, scaled down to a size that is large enough to be realistic but small enough to understand completely. The company, its data, and its Fabric architecture will be your constant reference point throughout every module. This lesson introduces the scenario in full so that when later lessons say 'NordGrid's daily meter readings,' you know exactly what that means."
+            },
+            {
+              "type": "heading",
+              "content": "The Company"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid Energy operates wind farms and solar installations across Northern Europe. The company is part of a larger parent organization called GridUnion Continental, but at the junior level, you only need to know about NordGrid itself. NordGrid has one data engineering team responsible for building and maintaining the data pipelines that process meter readings, turbine telemetry, and weather forecasts. This team uses Fabric as its primary data platform, and their workspace structure, pipeline design, and naming conventions are the basis for the examples in this course."
+            },
+            {
+              "type": "heading",
+              "content": "The Four Regions"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid divides its operations into four geographic regions: NORTH, SOUTH, EAST, and WEST. Each region has its own wind farms, solar installations, substations, and smart meters. The region code is one of the most common columns in NordGrid's data — it appears in meter readings, turbine reports, and substation records. When you see the column name region in a code example, it always contains one of these four values. The four-region structure keeps examples simple while giving you enough variety to practice grouping, filtering, and aggregating by region."
+            },
+            {
+              "type": "heading",
+              "content": "The Data Sources"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Source",
+                "Description",
+                "Volume",
+                "Key Columns",
+                "Format"
+              ],
+              "rows": [
+                [
+                  "Meter readings",
+                  "Daily energy consumption per household and commercial meter",
+                  "500,000 readings/day",
+                  "meter_id, daily_kw, date, region",
+                  "CSV (raw), Delta (clean)"
+                ],
+                [
+                  "SCADA telemetry",
+                  "Turbine sensor data: RPM, temperature, operational status",
+                  "2,000 turbines, every 10 seconds",
+                  "turbine_id, rpm, temp, ts",
+                  "Parquet"
+                ],
+                [
+                  "Weather forecasts",
+                  "Station-level temperature and forecast data from external API",
+                  "100 stations, hourly",
+                  "station_id, temp_c, forecast_ts",
+                  "JSON"
+                ],
+                [
+                  "Substations",
+                  "Reference table linking meters and turbines to substations",
+                  "Static dimension, ~200 rows",
+                  "substation_id, name, capacity_mw",
+                  "CSV"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "The Fabric Architecture"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid organizes its Fabric environment into three workspaces, one per medallion layer. The Bronze workspace (ws_nordgrid_bronze) contains a Lakehouse where raw data lands. The Silver workspace (ws_nordgrid_silver) contains a Lakehouse where validated, cleaned data is stored as Delta tables. The Gold workspace (ws_nordgrid_gold) contains a Lakehouse for analytical tables, a Data Warehouse for pre-computed aggregates, and a semantic model that feeds Power BI reports. Pipelines in the Bronze workspace copy raw files. Notebooks in the Silver workspace transform and clean. SQL queries in the Gold workspace aggregate and serve."
+            },
+            {
+              "type": "diagram",
+              "title": "NordGrid's Fabric workspace structure",
+              "content": "ws_nordgrid_bronze              ws_nordgrid_silver             ws_nordgrid_gold\n┌─────────────────────┐   ┌───────────────────────┐   ┌──────────────────────────┐\n│ lh_meter_readings   │   │ lh_meter_readings     │   │ lh_grid_analytics        │\n│  └─ Files/           │──▶│  └─ Tables/            │──▶│  └─ Tables/               │\n│     └─ meter_exports/│   │     └─ silver_meters   │   │     └─ gold_daily_summary │\n│                      │   │     └─ silver_scada    │   │                           │\n│ pl_ingest_meters     │   │                        │   │ dw_nordgrid_analytics     │\n│ (pipeline: copy)     │   │ nb_transform_meters    │   │  └─ monthly_billing       │\n│                      │   │ (notebook: PySpark)    │   │  └─ v_region_summary      │\n│                      │   │                        │   │                           │\n│                      │   │                        │   │ sm_grid_operations        │\n│                      │   │                        │   │ (semantic model)          │\n└─────────────────────┘   └───────────────────────┘   └──────────────────────────┘",
+              "caption": "Three workspaces, three medallion layers. Each workspace contains the Fabric items appropriate for its layer. Data flows left to right: raw files in Bronze, clean Delta tables in Silver, aggregated views and reports in Gold."
+            },
+            {
+              "type": "heading",
+              "content": "The Consumer Teams"
+            },
+            {
+              "type": "paragraph",
+              "content": "At the junior level, NordGrid has one data engineering team of five people. This team builds and maintains all pipelines, manages the workspace structure, and is responsible for data quality from Bronze through Gold. Downstream consumers include the operations team (who uses the Power BI dashboard for daily monitoring), the billing team (who queries the Gold Warehouse for monthly invoices), and the regulatory team (who runs quarterly reports on energy production). These consumers do not write pipelines — they consume the data that the data engineering team produces."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Why the same scenario everywhere",
+              "content": "If you have completed the PySpark Junior-Level Track, you already know NordGrid. The meter readings, the four regions, the column names — they are identical. This is intentional. When you encounter meter_id and daily_kw in a Fabric Lakehouse, you already understand the data. You can focus entirely on learning Fabric without simultaneously learning a new scenario. The platform is new; the data is familiar."
+            }
+          ]
+        },
+        {
+          "id": "module-F1-lesson-07",
+          "title": "Bronze, Silver, and Gold in Fabric",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Data does not go from raw files to business dashboards in one step. It passes through stages, each adding quality, structure, and meaning. The medallion architecture is the pattern NordGrid uses to organize these stages: Bronze for raw ingestion, Silver for validated and cleaned data, and Gold for business-ready aggregates. You may have encountered this pattern in the PySpark course, where it applied to Spark DataFrames and Parquet files. In Fabric, the same pattern applies, but the implementation uses Fabric-specific items: Lakehouses for Bronze and Silver, a Warehouse for Gold, and pipelines to connect them. This lesson explains how each layer works in Fabric specifically."
+            },
+            {
+              "type": "heading",
+              "content": "The Bronze Layer"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Bronze layer holds raw data exactly as it arrived from the source. No transformation, no type casting, no filtering — just a faithful copy of the original. In Fabric, Bronze data lands in the Files section of a Lakehouse. NordGrid's daily meter readings arrive as CSV files from an external SFTP server. A Data Factory pipeline copies these files into the Bronze Lakehouse at lh_meter_readings/Files/meter_exports/2025/03/23/. The files are organized by date so that yesterday's files do not overwrite today's. If something goes wrong downstream, the team can always return to the original Bronze files and reprocess."
+            },
+            {
+              "type": "paragraph",
+              "content": "Bronze data is messy. The CSV files may contain null values, incorrect types (a number stored as a string), duplicate rows from overlapping export windows, or unexpected columns added by the source system. This mess is intentional — Bronze preserves everything so that no information is lost. Cleaning happens in the next layer. Think of Bronze as the mailroom: it receives every delivery, stamps it with a date, and stores it on the shelf. It does not open packages, sort contents, or discard junk mail."
+            },
+            {
+              "type": "heading",
+              "content": "The Silver Layer"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Silver layer holds validated, cleaned, and structured data. A Fabric notebook reads raw files from Bronze, applies an explicit schema (column names, data types, nullability), filters out invalid records (negative daily_kw values, null meter IDs), removes duplicates, and writes the result as a managed Delta table in the Silver Lakehouse. The Silver table has a strict schema — every column has the correct type, every row meets the quality criteria, and the transaction log guarantees that the table was written atomically (completely or not at all)."
+            },
+            {
+              "type": "paragraph",
+              "content": "Silver is where most of the data engineering work happens. The transformation notebook is the most complex piece of NordGrid's pipeline: it handles type casting, null treatment, deduplication, derived columns (year, month, daily_mw), and partitioned writes. Multiple consumer teams read from Silver — the Gold pipelines, the data scientists building forecast models, and analysts running ad-hoc queries through the SQL endpoint. Because Silver serves many consumers, its quality standards are the strictest: one bad row in Silver propagates to every downstream system."
+            },
+            {
+              "type": "diagram",
+              "title": "Data flow through the three layers",
+              "content": "BRONZE                       SILVER                       GOLD\n┌──────────────────┐   ┌──────────────────────┐   ┌──────────────────────┐\n│ Raw CSV files     │   │ Clean Delta tables    │   │ Aggregated tables     │\n│                   │   │                       │   │                       │\n│ meter_exports/    │   │ silver_meters          │   │ daily_region_summary  │\n│   2025/03/23/     │──▶│   (partitioned by      │──▶│ monthly_billing       │\n│   readings.csv    │   │    year, month)        │   │ quarterly_regulatory  │\n│                   │   │                       │   │                       │\n│ Format: CSV       │   │ Format: Delta (Parquet │   │ Format: Delta or      │\n│ Quality: Unknown  │   │   + transaction log)   │   │   Warehouse table     │\n│ Size: 1.5 GB/day  │   │ Quality: Validated     │   │ Quality: Business-    │\n│                   │   │ Size: ~800 MB/day      │   │   ready aggregates    │\n└──────────────────┘   └──────────────────────┘   │ Size: 5-50 MB/day     │\n                                                   └──────────────────────┘\n\n  Pipeline: Copy         Notebook: PySpark           SQL + Notebook: Agg",
+              "caption": "Each layer has a clear purpose and a clear Fabric tool. Bronze uses pipelines for copying, Silver uses notebooks for transformation, Gold uses SQL and notebooks for aggregation. Data shrinks as it moves through the layers because aggregation reduces row counts."
+            },
+            {
+              "type": "heading",
+              "content": "The Gold Layer"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Gold layer holds aggregated, pre-computed data shaped for specific business use cases. While Silver contains individual meter readings (one row per meter per day), Gold contains summaries: total daily energy per region, monthly billing aggregates per customer type, quarterly regulatory reports. Each Gold table is built by a pipeline that reads from Silver, groups and aggregates the data, and writes the result. In Fabric, Gold tables live in either a Lakehouse (if built by a Spark notebook) or a Data Warehouse (if built by T-SQL queries). NordGrid uses both: the daily regional summary is computed by a notebook, while the monthly billing aggregates are computed by SQL queries in the Warehouse."
+            },
+            {
+              "type": "paragraph",
+              "content": "The distinction between Silver and Gold is not about quality — both are high quality. The distinction is about granularity and purpose. Silver is granular (one row per meter per day) and general-purpose (many teams read it). Gold is aggregated (one row per region per day) and specific to a use case (the operations dashboard, the billing system, the regulatory report). A single Silver table might feed five different Gold tables, each serving a different business need."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Why three layers instead of one",
+              "content": "You might wonder why NordGrid does not transform the raw CSV directly into Gold aggregates in one step. The answer is reusability and debuggability. Silver serves as a shared, validated foundation that many Gold tables read from. If the operations team needs a new metric, they build a new Gold table from the same Silver data — no need to re-ingest from Bronze. And if a Gold table shows unexpected numbers, the team debugs by examining the Silver table to determine whether the problem is in the aggregation logic or in the source data."
+            }
+          ]
+        },
+        {
+          "id": "module-F1-lesson-08",
+          "title": "Capacity and Licensing Basics",
+          "estimatedMinutes": 23,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Fabric is a SaaS platform, which means you do not buy servers or storage — you buy capacity. Capacity is the unit of compute power that Fabric allocates to your organization. Every operation in Fabric — running a notebook, executing a pipeline, querying the Warehouse, refreshing a Power BI report — consumes capacity. Understanding how capacity works is important even for junior data engineers because a long-running Spark job or an inefficient query consumes capacity that affects the entire team. This lesson explains the capacity model at a conceptual level, without getting into pricing details that change over time."
+            },
+            {
+              "type": "heading",
+              "content": "What Capacity Means"
+            },
+            {
+              "type": "paragraph",
+              "content": "Think of capacity as a pool of computing power that your organization purchases. The pool has a fixed size — for example, NordGrid might purchase an F64 capacity, which provides 64 capacity units. Every Fabric operation draws from this pool. When a data engineer runs a Spark notebook, the notebook consumes some of the pool's capacity units for the duration of the job. When an analyst refreshes a Power BI report, the refresh consumes capacity units too. When no one is running anything, the pool sits idle and nothing is consumed. The pool is shared across all workloads and all users in the organization."
+            },
+            {
+              "type": "diagram",
+              "title": "Shared capacity pool across workloads",
+              "content": "┌──────────────────────────────────────────────────┐\n│             FABRIC CAPACITY (F64)                  │\n│         64 Capacity Units (shared pool)            │\n│                                                    │\n│  ┌────────────┐ ┌──────────┐ ┌─────────────────┐  │\n│  │ Spark Job   │ │ SQL Query│ │ Power BI Refresh│  │\n│  │ (20 CUs)    │ │ (4 CUs)  │ │ (8 CUs)         │  │\n│  └────────────┘ └──────────┘ └─────────────────┘  │\n│                                                    │\n│  Available: 64 - 20 - 4 - 8 = 32 CUs remaining    │\n└──────────────────────────────────────────────────┘",
+              "caption": "All workloads draw from the same capacity pool. When the pool is fully consumed, additional jobs queue until capacity becomes available. Understanding this helps explain why an inefficient notebook affects not just the engineer running it, but everyone on the team."
+            },
+            {
+              "type": "heading",
+              "content": "Why Junior Engineers Should Care"
+            },
+            {
+              "type": "paragraph",
+              "content": "You might think capacity planning is a manager's concern, not a junior engineer's. But every line of code you write has a capacity cost. A notebook that reads an entire Lakehouse table when it only needs three columns consumes more capacity than one that selects only the columns it needs. A pipeline that runs every hour when the data only changes daily wastes capacity on redundant processing. A query that scans a full table instead of using partition filters burns through capacity units that could serve other workloads. Junior engineers do not set the capacity budget, but their code determines how efficiently that budget is spent."
+            },
+            {
+              "type": "heading",
+              "content": "License Types"
+            },
+            {
+              "type": "paragraph",
+              "content": "Fabric has two main license categories that you will encounter. The first is the per-user license, which determines what an individual user can do in the Fabric portal. A Pro license allows creating and sharing content. A free license allows viewing shared content but not creating it. The second is the capacity license, which determines the compute power available to the organization. Capacity comes in SKUs (stock-keeping units) named F2, F4, F8, up to F2048, where the number indicates the capacity units. NordGrid uses an F64 capacity for their production workloads."
+            },
+            {
+              "type": "paragraph",
+              "content": "There is also a Fabric trial that provides a temporary capacity for individual users to explore the platform. If you are following this course to learn Fabric before joining a team that already has capacity, the trial is a practical way to see the portal and create items. The trial has lower capacity than a production SKU, so performance-heavy operations will be slower, but the features are identical."
+            },
+            {
+              "type": "callout",
+              "variant": "warning",
+              "title": "Capacity changes over time",
+              "content": "Microsoft updates Fabric's pricing, SKU names, and capacity allocation regularly. The specific numbers in this lesson are illustrative, not definitive. What does not change is the fundamental model: Fabric is capacity-based, all workloads share the pool, and your code's efficiency directly affects how much capacity is consumed. When in doubt, check Microsoft's current pricing documentation for the latest details."
+            }
+          ]
+        },
+        {
+          "id": "module-F1-lesson-09",
+          "title": "Where Data Engineers Fit",
+          "estimatedMinutes": 23,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Fabric is a platform for many roles: data engineers, analysts, data scientists, database administrators, and business users. Each role uses different workloads, different tools, and different parts of the portal. This lesson focuses on your role — the data engineer — and maps out which parts of Fabric you will use daily, which you will use occasionally, and which you will leave to other roles. Understanding this map helps you focus your learning on what matters most and helps you collaborate effectively with colleagues who use the parts you do not."
+            },
+            {
+              "type": "heading",
+              "content": "The Data Engineer's Daily Work"
+            },
+            {
+              "type": "paragraph",
+              "content": "A data engineer in Fabric builds and maintains the pipelines that move data from external sources into OneLake, transform it from raw to clean to aggregated, and make it available for downstream consumers. The daily work has four parts. First, ingestion: configuring pipelines that copy data from external systems into Lakehouse files. Second, transformation: writing PySpark code in notebooks that cleans, validates, enriches, and structures the data. Third, orchestration: scheduling pipelines that run notebooks and dataflows in the right order at the right time. Fourth, monitoring: checking that overnight pipelines succeeded, investigating failures, and verifying data quality."
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Activity",
+                "Fabric Tool",
+                "Frequency",
+                "Module"
+              ],
+              "rows": [
+                [
+                  "Ingestion",
+                  "Data Factory pipelines, Copy activity",
+                  "Build once, runs daily",
+                  "Module 7"
+                ],
+                [
+                  "Transformation",
+                  "Notebooks (PySpark, Spark SQL)",
+                  "Build and iterate frequently",
+                  "Modules 5-6"
+                ],
+                [
+                  "Orchestration",
+                  "Data Factory pipelines, scheduling",
+                  "Configure once, adjust as needed",
+                  "Module 7"
+                ],
+                [
+                  "Monitoring",
+                  "Monitoring hub, Spark UI, refresh history",
+                  "Every morning",
+                  "Module 10"
+                ],
+                [
+                  "Schema design",
+                  "Lakehouse table definitions, StructType",
+                  "Design phase, then evolve",
+                  "Modules 4, 6"
+                ],
+                [
+                  "Reference data",
+                  "Dataflows Gen2 (Power Query)",
+                  "Build once, schedule weekly",
+                  "Module 8"
+                ],
+                [
+                  "Ad-hoc queries",
+                  "SQL analytics endpoint, Warehouse",
+                  "As needed for debugging",
+                  "Module 9"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "The Data Engineer's Workspace"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid's data engineers primarily work in the Bronze and Silver workspaces. The Bronze workspace contains the ingestion pipelines that they build and monitor. The Silver workspace contains the transformation notebooks that they write and maintain. They also create items in the Gold workspace — aggregation notebooks and Warehouse tables — but the Gold workspace is increasingly shared with analysts who create views and reports. The data engineer's home territory is the pipeline and the notebook; the analyst's home territory is the SQL editor and the report builder. The Gold workspace is where these territories overlap."
+            },
+            {
+              "type": "heading",
+              "content": "Collaboration with Other Roles"
+            },
+            {
+              "type": "paragraph",
+              "content": "Data engineers do not work in isolation. The operations team tells the data engineer which metrics the dashboard needs. The billing team specifies the aggregation logic for monthly invoices. The regulatory team defines the quarterly report format. The data engineer translates these requirements into pipelines, notebooks, and tables. This translation — from business need to technical implementation — is the core skill of data engineering, and it requires understanding both the business context and the Fabric tools."
+            },
+            {
+              "type": "comparison",
+              "left": {
+                "label": "Data Engineer's Domain",
+                "points": [
+                  "Designing Lakehouse table schemas",
+                  "Writing PySpark transformation logic",
+                  "Building and scheduling Data Factory pipelines",
+                  "Monitoring pipeline runs and data quality"
+                ]
+              },
+              "right": {
+                "label": "Other Roles' Domain",
+                "points": [
+                  "Defining what metrics the business needs (analyst)",
+                  "Building Power BI reports and dashboards (analyst)",
+                  "Training ML models on Silver data (data scientist)",
+                  "Setting capacity budgets and governance policies (admin)"
+                ]
+              }
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "The data engineer's leverage",
+              "content": "A data engineer's work is foundational. If the Bronze pipeline fails, no Silver tables are updated. If Silver tables have quality issues, every Gold table and every Power BI report is affected. The data engineer's leverage in the organization is enormous: one well-designed pipeline serves dozens of downstream consumers. This is why the course emphasizes quality, validation, and monitoring alongside the technical mechanics of writing code."
+            }
+          ]
+        },
+        {
+          "id": "module-F1-lesson-10",
+          "title": "The Life of Data in Fabric",
+          "estimatedMinutes": 23,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The previous nine lessons introduced the core concepts: data platform sprawl, the unified platform idea, Microsoft Fabric and its workloads, the SaaS model, the NordGrid scenario, the medallion architecture, capacity, and the data engineer's role. This lesson ties everything together by tracing a single piece of data — one day of NordGrid meter readings — from its origin outside Fabric through every stage of the pipeline to its final appearance on a Power BI dashboard. By the end of this lesson, you will have a complete mental model of how data flows through Fabric, and every subsequent module will fill in the details of one stage in this flow."
+            },
+            {
+              "type": "heading",
+              "content": "Stage 1 — The External Source"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid's 500,000 smart meters record daily energy consumption and transmit their readings to a central collection system. Every night at 01:30 UTC, the collection system generates a CSV file containing all readings for the previous day and places it on an SFTP server. The file is approximately 1.5 gigabytes, containing 500,000 rows with columns: meter_id, daily_kw, date, region, customer_type. This file is outside Fabric — it sits on an external server, waiting to be ingested. The data engineer's job begins here."
+            },
+            {
+              "type": "heading",
+              "content": "Stage 2 — Ingestion to Bronze"
+            },
+            {
+              "type": "paragraph",
+              "content": "A Data Factory pipeline named pl_ingest_meters runs every day at 02:00 UTC. The pipeline contains a Copy activity that connects to the SFTP server, downloads the CSV file, and writes it to the Bronze Lakehouse at lh_meter_readings/Files/meter_exports/2025/03/23/readings.csv. The pipeline adds no transformation — the file arrives in OneLake exactly as it existed on the SFTP server. The pipeline logs the start time, end time, bytes copied, and completion status in the monitoring hub. If the copy fails (network timeout, authentication error, missing file), the pipeline retries twice before sending a failure notification."
+            },
+            {
+              "type": "heading",
+              "content": "Stage 3 — Transformation to Silver"
+            },
+            {
+              "type": "paragraph",
+              "content": "After the Copy activity succeeds, the same pipeline triggers a Notebook activity that runs nb_transform_meters in the Silver workspace. The notebook starts a Spark session, reads the raw CSV from the Bronze Lakehouse with an explicit schema, filters out rows with null meter_id or negative daily_kw, casts columns to their correct types (daily_kw from string to double, date from string to date), removes duplicates on the composite key (meter_id, date), derives new columns (year, month, daily_mw), and writes the result as a partitioned Delta table in the Silver Lakehouse. The Silver table now contains clean, typed, validated data with a transaction log that guarantees consistency."
+            },
+            {
+              "type": "diagram",
+              "title": "End-to-end data flow in Fabric",
+              "content": "SFTP Server        ws_nordgrid_bronze        ws_nordgrid_silver        ws_nordgrid_gold\n┌──────────┐   ┌────────────────────┐   ┌──────────────────────┐   ┌─────────────────────┐\n│ readings │   │ pl_ingest_meters   │   │ nb_transform_meters  │   │ nb_aggregate_gold   │\n│  .csv    │──▶│  (Copy activity)   │──▶│  (PySpark notebook)  │──▶│  (PySpark notebook)  │\n│          │   │                    │   │                      │   │  OR                  │\n│ 1.5 GB   │   │ lh_meter_readings  │   │ lh_meter_readings    │   │ dw_nordgrid_analytics│\n│ 500K rows│   │  /Files/meter_     │   │  /Tables/silver_     │   │  (T-SQL queries)     │\n│          │   │   exports/...csv   │   │   meters (Delta)     │   │                      │\n└──────────┘   └────────────────────┘   └──────────────────────┘   │ sm_grid_operations   │\n                                                                    │  (semantic model)    │\n                                                                    └──────────┬──────────┘\n                                                                               │\n                                                                               ▼\n                                                                    ┌─────────────────────┐\n                                                                    │     Power BI         │\n                                                                    │  Operations Dashboard│\n                                                                    └─────────────────────┘",
+              "caption": "One day of meter readings travels through four stages: external source to Bronze (pipeline), Bronze to Silver (notebook), Silver to Gold (notebook or SQL), Gold to Power BI (semantic model). Every stage adds value: ingestion, validation, aggregation, visualization."
+            },
+            {
+              "type": "heading",
+              "content": "Stage 4 — Aggregation to Gold"
+            },
+            {
+              "type": "paragraph",
+              "content": "A second Notebook activity in the pipeline reads from the Silver table and computes the daily regional summary: total daily_kw per region, average daily_kw per region, meter count per region, and the maximum single-meter reading per region. The result is four rows — one per region — written to the Gold Lakehouse as a Delta table. Additionally, a T-SQL query in the Gold Warehouse computes the monthly billing aggregate by joining the Silver meter table with the substation reference table and grouping by customer_type and month. These Gold tables serve specific consumers: the daily summary feeds the operations dashboard, the billing aggregate feeds the invoicing system."
+            },
+            {
+              "type": "heading",
+              "content": "Stage 5 — Reporting"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Gold Lakehouse has an auto-generated semantic model called sm_grid_operations. This semantic model is connected to a Power BI report that the operations team views every morning. The report shows daily energy consumption by region as a bar chart, a trend line of total consumption over the past 30 days, and a table of the highest-consuming meters for anomaly detection. When the operations team opens the dashboard at 08:00, the data they see was ingested at 02:00, transformed at 02:15, aggregated at 02:30, and is now less than six hours old. The entire pipeline — from external server to interactive dashboard — ran without human intervention."
+            },
+            {
+              "type": "heading",
+              "content": "The Complete Picture"
+            },
+            {
+              "type": "paragraph",
+              "content": "You now have all the foundational pieces. Data platforms become fragmented over time (lesson 1). The unified platform idea solves this (lesson 2). Microsoft Fabric is Microsoft's implementation (lesson 3). It runs as SaaS so you focus on data, not infrastructure (lesson 4). Workloads provide specialized tools for different roles (lesson 5). NordGrid's data flows through three workspaces in Fabric (lesson 6). The medallion architecture organizes data into Bronze, Silver, and Gold layers (lesson 7). Capacity is the shared compute pool that powers everything (lesson 8). The data engineer's role is to build and maintain the pipelines that move data through the layers (lesson 9). And the end-to-end flow — from external source to Power BI dashboard — is a pipeline that runs every night, automatically, reliably (this lesson)."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "What comes next",
+              "content": "In Module 2, you will open the Fabric portal for the first time and learn to navigate workspaces, create items, and configure roles. Every concept from this module will become concrete: you will see the workload switcher, create a workspace, and browse the OneLake Catalog. The foundation is set. Now it is time to build on it."
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

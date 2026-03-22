@@ -87,6 +87,18 @@ const TOPIC_TRACK_CONFIGS: Record<string, TheoryTrackConfig[]> = {
       highlights: [],
       sourceDoc: pysparkSeniorTheory,
     }
+  ],
+  fabric: [
+    {
+      slug: 'junior',
+      label: 'Junior-Level Track',
+      title: 'Junior-Level Track',
+      eyebrow: 'Core Foundation',
+      description:
+        'Build Fabric capability from the ground up: the unified analytics platform, OneLake, Lakehouses, Spark notebooks, Data Factory pipelines, and production pipeline patterns.',
+      highlights: [],
+      sourceDoc: null as unknown as TheoryDoc,
+    }
   ]
 };
 
