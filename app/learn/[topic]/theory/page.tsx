@@ -1,11 +1,8 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { TheoryCategorySelector } from '@/components/learn/theory/TheoryCategorySelector';
-import { TheoryTrackGallery } from '@/components/learn/theory/TheoryTrackGallery';
+import { TheoryTrackPath } from '@/components/learn/theory/TheoryTrackPath';
 import { learnTopics } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
-import { getTheoryCategories } from '@/data/learn/theory/categories';
-import { getTheoryTracks } from '@/data/learn/theory/tracks';
 import { loadServerTheoryProgress } from '@/lib/learn/serverTheoryProgress';
 
 interface LearnTopicTheoryPageProps {
@@ -25,24 +22,22 @@ export default async function LearnTopicTheoryPage({
   const { completedChapterIds, chapterProgressById, moduleProgressById } =
     await loadServerTheoryProgress(params.topic);
 
-  const tracks = getTheoryTracks(doc);
-  if (tracks.length > 0) {
-    return (
-      <TheoryTrackGallery
-        doc={doc}
-        tracks={tracks}
-        completedChapterIds={completedChapterIds}
-        chapterProgressById={chapterProgressById}
-        moduleProgressById={moduleProgressById}
-      />
-    );
-  }
-
-  const categories = getTheoryCategories(doc);
   return (
-    <TheoryCategorySelector
+    <TheoryTrackPath
       doc={doc}
-      categories={categories}
+      track={{
+        slug: 'all',
+        label: doc.title,
+        eyebrow: 'Modules',
+        description: doc.description,
+        highlights: [],
+        chapters: [...(doc.modules ?? doc.chapters)],
+        chapterCount: (doc.modules ?? doc.chapters).length,
+        totalMinutes: (doc.modules ?? doc.chapters).reduce(
+          (sum, ch) => sum + ch.totalMinutes,
+          0
+        ),
+      }}
       completedChapterIds={completedChapterIds}
       chapterProgressById={chapterProgressById}
       moduleProgressById={moduleProgressById}
@@ -56,18 +51,8 @@ export function generateStaticParams() {
 
 export function generateMetadata({ params }: LearnTopicTheoryPageProps): Metadata {
   const doc = theoryDocs[params.topic];
-  if (!doc) {
-    return {
-      title: 'stableGrid',
-      description: 'Module-based theory documentation.'
-    };
-  }
-
-  const hasTracks = getTheoryTracks(doc).length > 0;
   return {
     title: 'stableGrid',
-    description: hasTracks
-      ? 'Choose a guided track before opening modules.'
-      : 'Choose a theory category before opening modules.'
+    description: doc?.description ?? 'Module-based theory documentation.'
   };
 }
