@@ -966,7 +966,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           className="inline-flex h-8 items-center gap-1.5 border border-outline-variant/50 bg-surface-container px-3 text-xs font-mono font-medium text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline uppercase tracking-wider">Modules</span>
+          <span className="hidden sm:inline uppercase tracking-wider">Lessons</span>
         </Link>
         <button
           type="button"
@@ -978,7 +978,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           data-hide-on-focus
         >
           {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          <span className="hidden sm:inline uppercase tracking-wider">{sidebarOpen ? 'Close' : 'Modules'}</span>
+          <span className="hidden sm:inline uppercase tracking-wider">{sidebarOpen ? 'Close' : 'Lessons'}</span>
         </button>
 
         {theorySession.hasActiveSession ? (
