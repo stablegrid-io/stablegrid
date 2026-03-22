@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { TheoryTrackGallery } from '@/components/learn/theory/TheoryTrackGallery';
 import { TheoryTrackPath } from '@/components/learn/theory/TheoryTrackPath';
 import { learnTopics } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
+import { getTheoryTracks } from '@/data/learn/theory/tracks';
 import { loadServerTheoryProgress } from '@/lib/learn/serverTheoryProgress';
 
 interface LearnTopicTheoryPageProps {
@@ -22,6 +24,22 @@ export default async function LearnTopicTheoryPage({
   const { completedChapterIds, chapterProgressById, moduleProgressById } =
     await loadServerTheoryProgress(params.topic);
 
+  const tracks = getTheoryTracks(doc);
+
+  // Show gallery when tracks are defined, otherwise go straight to module list
+  if (tracks.length > 0) {
+    return (
+      <TheoryTrackGallery
+        doc={doc}
+        tracks={tracks}
+        completedChapterIds={completedChapterIds}
+        chapterProgressById={chapterProgressById}
+        moduleProgressById={moduleProgressById}
+      />
+    );
+  }
+
+  // No tracks configured — show modules directly
   return (
     <TheoryTrackPath
       doc={doc}

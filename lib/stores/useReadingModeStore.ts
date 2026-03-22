@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type ReadingMode = 'dark' | 'light' | 'book';
+export type ReadingMode = 'dark' | 'light' | 'book' | 'kindle' | 'nightowl' | 'black';
 
 interface ReadingModeState {
   mode: ReadingMode;

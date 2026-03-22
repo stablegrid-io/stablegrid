@@ -89,11 +89,15 @@ interface TheoryLayoutProps {
 const ModuleProgressRail = ({
   orderedLessons,
   completedLessonIds,
-  activeLessonId
+  activeLessonId,
+  readingMode,
+  onSelectLesson
 }: {
-  orderedLessons: { id: string }[];
+  orderedLessons: { id: string; title?: string }[];
   completedLessonIds: string[];
   activeLessonId: string | null;
+  readingMode?: string;
+  onSelectLesson?: (lessonId: string) => void;
 }) => {
   const completedSet = useMemo(() => new Set(completedLessonIds), [completedLessonIds]);
   const activeIndex = orderedLessons.findIndex((l) => l.id === activeLessonId);
@@ -120,36 +124,59 @@ const ModuleProgressRail = ({
   if (orderedLessons.length === 0) return null;
 
   return (
-    <div className="hidden lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-30 flex-col items-center">
+    <div
+      className="hidden lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-30 flex-col items-center group/rail"
+      data-reading-mode={readingMode}
+    >
       {/* Battery cap */}
-      <div className="w-5 h-2 bg-primary/30 mb-0.5" />
+      <div className="w-5 h-2 mb-0.5" style={{ backgroundColor: 'var(--rm-accent, rgb(var(--color-primary)))' , opacity: 0.3 }} />
       {/* Battery body */}
-      <div className="border-2 border-primary/20 p-1.5 flex flex-col-reverse gap-1 bg-surface-container-lowest/80 backdrop-blur-sm">
+      <div
+        className="p-1.5 flex flex-col-reverse gap-1 backdrop-blur-sm"
+        style={{
+          border: '2px solid color-mix(in srgb, var(--rm-accent, rgb(var(--color-primary))) 20%, transparent)',
+          backgroundColor: 'var(--rm-bg, rgb(var(--color-surface-container-lowest)))',
+          opacity: 0.9,
+        }}
+      >
         {orderedLessons.map((l, i) => {
           const isCompleted = completedSet.has(l.id);
           const isActive = i === activeIndex && !isActiveLessonCompleted;
+          const isCurrent = l.id === activeLessonId;
 
           return (
-            <div
+            <button
               key={l.id}
-              className={`w-5 h-5 relative overflow-hidden transition-all duration-500 ${
-                isCompleted
-                  ? 'bg-primary/80'
-                  : 'bg-surface-container-highest/20 border border-primary/10'
-              }`}
+              type="button"
+              onClick={() => onSelectLesson?.(l.id)}
+              title={`Lesson ${i + 1}${l.title ? `: ${l.title}` : ''}`}
+              className="w-5 h-5 relative overflow-hidden transition-all duration-500 cursor-pointer hover:scale-125 focus:outline-none"
+              style={{
+                backgroundColor: isCompleted
+                  ? 'color-mix(in srgb, var(--rm-accent, rgb(var(--color-primary))) 80%, transparent)'
+                  : 'var(--rm-bg-elevated, rgba(255,255,255,0.05))',
+                border: isCurrent
+                  ? '2px solid var(--rm-accent, rgb(var(--color-primary)))'
+                  : isCompleted
+                    ? 'none'
+                    : '1px solid color-mix(in srgb, var(--rm-accent, rgb(var(--color-primary))) 10%, transparent)',
+              }}
             >
               {isActive && (
                 <div
-                  className="absolute inset-x-0 bottom-0 bg-primary/70 transition-[height] duration-1000 ease-linear"
-                  style={{ height: `${activeProgress}%` }}
+                  className="absolute inset-x-0 bottom-0 transition-[height] duration-1000 ease-linear"
+                  style={{
+                    height: `${activeProgress}%`,
+                    backgroundColor: 'color-mix(in srgb, var(--rm-accent, rgb(var(--color-primary))) 70%, transparent)',
+                  }}
                 />
               )}
-            </div>
+            </button>
           );
         })}
       </div>
       {/* Label */}
-      <span className="font-mono text-[8px] text-primary/50 mt-2 font-bold">
+      <span className="font-mono text-[8px] mt-2 font-bold" style={{ color: 'var(--rm-text-secondary, rgb(var(--color-primary) / 0.5))' }}>
         {completedLessonIds.length}/{orderedLessons.length}
       </span>
     </div>
@@ -221,6 +248,18 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const { isAdmin } = useAdminStatus();
   const readingMode = useReadingModeStore((s) => s.mode);
   const focusMode = useReadingModeStore((s) => s.focusMode);
+  const toggleFocus = useReadingModeStore((s) => s.toggleFocus);
+
+  // ESC to exit focus mode
+  useEffect(() => {
+    if (!focusMode) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') toggleFocus();
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [focusMode, toggleFocus]);
+
   const activeTrackSlug = useMemo(
     () => parseTheoryTrackSlugFromPathname(pathname),
     [pathname]
@@ -960,13 +999,43 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       )}
 
 
-      <div className="flex h-11 flex-shrink-0 items-center gap-3 border-b border-outline-variant/30 bg-surface px-4 sticky top-0 z-40">
+      {/* Floating controls — visible in focus mode */}
+      {focusMode && (
+        <div data-reading-mode={readingMode} className="contents">
+          <div className="fixed top-3 right-3 z-50" data-reading-mode={readingMode}>
+            <ReadingModeDropdown />
+          </div>
+          <button
+            type="button"
+            onClick={toggleFocus}
+            data-reading-mode={readingMode}
+            className="fixed top-3 left-3 z-50 flex items-center gap-2 px-3 py-1.5 backdrop-blur transition-opacity opacity-40 hover:opacity-100"
+            style={{
+              backgroundColor: 'var(--rm-bg-elevated)',
+              border: '1px solid var(--rm-border)',
+              color: 'var(--rm-text-secondary)',
+            }}
+          >
+            <kbd
+              className="font-mono text-[10px] tracking-widest px-1.5 py-0.5"
+              style={{
+                border: '1px solid var(--rm-border)',
+                backgroundColor: 'var(--rm-bg)',
+                color: 'var(--rm-text-secondary)',
+              }}
+            >ESC</kbd>
+            <span className="font-mono text-[10px] tracking-widest uppercase">Exit Focus</span>
+          </button>
+        </div>
+      )}
+
+      <div className="flex h-11 flex-shrink-0 items-center gap-3 border-b border-outline-variant/30 bg-surface px-4 sticky top-0 z-40" data-hide-on-focus>
         <Link
           href={activeTrackSlug ? `/learn/${doc.topic}/theory/${activeTrackSlug}` : `/learn/${doc.topic}/theory`}
           className="inline-flex h-8 items-center gap-1.5 border border-outline-variant/50 bg-surface-container px-3 text-xs font-mono font-medium text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline uppercase tracking-wider">Lessons</span>
+          <span className="hidden sm:inline uppercase tracking-wider">Modules</span>
         </Link>
         <button
           type="button"
@@ -975,7 +1044,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           aria-controls="theory-sidebar"
           className="inline-flex h-8 items-center gap-2 border border-outline-variant/50 bg-surface-container px-3 text-xs font-mono font-medium text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
           aria-label="Toggle module navigation"
-          data-hide-on-focus
         >
           {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           <span className="hidden sm:inline uppercase tracking-wider">{sidebarOpen ? 'Close' : 'Lessons'}</span>
@@ -1000,7 +1068,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
                 onClick={openSessionPicker}
                 disabled={!sessionDefaultsHydrated}
                 className="inline-flex items-center gap-1 border border-outline-variant/50 px-2.5 py-1 text-xs font-mono text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary uppercase tracking-wider"
-                data-hide-on-focus
               >
                 <Clock3 className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Session</span>
@@ -1009,13 +1076,17 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
                 type="button"
                 onClick={() => router.push('/settings?tab=reading')}
                 className="hidden border border-outline-variant/50 px-2.5 py-1 text-xs font-mono text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary uppercase tracking-wider sm:inline-flex"
-                data-hide-on-focus
               >
                 Settings
               </button>
             </div>
           </>
         )}
+
+        {/* Always visible regardless of session state */}
+        <div className={`flex items-center ${theorySession.hasActiveSession ? '' : 'hidden'}`}>
+          <ReadingModeDropdown />
+        </div>
       </div>
 
       {progressIssue ? (
@@ -1038,6 +1109,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
           id="theory-sidebar"
+          data-hide-on-focus
           className={`absolute inset-y-0 left-0 z-50 w-[min(18.25rem,calc(100vw-1rem))] border-r border-outline-variant/30 bg-surface-container/96 shadow-2xl backdrop-blur transition-transform duration-300 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
@@ -1067,6 +1139,8 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           orderedLessons={orderedActiveLessons}
           completedLessonIds={completedLessonIds}
           activeLessonId={activeLessonId}
+          readingMode={readingMode}
+          onSelectLesson={handleSelectLesson}
         />
 
         <div

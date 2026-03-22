@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
 import { TheorySection as TheorySectionReadView } from '@/components/learn/theory/TheorySection';
 import type {
   BlockType,
@@ -57,23 +58,69 @@ const CALLOUT_VARIANTS: CalloutBlock['variant'][] = [
 /*  Shared style tokens                                                */
 /* ------------------------------------------------------------------ */
 
-const inputCls =
-  'w-full rounded-lg border border-light-border bg-light-surface px-3 py-2 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 dark:border-dark-border dark:bg-dark-surface';
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  border: '1px solid var(--rm-border)',
+  backgroundColor: 'var(--rm-bg)',
+  color: 'var(--rm-text)',
+  padding: '0.5rem 0.75rem',
+  fontSize: '0.875rem',
+  outline: 'none',
+};
 
-const blockCardCls =
-  'rounded-xl border border-light-border bg-light-bg p-4 dark:border-dark-border dark:bg-dark-bg';
+const blockCardStyle: React.CSSProperties = {
+  border: '1px solid var(--rm-border)',
+  backgroundColor: 'var(--rm-bg-elevated)',
+  padding: '1rem',
+};
 
 const labelCls =
-  'block text-xs font-medium uppercase tracking-wider text-text-light-tertiary dark:text-text-dark-tertiary';
+  'block text-xs font-medium uppercase tracking-wider font-mono';
 
-const primaryBtnCls =
-  'rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed';
+const labelStyle: React.CSSProperties = {
+  color: 'var(--rm-text-secondary)',
+};
 
-const secondaryBtnCls =
-  'rounded-lg border border-light-border px-4 py-2 text-sm font-medium text-text-light-secondary transition hover:bg-light-surface dark:border-dark-border dark:text-text-dark-secondary dark:hover:bg-dark-surface';
+const primaryBtnStyle: React.CSSProperties = {
+  backgroundColor: 'var(--rm-accent)',
+  color: 'var(--rm-bg)',
+  padding: '0.5rem 1rem',
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  fontFamily: 'var(--font-mono)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  cursor: 'pointer',
+};
 
-const actionBtnCls =
-  'rounded-md border border-light-border px-2 py-1 text-xs text-text-light-secondary transition hover:bg-light-surface dark:border-dark-border dark:text-text-dark-secondary dark:hover:bg-dark-surface';
+const secondaryBtnStyle: React.CSSProperties = {
+  border: '1px solid var(--rm-border)',
+  color: 'var(--rm-text-secondary)',
+  padding: '0.5rem 1rem',
+  fontSize: '0.875rem',
+  fontFamily: 'var(--font-mono)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  cursor: 'pointer',
+  backgroundColor: 'transparent',
+};
+
+const actionBtnStyle: React.CSSProperties = {
+  border: '1px solid var(--rm-border)',
+  color: 'var(--rm-text-secondary)',
+  padding: '0.25rem 0.5rem',
+  fontSize: '0.75rem',
+  fontFamily: 'var(--font-mono)',
+  cursor: 'pointer',
+  backgroundColor: 'transparent',
+};
+
+// Keep class-based versions for backward compat in places that need both
+const inputCls = 'w-full px-3 py-2 text-sm outline-none';
+const blockCardCls = 'p-4';
+const primaryBtnCls = 'px-4 py-2 text-sm font-semibold font-mono uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed';
+const secondaryBtnCls = 'px-4 py-2 text-sm font-medium font-mono uppercase tracking-wider';
+const actionBtnCls = 'px-2 py-1 text-xs font-mono';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -165,7 +212,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1">
-      <label className={labelCls}>{label}</label>
+      <label className={labelCls} style={labelStyle}>{label}</label>
       {children}
     </div>
   );
@@ -192,6 +239,7 @@ export function InlineLessonEditor({
   onSave,
   onCancel,
 }: InlineLessonEditorProps) {
+  const readingMode = useReadingModeStore((s) => s.mode);
   /* ---- state ---- */
   const [title, setTitle] = useState(section.title);
   const [estimatedMinutes, setEstimatedMinutes] = useState(
@@ -275,7 +323,7 @@ export function InlineLessonEditor({
         return (
           <Field label="Content">
             <textarea
-              className={inputCls}
+              className={inputCls} style={inputStyle}
               rows={4}
               value={block.content}
               onChange={(e) =>
@@ -293,7 +341,7 @@ export function InlineLessonEditor({
         return (
           <Field label="Content">
             <input
-              className={inputCls}
+              className={inputCls} style={inputStyle}
               value={block.content}
               onChange={(e) =>
                 updateBlockAtIndex(index, {
@@ -311,7 +359,7 @@ export function InlineLessonEditor({
           <div className="space-y-3">
             <Field label="Variant">
               <select
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 value={cb.variant}
                 onChange={(e) =>
                   updateBlockAtIndex(index, {
@@ -329,7 +377,7 @@ export function InlineLessonEditor({
             </Field>
             <Field label="Title">
               <input
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 value={cb.title ?? ''}
                 onChange={(e) =>
                   updateBlockAtIndex(index, {
@@ -341,7 +389,7 @@ export function InlineLessonEditor({
             </Field>
             <Field label="Content">
               <textarea
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 rows={4}
                 value={cb.content}
                 onChange={(e) =>
@@ -362,7 +410,7 @@ export function InlineLessonEditor({
         return (
           <Field label="Items (one per line)">
             <textarea
-              className={inputCls}
+              className={inputCls} style={inputStyle}
               rows={6}
               value={fromLineItems(lb.items)}
               onChange={(e) =>
@@ -382,7 +430,7 @@ export function InlineLessonEditor({
           <div className="space-y-3">
             <Field label="Term">
               <input
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 value={kc.term}
                 onChange={(e) =>
                   updateBlockAtIndex(index, {
@@ -394,7 +442,7 @@ export function InlineLessonEditor({
             </Field>
             <Field label="Definition">
               <textarea
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 rows={3}
                 value={kc.definition}
                 onChange={(e) =>
@@ -407,7 +455,7 @@ export function InlineLessonEditor({
             </Field>
             <Field label="Analogy">
               <textarea
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 rows={3}
                 value={kc.analogy ?? ''}
                 onChange={(e) =>
@@ -428,7 +476,7 @@ export function InlineLessonEditor({
           <div className="space-y-3">
             <Field label="Language">
               <input
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 value={cd.language}
                 onChange={(e) =>
                   updateBlockAtIndex(index, {
@@ -440,7 +488,7 @@ export function InlineLessonEditor({
             </Field>
             <Field label="Label">
               <input
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 value={cd.label ?? ''}
                 onChange={(e) =>
                   updateBlockAtIndex(index, {
@@ -472,7 +520,7 @@ export function InlineLessonEditor({
           <div className="space-y-3">
             <Field label="Title">
               <input
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 value={dg.title ?? ''}
                 onChange={(e) =>
                   updateBlockAtIndex(index, {
@@ -484,7 +532,7 @@ export function InlineLessonEditor({
             </Field>
             <Field label="Caption">
               <input
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 value={dg.caption ?? ''}
                 onChange={(e) =>
                   updateBlockAtIndex(index, {
@@ -516,7 +564,7 @@ export function InlineLessonEditor({
           <div className="space-y-3">
             <Field label="Headers (pipe-separated)">
               <input
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 value={tb.headers.join(' | ')}
                 onChange={(e) =>
                   updateBlockAtIndex(index, {
@@ -531,7 +579,7 @@ export function InlineLessonEditor({
             </Field>
             <Field label="Rows (pipe-separated per row, one row per line)">
               <textarea
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 rows={6}
                 value={fromTableRows(tb.rows)}
                 onChange={(e) =>
@@ -544,7 +592,7 @@ export function InlineLessonEditor({
             </Field>
             <Field label="Caption">
               <input
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 value={tb.caption ?? ''}
                 onChange={(e) =>
                   updateBlockAtIndex(index, {
@@ -564,7 +612,7 @@ export function InlineLessonEditor({
           <div className="space-y-3">
             <Field label="Title">
               <input
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 value={cp.title ?? ''}
                 onChange={(e) =>
                   updateBlockAtIndex(index, {
@@ -578,7 +626,7 @@ export function InlineLessonEditor({
               <div className="space-y-3">
                 <Field label="Left Label">
                   <input
-                    className={inputCls}
+                    className={inputCls} style={inputStyle}
                     value={cp.left.label}
                     onChange={(e) =>
                       updateBlockAtIndex(index, {
@@ -590,7 +638,7 @@ export function InlineLessonEditor({
                 </Field>
                 <Field label="Left Points (one per line)">
                   <textarea
-                    className={inputCls}
+                    className={inputCls} style={inputStyle}
                     rows={4}
                     value={fromLineItems(cp.left.points)}
                     onChange={(e) =>
@@ -608,7 +656,7 @@ export function InlineLessonEditor({
               <div className="space-y-3">
                 <Field label="Right Label">
                   <input
-                    className={inputCls}
+                    className={inputCls} style={inputStyle}
                     value={cp.right.label}
                     onChange={(e) =>
                       updateBlockAtIndex(index, {
@@ -620,7 +668,7 @@ export function InlineLessonEditor({
                 </Field>
                 <Field label="Right Points (one per line)">
                   <textarea
-                    className={inputCls}
+                    className={inputCls} style={inputStyle}
                     rows={4}
                     value={fromLineItems(cp.right.points)}
                     onChange={(e) =>
@@ -655,12 +703,12 @@ export function InlineLessonEditor({
   /* ---- render ---- */
 
   return (
-    <div>
+    <div data-reading-mode={readingMode} style={{ backgroundColor: 'var(--rm-bg)', color: 'var(--rm-text)' }}>
       {/* Split screen: editor left, preview right */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {/* ---- Editor pane ---- */}
         <div>
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-light-tertiary dark:text-text-dark-tertiary">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wider font-mono" style={{ color: 'var(--rm-text-secondary)' }}>
             Editor
           </div>
 
@@ -668,14 +716,14 @@ export function InlineLessonEditor({
           <div className="mb-6 grid gap-4 md:grid-cols-2">
             <Field label="Lesson Title">
               <input
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </Field>
             <Field label="Estimated Minutes">
               <input
-                className={inputCls}
+                className={inputCls} style={inputStyle}
                 type="number"
                 min={1}
                 value={estimatedMinutes}
@@ -687,16 +735,17 @@ export function InlineLessonEditor({
           {/* Blocks */}
           <div className="space-y-4">
             {blocks.map((block, index) => (
-              <div key={index} className={blockCardCls}>
+              <div key={index} className={blockCardCls} style={blockCardStyle}>
                 {/* Block header */}
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
+                  <span className="text-sm font-semibold" style={{ color: 'var(--rm-text-heading)' }}>
                     Block {index + 1} &middot; {blockTypeLabel(block.type)}
                   </span>
                   <div className="flex gap-1">
                     <button
                       type="button"
                       className={actionBtnCls}
+                      style={actionBtnStyle}
                       disabled={index === 0}
                       onClick={() => moveBlock(index, 'up')}
                     >
@@ -705,6 +754,7 @@ export function InlineLessonEditor({
                     <button
                       type="button"
                       className={actionBtnCls}
+                      style={actionBtnStyle}
                       disabled={index === blocks.length - 1}
                       onClick={() => moveBlock(index, 'down')}
                     >
@@ -713,6 +763,7 @@ export function InlineLessonEditor({
                     <button
                       type="button"
                       className={actionBtnCls}
+                      style={actionBtnStyle}
                       onClick={() => duplicateBlockAtIndex(index)}
                     >
                       Duplicate
@@ -720,6 +771,7 @@ export function InlineLessonEditor({
                     <button
                       type="button"
                       className={actionBtnCls}
+                      style={actionBtnStyle}
                       onClick={() => deleteBlockAtIndex(index)}
                     >
                       Delete
@@ -736,7 +788,7 @@ export function InlineLessonEditor({
           {/* Add block dropdown */}
           <div className="mt-4 flex gap-2">
             <select
-              className={inputCls}
+              className={inputCls} style={inputStyle}
               value={newBlockType}
               onChange={(e) => setNewBlockType(e.target.value as BlockType)}
             >
@@ -749,6 +801,7 @@ export function InlineLessonEditor({
             <button
               type="button"
               className={secondaryBtnCls}
+              style={secondaryBtnStyle}
               onClick={() => addBlock(newBlockType)}
             >
               Add Block
@@ -758,10 +811,17 @@ export function InlineLessonEditor({
 
         {/* ---- Preview pane ---- */}
         <div className="hidden xl:block">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-light-tertiary dark:text-text-dark-tertiary">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wider font-mono" style={{ color: 'var(--rm-text-secondary)' }}>
             Preview
           </div>
-          <div className="sticky top-0 max-h-[calc(100vh-8rem)] overflow-y-auto rounded-xl border border-light-border bg-white p-6 dark:border-dark-border dark:bg-[#0a0f0c]">
+          <div
+            data-reading-mode={readingMode}
+            className="sticky top-0 max-h-[calc(100vh-8rem)] overflow-y-auto rounded-xl border p-6"
+            style={{
+              backgroundColor: 'var(--rm-bg)',
+              borderColor: 'var(--rm-border)',
+            }}
+          >
             <TheorySectionReadView
               section={previewSection}
               lessonIndex={0}
@@ -773,17 +833,21 @@ export function InlineLessonEditor({
 
       {/* Error message */}
       {saveError && (
-        <div className="mt-4 text-sm text-rose-500">{saveError}</div>
+        <div className="mt-4 text-sm text-error">{saveError}</div>
       )}
 
       {/* Sticky toolbar */}
-      <div className="sticky bottom-0 mt-6 flex justify-end gap-3 border-t border-light-border bg-white/80 py-4 backdrop-blur-sm dark:border-dark-border dark:bg-[#060809]/80">
-        <button type="button" className={secondaryBtnCls} onClick={onCancel}>
+      <div
+        className="sticky bottom-0 mt-6 flex justify-end gap-3 py-4 backdrop-blur-sm"
+        style={{ borderTop: '1px solid var(--rm-border)', backgroundColor: 'color-mix(in srgb, var(--rm-bg) 80%, transparent)' }}
+      >
+        <button type="button" className={secondaryBtnCls} style={secondaryBtnStyle} onClick={onCancel}>
           Cancel
         </button>
         <button
           type="button"
           className={primaryBtnCls}
+          style={primaryBtnStyle}
           disabled={saving}
           onClick={handleSave}
         >

@@ -223,17 +223,17 @@
 }
 
 [data-reading-mode="book"] {
-  --rm-bg: #faf7f2;
-  --rm-bg-elevated: #f3efe8;
+  --rm-bg: #d5d1cb;
+  --rm-bg-elevated: #cfc9c1;
   --rm-text: #3d3529;
   --rm-text-heading: #1a1510;
-  --rm-text-secondary: #8a7e6b;
+  --rm-text-secondary: #756a58;
   --rm-text-lead: #2c2416;
-  --rm-border: #e0d9cc;
-  --rm-accent: #c4a97d;
-  --rm-callout-bg: #f3efe8;
-  --rm-callout-border: #c4a97d;
-  --rm-code-bg: #2d2a24;
+  --rm-border: #beb7ad;
+  --rm-accent: #a68c60;
+  --rm-callout-bg: #cfc9c1;
+  --rm-callout-border: #a68c60;
+  --rm-code-bg: #262320;
   --rm-code-border: #3d3829;
   --rm-code-text: #e8e0d0;
   --rm-code-comment: #8a7e6b;
@@ -247,11 +247,107 @@
   --rm-font-heading: Georgia, 'Iowan Old Style', serif;
   --rm-line-height: 1.9;
   --rm-content-max-width: 48rem;
-  --rm-table-header-bg: #efe9dd;
-  --rm-table-hover: #f5f0e8;
-  --rm-list-badge-bg: rgba(196,169,125,0.15);
-  --rm-list-badge-text: #8a7e6b;
-  --rm-hr: #e0d9cc;
+  --rm-table-header-bg: #cbc5bc;
+  --rm-table-hover: #d0cbc4;
+  --rm-list-badge-bg: rgba(166,140,96,0.15);
+  --rm-list-badge-text: #756a58;
+  --rm-hr: #beb7ad;
+}
+
+[data-reading-mode="kindle"] {
+  --rm-bg: #f5f1e8;
+  --rm-bg-elevated: #ede8dd;
+  --rm-text: #2d2a26;
+  --rm-text-heading: #1a1816;
+  --rm-text-secondary: #6b6560;
+  --rm-text-lead: #1f1d1a;
+  --rm-border: #d8d0c4;
+  --rm-accent: #3d3d3d;
+  --rm-callout-bg: #ede8dd;
+  --rm-callout-border: #b0a898;
+  --rm-code-bg: #e8e3d8;
+  --rm-code-border: #d0c9bc;
+  --rm-code-text: #2d2a26;
+  --rm-code-comment: #8a8480;
+  --rm-code-string: #4a7a3a;
+  --rm-code-keyword: #6a4a8a;
+  --rm-code-number: #8a6a2a;
+  --rm-code-label-bg: rgba(0,0,0,0.03);
+  --rm-code-label-text: #8a8480;
+  --rm-code-radius: 2px;
+  --rm-font: 'Bookerly', 'Georgia', 'Iowan Old Style', 'Palatino Linotype', serif;
+  --rm-font-heading: 'Bookerly', 'Georgia', 'Iowan Old Style', serif;
+  --rm-line-height: 1.85;
+  --rm-content-max-width: 42rem;
+  --rm-table-header-bg: #e8e3d8;
+  --rm-table-hover: #ede8dd;
+  --rm-list-badge-bg: rgba(0,0,0,0.05);
+  --rm-list-badge-text: #6b6560;
+  --rm-hr: #d8d0c4;
+}
+
+[data-reading-mode="nightowl"] {
+  --rm-bg: #1a1008;
+  --rm-bg-elevated: #241a0e;
+  --rm-text: #c8a878;
+  --rm-text-heading: #e0c89a;
+  --rm-text-secondary: #8a7050;
+  --rm-text-lead: #d4b888;
+  --rm-border: #3a2a18;
+  --rm-accent: #d4a050;
+  --rm-callout-bg: #241a0e;
+  --rm-callout-border: #8a6830;
+  --rm-code-bg: #140c04;
+  --rm-code-border: #2a1e10;
+  --rm-code-text: #c8a878;
+  --rm-code-comment: #705830;
+  --rm-code-string: #a09040;
+  --rm-code-keyword: #c88848;
+  --rm-code-number: #d4a050;
+  --rm-code-label-bg: rgba(180,140,60,0.06);
+  --rm-code-label-text: #8a7050;
+  --rm-code-radius: 0px;
+  --rm-font: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  --rm-font-heading: Georgia, 'Iowan Old Style', serif;
+  --rm-line-height: 1.9;
+  --rm-content-max-width: 48rem;
+  --rm-table-header-bg: #241a0e;
+  --rm-table-hover: #2a1e12;
+  --rm-list-badge-bg: rgba(212,160,80,0.1);
+  --rm-list-badge-text: #d4a050;
+  --rm-hr: #3a2a18;
+}
+
+[data-reading-mode="black"] {
+  --rm-bg: #000000;
+  --rm-bg-elevated: #0a0a0a;
+  --rm-text: #c8c8c8;
+  --rm-text-heading: #e8e8e8;
+  --rm-text-secondary: #707070;
+  --rm-text-lead: #d8d8d8;
+  --rm-border: #1a1a1a;
+  --rm-accent: #ffffff;
+  --rm-callout-bg: #0a0a0a;
+  --rm-callout-border: #333333;
+  --rm-code-bg: #000000;
+  --rm-code-border: #1a1a1a;
+  --rm-code-text: #c8c8c8;
+  --rm-code-comment: #555555;
+  --rm-code-string: #86efac;
+  --rm-code-keyword: #c4b5fd;
+  --rm-code-number: #fbbf24;
+  --rm-code-label-bg: rgba(255,255,255,0.03);
+  --rm-code-label-text: #555555;
+  --rm-code-radius: 0px;
+  --rm-font: Inter, system-ui, sans-serif;
+  --rm-font-heading: 'Space Grotesk', sans-serif;
+  --rm-line-height: 1.8;
+  --rm-content-max-width: 54rem;
+  --rm-table-header-bg: #0a0a0a;
+  --rm-table-hover: #0f0f0f;
+  --rm-list-badge-bg: rgba(255,255,255,0.05);
+  --rm-list-badge-text: #888888;
+  --rm-hr: #1a1a1a;
 }
 
 /* Transition on container */
@@ -281,6 +377,10 @@
 [data-focus-mode="true"] [data-reading-mode] {
   padding-left: 2rem;
   padding-right: 2rem;
+}
+
+[data-focus-mode="true"] {
+  height: 100dvh !important;
 }
 
 @layer utilities {

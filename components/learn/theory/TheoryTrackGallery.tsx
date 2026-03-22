@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Zap, CheckCircle, Lock } from 'lucide-react';
+import { ArrowRight, Zap, CheckCircle } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { summarizeTrackLessonProgress } from '@/lib/learn/theoryTrackProgress';
@@ -64,7 +64,7 @@ export const TheoryTrackGallery = ({
             </span>
           </div>
           <h1 className="font-headline font-bold text-5xl lg:text-6xl tracking-tighter uppercase text-on-surface mb-4">
-            {doc.title.replace(/\s+modules?$/i, '')} <span className="text-primary opacity-50">MODULES</span>
+            {doc.topic.replace(/-/g, ' ')} <span className="text-primary opacity-50">MODULES</span>
           </h1>
           <p className="font-mono text-sm text-on-surface-variant max-w-2xl leading-relaxed">
             System access granted. Select a specialized track to initialize neural mapping.
@@ -198,7 +198,6 @@ export const TheoryTrackGallery = ({
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className="w-1.5 h-3" style={{ backgroundColor: `${ta.color}30` }} />
                           <div className="flex-1 flex gap-0.5 p-1 bg-black/30" style={{ border: `2px solid ${ta.color}33` }}>
                             {Array.from({ length: segmentCount }, (_, i) => (
                               <div
