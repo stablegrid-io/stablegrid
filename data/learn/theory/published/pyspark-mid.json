@@ -1,0 +1,713 @@
+{
+  "topic": "pyspark",
+  "title": "PySpark for Data Engineers: Mid-Level Track",
+  "description": "Performance optimization, advanced join strategies, shuffle mechanics, execution plan analysis, and production-grade pipeline patterns for experienced PySpark engineers.",
+  "version": "authored 2026-03-22",
+  "chapters": [
+    {
+      "id": "module-PSI1",
+      "number": 1,
+      "title": "Execution Plans and the Catalyst Optimizer",
+      "description": "Read and interpret physical execution plans, understand Catalyst optimization rules, and use plan analysis to verify that Spark is executing your pipeline the way you intend.",
+      "totalMinutes": 320,
+      "sections": [
+        {
+          "id": "module-PSI1-lesson-01",
+          "title": "Why Execution Plans Matter Now",
+          "estimatedMinutes": 32,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "NordGrid's Silver pipeline had run without incident for four months. The transformation logic was correct, the data quality gates passed, and the output matched the expected schema. Then the team added a new join to enrich meter readings with substation capacity data — a small reference table of 200 rows. The pipeline still produced correct results. But the Spark UI showed that the new join was using a sort-merge strategy with a full shuffle of the 1.2-million-row readings table, instead of broadcasting the 200-row reference table. The join took 8 minutes instead of 15 seconds. The code was correct. The execution was catastrophically inefficient. Nobody noticed for three weeks because the pipeline still finished before the 8 AM SLA — just barely."
+            },
+            {
+              "type": "heading",
+              "content": "The Mid-Level Shift"
+            },
+            {
+              "type": "paragraph",
+              "content": "In the junior-level track, you learned to trust Spark: write transformations, call an action, and let Catalyst optimize the plan. That trust was appropriate when you were learning the API. It is no longer sufficient. At mid-level scale — 1.2 million meters, 12 regions, 3.2TB of historical data — incorrect optimizer decisions cost minutes or hours of compute time. A missing predicate pushdown means reading 500GB instead of 5GB. A sort-merge join where a broadcast join was possible means shuffling terabytes of data across the network. A bad partition count means 200 tiny tasks that spend more time on scheduling overhead than on actual work. These are not bugs in your code. They are inefficiencies in the execution plan that you can only detect by reading the plan."
+            },
+            {
+              "type": "paragraph",
+              "content": "The execution plan is the contract between your code and the cluster. Your code says what to compute. The plan says how Spark will compute it: which files to read, which columns to scan, where to shuffle, which join strategy to use, how many partitions to create. When the plan matches your intent, the pipeline is efficient. When it does not — and it frequently does not, especially after code changes, schema changes, or data growth — the pipeline is wasteful. Reading execution plans is the skill that separates an engineer who writes correct code from one who writes correct and efficient code."
+            },
+            {
+              "type": "heading",
+              "content": "What You Will Learn in This Module"
+            },
+            {
+              "type": "paragraph",
+              "content": "This module teaches you to read execution plans fluently. By the end, you will be able to call explain(True) on any DataFrame, read the physical plan bottom-to-top, identify the operators (FileScan, Filter, Project, Exchange, HashAggregate, BroadcastHashJoin, SortMergeJoin), verify that predicate pushdown and column pruning are working, and spot the red flags that indicate an inefficient plan. You will understand what the Catalyst optimizer does, what it cannot do, and how to configure it when the defaults are wrong. This is the foundational skill for every performance-related module that follows."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from pyspark.sql.functions import col\n\nreadings = spark.read.parquet('silver/readings/')\nsubstations = spark.read.parquet('reference/substations/')  # 200 rows\n\n# The join that triggered the incident\nenriched = readings.join(substations, 'substation_id', 'left')\n\n# This is the question the team should have asked BEFORE deploying:\nenriched.explain(True)"
+            },
+            {
+              "type": "paragraph",
+              "content": "The explain(True) call prints the full plan — parsed, analyzed, optimized, and physical. It does not execute anything, does not read any data, and costs nothing. It takes milliseconds, produces a few dozen lines of output, and tells you exactly how Spark will process your query. Yet NordGrid's team did not call it before deploying the new join, and the oversight cost three weeks of unnecessary compute time and cluster resources. This module exists so that reading the plan becomes as automatic as reading the code itself."
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "Production pattern",
+              "content": "NordGrid's new rule after the incident: every PR that adds or modifies a join, a groupBy, or a read from a new data source must include the explain() output in the PR description. The reviewer checks the plan for expected join strategies, pushdown, and pruning before approving the merge. This takes 30 seconds and has prevented four performance regressions in the first month."
+            }
+          ]
+        },
+        {
+          "id": "module-PSI1-lesson-02",
+          "title": "The Four Plan Phases",
+          "estimatedMinutes": 32,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "When you call explain(True), Spark prints four versions of the plan: Parsed Logical Plan, Analyzed Logical Plan, Optimized Logical Plan, and Physical Plan. Each phase represents a stage in Catalyst's compilation pipeline. The Parsed plan is what you wrote. The Analyzed plan adds type information. The Optimized plan is what Catalyst improved. The Physical plan is what the executors will actually execute. Understanding all four phases lets you trace exactly where an optimization happened — or failed to happen — and why."
+            },
+            {
+              "type": "heading",
+              "content": "The Compilation Pipeline"
+            },
+            {
+              "type": "diagram",
+              "title": "Catalyst's four plan phases",
+              "content": "Your PySpark Code\n       │\n       ▼\n┌────────────────────┐\n│ 1. Parsed Logical   │  Your code translated to a plan tree.\n│    Plan              │  Column names are unresolved strings.\n└──────────┬─────────┘\n           │\n           ▼\n┌────────────────────┐\n│ 2. Analyzed Logical  │  Column names resolved against the catalog.\n│    Plan              │  Types verified. Missing columns caught.\n└──────────┬─────────┘\n           │\n           ▼\n┌────────────────────┐\n│ 3. Optimized Logical │  Catalyst applies rules: pushdown, pruning,\n│    Plan              │  filter combination, constant folding.\n└──────────┬─────────┘\n           │\n           ▼\n┌────────────────────┐\n│ 4. Physical Plan     │  Concrete operators chosen: FileScan,\n│                      │  BroadcastHashJoin, HashAggregate, etc.\n└────────────────────┘",
+              "caption": "Each phase transforms the plan closer to execution. The Parsed plan is your intent. The Physical plan is the actual work order sent to the cluster."
+            },
+            {
+              "type": "heading",
+              "content": "Phase 1: Parsed Logical Plan"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Parsed plan is a direct translation of your PySpark code into a tree of logical operators. Column names appear as unresolved strings — Spark has not yet verified that they exist in the DataFrame. Filters appear in the order you wrote them. Joins appear in the order you chained them. No optimization has happened. This phase exists primarily for debugging: if your column name is misspelled, the error occurs between Parsed and Analyzed. You rarely need to read the Parsed plan in production, but it is useful when troubleshooting 'column not found' errors because it shows exactly what Spark received from your code."
+            },
+            {
+              "type": "heading",
+              "content": "Phase 2: Analyzed Logical Plan"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Analyzed plan resolves all column references against the actual schema. Unresolved column names become resolved references with type annotations (daily_kw#12 as DoubleType). Ambiguous column references are caught here — if two DataFrames in a join share a column name and the reference is ambiguous, Spark raises an AnalysisException during this phase. The Analyzed plan confirms that your query is semantically valid: all columns exist, all types are compatible, and all join conditions make sense. If the Analyzed plan passes, your query can run. Whether it runs efficiently is determined by the next two phases."
+            },
+            {
+              "type": "heading",
+              "content": "Phase 3: Optimized Logical Plan"
+            },
+            {
+              "type": "paragraph",
+              "content": "This is where Catalyst earns its name. The Optimized plan is the result of applying dozens of optimization rules to the Analyzed plan: pushing filters closer to the data source, pruning unnecessary columns, combining adjacent filters into compound conditions, folding constant expressions, and reordering joins to minimize intermediate data volume. The difference between the Analyzed and Optimized plans reveals what Catalyst did for you. If a filter moved from above a join to below it, Catalyst pushed it down. If a column disappeared from a scan, Catalyst pruned it. Comparing these two phases is the primary way to verify that optimization is working."
+            },
+            {
+              "type": "heading",
+              "content": "Phase 4: Physical Plan"
+            },
+            {
+              "type": "paragraph",
+              "content": "The Physical plan translates the Optimized logical plan into concrete execution operators that the cluster will run. Abstract 'Join' becomes either BroadcastHashJoin, SortMergeJoin, or ShuffledHashJoin depending on table sizes and configuration. Abstract 'Scan' becomes FileScan parquet with specific pushed filters and read schema. Abstract 'Aggregate' becomes HashAggregate with partial and final phases. The Physical plan is what you read most often in production because it tells you exactly what the executors will do: which files they will read, how much data they will shuffle, and which join algorithm they will use."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from pyspark.sql.functions import col, sum as spark_sum\n\ndf = (spark.read.parquet('silver/readings/')\n    .filter(col('region') == 'NORTH')\n    .filter(col('daily_kw') > 0)\n    .groupBy('meter_id')\n    .agg(spark_sum('daily_kw').alias('total_kw'))\n)\n\n# Print all four plan phases\ndf.explain(True)\n\n# Or just the physical plan (the one you read most often)\ndf.explain()  # equivalent to explain(False)"
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "Production pattern",
+              "content": "Use explain(True) during development to see all four phases and verify optimizations. Use explain() (physical only) during code review and PR documentation to keep the output concise. The full output can be 50–100 lines for a complex pipeline; the physical plan alone is typically 10–20 lines."
+            }
+          ]
+        },
+        {
+          "id": "module-PSI1-lesson-03",
+          "title": "Reading Physical Plans",
+          "estimatedMinutes": 33,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The physical plan reads bottom-to-top: the lowest line is where data enters the pipeline (the file scan), and the topmost line is the final output. Each line represents an operator — a physical operation that one or more executors will perform. Operators are indented to show their parent-child relationships: a filter is a child of the scan it reads from, and the filter's output feeds into its parent (a project or an exchange). Learning to read the plan fluently means recognizing each operator, understanding its role, and knowing what to check for efficiency. This is the skill that turns the plan from a wall of text into a readable performance diagnostic."
+            },
+            {
+              "type": "heading",
+              "content": "The Operator Vocabulary"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Operator",
+                "What It Does",
+                "Performance Signal"
+              ],
+              "rows": [
+                [
+                  "FileScan parquet",
+                  "Reads data from Parquet files",
+                  "Check PushedFilters, PartitionFilters, ReadSchema for pushdown and pruning"
+                ],
+                [
+                  "Filter",
+                  "Removes rows that do not match a condition",
+                  "Should appear close to the scan if pushdown is working"
+                ],
+                [
+                  "Project",
+                  "Selects or computes columns",
+                  "Should appear after filter to avoid computing on rows that will be discarded"
+                ],
+                [
+                  "Exchange",
+                  "Shuffle — redistributes data across executors",
+                  "Every Exchange is a stage boundary. Check the partitioning key and partition count"
+                ],
+                [
+                  "HashAggregate",
+                  "Computes aggregations (sum, count, avg)",
+                  "Appears in pairs: partial (before shuffle) and final (after shuffle)"
+                ],
+                [
+                  "BroadcastHashJoin",
+                  "Joins by broadcasting the small side to all executors",
+                  "Fast — no shuffle of the large side. Check that the broadcast side is actually small"
+                ],
+                [
+                  "SortMergeJoin",
+                  "Joins by shuffling both sides and merge-sorting",
+                  "Expensive — both sides shuffle. Check if a broadcast would have been possible"
+                ],
+                [
+                  "BroadcastExchange",
+                  "Broadcasts a small DataFrame to all executors",
+                  "Should appear before BroadcastHashJoin. Check the broadcast size"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "A Plan Walkthrough"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from pyspark.sql.functions import col, sum as spark_sum\n\ndf = (spark.read.parquet('silver/readings/')\n    .filter(col('region') == 'NORTH')\n    .filter(col('daily_kw') > 0)\n    .groupBy('meter_id')\n    .agg(spark_sum('daily_kw').alias('total_kw'))\n)\n\ndf.explain()"
+            },
+            {
+              "type": "code",
+              "language": "text",
+              "content": "== Physical Plan ==\n*(2) HashAggregate(keys=[meter_id#0], functions=[sum(daily_kw#1)])\n+- Exchange hashpartitioning(meter_id#0, 200), ENSURE_REQUIREMENTS, [plan_id=42]\n   +- *(1) HashAggregate(keys=[meter_id#0], functions=[partial_sum(daily_kw#1)])\n      +- *(1) Filter (isnotnull(daily_kw#1) AND (daily_kw#1 > 0.0))\n         +- *(1) FileScan parquet [meter_id#0,daily_kw#1]\n               PartitionFilters: [region#3 = NORTH]\n               PushedFilters: [IsNotNull(daily_kw), GreaterThan(daily_kw, 0.0)]\n               ReadSchema: struct<meter_id:string,daily_kw:double>"
+            },
+            {
+              "type": "paragraph",
+              "content": "Reading bottom-to-top: FileScan parquet reads meter_id and daily_kw (ReadSchema — only two columns, so column pruning is working). PartitionFilters shows region = NORTH, meaning Spark skips all non-NORTH partition directories at the filesystem level. PushedFilters shows IsNotNull and GreaterThan for daily_kw, meaning these filters are applied during the scan, not after. The *(1) prefix means these operators are in Stage 1 — they run together without a shuffle. The partial HashAggregate computes per-partition partial sums before the data leaves each executor. Exchange hashpartitioning shuffles by meter_id with 200 partitions. The final *(2) HashAggregate combines the partial sums into the complete result. Two stages, one shuffle, full pushdown and pruning — this is an efficient plan."
+            },
+            {
+              "type": "heading",
+              "content": "Red Flags in Physical Plans"
+            },
+            {
+              "type": "paragraph",
+              "content": "Not every plan is efficient. The following signals in a physical plan indicate potential performance problems that warrant investigation. A SortMergeJoin where one side is small enough to broadcast means Catalyst missed a broadcast opportunity — check table statistics or add a broadcast hint. An Exchange (shuffle) between a Filter and a FileScan means the filter was not pushed into the reader — check whether the filter uses a UDF or a non-pushable expression. A ReadSchema that includes columns not used in the output means column pruning is not working — check whether a select() was omitted or whether a downstream operation references the extra column indirectly."
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Red Flag",
+                "What It Means",
+                "Likely Cause"
+              ],
+              "rows": [
+                [
+                  "SortMergeJoin with small table",
+                  "Catalyst chose sort-merge instead of broadcast",
+                  "Missing table statistics, or table exceeds autoBroadcastJoinThreshold"
+                ],
+                [
+                  "No PartitionFilters on partitioned table",
+                  "Spark is scanning all partitions",
+                  "Filter is on a non-partition column, or filter uses a UDF that prevents pushdown"
+                ],
+                [
+                  "ReadSchema includes unused columns",
+                  "Spark is reading more data than needed",
+                  "Missing select(), or a downstream operation references the column (e.g., in a join key)"
+                ],
+                [
+                  "Empty PushedFilters",
+                  "No filters pushed into the file reader",
+                  "Filters use UDFs or complex expressions that Parquet cannot evaluate"
+                ],
+                [
+                  "Multiple consecutive Exchange operators",
+                  "Unnecessary shuffles",
+                  "Redundant repartition, or Spark cannot combine shuffles"
+                ]
+              ]
+            },
+            {
+              "type": "callout",
+              "variant": "warning",
+              "title": "Common misconception",
+              "content": "A plan with more lines is not necessarily worse than a plan with fewer lines. A long plan with BroadcastHashJoin operators, pushed filters, and pruned schemas can be far more efficient than a short plan with SortMergeJoin and no pushdown. The number of operators matters less than the type of operators and the data volume flowing through them. Focus on Exchange (shuffle) count, join strategy, and scan volume — not line count."
+            }
+          ]
+        },
+        {
+          "id": "module-PSI1-lesson-04",
+          "title": "Predicate Pushdown Verification",
+          "estimatedMinutes": 32,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "In the junior-level track, you learned that Catalyst pushes filters into the Parquet reader. At mid-level, you need to verify that pushdown is actually happening — and diagnose why it sometimes does not. Predicate pushdown is the single highest-impact optimization in Spark: it determines whether you read 5GB or 500GB from storage. A missing pushdown on NordGrid's 3.2TB archive means reading 3.2TB instead of the 50GB your query actually needs. The difference is a 20-second scan versus a 10-minute scan, and the only way to know which one Spark will perform is to check the plan."
+            },
+            {
+              "type": "heading",
+              "content": "Two Types of Pushdown"
+            },
+            {
+              "type": "paragraph",
+              "content": "Spark supports two distinct pushdown mechanisms. PartitionFilters are applied at the filesystem level: if the table is partitioned by region, a filter on region = 'NORTH' causes Spark to skip all non-NORTH directories entirely — those files are never opened. PushedFilters are applied during the file scan: the Parquet reader uses column statistics (min/max values per row group) to skip row groups that cannot contain matching rows, and evaluates the filter during deserialization so non-matching rows never enter the DataFrame. Both appear in the FileScan operator of the physical plan, and both must be verified independently."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from pyspark.sql.functions import col\n\ndf = (spark.read.parquet('silver/readings/')\n    .filter(col('region') == 'NORTH')       # should be a PartitionFilter\n    .filter(col('daily_kw') > 1000)         # should be a PushedFilter\n    .select('meter_id', 'daily_kw')\n)\n\ndf.explain()"
+            },
+            {
+              "type": "code",
+              "language": "text",
+              "content": "== Physical Plan ==\n*(1) FileScan parquet [meter_id#0,daily_kw#1]\n     PartitionFilters: [isnotnull(region#3), (region#3 = NORTH)]\n     PushedFilters: [IsNotNull(daily_kw), GreaterThan(daily_kw, 1000.0)]\n     ReadSchema: struct<meter_id:string,daily_kw:double>"
+            },
+            {
+              "type": "paragraph",
+              "content": "Spark supports two distinct pushdown mechanisms that operate at different levels. PartitionFilters are applied at the filesystem level: if the table is partitioned by region, a filter on region = 'NORTH' causes Spark to skip all non-NORTH directories entirely — those files are never opened, never read, and never transferred from remote storage. PushedFilters are applied during the file scan: the Parquet reader uses column statistics (min/max values stored per row group) to skip row groups that cannot contain matching rows, and evaluates the filter during deserialization so non-matching rows never enter the DataFrame. Both appear in the FileScan operator of the physical plan, and both must be verified independently."
+            },
+            {
+              "type": "heading",
+              "content": "When Pushdown Fails"
+            },
+            {
+              "type": "paragraph",
+              "content": "Pushdown fails silently. The query still runs correctly, but the plan shows the filter above the scan instead of inside it. The most common causes: UDF-based filters cannot be pushed because Spark cannot translate Python code into a Parquet predicate. Filters on derived columns (computed by withColumn) cannot be pushed because the column does not exist in the file. Disjunctions (OR conditions) across partition and non-partition columns sometimes prevent partition pruning because Spark cannot determine which partitions to skip. Complex expressions involving multiple columns joined by OR with different data sources may also resist pushdown."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from pyspark.sql.functions import col, udf\nfrom pyspark.sql.types import BooleanType\n\n# A UDF filter prevents pushdown\nis_valid = udf(lambda kw: kw is not None and kw > 1000, BooleanType())\n\ndf_udf = (spark.read.parquet('silver/readings/')\n    .filter(is_valid(col('daily_kw')))        # UDF — CANNOT be pushed\n    .select('meter_id', 'daily_kw')\n)\n\ndf_udf.explain()"
+            },
+            {
+              "type": "code",
+              "language": "text",
+              "content": "== Physical Plan ==\n*(1) Filter is_valid(daily_kw#1)\n   +- *(1) FileScan parquet [meter_id#0,daily_kw#1,region#3]\n          PartitionFilters: []\n          PushedFilters: []\n          ReadSchema: struct<meter_id:string,daily_kw:double,region:string>"
+            },
+            {
+              "type": "paragraph",
+              "content": "The plan reveals three problems. PushedFilters is empty — the UDF cannot be pushed into the Parquet reader, so every row is read and then filtered in Python. PartitionFilters is also empty — no partition pruning at all. And ReadSchema includes region, which the query does not need but which Spark reads because it cannot optimize through the UDF. The same filter written as a built-in expression (col('daily_kw') > 1000) pushes down fully. This is the production cost of a UDF: not just the serialization overhead, but the loss of pushdown optimization that can increase scan volume by 10x or more."
+            },
+            {
+              "type": "comparison",
+              "left": {
+                "label": "Built-in Filter (pushdown works)",
+                "points": [
+                  "PushedFilters: [GreaterThan(daily_kw, 1000.0)]",
+                  "PartitionFilters: [region = NORTH]",
+                  "Reads: ~50GB (NORTH only, kw > 1000 row groups)",
+                  "Scan time: ~20 seconds",
+                  "Filter runs inside the JVM file reader"
+                ]
+              },
+              "right": {
+                "label": "UDF Filter (pushdown blocked)",
+                "points": [
+                  "PushedFilters: []",
+                  "PartitionFilters: []",
+                  "Reads: ~3.2TB (all regions, all row groups)",
+                  "Scan time: ~10 minutes",
+                  "Filter runs in Python after full read"
+                ]
+              }
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "Production pattern",
+              "content": "After every pipeline change that modifies a filter or adds a new one, check the plan for PushedFilters and PartitionFilters. If the new filter does not appear in either, it is not being pushed down. Rewrite it using built-in functions. NordGrid's PR template includes a checkbox: 'Verified PushedFilters and PartitionFilters in the plan for all filter changes.'"
+            }
+          ]
+        },
+        {
+          "id": "module-PSI1-lesson-05",
+          "title": "Column Pruning Verification",
+          "estimatedMinutes": 32,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Column pruning is the optimization where Spark reads only the columns your query needs from the Parquet files, skipping all other columns at the I/O level. For NordGrid's Silver table with 11 columns (meter_id, daily_kw, date, region, year, month, tier, is_valid, customer_type, processed_at, substation_id), a query that selects only meter_id and daily_kw reads 2/11 of the data — roughly 18% of the file. The remaining 82% is never read from disk. On the 3.2TB archive, that is the difference between reading 580GB and 3.2TB. Column pruning is verified by checking the ReadSchema field in the FileScan operator of the physical plan."
+            },
+            {
+              "type": "heading",
+              "content": "How Column Pruning Works in Parquet"
+            },
+            {
+              "type": "paragraph",
+              "content": "Parquet stores data in a columnar layout: all values of column A are stored together, followed by all values of column B, and so on. Each column's data is stored in a separate set of byte ranges within the file. When Spark requests only columns A and B, the Parquet reader seeks to the byte ranges for A and B and skips everything else. This is a true I/O optimization — the bytes for the pruned columns are never read from disk, never transferred over the network (for remote storage like S3 or ADLS), and never deserialized. For wide tables with many columns, pruning can reduce I/O by 80–90%."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "from pyspark.sql.functions import col, sum as spark_sum\n\n# Query needs only meter_id and daily_kw — 9 other columns should be pruned\ndf = (spark.read.parquet('silver/readings/')\n    .filter(col('region') == 'NORTH')\n    .groupBy('meter_id')\n    .agg(spark_sum('daily_kw').alias('total_kw'))\n)\n\ndf.explain()"
+            },
+            {
+              "type": "code",
+              "language": "text",
+              "content": "== Physical Plan ==\n*(2) HashAggregate(keys=[meter_id#0], functions=[sum(daily_kw#1)])\n+- Exchange hashpartitioning(meter_id#0, 200)\n   +- *(1) HashAggregate(keys=[meter_id#0], functions=[partial_sum(daily_kw#1)])\n      +- *(1) FileScan parquet [meter_id#0,daily_kw#1]\n            PartitionFilters: [region#3 = NORTH]\n            ReadSchema: struct<meter_id:string,daily_kw:double>"
+            },
+            {
+              "type": "paragraph",
+              "content": "ReadSchema shows only meter_id and daily_kw. The other 9 columns (date, year, month, tier, is_valid, customer_type, processed_at, substation_id, and the partition column region) are all pruned. Region does not appear in ReadSchema because it is a partition column — its value is encoded in the directory path, not in the Parquet file data. The scan reads approximately 18% of the file data, and on NordGrid's NORTH partition (~800GB out of 3.2TB), pruning further reduces the read to ~145GB. This stacks with partition pruning: first Spark reads only the NORTH directory (800GB instead of 3.2TB), then column pruning reads only 2 columns from those files (145GB instead of 800GB)."
+            },
+            {
+              "type": "heading",
+              "content": "When Pruning Fails"
+            },
+            {
+              "type": "paragraph",
+              "content": "Column pruning fails when Spark believes a column is needed even though the final output does not use it. The most common cause is a join that references a column in the join condition — both sides' join key columns must be read even if the output drops them. Another cause is a UDF that accepts the entire Row object or a struct column, forcing Spark to read all nested fields. A subtler cause is a filter on a column that is subsequently dropped: the column must be read for the filter even though it is not in the output. Checking ReadSchema after every pipeline change catches these issues before they multiply scan volume."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# Example: join key forces an extra column to be read\nreadings = spark.read.parquet('silver/readings/')\nmetadata = spark.read.parquet('reference/meters/')\n\n# This join requires substation_id from both tables\n# Even though the final select drops it, the scan must read it\ndf = (readings\n    .join(metadata, 'meter_id', 'left')\n    .select('meter_id', 'daily_kw', 'customer_type')\n)\n\ndf.explain()\n# ReadSchema on readings will include meter_id AND daily_kw\n# ReadSchema on metadata will include meter_id AND customer_type\n# meter_id is needed for the join even if we only want daily_kw + customer_type"
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "Production pattern",
+              "content": "After adding a join to a pipeline, check both sides' ReadSchema. If a side reads more columns than expected, trace which operator needs the extra column. Common fix: move a select() before the join to prune columns the join does not need. But never drop the join key itself — Spark needs it for the match. NordGrid's convention: add an explicit select() on both sides of a join to document which columns each side contributes."
+            }
+          ]
+        },
+        {
+          "id": "module-PSI1-lesson-06",
+          "title": "Catalyst Optimization Rules",
+          "estimatedMinutes": 33,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Catalyst applies a set of named optimization rules to transform the Analyzed plan into the Optimized plan. Each rule addresses a specific inefficiency pattern: a filter that could be applied earlier, a column that does not need to be read, a constant expression that can be evaluated once instead of per-row. Understanding the most impactful rules lets you predict what Catalyst will do with your code — and recognize when a code change has inadvertently prevented a rule from firing. This lesson covers the six rules that matter most for NordGrid's pipelines, with before-and-after plan examples for each."
+            },
+            {
+              "type": "heading",
+              "content": "Rule 1: Filter Pushdown (PushDownPredicates)"
+            },
+            {
+              "type": "paragraph",
+              "content": "Filter pushdown moves filter conditions as close to the data source as possible. If you write filter() after a join, Catalyst checks whether the filter condition references only columns from one side of the join and moves it below the join if so. This reduces the number of rows entering the join, which reduces shuffle volume. For NordGrid's pipeline that filters to is_valid after joining readings with metadata, Catalyst pushes the is_valid filter below the join and into the readings scan, reducing the join input by 0.5% (the invalid readings). On larger datasets with higher invalid rates, the savings are dramatic."
+            },
+            {
+              "type": "heading",
+              "content": "Rule 2: Projection Pruning (ColumnPruning)"
+            },
+            {
+              "type": "paragraph",
+              "content": "Projection pruning eliminates columns that are not needed by any downstream operator. If your final select uses 3 columns but the scan reads 11, Catalyst traces which columns are actually referenced and removes the rest from the scan. This rule interacts with joins: if a column from the left side is not used after the join, Catalyst prunes it from the left scan even if the left DataFrame originally had it. The result is the ReadSchema you see in the physical plan, which should contain only the columns that any operator in the plan needs."
+            },
+            {
+              "type": "heading",
+              "content": "Rule 3: Filter Combination (CombineFilters)"
+            },
+            {
+              "type": "paragraph",
+              "content": "When you chain multiple filter() calls, Catalyst combines them into a single compound condition with AND. filter(A).filter(B).filter(C) becomes filter(A AND B AND C). This is not just cosmetic — a single combined filter is evaluated in one pass over each row, avoiding the overhead of multiple partial scans. This rule is why the junior-level advice of 'chain separate filter() calls for readability' has zero performance cost: Catalyst merges them regardless. The combined filter appears in the Optimized plan as a single Filter operator with a compound condition."
+            },
+            {
+              "type": "heading",
+              "content": "Rule 4: Constant Folding (ConstantFolding)"
+            },
+            {
+              "type": "paragraph",
+              "content": "Constant folding evaluates expressions that involve only literal values at plan compilation time, rather than evaluating them for every row at execution time. If your code writes col('daily_kw') * 1000 / 24, Catalyst folds 1000 / 24 into 41.6667 at compile time, so the executor computes col('daily_kw') * 41.6667 instead of performing two arithmetic operations per row. For NordGrid's 1.2 million daily rows, this saves 1.2 million unnecessary division operations. The savings are small per row but add up across large datasets and complex expressions."
+            },
+            {
+              "type": "heading",
+              "content": "Rule 5: Null Propagation (NullPropagation)"
+            },
+            {
+              "type": "paragraph",
+              "content": "When Catalyst can determine that an expression will always produce null for a null input, it short-circuits the evaluation. If daily_kw is null and the expression is daily_kw > 0 AND region = 'NORTH', Catalyst knows the entire expression is null because null AND anything is null. It skips evaluating the region condition for null rows entirely. This rule also adds IsNotNull checks to filter conditions: if you write col('daily_kw') > 0, Catalyst adds isnotnull(daily_kw) before the comparison because the comparison itself cannot match null values. You saw this in the junior-level track without understanding why — now you know it is the NullPropagation rule."
+            },
+            {
+              "type": "heading",
+              "content": "Rule 6: Join Reordering (ReorderJoin)"
+            },
+            {
+              "type": "paragraph",
+              "content": "When a query involves multiple joins, Catalyst may reorder them to minimize intermediate data volume. If you join A with B and then with C, but joining A with C first would produce a smaller intermediate result (because C's filter reduces A significantly), Catalyst may reorder the joins. This rule is particularly impactful for NordGrid's three-table enrichment pipeline (readings → meters → substations), where joining the large readings table with the 200-row substations table first (broadcasting substations) is cheaper than joining with the 1.2M-row meters table first. However, join reordering requires accurate table statistics — without them, Catalyst cannot estimate which order is better."
+            },
+            {
+              "type": "callout",
+              "variant": "warning",
+              "title": "When Catalyst cannot optimize",
+              "content": "Catalyst cannot optimize through UDFs (they are opaque Python functions), cannot push filters into non-Parquet sources that do not support pushdown, cannot prune columns from formats without columnar storage (CSV reads all columns regardless), and cannot reorder joins without table statistics. When you see an unoptimized plan, the first diagnostic question is: which of these limitations is preventing the optimization?"
+            }
+          ]
+        },
+        {
+          "id": "module-PSI1-lesson-07",
+          "title": "The Cost-Based Optimizer",
+          "estimatedMinutes": 32,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The optimization rules in the previous lesson are rule-based: they apply deterministic transformations regardless of data size. Filter pushdown always happens if the filter is pushable. Column pruning always happens if the column is unused. But some decisions cannot be made by rules alone. Should Spark broadcast a table or shuffle it? Should a three-way join start with the largest table or the smallest? These decisions depend on data statistics — how many rows a table has, how many distinct values a column contains, how skewed the distribution is. The Cost-Based Optimizer (CBO) uses table and column statistics to make these cost-sensitive decisions."
+            },
+            {
+              "type": "heading",
+              "content": "What the CBO Decides"
+            },
+            {
+              "type": "paragraph",
+              "content": "The CBO influences two key decisions. First, join strategy: if one side of a join is smaller than the autoBroadcastJoinThreshold (default 10MB), Spark broadcasts it. Without statistics, Spark estimates table sizes from file metadata, which can be inaccurate for filtered or derived tables. With CBO statistics, the estimate is based on actual row counts and column cardinality. Second, join ordering: in multi-way joins, the CBO can evaluate the cost of different orderings and choose the one that minimizes total shuffle volume. NordGrid's three-table join pipeline benefited significantly from accurate statistics — the CBO correctly identified that broadcasting the substations table and shuffling the meters table produced the cheapest plan."
+            },
+            {
+              "type": "heading",
+              "content": "Collecting Statistics with ANALYZE TABLE"
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# Collect table-level statistics (row count, total size)\nspark.sql(\"ANALYZE TABLE silver.readings COMPUTE STATISTICS\")\n\n# Collect column-level statistics (distinct count, min, max, null count, avg length)\nspark.sql(\"\"\"\n    ANALYZE TABLE silver.readings \n    COMPUTE STATISTICS FOR COLUMNS meter_id, daily_kw, region, date\n\"\"\")\n\n# Verify statistics are collected\nspark.sql(\"DESCRIBE EXTENDED silver.readings\").show(truncate=False)\n\n# Check column statistics\nspark.sql(\"DESCRIBE EXTENDED silver.readings meter_id\").show(truncate=False)"
+            },
+            {
+              "type": "paragraph",
+              "content": "ANALYZE TABLE scans the entire table to compute statistics and stores them in the catalog. For NordGrid's 3.2TB Silver table, the analysis takes 5–10 minutes but needs to run only once after a major data load — not on every pipeline run. The computed statistics include total row count, total size in bytes, and per-column statistics (distinct count, min, max, null count, average length). These statistics enable the CBO to accurately estimate the output size of filters and joins, which drives join strategy and ordering decisions."
+            },
+            {
+              "type": "heading",
+              "content": "The Missing Statistics Problem"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid's incident from lesson 1 — the sort-merge join on a 200-row table — was caused by missing statistics. The substations table was a plain Parquet directory without catalog registration, so Spark had no statistics. Spark estimated the table size from the Parquet file footer, which reported the compressed file size (3KB) rather than the in-memory size. The CBO estimated the table at 3KB, well below the 10MB threshold, and should have broadcast it. But because the table was not registered in the catalog and no ANALYZE had been run, the CBO fell back to the rule-based estimate — which, due to a quirk in directory listing, overestimated the table at 15MB, just above the threshold. The fix was simple: register the table and run ANALYZE. The sort-merge join became a broadcast join, and the stage dropped from 8 minutes to 15 seconds."
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "Production pattern",
+              "content": "Run ANALYZE TABLE on every table that participates in a join. Schedule it weekly for large tables (after the weekly data load) and daily for reference tables that change frequently. NordGrid's Airflow DAG includes an ANALYZE step after every Silver write, ensuring that downstream Gold pipelines always have current statistics. The cost is a few minutes of analysis time; the benefit is correct join strategy selection across every pipeline that reads the table."
+            }
+          ]
+        },
+        {
+          "id": "module-PSI1-lesson-08",
+          "title": "Adaptive Query Execution Overview",
+          "estimatedMinutes": 32,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The CBO makes decisions at plan compilation time, before any data is processed. But compilation-time estimates can be wrong — the statistics may be stale, the filter selectivity may be mispredicted, or the data distribution may have changed since the last ANALYZE. Adaptive Query Execution (AQE), introduced in Spark 3.0, solves this by adjusting the plan at runtime, after each stage completes and actual data statistics become available. AQE can switch a sort-merge join to a broadcast join mid-execution if the shuffle reveals that one side is small enough. It can coalesce too-many shuffle partitions into fewer, larger ones. And it can split skewed partitions to prevent one executor from being overloaded. AQE is the runtime complement to the CBO's compile-time optimization."
+            },
+            {
+              "type": "heading",
+              "content": "AQE Feature 1: Coalescing Shuffle Partitions"
+            },
+            {
+              "type": "paragraph",
+              "content": "The default spark.sql.shuffle.partitions is 200. For a small result set — say, groupBy('region') on 12 regions — 200 partitions is wildly excessive: 188 partitions are empty, and the 12 non-empty partitions are tiny. Without AQE, those 200 partitions produce 200 tasks, most of which do nothing. With AQE enabled, Spark examines the actual shuffle output sizes after the exchange and coalesces the 200 partitions into a smaller number where each partition meets a target size (default 64MB). For NordGrid's regional aggregation, AQE typically coalesces 200 partitions down to 12–16, eliminating 180+ empty tasks."
+            },
+            {
+              "type": "heading",
+              "content": "AQE Feature 2: Converting Join Strategy at Runtime"
+            },
+            {
+              "type": "paragraph",
+              "content": "If the CBO chose a sort-merge join because the compile-time estimate suggested both sides were large, but the actual shuffle output of one side is small enough to broadcast (below the threshold), AQE converts the sort-merge join to a broadcast hash join mid-execution. The already-shuffled data on the small side is collected and broadcast to all executors, avoiding the sort-merge on the large side. NordGrid's billing pipeline benefits from this: the filter on is_valid = true AND tier = 'commercial' reduces the readings from 1.2 million to 180,000 rows, and AQE detects this post-filter size and broadcasts the result instead of sort-merging."
+            },
+            {
+              "type": "heading",
+              "content": "AQE Feature 3: Skew Join Optimization"
+            },
+            {
+              "type": "paragraph",
+              "content": "The third AQE feature handles data skew, which you will study in depth in Module 3. When AQE detects that a shuffle partition is significantly larger than the median (determined by skewedPartitionFactor, default 5x), it splits that partition into smaller sub-partitions and replicates the corresponding partition from the other join side to match. This is automatic salting — the same technique covered in Module 3, but applied by the runtime optimizer without any code changes. AQE skew handling is the first line of defense against skew in NordGrid's pipelines."
+            },
+            {
+              "type": "code",
+              "language": "python",
+              "content": "# Enable AQE — all three features activate together\nspark.conf.set('spark.sql.adaptive.enabled', 'true')\n\n# Fine-tune individual AQE features\nspark.conf.set('spark.sql.adaptive.coalescePartitions.enabled', 'true')     # partition coalescing\nspark.conf.set('spark.sql.adaptive.coalescePartitions.minPartitionSize', '64MB')  # target size\nspark.conf.set('spark.sql.adaptive.skewJoin.enabled', 'true')               # skew splitting\nspark.conf.set('spark.sql.adaptive.skewJoin.skewedPartitionFactor', '5')    # 5x median = skewed\nspark.conf.set('spark.sql.adaptive.localShuffleReader.enabled', 'true')     # local shuffle reads\n\n# NordGrid production default: AQE fully enabled on all pipelines\n# Set in spark-defaults.conf so every application inherits it"
+            },
+            {
+              "type": "paragraph",
+              "content": "AQE is enabled by default starting in Spark 3.2. If your cluster runs Spark 3.2 or later, AQE is already active unless someone explicitly disabled it. For clusters running Spark 3.0–3.1, enabling AQE requires the configuration above. NordGrid's platform team enabled AQE cluster-wide when they upgraded to Spark 3.2, and the aggregate effect was a 15–20% reduction in total pipeline duration across all jobs, with no code changes. The biggest wins came from partition coalescing (eliminating empty tasks) and join strategy conversion (catching cases where post-filter table sizes were small enough to broadcast)."
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "Production pattern",
+              "content": "Enable AQE cluster-wide and leave it on. There is no production scenario where AQE makes performance worse — its decisions are conservative, and it falls back to the original plan if the runtime statistics do not justify a change. The only reason to disable AQE is when debugging a specific plan behavior and you need deterministic execution for comparison. NordGrid treats AQE as a cluster default, not a per-pipeline decision."
+            }
+          ]
+        },
+        {
+          "id": "module-PSI1-lesson-09",
+          "title": "Plan Analysis in the Spark UI",
+          "estimatedMinutes": 32,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The explain() method prints the plan as text before execution. The Spark UI shows the plan as a visual DAG after execution, annotated with actual metrics: how many rows each operator processed, how many bytes were read and written, how long each stage took. The text plan tells you what Spark will do. The Spark UI tells you what Spark actually did. Both are essential: the text plan catches problems before you waste compute, and the Spark UI confirms that the execution matched the plan and reveals runtime bottlenecks that the plan alone cannot show."
+            },
+            {
+              "type": "heading",
+              "content": "Finding the Plan in the Spark UI"
+            },
+            {
+              "type": "paragraph",
+              "content": "Navigate to the SQL / DataFrame tab in the Spark UI. Each query (triggered by an action like write() or show()) appears as a row with a link to its details page. Click the query to see the DAG visualization — a graphical representation of the physical plan with boxes for each operator and arrows showing data flow. Each box shows the operator name (FileScan, Filter, HashAggregate, BroadcastHashJoin) and can be expanded to reveal metrics: rows output, bytes read/written, time spent, and spill sizes. This DAG is the primary tool for post-execution performance analysis."
+            },
+            {
+              "type": "heading",
+              "content": "Key Metrics to Check"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Metric",
+                "Where to Find It",
+                "What It Tells You"
+              ],
+              "rows": [
+                [
+                  "number of files read",
+                  "FileScan operator",
+                  "How many Parquet files were opened. If partition pruning is working, this should be much less than the total file count"
+                ],
+                [
+                  "size of files read",
+                  "FileScan operator",
+                  "Total bytes read from storage. Compares against the full table size to verify pruning effectiveness"
+                ],
+                [
+                  "number of output rows",
+                  "Every operator",
+                  "How many rows passed through this operator. A sudden drop between operators indicates a selective filter"
+                ],
+                [
+                  "shuffle bytes written",
+                  "Exchange operator",
+                  "How much data was shuffled. Large shuffle volumes indicate expensive wide transformations"
+                ],
+                [
+                  "spill (memory) / spill (disk)",
+                  "HashAggregate, SortMergeJoin",
+                  "How much data spilled to disk due to insufficient memory. Non-zero spill indicates memory pressure"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "Comparing Plan vs Actual"
+            },
+            {
+              "type": "paragraph",
+              "content": "The most valuable analysis combines the text plan with the Spark UI metrics. The text plan tells you that Catalyst chose a BroadcastHashJoin — the Spark UI tells you the broadcast size was 450MB (uncomfortably close to the driver's memory limit). The text plan shows PartitionFilters for region = NORTH — the Spark UI confirms that only 1/12 of the files were read. The text plan shows 200 shuffle partitions — the Spark UI reveals that 180 of them were empty, suggesting the partition count should be reduced. This cross-referencing between plan intent and execution reality is the core of mid-level performance analysis."
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid's team reviews the Spark UI after every production run of the daily pipeline. The review takes 2 minutes and focuses on three metrics: total job duration (compared to the baseline), shuffle volume (should not grow faster than data volume), and max task duration (should be within 3x of the median — a wider gap indicates skew). If any metric exceeds the threshold, the team investigates the specific stage and operator that caused the deviation. This disciplined monitoring is what keeps a 1.2M-meter pipeline running within its SLA month after month."
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "Production pattern",
+              "content": "Bookmark your pipeline's Spark UI URL and check it daily for the first week after any change. After the first week, set up automated monitoring (Module 9 covers this in depth). The metrics that matter most are: job duration trend, shuffle volume trend, and max/median task duration ratio. If all three are stable, the pipeline is healthy. If any one drifts upward, investigate before it breaches the SLA."
+            }
+          ]
+        },
+        {
+          "id": "module-PSI1-lesson-10",
+          "title": "Building a Plan Review Habit",
+          "estimatedMinutes": 30,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The techniques from this module are only valuable if they become habitual. A team that reviews plans once during a performance incident but ignores them during normal development will be surprised by the next incident. A team that reviews plans on every pull request catches the incident before it reaches production. This final lesson establishes the NordGrid plan review practice: a five-question checklist that every engineer runs before merging pipeline changes, the PR template that captures the plan output, and the monitoring alerts that catch plan regressions after deployment."
+            },
+            {
+              "type": "heading",
+              "content": "The Five-Question Plan Review"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid's plan review checklist asks five questions, each verifiable from the explain() output in under a minute. The questions are ordered by impact: the first question catches the most expensive problems (wrong join strategy costing minutes of unnecessary shuffle), and the fifth catches the subtlest (unnecessary columns in the read schema adding megabytes of I/O). A full review takes 30–60 seconds once you are fluent in plan reading, and it prevents the kind of silent performance regressions that only surface when the pipeline breaches its SLA. The checklist is printed on a card that sits next to every engineer's monitor."
+            },
+            {
+              "type": "table",
+              "headers": [
+                "#",
+                "Question",
+                "What to Check"
+              ],
+              "rows": [
+                [
+                  "1",
+                  "Are all joins using the expected strategy?",
+                  "Look for BroadcastHashJoin on small tables and SortMergeJoin on large tables. If a small table is sort-merged, add a broadcast hint or check statistics."
+                ],
+                [
+                  "2",
+                  "Are partition filters present for partitioned tables?",
+                  "Look for PartitionFilters in every FileScan on a partitioned table. If absent, the filter is on a non-partition column or uses a non-pushable expression."
+                ],
+                [
+                  "3",
+                  "Are predicate filters pushed into the scan?",
+                  "Look for PushedFilters in every FileScan. If a filter appears as a separate Filter operator above the scan instead, it was not pushed."
+                ],
+                [
+                  "4",
+                  "Does ReadSchema contain only necessary columns?",
+                  "Compare ReadSchema against the final output columns. Extra columns indicate a missing select() or a join key that is not pruned after use."
+                ],
+                [
+                  "5",
+                  "Is the shuffle partition count appropriate?",
+                  "Look for Exchange operators and check the partitioning. 200 partitions for a 4-row result is wasteful. For AQE-enabled clusters, this is auto-corrected, but verify."
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "The PR Template"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid's pull request template for pipeline changes includes a section titled 'Execution Plan Verification.' The engineer pastes the physical plan output (from explain()) and annotates it with the five checklist answers. The reviewer reads the plan alongside the code diff. This catches two categories of problems: changes where the code looks correct but the plan reveals an inefficiency (like the sort-merge join on a 200-row table), and changes where the plan used to be efficient but the code change broke an optimization (like adding a UDF that prevents pushdown)."
+            },
+            {
+              "type": "code",
+              "language": "text",
+              "content": "## Execution Plan Verification\n\nPipeline: nordgrid-daily-meters-silver-to-gold\nChange: Added substation capacity join\n\n### Physical Plan\n*(2) HashAggregate(keys=[region#3], functions=[sum(daily_kw#1)])\n+- Exchange hashpartitioning(region#3, 16)\n   +- *(1) HashAggregate(keys=[region#3], functions=[partial_sum(daily_kw#1)])\n      +- *(1) BroadcastHashJoin [substation_id#5], [substation_id#10], Inner\n         :- *(1) FileScan parquet [daily_kw#1,region#3,substation_id#5]\n         :     PartitionFilters: [isnotnull(region#3)]\n         :     PushedFilters: [IsNotNull(daily_kw), GreaterThan(daily_kw, 0.0)]\n         :     ReadSchema: struct<daily_kw:double,substation_id:string>\n         +- BroadcastExchange HashedRelationBroadcastMode\n            +- *(1) FileScan parquet [substation_id#10,capacity_mw#11]\n\n### Checklist\n1. Join strategy: BroadcastHashJoin ✔ (substations is 200 rows)\n2. Partition filters: Present on readings ✔\n3. Pushed filters: IsNotNull + GreaterThan ✔\n4. ReadSchema: Only needed columns ✔\n5. Shuffle partitions: 16 (matches pipeline config) ✔"
+            },
+            {
+              "type": "heading",
+              "content": "What Comes Next"
+            },
+            {
+              "type": "paragraph",
+              "content": "This module gave you the skill to read and verify execution plans. The next two modules put that skill to work. Module 2 covers partitioning strategy — how partition count and partitioning scheme affect every operator in the plan. Module 3 covers join performance — the most complex and highest-impact area of plan optimization. In both modules, the plan is your primary diagnostic tool. When a partition count is wrong, you will see it in the Exchange operator. When a join strategy is suboptimal, you will see it in the join operator. The plan review habit you build here is the foundation for everything that follows."
+            },
+            {
+              "type": "callout",
+              "variant": "tip",
+              "title": "Module 1 complete",
+              "content": "You can now read physical execution plans, verify predicate pushdown and column pruning, understand the six most impactful Catalyst optimization rules, configure and verify CBO statistics, enable and interpret AQE features, and use the Spark UI to compare plan intent against execution reality. The five-question plan review checklist is your daily tool. Use it on every PR, and the performance problems that used to surface as production incidents will be caught in code review instead."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
