@@ -2,6 +2,7 @@ import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import { pysparkMidTheory } from '@/data/learn/theory/pyspark-mid';
 import { pysparkSeniorTheory } from '@/data/learn/theory/pyspark-senior';
+import { fabricMidTheory } from '@/data/learn/theory/fabric-mid';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -98,6 +99,16 @@ const TOPIC_TRACK_CONFIGS: Record<string, TheoryTrackConfig[]> = {
         'Build Fabric capability from the ground up: the unified analytics platform, OneLake, Lakehouses, Spark notebooks, Data Factory pipelines, and production pipeline patterns.',
       highlights: [],
       sourceDoc: null as unknown as TheoryDoc,
+    },
+    {
+      slug: 'mid',
+      label: 'Mid-Level Track',
+      title: 'Mid-Level Track',
+      eyebrow: 'Advanced Systems',
+      description:
+        'Performance optimization, Delta Lake operations, advanced pipeline patterns, and production-grade Fabric practices for experienced data engineers.',
+      highlights: [],
+      sourceDoc: fabricMidTheory,
     }
   ]
 };
