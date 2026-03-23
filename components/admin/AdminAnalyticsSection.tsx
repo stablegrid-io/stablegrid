@@ -34,10 +34,7 @@ const PRIMARY_METRIC_IDS: AdminAnalyticsKpi['id'][] = [
   'total_users',
   'active_users',
   'active_subscriptions',
-  'sales',
-  'average_session_duration',
-  'average_platform_time',
-  'average_task_time'
+  'sales'
 ];
 
 const PERIOD_OPTIONS: Array<{ id: AdminAnalyticsPeriod; label: string }> = [
@@ -231,7 +228,7 @@ const Sparkline = ({
     <div className="relative pt-1">
       {activePoint ? (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2  border border-white/24 bg-[linear-gradient(180deg,rgba(23,29,29,0.94),rgba(10,14,14,0.94))] px-2.5 py-1.5 text-[11px] font-medium text-on-surface shadow-[0_14px_26px_-18px_rgba(0,0,0,0.92)] backdrop-blur-xl transition-all duration-150 ease-out"
+          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-white/[0.1] bg-[#141618]/95 px-2.5 py-1.5 text-[11px] font-medium text-on-surface shadow-[0_14px_26px_-18px_rgba(0,0,0,0.92)] backdrop-blur-2xl transition-all duration-150 ease-out"
           style={{
             left: `${tooltipLeftPx}px`,
             top: `${tooltipTopPx}px`
@@ -291,42 +288,66 @@ const Sparkline = ({
   );
 };
 
+const CARD_TINT: Record<string, { bg: string; glow: string }> = {
+  total_users:          { bg: 'rgba(34,185,153,0.04)',  glow: 'rgba(34,185,153,0.08)' },
+  active_users:         { bg: 'rgba(90,198,250,0.04)',  glow: 'rgba(90,198,250,0.08)' },
+  active_subscriptions: { bg: 'rgba(171,132,255,0.04)', glow: 'rgba(171,132,255,0.08)' },
+  sales:                { bg: 'rgba(255,214,10,0.03)',  glow: 'rgba(255,214,10,0.06)' },
+};
+
 const HeroKpiCard = ({ card }: { card: HeroKpiCardData }) => {
   const TrendIcon = card.deltaValue < 0 ? TrendingDown : TrendingUp;
-  const deltaTone =
-    card.deltaValue < 0
-      ? 'text-rose-200'
-      : card.deltaValue > 0
-        ? 'text-[#d7f6ec]'
-        : 'text-on-surface-variant';
+  const isPositive = card.deltaValue > 0;
+  const isNegative = card.deltaValue < 0;
+  const tint = CARD_TINT[card.id] ?? { bg: 'rgba(255,255,255,0.02)', glow: 'rgba(255,255,255,0.04)' };
 
   return (
-    <div className="group relative overflow-hidden rounded-[30px] border border-white/[0.14] bg-[linear-gradient(180deg,rgba(255,255,255,0.1),rgba(255,255,255,0.03))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_24px_56px_-40px_rgba(0,0,0,0.9)] backdrop-blur-2xl transition duration-300 ease-out hover:-translate-y-px hover:border-white/20">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.1),transparent_32%),radial-gradient(circle_at_bottom,rgba(34,185,153,0.07),transparent_38%)] opacity-80 transition group-hover:opacity-100" />
-      <div className="relative">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium tracking-[0.01em] text-[#d1ded8]">{card.title}</p>
-            <p className="mt-2 text-[2.25rem] font-semibold tracking-tight text-on-surface">{card.value}</p>
-          </div>
+    <div
+      className="group relative overflow-hidden rounded-3xl transition-all duration-500 ease-out hover:-translate-y-1 hover:scale-[1.01]"
+      style={{ background: 'rgba(255,255,255,0.015)' }}
+    >
+      {/* Brand-tinted ambient glow */}
+      <div
+        className="absolute inset-0 opacity-60 transition-opacity duration-500 group-hover:opacity-100"
+        style={{ background: `radial-gradient(ellipse at top left, ${tint.glow}, transparent 60%)` }}
+      />
+      {/* Glass inner highlight */}
+      <div className="absolute inset-x-0 top-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' }} />
+
+      <div className="relative p-6">
+        {/* Header: title + icon */}
+        <div className="flex items-start justify-between">
+          <p className="text-[13px] font-medium text-on-surface-variant/60">{card.title}</p>
           <div
-            className={`flex h-12 w-12 items-center justify-center  border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ${card.accentClasses.iconWrap}`}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl"
+            style={{ background: tint.bg, boxShadow: `0 0 20px ${tint.glow}` }}
           >
-            <card.icon className={`h-5 w-5 ${card.accentClasses.icon}`} strokeWidth={2.2} />
+            <card.icon className={`h-[18px] w-[18px] ${card.accentClasses.icon}`} strokeWidth={2} />
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        {/* Value */}
+        <p className="mt-3 text-4xl font-bold tracking-tight text-on-surface">{card.value}</p>
+
+        {/* Delta pill + label */}
+        <div className="mt-4 flex items-center gap-2.5">
           <span
-            className={`inline-flex items-center gap-1  border px-2.5 py-1 ${card.accentClasses.pill} ${deltaTone}`}
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium"
+            style={{
+              background: isNegative ? 'rgba(251,113,133,0.08)' : isPositive ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.04)',
+              color: isNegative ? '#fda4af' : isPositive ? '#86efac' : 'var(--color-on-surface-variant)',
+            }}
           >
-            <TrendIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
-            {card.deltaValue === 0 ? '0.0%' : `${card.deltaValue > 0 ? '+' : '-'}${formatChange(card.deltaValue)}`}
+            <TrendIcon className="h-3 w-3" strokeWidth={2.5} />
+            {card.deltaValue === 0 ? '0.0%' : `${isPositive ? '+' : '-'}${formatChange(card.deltaValue)}`}
           </span>
-          <span className="text-[#90a49b]">{card.deltaLabel}</span>
+          <span className="text-[12px] text-on-surface-variant/35">{card.deltaLabel}</span>
         </div>
 
-        <div className="mt-3 text-[0.72rem] uppercase tracking-[0.2em] text-[#8aa097]">{card.note}</div>
+        {/* Description */}
+        <p className="mt-3 text-[11px] text-on-surface-variant/30 leading-relaxed">{card.note}</p>
+
+        {/* Sparkline chart */}
         <div className="mt-5">
           <Sparkline
             points={card.trendPoints}
@@ -353,68 +374,68 @@ const TREE_ACCENT_STYLES: Record<
   }
 > = {
   brand: {
-    segmentSurface: 'bg-[linear-gradient(180deg,rgba(30,86,76,0.42),rgba(15,26,24,0.92))] border-[#6ce0c6]/20',
-    badge: 'bg-[#6ce0c6]/14 text-[#bff8ea] border-[#6ce0c6]/20',
-    eyebrow: 'text-[#8de9d0]',
-    connector: 'bg-[#5ad6ba]/62',
-    outcomeBar: 'bg-[linear-gradient(90deg,rgba(91,231,194,0.95),rgba(171,255,232,0.92))]',
-    outcomeGlow: 'bg-[#5be7c2]/16'
+    segmentSurface: 'bg-surface-container border-primary/12',
+    badge: 'bg-primary/8 text-primary border-primary/15',
+    eyebrow: 'text-primary/60',
+    connector: 'bg-primary/20',
+    outcomeBar: 'bg-primary',
+    outcomeGlow: 'bg-primary/8'
   },
   teal: {
-    segmentSurface: 'bg-[linear-gradient(180deg,rgba(24,93,80,0.38),rgba(15,25,23,0.92))] border-[#5bd9be]/18',
-    badge: 'bg-[#5bd9be]/14 text-[#c7fff0] border-[#5bd9be]/20',
-    eyebrow: 'text-[#8be9d2]',
-    connector: 'bg-[#5bd9be]/58',
-    outcomeBar: 'bg-[linear-gradient(90deg,rgba(91,217,190,0.95),rgba(179,255,235,0.92))]',
-    outcomeGlow: 'bg-[#5bd9be]/16'
+    segmentSurface: 'bg-surface-container border-primary/12',
+    badge: 'bg-primary/8 text-primary border-primary/15',
+    eyebrow: 'text-primary/60',
+    connector: 'bg-primary/20',
+    outcomeBar: 'bg-primary',
+    outcomeGlow: 'bg-primary/8'
   },
   blue: {
-    segmentSurface: 'bg-[linear-gradient(180deg,rgba(31,69,110,0.36),rgba(15,22,28,0.92))] border-sky-300/18',
-    badge: 'bg-sky-300/12 text-sky-100 border-sky-300/18',
-    eyebrow: 'text-sky-200',
-    connector: 'bg-sky-300/54',
-    outcomeBar: 'bg-[linear-gradient(90deg,rgba(90,198,250,0.95),rgba(170,232,255,0.92))]',
-    outcomeGlow: 'bg-sky-300/14'
+    segmentSurface: 'bg-surface-container border-sky-400/12',
+    badge: 'bg-sky-400/8 text-sky-300 border-sky-400/15',
+    eyebrow: 'text-sky-300/60',
+    connector: 'bg-sky-400/20',
+    outcomeBar: 'bg-sky-400',
+    outcomeGlow: 'bg-sky-400/8'
   },
   amber: {
-    segmentSurface: 'bg-[linear-gradient(180deg,rgba(118,84,17,0.34),rgba(23,20,15,0.92))] border-amber-300/18',
-    badge: 'bg-amber-300/12 text-amber-100 border-amber-300/18',
-    eyebrow: 'text-amber-200',
-    connector: 'bg-amber-300/56',
-    outcomeBar: 'bg-[linear-gradient(90deg,rgba(255,214,10,0.95),rgba(255,233,148,0.92))]',
-    outcomeGlow: 'bg-amber-300/14'
+    segmentSurface: 'bg-surface-container border-amber-400/12',
+    badge: 'bg-amber-400/8 text-amber-300 border-amber-400/15',
+    eyebrow: 'text-amber-300/60',
+    connector: 'bg-amber-400/20',
+    outcomeBar: 'bg-amber-400',
+    outcomeGlow: 'bg-amber-400/8'
   },
   violet: {
-    segmentSurface: 'bg-[linear-gradient(180deg,rgba(84,51,130,0.34),rgba(20,17,25,0.92))] border-violet-300/18',
-    badge: 'bg-violet-300/12 text-violet-100 border-violet-300/18',
-    eyebrow: 'text-violet-200',
-    connector: 'bg-violet-300/54',
-    outcomeBar: 'bg-[linear-gradient(90deg,rgba(171,132,255,0.95),rgba(222,202,255,0.92))]',
-    outcomeGlow: 'bg-violet-300/14'
+    segmentSurface: 'bg-surface-container border-violet-400/12',
+    badge: 'bg-violet-400/8 text-violet-300 border-violet-400/15',
+    eyebrow: 'text-violet-300/60',
+    connector: 'bg-violet-400/20',
+    outcomeBar: 'bg-violet-400',
+    outcomeGlow: 'bg-violet-400/8'
   },
   slate: {
-    segmentSurface: 'bg-[linear-gradient(180deg,rgba(56,67,78,0.26),rgba(17,20,24,0.92))] border-outline-variant/20',
-    badge: 'bg-surface-container-high text-[#dfe8e3] border-outline-variant/20',
-    eyebrow: 'text-[#bed0c7]',
-    connector: 'bg-white/34',
-    outcomeBar: 'bg-[linear-gradient(90deg,rgba(180,192,201,0.95),rgba(232,239,244,0.9))]',
-    outcomeGlow: 'bg-surface-container-high'
+    segmentSurface: 'bg-surface-container border-white/[0.08]',
+    badge: 'bg-white/[0.06] text-on-surface-variant border-white/[0.08]',
+    eyebrow: 'text-on-surface-variant/50',
+    connector: 'bg-white/20',
+    outcomeBar: 'bg-on-surface-variant',
+    outcomeGlow: 'bg-white/[0.06]'
   },
   orange: {
-    segmentSurface: 'bg-[linear-gradient(180deg,rgba(127,69,32,0.34),rgba(27,19,16,0.92))] border-orange-300/18',
-    badge: 'bg-orange-300/12 text-orange-100 border-orange-300/18',
-    eyebrow: 'text-orange-200',
-    connector: 'bg-orange-300/56',
-    outcomeBar: 'bg-[linear-gradient(90deg,rgba(255,159,67,0.95),rgba(255,212,170,0.92))]',
-    outcomeGlow: 'bg-orange-300/14'
+    segmentSurface: 'bg-surface-container border-orange-400/12',
+    badge: 'bg-orange-400/8 text-orange-300 border-orange-400/15',
+    eyebrow: 'text-orange-300/60',
+    connector: 'bg-orange-400/20',
+    outcomeBar: 'bg-orange-400',
+    outcomeGlow: 'bg-orange-400/8'
   },
   rose: {
-    segmentSurface: 'bg-[linear-gradient(180deg,rgba(124,48,73,0.34),rgba(25,16,20,0.92))] border-rose-300/18',
-    badge: 'bg-rose-300/12 text-error border-rose-300/18',
-    eyebrow: 'text-rose-200',
-    connector: 'bg-rose-300/56',
-    outcomeBar: 'bg-[linear-gradient(90deg,rgba(251,113,133,0.95),rgba(255,205,214,0.92))]',
-    outcomeGlow: 'bg-rose-300/14'
+    segmentSurface: 'bg-surface-container border-rose-400/12',
+    badge: 'bg-rose-400/8 text-rose-300 border-rose-400/15',
+    eyebrow: 'text-rose-300/60',
+    connector: 'bg-rose-400/20',
+    outcomeBar: 'bg-rose-400',
+    outcomeGlow: 'bg-rose-400/8'
   }
 };
 
@@ -422,14 +443,14 @@ const InfoHint = ({ label, content }: { label: string; content: string }) => (
   <span className="group relative inline-flex items-center">
     <button
       type="button"
-      className="inline-flex h-5.5 w-5.5 items-center justify-center  border border-outline-variant/20 bg-surface-container-low text-[#98aba3] transition duration-200 hover:border-white/25 hover:bg-surface-container-high hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-on-surface-variant/40 transition duration-200 hover:border-white/[0.15] hover:bg-white/[0.08] hover:text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       aria-label={label}
     >
       <CircleHelp className="h-3.5 w-3.5" strokeWidth={2.1} />
     </button>
-    <span className="pointer-events-none absolute right-0 top-[calc(100%+8px)] z-20 w-64 origin-top-right translate-y-1 scale-[0.98]  border border-white/18 bg-[linear-gradient(180deg,rgba(18,25,25,0.97),rgba(8,12,12,0.97))] px-3 py-2 text-[11px] leading-5 text-[#dce9e3] opacity-0 shadow-[0_18px_34px_-20px_rgba(0,0,0,0.95)] backdrop-blur-xl transition duration-200 group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 group-focus-within:opacity-100">
+    <span className="pointer-events-none absolute right-0 top-[calc(100%+8px)] z-20 w-64 origin-top-right translate-y-1 scale-[0.98] rounded-xl border border-white/[0.08] bg-[#141618]/95 px-3.5 py-2.5 text-[11px] leading-5 text-on-surface-variant opacity-0 shadow-[0_18px_34px_-20px_rgba(0,0,0,0.95)] backdrop-blur-2xl transition duration-200 group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 group-focus-within:opacity-100">
       {content}
-      <span className="absolute right-3 top-0 h-2 w-2 -translate-y-1/2 rotate-45 border-l border-t border-white/16 bg-[#111919]" />
+      <span className="absolute right-3 top-0 h-2 w-2 -translate-y-1/2 rotate-45 border-l border-t border-white/[0.08] bg-[#141618]" />
     </span>
   </span>
 );
@@ -448,158 +469,270 @@ const getCompletionMeaningHint = (outcomeLabel: string) => {
   return 'Completed means a user in this segment finished the tracked learning action in the selected period.';
 };
 
+const FILL_COLORS = {
+  violet: { from: 'rgba(140,100,255,0.25)', to: 'rgba(180,140,255,0.08)', glow: 'rgba(160,120,255,0.15)', accent: 'rgba(192,160,255,0.6)', border: 'rgba(160,120,255,0.12)' },
+  blue:   { from: 'rgba(80,160,255,0.25)',  to: 'rgba(100,180,255,0.08)', glow: 'rgba(90,170,255,0.15)',  accent: 'rgba(100,200,255,0.6)',  border: 'rgba(90,170,255,0.12)' },
+  teal:   { from: 'rgba(80,220,200,0.25)',  to: 'rgba(100,240,220,0.08)', glow: 'rgba(90,230,210,0.15)',  accent: 'rgba(153,247,255,0.6)',  border: 'rgba(100,230,220,0.12)' },
+};
+
+const useFillAnimation = (targetPct: number, delay = 0) => {
+  const [fill, setFill] = useState(0);
+  useEffect(() => {
+    const timer = setTimeout(() => setFill(targetPct), 80 + delay);
+    return () => clearTimeout(timer);
+  }, [targetPct, delay]);
+  return fill;
+};
+
 const DecisionTreeOutcomeCard = ({
   outcome,
-  accent
+  accent,
+  fillColor = 'teal',
+  animDelay = 0
 }: {
   outcome: AdminAnalyticsTreeOutcome;
   accent: AdminAnalyticsTreeAccent;
+  fillColor?: keyof typeof FILL_COLORS;
+  animDelay?: number;
 }) => {
-  const style = TREE_ACCENT_STYLES[accent];
+  const pct = outcome.ratePct;
+  const colors = FILL_COLORS[fillColor];
+  const targetFill = Math.max(pct, outcome.totalUsers > 0 ? 4 : 0);
+  const fill = useFillAnimation(targetFill, animDelay);
 
   return (
-    <div className=" border border-outline-variant/20 bg-white/[0.035] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[0.68rem] uppercase tracking-[0.16em] text-[#8ea49a]">{outcome.label}</p>
-        <InfoHint
-          label={`${outcome.label} definition`}
-          content={getCompletionMeaningHint(outcome.label)}
-        />
-      </div>
-      <div className="mt-3 flex items-end justify-between gap-3">
-        <p className="text-2xl font-semibold tracking-tight text-on-surface">{outcome.ratePct}%</p>
-        <span className={` border px-2.5 py-1 text-[11px] font-medium ${style.badge}`}>
-          {outcome.completedUsers}/{outcome.totalUsers}
-        </span>
-      </div>
-      <div className={`mt-3 h-2 overflow-hidden  ${style.outcomeGlow}`}>
+    <div className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-[1.02]"
+      style={{ background: 'rgba(255,255,255,0.02)' }}
+    >
+      {/* Dynamic fill — animates from 0 to target */}
+      <div
+        className="absolute inset-x-0 bottom-0 group-hover:brightness-125"
+        style={{
+          height: `${fill}%`,
+          background: `linear-gradient(to top, ${colors.from}, ${colors.to})`,
+          transition: 'height 1.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease',
+        }}
+      />
+      {/* Fill edge glow */}
+      {fill > 0 && fill < 100 && (
         <div
-          className={`h-full  ${style.outcomeBar}`}
-          style={{ width: `${Math.max(outcome.ratePct, outcome.totalUsers > 0 ? 6 : 0)}%` }}
+          className="absolute inset-x-0 h-px"
+          style={{
+            bottom: `${fill}%`,
+            background: `linear-gradient(90deg, transparent, ${colors.glow}, transparent)`,
+            boxShadow: `0 0 8px ${colors.glow}`,
+            transition: 'bottom 1.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
         />
+      )}
+      {/* Top progress line */}
+      <div className="absolute top-0 left-0 h-[2px] rounded-full"
+        style={{
+          width: `${fill}%`,
+          background: colors.accent,
+          boxShadow: `0 0 6px ${colors.glow}`,
+          transition: 'width 1.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      />
+      {/* Content */}
+      <div className="relative p-4">
+        <p className="text-[10px] font-medium uppercase tracking-widest text-on-surface-variant/50">{outcome.label}</p>
+        <div className="mt-2 flex items-end justify-between gap-2">
+          <p className="text-2xl font-bold tracking-tight text-on-surface">{pct}%</p>
+          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium text-on-surface-variant/60"
+            style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.border}` }}
+          >
+            {outcome.completedUsers}/{outcome.totalUsers}
+          </span>
+        </div>
+        <p className="mt-1.5 text-[11px] text-on-surface-variant/40">{outcome.helper}</p>
       </div>
-      <p className="mt-3 text-xs leading-5 text-[#93a89f]">{outcome.helper}</p>
     </div>
   );
 };
 
-const DecisionTreeSegmentCard = ({ segment }: { segment: AdminAnalyticsTreeSegment }) => {
-  const style = TREE_ACCENT_STYLES[segment.accent];
+const DecisionTreeSegmentCard = ({
+  segment,
+  isLeft,
+  animDelay = 0
+}: {
+  segment: AdminAnalyticsTreeSegment;
+  isLeft?: boolean;
+  animDelay?: number;
+}) => {
+  const pct = segment.sharePct;
+  const colors = isLeft ? FILL_COLORS.violet : FILL_COLORS.blue;
+  const targetFill = Math.max(pct, 4);
+  const fill = useFillAnimation(targetFill, animDelay);
 
   return (
-    <div className={`rounded-[24px] border p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${style.segmentSurface}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <p className={`text-[0.68rem] uppercase tracking-[0.18em] ${style.eyebrow}`}>Segment</p>
-            <InfoHint
-              label={`${segment.label} calculation`}
-              content="Segment count is the number of users in this branch. Share = segment users / total users."
-            />
+    <div className="group relative overflow-hidden rounded-2xl border border-white/[0.04] hover:border-white/[0.08]"
+      style={{
+        background: 'rgba(255,255,255,0.015)',
+        transition: 'transform 0.5s ease, border-color 0.3s ease',
+      }}
+    >
+      {/* Dynamic fill — animates from 0 to target */}
+      <div
+        className="absolute inset-x-0 bottom-0 group-hover:brightness-110"
+        style={{
+          height: `${fill}%`,
+          background: `linear-gradient(to top, ${colors.from}, ${colors.to})`,
+          transition: 'height 1.4s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease',
+        }}
+      />
+      {/* Fill edge glow */}
+      {fill > 0 && fill < 100 && (
+        <div
+          className="absolute inset-x-0 h-px"
+          style={{
+            bottom: `${fill}%`,
+            background: `linear-gradient(90deg, transparent, ${colors.glow}, transparent)`,
+            boxShadow: `0 0 12px ${colors.glow}`,
+            transition: 'bottom 1.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        />
+      )}
+      {/* Top progress line */}
+      <div className="absolute top-0 left-0 h-[2px] rounded-full"
+        style={{
+          width: `${fill}%`,
+          background: colors.accent,
+          boxShadow: `0 0 8px ${colors.glow}`,
+          transition: 'width 1.4s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      />
+      {/* Content */}
+      <div className="relative p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: colors.accent }}>
+              {segment.label}
+            </p>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-on-surface">{segment.count}</p>
           </div>
-          <h4 className="mt-2 text-lg font-semibold tracking-tight text-on-surface">{segment.label}</h4>
+          <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            style={{ color: colors.accent, background: `${colors.from}`, border: `1px solid ${colors.border}` }}
+          >
+            {segment.sharePct}%
+          </span>
         </div>
-        <span className={` border px-2.5 py-1 text-[11px] font-medium ${style.badge}`}>
-          {segment.sharePct}% of total
-        </span>
+        <p className="mt-2 text-xs text-on-surface-variant/40">{segment.helper}</p>
       </div>
-      <p className="mt-4 text-[2rem] font-semibold tracking-tight text-on-surface">{segment.count}</p>
-      <p className="mt-2 text-sm leading-6 text-[#a7bbb2]">{segment.helper}</p>
     </div>
   );
 };
+
+const FlowLine = ({ color = 'rgba(153,247,255,0.15)' }: { color?: string }) => (
+  <div className="flex justify-center py-1">
+    <div className="h-8 w-px" style={{ background: `linear-gradient(to bottom, ${color}, transparent)` }} />
+  </div>
+);
+
+const FlowBranch = ({ leftColor = 'rgba(192,160,255,0.3)', rightColor = 'rgba(100,200,255,0.3)' }) => (
+  <svg className="mx-auto block" width="100%" height="40" viewBox="0 0 800 40" preserveAspectRatio="xMidYMin meet">
+    <defs>
+      <linearGradient id="flowLeft" x1="400" y1="0" x2="200" y2="40" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="rgba(153,247,255,0.2)" />
+        <stop offset="100%" stopColor={leftColor} />
+      </linearGradient>
+      <linearGradient id="flowRight" x1="400" y1="0" x2="600" y2="40" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="rgba(153,247,255,0.2)" />
+        <stop offset="100%" stopColor={rightColor} />
+      </linearGradient>
+    </defs>
+    {/* Curved paths instead of straight lines */}
+    <path d="M 400 0 C 400 20, 200 20, 200 40" fill="none" stroke="url(#flowLeft)" strokeWidth="1.5" />
+    <path d="M 400 0 C 400 20, 600 20, 600 40" fill="none" stroke="url(#flowRight)" strokeWidth="1.5" />
+    <circle cx="400" cy="0" r="2.5" fill="rgba(153,247,255,0.3)" />
+  </svg>
+);
+
+const FlowSplit = ({ color = 'rgba(153,247,255,0.12)' }: { color?: string }) => (
+  <svg className="mx-auto block" width="100%" height="32" viewBox="0 0 400 32" preserveAspectRatio="xMidYMin meet">
+    <path d="M 200 0 C 200 16, 100 16, 100 32" fill="none" stroke={color} strokeWidth="1" />
+    <path d="M 200 0 C 200 16, 300 16, 300 32" fill="none" stroke={color} strokeWidth="1" />
+    <circle cx="200" cy="0" r="2" fill={color} />
+  </svg>
+);
 
 const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
   const [leftSegment, rightSegment] = tree.segments;
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[0.68rem] uppercase tracking-[0.28em] text-[#7fbba7]">{tree.windowLabel}</p>
-          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-on-surface">{tree.title}</h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#9fb1aa]">{tree.description}</p>
-        </div>
-        {tree.note ? (
-          <div className=" border border-outline-variant/20 bg-surface-container px-3.5 py-2 text-xs text-on-surface">
-            {tree.note}
-          </div>
-        ) : null}
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-primary/50">{tree.windowLabel}</p>
+        <h3 className="mt-1.5 text-xl font-semibold tracking-tight text-on-surface">{tree.title}</h3>
+        <p className="mt-1.5 max-w-2xl text-sm text-on-surface-variant/40">{tree.description}</p>
       </div>
 
-      <div className="lg:hidden">
-        <div className=" border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-          <div className="flex items-center gap-2">
-            <p className="text-[0.68rem] uppercase tracking-[0.2em] text-[#8fa79d]">{tree.rootLabel}</p>
-            <InfoHint
-              label={`${tree.rootLabel} definition`}
-              content="Total users in scope for this analytics view after the selected period filter is applied."
-            />
+      {/* Mobile layout */}
+      <div className="lg:hidden space-y-3">
+        <div className="rounded-2xl bg-white/[0.03] p-5 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/50">{tree.rootLabel}</p>
+          <p className="mt-2 text-4xl font-bold tracking-tight text-on-surface">{tree.rootCount}</p>
+          <p className="mt-1 text-xs text-on-surface-variant/40">{tree.rootHelper}</p>
+        </div>
+        {tree.segments.map((segment, i) => (
+          <div key={segment.id} className="space-y-2">
+            <FlowLine />
+            <DecisionTreeSegmentCard segment={segment} isLeft={i === 0} />
+            <div className="grid grid-cols-2 gap-2 pl-2">
+              {segment.outcomes.map((outcome) => (
+                <DecisionTreeOutcomeCard key={outcome.id} outcome={outcome} accent={segment.accent} fillColor={i === 0 ? 'violet' : 'blue'} />
+              ))}
+            </div>
           </div>
-          <p className="mt-3 text-[2.2rem] font-semibold tracking-tight text-on-surface">{tree.rootCount}</p>
-          <p className="mt-2 text-sm text-[#9fb1aa]">{tree.rootHelper}</p>
-        </div>
-        <div className="mt-4 space-y-4">
-          {tree.segments.map((segment) => {
-            const style = TREE_ACCENT_STYLES[segment.accent];
-
-            return (
-              <div key={segment.id} className="relative pl-5">
-                <div className="absolute left-[0.45rem] top-0 bottom-0 w-[2px]  bg-white/20" />
-                <div className={`absolute left-[0.45rem] top-8 h-[2px] w-4  ${style.connector}`} />
-                <DecisionTreeSegmentCard segment={segment} />
-                <div className="mt-4 space-y-3 pl-4">
-                  {segment.outcomes.map((outcome) => (
-                    <div key={outcome.id} className="relative pl-4">
-                      <div className={`absolute left-0 top-6 h-[2px] w-4  ${style.connector}`} />
-                      <DecisionTreeOutcomeCard outcome={outcome} accent={segment.accent} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        ))}
       </div>
 
+      {/* Desktop layout */}
       <div className="hidden lg:block">
-        <div className="relative mx-auto max-w-6xl px-4 pb-2 pt-2">
-          <div className="absolute left-1/2 top-[6.25rem] h-10 w-[2px] -translate-x-1/2  bg-white/28" />
-          <div className="flex justify-center">
-            <div className="w-[20rem] rounded-[30px] border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-6 py-5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_20px_48px_-30px_rgba(0,0,0,0.9)]">
-              <div className="flex items-center justify-center gap-2">
-                <p className="text-[0.68rem] uppercase tracking-[0.24em] text-[#8fa79d]">{tree.rootLabel}</p>
-                <InfoHint
-                  label={`${tree.rootLabel} definition`}
-                  content="Total users in scope for this analytics view after the selected period filter is applied."
-                />
-              </div>
-              <p className="mt-3 text-[2.6rem] font-semibold tracking-tight text-on-surface">{tree.rootCount}</p>
-              <p className="mt-2 text-sm text-[#9fb1aa]">{tree.rootHelper}</p>
+        <div className="mx-auto max-w-5xl">
+          {/* Root — Hero block with full fill (100% = all users) */}
+          <div className="group mx-auto max-w-lg rounded-3xl relative overflow-hidden transition-all duration-500 hover:scale-[1.01]"
+            style={{ background: 'rgba(255,255,255,0.015)' }}
+          >
+            {/* Full fill — root is always 100% */}
+            <div className="absolute inset-0 transition-all duration-[800ms] ease-out group-hover:brightness-110"
+              style={{
+                background: `linear-gradient(to top, ${FILL_COLORS.teal.from}, ${FILL_COLORS.teal.to})`,
+              }}
+            />
+            {/* Ambient glow */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(153,247,255,0.06),transparent_60%)]" />
+            {/* Top progress line — full width */}
+            <div className="absolute top-0 left-0 right-0 h-[2px]"
+              style={{
+                background: FILL_COLORS.teal.accent,
+                boxShadow: `0 0 10px ${FILL_COLORS.teal.glow}`,
+              }}
+            />
+            <div className="relative p-8 text-center">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-primary/60">{tree.rootLabel}</p>
+              <p className="mt-3 text-5xl font-bold tracking-tight text-on-surface">{tree.rootCount}</p>
+              <p className="mt-2 text-sm text-on-surface-variant/50">{tree.rootHelper}</p>
             </div>
           </div>
 
-          <div className="relative mt-10 grid grid-cols-2 gap-10 border-t border-white/20 pt-10">
-            <div className="absolute left-1/2 top-0 h-10 w-[2px] -translate-x-1/2  bg-white/28" />
-            {[leftSegment, rightSegment].map((segment) => {
-              const style = TREE_ACCENT_STYLES[segment.accent];
+          {/* Curved flow branches */}
+          <FlowBranch />
 
-              return (
-                <div key={segment.id} className="relative">
-                  <div className={`absolute left-1/2 top-[-2.5rem] h-10 w-[2px] -translate-x-1/2  ${style.connector}`} />
-                  <DecisionTreeSegmentCard segment={segment} />
-                  <div className="relative mt-8 grid grid-cols-2 gap-4 border-t border-white/16 pt-8">
-                    <div className={`absolute left-1/2 top-0 h-8 w-[2px] -translate-x-1/2  ${style.connector}`} />
-                    {segment.outcomes.map((outcome) => (
-                      <div key={outcome.id} className="relative">
-                        <div className={`absolute left-1/2 top-[-2rem] h-8 w-[2px] -translate-x-1/2  ${style.connector}`} />
-                        <DecisionTreeOutcomeCard outcome={outcome} accent={segment.accent} />
-                      </div>
-                    ))}
-                  </div>
+          {/* Segments */}
+          <div className="grid grid-cols-2 gap-6">
+            {[leftSegment, rightSegment].map((segment, i) => (
+              <div key={segment.id} className="space-y-1">
+                <DecisionTreeSegmentCard segment={segment} isLeft={i === 0} />
+                <FlowSplit color={i === 0 ? 'rgba(192,160,255,0.2)' : 'rgba(100,200,255,0.2)'} />
+                <div className="grid grid-cols-2 gap-2">
+                  {segment.outcomes.map((outcome) => (
+                    <DecisionTreeOutcomeCard key={outcome.id} outcome={outcome} accent={segment.accent} fillColor={i === 0 ? 'violet' : 'blue'} />
+                  ))}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -808,15 +941,12 @@ export function AdminAnalyticsSection({
   return (
     <div className="space-y-6">
       <Surface>
-        <div className="border-b border-outline-variant/20 px-5 py-5 sm:px-6">
+        <div className="px-6 py-6 sm:px-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <p className="text-[0.68rem] uppercase tracking-[0.28em] text-[#7fbba7]">Analytics</p>
-              <h2
-                className="mt-3 text-3xl font-semibold tracking-tight text-on-surface sm:text-4xl"
-                style={{ fontFamily: 'var(--font-serif)' }}
-              >
-                See growth, engagement, and learning health
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/50">Analytics</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-on-surface sm:text-3xl">
+                Growth, engagement &amp; health
               </h2>
             </div>
             <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
@@ -825,7 +955,7 @@ export function AdminAnalyticsSection({
                   <select
                     value={period}
                     onChange={(event) => setPeriod(event.target.value as AdminAnalyticsPeriod)}
-                    className="h-9 appearance-none border border-outline-variant/30 bg-surface-container-low px-3 pr-8 font-mono text-xs text-on-surface uppercase tracking-wider focus:outline-none focus:border-primary transition-colors cursor-pointer"
+                    className="h-9 appearance-none rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 pr-8 text-[13px] font-medium text-on-surface focus:outline-none focus:border-white/[0.15] transition-colors cursor-pointer"
                   >
                     {PERIOD_OPTIONS.map((option) => (
                       <option key={option.id} value={option.id}>
@@ -833,7 +963,7 @@ export function AdminAnalyticsSection({
                       </option>
                     ))}
                   </select>
-                  <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface-variant">
+                  <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-on-surface-variant/40">
                     <svg aria-hidden="true" viewBox="0 0 12 8" className="h-2 w-2 fill-current">
                       <path d="M6 8 0 0h12L6 8Z" />
                     </svg>
@@ -845,41 +975,28 @@ export function AdminAnalyticsSection({
                     void loadAnalytics(period);
                     onMutation('Analytics refreshed.');
                   }}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center border border-outline-variant/30 bg-surface-container-low text-on-surface-variant transition hover:border-primary/40 hover:text-primary"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-on-surface-variant/60 transition hover:bg-white/[0.08] hover:text-on-surface-variant"
                   aria-label="Refresh analytics"
                 >
                   <RefreshCw className="h-3.5 w-3.5" strokeWidth={2.2} />
                 </button>
               </div>
-              <div className="flex items-center justify-between gap-3 sm:justify-end">
-                <p className="text-xs text-on-surface-variant">
-                  {analytics ? `Updated ${formatDateTime(analytics.generatedAt)}` : 'Loading analytics...'}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void loadAnalytics(period);
-                    onMutation('Analytics refreshed.');
-                  }}
-                  className="hidden h-10 w-10 items-center justify-center  border border-outline-variant/20 bg-surface-container text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high sm:inline-flex"
-                  aria-label="Refresh analytics"
-                >
-                  <RefreshCw className="h-4.5 w-4.5" strokeWidth={2.2} />
-                </button>
-              </div>
+              <p className="text-[11px] text-on-surface-variant/30">
+                {analytics ? `Updated ${formatDateTime(analytics.generatedAt)}` : ''}
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="px-5 py-5 sm:px-6">
+        <div className="px-5 pb-6 pt-2 sm:px-6">
           {error ? <InlineMessage tone="error" message={error} /> : null}
           {loading && !analytics ? (
-            <div className="rounded-[24px] border border-outline-variant/20 bg-surface-container-low px-5 py-10 text-sm text-[#9fb1aa]">
-              Loading analytics snapshot...
+            <div className="rounded-2xl bg-white/[0.02] px-6 py-12 text-center text-sm text-on-surface-variant/30">
+              Loading analytics...
             </div>
           ) : analytics ? (
-            <div className="overflow-x-auto pb-2 [scrollbar-color:rgba(140,163,154,0.55)_transparent] [scrollbar-width:thin]">
-              <div className="grid min-w-full grid-flow-col auto-cols-[minmax(18.5rem,1fr)] gap-4 xl:auto-cols-[calc((100%-3rem)/4)]">
+            <div className="overflow-x-auto pb-2 [scrollbar-color:rgba(255,255,255,0.1)_transparent] [scrollbar-width:thin]">
+              <div className="grid min-w-full grid-flow-col auto-cols-[minmax(17rem,1fr)] gap-5 xl:auto-cols-[calc((100%-3.75rem)/4)]">
                 {heroCards.map((card) => (
                   <HeroKpiCard key={card.id} card={card} />
                 ))}
@@ -895,7 +1012,7 @@ export function AdminAnalyticsSection({
             <div className="border-b border-outline-variant/20 px-5 py-5 sm:px-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-3xl">
-                  <p className="text-[0.68rem] uppercase tracking-[0.28em] text-[#7fbba7]">
+                  <p className="text-[0.68rem] uppercase tracking-[0.28em] text-primary/50">
                     Decision map
                   </p>
                   <h3 className="mt-2 text-2xl font-semibold text-on-surface sm:text-[2rem]">
@@ -948,7 +1065,7 @@ export function AdminAnalyticsSection({
                   <DecisionTreeMap tree={activeDecisionTree} />
                 </div>
               ) : (
-                <div className="rounded-[24px] border border-dashed border-outline-variant/20 bg-surface-container-low px-5 py-10 text-sm text-[#9fb1aa]">
+                <div className="rounded-[24px] border border-dashed border-outline-variant/20 bg-surface-container-low px-5 py-10 text-sm text-on-surface-variant/40">
                   Decision trees will appear here once the analytics snapshot has enough data to segment users.
                 </div>
               )}

@@ -55,60 +55,39 @@ export const TheorySessionTopbar = ({ session }: TheorySessionTopbarProps) => {
     : formatTheorySessionClock(session.elapsedSeconds);
 
   return (
-    <>
-      <div className="flex min-w-0 flex-1 items-center gap-4">
-        {/* Method icon */}
-        <div
-          className="flex h-7 w-7 shrink-0 items-center justify-center border"
-          style={{ borderColor: `rgba(${accent.rgb},0.3)`, backgroundColor: `rgba(${accent.rgb},0.1)` }}
-        >
-          <Icon className="h-3.5 w-3.5" style={{ color: accent.color }} />
-        </div>
-
-        {/* Method label */}
-        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-on-surface">
+    <div className="flex items-center gap-3">
+      {/* Method pill */}
+      <div className="flex items-center gap-2 rounded-full px-3 py-1" style={{ backgroundColor: `rgba(${accent.rgb},0.08)` }}>
+        <Icon className="h-3 w-3" style={{ color: accent.color }} />
+        <span className="font-mono text-[10px] font-semibold uppercase tracking-wider" style={{ color: accent.color }}>
           {session.method.label}
         </span>
-
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
-        {/* Timer display */}
-        <div
-          className="border px-3 py-1 text-right"
-          style={{ borderColor: `rgba(${accent.rgb},0.2)`, backgroundColor: `rgba(${accent.rgb},0.05)` }}
-        >
-          <div
-            className="font-mono text-[8px] uppercase tracking-[0.2em]"
-            style={{ color: `rgba(${accent.rgb},0.5)` }}
-          >
-            {session.method.isTimed ? phaseLabel : 'ELAPSED'}
-          </div>
-          <div className="font-mono text-sm font-bold text-on-surface">
-            {timerLabel}
-          </div>
-        </div>
+      {/* Timer */}
+      <span className="font-mono text-sm font-bold tabular-nums text-on-surface">
+        {timerLabel}
+      </span>
 
-        {/* Pause/Resume */}
+      {/* Controls */}
+      <div className="flex items-center gap-0.5">
         <button
           type="button"
           aria-label={isPaused ? 'Resume session' : 'Pause session'}
           onClick={isPaused ? session.resume : session.pause}
-          className="flex h-8 w-8 items-center justify-center border border-outline-variant/30 text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
         >
-          {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+          {isPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
         </button>
-
-        {/* Stop */}
         <button
           type="button"
           aria-label="Stop session"
           onClick={session.stop}
-          className="flex h-8 w-8 items-center justify-center border border-outline-variant/30 text-on-surface-variant transition-colors hover:border-error/40 hover:text-error"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container hover:text-error"
         >
-          <Square className="h-3.5 w-3.5" />
+          <Square className="h-3 w-3" />
         </button>
       </div>
-    </>
+    </div>
   );
 };

@@ -1801,7 +1801,7 @@ export function AdminConsole({
                   className="mt-3 text-4xl font-semibold tracking-tight text-on-surface sm:text-5xl"
                   style={{ fontFamily: 'var(--font-serif)' }}
                 >
-                  Content ops console
+                  Analytics
                 </h1>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:hidden lg:min-w-[20rem]">

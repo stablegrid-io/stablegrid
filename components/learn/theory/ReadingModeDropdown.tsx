@@ -61,10 +61,9 @@ export const ReadingModeDropdown = () => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-8 items-center gap-1.5 px-2.5 text-xs font-mono transition-colors"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
         style={{
-          border: '1px solid var(--rm-border)',
-          backgroundColor: 'var(--rm-bg-elevated)',
+          backgroundColor: open ? 'var(--rm-bg-elevated)' : 'transparent',
           color: 'var(--rm-text-secondary)',
         }}
         aria-label="Appearance settings"
@@ -73,29 +72,29 @@ export const ReadingModeDropdown = () => {
       >
         {(() => {
           const ActiveIcon = MODE_OPTIONS.find((o) => o.id === mode)?.icon ?? Palette;
-          return <ActiveIcon className="h-3.5 w-3.5" />;
+          return <ActiveIcon className="h-4 w-4" />;
         })()}
       </button>
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-1 z-50 w-52 shadow-xl"
+          className="absolute right-0 top-full mt-2 z-50 w-56 rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden"
           style={{
-            border: '1px solid var(--rm-border)',
-            backgroundColor: 'var(--rm-bg-elevated)',
+            border: '1px solid color-mix(in srgb, var(--rm-border) 60%, transparent)',
+            backgroundColor: 'color-mix(in srgb, var(--rm-bg-elevated) 85%, transparent)',
           }}
           onKeyDown={handleKeyDown}
         >
-          <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--rm-border)' }}>
+          <div className="px-3.5 pt-3 pb-1.5">
             <span
-              className="font-mono text-[9px] tracking-widest uppercase"
+              className="text-[10px] font-semibold tracking-wide uppercase"
               style={{ color: 'var(--rm-text-secondary)' }}
             >
-              APPEARANCE
+              Appearance
             </span>
           </div>
 
-          <div className="p-1.5" role="radiogroup" aria-label="Reading mode">
+          <div className="px-1.5 pb-1" role="radiogroup" aria-label="Reading mode">
             {MODE_OPTIONS.map((opt, index) => {
               const Icon = opt.icon;
               const isActive = mode === opt.id;
@@ -105,12 +104,12 @@ export const ReadingModeDropdown = () => {
                   key={opt.id}
                   type="button"
                   onClick={() => handleModeClick(opt.id, opt.label)}
-                  className="w-full flex items-center gap-3 px-2.5 py-2 text-left transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-150"
                   style={{
                     backgroundColor: isActive
-                      ? 'color-mix(in srgb, var(--rm-accent) 15%, transparent)'
+                      ? 'color-mix(in srgb, var(--rm-accent) 12%, transparent)'
                       : isFocused
-                        ? 'color-mix(in srgb, var(--rm-text-secondary) 10%, transparent)'
+                        ? 'color-mix(in srgb, var(--rm-text-secondary) 8%, transparent)'
                         : 'transparent',
                     color: isActive ? 'var(--rm-accent)' : 'var(--rm-text-secondary)',
                   }}
@@ -118,39 +117,54 @@ export const ReadingModeDropdown = () => {
                   aria-checked={isActive}
                   tabIndex={isFocused || (focusedIndex === -1 && isActive) ? 0 : -1}
                 >
-                  <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-                  <span className="font-mono text-[10px] tracking-widest uppercase">
-                    {opt.label}
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="text-[11px] font-medium tracking-wide">
+                    {opt.label.charAt(0) + opt.label.slice(1).toLowerCase()}
                   </span>
+                  {isActive && (
+                    <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--rm-accent)' }} />
+                  )}
                 </button>
               );
             })}
           </div>
 
-          <div className="p-1.5" style={{ borderTop: '1px solid var(--rm-border)' }}>
+          <div className="mx-3 my-0.5 h-px" style={{ backgroundColor: 'var(--rm-border)' }} />
+
+          <div className="px-1.5 py-1">
             <button
               type="button"
               onClick={toggleFocus}
-              className="w-full flex items-center gap-3 px-2.5 py-2 text-left transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-150"
               style={{
                 backgroundColor: focusMode
-                  ? 'color-mix(in srgb, var(--rm-accent) 15%, transparent)'
+                  ? 'color-mix(in srgb, var(--rm-accent) 12%, transparent)'
                   : 'transparent',
                 color: focusMode ? 'var(--rm-accent)' : 'var(--rm-text-secondary)',
               }}
               role="switch"
               aria-checked={focusMode}
             >
-              <Maximize2 className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="font-mono text-[10px] tracking-widest uppercase">
-                FOCUS MODE
+              <Maximize2 className="h-4 w-4 flex-shrink-0" />
+              <span className="text-[11px] font-medium tracking-wide">
+                Focus Mode
               </span>
-              <span
-                className="ml-auto w-2 h-2 rounded-full"
+              {/* Toggle pill */}
+              <div
+                className="ml-auto relative w-8 h-[18px] rounded-full transition-colors duration-200"
                 style={{
-                  backgroundColor: focusMode ? 'var(--rm-accent)' : 'color-mix(in srgb, var(--rm-text-secondary) 30%, transparent)',
+                  backgroundColor: focusMode
+                    ? 'var(--rm-accent)'
+                    : 'color-mix(in srgb, var(--rm-text-secondary) 25%, transparent)',
                 }}
-              />
+              >
+                <div
+                  className="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200"
+                  style={{
+                    transform: focusMode ? 'translateX(16px)' : 'translateX(2px)',
+                  }}
+                />
+              </div>
             </button>
           </div>
         </div>

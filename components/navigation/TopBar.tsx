@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import { Settings, Search } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { StableGridBrand } from '@/components/brand/StableGridLogo';
-import { NeuralInput } from '@/components/ui/NeuralInput';
 import { isCompactDesktopNavPath, shouldHideNav } from './navigation-config';
 
 export const TopBar = () => {
@@ -17,34 +16,32 @@ export const TopBar = () => {
   if (hideNav) return null;
 
   return (
-    <header className={`fixed top-0 right-0 left-0 z-50 flex justify-between items-center px-6 h-14 bg-[#0c0e10]/80 backdrop-blur-xl border-b border-[#99f7ff]/10 shadow-[0_0_15px_rgba(0,242,255,0.05)] transition-[left] duration-200 ${
-      isCompact ? 'lg:left-16' : 'lg:left-64'
+    <header className={`fixed top-0 right-0 left-0 z-50 flex items-center justify-between h-14 px-6 bg-[#0c0e10]/70 backdrop-blur-2xl border-b border-white/[0.06] transition-[left] duration-200 ${
+      isCompact ? 'lg:left-16' : 'lg:left-48'
     }`}>
-      <div className="flex items-center gap-4">
-        <Link href="/home">
-          <StableGridBrand className="text-xl" />
-        </Link>
-      </div>
+      {/* Left: Brand */}
+      <Link href="/home" className="flex items-center">
+        <StableGridBrand className="text-xl" />
+      </Link>
 
-      <div className="flex items-center gap-6">
-        <div className="relative hidden md:block">
-          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-            <Search className="h-3 w-3 text-primary/40" />
+      {/* Right: Actions */}
+      <div className="flex items-center gap-2">
+        {/* Search */}
+        <div className="relative hidden md:flex items-center">
+          <div className="flex items-center gap-2 h-8 rounded-lg bg-white/[0.06] px-3 text-[13px] text-on-surface-variant/50 transition-colors hover:bg-white/[0.09] cursor-pointer">
+            <Search className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">Search</span>
+            <kbd className="hidden lg:inline-flex ml-4 h-5 items-center rounded bg-white/[0.06] px-1.5 font-mono text-[10px] text-on-surface-variant/40">⌘K</kbd>
           </div>
-          <NeuralInput
-            placeholder="Search..."
-            className="w-48"
-          />
         </div>
 
-        <div className="flex gap-4 items-center">
-          <Link
-            href="/settings"
-            className="text-slate-500 hover:text-[#99f7ff] transition-colors"
-          >
-            <Settings className="h-4 w-4" />
-          </Link>
-        </div>
+        {/* Settings */}
+        <Link
+          href="/settings"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant/50 transition-colors hover:bg-white/[0.06] hover:text-on-surface-variant"
+        >
+          <Settings className="h-4 w-4" />
+        </Link>
       </div>
     </header>
   );

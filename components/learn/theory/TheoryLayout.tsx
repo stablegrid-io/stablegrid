@@ -1029,63 +1029,58 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         </div>
       )}
 
-      <div className="flex h-11 flex-shrink-0 items-center gap-3 border-b border-outline-variant/30 bg-surface px-4 sticky top-0 z-40" data-hide-on-focus>
-        <Link
-          href={activeTrackSlug ? `/learn/${doc.topic}/theory/${activeTrackSlug}` : `/learn/${doc.topic}/theory`}
-          className="inline-flex h-8 items-center gap-1.5 border border-outline-variant/50 bg-surface-container px-3 text-xs font-mono font-medium text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline uppercase tracking-wider">Modules</span>
-        </Link>
-        <button
-          type="button"
-          onClick={() => setSidebarOpen((value) => !value)}
-          aria-expanded={sidebarOpen}
-          aria-controls="theory-sidebar"
-          className="inline-flex h-8 items-center gap-2 border border-outline-variant/50 bg-surface-container px-3 text-xs font-mono font-medium text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
-          aria-label="Toggle module navigation"
-        >
-          {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          <span className="hidden sm:inline uppercase tracking-wider">{sidebarOpen ? 'Close' : 'Lessons'}</span>
-        </button>
+      <div className="flex h-12 flex-shrink-0 items-center border-b border-outline-variant/20 bg-surface/95 backdrop-blur-md px-4 sticky top-0 z-40" data-hide-on-focus>
+        {/* Left group: navigation */}
+        <div className="flex items-center gap-1.5">
+          <Link
+            href={`/learn/${doc.topic}/theory/${activeTrackSlug ?? 'all'}`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Modules</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((value) => !value)}
+            aria-expanded={sidebarOpen}
+            aria-controls="theory-sidebar"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+            aria-label="Toggle module navigation"
+          >
+            {sidebarOpen ? <X className="h-3.5 w-3.5" /> : <Menu className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{sidebarOpen ? 'Close' : 'Lessons'}</span>
+          </button>
+        </div>
 
-        {theorySession.hasActiveSession ? (
-          <TheorySessionTopbar session={theorySession} />
-        ) : (
-          <>
-            <div className="min-w-0 truncate font-mono text-[10px] text-on-surface-variant uppercase tracking-wider">
+        {/* Center: context info or session */}
+        <div className="flex-1 flex items-center justify-center">
+          {theorySession.hasActiveSession ? (
+            <TheorySessionTopbar session={theorySession} />
+          ) : (
+            <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide">
               M{activeChapter.order ?? activeChapter.number}
-              <span className="mx-1 text-outline-variant">/</span>
-              <span className="text-on-surface">
+              <span className="mx-1.5 text-outline-variant/50">·</span>
+              <span className="text-on-surface/80">
                 Lesson {activeLessonNumber} of {orderedActiveLessons.length}
               </span>
-            </div>
+            </span>
+          )}
+        </div>
 
-            <div className="ml-auto flex items-center gap-3 font-mono text-[10px] text-on-surface-variant">
-              <ReadingModeDropdown />
-              <button
-                type="button"
-                onClick={openSessionPicker}
-                disabled={!sessionDefaultsHydrated}
-                className="inline-flex items-center gap-1 border border-outline-variant/50 px-2.5 py-1 text-xs font-mono text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary uppercase tracking-wider"
-              >
-                <Clock3 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Session</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push('/settings?tab=reading')}
-                className="hidden border border-outline-variant/50 px-2.5 py-1 text-xs font-mono text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary uppercase tracking-wider sm:inline-flex"
-              >
-                Settings
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* Always visible regardless of session state */}
-        <div className={`flex items-center ${theorySession.hasActiveSession ? '' : 'hidden'}`}>
+        {/* Right group: tools */}
+        <div className="flex items-center gap-1">
           <ReadingModeDropdown />
+          {!theorySession.hasActiveSession && (
+            <button
+              type="button"
+              onClick={openSessionPicker}
+              disabled={!sessionDefaultsHydrated}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+            >
+              <Clock3 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Session</span>
+            </button>
+          )}
         </div>
       </div>
 
