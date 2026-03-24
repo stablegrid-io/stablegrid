@@ -4,7 +4,6 @@ import { BugSeverityBadge } from '@/components/admin/bugs/BugSeverityBadge';
 import { BugStatusBadge } from '@/components/admin/bugs/BugStatusBadge';
 import type { BugReport, BugStatus } from '@/components/admin/bugs/types';
 import { formatSubmittedAt } from '@/components/admin/bugs/utils';
-import { ADMIN_DRAWER_SURFACE_CLASS } from '@/components/admin/theme';
 
 const STATUS_OPTIONS: BugStatus[] = ['New', 'In Review', 'Resolved'];
 
@@ -15,9 +14,9 @@ const DetailField = ({
   label: string;
   value: string | null | undefined;
 }) => (
-  <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
-    <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">{label}</p>
-    <p className="mt-2 text-sm text-on-surface">{value && value.trim().length > 0 ? value : 'Not provided'}</p>
+  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+    <p className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">{label}</p>
+    <p className="mt-2 text-[13px] text-on-surface">{value && value.trim().length > 0 ? value : 'Not provided'}</p>
   </div>
 );
 
@@ -56,60 +55,69 @@ export function BugDetailDrawer({
         type="button"
         aria-label="Close bug detail"
         onClick={onClose}
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px]"
+        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
       />
 
       <aside
         role="dialog"
         aria-modal="true"
         aria-label="Bug detail"
-        className={`fixed right-0 top-0 z-50 h-full w-full max-w-xl overflow-y-auto p-5 ${ADMIN_DRAWER_SURFACE_CLASS}`}
+        className="fixed right-0 top-0 z-50 h-full w-full max-w-xl overflow-y-auto border-l border-white/[0.06] bg-[#0c0e10]/95 p-6 backdrop-blur-2xl shadow-[-20px_0_46px_-30px_rgba(0,0,0,0.95)]"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[#7f948b]">Bug report</p>
-            <h2 className="mt-2 text-2xl font-semibold text-on-surface">{report.title}</h2>
-            <p className="mt-1 text-sm text-[#8fa49b]">#{report.id.slice(0, 8)}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/40">
+              Bug report
+            </p>
+            <h2 className="mt-2.5 text-xl font-semibold tracking-tight text-on-surface">{report.title}</h2>
+            <p className="mt-1 text-[13px] text-on-surface-variant/35">#{report.id.slice(0, 8)}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center  border border-outline-variant/20 bg-surface-container-low text-[#cbdad3] transition hover:border-white/20 hover:bg-white/[0.07]"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-on-surface-variant/50 transition-colors hover:bg-white/[0.08] hover:text-on-surface-variant"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <BugSeverityBadge severity={report.severity} />
           <BugStatusBadge status={report.status} />
-          <span className="text-xs text-[#8ea39a]">{formatSubmittedAt(report.submittedAt)}</span>
+          <span className="text-[12px] text-on-surface-variant/35">{formatSubmittedAt(report.submittedAt)}</span>
         </div>
 
-        <div className="mt-5  border border-outline-variant/20 bg-surface-container-low p-3">
-          <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Description</p>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#d8e5df]">{report.description}</p>
+        <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.03] p-5">
+          <p className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">Description</p>
+          <p className="mt-3 whitespace-pre-wrap text-[13px] leading-relaxed text-on-surface-variant/60">{report.description}</p>
         </div>
 
-        <div className="mt-4  border border-outline-variant/20 bg-surface-container-low p-3">
-          <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Status</p>
-          <div className="mt-2 flex items-center gap-2">
-            <select
-              value={statusDraft}
-              onChange={(event) => setStatusDraft(event.target.value as BugStatus)}
-              className="h-10 flex-1  border border-outline-variant/20 bg-surface-container-low px-3 text-sm text-on-surface outline-none transition focus:border-primary/35 focus:ring-2 focus:ring-brand-400/15"
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+        <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-5">
+          <p className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">Status</p>
+          <div className="mt-3 flex items-center gap-2.5">
+            <div className="relative flex-1">
+              <select
+                value={statusDraft}
+                onChange={(event) => setStatusDraft(event.target.value as BugStatus)}
+                className="h-9 w-full appearance-none rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 pr-8 text-[13px] font-medium text-on-surface outline-none transition-colors cursor-pointer focus:border-white/[0.15]"
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-on-surface-variant/40">
+                <svg aria-hidden="true" viewBox="0 0 12 8" className="h-2 w-2 fill-current">
+                  <path d="M6 8 0 0h12L6 8Z" />
+                </svg>
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => void onSaveStatus(statusDraft)}
               disabled={!statusDirty || savingStatus}
-              className="inline-flex h-10 items-center justify-center  border border-brand-300/45 bg-primary/85 px-4 text-sm font-semibold text-[#06110d] transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-55"
+              className="inline-flex h-9 items-center rounded-lg border border-primary/30 bg-primary/12 px-4 text-[13px] font-medium text-on-surface transition-colors hover:border-primary/50 hover:bg-primary/18 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {savingStatus ? 'Saving...' : 'Save'}
             </button>
@@ -131,31 +139,31 @@ export function BugDetailDrawer({
           <DetailField label="Actual result" value={report.actualResult} />
         </div>
 
-        <div className="mt-4  border border-outline-variant/20 bg-surface-container-low p-3">
-          <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Attachments</p>
+        <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-5">
+          <p className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">Attachments</p>
           {report.attachmentUrls.length > 0 ? (
-            <div className="mt-2 space-y-2">
+            <div className="mt-3 space-y-2">
               {report.attachmentUrls.map((url) => (
                 <a
                   key={url}
                   href={url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-sm text-[#bfe7da] transition hover:text-on-surface"
+                  className="inline-flex items-center gap-1.5 text-[13px] text-primary/70 transition-colors hover:text-primary"
                 >
                   {url}
-                  <ExternalLink className="h-3.5 w-3.5" />
+                  <ExternalLink className="h-3 w-3" />
                 </a>
               ))}
             </div>
           ) : (
-            <p className="mt-2 text-sm text-[#8ea39a]">No attachments.</p>
+            <p className="mt-3 text-[13px] text-on-surface-variant/30">No attachments.</p>
           )}
         </div>
 
-        <div className="mt-4  border border-dashed border-outline-variant/20 bg-white/[0.02] p-3">
-          <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Internal notes</p>
-          <p className="mt-2 text-sm text-[#8ea39a]">Notes field placeholder for triage and handoff.</p>
+        <div className="mt-4 rounded-xl border border-dashed border-white/[0.06] bg-white/[0.02] p-5">
+          <p className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">Internal notes</p>
+          <p className="mt-3 text-[13px] text-on-surface-variant/30">Notes field placeholder for triage and handoff.</p>
         </div>
       </aside>
     </>

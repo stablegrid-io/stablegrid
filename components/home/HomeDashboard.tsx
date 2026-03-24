@@ -1,22 +1,20 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import type { User } from '@supabase/supabase-js';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Zap, BookOpen, Clock, Clock3, Target, TrendingUp, Brain } from 'lucide-react';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
-import {
-  getAvailableBudgetUnits,
-  INFRASTRUCTURE_NODES
-} from '@/lib/energy';
-import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { HOME_TOPIC_ORDER, getHomeTopicMeta } from '@/components/home/home/topicMeta';
 import { theoryDocs } from '@/data/learn/theory';
 import { getTheoryTracks } from '@/data/learn/theory/tracks';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
+import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
+import { OrbitalMap } from '@/components/home/OrbitalMap';
+import { buildOrbitalTopics } from '@/components/home/orbitalMapData';
 
+/* ── Types ── */
 interface HomeDashboardProps {
   user: User;
   topicProgress: TopicProgress[];
@@ -24,22 +22,12 @@ interface HomeDashboardProps {
   latestTheorySession: ReadingSession | null;
   lastClockedInAt: string | null;
   latestTaskAction: {
-    title: string;
-    summary: string;
-    statLine: string;
-    actionLabel: string;
-    actionHref: string;
-    topicId: Topic;
-    accentRgb?: string;
-    progressPct?: number;
+    title: string; summary: string; statLine: string;
+    actionLabel: string; actionHref: string; topicId: Topic;
+    accentRgb?: string; progressPct?: number;
   };
   readingSignals: ReadingSignal[];
-  stats: {
-    totalXp: number;
-    currentStreak: number;
-    questionsCompleted: number;
-    overallAccuracy: number;
-  };
+  stats: { totalXp: number; currentStreak: number; questionsCompleted: number; overallAccuracy: number };
 }
 
 interface TopicSnapshot {
@@ -48,398 +36,416 @@ interface TopicSnapshot {
   theoryPct: number;
   theoryCompleted: number;
   theoryTotal: number;
+  accentRgb: string;
 }
 
-const ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC: Record<Topic, string> = {
-  pyspark: '245,158,11',
-  fabric: '34,185,153',
-  airflow: '226,77,66'
+/* ── Animation hooks ── */
+const useCountUp = (target: number, duration = 1200, delay = 0) => {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const start = performance.now();
+      const animate = (now: number) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setValue(Math.round(target * eased));
+        if (progress < 1) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [target, duration, delay]);
+  return value;
 };
 
-const clampPct = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+const useFillAnimation = (targetPct: number, delay = 0) => {
+  const [fill, setFill] = useState(0);
+  useEffect(() => {
+    const timer = setTimeout(() => setFill(targetPct), 80 + delay);
+    return () => clearTimeout(timer);
+  }, [targetPct, delay]);
+  return fill;
+};
 
+const useStaggeredReveal = (count: number, staggerMs = 60) => {
+  const [revealed, setRevealed] = useState(0);
+  useEffect(() => {
+    if (revealed >= count) return;
+    const timer = setTimeout(() => setRevealed((r) => r + 1), staggerMs);
+    return () => clearTimeout(timer);
+  }, [revealed, count, staggerMs]);
+  return revealed;
+};
+
+/* ── Weekly velocity ── */
+const computeWeeklyVelocity = (signals: ReadingSignal[]): number[] => {
+  const weeks: number[] = [0, 0, 0, 0, 0, 0, 0, 0];
+  const now = Date.now();
+  for (const signal of signals) {
+    const ts = Date.parse(signal.lastActiveAt);
+    if (!Number.isFinite(ts)) continue;
+    const weeksAgo = Math.floor((now - ts) / (7 * 24 * 60 * 60 * 1000));
+    if (weeksAgo >= 0 && weeksAgo < 8) weeks[7 - weeksAgo]++;
+  }
+  return weeks;
+};
+
+/* ── Interactive Sparkline ── */
+const VelocitySparkline = ({ data, accentRgb }: { data: number[]; accentRgb: string }) => {
+  const max = Math.max(...data, 1);
+  const w = 200; const h = 48;
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const revealed = useFillAnimation(100, 200);
+  const points = data.map((v, i) => ({ x: (i / (data.length - 1)) * w, y: h - (v / max) * (h - 8) - 4, value: v }));
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const areaD = `${pathD} L ${w} ${h} L 0 ${h} Z`;
+
+  return (
+    <div className="relative">
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-12" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="vel-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={`rgba(${accentRgb},0.2)`} />
+            <stop offset="100%" stopColor={`rgba(${accentRgb},0)`} />
+          </linearGradient>
+          <clipPath id="vel-reveal"><rect x="0" y="0" width={`${revealed}%`} height={h} /></clipPath>
+        </defs>
+        <g clipPath="url(#vel-reveal)">
+          <path d={areaD} fill="url(#vel-grad)" />
+          <path d={pathD} fill="none" stroke={`rgb(${accentRgb})`} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+        {points.map((p, i) => (
+          <rect key={i} x={p.x - w / data.length / 2} y={0} width={w / data.length} height={h} fill="transparent"
+            onMouseEnter={() => setHoverIndex(i)} onMouseLeave={() => setHoverIndex(null)} />
+        ))}
+        {hoverIndex !== null && (
+          <>
+            <line x1={points[hoverIndex].x} y1={0} x2={points[hoverIndex].x} y2={h} stroke={`rgba(${accentRgb},0.15)`} strokeWidth="1" />
+            <circle cx={points[hoverIndex].x} cy={points[hoverIndex].y} r="4" fill={`rgb(${accentRgb})`} style={{ filter: `drop-shadow(0 0 6px rgba(${accentRgb},0.5))` }} />
+          </>
+        )}
+        {hoverIndex === null && points.length > 0 && (
+          <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="3" fill={`rgb(${accentRgb})`} />
+        )}
+      </svg>
+      {hoverIndex !== null && (
+        <div className="pointer-events-none absolute -top-10 -translate-x-1/2 rounded-xl border border-white/[0.08] bg-[#1a1d20]/95 px-3 py-1.5 text-[11px] font-medium text-on-surface shadow-[0_12px_24px_-10px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
+          style={{ left: `${(hoverIndex / (data.length - 1)) * 100}%` }}>
+          <span style={{ color: `rgb(${accentRgb})` }}>{points[hoverIndex].value}</span>
+          <span className="text-on-surface-variant/40 ml-1">sessions</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Animated stat card ── */
+const StatCard = ({ icon: Icon, label, value, suffix = '', delay = 0, accentRgb }: {
+  icon: typeof Clock; label: string; value: number; suffix?: string; delay?: number; accentRgb?: string;
+}) => {
+  const animated = useCountUp(value, 1000, delay);
+  return (
+    <div className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.1] hover:bg-white/[0.04]">
+      <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+        style={{ background: accentRgb ? `radial-gradient(ellipse at center, rgba(${accentRgb},0.04), transparent 70%)` : undefined }} />
+      <div className="relative">
+        <Icon className="h-4 w-4 text-on-surface-variant/20 mb-2 transition-colors group-hover:text-on-surface-variant/40" />
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30">{label}</p>
+        <p className="mt-1 text-2xl font-bold tracking-tight text-on-surface">{animated}{suffix}</p>
+      </div>
+    </div>
+  );
+};
+
+const TRACK_LEVEL_COLORS: Record<string, string> = { junior: '153,247,255', mid: '255,201,101', senior: '255,113,108' };
+
+/* ── Track level battery ── */
+const TrackLevelBattery = ({ label, completed, total, color, delay }: {
+  label: string; completed: number; total: number; color: string; delay: number;
+}) => {
+  const animatedCompleted = useCountUp(completed, 800, delay);
+  const fillPct = total > 0 ? (completed / total) * 100 : 0;
+  const animatedFill = useFillAnimation(fillPct, delay + 200);
+
+  return (
+    <div className="group relative flex-1 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.1]">
+      {/* Fill from bottom */}
+      <div
+        className="absolute inset-x-0 bottom-0 transition-all duration-[1.4s]"
+        style={{
+          height: `${animatedFill}%`,
+          background: `linear-gradient(to top, rgba(${color},0.15), rgba(${color},0.04))`,
+          transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      />
+      {/* Glow edge */}
+      {animatedFill > 0 && animatedFill < 100 && (
+        <div
+          className="absolute inset-x-0 h-px transition-all duration-[1.4s]"
+          style={{
+            bottom: `${animatedFill}%`,
+            background: `rgba(${color},0.4)`,
+            boxShadow: `0 0 10px rgba(${color},0.25)`,
+            transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        />
+      )}
+      {/* Top accent line */}
+      <div
+        className="absolute top-0 left-0 h-[2px] transition-all duration-[1.4s]"
+        style={{
+          width: `${animatedFill}%`,
+          background: `rgb(${color})`,
+          boxShadow: `0 0 8px rgba(${color},0.4)`,
+          transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      />
+
+      <div className="relative p-4 flex flex-col items-center text-center min-h-[120px] justify-center">
+        <div className="h-2 w-2 rounded-full mb-2" style={{ backgroundColor: `rgb(${color})`, boxShadow: `0 0 8px rgba(${color},0.4)` }} />
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/40">{label}</p>
+        <p className="text-2xl font-bold mt-1 tracking-tight" style={{ color: `rgb(${color})` }}>
+          {animatedCompleted}
+        </p>
+        <p className="text-[10px] text-on-surface-variant/25 mt-0.5">of {total} modules</p>
+      </div>
+    </div>
+  );
+};
+
+/* ── Session mode battery cell ── */
+const SessionModeCell = ({ label, Icon, color, count, delay }: {
+  label: string; Icon: typeof Zap; color: string; count: number; delay: number;
+}) => {
+  const maxSessions = 10;
+  const fillPct = Math.min(100, (count / maxSessions) * 100);
+  const animatedFill = useFillAnimation(fillPct, delay);
+
+  return (
+    <div className="group relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 transition-all hover:bg-white/[0.05]">
+      <div className="absolute inset-x-0 bottom-0 transition-all duration-[1.2s]"
+        style={{
+          height: `${animatedFill}%`,
+          background: `linear-gradient(to top, rgba(${color},0.12), rgba(${color},0.03))`,
+          transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        }} />
+      {animatedFill > 0 && (
+        <div className="absolute inset-x-0 h-px transition-all duration-[1.2s]"
+          style={{
+            bottom: `${animatedFill}%`,
+            background: `rgba(${color},0.3)`,
+            boxShadow: `0 0 8px rgba(${color},0.2)`,
+            transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          }} />
+      )}
+      <div className="relative text-center">
+        <div className="mx-auto flex h-9 w-9 items-center justify-center border" style={{ borderColor: `rgba(${color},0.3)`, backgroundColor: `rgba(${color},0.08)` }}>
+          <Icon className="h-4 w-4" style={{ color: `rgb(${color})` }} />
+        </div>
+        <p className="text-[10px] font-semibold uppercase tracking-widest mt-2" style={{ color: `rgba(${color},0.7)` }}>{label}</p>
+        <p className="text-lg font-bold text-on-surface mt-1">{count}</p>
+        <p className="text-[9px] text-on-surface-variant/25 mt-0.5">sessions</p>
+      </div>
+    </div>
+  );
+};
+
+/* ── Session mode batteries ── */
+const SessionModeBatteries = ({ sprintCount, pomodoroCount, deepFocusCount, totalHours }: {
+  sprintCount: number; pomodoroCount: number; deepFocusCount: number; totalHours: number;
+}) => (
+  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.1] animate-[fadeIn_1s_ease]">
+    <div className="flex items-center justify-between mb-4">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30">Session modes</p>
+      <p className="text-[11px] text-on-surface-variant/30">{Math.round(totalHours * 10) / 10}h total</p>
+    </div>
+    <div className="grid grid-cols-3 gap-2">
+      <SessionModeCell label="Sprint" Icon={Zap} color="153,247,255" count={sprintCount} delay={600} />
+      <SessionModeCell label="Pomodoro" Icon={Clock3} color="255,113,108" count={pomodoroCount} delay={750} />
+      <SessionModeCell label="Deep Focus" Icon={Brain} color="191,129,255" count={deepFocusCount} delay={900} />
+    </div>
+  </div>
+);
+
+/* ── Main Dashboard ── */
 export const HomeDashboard = ({
-  user,
-  topicProgress,
-  recentSessions,
-  latestTheorySession,
-  lastClockedInAt,
-  latestTaskAction,
-  readingSignals,
-  stats
+  user, topicProgress, recentSessions, latestTheorySession,
+  lastClockedInAt: _lastClockedInAt, latestTaskAction: _latestTaskAction,
+  readingSignals, stats: _stats
 }: HomeDashboardProps) => {
-  const deployedNodeIds = useProgressStore((state) => state.deployedNodeIds);
-
-  const availableBudgetUnits = getAvailableBudgetUnits(stats.totalXp, deployedNodeIds);
-  const nextGridNode =
-    INFRASTRUCTURE_NODES.find((node) => !deployedNodeIds.includes(node.id)) ?? null;
-  const remainingGridUnits = nextGridNode
-    ? Math.max(0, Math.round(nextGridNode.kwhRequired * 1000) - availableBudgetUnits)
-    : 0;
-
   const topicSnapshots = useMemo<TopicSnapshot[]>(() => {
     const progressMap = new Map(topicProgress.map((item) => [item.topic, item]));
-
     return HOME_TOPIC_ORDER.map((topicId) => {
       const progress = progressMap.get(topicId);
       const meta = getHomeTopicMeta(topicId);
-      const theoryTotal =
-        progress?.theoryChaptersTotal && progress.theoryChaptersTotal > 0
-          ? progress.theoryChaptersTotal
-          : meta.fallbackChapters;
+      const style = getTheoryTopicStyle(topicId);
+      const theoryTotal = progress?.theoryChaptersTotal && progress.theoryChaptersTotal > 0 ? progress.theoryChaptersTotal : meta.fallbackChapters;
       const theoryCompleted = progress?.theoryChaptersCompleted ?? 0;
       const theoryPct = theoryTotal > 0 ? Math.round((theoryCompleted / theoryTotal) * 100) : 0;
-
-      return {
-        topicId,
-        label: meta.label,
-        theoryPct,
-        theoryCompleted,
-        theoryTotal
-      };
+      return { topicId, label: meta.label, theoryPct, theoryCompleted, theoryTotal, accentRgb: style.accentRgb };
     });
   }, [topicProgress]);
 
-  const latestSession = latestTheorySession ?? recentSessions[0] ?? null;
-  const recommendedTopic =
-    (latestSession
-      ? topicSnapshots.find((snapshot) => snapshot.topicId === latestSession.topic)
-      : null) ??
-    [...topicSnapshots]
-      .sort((left, right) => left.theoryPct - right.theoryPct)
-      .find((snapshot) => snapshot.theoryPct < 100) ??
-    topicSnapshots[0];
+  const activeTopics = topicSnapshots.filter((t) => t.theoryTotal > 0);
+  const orbitalTopics = useMemo(() => buildOrbitalTopics(topicProgress), [topicProgress]);
 
   const overallProgress = useMemo(() => {
-    const theoryTotal = topicSnapshots.reduce((sum, snapshot) => sum + snapshot.theoryTotal, 0);
-    const theoryCompleted = topicSnapshots.reduce(
-      (sum, snapshot) => sum + snapshot.theoryCompleted,
-      0
-    );
-    return theoryTotal > 0 ? Math.round((theoryCompleted / theoryTotal) * 100) : 0;
+    const total = topicSnapshots.reduce((sum, s) => sum + s.theoryTotal, 0);
+    const completed = topicSnapshots.reduce((sum, s) => sum + s.theoryCompleted, 0);
+    return total > 0 ? Math.round((completed / total) * 100) : 0;
   }, [topicSnapshots]);
 
-  const hasRecentActivity =
-    stats.questionsCompleted > 0 || recentSessions.length > 0 || readingSignals.length > 0;
-  const moduleTopicId = latestSession?.topic ?? recommendedTopic.topicId;
-  const moduleMeta = getHomeTopicMeta(moduleTopicId);
-  const moduleLabel = moduleMeta.label;
-  const theoryTrackLabel = moduleMeta.trackLabel;
-  const theoryAccentRgb = ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC[moduleTopicId];
-  const theoryRouteHref = `/learn/${moduleTopicId}/theory`;
-  const inferredChapterFromTrackProgress = Math.min(
-    Math.max(1, recommendedTopic.theoryTotal),
-    Math.max(1, recommendedTopic.theoryCompleted + 1)
-  );
-  const theoryResumeChapterNumber = latestSession
-    ? latestSession.isCompleted
-      ? Math.max(
-          inferredChapterFromTrackProgress,
-          Math.min(
-            Math.max(1, recommendedTopic.theoryTotal),
-            latestSession.chapterNumber + 1
-          )
-        )
-      : Math.max(inferredChapterFromTrackProgress, latestSession.chapterNumber)
-    : inferredChapterFromTrackProgress;
-  const theoryChapterRouteHref = latestSession
-    ? `/learn/${moduleTopicId}/theory/all?chapter=${encodeURIComponent(
-        `module-${String(theoryResumeChapterNumber).padStart(2, '0')}`
-      )}`
-    : theoryRouteHref;
+  const latestSession = latestTheorySession ?? recentSessions[0] ?? null;
+  const currentTopic = latestSession
+    ? topicSnapshots.find((s) => s.topicId === latestSession.topic) ?? topicSnapshots[0]
+    : topicSnapshots.find((s) => s.theoryPct > 0 && s.theoryPct < 100) ?? topicSnapshots[0];
+
+  const weeklyVelocity = useMemo(() => computeWeeklyVelocity(readingSignals), [readingSignals]);
+  const totalHours = topicProgress.reduce((sum, p) => sum + (p.theoryTotalMinutesRead ?? 0), 0) / 60;
+  const progressFill = useFillAnimation(currentTopic?.theoryPct ?? 0, 400);
+
   const userDisplayName =
     (user.user_metadata?.full_name as string | undefined) ??
     (user.user_metadata?.name as string | undefined) ??
-    user.email?.split('@')[0] ??
-    'Operator';
-  const firstName = userDisplayName.split(' ')[0] ?? userDisplayName;
-  const remainingSections = latestSession
-    ? Math.max(0, latestSession.sectionsTotal - latestSession.sectionsRead)
-    : 0;
-  const theoryProgressPct = latestSession
-    ? latestSession.sectionsTotal > 0
-      ? clampPct((latestSession.sectionsRead / latestSession.sectionsTotal) * 100)
-      : latestSession.isCompleted
-        ? 100
-        : 0
-    : clampPct(recommendedTopic.theoryPct);
-  const theoryProgressValueLabel = latestSession
-    ? `${latestSession.sectionsRead}/${latestSession.sectionsTotal} sections`
-    : `${recommendedTopic.theoryCompleted}/${recommendedTopic.theoryTotal} chapters`;
-  const tasksProgressPct =
-    typeof latestTaskAction.progressPct === 'number'
-      ? clampPct(latestTaskAction.progressPct)
-      : null;
-  const theoryAction = (() => {
-    if (latestSession) {
-      if (latestSession.isCompleted) {
-        return {
-          label: 'Open latest chapter',
-          href: theoryChapterRouteHref,
-          progressLine: `Chapter ${latestSession.chapterNumber} completed most recently.`
-        };
-      }
+    user.email?.split('@')[0] ?? 'Operator';
 
-      return {
-        label: 'Resume chapter',
-        href: theoryChapterRouteHref,
-        progressLine:
-          remainingSections > 0
-            ? `${remainingSections} sections still open in this chapter.`
-            : 'Final checkpoint remains in this chapter.'
-      };
-    }
+  const resumeHref = latestSession ? `/learn/${latestSession.topic}/theory` : currentTopic ? `/learn/${currentTopic.topicId}/theory` : '/learn/theory';
 
-    if (nextGridNode && remainingGridUnits === 0) {
-      return {
-        label: 'Open Grid Ops',
-        href: '/energy',
-        progressLine: `${nextGridNode.name} is unlocked and ready for deployment.`
-      };
-    }
+  const skillTags = topicSnapshots
+    .filter((s) => s.theoryCompleted > 0)
+    .flatMap((s) => {
+      const tags: string[] = [];
+      if (s.theoryCompleted >= 3) tags.push(s.label.toUpperCase());
+      if (s.theoryPct >= 50) tags.push(`${s.label.toUpperCase()}_ADV`);
+      if (s.theoryPct >= 100) tags.push(`${s.label.toUpperCase()}_MASTERY`);
+      return tags;
+    }).slice(0, 6);
 
-    return {
-      label: hasRecentActivity ? 'Open module' : 'Start module',
-      href: theoryRouteHref,
-      progressLine: `${recommendedTopic.theoryCompleted}/${recommendedTopic.theoryTotal} chapters complete.`
-    };
-  })();
   return (
-    <div className="relative pb-16 lg:pb-8">
-      {/* 3-column grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
+    <div className="min-h-screen pb-24 lg:pb-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
 
-        {/* Left: Theory Tree */}
-        <section className="lg:col-span-3 border-r border-outline-variant/20 overflow-y-auto p-4 bg-surface-dim/40">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-headline font-bold text-xs tracking-widest text-primary">THEORY_TREE</h3>
-            <span className="font-mono text-[9px] text-primary/40">[MOD: {recommendedTopic.theoryCompleted}/{recommendedTopic.theoryTotal}]</span>
-          </div>
-          <div className="relative pl-4 space-y-2 before:absolute before:left-[15px] before:top-3 before:bottom-3 before:w-[1px] before:bg-outline-variant/30">
-            {(() => {
-              // Get real module titles from theory doc
-              const doc = theoryDocs[moduleTopicId];
-              const tracks = doc ? getTheoryTracks(doc) : [];
-              const firstTrackSlug = tracks.length > 0 ? tracks[0].slug : 'all';
-              const allModules = tracks.length > 0
-                ? tracks.flatMap((t) => sortModulesByOrder(t.chapters))
-                : doc ? sortModulesByOrder(doc.modules ?? doc.chapters) : [];
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px]">
 
-              const activeTopicSessions = recentSessions
-                .filter((s) => s.topic === moduleTopicId)
-                .sort((a, b) => a.chapterNumber - b.chapterNumber);
-              const completedChapterIds = new Set(
-                activeTopicSessions.filter((s) => s.completedAt).map((s) => s.chapterId)
-              );
-              const activeChapterNumber = latestSession?.topic === moduleTopicId
-                ? latestSession.chapterNumber
-                : (activeTopicSessions[activeTopicSessions.length - 1]?.chapterNumber ?? 1);
-
-              const stripModulePrefix = (title: string) =>
-                title.replace(/^module\s*\d+\s*:\s*/i, '').trim();
-
-              return allModules.slice(0, 10).map((mod, index) => {
-                const num = index + 1;
-                const isCompleted = completedChapterIds.has(mod.id);
-                const isActive = num === activeChapterNumber && !isCompleted;
-                const isLocked = num > activeChapterNumber && !isCompleted;
-                const title = stripModulePrefix(mod.title) || mod.title;
-                const session = activeTopicSessions.find((s) => s.chapterId === mod.id);
-                const progressBars = session && !isCompleted
-                  ? Math.round((session.sectionsRead / Math.max(1, session.sectionsTotal)) * 4)
-                  : 0;
-
-                return (
-                  <Link
-                    key={mod.id}
-                    href={`/learn/${moduleTopicId}/theory/${firstTrackSlug}?chapter=${encodeURIComponent(mod.id)}`}
-                    className="relative flex items-center gap-3 group py-1.5"
-                  >
-                    <div className={`z-10 w-8 h-8 border flex items-center justify-center flex-shrink-0 ${
-                      isCompleted
-                        ? 'border-primary bg-primary/20 shadow-[0_0_12px_rgba(153,247,255,0.4)]'
-                        : isActive
-                          ? 'border-2 border-primary bg-primary/20 shadow-[0_0_15px_rgba(153,247,255,0.3)]'
-                          : 'border-outline-variant bg-surface-container opacity-40'
-                    }`}>
-                      {isCompleted ? (
-                        <span className="text-primary text-xs">✓</span>
-                      ) : isActive ? (
-                        <span className="text-primary text-xs">▶</span>
-                      ) : (
-                        <span className="text-outline-variant text-xs">○</span>
-                      )}
-                    </div>
-                    <div className={isCompleted || isActive ? '' : 'opacity-40'}>
-                      <p className={`text-[8px] font-mono mb-0.5 ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
-                        M-{String(num).padStart(2, '0')}{isActive ? ' [ACTIVE]' : ''}
-                      </p>
-                      <h4 className={`text-[11px] font-bold uppercase tracking-wide leading-tight ${
-                        isActive ? 'font-headline text-primary' : isCompleted ? 'font-mono text-primary/70' : 'font-mono text-on-surface/40'
-                      }`}>
-                        {title}
-                      </h4>
-                      {isCompleted && (
-                        <span className="text-[7px] font-mono bg-primary/15 text-primary px-1.5 py-0.5 mt-0.5 inline-block shadow-[0_0_8px_rgba(153,247,255,0.2)]">SYNCED</span>
-                      )}
-                      {isActive && (
-                        <div className="flex gap-0.5 mt-1">
-                          {Array.from({ length: 4 }, (_, i) => (
-                            <div key={i} className={`h-1 w-4 ${i < progressBars ? 'bg-primary' : 'bg-outline-variant/40'}`} />
-                          ))}
-                        </div>
-                      )}
-                      {isLocked && (
-                        <span className="text-[7px] font-mono text-outline-variant">LOCKED</span>
-                      )}
-                    </div>
-                  </Link>
-                );
-              });
-            })()}
-          </div>
-        </section>
-
-        {/* Center: Neural Sync Port */}
-        <section className="lg:col-span-6 relative flex flex-col items-center justify-center overflow-hidden bg-surface-container-lowest py-8">
-          {/* HUD corners */}
-          <div className="absolute top-3 left-3 border-l border-t border-primary/30 w-8 h-8" />
-          <div className="absolute top-3 right-3 border-r border-t border-primary/30 w-8 h-8" />
-          <div className="absolute bottom-3 left-3 border-l border-b border-primary/30 w-8 h-8" />
-          <div className="absolute bottom-3 right-3 border-r border-b border-primary/30 w-8 h-8" />
-
-
-          <div className="relative z-10 text-center">
-            {/* Level + XP info above */}
-            <div className="mb-3 flex items-center justify-center gap-4">
-              <div className="text-right">
-                <div className="font-mono text-[7px] text-primary/40 uppercase tracking-widest">SYSTEM_LVL</div>
-                <div className="font-headline text-xl font-black text-primary">{Math.floor(stats.totalXp / 1000)}</div>
-              </div>
-              <div className="h-6 w-px bg-primary/20" />
-              <div className="text-left">
-                <div className="font-mono text-[7px] text-primary/40 uppercase tracking-widest">XP_TOTAL</div>
-                <div className="font-mono text-sm font-bold text-on-surface">{stats.totalXp.toLocaleString()}</div>
-              </div>
-            </div>
-
-            {/* Avatar */}
-            <div className="relative inline-block mb-3">
-              <div className="relative w-80 h-[28rem] bg-primary/5 border border-primary/20 flex items-center justify-center overflow-hidden group">
-                <Image
-                  src="/grid-assets/operator-avatar.jpg"
-                  alt={`Operator ${firstName}`}
-                  fill
-                  className="object-cover grayscale brightness-125 contrast-125"
-                  unoptimized
-                />
-              </div>
-
-            </div>
-
-            {/* Operator name */}
-            <h2 className="font-headline text-sm font-black text-on-surface tracking-widest uppercase mt-2">
-              OPERATOR {firstName.toUpperCase()}
-            </h2>
-
-          </div>
-
-          {/* Bottom HUD stats */}
-          <div className="absolute bottom-3 w-full px-6 flex justify-between items-end">
-            <div className="flex flex-col gap-1">
-              <span className="text-[7px] font-mono text-primary/40">HULL_INTEGRITY</span>
-              <div className="flex gap-0.5">
-                {Array.from({ length: 8 }, (_, i) => (
-                  <div key={i} className={`h-2 w-2 ${i < Math.round((overallProgress / 100) * 8) ? 'bg-primary' : 'bg-outline-variant/20'}`} />
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1 items-end">
-              <span className="text-[7px] font-mono text-primary/40">THROUGHPUT</span>
-              <div className="flex gap-0.5">
-                {Array.from({ length: 4 }, (_, i) => (
-                  <div key={i} className={`h-2 w-2 ${i < Math.min(stats.currentStreak, 4) ? 'bg-secondary' : 'bg-outline-variant/20'}`} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Right: Mission Briefing */}
-        <section className="lg:col-span-3 overflow-y-auto p-4 bg-surface-dim/40 border-l border-outline-variant/20">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-headline font-bold text-xs tracking-widest text-primary">MISSION_BRIEFING</h3>
-            <span className="font-mono text-[9px] text-tertiary">[{topicSnapshots.filter(s => s.theoryPct > 0 && s.theoryPct < 100).length} ACTIVE]</span>
-          </div>
-          <div className="space-y-3">
-            {/* System update */}
-            <div className="p-3 bg-tertiary/10 border-l-4 border-tertiary">
-              <div className="flex items-start justify-between mb-2">
-                <span className="text-[8px] font-mono text-tertiary font-bold px-1.5 py-0.5 bg-tertiary/20">SYSTEM UPDATE</span>
-              </div>
-              <h4 className="text-xs font-headline font-bold text-on-surface mb-1">SYNC_STATUS: {overallProgress}%</h4>
-              <p className="text-[9px] font-mono text-on-surface-variant leading-relaxed">
-                {overallProgress < 50 ? 'Continue theory modules to increase sync rate.' : 'Neural integration progressing well.'}
+          {/* Left: Orbital Constellation */}
+          <div className="flex flex-col items-center justify-center">
+            <div className="mb-6 self-start">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/40 animate-[fadeIn_0.6s_ease]">
+                Status: {overallProgress > 0 ? 'Deep dive active' : 'Awaiting initialization'}
+              </p>
+              <h1 className="mt-2 text-4xl font-bold tracking-tight text-on-surface lg:text-5xl animate-[fadeIn_0.8s_ease]" style={{ fontFamily: 'var(--font-headline)' }}>
+                {userDisplayName}
+              </h1>
+              <p className="mt-2 max-w-lg text-[13px] text-on-surface-variant/50 animate-[fadeIn_1s_ease]">
+                Traversing {activeTopics.length} theory tracks across the data engineering curriculum.
               </p>
             </div>
 
-            {/* Active assignment */}
-            <Link href={theoryAction.href} className="block p-3 bg-surface-container-high/60 border border-outline-variant/30 hover:border-primary/40 transition-colors group">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-1 h-1 bg-primary" />
-                <span className="text-[8px] font-mono text-primary/60">ACTIVE_ASSIGNMENT</span>
+            <div className="w-full">
+              <OrbitalMap topics={orbitalTopics} overallPct={overallProgress} />
+            </div>
+
+            <Link href={resumeHref}
+              className="mt-6 self-stretch group flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/8 px-6 py-4 transition-all duration-300 hover:bg-primary/12 hover:border-primary/30 hover:shadow-[0_0_30px_rgba(153,247,255,0.08)] animate-[fadeIn_1.4s_ease]">
+              <div className="flex items-center gap-3">
+                <Zap className="h-4 w-4 text-primary" />
+                <span className="text-[13px] font-semibold text-on-surface">Resume session</span>
               </div>
-              <h4 className="text-xs font-headline font-bold text-on-surface mb-1 uppercase tracking-tight">{theoryTrackLabel}</h4>
-              <div className="flex justify-between items-center mt-2">
-                <div className="flex gap-0.5">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <div key={i} className={`h-1.5 w-3 ${i < Math.round((theoryProgressPct / 100) * 5) ? 'bg-primary' : 'bg-outline-variant/30'}`} />
-                  ))}
-                </div>
-                <span className="text-[9px] font-mono text-primary font-bold group-hover:translate-x-1 transition-transform">RESUME &gt;&gt;</span>
-              </div>
+              <ArrowRight className="h-4 w-4 text-primary transition-transform group-hover:translate-x-1" />
             </Link>
 
-            {/* Operations task */}
-            <Link href={latestTaskAction.actionHref} className="block p-3 bg-surface-container-high/60 border border-outline-variant/30 hover:border-primary/40 transition-colors group">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-1 h-1 bg-secondary" />
-                <span className="text-[8px] font-mono text-secondary/60">DAILY_OPERATION</span>
-              </div>
-              <h4 className="text-xs font-headline font-bold text-on-surface mb-1 uppercase tracking-tight">{latestTaskAction.title}</h4>
-              <p className="text-[9px] font-mono text-on-surface-variant">{latestTaskAction.summary}</p>
-              <div className="mt-2 flex justify-between items-center">
-                <span className="text-[9px] font-mono text-tertiary">{latestTaskAction.statLine}</span>
-                <span className="text-[9px] font-mono text-on-surface-variant">START_TASK</span>
-              </div>
-            </Link>
+          </div>
 
-            {/* Grid telemetry */}
-            <div className="mt-4 p-3 glass-panel border-dashed">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-1 h-1 bg-primary" />
-                <span className="text-[8px] font-mono text-primary tracking-widest uppercase font-bold">GRID_TELEMETRY</span>
+          {/* Right: Stats Panel */}
+          <div className="space-y-4">
+
+            {currentTopic && currentTopic.theoryTotal > 0 && (
+              <div className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.1] animate-[fadeIn_0.4s_ease]">
+                <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(ellipse at top right, rgba(${currentTopic.accentRgb},0.04), transparent 60%)` }} />
+                <div className="relative">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30">Current focus</p>
+                      <h2 className="mt-1 text-lg font-bold tracking-tight text-on-surface">{currentTopic.label}</h2>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl transition-transform group-hover:scale-110" style={{ backgroundColor: `rgba(${currentTopic.accentRgb},0.1)` }}>
+                      <BookOpen className="h-4 w-4" style={{ color: `rgb(${currentTopic.accentRgb})` }} />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    {(() => {
+                      const doc = theoryDocs[currentTopic.topicId];
+                      const tracks = doc ? getTheoryTracks(doc) : [];
+                      if (tracks.length === 0) return null;
+
+                      // Compute completed per track
+                      let remainingCompleted = currentTopic.theoryCompleted;
+                      const trackData = tracks.map((track) => {
+                        const total = sortModulesByOrder(track.chapters).length;
+                        const completed = Math.min(total, Math.max(0, remainingCompleted));
+                        remainingCompleted = Math.max(0, remainingCompleted - total);
+                        return { track, total, completed };
+                      });
+
+                      return trackData.map(({ track, total, completed }, i) => {
+                        const levelColor = TRACK_LEVEL_COLORS[track.slug] ?? '153,247,255';
+                        return (
+                          <TrackLevelBattery
+                            key={track.slug}
+                            label={track.label.replace('-Level Track', '')}
+                            completed={completed}
+                            total={total}
+                            color={levelColor}
+                            delay={300 + i * 150}
+                          />
+                        );
+                      });
+                    })()}
+                  </div>
+
+                </div>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between font-mono text-[9px]">
-                  <span className="text-on-surface-variant">QUESTIONS</span>
-                  <span className="text-on-surface">{stats.questionsCompleted}</span>
+            )}
+
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.1] hover:bg-white/[0.04] animate-[fadeIn_0.6s_ease]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30">Learning velocity</p>
+                  <p className="mt-1 text-[13px] text-on-surface-variant/50">Sessions per week</p>
                 </div>
-                <div className="flex justify-between font-mono text-[9px]">
-                  <span className="text-on-surface-variant">ACCURACY</span>
-                  <span className="text-primary">{stats.overallAccuracy}%</span>
-                </div>
-                <div className="w-full h-px bg-outline-variant/20" />
-                <div className="flex justify-between font-mono text-[9px]">
-                  <span className="text-on-surface-variant">NETWORK</span>
-                  <span className="text-primary">ENCRYPTED</span>
-                </div>
+                <TrendingUp className="h-4 w-4 text-on-surface-variant/20" />
+              </div>
+              <div className="mt-3">
+                <VelocitySparkline data={weeklyVelocity} accentRgb={currentTopic?.accentRgb ?? '153,247,255'} />
               </div>
             </div>
-          </div>
-        </section>
-      </div>
 
+
+            {/* Session modes */}
+            <SessionModeBatteries
+              sprintCount={recentSessions.filter((s) => s.activeSeconds > 0 && s.activeSeconds <= 900).length}
+              pomodoroCount={recentSessions.filter((s) => s.activeSeconds > 900 && s.activeSeconds <= 2700).length}
+              deepFocusCount={recentSessions.filter((s) => s.activeSeconds > 2700).length}
+              totalHours={totalHours}
+            />
+
+            {skillTags.length > 0 && (
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-2xl animate-[fadeIn_1.2s_ease]">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30 mb-3">Skills unlocked</p>
+                <div className="flex flex-wrap gap-2">
+                  {skillTags.map((tag) => (
+                    <span key={tag} className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-on-surface-variant/50 transition-colors hover:bg-white/[0.07] hover:text-on-surface-variant/70">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

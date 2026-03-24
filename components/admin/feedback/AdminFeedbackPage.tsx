@@ -23,7 +23,6 @@ import {
 import {
   ADMIN_LAYOUT_CLASS,
   ADMIN_PAGE_SHELL_CLASS,
-  ADMIN_SECONDARY_SURFACE_CLASS,
   AdminInlineMessage
 } from '@/components/admin/theme';
 
@@ -239,7 +238,7 @@ export function AdminFeedbackPage() {
 
           {loading && feedback.length === 0 ? (
             <section
-              className={`${ADMIN_SECONDARY_SURFACE_CLASS} px-5 py-10 text-sm text-[#90a49b]`}
+              className="rounded-2xl border border-white/[0.06] bg-white/[0.03] px-6 py-12 text-[13px] text-on-surface-variant/30 text-center backdrop-blur-2xl"
             >
               Loading feedback analytics...
             </section>

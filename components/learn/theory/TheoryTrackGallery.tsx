@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Zap, CheckCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Zap, CheckCircle } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { summarizeTrackLessonProgress } from '@/lib/learn/theoryTrackProgress';
@@ -54,6 +54,14 @@ export const TheoryTrackGallery = ({
   return (
     <div className="relative min-h-screen pb-24 lg:pb-10" style={accentVars}>
       <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+
+        <Link
+          href="/learn/theory"
+          className="mb-8 inline-flex items-center gap-2 text-[13px] font-medium text-on-surface-variant/50 transition-colors hover:text-on-surface-variant"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Theory Hub
+        </Link>
 
         {/* Header */}
         <header className="mb-12 max-w-5xl">

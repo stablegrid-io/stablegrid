@@ -184,11 +184,11 @@ const SectionHeading = ({
   body: string;
   action?: React.ReactNode;
 }) => (
-  <div className="flex flex-col gap-4 border-b border-outline-variant/20 px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-    <div>
-      <p className="text-[0.68rem] uppercase tracking-[0.28em] text-[#7fbba7]">{eyebrow}</p>
-      <h2 className="mt-2 text-xl font-semibold text-on-surface sm:text-2xl">{title}</h2>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-[#9fb1aa]">{body}</p>
+  <div className="flex flex-col gap-4 border-b border-white/[0.06] px-6 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-7">
+    <div className="max-w-3xl">
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/50">{eyebrow}</p>
+      <h2 className="mt-2 text-xl font-semibold tracking-tight text-on-surface sm:text-2xl">{title}</h2>
+      <p className="mt-2 max-w-2xl text-[13px] text-on-surface-variant/40">{body}</p>
     </div>
     {action}
   </div>
@@ -197,13 +197,13 @@ const SectionHeading = ({
 const InlineMessage = AdminInlineMessage;
 
 const SmallBadge = ({ children }: { children: React.ReactNode }) => (
-  <span className="inline-flex items-center  border border-outline-variant/20 bg-surface-container-low px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[#9db6aa]">
+  <span className="inline-flex items-center rounded-md border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/50">
     {children}
   </span>
 );
 
 const FieldLabel = ({ children }: { children: React.ReactNode }) => (
-  <label className="text-[0.72rem] font-medium uppercase tracking-[0.16em] text-[#8ca79a]">
+  <label className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">
     {children}
   </label>
 );
@@ -1679,75 +1679,75 @@ function AuditSection({
               void loadAudit();
               onMutation('Audit log refreshed.');
             }}
-            className=" border border-outline-variant/20 bg-surface-container px-4 py-2 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high"
+            className="flex h-9 items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-4 text-[13px] font-medium text-on-surface transition-colors hover:bg-white/[0.08] hover:border-white/[0.12]"
           >
             Refresh audit
           </button>
         }
       />
-      <div className="px-5 py-5 sm:px-6">
+      <div className="px-6 py-5 sm:px-7">
         {error ? <InlineMessage tone="error" message={error} /> : null}
-        <div className="overflow-hidden rounded-[24px] border border-outline-variant/20 bg-surface-container-low/65">
+        <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02]">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/10 text-left text-sm">
-              <thead className="bg-surface-container-low text-[#8ca79a]">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Action</th>
-                  <th className="px-4 py-3 font-medium">Actor</th>
-                  <th className="px-4 py-3 font-medium">Target</th>
-                  <th className="px-4 py-3 font-medium">Entity</th>
-                  <th className="px-4 py-3 font-medium">When</th>
-                  <th className="px-4 py-3 font-medium">Details</th>
+            <table className="min-w-full border-separate border-spacing-0 text-left text-[13px]">
+              <thead>
+                <tr className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/35">
+                  <th className="border-b border-white/[0.06] px-5 py-3">Action</th>
+                  <th className="border-b border-white/[0.06] px-4 py-3">Actor</th>
+                  <th className="border-b border-white/[0.06] px-4 py-3">Target</th>
+                  <th className="border-b border-white/[0.06] px-4 py-3">Entity</th>
+                  <th className="border-b border-white/[0.06] px-4 py-3">When</th>
+                  <th className="border-b border-white/[0.06] px-4 py-3">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/10 text-[#dde7e2]">
+              <tbody>
                 {loading ? (
                   <tr>
-                    <td className="px-4 py-6 text-on-surface-variant" colSpan={6}>
+                    <td className="px-5 py-8 text-on-surface-variant/30" colSpan={6}>
                       Loading audit history...
                     </td>
                   </tr>
                 ) : entries.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-6 text-on-surface-variant" colSpan={6}>
+                    <td className="px-5 py-8 text-on-surface-variant/30" colSpan={6}>
                       No audit events yet.
                     </td>
                   </tr>
                 ) : (
                   entries.map((entry) => (
-                    <tr key={entry.id}>
-                      <td className="px-4 py-4 align-top">
+                    <tr key={entry.id} className="text-on-surface-variant/60 transition-colors hover:bg-white/[0.02]">
+                      <td className="border-b border-white/[0.04] px-5 py-4 align-top">
                         <p className="font-medium text-on-surface">{toTitleCase(entry.action)}</p>
-                        <p className="mt-1 text-xs text-on-surface-variant">{entry.entityType}</p>
+                        <p className="mt-1 text-[11px] text-on-surface-variant/30">{entry.entityType}</p>
                       </td>
-                      <td className="px-4 py-4 align-top">
-                        <p>{entry.actorName ?? 'Unknown admin'}</p>
-                        <p className="mt-1 text-xs text-on-surface-variant">{entry.actorEmail ?? 'No email'}</p>
+                      <td className="border-b border-white/[0.04] px-4 py-4 align-top">
+                        <p className="text-on-surface-variant/60">{entry.actorName ?? 'Unknown admin'}</p>
+                        <p className="mt-1 text-[11px] text-on-surface-variant/30">{entry.actorEmail ?? 'No email'}</p>
                       </td>
-                      <td className="px-4 py-4 align-top">
-                        <p>{entry.targetName ?? 'No target user'}</p>
-                        <p className="mt-1 text-xs text-on-surface-variant">{entry.targetEmail ?? '-'}</p>
+                      <td className="border-b border-white/[0.04] px-4 py-4 align-top">
+                        <p className="text-on-surface-variant/60">{entry.targetName ?? 'No target user'}</p>
+                        <p className="mt-1 text-[11px] text-on-surface-variant/30">{entry.targetEmail ?? '-'}</p>
                       </td>
-                      <td className="px-4 py-4 align-top">
+                      <td className="border-b border-white/[0.04] px-4 py-4 align-top">
                         <p className="font-medium text-on-surface">{toTitleCase(entry.entityType)}</p>
-                        <p className="mt-1 text-xs text-on-surface-variant">{entry.entityId}</p>
+                        <p className="mt-1 text-[11px] text-on-surface-variant/30">{entry.entityId}</p>
                       </td>
-                      <td className="px-4 py-4 align-top text-[#9fb1aa]">{formatDateTime(entry.createdAt)}</td>
-                      <td className="px-4 py-4 align-top">
-                        <details className=" border border-outline-variant/20 bg-surface-container-low p-3">
-                          <summary className="cursor-pointer text-xs font-medium uppercase tracking-[0.16em] text-[#9db6aa]">
+                      <td className="border-b border-white/[0.04] px-4 py-4 align-top text-on-surface-variant/40">{formatDateTime(entry.createdAt)}</td>
+                      <td className="border-b border-white/[0.04] px-4 py-4 align-top">
+                        <details className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
+                          <summary className="cursor-pointer text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40 hover:text-on-surface-variant/60 transition-colors">
                             View state diff
                           </summary>
                           <div className="mt-3 grid gap-3 lg:grid-cols-2">
                             <div>
-                              <p className="mb-2 text-[0.72rem] uppercase tracking-[0.16em] text-[#8ca79a]">Before</p>
-                              <pre className="max-h-56 overflow-auto  border border-outline-variant/20 bg-black/20 p-3 text-xs text-[#b9c8c2]">
+                              <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/35">Before</p>
+                              <pre className="max-h-56 overflow-auto rounded-lg border border-white/[0.06] bg-black/30 p-3 text-[11px] text-on-surface-variant/50">
                                 {JSON.stringify(entry.beforeState, null, 2)}
                               </pre>
                             </div>
                             <div>
-                              <p className="mb-2 text-[0.72rem] uppercase tracking-[0.16em] text-[#8ca79a]">After</p>
-                              <pre className="max-h-56 overflow-auto  border border-outline-variant/20 bg-black/20 p-3 text-xs text-[#b9c8c2]">
+                              <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/35">After</p>
+                              <pre className="max-h-56 overflow-auto rounded-lg border border-white/[0.06] bg-black/30 p-3 text-[11px] text-on-surface-variant/50">
                                 {JSON.stringify(entry.afterState, null, 2)}
                               </pre>
                             </div>

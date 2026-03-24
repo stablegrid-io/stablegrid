@@ -47,8 +47,11 @@ export default async function LearnTopicTheoryCategoryPage({
     'data-engineering-track': 'junior',
     'full-stack': 'junior',
     'beginner': 'junior',
+    'beginner-track': 'junior',
     'intermediate': 'mid',
+    'intermediate-track': 'mid',
     'advanced': 'senior',
+    'advanced-track': 'senior',
   };
   const mappedSlug = LEGACY_SLUG_MAP[categoryParam];
   if (mappedSlug) {

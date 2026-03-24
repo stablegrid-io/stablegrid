@@ -1,7 +1,913 @@
 {
   "topic": "sql",
-  "title": "SQL",
-  "description": "Query design, window functions, CTEs, optimization, and analytical SQL patterns.",
-  "version": "placeholder 2026-03-22",
-  "chapters": []
+  "title": "SQL for Data Engineers: Junior-Level Track",
+  "description": "Understand why relational databases exist, how the relational model organizes data, and how the NordGrid Energy scenario maps to a real-world database that SQL operates on.",
+  "version": "authored 2026-03-25, targets ANSI SQL:2016+ / PostgreSQL 16+",
+  "chapters": [
+    {
+      "id": "module-SQL1",
+      "number": 1,
+      "title": "Why Databases and SQL Exist",
+      "description": "Understand why relational databases exist, how the relational model organizes data, and how the NordGrid Energy scenario maps to a real-world database that SQL operates on.",
+      "totalMinutes": 250,
+      "sections": [
+        {
+          "id": "module-SQL1-lesson-01",
+          "title": "When Data Needs a Home",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Every data engineering project starts with a question that sounds simple: where do we put the data? For a small project, the answer is often a file — a CSV on a shared drive, a JSON file in a folder, a spreadsheet that someone emails around every Monday. For a team of three people processing a few thousand records, files work well enough. But data grows. The number of records increases, the number of people who need access increases, and the number of questions those people ask about the data increases. At some point, files stop being enough. This lesson is about why that happens, what breaks, and what a better solution looks like."
+            },
+            {
+              "type": "heading",
+              "content": "NordGrid's First System"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid Energy, a Northern European grid operator, started small. Five years ago, the company had 10,000 smart meters across two regions. Every morning, a vendor delivered a CSV file containing the previous day's meter readings — 10,000 rows with five columns: meter_id, daily_kw, date, region, and customer_type. A Python script read the CSV, computed a few averages, and wrote the results to a spreadsheet that the operations manager reviewed after lunch. The entire pipeline took eight minutes and ran on a single laptop."
+            },
+            {
+              "type": "paragraph",
+              "content": "That system worked because the data was small, the questions were simple, and one person needed the answer. But NordGrid grew. The meter fleet expanded from 10,000 to 500,000. The daily CSV grew from 10,000 rows to half a million. The operations team wanted hourly dashboards instead of a morning spreadsheet. The billing department needed monthly consumption totals per customer. The regulatory team needed quarterly reports with specific formatting. Suddenly, one Python script reading one CSV file could not keep up — not because Python is slow, but because the problem had outgrown the solution."
+            },
+            {
+              "type": "heading",
+              "content": "Three Problems with Files"
+            },
+            {
+              "type": "paragraph",
+              "content": "The first problem is querying. A CSV file has no built-in way to answer questions. If the billing team asks how much energy residential customers in the NORTH region consumed last month, someone has to write a script that opens the file, filters by customer_type and region, filters by date range, sums the daily_kw column, and returns the result. Every new question requires a new script. A database, by contrast, provides a query language that answers these questions directly — you describe what you want, and the database figures out how to retrieve it."
+            },
+            {
+              "type": "paragraph",
+              "content": "The second problem is concurrent access. When two people open the same CSV file and both make changes, someone's changes get overwritten. NordGrid discovered this when the data engineer corrected a batch of misread meter_id values at the same time the operations analyst was adding a classification column. The analyst saved last, and the corrections vanished. Databases solve this with transactions — a mechanism that ensures changes from multiple users do not conflict, even when they happen simultaneously."
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Problem",
+                "File-Based Approach",
+                "Database Approach"
+              ],
+              "rows": [
+                [
+                  "Querying",
+                  "Write a custom script for every question",
+                  "Write a SQL query — the database executes it"
+                ],
+                [
+                  "Concurrent access",
+                  "Two editors overwrite each other's changes",
+                  "Transactions ensure changes are isolated and consistent"
+                ],
+                [
+                  "Schema enforcement",
+                  "Columns can change without warning",
+                  "The database rejects data that violates the defined structure"
+                ],
+                [
+                  "Scale",
+                  "Entire file loaded into memory for every operation",
+                  "Database reads only the rows and columns needed"
+                ],
+                [
+                  "Security",
+                  "File permissions are all-or-nothing",
+                  "Row-level and column-level access control"
+                ]
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": "The third problem is schema enforcement. NordGrid's CSV had no rules about what data it could contain. One morning the vendor changed the column name from daily_kw to daily_kwh — a reasonable rename, but the Python script looked for daily_kw and crashed. Another time, the vendor inserted a row with a negative meter reading that should have been impossible. A database enforces rules about what data looks like before it enters the system: column names, data types, required values, and validity constraints. Bad data is rejected at the door rather than discovered downstream."
+            },
+            {
+              "type": "heading",
+              "content": "The Threshold"
+            },
+            {
+              "type": "paragraph",
+              "content": "There is no magic number where files become inadequate and databases become necessary. But there are signals. When you find yourself writing scripts to answer questions that a single query could handle, you have crossed the threshold. When two people need to update the same data simultaneously, you have crossed it. When a column name change in a source file breaks a pipeline that nobody noticed for three days, you have crossed it. NordGrid crossed all three thresholds within the same quarter as the meter fleet grew past 100,000."
+            },
+            {
+              "type": "key-concept",
+              "term": "Relational database",
+              "definition": "A system that stores data in tables with defined columns and types, enforces rules about what data can enter (constraints), and provides a standard query language (SQL) for retrieving and manipulating data. PostgreSQL, MySQL, SQL Server, and Oracle are all relational databases."
+            },
+            {
+              "type": "numbered-list",
+              "items": [
+                "The data outgrew a single file — NordGrid's daily CSV reached 500,000 rows and the Python script took longer than the overnight window allowed.",
+                "Multiple teams needed concurrent access — the billing team and the operations team both needed to query the same data at the same time without interfering with each other.",
+                "Data quality became critical — a single malformed row in the CSV caused a billing error that took three days to trace and correct."
+              ]
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Why it matters",
+              "content": "Files are not bad — they are the right tool at small scale. But data engineering operates beyond small scale. The database exists because files cannot answer questions efficiently, cannot handle multiple users safely, and cannot enforce rules about data quality. Every concept in this course builds on this foundation: the database is the home that data needs when it outgrows files."
+            }
+          ]
+        },
+        {
+          "id": "module-SQL1-lesson-02",
+          "title": "What a Database Is",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The previous lesson described why files break down at scale: no query language, no concurrent access control, and no schema enforcement. A database is the system designed to solve all three problems. But the word database is used so loosely in everyday conversation — people call spreadsheets databases, CSV folders databases, even email inboxes databases — that it helps to define it precisely. This lesson explains what a relational database actually is, what it provides, and why those capabilities matter for data engineering."
+            },
+            {
+              "type": "heading",
+              "content": "The Library Analogy"
+            },
+            {
+              "type": "paragraph",
+              "content": "Think of a library. Books are not piled in a random heap — they are organized on shelves, grouped by category, and cataloged so you can find any book by title, author, or subject. The librarian enforces rules: books must be returned by a due date, only one person can check out a copy at a time, and new books are cataloged before they reach the shelves. A database works the same way. Data is organized into tables (the shelves), structured with defined columns (the cataloging system), and governed by rules that control who can read or change it and what shape the data must take."
+            },
+            {
+              "type": "heading",
+              "content": "Three Capabilities"
+            },
+            {
+              "type": "paragraph",
+              "content": "A relational database provides three core capabilities that together solve the problems files cannot. The first is structured storage: data lives in tables with named columns and defined types. Every row in a table has the same columns, and every column holds the same type of data. NordGrid's meter readings table has five columns — meter_id (text), daily_kw (number), date (date), region (text), customer_type (text) — and every row follows this structure. The database rejects a row where daily_kw contains the text 'hello' because the column expects a number."
+            },
+            {
+              "type": "paragraph",
+              "content": "The second capability is integrity enforcement. The database can require that meter_id is never empty, that daily_kw is not negative, that every meter_id in the readings table corresponds to a valid meter in the meters table, and that no two readings have the same meter_id on the same date. These rules — called constraints — catch bad data automatically. NordGrid's pipeline does not need a separate validation script because the database itself rejects readings that violate the rules."
+            },
+            {
+              "type": "key-concept",
+              "term": "Constraint",
+              "definition": "A rule that the database enforces automatically on every row of data. Constraints prevent invalid data from entering the system. Common constraints include NOT NULL (a value must be present), UNIQUE (no duplicates allowed), and CHECK (the value must satisfy a condition, such as daily_kw >= 0)."
+            },
+            {
+              "type": "paragraph",
+              "content": "The third capability is declarative querying. Instead of writing step-by-step instructions — open the file, loop through every row, check if the region matches, add the daily_kw to a running total — you write a statement that describes the result you want: give me the total daily_kw for each region. The database decides how to retrieve that result efficiently. This declarative style is the defining characteristic of SQL, which you will learn in lesson 4."
+            },
+            {
+              "type": "heading",
+              "content": "What a Database Is Not"
+            },
+            {
+              "type": "paragraph",
+              "content": "A database is not a file format. CSV, JSON, and Parquet are file formats — they define how data is stored on disk, but they provide no query language, no transaction control, and no schema enforcement. A database is not a spreadsheet. Spreadsheets allow freeform data entry without structure — cell A3 can contain a number and cell A4 can contain a sentence. A database is not an application. The billing system that NordGrid's finance team uses is an application; the database is the storage and query engine behind it. Understanding what a database is — and what it is not — prevents confusion as you encounter these terms in real-world data engineering."
+            },
+            {
+              "type": "comparison",
+              "left": {
+                "label": "File-Based Storage",
+                "points": [
+                  "Data organized as rows of text in a file",
+                  "No built-in query capability",
+                  "No rules about data shape or validity",
+                  "One user at a time (or risk corruption)",
+                  "Security: file-level read/write permissions"
+                ]
+              },
+              "right": {
+                "label": "Relational Database",
+                "points": [
+                  "Data organized into tables with typed columns",
+                  "SQL provides declarative querying",
+                  "Constraints enforce structure and quality",
+                  "Transactions allow safe concurrent access",
+                  "Security: table, row, and column-level permissions"
+                ]
+              }
+            },
+            {
+              "type": "heading",
+              "content": "The Database Management System"
+            },
+            {
+              "type": "paragraph",
+              "content": "The software that provides these capabilities is called a database management system, or DBMS. PostgreSQL, MySQL, Oracle, SQL Server, and SQLite are all database management systems. Each one stores data in tables, enforces constraints, and understands SQL. They differ in performance characteristics, licensing, and advanced features, but the core concepts — and the SQL language — are the same across all of them. This course uses PostgreSQL as the reference engine because it is open-source, widely used in data engineering, and closely follows the SQL standard. However, every concept you learn here applies to any relational database system."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "The core idea",
+              "content": "A database is a system that stores structured data, enforces rules about that data, and provides a language for asking questions. These three capabilities — structured storage, integrity enforcement, and declarative querying — are what distinguish a database from a folder of files. Every tool you will learn in this course exists because of this foundation."
+            }
+          ]
+        },
+        {
+          "id": "module-SQL1-lesson-03",
+          "title": "The Relational Model",
+          "estimatedMinutes": 26,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The previous lesson defined a database as a system that stores structured data, enforces rules, and provides a query language. But structure alone is not enough — the data also needs a model that defines how different pieces of information relate to each other. NordGrid does not store all its data in one giant table. Meter readings are in one table, meter metadata is in another, substation information is in a third, and regional details are in a fourth. The relational model is the mathematical framework that explains how these tables connect and how questions that span multiple tables get answered."
+            },
+            {
+              "type": "heading",
+              "content": "Tables as Collections of Facts"
+            },
+            {
+              "type": "paragraph",
+              "content": "In the relational model, every table represents a collection of facts about one type of entity. NordGrid's meter_readings table contains facts about energy consumption: each row records that a specific meter measured a specific amount of energy on a specific date in a specific region. The meters table contains facts about meter hardware: each row records a meter's installation date, firmware version, and the substation it connects to. Each table has a clear purpose, and no table tries to store facts about more than one type of entity."
+            },
+            {
+              "type": "paragraph",
+              "content": "This separation is deliberate. If NordGrid stored meter metadata alongside every reading, the firmware_version and install_date values would repeat 365 times per year per meter — once for every daily reading. With 500,000 meters, that is 182 million redundant copies of the same firmware version. Separating meter metadata into its own table means the firmware version is stored once per meter, and readings reference the meter by its identifier. The relational model calls this normalization — storing each fact exactly once and using references to connect related facts."
+            },
+            {
+              "type": "key-concept",
+              "term": "Normalization",
+              "definition": "The practice of organizing data so that each fact is stored exactly once. Instead of repeating meter metadata in every reading row, the metadata lives in a separate table and readings reference it by meter_id. Normalization eliminates redundancy and ensures that updating a meter's firmware version requires changing one row, not 365."
+            },
+            {
+              "type": "heading",
+              "content": "Columns, Rows, and Types"
+            },
+            {
+              "type": "paragraph",
+              "content": "Every table has columns and rows. A column defines an attribute — a named piece of information with a specific data type. The meter_readings table has five columns: meter_id (text), daily_kw (numeric), date (date), region (text), and customer_type (text). Every row in the table must provide a value for each column (or an explicit marker that the value is missing, called NULL). A row represents one fact — one meter's reading on one date. The combination of defined columns and typed values is what gives the table its structure."
+            },
+            {
+              "type": "code",
+              "language": "text",
+              "content": " meter_id    | daily_kw | date       | region | customer_type\n-------------+----------+------------+--------+--------------\n NRD-N-00001 |    23.40 | 2025-03-01 | NORTH  | RESIDENTIAL\n NRD-N-00002 |    47.80 | 2025-03-01 | NORTH  | COMMERCIAL\n NRD-S-00001 |    18.90 | 2025-03-01 | SOUTH  | RESIDENTIAL\n NRD-E-00001 |   112.30 | 2025-03-01 | EAST   | INDUSTRIAL\n NRD-W-00001 |    31.50 | 2025-03-01 | WEST   | RESIDENTIAL"
+            },
+            {
+              "type": "paragraph",
+              "content": "This is what five rows of NordGrid's meter_readings table look like. Each row is one fact: meter NRD-N-00001 consumed 23.40 kilowatts on March 1, 2025, in the NORTH region, and the customer is residential. The column types ensure that daily_kw is always a number and date is always a valid date — the database will not accept a row where daily_kw contains the text 'unknown' or date contains '2025-13-45'."
+            },
+            {
+              "type": "heading",
+              "content": "Relationships Between Tables"
+            },
+            {
+              "type": "paragraph",
+              "content": "The power of the relational model comes from connections between tables. NordGrid's meter_readings table contains a meter_id column. The meters table also contains a meter_id column, along with additional information: firmware_version, install_date, and substation_id. The shared column — meter_id — is the link. When the billing team needs to know the substation for a specific reading, they follow the meter_id from the readings table to the meters table. This connection is called a relationship, and the operation that follows it is called a join. You will learn joins in detail in Module 7."
+            },
+            {
+              "type": "diagram",
+              "title": "NordGrid's core table relationships",
+              "content": "┌──────────────────┐       ┌──────────────────┐\n│  meter_readings  │       │     meters       │\n├──────────────────┤       ├──────────────────┤\n│ meter_id     (FK)│──────▶│ meter_id     (PK)│\n│ daily_kw         │       │ firmware_version │\n│ date             │       │ install_date     │\n│ region           │       │ substation_id(FK)│──┐\n│ customer_type    │       └──────────────────┘  │\n└──────────────────┘                             │\n                           ┌──────────────────┐  │\n                           │   substations    │  │\n                           ├──────────────────┤  │\n                           │ substation_id(PK)│◀─┘\n                           │ name             │\n                           │ capacity_mw      │\n                           │ region           │\n                           └──────────────────┘",
+              "caption": "Three tables connected by shared columns. meter_readings references meters through meter_id, and meters references substations through substation_id. These connections let you answer questions that span all three tables — such as which substation has the highest total consumption.",
+              "visual-recommendation": {
+                "type": "static-diagram",
+                "priority": "critical",
+                "description": "An Entity-Relationship diagram showing NordGrid's three core tables with column names, data types, primary key and foreign key indicators, and relationship lines with cardinality notation (one-to-many).",
+                "current-fallback": "ascii-diagram-provided"
+              }
+            },
+            {
+              "type": "heading",
+              "content": "Why the Relational Model Endures"
+            },
+            {
+              "type": "paragraph",
+              "content": "The relational model was invented by Edgar Codd at IBM in 1970. More than fifty years later, it remains the foundation of virtually every transactional database and data warehouse in the world. NoSQL databases, document stores, and graph databases exist for specific use cases, but relational databases handle the vast majority of structured data in business, government, and science. The reason is practical: the relational model is simple enough to understand, flexible enough to model almost any domain, and rigorous enough to guarantee data correctness. Every column has a type. Every relationship has a key. Every question has a query."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "The mental model",
+              "content": "Think of the relational model as a network of spreadsheets where each spreadsheet has strict column rules and every spreadsheet can reference rows in other spreadsheets by shared identifiers. The rules prevent chaos, the references prevent redundancy, and the shared language — SQL — lets you ask questions across the entire network."
+            }
+          ]
+        },
+        {
+          "id": "module-SQL1-lesson-04",
+          "title": "What SQL Is",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The previous lessons introduced the database as a system for structured storage and the relational model as the framework for organizing that storage. But storage alone is not useful — you need a way to ask questions, add data, change data, and define the structure of tables. That is what SQL does. SQL — Structured Query Language — is the standard language for communicating with relational databases. It has been the industry standard since the 1980s, and it remains the single most widely used language in data engineering. This lesson introduces what SQL is, what it can do, and why its design is fundamentally different from programming languages like Python."
+            },
+            {
+              "type": "heading",
+              "content": "Declarative vs Imperative"
+            },
+            {
+              "type": "paragraph",
+              "content": "If you have written Python, you have written imperative code: you tell the computer exactly what to do, step by step. Open the file. Loop through each row. Check if the region is NORTH. If it is, add the daily_kw to a running total. Print the total. SQL works differently. Instead of describing the steps, you describe the result you want. Give me the total daily_kw for each region. The database decides how to get that result — which indexes to use, what order to read the data, how to group the rows. You describe what you want. The database decides how to deliver it."
+            },
+            {
+              "type": "comparison",
+              "left": {
+                "label": "Imperative (Python)",
+                "points": [
+                  "You specify every step: open, loop, filter, accumulate, return",
+                  "You control how the data is processed",
+                  "Performance depends on how well you write the loop",
+                  "Changes to data structure require rewriting the script"
+                ]
+              },
+              "right": {
+                "label": "Declarative (SQL)",
+                "points": [
+                  "You specify the result: columns, conditions, groupings",
+                  "The database engine controls how the data is processed",
+                  "Performance depends on the database's optimizer",
+                  "Changes to data structure often require only adjusting the query"
+                ]
+              }
+            },
+            {
+              "type": "paragraph",
+              "content": "This declarative nature is SQL's greatest strength for data engineering. When NordGrid's billing team asks for monthly consumption totals by customer type, the data engineer writes a query that says exactly that — total consumption, grouped by customer type and month. The engineer does not decide whether to scan the table sequentially or use an index, whether to sort before grouping or group in a hash table, or how to allocate memory. The database makes those decisions, and it often makes them better than a human would because it knows the data's size, shape, and distribution."
+            },
+            {
+              "type": "heading",
+              "content": "The Four Parts of SQL"
+            },
+            {
+              "type": "paragraph",
+              "content": "SQL is not one monolithic language — it is organized into four parts, each serving a different purpose. The first and most common part is the Data Query Language, or DQL: the SELECT statement that retrieves data. When you hear someone say they are writing a SQL query, they almost always mean a SELECT statement. Modules 3 through 9 of this course focus primarily on SELECT and its many capabilities."
+            },
+            {
+              "type": "paragraph",
+              "content": "The second part is the Data Definition Language, or DDL: statements that create and modify the structure of tables. CREATE TABLE defines a new table. ALTER TABLE changes an existing table's columns or constraints. DROP TABLE removes a table entirely. Module 2 covers DDL in detail. The third part is the Data Manipulation Language, or DML: statements that add, change, or remove data. INSERT adds rows, UPDATE changes values in existing rows, and DELETE removes rows. Module 10 covers DML. The fourth part is the Data Control Language, or DCL: statements like GRANT and REVOKE that control who can access which data. This course introduces DCL conceptually but does not cover it in depth — access control is a mid-level topic."
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Part",
+                "Purpose",
+                "Key Statements",
+                "Covered In"
+              ],
+              "rows": [
+                [
+                  "DQL (Query)",
+                  "Retrieve data",
+                  "SELECT",
+                  "Modules 3-9"
+                ],
+                [
+                  "DDL (Definition)",
+                  "Define and modify table structure",
+                  "CREATE TABLE, ALTER TABLE, DROP TABLE",
+                  "Module 2"
+                ],
+                [
+                  "DML (Manipulation)",
+                  "Add, change, or remove data",
+                  "INSERT, UPDATE, DELETE, MERGE",
+                  "Module 10"
+                ],
+                [
+                  "DCL (Control)",
+                  "Manage access permissions",
+                  "GRANT, REVOKE",
+                  "Conceptual only"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "A First Look at SQL"
+            },
+            {
+              "type": "paragraph",
+              "content": "Here is a simple SQL query that answers a real NordGrid question: what is the total daily energy consumption for each region on March 1, 2025? Even if you have never seen SQL before, the query reads almost like an English sentence. Notice the structure — each clause starts on its own line, uppercase keywords stand out from lowercase column names, and the overall flow moves from what you want (SELECT) through where it lives (FROM) to how you want it shaped (GROUP BY, ORDER BY)."
+            },
+            {
+              "type": "code",
+              "language": "sql",
+              "content": "SELECT\n    region,\n    SUM(daily_kw) AS total_kw\nFROM\n    meter_readings\nWHERE\n    date = '2025-03-01'\nGROUP BY\n    region\nORDER BY\n    total_kw DESC;"
+            },
+            {
+              "type": "code",
+              "language": "text",
+              "content": " region | total_kw\n--------+-----------\n EAST   | 1,842,300\n NORTH  | 1,523,700\n SOUTH  | 1,198,400\n WEST   |   987,200"
+            },
+            {
+              "type": "paragraph",
+              "content": "The query says: from the meter_readings table, keep only rows where the date is March 1st, group the remaining rows by region, compute the sum of daily_kw for each group, call that sum total_kw, and sort the results from highest to lowest. Nine lines. No loops. No file handling. No memory management. You describe the result, and the database delivers it. Every module in this course teaches you more of this language, building from simple retrieval to complex analytical queries."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "SQL is a conversation",
+              "content": "Think of SQL as a conversation with the database. You ask a question (the query), and the database answers (the result set). The questions get more sophisticated as you learn — from simple lookups to aggregations to joins to window functions — but the pattern stays the same: you describe what you want, and the database figures out how to deliver it."
+            }
+          ]
+        },
+        {
+          "id": "module-SQL1-lesson-05",
+          "title": "The NordGrid Energy Scenario",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "Every lesson in this course uses the same fictional company to illustrate SQL concepts: NordGrid Energy, a Northern European grid operator that manages renewable energy infrastructure across four geographic regions. NordGrid is not a toy example — it is modeled on the data realities of real European energy operators, scaled to a size that is large enough to be realistic but small enough to understand completely. The company, its data, and its database will be your constant reference point throughout every module. This lesson introduces the scenario in full so that when later lessons say NordGrid's daily meter readings, you know exactly what that means."
+            },
+            {
+              "type": "heading",
+              "content": "The Company"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid Energy operates wind farms and solar installations across Northern Europe, serving half a million customers in Germany and the Netherlands. The company has one data engineering team responsible for building and maintaining the SQL-based pipelines that process meter readings, turbine telemetry, and weather forecasts. This team manages a PostgreSQL database that stores everything from raw daily imports to cleansed production tables to aggregated reports. NordGrid is part of a larger parent organization, but at the junior level you only need to know about NordGrid itself — the parent company becomes relevant in the senior-level track."
+            },
+            {
+              "type": "heading",
+              "content": "The Four Regions"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid divides its operations into four geographic regions: NORTH, SOUTH, EAST, and WEST. Each region has its own wind farms, solar installations, substations, and smart meters. The region column is one of the most common values in NordGrid's data — it appears in meter readings, turbine reports, and substation records. When you see the column name region in a SQL example, it always contains one of these four values. The four-region structure keeps examples simple while giving you enough variety to practice filtering, grouping, and aggregating by region."
+            },
+            {
+              "type": "heading",
+              "content": "The Data Sources"
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Source",
+                "Description",
+                "Volume",
+                "Key Columns"
+              ],
+              "rows": [
+                [
+                  "Meter readings",
+                  "Daily energy consumption per smart meter",
+                  "500,000 readings per day",
+                  "meter_id, daily_kw, date, region, customer_type"
+                ],
+                [
+                  "SCADA telemetry",
+                  "Turbine sensor data: RPM, temperature, power output",
+                  "2,000 turbines, every 10 seconds",
+                  "turbine_id, rpm, temp, ts, power_output"
+                ],
+                [
+                  "Weather observations",
+                  "Station data with temperature, wind speed, and forecasts",
+                  "4 stations, hourly",
+                  "station_id, temp_c, wind_speed, observation_ts"
+                ],
+                [
+                  "Substations",
+                  "Grid connection points linking meters to the network",
+                  "200 substations",
+                  "substation_id, name, capacity_mw, region"
+                ],
+                [
+                  "Regions",
+                  "Geographic operating areas with timezone information",
+                  "4 regions",
+                  "region, region_name, timezone"
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "The Database Tables"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid's PostgreSQL database organizes these data sources into tables across three schemas: bronze, silver, and gold. The bronze schema holds raw imported data exactly as it arrived from external sources. The silver schema holds cleansed and validated data with proper types and constraints. The gold schema holds aggregated summaries that dashboards and reports consume. You will learn about these layers in the next lesson — for now, the important point is that the same data passes through multiple tables as it is cleaned and refined, and SQL operates at every stage."
+            },
+            {
+              "type": "diagram",
+              "title": "NordGrid's database schema overview",
+              "content": "┌─────────────────────────────────────────────────────┐\n│                  NordGrid Database                   │\n│                                                     │\n│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐│\n│  │    bronze     │  │    silver     │  │    gold    ││\n│  │              │  │              │  │            ││\n│  │ meter_imports│  │ meter_readings│  │ daily_     ││\n│  │ scada_raw    │  │ meters       │  │  summary   ││\n│  │ weather_raw  │  │ substations  │  │ monthly_   ││\n│  │              │  │ regions      │  │  billing   ││\n│  │              │  │ weather      │  │ quarterly_ ││\n│  │              │  │              │  │  report    ││\n│  └──────────────┘  └──────────────┘  └────────────┘│\n│                                                     │\n│  Raw imports ──▶ Cleansed tables ──▶ Aggregates    │\n└─────────────────────────────────────────────────────┘",
+              "caption": "NordGrid's database is organized into three schemas that represent data quality stages. SQL queries transform data from bronze to silver to gold.",
+              "visual-recommendation": {
+                "type": "static-diagram",
+                "priority": "critical",
+                "description": "A three-column architecture diagram showing the bronze, silver, and gold schemas with table names, arrows indicating data flow direction, and color coding for each quality layer.",
+                "current-fallback": "ascii-diagram-provided"
+              }
+            },
+            {
+              "type": "heading",
+              "content": "The Consumer Teams"
+            },
+            {
+              "type": "paragraph",
+              "content": "NordGrid's data serves several internal consumers. The operations team queries the gold.daily_summary table every morning to check regional consumption patterns and detect anomalies. The billing department queries gold.monthly_billing at the end of each month to generate customer invoices. The regulatory team queries gold.quarterly_report four times a year to produce compliance documents for the energy regulator. Each consumer team has specific SQL queries that they run regularly, and each query depends on the data engineer's pipeline producing correct, timely data in the gold schema."
+            },
+            {
+              "type": "key-concept",
+              "term": "EEDA Data Standard",
+              "definition": "The European Energy Data Alliance standard that defines shared column names used across all energy companies in the curriculum. The core columns — meter_id, daily_kw, date, region, customer_type, substation_id, and turbine_id — have identical names, types, and meanings in every NordGrid table. This standard ensures consistency across all courses."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "One scenario, every lesson",
+              "content": "NordGrid's meter_id, daily_kw, date, region, and customer_type columns will appear in almost every SQL example throughout this course. By Module 3, these column names will feel as familiar as variable names in Python. This consistency is deliberate — it lets you focus on learning SQL concepts rather than re-learning a new dataset in every lesson."
+            }
+          ]
+        },
+        {
+          "id": "module-SQL1-lesson-06",
+          "title": "Bronze, Silver, and Gold Layers",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The previous lesson introduced NordGrid's database as having three schemas: bronze, silver, and gold. These are not arbitrary names — they follow a widely used pattern in data engineering called the medallion architecture. The idea is simple: data enters the system in its rawest form, passes through a validation and cleaning stage, and arrives at its final form ready for consumption. Each stage has different rules, different quality guarantees, and different SQL operations. This lesson explains the three layers, why they exist, and how SQL operates at each one."
+            },
+            {
+              "type": "key-concept",
+              "term": "Medallion architecture",
+              "definition": "A data pipeline pattern that organizes data into three quality layers: Bronze (raw, unvalidated data as received from sources), Silver (cleansed, typed, and validated data with constraints enforced), and Gold (aggregated summaries and business-ready tables). Each layer builds on the previous one, and SQL operations drive the transformation between layers."
+            },
+            {
+              "type": "heading",
+              "content": "Bronze — The Raw Landing Zone"
+            },
+            {
+              "type": "paragraph",
+              "content": "The bronze layer holds data exactly as it arrived from external sources, with no transformation and no validation. When NordGrid's daily CSV file of meter readings is loaded into the database, it goes into the bronze.meter_imports table. Every column is stored as text — even daily_kw, which will eventually become a number, starts as a text string because the raw CSV makes no guarantees about data types. The bronze layer is a safety net: if anything goes wrong later in the pipeline, the team can always return to the raw data and reprocess it."
+            },
+            {
+              "type": "code",
+              "language": "sql",
+              "content": "-- Bronze table: everything is text, no constraints\n-- This preserves the raw data exactly as received\nSELECT\n    meter_id,\n    daily_kw,       -- stored as TEXT, not NUMERIC\n    reading_date,   -- stored as TEXT, not DATE\n    region,\n    customer_type,\n    loaded_at       -- timestamp when the row was imported\nFROM\n    bronze.meter_imports\nWHERE\n    loaded_at >= '2025-03-01';"
+            },
+            {
+              "type": "paragraph",
+              "content": "Notice that the bronze table has a loaded_at column that records when each row was imported. This column does not exist in the original CSV — it is added during ingestion so the team can track which batch each row came from. If the March 3rd import contains bad data, the team can identify and reprocess exactly those rows. The bronze layer accepts everything and rejects nothing. Validation happens in the next layer."
+            },
+            {
+              "type": "heading",
+              "content": "Silver — The Validated Core"
+            },
+            {
+              "type": "paragraph",
+              "content": "The silver layer holds cleansed, validated, and properly typed data. A SQL transformation reads from the bronze layer, casts columns to their correct types (daily_kw from text to numeric, reading_date from text to date), filters out invalid rows (null meter_id, negative daily_kw, unparseable dates), removes duplicates (same meter and date appearing twice from overlapping imports), and writes the result to the silver.meter_readings table. The silver table has constraints that the bronze table does not: meter_id cannot be null, daily_kw must be non-negative, and the combination of meter_id and date must be unique."
+            },
+            {
+              "type": "code",
+              "language": "sql",
+              "content": "-- Silver query: cast types, filter invalid rows, remove duplicates\nSELECT\n    meter_id,\n    CAST(daily_kw AS NUMERIC(12,4))  AS daily_kw,\n    CAST(reading_date AS DATE)       AS date,\n    region,\n    customer_type\nFROM\n    bronze.meter_imports\nWHERE\n    meter_id IS NOT NULL\n    AND CAST(daily_kw AS NUMERIC(12,4)) >= 0\n    AND reading_date IS NOT NULL;"
+            },
+            {
+              "type": "paragraph",
+              "content": "This is the kind of SQL you will write throughout this course: reading from one table, transforming values with functions and casts, filtering with conditions, and producing a clean result. The silver layer is where most data engineering SQL work happens. It is the layer where data quality rules are enforced and where the structure that downstream consumers depend on is established."
+            },
+            {
+              "type": "heading",
+              "content": "Gold — Business-Ready Aggregates"
+            },
+            {
+              "type": "paragraph",
+              "content": "The gold layer holds pre-computed summaries and aggregations that serve specific business needs. NordGrid's gold.daily_summary table contains one row per region per day with the total consumption, average consumption, meter count, and maximum single-meter reading. The operations team queries this table every morning — they do not query the silver layer directly because querying 500,000 rows for a simple regional total would be unnecessarily slow. The gold layer trades storage for speed: the summaries are redundant (they could be computed on the fly from silver), but pre-computing them makes the dashboard queries instantaneous."
+            },
+            {
+              "type": "diagram",
+              "title": "Data flow through the three layers",
+              "content": "  External CSV          bronze.meter_imports         silver.meter_readings        gold.daily_summary\n┌──────────────┐      ┌─────────────────────┐      ┌───────────────────────┐    ┌────────────────────┐\n│ 500,000 rows │      │ All rows, all text  │      │ Valid rows, typed     │    │ 4 rows per day     │\n│ All text     │─────▶│ No constraints      │─────▶│ Constraints enforced  │───▶│ Pre-computed totals│\n│ No validation│      │ loaded_at added     │      │ Duplicates removed    │    │ Ready for reports  │\n└──────────────┘      └─────────────────────┘      └───────────────────────┘    └────────────────────┘\n                        SQL: INSERT               SQL: CAST, WHERE, DISTINCT    SQL: GROUP BY, SUM",
+              "caption": "Each layer applies SQL operations that increase data quality. Bronze accepts everything. Silver validates and types. Gold aggregates for consumption. The SQL operations get more sophisticated as data moves from left to right.",
+              "visual-recommendation": {
+                "type": "static-diagram",
+                "priority": "critical",
+                "description": "A horizontal pipeline diagram showing three columns for each layer with row count annotations, SQL operation labels at each transition arrow, and color gradient from raw (orange) to clean (blue) to aggregated (green).",
+                "current-fallback": "ascii-diagram-provided"
+              }
+            },
+            {
+              "type": "callout",
+              "variant": "warning",
+              "title": "Layers are not optional",
+              "content": "It is tempting to skip layers — to load raw data directly into a production table and validate later. NordGrid tried this in their first year and discovered that a single vendor CSV with corrupted dates caused the billing team to send invoices with negative consumption. The medallion architecture exists because validation before serving is cheaper than correcting errors after they reach consumers."
+            }
+          ]
+        },
+        {
+          "id": "module-SQL1-lesson-07",
+          "title": "Tables and Rows — The Foundation",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The first six lessons built the conceptual foundation: why databases exist, what the relational model is, what SQL does, and how NordGrid's data flows through three layers. Starting with this lesson, we move from concepts to concrete structures. A table is the most fundamental object in a relational database — every piece of data lives in a table, every SQL query reads from tables, and every pipeline writes to tables. This lesson examines what a table actually is, how rows are structured, and what rules govern the data inside them."
+            },
+            {
+              "type": "heading",
+              "content": "A Table Is a Grid of Typed Values"
+            },
+            {
+              "type": "paragraph",
+              "content": "At its simplest, a table is a grid. Columns run left to right, each with a name and a data type. Rows run top to bottom, each containing one value per column. NordGrid's silver.meter_readings table has five columns: meter_id (character varying), daily_kw (numeric), date (date), region (character varying), and customer_type (character varying). Every row in the table has exactly these five columns — no more, no fewer. A row cannot have six columns, and a column cannot hold values of the wrong type. This rigidity is exactly what makes databases reliable."
+            },
+            {
+              "type": "code",
+              "language": "sql",
+              "content": "-- Creating NordGrid's meter_readings table\n-- Each column has a name and a data type\nCREATE TABLE silver.meter_readings (\n    meter_id       VARCHAR(20)    NOT NULL,\n    daily_kw       NUMERIC(12,4)  NOT NULL,\n    date           DATE           NOT NULL,\n    region         VARCHAR(10)    NOT NULL,\n    customer_type  VARCHAR(20)    NOT NULL\n);"
+            },
+            {
+              "type": "paragraph",
+              "content": "This CREATE TABLE statement defines the structure of the table. Each line declares a column with its name, its data type, and whether it can be empty. VARCHAR(20) means variable-length text up to 20 characters. NUMERIC(12,4) means a number with up to 12 total digits and 4 decimal places. DATE means a calendar date. NOT NULL means the column must always have a value — the database will reject any row that tries to leave it empty. You will learn CREATE TABLE in depth in Module 2. For now, the key idea is that the table definition is a contract: it specifies exactly what data can enter."
+            },
+            {
+              "type": "heading",
+              "content": "What a Row Represents"
+            },
+            {
+              "type": "paragraph",
+              "content": "Each row in a table represents one fact. In meter_readings, one row represents one meter's energy consumption on one day. The row for meter NRD-N-00001 on March 1, 2025 records that this residential meter in the NORTH region consumed 23.40 kilowatts. A different row records a different fact: meter NRD-S-00001 consumed 18.90 kilowatts on the same day in the SOUTH region. The table does not store opinions, predictions, or calculations — it stores observed facts. Calculations happen in SQL queries, not in the table itself."
+            },
+            {
+              "type": "heading",
+              "content": "Row Ordering"
+            },
+            {
+              "type": "paragraph",
+              "content": "An important concept that surprises many newcomers: rows in a table have no inherent order. Unlike a spreadsheet where row 1 is always above row 2, a database table is a set of rows, not a sequence. If you query silver.meter_readings without an ORDER BY clause, the database may return rows in any order — and that order may change between queries. This is not a bug; it is a feature. Because rows have no fixed position, the database is free to store and retrieve them in whatever order is fastest. When you need a specific order, you ask for it explicitly with ORDER BY. You will learn ORDER BY in Module 4."
+            },
+            {
+              "type": "callout",
+              "variant": "warning",
+              "title": "Never assume row order",
+              "content": "If your query depends on rows being in a particular sequence — chronological, alphabetical, or sorted by any column — you must include ORDER BY. A query without ORDER BY returns rows in an undefined order. Today it might look sorted by date. Tomorrow, after the database reorganizes its storage, it might not. If order matters, say so explicitly."
+            },
+            {
+              "type": "heading",
+              "content": "NULL — The Absence of a Value"
+            },
+            {
+              "type": "paragraph",
+              "content": "Sometimes a fact is incomplete. A meter transmitted its reading, but the daily_kw value was garbled by a network error. The reading exists — the meter reported on that date — but the consumption value is unknown. SQL represents this with NULL, a special marker that means no value is present. NULL is not zero (zero means the meter measured zero consumption). NULL is not empty text (empty text is a valid value). NULL means the value is missing or unknown. NordGrid's bronze layer accepts NULL values in any column. The silver layer uses NOT NULL constraints to reject rows with missing critical values, but it may allow NULL in optional columns."
+            },
+            {
+              "type": "paragraph",
+              "content": "NULL has unusual behavior that you will encounter throughout this course. The expression NULL = NULL does not evaluate to true — it evaluates to NULL, which is treated as false. This means you cannot use the equals sign to find missing values. Instead, SQL provides special syntax: IS NULL and IS NOT NULL. You will learn this in detail in Module 4. For now, the key idea is that NULL exists, it means missing or unknown, and it behaves differently from every other value."
+            },
+            {
+              "type": "key-concept",
+              "term": "NULL",
+              "definition": "A special marker in SQL that indicates the absence of a value. NULL is not zero, not empty text, and not false — it means the value is missing or unknown. Testing for NULL requires IS NULL, not the = operator, because NULL = NULL evaluates to NULL rather than true."
+            }
+          ]
+        },
+        {
+          "id": "module-SQL1-lesson-08",
+          "title": "Primary Keys and Foreign Keys",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The previous lesson explained that tables store facts as rows and enforce structure through column types and NOT NULL constraints. But structure alone does not prevent a critical problem: duplicates. What stops the same meter reading from being inserted twice? What ensures that a meter_id in the readings table actually corresponds to a real meter? The answer is keys — the mechanism that gives every row a unique identity and connects rows across tables. This lesson covers primary keys and foreign keys, the two most important types of constraints in relational databases."
+            },
+            {
+              "type": "heading",
+              "content": "Primary Keys — Unique Identity"
+            },
+            {
+              "type": "paragraph",
+              "content": "A primary key is a column (or combination of columns) that uniquely identifies every row in a table. No two rows can have the same primary key value, and the primary key can never be NULL. In NordGrid's meters table, the primary key is meter_id — every meter has a unique identifier, and no two meters share the same one. When you need to find a specific meter, the primary key guarantees that there is exactly one row for that meter_id, never zero and never two."
+            },
+            {
+              "type": "code",
+              "language": "sql",
+              "content": "-- The meters table with meter_id as the primary key\nCREATE TABLE silver.meters (\n    meter_id          VARCHAR(20)  PRIMARY KEY,\n    firmware_version  VARCHAR(10)  NOT NULL,\n    install_date      DATE         NOT NULL,\n    substation_id     VARCHAR(20)  NOT NULL\n);\n\n-- The substations table with substation_id as the primary key\nCREATE TABLE silver.substations (\n    substation_id  VARCHAR(20)   PRIMARY KEY,\n    name           VARCHAR(100)  NOT NULL,\n    capacity_mw    NUMERIC(8,2)  NOT NULL,\n    region         VARCHAR(10)   NOT NULL\n);"
+            },
+            {
+              "type": "paragraph",
+              "content": "The PRIMARY KEY keyword does two things. It adds a UNIQUE constraint (no duplicates) and a NOT NULL constraint (every row must have a value). If an INSERT statement tries to add a meter with a meter_id that already exists, the database rejects the operation with an error. This protection is automatic — the data engineer does not need to write validation code to check for duplicates."
+            },
+            {
+              "type": "heading",
+              "content": "Composite Primary Keys"
+            },
+            {
+              "type": "paragraph",
+              "content": "Sometimes no single column is unique by itself. In NordGrid's meter_readings table, meter_id alone is not unique because the same meter has a reading every day. The date alone is not unique because every meter reports on the same date. But the combination of meter_id and date is unique — each meter has exactly one reading per day. This combination is called a composite primary key."
+            },
+            {
+              "type": "code",
+              "language": "sql",
+              "content": "-- Composite primary key: meter_id + date together are unique\nCREATE TABLE silver.meter_readings (\n    meter_id       VARCHAR(20)    NOT NULL,\n    daily_kw       NUMERIC(12,4)  NOT NULL,\n    date           DATE           NOT NULL,\n    region         VARCHAR(10)    NOT NULL,\n    customer_type  VARCHAR(20)    NOT NULL,\n    PRIMARY KEY (meter_id, date)\n);"
+            },
+            {
+              "type": "paragraph",
+              "content": "With this composite key, the database allows meter NRD-N-00001 to appear many times (once per date) and allows the date 2025-03-01 to appear many times (once per meter). But it rejects any attempt to insert a second reading for the same meter on the same date. If NordGrid's daily CSV import accidentally contains duplicate rows — which happens when import windows overlap — the primary key catches the duplicates before they enter the silver table."
+            },
+            {
+              "type": "heading",
+              "content": "Foreign Keys — Connecting Tables"
+            },
+            {
+              "type": "paragraph",
+              "content": "A foreign key is a column in one table that references the primary key of another table. It creates a verified connection between the two tables. In NordGrid's meters table, the substation_id column is a foreign key that references the primary key of the substations table. This means every meter must belong to a substation that actually exists. If someone tries to insert a meter with substation_id = 'SUB-999' and no substation with that ID exists, the database rejects the operation."
+            },
+            {
+              "type": "code",
+              "language": "sql",
+              "content": "-- Foreign key: meters.substation_id must reference a real substation\nCREATE TABLE silver.meters (\n    meter_id          VARCHAR(20)  PRIMARY KEY,\n    firmware_version  VARCHAR(10)  NOT NULL,\n    install_date      DATE         NOT NULL,\n    substation_id     VARCHAR(20)  NOT NULL,\n    FOREIGN KEY (substation_id) REFERENCES silver.substations(substation_id)\n);"
+            },
+            {
+              "type": "paragraph",
+              "content": "The FOREIGN KEY constraint enforces referential integrity — the guarantee that every reference in the data points to something real. Without this constraint, NordGrid could end up with readings from meters that do not exist in the meters table, or meters connected to substations that have been decommissioned. Foreign keys catch these orphaned references automatically, at the database level, without requiring the data engineer to write separate validation queries."
+            },
+            {
+              "type": "key-concept",
+              "term": "Referential integrity",
+              "definition": "The guarantee that every reference (foreign key) in one table points to a row that actually exists in the referenced table. If meter NRD-N-00001 references substation SUB-042, referential integrity ensures that SUB-042 exists in the substations table. The database enforces this automatically — no orphaned references are possible."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Keys are data quality tools",
+              "content": "Primary keys prevent duplicates. Foreign keys prevent orphaned references. Together, they form the backbone of data quality in a relational database. Before you write a single query, before you build a single pipeline, the key structure of your tables is already protecting your data from two of the most common data engineering problems: duplicate records and broken relationships."
+            }
+          ]
+        },
+        {
+          "id": "module-SQL1-lesson-09",
+          "title": "The Database Engine",
+          "estimatedMinutes": 24,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "You now understand what a database stores (tables with typed columns) and the rules it enforces (keys, constraints, referential integrity). But understanding what a database does is only half the picture — understanding how it does it changes the way you write SQL. When you send a query to PostgreSQL, the text of your query passes through four stages before any data is returned. This lesson provides a conceptual overview of those stages. You do not need to memorize the internals to write good SQL, but knowing that these stages exist helps you understand why some queries are fast and others are slow."
+            },
+            {
+              "type": "heading",
+              "content": "The Restaurant Kitchen Analogy"
+            },
+            {
+              "type": "paragraph",
+              "content": "Imagine ordering food at a restaurant. You tell the waiter what you want (a grilled salmon with vegetables). The waiter writes down your order, walks to the kitchen, and hands it to the chef. The chef does not follow your instructions on how to cook the salmon — the chef reads the order, considers what is available, decides the most efficient way to prepare the dish, and delivers the result. You described the desired outcome. The kitchen decided how to produce it. A database works the same way. Your SQL query is the order. The database engine is the kitchen."
+            },
+            {
+              "type": "heading",
+              "content": "Stage 1 — Parsing"
+            },
+            {
+              "type": "paragraph",
+              "content": "The first thing the database does with your query is parse it — break it into pieces and check that the SQL syntax is correct. Does the query have a SELECT clause? A FROM clause? Are the keywords spelled correctly? Do the referenced table names and column names actually exist in the database? If you write SELCT instead of SELECT, the parser catches the error immediately and returns a message telling you what went wrong. Parsing is the database's grammar check."
+            },
+            {
+              "type": "heading",
+              "content": "Stage 2 — Planning"
+            },
+            {
+              "type": "paragraph",
+              "content": "Once the query passes the syntax check, the planner takes over. The planner's job is to decide how to execute the query. For a simple query on a small table, there may be only one reasonable approach: scan every row and check the condition. But for a complex query involving multiple tables, filters, and aggregations, there may be dozens of possible execution strategies. Should the database use an index to find matching rows quickly, or scan the entire table? Should it join the tables using a hash-based strategy or a sort-merge strategy? The planner evaluates the options and picks the one it estimates will be fastest."
+            },
+            {
+              "type": "diagram",
+              "title": "Query processing stages",
+              "content": "┌─────────────┐    ┌─────────────┐    ┌──────────────┐    ┌──────────────┐\n│   PARSING   │    │  PLANNING   │    │ OPTIMIZATION │    │  EXECUTION   │\n│             │    │             │    │              │    │              │\n│ Check SQL   │───▶│ Decide how  │───▶│ Choose best  │───▶│ Read data,   │\n│ syntax and  │    │ to retrieve │    │ strategy     │    │ apply logic, │\n│ validate    │    │ the data    │    │ based on     │    │ return       │\n│ names       │    │             │    │ statistics   │    │ results      │\n└─────────────┘    └─────────────┘    └──────────────┘    └──────────────┘\n\n  Your SQL query                                           Result set",
+              "caption": "Every SQL query passes through four stages. You write the query (the input) and receive the result set (the output). The four stages in between are the database engine's responsibility, not yours.",
+              "visual-recommendation": {
+                "type": "static-diagram",
+                "priority": "recommended",
+                "description": "A horizontal pipeline diagram with four labeled stages as rounded boxes connected by arrows, with the SQL query entering on the left and the result set emerging on the right.",
+                "current-fallback": "ascii-diagram-provided"
+              }
+            },
+            {
+              "type": "heading",
+              "content": "Stage 3 — Optimization"
+            },
+            {
+              "type": "paragraph",
+              "content": "The optimizer is the planner's assistant. It takes the planner's candidate strategies and refines them using statistics about the data — how many rows are in each table, how many distinct values each column has, and how the data is distributed. If the optimizer knows that NordGrid's meter_readings table has 500,000 rows but only 4 distinct regions, it can choose a strategy that handles the small number of groups efficiently. The optimizer is the reason SQL queries can be fast even though you never told the database how to execute them."
+            },
+            {
+              "type": "heading",
+              "content": "Stage 4 — Execution"
+            },
+            {
+              "type": "paragraph",
+              "content": "Finally, the executor runs the chosen plan against the actual data. It reads the necessary rows from disk (or from memory if they are cached), applies the filters, performs the joins, computes the aggregations, and returns the result set. The result set is a temporary table — it has columns and rows just like a stored table, but it exists only for the duration of the query. Once you receive the result, the temporary table disappears."
+            },
+            {
+              "type": "key-concept",
+              "term": "Query optimizer",
+              "definition": "The component of the database engine that chooses the most efficient strategy for executing a SQL query. The optimizer uses statistics about table sizes, column distributions, and available indexes to evaluate candidate plans and select the fastest one. You do not control the optimizer directly — you write the query, and the optimizer decides how to execute it."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "Why this matters for data engineers",
+              "content": "You do not control how the database executes your query — the optimizer does. Your job is to write clear, correct SQL that describes the result you want. The database's job is to deliver that result as efficiently as possible. As you learn SQL throughout this course, remember that the query you write is not a set of instructions — it is a description of an outcome. The engine turns that description into action."
+            }
+          ]
+        },
+        {
+          "id": "module-SQL1-lesson-10",
+          "title": "Where SQL Fits in Data Engineering",
+          "estimatedMinutes": 25,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "content": "The first nine lessons introduced the core concepts: why databases exist, how the relational model organizes data, what SQL is, the NordGrid scenario, the medallion architecture, table structure, keys, and the database engine. This final lesson zooms out to show where SQL fits in the broader data engineering landscape. SQL is not just a database tool — it appears in virtually every data platform a data engineer works with. Understanding this breadth helps you see why investing in SQL skills pays off far beyond a single database."
+            },
+            {
+              "type": "heading",
+              "content": "SQL in Data Warehouses"
+            },
+            {
+              "type": "paragraph",
+              "content": "Data warehouses — systems like Snowflake, Google BigQuery, Amazon Redshift, and Azure Synapse Analytics — are designed for analytical queries over large datasets. Their primary interface is SQL. When a NordGrid analyst runs a query to find the average daily consumption by region for the past year, they write SQL whether they use Snowflake or BigQuery. The SQL dialect varies slightly between products (Snowflake uses QUALIFY, BigQuery uses backtick-quoted names), but the core language — SELECT, FROM, WHERE, GROUP BY, JOIN — is the same everywhere. Learning SQL once means you can work with any warehouse."
+            },
+            {
+              "type": "heading",
+              "content": "SQL in Data Lakes"
+            },
+            {
+              "type": "paragraph",
+              "content": "Data lakes store files — Parquet, CSV, JSON — rather than managed tables. But even data lakes speak SQL. Apache Spark has Spark SQL, which lets you query DataFrames using standard SQL syntax. Trino (formerly Presto) runs SQL queries directly against files in Amazon S3 or Azure Data Lake Storage. Microsoft Fabric's SQL analytics endpoint lets you query Lakehouse Delta tables using T-SQL. In every case, the files on disk are not a traditional database, but the query interface is SQL. The student who learns SQL in this course can immediately read Spark SQL queries in a PySpark codebase."
+            },
+            {
+              "type": "heading",
+              "content": "SQL in Pipeline Orchestration"
+            },
+            {
+              "type": "paragraph",
+              "content": "ETL and ELT pipelines frequently execute SQL statements as transformation steps. dbt, one of the most popular data transformation tools, is built entirely around SQL — every dbt model is a SELECT statement saved as a SQL file. Airflow DAGs often include tasks that execute SQL queries against a warehouse or a database. Even Data Factory pipelines in Fabric can execute SQL stored procedures. The data engineer who understands SQL can read, write, and debug the transformation logic inside any orchestration tool."
+            },
+            {
+              "type": "table",
+              "headers": [
+                "Platform",
+                "SQL Interface",
+                "Example Use Case"
+              ],
+              "rows": [
+                [
+                  "PostgreSQL, MySQL",
+                  "Native SQL",
+                  "Transactional databases, operational data"
+                ],
+                [
+                  "Snowflake, BigQuery, Redshift",
+                  "Warehouse SQL",
+                  "Large-scale analytical queries"
+                ],
+                [
+                  "Apache Spark",
+                  "Spark SQL",
+                  "Distributed data processing in data lakes"
+                ],
+                [
+                  "dbt",
+                  "SQL models",
+                  "Transformation logic as SELECT statements"
+                ],
+                [
+                  "Microsoft Fabric",
+                  "T-SQL, Spark SQL",
+                  "Lakehouse queries, Warehouse analytics"
+                ],
+                [
+                  "Trino / Presto",
+                  "Federated SQL",
+                  "Querying files in cloud storage directly"
+                ],
+                [
+                  "Airflow, Data Factory",
+                  "SQL tasks",
+                  "Pipeline transformation steps"
+                ]
+              ]
+            },
+            {
+              "type": "bullet-list",
+              "items": [
+                "A data warehouse analyst writes SQL to compute monthly revenue summaries across regional offices.",
+                "A data engineer writes SQL inside a dbt model to transform raw meter readings into validated Silver-layer tables.",
+                "A pipeline developer embeds a SQL query in an Airflow task that runs a nightly aggregation job.",
+                "A Spark developer uses Spark SQL to register a DataFrame as a view and run analytical queries against it."
+              ]
+            },
+            {
+              "type": "heading",
+              "content": "SQL as the Lingua Franca"
+            },
+            {
+              "type": "paragraph",
+              "content": "Programming languages come and go. Python may eventually be replaced by another language for data engineering, just as Python replaced much of the Java and Scala code that dominated a decade ago. But SQL has been the standard data language since 1986, and its position has only strengthened. Every new data platform adds a SQL interface — not because SQL is perfect, but because the installed base of SQL knowledge is so vast that no platform can succeed without it. When you learn SQL, you learn a skill that transfers across databases, warehouses, data lakes, transformation tools, and orchestration platforms."
+            },
+            {
+              "type": "heading",
+              "content": "The Course Ahead"
+            },
+            {
+              "type": "paragraph",
+              "content": "This module gave you the foundation: why databases exist, how data is structured in tables, how keys protect integrity, how the database engine processes queries, and where SQL fits in the data engineering landscape. Module 2 moves from concepts to creation — you will learn to define tables with CREATE TABLE, choose the right data types, and design constraints that enforce NordGrid's data quality rules. Module 3 introduces the SELECT statement, and from that point forward, every lesson teaches you a new SQL capability, building toward the complex analytical queries that data engineers write daily."
+            },
+            {
+              "type": "callout",
+              "variant": "insight",
+              "title": "What comes next",
+              "content": "You now understand what a database is, why it exists, and where SQL fits in the data engineering world. In Module 2, you will start building — defining NordGrid's tables with proper types, constraints, and keys. The conceptual foundation is set. The SQL starts now."
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

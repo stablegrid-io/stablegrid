@@ -3,6 +3,11 @@ import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import { pysparkMidTheory } from '@/data/learn/theory/pyspark-mid';
 import { pysparkSeniorTheory } from '@/data/learn/theory/pyspark-senior';
 import { fabricMidTheory } from '@/data/learn/theory/fabric-mid';
+import { fabricSeniorTheory } from '@/data/learn/theory/fabric-senior';
+import { airflowTheory } from '@/data/learn/theory/airflow';
+import { airflowMidTheory } from '@/data/learn/theory/airflow-mid';
+import { airflowSeniorTheory } from '@/data/learn/theory/airflow-senior';
+import { sqlTheory } from '@/data/learn/theory/sql';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -109,6 +114,60 @@ const TOPIC_TRACK_CONFIGS: Record<string, TheoryTrackConfig[]> = {
         'Performance optimization, Delta Lake operations, advanced pipeline patterns, and production-grade Fabric practices for experienced data engineers.',
       highlights: [],
       sourceDoc: fabricMidTheory,
+    },
+    {
+      slug: 'senior',
+      label: 'Senior-Level Track',
+      title: 'Senior-Level Track',
+      eyebrow: 'Platform Engineering',
+      description:
+        'Multi-tenant platform architecture, advanced streaming patterns, enterprise governance, custom Spark optimization, and the transition from pipeline builder to platform designer.',
+      highlights: [],
+      sourceDoc: fabricSeniorTheory,
+    }
+  ],
+  airflow: [
+    {
+      slug: 'junior',
+      label: 'Junior-Level Track',
+      title: 'Junior-Level Track',
+      eyebrow: 'Core Foundation',
+      description:
+        'Build Airflow capability from the ground up: workflow orchestration fundamentals, DAG authoring, scheduling, sensors, configuration, monitoring, and production pipeline patterns.',
+      highlights: [],
+      sourceDoc: airflowTheory,
+    },
+    {
+      slug: 'mid',
+      label: 'Mid-Level Track',
+      title: 'Mid-Level Track',
+      eyebrow: 'Advanced Systems',
+      description:
+        'Data-aware scheduling, custom operators, advanced testing patterns, performance tuning, and production-grade Airflow practices for experienced data engineers.',
+      highlights: [],
+      sourceDoc: airflowMidTheory,
+    },
+    {
+      slug: 'senior',
+      label: 'Senior-Level Track',
+      title: 'Senior-Level Track',
+      eyebrow: 'Platform Engineering',
+      description:
+        'Multi-cluster architecture, custom executors, enterprise security, advanced plugin development, and the transition from DAG author to platform architect.',
+      highlights: [],
+      sourceDoc: airflowSeniorTheory,
+    }
+  ],
+  sql: [
+    {
+      slug: 'junior',
+      label: 'Junior-Level Track',
+      title: 'Junior-Level Track',
+      eyebrow: 'Core Foundation',
+      description:
+        'Build SQL capability from the ground up: relational databases, queries, joins, aggregations, subqueries, and production-ready data engineering patterns.',
+      highlights: [],
+      sourceDoc: sqlTheory,
     }
   ]
 };

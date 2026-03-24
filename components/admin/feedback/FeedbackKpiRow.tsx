@@ -2,19 +2,22 @@ import type { FeedbackMetric } from '@/components/admin/feedback/types';
 
 export function FeedbackKpiRow({ metrics }: { metrics: FeedbackMetric[] }) {
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
       {metrics.map((metric) => (
         <article
           key={metric.label}
-          className=" border border-outline-variant/20 bg-white/[0.035] px-4 py-4 shadow-[0_20px_40px_-34px_rgba(0,0,0,0.85)]"
+          className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] px-5 py-5 backdrop-blur-2xl"
         >
-          <p className="text-[0.64rem] uppercase tracking-[0.18em] text-[#7f948b]">
-            {metric.label}
-          </p>
-          <p className="mt-3 text-[1.65rem] font-semibold tracking-[-0.03em] text-on-surface">
-            {metric.value}
-          </p>
-          <p className="mt-1 text-xs leading-5 text-[#8ea39a]">{metric.hint}</p>
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(153,247,255,0.03),transparent_70%)] pointer-events-none" />
+          <div className="relative">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/40">
+              {metric.label}
+            </p>
+            <p className="mt-3 text-[1.75rem] font-semibold tracking-tight text-on-surface">
+              {metric.value}
+            </p>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-on-surface-variant/35">{metric.hint}</p>
+          </div>
         </article>
       ))}
     </section>

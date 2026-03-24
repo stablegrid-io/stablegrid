@@ -177,13 +177,15 @@ const Sparkline = ({
   lineClassName,
   glowClassName,
   dotClassName,
-  valueFormat
+  valueFormat,
+  metricLabel
 }: {
   points: Array<{ value: number; label: string; date: string }>;
   lineClassName: string;
   glowClassName: string;
   dotClassName: string;
   valueFormat: 'number' | 'currency_eur' | 'duration_seconds';
+  metricLabel?: string;
 }) => {
   const values = points.map((point) => point.value);
   const width = 240;
@@ -206,8 +208,19 @@ const Sparkline = ({
   }));
   const activePoint =
     activeIndex == null ? null : pointsWithCoords[Math.min(activeIndex, pointsWithCoords.length - 1)];
-  const tooltipLeftPx = activePoint ? Math.min(width - 30, Math.max(30, activePoint.x)) : width / 2;
-  const tooltipTopPx = activePoint ? Math.max(4, activePoint.y - 36) : 6;
+  const tooltipLeftPx = activePoint ? Math.min(width - 50, Math.max(50, activePoint.x)) : width / 2;
+  const tooltipTopPx = activePoint ? Math.max(4, activePoint.y - 56) : 6;
+
+  const prevPoint =
+    activeIndex != null && activeIndex > 0
+      ? pointsWithCoords[activeIndex - 1]
+      : null;
+  const pointDelta =
+    activePoint && prevPoint ? activePoint.value - prevPoint.value : null;
+  const pointDeltaPct =
+    pointDelta != null && prevPoint && prevPoint.value !== 0
+      ? (pointDelta / prevPoint.value) * 100
+      : null;
 
   const formatPointValue = (value: number) =>
     valueFormat === 'currency_eur'
@@ -228,18 +241,32 @@ const Sparkline = ({
     <div className="relative pt-1">
       {activePoint ? (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-white/[0.1] bg-[#141618]/95 px-2.5 py-1.5 text-[11px] font-medium text-on-surface shadow-[0_14px_26px_-18px_rgba(0,0,0,0.92)] backdrop-blur-2xl transition-all duration-150 ease-out"
+          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-2xl border border-white/[0.08] bg-[#1a1d20]/95 px-3.5 py-2.5 shadow-[0_20px_40px_-16px_rgba(0,0,0,0.85)] backdrop-blur-2xl transition-all duration-150 ease-out"
           style={{
             left: `${tooltipLeftPx}px`,
             top: `${tooltipTopPx}px`
           }}
         >
-          <div className="flex items-center gap-2 whitespace-nowrap">
-            <span className="text-[#d9e8e2]">{activePoint.date}</span>
-            <span className="h-1 w-1  bg-white/40" />
-            <span className={dotClassName}>{formatPointValue(activePoint.value)}</span>
+          <div className="flex flex-col gap-1 whitespace-nowrap">
+            <span className="text-[10px] font-medium tracking-wide text-on-surface-variant/40 uppercase">
+              {metricLabel ?? activePoint.label}
+            </span>
+            <span className="text-[15px] font-semibold tracking-tight text-on-surface">
+              {formatPointValue(activePoint.value)}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-medium text-on-surface-variant/50">{activePoint.date}</span>
+              {pointDeltaPct != null && (
+                <>
+                  <span className="h-0.5 w-0.5 rounded-full bg-white/20" />
+                  <span className={`text-[10px] font-semibold ${pointDelta != null && pointDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {pointDelta != null && pointDelta >= 0 ? '+' : ''}{pointDeltaPct.toFixed(0)}%
+                  </span>
+                </>
+              )}
+            </div>
           </div>
-          <span className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-[35%] rotate-45 border-b border-r border-white/20 bg-[#111919]" />
+          <span className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-[35%] rotate-45 border-b border-r border-white/[0.08] bg-[#1a1d20]/95" />
         </div>
       ) : null}
       <svg
@@ -355,6 +382,7 @@ const HeroKpiCard = ({ card }: { card: HeroKpiCardData }) => {
             glowClassName={card.accentClasses.glow}
             dotClassName={card.accentClasses.dot}
             valueFormat={card.valueFormat}
+            metricLabel={card.title}
           />
         </div>
       </div>
@@ -630,28 +658,28 @@ const FlowLine = ({ color = 'rgba(153,247,255,0.15)' }: { color?: string }) => (
 );
 
 const FlowBranch = ({ leftColor = 'rgba(192,160,255,0.3)', rightColor = 'rgba(100,200,255,0.3)' }) => (
-  <svg className="mx-auto block" width="100%" height="40" viewBox="0 0 800 40" preserveAspectRatio="xMidYMin meet">
+  <svg className="mx-auto block" width="100%" height="64" viewBox="0 0 800 64" preserveAspectRatio="xMidYMin meet">
     <defs>
-      <linearGradient id="flowLeft" x1="400" y1="0" x2="200" y2="40" gradientUnits="userSpaceOnUse">
+      <linearGradient id="flowLeft" x1="400" y1="0" x2="200" y2="64" gradientUnits="userSpaceOnUse">
         <stop offset="0%" stopColor="rgba(153,247,255,0.2)" />
         <stop offset="100%" stopColor={leftColor} />
       </linearGradient>
-      <linearGradient id="flowRight" x1="400" y1="0" x2="600" y2="40" gradientUnits="userSpaceOnUse">
+      <linearGradient id="flowRight" x1="400" y1="0" x2="600" y2="64" gradientUnits="userSpaceOnUse">
         <stop offset="0%" stopColor="rgba(153,247,255,0.2)" />
         <stop offset="100%" stopColor={rightColor} />
       </linearGradient>
     </defs>
     {/* Curved paths instead of straight lines */}
-    <path d="M 400 0 C 400 20, 200 20, 200 40" fill="none" stroke="url(#flowLeft)" strokeWidth="1.5" />
-    <path d="M 400 0 C 400 20, 600 20, 600 40" fill="none" stroke="url(#flowRight)" strokeWidth="1.5" />
+    <path d="M 400 0 C 400 32, 200 32, 200 64" fill="none" stroke="url(#flowLeft)" strokeWidth="1.5" />
+    <path d="M 400 0 C 400 32, 600 32, 600 64" fill="none" stroke="url(#flowRight)" strokeWidth="1.5" />
     <circle cx="400" cy="0" r="2.5" fill="rgba(153,247,255,0.3)" />
   </svg>
 );
 
 const FlowSplit = ({ color = 'rgba(153,247,255,0.12)' }: { color?: string }) => (
-  <svg className="mx-auto block" width="100%" height="32" viewBox="0 0 400 32" preserveAspectRatio="xMidYMin meet">
-    <path d="M 200 0 C 200 16, 100 16, 100 32" fill="none" stroke={color} strokeWidth="1" />
-    <path d="M 200 0 C 200 16, 300 16, 300 32" fill="none" stroke={color} strokeWidth="1" />
+  <svg className="mx-auto block" width="100%" height="48" viewBox="0 0 400 48" preserveAspectRatio="xMidYMin meet">
+    <path d="M 200 0 C 200 24, 100 24, 100 48" fill="none" stroke={color} strokeWidth="1" />
+    <path d="M 200 0 C 200 24, 300 24, 300 48" fill="none" stroke={color} strokeWidth="1" />
     <circle cx="200" cy="0" r="2" fill={color} />
   </svg>
 );
@@ -721,12 +749,12 @@ const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
           <FlowBranch />
 
           {/* Segments */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-8">
             {[leftSegment, rightSegment].map((segment, i) => (
-              <div key={segment.id} className="space-y-1">
+              <div key={segment.id} className="space-y-3">
                 <DecisionTreeSegmentCard segment={segment} isLeft={i === 0} />
                 <FlowSplit color={i === 0 ? 'rgba(192,160,255,0.2)' : 'rgba(100,200,255,0.2)'} />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   {segment.outcomes.map((outcome) => (
                     <DecisionTreeOutcomeCard key={outcome.id} outcome={outcome} accent={segment.accent} fillColor={i === 0 ? 'violet' : 'blue'} />
                   ))}

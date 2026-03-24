@@ -24,10 +24,10 @@ export function BugFiltersBar({
   exportDisabled: boolean;
 }) {
   return (
-    <div className="space-y-4 border-b border-outline-variant/20 px-4 py-4 sm:px-5">
+    <div className="space-y-4 border-b border-white/[0.06] px-6 py-5 sm:px-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div
-          className="inline-flex  border border-outline-variant/20 bg-surface-container-low p-1"
+          className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.03] p-1"
           role="tablist"
           aria-label="Bug report status filter"
         >
@@ -40,10 +40,10 @@ export function BugFiltersBar({
                 role="tab"
                 aria-selected={active}
                 onClick={() => onStatusFilterChange(option)}
-                className={` px-4 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35 ${
+                className={`rounded-full px-4 py-1.5 text-[12px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 ${
                   active
-                    ? 'bg-[#101716] text-on-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]'
-                    : 'text-[#9db1a8] hover:text-on-surface'
+                    ? 'bg-white/[0.1] text-on-surface shadow-[0_1px_3px_rgba(0,0,0,0.3)]'
+                    : 'text-on-surface-variant/50 hover:text-on-surface-variant/80'
                 }`}
               >
                 {option}
@@ -53,29 +53,33 @@ export function BugFiltersBar({
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="sr-only" htmlFor="bug-severity-filter">
-            Filter by severity
-          </label>
-          <select
-            id="bug-severity-filter"
-            value={severityFilter}
-            onChange={(event) => onSeverityFilterChange(event.target.value as BugSeverityFilter)}
-            className="h-10  border border-outline-variant/20 bg-surface-container-low px-3 text-sm font-medium text-on-surface outline-none transition focus:border-primary/35 focus:ring-2 focus:ring-primary/20"
-          >
-            {SEVERITY_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option === 'All' ? 'Severity: All' : option}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              aria-label="Filter by severity"
+              value={severityFilter}
+              onChange={(event) => onSeverityFilterChange(event.target.value as BugSeverityFilter)}
+              className="h-8 appearance-none rounded-full border border-white/[0.08] bg-white/[0.04] pl-3 pr-7 text-[12px] font-medium text-on-surface/80 outline-none transition-all cursor-pointer hover:bg-white/[0.07] hover:border-white/[0.12] focus:border-white/[0.18]"
+            >
+              {SEVERITY_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option === 'All' ? 'All severities' : option}
+                </option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface-variant/30">
+              <svg aria-hidden="true" viewBox="0 0 12 8" className="h-[7px] w-[7px] fill-current">
+                <path d="M6 8 0 0h12L6 8Z" />
+              </svg>
+            </span>
+          </div>
 
           <button
             type="button"
             onClick={onExport}
             disabled={exportDisabled}
-            className="inline-flex h-10 items-center gap-2  border border-outline-variant/20 bg-surface-container-low px-3.5 text-sm font-medium text-on-surface transition hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35 disabled:cursor-not-allowed disabled:opacity-55"
+            className="inline-flex h-8 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3.5 text-[12px] font-medium text-on-surface/80 transition-all hover:bg-white/[0.07] hover:border-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <Download className="h-4 w-4 text-[#9cb0a7]" />
+            <Download className="h-3.5 w-3.5 text-on-surface-variant/40" />
             Export
           </button>
         </div>
@@ -83,12 +87,12 @@ export function BugFiltersBar({
 
       <label className="relative block w-full max-w-md">
         <span className="sr-only">Search bug reports</span>
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6f857c]" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-on-surface-variant/30" />
         <input
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search bug reports..."
-          className="h-11 w-full  border border-outline-variant/20 bg-surface-container-low pl-9 pr-3 text-sm text-on-surface outline-none transition placeholder:text-[#6f857c] focus:border-primary/35 focus:ring-2 focus:ring-brand-400/15"
+          className="h-9 w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-9 pr-3 text-[13px] font-medium text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/25 focus:border-white/[0.15]"
         />
       </label>
     </div>

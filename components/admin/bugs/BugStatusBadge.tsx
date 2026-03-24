@@ -1,26 +1,15 @@
 import type { BugStatus } from '@/components/admin/bugs/types';
 
-const TONE_BY_STATUS: Record<
-  BugStatus,
-  {
-    className: string;
-  }
-> = {
-  New: {
-    className: 'border-sky-300/22 bg-sky-500/12 text-sky-100'
-  },
-  'In Review': {
-    className: 'border-amber-300/22 bg-amber-500/12 text-amber-100'
-  },
-  Resolved: {
-    className: 'border-brand-400/24 bg-primary/12 text-[#d6f5ea]'
-  }
+const TONE_BY_STATUS: Record<BugStatus, string> = {
+  New: 'border-sky-400/15 bg-sky-400/8 text-sky-200/80',
+  'In Review': 'border-amber-400/15 bg-amber-400/8 text-amber-200/80',
+  Resolved: 'border-emerald-400/15 bg-emerald-400/8 text-emerald-200/80'
 };
 
 export function BugStatusBadge({ status }: { status: BugStatus }) {
   return (
     <span
-      className={`inline-flex items-center  border px-2.5 py-1 text-xs font-medium ${TONE_BY_STATUS[status].className}`}
+      className={`inline-flex items-center rounded-md border px-2.5 py-1 text-[11px] font-medium ${TONE_BY_STATUS[status]}`}
     >
       {status}
     </span>

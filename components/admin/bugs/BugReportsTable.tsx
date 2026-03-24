@@ -19,9 +19,6 @@ const COLUMNS: Array<{
   { id: 'module', label: 'Module', sortable: true, sortKey: 'module' }
 ];
 
-const alignClass = (align: 'left' | 'right' | undefined) =>
-  align === 'right' ? 'text-right' : 'text-left';
-
 const SortIcon = ({
   sort,
   sortKey
@@ -30,25 +27,25 @@ const SortIcon = ({
   sortKey: BugSortKey;
 }) => {
   if (sort.key !== sortKey) {
-    return <ArrowUpDown className="h-3.5 w-3.5 text-[#5f7269]" />;
+    return <ArrowUpDown className="h-3 w-3 text-on-surface-variant/25" />;
   }
 
   return sort.direction === 'asc' ? (
-    <ArrowUp className="h-3.5 w-3.5 text-[#d6e4de]" />
+    <ArrowUp className="h-3 w-3 text-on-surface-variant/60" />
   ) : (
-    <ArrowDown className="h-3.5 w-3.5 text-[#d6e4de]" />
+    <ArrowDown className="h-3 w-3 text-on-surface-variant/60" />
   );
 };
 
 const SkeletonRow = () => (
-  <tr className="border-t border-outline-variant/20">
-    <td className="px-4 py-4">
-      <div className="h-4 w-56 animate-pulse rounded bg-surface-container-high" />
-      <div className="mt-2 h-3 w-72 animate-pulse rounded bg-surface-container" />
+  <tr>
+    <td className="border-b border-white/[0.04] px-5 py-4">
+      <div className="h-4 w-56 animate-pulse rounded-md bg-white/[0.04]" />
+      <div className="mt-2 h-3 w-72 animate-pulse rounded-md bg-white/[0.03]" />
     </td>
     {Array.from({ length: COLUMNS.length - 1 }).map((_, index) => (
-      <td key={index} className="px-4 py-4">
-        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-high" />
+      <td key={index} className="border-b border-white/[0.04] px-4 py-4">
+        <div className="h-4 w-24 animate-pulse rounded-md bg-white/[0.04]" />
       </td>
     ))}
   </tr>
@@ -68,86 +65,89 @@ export function BugReportsTable({
   onRowClick: (report: BugReport) => void;
 }) {
   return (
-    <div className="overflow-hidden  border border-outline-variant/20 bg-surface-container-low/65">
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse">
-          <thead className="bg-white/[0.02]">
-            <tr>
-              {COLUMNS.map((column) => (
-                <th
-                  key={column.id}
-                  scope="col"
-                  className={`px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#8ca098] ${alignClass(column.align)}`}
-                >
-                  {column.sortable && column.sortKey ? (
-                    <button
-                      type="button"
-                      onClick={() => onSort(column.sortKey!)}
-                      className="inline-flex items-center gap-1.5 transition hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
-                    >
-                      {column.label}
-                      <SortIcon sort={sort} sortKey={column.sortKey} />
-                    </button>
-                  ) : (
-                    column.label
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {loading ? Array.from({ length: 8 }).map((_, index) => <SkeletonRow key={index} />) : null}
-
-            {!loading && rows.length === 0 ? (
-              <tr className="border-t border-outline-variant/20">
-                <td colSpan={COLUMNS.length} className="px-6 py-14 text-center text-sm text-[#8ea39a]">
-                  No bug reports found for the current filters.
-                </td>
-              </tr>
-            ) : null}
-
-            {!loading
-              ? rows.map((report) => (
-                  <tr
-                    key={report.id}
-                    tabIndex={0}
-                    role="button"
-                    onClick={() => onRowClick(report)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        onRowClick(report);
-                      }
-                    }}
-                    className="group border-t border-outline-variant/20 transition hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
+    <div className="overflow-x-auto">
+      <table className="min-w-full border-separate border-spacing-0">
+        <thead>
+          <tr className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/35">
+            {COLUMNS.map((column) => (
+              <th
+                key={column.id}
+                scope="col"
+                className={`border-b border-white/[0.06] px-5 py-3 text-left`}
+              >
+                {column.sortable && column.sortKey ? (
+                  <button
+                    type="button"
+                    onClick={() => onSort(column.sortKey!)}
+                    className="inline-flex items-center gap-1.5 transition-colors hover:text-on-surface-variant/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
                   >
-                    <td className="px-4 py-3.5">
-                      <p className="max-w-[22rem] truncate text-sm font-semibold text-on-surface">{report.title}</p>
-                      <p className="mt-0.5 max-w-[24rem] truncate text-xs text-[#7f948b]">
-                        {report.shortDescription}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="max-w-[13rem] truncate text-sm text-[#d3e0da]">{report.reporterName}</p>
-                      <p className="max-w-[13rem] truncate text-xs text-[#7f948b]">{report.reporterEmail}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <BugSeverityBadge severity={report.severity} />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <BugStatusBadge status={report.status} />
-                    </td>
-                    <td className="px-4 py-3.5 text-sm text-[#d3e0da]">
-                      {formatSubmittedAt(report.submittedAt)}
-                    </td>
-                    <td className="px-4 py-3.5 text-sm text-[#d3e0da]">{report.module}</td>
-                  </tr>
-                ))
-              : null}
-          </tbody>
-        </table>
-      </div>
+                    {column.label}
+                    <SortIcon sort={sort} sortKey={column.sortKey} />
+                  </button>
+                ) : (
+                  column.label
+                )}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {loading ? Array.from({ length: 8 }).map((_, index) => <SkeletonRow key={index} />) : null}
+
+          {!loading && rows.length === 0 ? (
+            <tr>
+              <td colSpan={COLUMNS.length} className="px-6 py-14 text-center">
+                <div className="mx-auto max-w-md rounded-xl border border-dashed border-white/[0.06] bg-white/[0.02] px-6 py-8">
+                  <p className="text-[14px] font-medium text-on-surface">No bug reports found.</p>
+                  <p className="mt-2 text-[13px] text-on-surface-variant/35">
+                    Try widening the filters to recover more results.
+                  </p>
+                </div>
+              </td>
+            </tr>
+          ) : null}
+
+          {!loading
+            ? rows.map((report) => (
+                <tr
+                  key={report.id}
+                  tabIndex={0}
+                  role="button"
+                  onClick={() => onRowClick(report)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onRowClick(report);
+                    }
+                  }}
+                  className="cursor-pointer text-[13px] transition-colors hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/20"
+                >
+                  <td className="border-b border-white/[0.04] px-5 py-4">
+                    <p className="max-w-[22rem] truncate font-medium text-on-surface">{report.title}</p>
+                    <p className="mt-0.5 max-w-[24rem] truncate text-[11px] text-on-surface-variant/30">
+                      {report.shortDescription}
+                    </p>
+                  </td>
+                  <td className="border-b border-white/[0.04] px-4 py-4">
+                    <p className="max-w-[13rem] truncate text-on-surface-variant/60">{report.reporterName}</p>
+                    <p className="max-w-[13rem] truncate text-[11px] text-on-surface-variant/30">{report.reporterEmail}</p>
+                  </td>
+                  <td className="border-b border-white/[0.04] px-4 py-4">
+                    <BugSeverityBadge severity={report.severity} />
+                  </td>
+                  <td className="border-b border-white/[0.04] px-4 py-4">
+                    <BugStatusBadge status={report.status} />
+                  </td>
+                  <td className="border-b border-white/[0.04] px-4 py-4 text-on-surface-variant/40">
+                    {formatSubmittedAt(report.submittedAt)}
+                  </td>
+                  <td className="border-b border-white/[0.04] px-4 py-4 text-on-surface-variant/60">{report.module}</td>
+                </tr>
+              ))
+            : null}
+        </tbody>
+      </table>
     </div>
   );
 }
