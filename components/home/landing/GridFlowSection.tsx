@@ -2611,7 +2611,3 @@ export const GridFlowSection = () => {
     </section>
   );
 };
-      </div>
-    </section>
-  );
-};
