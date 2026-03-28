@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, Lock, TimerReset } from 'lucide-react';
 import { MultipleChoice } from '@/components/practice/MultipleChoice';
-import { getPracticeRewardUnits } from '@/lib/energy';
 import {
   getModuleCheckpointQuestions,
   getModuleCheckpointRequiredCorrect,
@@ -87,7 +86,7 @@ export const TheoryModuleCheckpoint = ({
         currentQuestion.id,
         currentQuestion.topic,
         correct,
-        correct ? getPracticeRewardUnits(currentQuestion.difficulty) : 0
+        0
       );
     },
     [answerQuestion, currentQuestion]

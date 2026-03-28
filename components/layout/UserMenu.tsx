@@ -6,7 +6,6 @@ import { Bug, CreditCard, LifeBuoy, LogOut, Settings } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import { formatUnitsAsKwh, unitsToKwh } from '@/lib/energy';
 
 interface ShiftSummaryData {
   careerLevel: number;
@@ -251,8 +250,7 @@ export function UserMenu({
         .slice(0, 2)
         .toUpperCase()
     : 'GL';
-  const remainingUnits = getAvailableBudgetUnits();
-  const remainingKwh = unitsToKwh(remainingUnits);
+  const remainingKwh = 0;
   const readinessPct = clampPct(shiftSummary?.promotionReadinessPct ?? 0);
   const careerLevel = shiftSummary?.careerLevel ?? 1;
   const tone = getShiftTone({
@@ -263,7 +261,7 @@ export function UserMenu({
   const roleLabel = shiftSummary
     ? `Level ${shiftSummary.careerLevel} · ${shiftSummary.currentRole}`
     : 'Level 1 · Trainee Operator';
-  const kwhBalanceLabel = `${formatUnitsAsKwh(remainingUnits)} balance`;
+  const kwhBalanceLabel = '';
   const memberSinceLabel = formatMenuDate(
     shiftSummary?.tenureStartDate ?? user.created_at ?? null
   );

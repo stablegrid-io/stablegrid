@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(find /Users/nedasvaitkus/Desktop/grid/.claude/worktrees/sad-allen/supabase/migrations -name \"*.sql\" -exec grep -h \"create table if not exists public\\\\.\" {})",
+      "Bash(cat:*)",
+      "Bash(find /Users/nedasvaitkus/Desktop/grid -name project-ref -not -path *node_modules*)",
+      "Bash(for v:*)",
+      "Bash(do npx:*)",
+      "Bash(git stash:*)",
+      "Bash(npx next:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(lib/admin/activation.ts:*)",
+      "Bash(__NEW_LINE_22d599b4feda7555__ echo:*)"
+    ]
+  }
+}

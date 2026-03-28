@@ -6,12 +6,8 @@ import {
   readIdempotencyKey,
   runIdempotentJsonRequest
 } from '@/lib/api/protection';
-import { reconcileActivationTasksSafely } from '@/lib/activation/service';
 import { createClient } from '@/lib/supabase/server';
-import { DEFAULT_DEPLOYED_NODE_IDS, INFRASTRUCTURE_BY_ID } from '@/lib/energy';
-import { GRID_OPS_DEFAULT_SCENARIO } from '@/lib/grid-ops/config';
 
-const INFRASTRUCTURE_NODE_ID_SET = new Set(Object.keys(INFRASTRUCTURE_BY_ID));
 type JsonRecord = Record<string, unknown>;
 
 const toRecord = (value: unknown): JsonRecord => {
@@ -32,10 +28,6 @@ const sanitizeCompletedQuestions = (value: unknown) =>
 
 interface SyncProgressPayload {
   completedQuestions: Array<number | string>;
-  deployedNodeIds: string[] | null;
-  hasDeployedNodeIds: boolean;
-  hasLastDeployedNodeId: boolean;
-  lastDeployedNodeId: string | null;
   streak: number;
   topicProgress: JsonRecord;
   xp: number;
@@ -55,51 +47,12 @@ const parseSyncProgressPayload = async (request: Request): Promise<SyncProgressP
     throw new ApiRouteError('streak must be a non-negative number.', 400);
   }
 
-  const hasDeployedNodeIds = Object.prototype.hasOwnProperty.call(
-    payload,
-    'deployedNodeIds'
-  );
-  const hasLastDeployedNodeId = Object.prototype.hasOwnProperty.call(
-    payload,
-    'lastDeployedNodeId'
-  );
-  const deployedNodeIds = sanitizeDeployedNodeIds(payload.deployedNodeIds);
-  const lastDeployedNodeIdRaw =
-    typeof payload.lastDeployedNodeId === 'string' ? payload.lastDeployedNodeId : null;
-  const lastDeployedNodeId =
-    lastDeployedNodeIdRaw && deployedNodeIds?.includes(lastDeployedNodeIdRaw)
-      ? lastDeployedNodeIdRaw
-      : null;
-
   return {
     completedQuestions: sanitizeCompletedQuestions(payload.completedQuestions),
-    deployedNodeIds,
-    hasDeployedNodeIds,
-    hasLastDeployedNodeId,
-    lastDeployedNodeId,
     streak,
     topicProgress: toRecord(payload.topicProgress),
     xp
   };
-};
-
-const sanitizeDeployedNodeIds = (value: unknown) => {
-  if (!Array.isArray(value)) return null;
-
-  const sanitized = value
-    .filter((item): item is string => typeof item === 'string')
-    .filter((item) => INFRASTRUCTURE_NODE_ID_SET.has(item));
-
-  if (sanitized.length === 0) {
-    return [...DEFAULT_DEPLOYED_NODE_IDS];
-  }
-
-  const deduped = Array.from(new Set(sanitized));
-  if (!deduped.includes(DEFAULT_DEPLOYED_NODE_IDS[0])) {
-    deduped.unshift(DEFAULT_DEPLOYED_NODE_IDS[0]);
-  }
-
-  return deduped;
 };
 
 export async function GET(request: Request) {
@@ -129,23 +82,14 @@ export async function GET(request: Request) {
       })
     ]);
 
-    const [{ data, error }, { data: gridOpsState, error: gridOpsError }] =
-      await Promise.all([
-        supabase.from('user_progress').select('*').eq('user_id', user.id).maybeSingle(),
-        supabase
-          .from('grid_ops_state')
-          .select('deployed_asset_ids,last_deployed_asset_id')
-          .eq('user_id', user.id)
-          .eq('scenario_id', GRID_OPS_DEFAULT_SCENARIO)
-          .maybeSingle()
-      ]);
+    const { data, error } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
     if (error) {
       throw new Error(error.message);
-    }
-
-    if (gridOpsError) {
-      throw new Error(gridOpsError.message);
     }
 
     if (!data) {
@@ -162,15 +106,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ data: created });
     }
 
-    const resolvedData = gridOpsState
-      ? {
-          ...data,
-          deployed_node_ids: gridOpsState.deployed_asset_ids,
-          last_deployed_node_id: gridOpsState.last_deployed_asset_id
-        }
-      : data;
-
-    return NextResponse.json({ data: resolvedData });
+    return NextResponse.json({ data });
   } catch (error) {
     return toApiErrorResponse(error, 'Failed to fetch synced progress.');
   }
@@ -215,8 +151,6 @@ export async function POST(request: Request) {
         xp: payload.xp,
         streak: payload.streak,
         completedQuestions: payload.completedQuestions,
-        deployedNodeIds: payload.deployedNodeIds,
-        lastDeployedNodeId: payload.lastDeployedNodeId,
         topicProgress: payload.topicProgress
       },
       execute: async () => {
@@ -254,13 +188,6 @@ export async function POST(request: Request) {
           updated_at: new Date().toISOString()
         };
 
-        if (payload.hasDeployedNodeIds && payload.deployedNodeIds) {
-          updatePayload.deployed_node_ids = payload.deployedNodeIds;
-        }
-        if (payload.hasLastDeployedNodeId) {
-          updatePayload.last_deployed_node_id = payload.lastDeployedNodeId;
-        }
-
         const { error } = await supabase.from('user_progress').upsert(updatePayload, {
           onConflict: 'user_id'
         });
@@ -268,8 +195,6 @@ export async function POST(request: Request) {
         if (error) {
           throw new Error(error.message);
         }
-
-        await reconcileActivationTasksSafely({ supabase, userId: user.id });
 
         return {
           body: { success: true },

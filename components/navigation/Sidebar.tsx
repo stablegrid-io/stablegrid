@@ -8,7 +8,6 @@ import { Shield, Settings, HelpCircle } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { AdminRole } from '@/lib/admin/types';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
-import { useGridOpsStore } from '@/lib/stores/useGridOpsStore';
 import { StableGridIcon } from '@/components/brand/StableGridLogo';
 import {
   isNavItemActive,
@@ -53,7 +52,6 @@ export const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuthStore();
-  const activeIncidentCount = useGridOpsStore((s) => s.activeIncidentCount);
   const hideNav = shouldHideNav(pathname, Boolean(user));
   const isCompact = isCompactDesktopNavPath(pathname);
   const nickname = toNickname(user);
@@ -218,16 +216,6 @@ export const Sidebar = () => {
             >
               <Icon className={`flex-shrink-0 ${isCompact ? 'h-5 w-5' : 'h-[18px] w-[18px]'}`} />
               {!isCompact && <span>{item.label}</span>}
-              {!isCompact && item.href === '/energy' && activeIncidentCount > 0 && (
-                <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-error/90 px-1.5 text-[10px] font-semibold text-on-error">
-                  {activeIncidentCount > 9 ? '9+' : activeIncidentCount}
-                </span>
-              )}
-              {isCompact && item.href === '/energy' && activeIncidentCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-error/90 px-1 text-[8px] font-bold text-on-error">
-                  {activeIncidentCount > 9 ? '9+' : activeIncidentCount}
-                </span>
-              )}
               {isCompact && (
                 <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-lg bg-surface-container/95 backdrop-blur-lg border border-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-on-surface opacity-0 shadow-lg group-hover:opacity-100 transition-opacity z-50">
                   {item.label}

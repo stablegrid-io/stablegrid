@@ -1,6 +1,5 @@
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/server';
-import { MISSIONS } from '@/data/missions';
 import { getCanonicalTheoryStats } from '@/lib/learn/theoryProgress';
 import {
   buildTheorySummaryByTopic,
@@ -48,12 +47,6 @@ interface UserProgressRow {
   updated_at: string | null;
 }
 
-interface UserMissionRow {
-  mission_slug: string;
-  state: 'not_started' | 'in_progress' | 'completed';
-  updated_at: string | null;
-}
-
 interface ReadingSignalRow {
   last_active_at: string;
   completed_at: string | null;
@@ -83,9 +76,6 @@ const ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC: Record<Topic, string> = {
   fabric: '34,185,153'
 };
 const DEFAULT_TASKS_ACCENT_RGB = '34,185,153';
-const MISSION_ACCENT_BY_SLUG = new Map(
-  MISSIONS.map((mission) => [mission.slug, mission.accentRgb])
-);
 
 const toRecord = (value: unknown): Record<string, unknown> => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -153,14 +143,6 @@ const extractActivityTimestampsFromNestedProgress = (value: unknown) => {
   return collected;
 };
 
-const formatMissionLabel = (slug: string) =>
-  slug
-    .split('-')
-    .map((segment) =>
-      segment.length > 0 ? `${segment[0].toUpperCase()}${segment.slice(1)}` : segment
-    )
-    .join(' ');
-
 const resolveLatestPracticeTopic = (
   topicProgress: Record<string, unknown>
 ): { topic: Topic; updatedAt: string; attempted: number; completionPct: number | undefined } | null => {
@@ -198,11 +180,9 @@ const resolveLatestPracticeTopic = (
 };
 
 const buildLatestTaskAction = ({
-  latestMission,
   userProgress,
   fallbackTopic
 }: {
-  latestMission: UserMissionRow | null;
   userProgress: UserProgressRow | null;
   fallbackTopic: Topic;
 }): HomeLatestTaskAction => {
@@ -233,32 +213,6 @@ const buildLatestTaskAction = ({
       ? clampPct((Math.min(notebookCompletedCount, notebookTotalCount) / notebookTotalCount) * 100)
       : undefined;
   const latestPracticeTopic = resolveLatestPracticeTopic(topicProgress);
-
-  const missionUpdatedAt = toIsoTimestamp(latestMission?.updated_at);
-
-  const missionCandidate: (HomeLatestTaskAction & { updatedAt: string }) | null =
-    latestMission && missionUpdatedAt
-      ? {
-          title: `Mission: ${formatMissionLabel(latestMission.mission_slug)}`,
-          summary:
-            latestMission.state === 'completed'
-              ? 'Replay the latest mission incident to keep operations sharp.'
-              : 'Resume the latest mission incident and continue from your last checkpoint.',
-          statLine:
-            latestMission.state === 'completed'
-              ? 'Latest mission is completed.'
-              : 'Latest mission is in progress.',
-          actionLabel:
-            latestMission.state === 'completed' ? 'Replay mission' : 'Resume mission',
-          actionHref: `/missions/${latestMission.mission_slug}`,
-          topicId: fallbackTopic,
-          accentRgb:
-            MISSION_ACCENT_BY_SLUG.get(latestMission.mission_slug) ??
-            DEFAULT_TASKS_ACCENT_RGB,
-          progressPct: latestMission.state === 'completed' ? 100 : undefined,
-          updatedAt: missionUpdatedAt
-        }
-      : null;
 
   const notebookCandidate: (HomeLatestTaskAction & { updatedAt: string }) | null =
     notebookUpdatedAt
@@ -300,7 +254,7 @@ const buildLatestTaskAction = ({
         }
       : null;
 
-  const latestTimedCandidate = [missionCandidate, notebookCandidate, practiceCandidate]
+  const latestTimedCandidate = [notebookCandidate, practiceCandidate]
     .filter((candidate): candidate is HomeLatestTaskAction & { updatedAt: string } =>
       Boolean(candidate)
     )
@@ -414,8 +368,7 @@ export default async function RootPage() {
     recentSessionsResult,
     allReadingSessionsResult,
     readingSignalsResult,
-    userProgressResult,
-    latestMissionResult
+    userProgressResult
   ] =
     await Promise.all([
       supabase
@@ -455,14 +408,6 @@ export default async function RootPage() {
         .from('user_progress')
         .select('xp, streak, completed_questions, topic_progress, last_activity, updated_at')
         .eq('user_id', userId)
-        .maybeSingle(),
-      supabase
-        .from('user_missions')
-        .select('mission_slug,state,updated_at')
-        .eq('user_id', userId)
-        .neq('state', 'not_started')
-        .order('updated_at', { ascending: false })
-        .limit(1)
         .maybeSingle()
     ]);
 
@@ -471,7 +416,6 @@ export default async function RootPage() {
   const allReadingSessionRows = (allReadingSessionsResult.data ?? []) as ReadingSessionRowLike[];
   const readingSignalRows = (readingSignalsResult.data ?? []) as ReadingSignalRow[];
   const userProgress = (userProgressResult.data ?? null) as UserProgressRow | null;
-  const latestMission = (latestMissionResult.data ?? null) as UserMissionRow | null;
 
   const theorySummaryByTopic = buildTheorySummaryByTopic(allReadingSessionRows);
   const topicProgress = topicProgressRows.map((row) => {
@@ -510,7 +454,6 @@ export default async function RootPage() {
       : null;
   const latestTheoryTopic = latestTheorySession?.topic ?? 'pyspark';
   const latestTaskAction = buildLatestTaskAction({
-    latestMission,
     userProgress,
     fallbackTopic: latestTheoryTopic
   });
@@ -523,7 +466,6 @@ export default async function RootPage() {
   ]);
   const lastClockedInAt = pickLatestIsoTimestamp(
     latestTheorySession?.lastActiveAt,
-    latestMission?.updated_at,
     userProgress?.last_activity,
     userProgress?.updated_at,
     ...nestedTaskActivityTimestamps,

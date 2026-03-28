@@ -3,7 +3,6 @@ import { enforceRateLimit, getClientIp } from '@/lib/api/protection';
 import { createClient } from '@/lib/supabase/server';
 import { getCanonicalTheoryStats } from '@/lib/learn/theoryProgress';
 import { buildWorkerCareerSnapshot } from '@/lib/progressCareer';
-import type { MissionState, UserMissionProgress } from '@/types/missions';
 import type { Topic, TopicProgress as TopicProgressModel } from '@/types/progress';
 
 interface TopicProgressRow {
@@ -25,15 +24,6 @@ interface TopicProgressRow {
   first_activity_at: string | null;
   last_activity_at: string | null;
   updated_at: string | null;
-}
-
-interface UserMissionRow {
-  mission_slug: string;
-  state: MissionState;
-  unlocked: boolean;
-  started_at: string | null;
-  completed_at: string | null;
-  xp_awarded: number | null;
 }
 
 interface UserProgressRow {
@@ -150,15 +140,6 @@ const createEmptyTopicProgress = (
   };
 };
 
-const toMissionProgressModel = (row: UserMissionRow): UserMissionProgress => ({
-  missionSlug: row.mission_slug,
-  state: row.state,
-  unlocked: row.unlocked,
-  startedAt: row.started_at,
-  completedAt: row.completed_at,
-  energyAwardedUnits: Math.max(0, Math.round(toNumber(row.xp_awarded)))
-});
-
 const getNextShiftStep = (
   developmentTask:
     | {
@@ -212,7 +193,7 @@ export async function GET(request: Request) {
     enforceRateLimit({ scope: 'profile_shift_summary_ip', key: getClientIp(request), limit: 60, windowSeconds: 300 }),
   ]);
 
-  const [topicProgressResult, missionsResult, userProgressResult] = await Promise.all([
+  const [topicProgressResult, userProgressResult] = await Promise.all([
     supabase
       .from('topic_progress')
       .select(
@@ -220,10 +201,6 @@ export async function GET(request: Request) {
       )
       .eq('user_id', user.id)
       .order('topic'),
-    supabase
-      .from('user_missions')
-      .select('mission_slug,state,unlocked,started_at,completed_at,xp_awarded')
-      .eq('user_id', user.id),
     supabase
       .from('user_progress')
       .select('streak,xp,completed_questions,topic_progress')
@@ -234,15 +211,11 @@ export async function GET(request: Request) {
   if (topicProgressResult.error) {
     return NextResponse.json({ error: topicProgressResult.error.message }, { status: 500 });
   }
-  if (missionsResult.error) {
-    return NextResponse.json({ error: missionsResult.error.message }, { status: 500 });
-  }
   if (userProgressResult.error) {
     return NextResponse.json({ error: userProgressResult.error.message }, { status: 500 });
   }
 
   const topicRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
-  const missionRows = (missionsResult.data ?? []) as UserMissionRow[];
   const userProgress = (userProgressResult.data ?? null) as UserProgressRow | null;
 
   const mappedTopicProgress = topicRows.map(toTopicProgressModel);
@@ -252,13 +225,11 @@ export async function GET(request: Request) {
   const topicProgress = LEARN_TOPICS.map((topic) => {
     return topicProgressByTopic.get(topic) ?? createEmptyTopicProgress(user.id, topic);
   });
-  const missionProgress = missionRows.map(toMissionProgressModel);
-
   const workerCareerSnapshot = buildWorkerCareerSnapshot({
     topicProgress,
     readingSessions: [],
     readingHistory: [],
-    missionProgress,
+    missionProgress: [],
     practiceHistory: [],
     streakDays: Math.max(0, Math.round(toNumber(userProgress?.streak))),
     totalEnergyUnits: Math.max(0, Math.round(toNumber(userProgress?.xp))),

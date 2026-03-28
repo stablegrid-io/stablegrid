@@ -10,7 +10,6 @@ import {
 import { theoryDocs } from '@/data/learn/theory';
 import { getTheoryCategories } from '@/data/learn/theory/categories';
 import { getTheoryTracks } from '@/data/learn/theory/tracks';
-import { reconcileActivationTasksSafely } from '@/lib/activation/service';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import {
   mutateModuleProgressRows,
@@ -781,7 +780,6 @@ export async function POST(request: Request) {
             currentLessonId: payload.currentLessonId,
             lastVisitedRoute: payload.lastVisitedRoute
           });
-          await reconcileActivationTasksSafely({ supabase, userId: user.id });
           revalidateTheoryProgressViews(payload.topic);
 
           const fallbackRows = await fetchFallbackRowsFromReadingSessions({
@@ -808,7 +806,6 @@ export async function POST(request: Request) {
           existingRows: mutatedRows,
           nowIso
         });
-        await reconcileActivationTasksSafely({ supabase, userId: user.id });
         revalidateTheoryProgressViews(payload.topic);
 
         const scopedRows = filterRowsForCanonicalModules(syncedRows, canonicalModules);
