@@ -2,7 +2,25 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, Lock, TimerReset } from 'lucide-react';
-import { MultipleChoice } from '@/components/practice/MultipleChoice';
+// Inline multiple choice — practice system removed
+const MultipleChoice = ({ options, selected, onSelect, disabled }: {
+  options: string[]; selected: string | null; onSelect: (value: string) => void; disabled?: boolean;
+}) => (
+  <div className="space-y-2">
+    {options.map((option) => (
+      <button key={option} type="button" disabled={disabled}
+        onClick={() => onSelect(option)}
+        className={`w-full text-left rounded-xl border px-4 py-3 text-sm transition-colors ${
+          selected === option
+            ? 'border-primary/40 bg-primary/10 text-on-surface'
+            : 'border-white/[0.06] bg-white/[0.02] text-on-surface-variant hover:bg-white/[0.04]'
+        } ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+      >
+        {option}
+      </button>
+    ))}
+  </div>
+);
 import {
   getModuleCheckpointQuestions,
   getModuleCheckpointRequiredCorrect,

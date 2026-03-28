@@ -13,7 +13,6 @@ import {
   Play,
   Zap
 } from 'lucide-react';
-import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -56,41 +55,15 @@ const FINAL_CTA_FIRST_FRAME_PATH = (() => {
 })();
 const HERO_DISPLAY_FONT_FAMILY =
   "var(--font-hero), 'Inter', 'Segoe UI', system-ui, sans-serif";
-const ControlCenterModelPreviewLazy = dynamic(
-  () =>
-    import('@/components/grid-ops/ControlCenterModelPreview').then(
-      (module) => module.ControlCenterModelPreview
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-36 rounded-xl border border-[#2e5975]/45 bg-[radial-gradient(circle_at_40%_24%,rgba(77,147,255,0.24),transparent_48%),linear-gradient(180deg,#091325,#060c16)]" />
-    )
-  }
+// 3D model previews removed — replaced with static placeholders
+const ControlCenterModelPreviewLazy = ({ className }: { className?: string }) => (
+  <div className={`rounded-xl border border-[#2e5975]/45 bg-[radial-gradient(circle_at_40%_24%,rgba(77,147,255,0.24),transparent_48%),linear-gradient(180deg,#091325,#060c16)] ${className ?? 'h-36'}`} />
 );
-const BatteryStorageModelPreviewLazy = dynamic(
-  () =>
-    import('@/components/grid-ops/BatteryStorageModelPreview').then(
-      (module) => module.BatteryStorageModelPreview
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-32 rounded-xl border border-[#2e5975]/45 bg-[radial-gradient(circle_at_40%_24%,rgba(77,147,255,0.24),transparent_48%),linear-gradient(180deg,#091325,#060c16)]" />
-    )
-  }
+const BatteryStorageModelPreviewLazy = ({ className }: { className?: string }) => (
+  <div className={`rounded-xl border border-[#2e5975]/45 bg-[radial-gradient(circle_at_40%_24%,rgba(77,147,255,0.24),transparent_48%),linear-gradient(180deg,#091325,#060c16)] ${className ?? 'h-32'}`} />
 );
-const SolarForecastingModelPreviewLazy = dynamic(
-  () =>
-    import('@/components/grid-ops/SolarForecastingModelPreview').then(
-      (module) => module.SolarForecastingModelPreview
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-32 rounded-xl border border-[#2e5975]/45 bg-[radial-gradient(circle_at_40%_24%,rgba(77,147,255,0.24),transparent_48%),linear-gradient(180deg,#091325,#060c16)]" />
-    )
-  }
+const SolarForecastingModelPreviewLazy = ({ className }: { className?: string }) => (
+  <div className={`rounded-xl border border-[#2e5975]/45 bg-[radial-gradient(circle_at_40%_24%,rgba(77,147,255,0.24),transparent_48%),linear-gradient(180deg,#091325,#060c16)] ${className ?? 'h-32'}`} />
 );
 
 const getSectionHeightClass = (chapter: GridFlowChapter) => {
@@ -2634,6 +2607,10 @@ export const GridFlowSection = () => {
         style={{ marginTop: 'calc(-100vh + 4rem)' }}
       >
         {storyArticles}
+      </div>
+    </section>
+  );
+};
       </div>
     </section>
   );
