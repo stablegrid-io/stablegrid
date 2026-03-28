@@ -523,7 +523,9 @@ const parseModuleProgressRequestPayload = async (
     currentLessonId:
       typeof payload.currentLessonId === 'string' ? payload.currentLessonId.slice(0, 200) : null,
     lastVisitedRoute:
-      typeof payload.lastVisitedRoute === 'string' ? payload.lastVisitedRoute.slice(0, 2_000) : null,
+      typeof payload.lastVisitedRoute === 'string' && payload.lastVisitedRoute.startsWith('/learn/')
+        ? payload.lastVisitedRoute.slice(0, 2_000)
+        : null,
     moduleId: typeof payload.moduleId === 'string' ? payload.moduleId.slice(0, 200) : null,
     topic,
     trackSlug
@@ -717,6 +719,28 @@ export async function POST(request: Request) {
             'Module is locked and cannot be completed yet.',
             409
           );
+        }
+
+        // Verify the user has actually read the module before allowing completion
+        if (payload.action === 'complete') {
+          const { data: sessionRow } = await supabase
+            .from('reading_sessions')
+            .select('is_completed,sections_read,sections_total')
+            .eq('user_id', user.id)
+            .eq('topic', payload.topic)
+            .eq('chapter_id', payload.moduleId)
+            .maybeSingle();
+
+          const sectionsRead = Number(sessionRow?.sections_read ?? 0);
+          const sectionsTotal = Number(sessionRow?.sections_total ?? 1);
+          const isSessionComplete = Boolean(sessionRow?.is_completed);
+
+          if (!isSessionComplete && sectionsRead < sectionsTotal) {
+            throw new ApiRouteError(
+              'Module cannot be completed — reading session is incomplete.',
+              409
+            );
+          }
         }
 
         const mutatedRows =

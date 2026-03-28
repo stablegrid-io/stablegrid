@@ -140,10 +140,18 @@ export async function POST(request: Request) {
         if (payload.state === 'completed') {
           const { data: existingProgress, error: existingError } = await supabase
             .from('user_missions')
-            .select('xp_awarded')
+            .select('xp_awarded,state,started_at')
             .eq('user_id', user.id)
             .eq('mission_slug', payload.missionSlug)
-            .maybeSingle<{ xp_awarded: number | null }>();
+            .maybeSingle<{ xp_awarded: number | null; state: string | null; started_at: string | null }>();
+
+          // State machine: can only complete if currently in_progress with a valid start
+          if (existingProgress && existingProgress.state !== 'in_progress') {
+            throw new ApiRouteError('Mission must be in progress before it can be completed.', 409);
+          }
+          if (existingProgress && !existingProgress.started_at) {
+            throw new ApiRouteError('Mission has not been started.', 409);
+          }
 
           if (existingError) {
             throw new ApiRouteError(existingError.message, 500);

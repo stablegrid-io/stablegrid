@@ -222,13 +222,22 @@ export async function POST(request: Request) {
       execute: async () => {
         const { data: existingProgress, error: existingProgressError } = await supabase
           .from('user_progress')
-          .select('topic_progress')
+          .select('topic_progress,xp,streak')
           .eq('user_id', user.id)
-          .maybeSingle<{ topic_progress: JsonRecord | null }>();
+          .maybeSingle<{ topic_progress: JsonRecord | null; xp: number | null; streak: number | null }>();
 
         if (existingProgressError) {
           throw new Error(existingProgressError.message);
         }
+
+        // Server-side XP/streak validation: only allow bounded increases per sync
+        // Prevents client-side manipulation of raw XP/streak values
+        const existingXp = Math.max(0, Number(existingProgress?.xp ?? 0));
+        const existingStreak = Math.max(0, Number(existingProgress?.streak ?? 0));
+        const MAX_XP_INCREASE_PER_SYNC = 500;
+        const MAX_STREAK = 365;
+        const safeXp = Math.max(existingXp, Math.min(payload.xp, existingXp + MAX_XP_INCREASE_PER_SYNC));
+        const safeStreak = Math.min(Math.max(payload.streak, 0), MAX_STREAK);
 
         const topicProgress = {
           ...toRecord(existingProgress?.topic_progress),
@@ -237,8 +246,8 @@ export async function POST(request: Request) {
 
         const updatePayload: Record<string, unknown> = {
           user_id: user.id,
-          xp: payload.xp,
-          streak: payload.streak,
+          xp: safeXp,
+          streak: safeStreak,
           completed_questions: payload.completedQuestions,
           topic_progress: topicProgress,
           last_activity: new Date().toISOString(),
