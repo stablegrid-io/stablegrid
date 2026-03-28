@@ -2,10 +2,18 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { AdminLeftRail } from '@/components/admin/AdminLeftRail';
-import { DailyRevenueChartCard } from '@/components/admin/financials/DailyRevenueChartCard';
+import dynamic from 'next/dynamic';
 import { FinancialsKpiCard } from '@/components/admin/financials/FinancialsKpiCard';
 import { FinancialsPageHeader } from '@/components/admin/financials/FinancialsPageHeader';
-import { RevenueHeroCard } from '@/components/admin/financials/RevenueHeroCard';
+
+const RevenueHeroCard = dynamic(
+  () => import('@/components/admin/financials/RevenueHeroCard').then((m) => m.RevenueHeroCard),
+  { ssr: false, loading: () => <div className="h-40 rounded-2xl border border-white/[0.06] bg-white/[0.02] animate-pulse" /> }
+);
+const DailyRevenueChartCard = dynamic(
+  () => import('@/components/admin/financials/DailyRevenueChartCard').then((m) => m.DailyRevenueChartCard),
+  { ssr: false, loading: () => <div className="h-64 rounded-2xl border border-white/[0.06] bg-white/[0.02] animate-pulse" /> }
+);
 import {
   ADMIN_LAYOUT_CLASS,
   ADMIN_PAGE_SHELL_CLASS,

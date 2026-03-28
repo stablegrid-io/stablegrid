@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPayloadRequestKey } from '@/lib/api/requestKeys';
 import { AdminLeftRail } from '@/components/admin/AdminLeftRail';
-import { FeedbackAnalyticsSection } from '@/components/admin/feedback/FeedbackAnalyticsSection';
+import dynamic from 'next/dynamic';
+
+const FeedbackAnalyticsSection = dynamic(
+  () => import('@/components/admin/feedback/FeedbackAnalyticsSection').then((m) => m.FeedbackAnalyticsSection),
+  { ssr: false, loading: () => <div className="h-64 rounded-2xl border border-white/[0.06] bg-white/[0.02] animate-pulse" /> }
+);
 import { FeedbackDetailDrawer } from '@/components/admin/feedback/FeedbackDetailDrawer';
 import { FeedbackKpiRow } from '@/components/admin/feedback/FeedbackKpiRow';
 import { FeedbackPageHeader } from '@/components/admin/feedback/FeedbackPageHeader';

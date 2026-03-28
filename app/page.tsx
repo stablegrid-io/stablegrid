@@ -352,6 +352,27 @@ const createTopicProgressFromSummary = (
   };
 };
 
+import { Suspense } from 'react';
+
+function HomeSkeleton() {
+  return (
+    <div className="min-h-screen pb-24 lg:pb-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+        <div className="animate-pulse space-y-6">
+          <div className="h-6 w-48 rounded-lg bg-white/[0.04]" />
+          <div className="h-12 w-80 rounded-lg bg-white/[0.04]" />
+          <div className="h-4 w-96 rounded-lg bg-white/[0.03]" />
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mt-8">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="h-40 rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default async function RootPage() {
   const supabase = createClient();
   const {
@@ -484,21 +505,23 @@ export default async function RootPage() {
   const trackMetaByTopic = buildTrackMetaByTopic();
 
   return (
-    <HomeDashboard
-      user={user}
-      topicProgress={resolvedTopicProgress}
-      recentSessions={recentSessions}
-      latestTheorySession={latestTheorySession}
-      lastClockedInAt={lastClockedInAt}
-      latestTaskAction={latestTaskAction}
-      readingSignals={readingSignals}
-      trackMetaByTopic={trackMetaByTopic}
-      stats={{
-        totalXp: userProgress?.xp ?? 0,
-        currentStreak: userProgress?.streak ?? 0,
-        questionsCompleted,
-        overallAccuracy
-      }}
-    />
+    <Suspense fallback={<HomeSkeleton />}>
+      <HomeDashboard
+        user={user}
+        topicProgress={resolvedTopicProgress}
+        recentSessions={recentSessions}
+        latestTheorySession={latestTheorySession}
+        lastClockedInAt={lastClockedInAt}
+        latestTaskAction={latestTaskAction}
+        readingSignals={readingSignals}
+        trackMetaByTopic={trackMetaByTopic}
+        stats={{
+          totalXp: userProgress?.xp ?? 0,
+          currentStreak: userProgress?.streak ?? 0,
+          questionsCompleted,
+          overallAccuracy
+        }}
+      />
+    </Suspense>
   );
 }
