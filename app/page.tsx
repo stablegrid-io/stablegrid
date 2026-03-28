@@ -8,6 +8,7 @@ import {
 } from '@/lib/learn/readingProgressModels';
 import type { Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
+import { buildTrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
 
 const LandingPage = dynamic(() =>
   import('@/components/home/LandingPage').then((module) => module.LandingPage)
@@ -479,6 +480,9 @@ export default async function RootPage() {
   const overallAccuracy =
     totalAttempted > 0 ? Math.round((totalCorrect / totalAttempted) * 100) : 0;
 
+  // Pre-compute track metadata server-side (~1KB vs 6.2MB of full theory JSON)
+  const trackMetaByTopic = buildTrackMetaByTopic();
+
   return (
     <HomeDashboard
       user={user}
@@ -488,6 +492,7 @@ export default async function RootPage() {
       lastClockedInAt={lastClockedInAt}
       latestTaskAction={latestTaskAction}
       readingSignals={readingSignals}
+      trackMetaByTopic={trackMetaByTopic}
       stats={{
         totalXp: userProgress?.xp ?? 0,
         currentStreak: userProgress?.streak ?? 0,

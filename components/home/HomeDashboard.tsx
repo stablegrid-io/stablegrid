@@ -7,12 +7,10 @@ import { ArrowRight, Zap, BookOpen, Clock, Clock3, Target, TrendingUp, Brain } f
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import { HOME_TOPIC_ORDER, getHomeTopicMeta } from '@/components/home/home/topicMeta';
-import { theoryDocs } from '@/data/learn/theory';
-import { getTheoryTracks } from '@/data/learn/theory/tracks';
-import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { OrbitalMap } from '@/components/home/OrbitalMap';
 import { buildOrbitalTopics } from '@/components/home/orbitalMapData';
+import type { TrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
 
 /* ── Types ── */
 interface HomeDashboardProps {
@@ -27,6 +25,7 @@ interface HomeDashboardProps {
     accentRgb?: string; progressPct?: number;
   };
   readingSignals: ReadingSignal[];
+  trackMetaByTopic: TrackMetaByTopic;
   stats: { totalXp: number; currentStreak: number; questionsCompleted: number; overallAccuracy: number };
 }
 
@@ -272,7 +271,7 @@ const SessionModeBatteries = ({ sprintCount, pomodoroCount, deepFocusCount, tota
 export const HomeDashboard = ({
   user, topicProgress, recentSessions, latestTheorySession,
   lastClockedInAt: _lastClockedInAt, latestTaskAction: _latestTaskAction,
-  readingSignals, stats: _stats
+  readingSignals, trackMetaByTopic, stats: _stats
 }: HomeDashboardProps) => {
   const topicSnapshots = useMemo<TopicSnapshot[]>(() => {
     const progressMap = new Map(topicProgress.map((item) => [item.topic, item]));
@@ -288,7 +287,7 @@ export const HomeDashboard = ({
   }, [topicProgress]);
 
   const activeTopics = topicSnapshots.filter((t) => t.theoryTotal > 0);
-  const orbitalTopics = useMemo(() => buildOrbitalTopics(topicProgress), [topicProgress]);
+  const orbitalTopics = useMemo(() => buildOrbitalTopics(topicProgress, trackMetaByTopic), [topicProgress, trackMetaByTopic]);
 
   const overallProgress = useMemo(() => {
     const total = topicSnapshots.reduce((sum, s) => sum + s.theoryTotal, 0);
@@ -376,27 +375,24 @@ export const HomeDashboard = ({
 
                   <div className="mt-4 flex gap-2">
                     {(() => {
-                      const doc = theoryDocs[currentTopic.topicId];
-                      const tracks = doc ? getTheoryTracks(doc) : [];
-                      if (tracks.length === 0) return null;
+                      const tracksMeta = trackMetaByTopic[currentTopic.topicId] ?? [];
+                      if (tracksMeta.length === 0) return null;
 
-                      // Compute completed per track
                       let remainingCompleted = currentTopic.theoryCompleted;
-                      const trackData = tracks.map((track) => {
-                        const total = sortModulesByOrder(track.chapters).length;
-                        const completed = Math.min(total, Math.max(0, remainingCompleted));
-                        remainingCompleted = Math.max(0, remainingCompleted - total);
-                        return { track, total, completed };
+                      const trackData = tracksMeta.map((tm) => {
+                        const completed = Math.min(tm.moduleCount, Math.max(0, remainingCompleted));
+                        remainingCompleted = Math.max(0, remainingCompleted - tm.moduleCount);
+                        return { ...tm, completed };
                       });
 
-                      return trackData.map(({ track, total, completed }, i) => {
-                        const levelColor = TRACK_LEVEL_COLORS[track.slug] ?? '153,247,255';
+                      return trackData.map((td, i) => {
+                        const levelColor = TRACK_LEVEL_COLORS[td.slug] ?? '153,247,255';
                         return (
                           <TrackLevelBattery
-                            key={track.slug}
-                            label={track.label.replace('-Level Track', '')}
-                            completed={completed}
-                            total={total}
+                            key={td.slug}
+                            label={td.label.replace('-Level Track', '')}
+                            completed={td.completed}
+                            total={td.moduleCount}
                             color={levelColor}
                             delay={300 + i * 150}
                           />

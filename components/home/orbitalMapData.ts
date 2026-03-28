@@ -1,9 +1,7 @@
 import type { Topic, TopicProgress } from '@/types/progress';
-import { theoryDocs } from '@/data/learn/theory';
-import { getTheoryTracks } from '@/data/learn/theory/tracks';
-import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { HOME_TOPIC_ORDER, getHomeTopicMeta } from '@/components/home/home/topicMeta';
+import type { TrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
 
 export const CATEGORY_ORDER = [
   'Foundations',
@@ -72,7 +70,7 @@ export interface OrbitalTopic {
   overallPct: number;
 }
 
-export function buildOrbitalTopics(topicProgress: TopicProgress[]): OrbitalTopic[] {
+export function buildOrbitalTopics(topicProgress: TopicProgress[], trackMeta: TrackMetaByTopic): OrbitalTopic[] {
   const progressMap = new Map(topicProgress.map((p) => [p.topic, p]));
 
   // Group topics by category
@@ -93,25 +91,23 @@ export function buildOrbitalTopics(topicProgress: TopicProgress[]): OrbitalTopic
       const progress = progressMap.get(topicId as Topic);
       const meta = getHomeTopicMeta(topicId as Topic);
       const style = getTheoryTopicStyle(topicId);
-      const doc = theoryDocs[topicId];
-      const docTracks = doc ? getTheoryTracks(doc) : [];
+      const topicTracksMeta = trackMeta[topicId] ?? [];
 
       const theoryTotal = progress?.theoryChaptersTotal && progress.theoryChaptersTotal > 0
         ? progress.theoryChaptersTotal
         : meta.fallbackChapters;
       const theoryCompleted = progress?.theoryChaptersCompleted ?? 0;
 
-      // Build track levels
+      // Build track levels from lightweight metadata (no full JSON)
       const tracks: TrackLevel[] = [];
       let remaining = theoryCompleted;
 
-      if (docTracks.length > 0) {
-        for (const track of docTracks) {
-          const total = sortModulesByOrder(track.chapters).length;
-          const completed = Math.min(total, Math.max(0, remaining));
-          remaining = Math.max(0, remaining - total);
-          const slug = track.slug === 'junior' ? 'junior' : track.slug === 'mid' ? 'mid' : 'senior';
-          tracks.push({ slug: slug as TrackLevel['slug'], completedModules: completed, totalModules: total, hasContent: total > 0 });
+      if (topicTracksMeta.length > 0) {
+        for (const tm of topicTracksMeta) {
+          const completed = Math.min(tm.moduleCount, Math.max(0, remaining));
+          remaining = Math.max(0, remaining - tm.moduleCount);
+          const slug = tm.slug === 'junior' ? 'junior' : tm.slug === 'mid' ? 'mid' : 'senior';
+          tracks.push({ slug: slug as TrackLevel['slug'], completedModules: completed, totalModules: tm.moduleCount, hasContent: tm.moduleCount > 0 });
         }
       } else if (theoryTotal > 0) {
         tracks.push({ slug: 'junior', completedModules: theoryCompleted, totalModules: theoryTotal, hasContent: true });
