@@ -361,7 +361,8 @@ const normalizeSequenceOrder = (value: number) => {
   return value;
 };
 
-const escapeLikeQuery = (value: string) => value.replace(/[%_,]/g, '').trim();
+// Strip characters that are special in LIKE patterns and PostgREST filter grammar
+const escapeLikeQuery = (value: string) => value.replace(/[%_,().\\*?[\]{}|^$]/g, '').trim();
 
 const TOPIC_LABELS: Record<string, string> = {
   pyspark: 'PySpark: The Full Stack',

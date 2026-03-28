@@ -143,7 +143,7 @@ export function BugDetailDrawer({
           <p className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">Attachments</p>
           {report.attachmentUrls.length > 0 ? (
             <div className="mt-3 space-y-2">
-              {report.attachmentUrls.map((url) => (
+              {report.attachmentUrls.filter((u) => /^https?:\/\//i.test(u)).map((url) => (
                 <a
                   key={url}
                   href={url}

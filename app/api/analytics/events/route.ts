@@ -35,7 +35,13 @@ const parseAnalyticsPayload = async (request: Request) => {
   const sessionId =
     typeof payload.sessionId === 'string' ? payload.sessionId.trim() : '';
   const path = typeof payload.path === 'string' ? payload.path.trim() : null;
-  const metadata = isRecord(payload.metadata) ? payload.metadata : {};
+  const rawMetadata = isRecord(payload.metadata) ? payload.metadata : {};
+  // Sanitize: shallow object, max 20 keys, string values capped at 500 chars
+  const metadata: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(rawMetadata).slice(0, 20)) {
+    if (typeof v === 'string') metadata[k] = v.slice(0, 500);
+    else if (typeof v === 'number' || typeof v === 'boolean') metadata[k] = v;
+  }
 
   if (!PRODUCT_EVENT_NAME_SET.has(eventName)) {
     throw new ApiRouteError('Unknown analytics event.', 400);

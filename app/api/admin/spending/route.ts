@@ -72,6 +72,9 @@ export async function POST(request: Request) {
     if (typeof description !== 'string' || !description.trim()) {
       return NextResponse.json({ error: 'Description is required.' }, { status: 422 });
     }
+    if (description.length > 1_000) {
+      return NextResponse.json({ error: 'Description exceeds 1000 character limit.' }, { status: 422 });
+    }
 
     const { data, error } = await adminSupabase
       .from('project_spending')

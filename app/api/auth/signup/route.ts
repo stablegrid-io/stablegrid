@@ -15,7 +15,7 @@ const parseSignupPayload = async (request: Request) => {
   const payload = await parseJsonObject(request);
   const email = typeof payload.email === 'string' ? payload.email.trim() : '';
   const password = typeof payload.password === 'string' ? payload.password : '';
-  const name = typeof payload.name === 'string' ? payload.name.trim() : '';
+  const name = typeof payload.name === 'string' ? payload.name.trim().slice(0, 150) : '';
   const captchaToken =
     typeof payload.captchaToken === 'string' ? payload.captchaToken : '';
 

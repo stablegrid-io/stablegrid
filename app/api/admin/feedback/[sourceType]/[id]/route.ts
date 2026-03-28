@@ -48,7 +48,7 @@ export async function PATCH(
     const payload = await parseJsonBody(request);
     const status = toFeedbackStatus(payload.status);
     const internalNotes =
-      typeof payload.internalNotes === 'string' ? payload.internalNotes : '';
+      typeof payload.internalNotes === 'string' ? payload.internalNotes.slice(0, 10_000) : '';
 
     if (!status) {
       return NextResponse.json({ error: 'Feedback status is invalid.' }, { status: 422 });

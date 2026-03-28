@@ -521,10 +521,10 @@ const parseModuleProgressRequestPayload = async (
   return {
     action,
     currentLessonId:
-      typeof payload.currentLessonId === 'string' ? payload.currentLessonId : null,
+      typeof payload.currentLessonId === 'string' ? payload.currentLessonId.slice(0, 200) : null,
     lastVisitedRoute:
-      typeof payload.lastVisitedRoute === 'string' ? payload.lastVisitedRoute : null,
-    moduleId: typeof payload.moduleId === 'string' ? payload.moduleId : null,
+      typeof payload.lastVisitedRoute === 'string' ? payload.lastVisitedRoute.slice(0, 2_000) : null,
+    moduleId: typeof payload.moduleId === 'string' ? payload.moduleId.slice(0, 200) : null,
     topic,
     trackSlug
   };

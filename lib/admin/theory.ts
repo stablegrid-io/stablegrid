@@ -55,11 +55,24 @@ const listPublishedTheoryDocIds = async (): Promise<AdminTheoryDocId[]> => {
     });
 };
 
-const assertTheoryDocId = async (value: string): Promise<AdminTheoryDocId> => {
-  const availableDocIds = await listPublishedTheoryDocIds();
+// Static whitelist — prevents path traversal via dynamically-placed files
+const ALLOWED_DOC_IDS = new Set(THEORY_DOC_ORDER);
 
+const assertTheoryDocId = async (value: string): Promise<AdminTheoryDocId> => {
+  // First check against static whitelist (prevents path traversal)
+  if (ALLOWED_DOC_IDS.has(value)) {
+    return value;
+  }
+
+  // Fallback: check filesystem for docs not in the static order list
+  const availableDocIds = await listPublishedTheoryDocIds();
   if (!availableDocIds.includes(value)) {
     throw new AdminServiceError('Theory track is invalid.', 422);
+  }
+
+  // Validate the ID format: only alphanumeric, hyphens, underscores
+  if (!/^[a-z0-9][a-z0-9_-]*$/i.test(value)) {
+    throw new AdminServiceError('Theory track ID contains invalid characters.', 422);
   }
 
   return value;
