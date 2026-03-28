@@ -7,7 +7,11 @@ export async function GET(request: Request) {
   try {
     const { adminSupabase } = await requireAdminAccess();
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q') ?? '';
+    const rawQuery = searchParams.get('q') ?? '';
+    const query = rawQuery.trim().slice(0, 200);
+    if (query.length === 0) {
+      return NextResponse.json({ data: [] });
+    }
     const data = await searchAdminUsers(adminSupabase, query);
 
     return NextResponse.json({ data });
