@@ -20,6 +20,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   }
 
+  if (process.env.ALLOW_E2E_USER_CREATION !== 'true') {
+    return NextResponse.json({ error: 'E2E seeding is disabled.' }, { status: 403 });
+  }
+
   const supabase = createClient();
   const {
     data: { user },
