@@ -24,10 +24,13 @@ export const navItems: NavItem[] = [
   }
 ];
 
-export const shouldHideNav = (pathname?: string | null, _isAuthenticated?: boolean) => {
+export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
   if (!pathname) return false;
+  // Hide nav on auth pages
   const authPages = ['/login', '/signup', '/reset-password', '/update-password'];
   if (authPages.includes(pathname)) return true;
+  // Hide nav for non-authenticated users (landing page)
+  if (!isAuthenticated) return true;
   return false;
 };
 
