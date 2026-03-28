@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { Shield, X } from 'lucide-react';
 import { syncConsentRecordWithServer, writeServerConsentRecord } from '@/lib/cookies/cookie-consent-sync';
 import { COOKIE_CATEGORY_COPY } from '@/lib/cookies/cookie-config';
 import {
@@ -228,190 +228,216 @@ export function CookieConsentManager() {
 
   return (
     <>
+      {/* ── Cookie Banner ── */}
       {bannerVisible ? (
         <section
           aria-label="Cookie consent"
-          className="fixed bottom-16 right-4 z-50 w-[min(24.5rem,calc(100vw-1.25rem))] rounded-2xl border border-white/10 bg-[#242528]/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-sm"
+          className="fixed bottom-6 left-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-white/[0.08] bg-[#0d0f11]/90 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:left-auto sm:right-5 sm:translate-x-0"
         >
-          <div className="space-y-3.5">
-            <h2 className="sr-only">Cookies</h2>
-            <p className="text-[1.03rem] font-medium leading-6 text-white/95">
-              We use cookies to collect data and improve our services.{' '}
-              <Link
-                href="/privacy#cookie-policy"
-                className="underline underline-offset-2 transition hover:text-white"
-              >
-                Learn more
-              </Link>
-            </p>
-            <div className="flex items-center gap-3 whitespace-nowrap">
+          <div className="px-5 pt-5 pb-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.04]">
+                <Shield className="h-4 w-4 text-white/50" />
+              </div>
+              <div>
+                <h2 className="text-[0.9rem] font-semibold tracking-tight text-white/90">
+                  Privacy on stableGrid
+                </h2>
+                <p className="mt-1 text-[0.8rem] leading-relaxed text-white/45">
+                  We use cookies for essential functionality and to improve your experience.{' '}
+                  <Link
+                    href="/privacy#cookie-policy"
+                    className="text-white/55 underline underline-offset-2 transition-colors hover:text-white/75"
+                  >
+                    Privacy policy
+                  </Link>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => commitConsent(buildAcceptAllConsentState(), 'banner_accept_all')}
-                className="inline-flex min-w-[6.8rem] justify-center rounded-xl border border-white/20 bg-transparent px-4 py-2 text-[0.97rem] font-medium text-white transition hover:border-white/30 hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="flex-1 rounded-xl bg-white/[0.08] px-4 py-2 text-[0.8rem] font-medium text-white/90 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
-                Accept
+                Accept all
               </button>
               <button
                 type="button"
                 onClick={() => commitConsent(buildRejectAllConsentState(), 'banner_reject_all')}
-                aria-label="Reject all"
-                className="inline-flex min-w-[4.6rem] justify-center rounded-xl border border-transparent px-1 py-2 text-[0.95rem] font-medium text-white/90 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="flex-1 rounded-xl bg-white/[0.04] px-4 py-2 text-[0.8rem] font-medium text-white/50 transition-all hover:bg-white/[0.07] hover:text-white/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
-                Opt out
+                Reject all
               </button>
               <button
                 type="button"
                 onClick={openPreferences}
-                className="inline-flex min-w-[8.8rem] justify-center rounded-xl border border-transparent px-1 py-2 text-[0.95rem] font-medium text-white/65 transition hover:text-white/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="rounded-xl px-3 py-2 text-[0.8rem] font-medium text-white/30 transition-all hover:text-white/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
-                Privacy settings
+                Manage
               </button>
             </div>
           </div>
         </section>
       ) : null}
 
+      {/* ── Privacy Settings Modal ── */}
       {modalOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6">
           <button
             type="button"
             aria-label="Close cookie preferences"
             onClick={() => setModalOpen(false)}
-            className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
 
           <section
             role="dialog"
             aria-modal="true"
             aria-labelledby="cookie-preferences-title"
-            className="relative z-10 w-[calc(100vw-1rem)] max-w-[38rem] max-h-[82vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#151619] shadow-[0_28px_120px_rgba(0,0,0,0.52)]"
+            className="relative z-10 w-[calc(100vw-1.5rem)] max-w-[34rem] max-h-[85vh] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#0d0f11]/95 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
           >
-            <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-              <h2
-                id="cookie-preferences-title"
-                className="text-[1.4rem] font-semibold tracking-tight text-white sm:text-[1.5rem]"
-              >
-                Privacy Settings
-              </h2>
+            {/* Header */}
+            <header className="flex items-center justify-between px-5 pt-5 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.04]">
+                  <Shield className="h-4.5 w-4.5 text-white/50" />
+                </div>
+                <div>
+                  <h2
+                    id="cookie-preferences-title"
+                    className="text-[1rem] font-semibold tracking-tight text-white/90"
+                  >
+                    Privacy settings
+                  </h2>
+                  <p className="text-[0.72rem] text-white/30">stableGrid.io</p>
+                </div>
+              </div>
               <button
                 type="button"
-                aria-label="Close cookie preferences"
+                aria-label="Close"
                 onClick={() => setModalOpen(false)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-white/45 transition hover:border-white/15 hover:text-white/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-white/25 transition-colors hover:bg-white/[0.06] hover:text-white/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </header>
 
-            <div className="divide-y divide-white/10">
-              <div className="grid grid-cols-[auto,minmax(0,1fr)] gap-3 px-4 py-4">
-                <div className="flex items-start pt-1">
+            {/* Divider */}
+            <div className="mx-5 h-px bg-white/[0.06]" />
+
+            {/* Cookie Categories */}
+            <div className="px-5 py-1">
+              {/* Necessary — always on */}
+              <div className="flex items-start gap-4 py-4">
+                <div className="pt-0.5">
                   <button
                     type="button"
                     role="switch"
                     aria-checked="true"
                     disabled
-                    className="relative inline-flex h-8 w-14 items-center rounded-full border border-brand-500/45 bg-brand-700/80 p-1"
+                    className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-emerald-500/25 border border-emerald-500/20 transition"
                   >
-                    <span className="inline-block h-6 w-6 translate-x-6 rounded-full bg-zinc-300 shadow-[0_1px_8px_rgba(0,0,0,0.35)]" />
+                    <span className="inline-block h-4 w-4 translate-x-[1.375rem] rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.3)] transition-transform" />
                     <span className="sr-only">Necessary cookies always active</span>
                   </button>
                 </div>
-                <div className="min-w-0 space-y-1.5">
-                  <p className="text-[1.08rem] font-medium leading-none text-white/92 sm:text-[1.15rem]">
-                    {COOKIE_CATEGORY_COPY.necessary.label}
-                  </p>
-                  <p className="max-w-2xl text-[0.9rem] leading-[1.4] text-white/58 sm:text-[0.95rem]">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[0.85rem] font-medium text-white/80">
+                      {COOKIE_CATEGORY_COPY.necessary.label}
+                    </p>
+                    <span className="rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[0.65rem] font-medium text-white/25">
+                      Required
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[0.78rem] leading-relaxed text-white/35">
                     {COOKIE_CATEGORY_COPY.necessary.description}
                   </p>
-                  <Link
-                    href="/privacy#cookie-policy"
-                    className="inline-block text-[0.9rem] font-medium text-white/62 underline underline-offset-4 transition hover:text-white/85 sm:text-[0.95rem]"
-                  >
-                    Learn more
-                  </Link>
                 </div>
               </div>
 
-              {OPTIONAL_CATEGORIES.map((category) => (
-                <div key={category} className="grid grid-cols-[auto,minmax(0,1fr)] gap-3 px-4 py-4">
-                  <div className="flex items-start pt-1">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={draftConsent[category]}
-                      aria-label={`Enable ${COOKIE_CATEGORY_COPY[category].label} cookies`}
-                      onClick={() => {
-                        setDraftConsent((current) =>
-                          normalizeConsentState({
-                            ...current,
-                            [category]: !current[category]
-                          })
-                        );
-                      }}
-                      className={`relative inline-flex h-8 w-14 items-center rounded-full border p-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-                        draftConsent[category]
-                          ? 'border-brand-500/45 bg-brand-700/80'
-                          : 'border-white/10 bg-[#2b2c31]'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-6 w-6 rounded-full bg-zinc-200 shadow-[0_1px_8px_rgba(0,0,0,0.35)] transition-transform ${
-                          draftConsent[category] ? 'translate-x-6' : 'translate-x-0'
+              {/* Divider */}
+              <div className="h-px bg-white/[0.04]" />
+
+              {/* Optional categories */}
+              {OPTIONAL_CATEGORIES.map((category, index) => (
+                <div key={category}>
+                  <div className="flex items-start gap-4 py-4">
+                    <div className="pt-0.5">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={draftConsent[category]}
+                        aria-label={`Enable ${COOKIE_CATEGORY_COPY[category].label} cookies`}
+                        onClick={() => {
+                          setDraftConsent((current) =>
+                            normalizeConsentState({
+                              ...current,
+                              [category]: !current[category]
+                            })
+                          );
+                        }}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                          draftConsent[category]
+                            ? 'border-emerald-500/20 bg-emerald-500/25'
+                            : 'border-white/[0.08] bg-white/[0.04]'
                         }`}
-                      />
-                    </button>
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 rounded-full shadow-sm transition-all ${
+                            draftConsent[category]
+                              ? 'translate-x-[1.375rem] bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.3)]'
+                              : 'translate-x-[0.2rem] bg-white/30'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[0.85rem] font-medium text-white/70">
+                        {COOKIE_CATEGORY_COPY[category].label}
+                      </p>
+                      <p className="mt-1 text-[0.78rem] leading-relaxed text-white/35">
+                        {COOKIE_CATEGORY_COPY[category].description}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0 space-y-1.5">
-                    <p className="text-[1.08rem] font-medium leading-none text-white/84 sm:text-[1.15rem]">
-                      {COOKIE_CATEGORY_COPY[category].label}
-                    </p>
-                    <p className="max-w-2xl text-[0.9rem] leading-[1.4] text-white/58 sm:text-[0.95rem]">
-                      {COOKIE_CATEGORY_COPY[category].description}
-                    </p>
-                    <Link
-                      href="/privacy#cookie-policy"
-                      className="inline-block text-[0.9rem] font-medium text-white/62 underline underline-offset-4 transition hover:text-white/85 sm:text-[0.95rem]"
-                    >
-                      Learn more
-                    </Link>
-                  </div>
+                  {index < OPTIONAL_CATEGORIES.length - 1 ? (
+                    <div className="h-px bg-white/[0.04]" />
+                  ) : null}
                 </div>
               ))}
             </div>
 
-            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
-              <div className="flex items-center gap-3 text-xs">
+            {/* Divider */}
+            <div className="mx-5 h-px bg-white/[0.06]" />
+
+            {/* Footer */}
+            <footer className="flex items-center justify-between gap-3 px-5 py-4">
+              <Link
+                href="/privacy#cookie-policy"
+                className="text-[0.75rem] text-white/25 underline underline-offset-2 transition-colors hover:text-white/45"
+              >
+                Cookie policy
+              </Link>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setDraftConsent(buildRejectAllConsentState())}
-                  className="text-white/55 transition hover:text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  onClick={() => {
+                    setDraftConsent(buildRejectAllConsentState());
+                    commitConsent(buildRejectAllConsentState(), 'preferences_reject_all');
+                  }}
+                  className="rounded-xl px-3.5 py-2 text-[0.8rem] font-medium text-white/35 transition-all hover:bg-white/[0.04] hover:text-white/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 >
                   Reject all
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDraftConsent(buildAcceptAllConsentState())}
-                  className="text-white/55 transition hover:text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                >
-                  Accept all
-                </button>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="inline-flex h-9 items-center justify-center rounded-xl border border-white/12 bg-[#2a2b31] px-4 text-sm font-medium text-white/85 transition hover:bg-[#32343a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
                   onClick={() => commitConsent(draftConsent, 'preferences_save')}
-                  className="inline-flex h-9 items-center justify-center rounded-xl border border-brand-500/55 bg-brand-700/85 px-5 text-sm font-medium text-white transition hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  className="rounded-xl bg-white/[0.08] px-5 py-2 text-[0.8rem] font-medium text-white/85 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 >
-                  Confirm
+                  Save preferences
                 </button>
               </div>
             </footer>

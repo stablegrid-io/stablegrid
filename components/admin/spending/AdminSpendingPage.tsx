@@ -688,7 +688,7 @@ export function AdminSpendingPage() {
                       <Tooltip
                         contentStyle={tooltipContentStyle}
                         cursor={{ stroke: 'rgba(251,113,133,0.15)' }}
-                        formatter={(value: number) => [fmt(value), 'Spent']}
+                        formatter={(value) => [fmt(Number(value ?? 0)), 'Spent']}
                       />
                       <Line
                         type="monotone"

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Clock3, Menu, X } from 'lucide-react';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
@@ -22,10 +23,20 @@ import {
 } from '@/lib/stores/useTheorySessionPreferencesStore';
 import { TheorySidebar } from '@/components/learn/theory/TheorySidebar';
 import { TheoryContent } from '@/components/learn/theory/TheoryContent';
-import { TheorySessionPicker } from '@/components/learn/theory/TheorySessionPicker';
 import { TheorySessionTopbar } from '@/components/learn/theory/TheorySessionTopbar';
-import { TheoryBreakOverlay } from '@/components/learn/theory/TheoryBreakOverlay';
-import { TheorySessionSummary } from '@/components/learn/theory/TheorySessionSummary';
+
+const TheorySessionPicker = dynamic(
+  () => import('@/components/learn/theory/TheorySessionPicker').then((m) => m.TheorySessionPicker),
+  { ssr: false }
+);
+const TheoryBreakOverlay = dynamic(
+  () => import('@/components/learn/theory/TheoryBreakOverlay').then((m) => m.TheoryBreakOverlay),
+  { ssr: false }
+);
+const TheorySessionSummary = dynamic(
+  () => import('@/components/learn/theory/TheorySessionSummary').then((m) => m.TheorySessionSummary),
+  { ssr: false }
+);
 import {
   getModuleCheckpointQuestions,
   isModuleCheckpointLesson
@@ -36,7 +47,10 @@ import {
 } from '@/lib/learn/freezeTheoryDoc';
 import { useAdminStatus } from '@/lib/hooks/useAdminStatus';
 import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
-import { ReadingModeDropdown } from '@/components/learn/theory/ReadingModeDropdown';
+const ReadingModeDropdown = dynamic(
+  () => import('@/components/learn/theory/ReadingModeDropdown').then((m) => m.ReadingModeDropdown),
+  { ssr: false }
+);
 
 const SessionExitModal = ({
   onContinue,

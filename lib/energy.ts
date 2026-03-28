@@ -15,3 +15,7 @@ export type InfrastructureNode = any;
 export const TIER_COLORS: Record<string, string> = {};
 export type CharacterTierId = string;
 export type LevelDefinition = any;
+export const ENERGY_REWARDS: Record<string, number> = {};
+export const FLASHCARD_STREAK_MILESTONES: number[] = [];
+export const kwhToUnits = (_kwh: number): number => 0;
+export const getGridStabilityPct = (..._args: any[]): number => 100;

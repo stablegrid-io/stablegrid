@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type SequencePerformanceMode = 'full' | 'balanced';
 
@@ -31,11 +31,11 @@ interface DrawState {
 export const TRANSMISSION_LINE_SEQUENCE_CONFIG: SequenceConfig = {
   basePath: '/transmission_line',
   frameCount: 80,
-  fileExtension: 'jpg',
+  fileExtension: 'webp',
   zeroPad: 5,
   reducedMotionFrame: 40,
   scrollResponse: 1.32,
-  assetVersion: '20260310-tower-line-80'
+  assetVersion: '20260328-tower-line-80-webp'
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -113,6 +113,7 @@ export function TransmissionLineSequenceBackground({
   frameOverride = null,
   minimumFrame
 }: TransmissionLineSequenceBackgroundProps) {
+  const [canvasReady, setCanvasReady] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const imageCacheRef = useRef(new Map<number, HTMLImageElement>());
@@ -265,6 +266,7 @@ export function TransmissionLineSequenceBackground({
         width: targetWidth,
         height: targetHeight
       };
+      setCanvasReady(true);
     },
     [performanceMode]
   );
@@ -420,11 +422,26 @@ export function TransmissionLineSequenceBackground({
     [clearIdlePreload]
   );
 
+  const firstFrameSrc = formatFramePath(1);
+
   return (
-    <canvas
-      ref={canvasRef}
-      className="h-full w-full bg-black"
-      aria-hidden="true"
-    />
+    <>
+      {/* Static fallback — visible immediately, hidden once canvas draws */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={firstFrameSrc}
+        alt=""
+        aria-hidden
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ opacity: canvasReady ? 0 : 1, transition: 'opacity 0.3s' }}
+        width={1920}
+        height={1080}
+      />
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 h-full w-full bg-black"
+        aria-hidden="true"
+      />
+    </>
   );
 }

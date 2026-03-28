@@ -72,7 +72,7 @@ export function DispatcherPanel() {
                 This is Control. Your grid is live.
               </p>
               <p className="mt-1.5 text-[12.5px] leading-relaxed text-brand-100/80">
-                I'll brief you on incidents and missions as they arise. Keep the stability high —
+                I&apos;ll brief you on incidents and missions as they arise. Keep the stability high —
                 the region is counting on you.
               </p>
             </div>

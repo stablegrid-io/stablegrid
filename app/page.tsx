@@ -9,10 +9,7 @@ import {
 import type { Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import { buildTrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
-
-const LandingPage = dynamic(() =>
-  import('@/components/home/LandingPage').then((module) => module.LandingPage)
-);
+import { LandingPage } from '@/components/home/LandingPage';
 
 const HomeDashboard = dynamic(() =>
   import('@/components/home/HomeDashboard').then((module) => module.HomeDashboard)
@@ -74,7 +71,8 @@ interface HomeLatestTaskAction {
 const TRACK_TOPICS: Topic[] = ['pyspark', 'fabric'];
 const ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC: Record<Topic, string> = {
   pyspark: '245,158,11',
-  fabric: '34,185,153'
+  fabric: '34,185,153',
+  airflow: '139,92,246'
 };
 const DEFAULT_TASKS_ACCENT_RGB = '34,185,153';
 

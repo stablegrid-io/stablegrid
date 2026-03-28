@@ -299,17 +299,9 @@ export function LearnModeTopicSelector({
               const borderAccent = `rgba(${style.accentRgb},0.2)`;
               const borderAccentInner = `rgba(${style.accentRgb},0.1)`;
 
-              const Wrapper = hasContent ? Link : 'div';
-              const wrapperProps = hasContent
-                ? { href: `/learn/${topic.id}/${mode}` as const }
-                : {};
-
-              return (
-                <Wrapper
-                  key={`${mode}-${topic.id}`}
-                  {...(wrapperProps as Record<string, string>)}
-                  className={`group h-full ${hasContent ? '' : 'cursor-default'}`}
-                >
+              const wrapperClassName = `group h-full ${hasContent ? '' : 'cursor-default'}`;
+              const wrapperKey = `${mode}-${topic.id}`;
+              const cardInner = (
                   <section
                     className="bg-surface-container-low p-1 relative overflow-hidden transition-all duration-300 h-full"
                     style={{
@@ -454,7 +446,16 @@ export function LearnModeTopicSelector({
                       </div>
                     </div>
                   </section>
-                </Wrapper>
+              );
+
+              return hasContent ? (
+                <Link key={wrapperKey} href={`/learn/${topic.id}/${mode}`} className={wrapperClassName}>
+                  {cardInner}
+                </Link>
+              ) : (
+                <div key={wrapperKey} className={wrapperClassName}>
+                  {cardInner}
+                </div>
               );
             })}
           </div>

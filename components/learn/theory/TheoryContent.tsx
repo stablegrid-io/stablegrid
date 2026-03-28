@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { TheoryChapter, TheorySection as TheorySectionType } from '@/types/theory';
@@ -9,8 +10,12 @@ import {
   TheorySection,
   shouldTrackReadingBlock
 } from '@/components/learn/theory/TheorySection';
-import { TheoryModuleCheckpoint } from '@/components/learn/theory/TheoryModuleCheckpoint';
 import { TheoryLessonIntro } from '@/components/learn/theory/TheoryLessonReading';
+
+const TheoryModuleCheckpoint = dynamic(
+  () => import('@/components/learn/theory/TheoryModuleCheckpoint').then((m) => m.TheoryModuleCheckpoint),
+  { ssr: false }
+);
 import { isModuleCheckpointLesson } from '@/lib/learn/moduleCheckpoints';
 import {
   getDisplayLessonTitle,

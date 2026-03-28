@@ -954,7 +954,7 @@ export function AdminAnalyticsSection({
         trendPoints,
         icon: visual.icon,
         accentClasses: visual.accentClasses,
-        valueFormat:
+        valueFormat: (
           metric.id === 'sales'
             ? 'currency_eur'
             : metric.id === 'average_session_duration' ||
@@ -962,6 +962,7 @@ export function AdminAnalyticsSection({
                 metric.id === 'average_task_time'
               ? 'duration_seconds'
               : 'number'
+        ) as 'number' | 'currency_eur' | 'duration_seconds'
       };
     });
   }, [analytics?.trend, primaryMetrics]);

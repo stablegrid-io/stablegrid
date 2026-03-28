@@ -18,7 +18,16 @@ import { snowflakeData } from '@/data/learn/snowflake';
 import { terraformData } from '@/data/learn/terraform';
 import { spark_streamingData } from '@/data/learn/spark-streaming';
 import { governanceData } from '@/data/learn/governance';
-import { getTheoryMeta } from '@/data/learn/theory';
+// Pre-computed theory meta to avoid importing 6.2 MB of theory JSON into client bundles.
+// Update these when theory content changes significantly.
+const THEORY_META: Record<string, { chapterCount: number; totalMinutes: number; version: string }> = {
+  pyspark: { chapterCount: 10, totalMinutes: 2585, version: '1.0' },
+  fabric: { chapterCount: 10, totalMinutes: 2530, version: '1.0' },
+  airflow: { chapterCount: 10, totalMinutes: 2560, version: '1.0' },
+  sql: { chapterCount: 1, totalMinutes: 250, version: '1.0' },
+};
+
+const getTheoryMeta = (topic: string) => THEORY_META[topic] ?? null;
 
 export const cheatSheets: Record<string, CheatSheet> = {
   pyspark: pysparkData,

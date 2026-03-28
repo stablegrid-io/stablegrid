@@ -6,6 +6,7 @@ import type {
 } from '@/lib/activation/service';
 import {
   ADMIN_CONTENT_TYPES,
+  type AdminContentType,
   type AdminAnalyticsPeriod,
   type AdminAnalyticsDecisionTree,
   type AdminAnalyticsKpi,
@@ -342,7 +343,7 @@ const isMissingRelationError = (error: { message?: string } | null) => {
 
 const isAdminContentType = (value: unknown): value is ActivationContentType =>
   typeof value === 'string' &&
-  ADMIN_CONTENT_TYPES.includes(value as ActivationContentType);
+  (ADMIN_CONTENT_TYPES as readonly string[]).includes(value);
 
 const normalizeRequiredText = (value: string | undefined, fieldLabel: string) => {
   const normalized = value?.trim();
@@ -621,7 +622,7 @@ const mapBugReportRow = (
   const parsed = parseBugDetailsWithContext(row.details);
   const categoryLabel = parsed.categoryLabel ?? 'Other';
   const areaLabel = parsed.areaLabel ?? null;
-  const module = areaLabel
+  const bugModule = areaLabel
     ? BUG_MODULE_BY_AREA_LABEL[areaLabel] ?? areaLabel
     : inferBugModuleFromPageUrl(row.page_url);
   const profile = profileById.get(row.user_id);
@@ -640,7 +641,7 @@ const mapBugReportRow = (
     status: BUG_STATUS_LABEL_BY_DB[statusDb],
     statusDb,
     submittedAt: row.created_at,
-    module,
+    module: bugModule,
     browser: inferBrowserFromUserAgent(row.user_agent),
     device: inferDeviceFromUserAgent(row.user_agent),
     stepsToReproduce: null,
@@ -999,7 +1000,7 @@ const mapBugReportRowToAdminFeedback = ({
   triageRow?: FeedbackTriageRow | null;
 }): AdminFeedbackRecord => {
   const parsed = parseBugDetailsWithContext(row.details);
-  const module = parsed.areaLabel
+  const feedbackModule = parsed.areaLabel
     ? BUG_MODULE_BY_AREA_LABEL[parsed.areaLabel] ?? parsed.areaLabel
     : inferBugModuleFromPageUrl(row.page_url);
   const category = normalizeFeedbackCategoryFromBugLabel(parsed.categoryLabel);
@@ -1031,14 +1032,14 @@ const mapBugReportRowToAdminFeedback = ({
     sentiment: 'Negative',
     category,
     status: resolveBugFeedbackStatus({ row, triageRow }),
-    module,
+    module: feedbackModule,
     linkedPage,
     preview: buildShortDescription(row.title),
     message: description,
     internalNotes: getFeedbackNotes(triageRow),
     keywords: extractKeywordsFromText(`${row.title} ${description}`, [
       category,
-      module,
+      feedbackModule,
       'bug report'
     ])
   };
@@ -1060,10 +1061,10 @@ const mapProductFunnelEventToAdminFeedback = ({
     sessionId: row.session_id
   });
   const linkedPage = row.path?.trim() || 'Unknown';
-  const module = normalizeFeedbackModuleFromPath(row.path);
+  const lbModule = normalizeFeedbackModuleFromPath(row.path);
   const category = normalizeLightbulbCategory({
     contextType: metadata.contextType,
-    module
+    module: lbModule
   });
 
   return {
@@ -1078,11 +1079,11 @@ const mapProductFunnelEventToAdminFeedback = ({
     sentiment: LIGHTBULB_FEEDBACK_SENTIMENT_BY_VALUE[metadata.value],
     category,
     status: triageRow ? FEEDBACK_STATUS_LABEL_BY_DB[triageRow.status] : 'Submitted',
-    module,
+    module: lbModule,
     linkedPage,
     preview: buildLightbulbPreview({
       category,
-      module,
+      module: lbModule,
       value: metadata.value
     }),
     message: buildLightbulbMessage({
@@ -1090,17 +1091,17 @@ const mapProductFunnelEventToAdminFeedback = ({
       contextId: metadata.contextId,
       contextType: metadata.contextType,
       linkedPage,
-      module,
+      module: lbModule,
       value: metadata.value
     }),
     internalNotes: getFeedbackNotes(triageRow),
     keywords: extractKeywordsFromText(
-      [category, module, metadata.contextType, metadata.contextId]
+      [category, lbModule, metadata.contextType, metadata.contextId]
         .filter(Boolean)
         .join(' '),
       [
         category,
-        module,
+        lbModule,
         metadata.contextType ?? 'general',
         LIGHTBULB_FEEDBACK_VALUE_TO_LABEL[metadata.value]
       ]
@@ -1238,12 +1239,13 @@ const mergeDistinctUserIds = (...sources: Array<Array<{ user_id: string }>>) =>
 
 const pushTimestampedActivity = (
   target: UserActivityRow[],
-  rows: Array<Record<string, unknown>>,
+  rows: Array<Record<string, unknown> | object>,
   key: string
 ) => {
   rows.forEach((row) => {
-    const userId = typeof row.user_id === 'string' ? row.user_id : null;
-    const timestampValue = row[key];
+    const r = row as Record<string, unknown>;
+    const userId = typeof r.user_id === 'string' ? r.user_id : null;
+    const timestampValue = r[key];
     const timestamp = typeof timestampValue === 'string' ? timestampValue : null;
 
     if (!userId || !timestamp) {
@@ -1259,13 +1261,14 @@ const pushTimestampedActivity = (
 
 const pushTopicTimestampedActivity = (
   target: TopicActivityRow[],
-  rows: Array<Record<string, unknown>>,
+  rows: Array<Record<string, unknown> | object>,
   key: string
 ) => {
   rows.forEach((row) => {
-    const userId = typeof row.user_id === 'string' ? row.user_id : null;
-    const topic = typeof row.topic === 'string' ? row.topic : null;
-    const timestampValue = row[key];
+    const r = row as Record<string, unknown>;
+    const userId = typeof r.user_id === 'string' ? r.user_id : null;
+    const topic = typeof r.topic === 'string' ? r.topic : null;
+    const timestampValue = r[key];
     const timestamp = typeof timestampValue === 'string' ? timestampValue : null;
 
     if (!userId || !topic || !timestamp) {
@@ -1424,7 +1427,7 @@ const mapContentItemRow = (row: ContentItemRow): AdminContentItemRecord => ({
   trackId: row.track_id,
   trackSlug: row.tracks?.slug ?? null,
   trackTitle: row.tracks?.title ?? null,
-  contentType: row.content_type,
+  contentType: row.content_type as AdminContentType,
   sourceRef: row.source_ref,
   title: row.title,
   sequenceOrder: row.sequence_order,
@@ -2009,12 +2012,12 @@ export const listAdminAnalytics = async (
   pushTimestampedActivity(recentActivityRows, topicProgressRows, 'last_activity_at');
   pushTimestampedActivity(
     recentActivityRows,
-    moduleProgressResult.rows as Array<Record<string, unknown>>,
+    moduleProgressResult.rows,
     'updated_at'
   );
   pushTimestampedActivity(
     recentActivityRows,
-    lessonHistoryRows as Array<Record<string, unknown>>,
+    lessonHistoryRows,
     'read_at'
   );
 
@@ -2074,7 +2077,7 @@ export const listAdminAnalytics = async (
         typeof row.created_at === 'string' && isWithinRange(row.created_at, start, end)
     ).length;
 
-  const countRowsInRange = <T extends Record<string, unknown>>(
+  const countRowsInRange = <T extends object>(
     rows: T[],
     key: keyof T,
     start: string | null,
@@ -2423,12 +2426,12 @@ export const listAdminAnalytics = async (
   );
   pushTopicTimestampedActivity(
     recentTopicActivityRows,
-    moduleProgressResult.rows as Array<Record<string, unknown>>,
+    moduleProgressResult.rows,
     'updated_at'
   );
   pushTopicTimestampedActivity(
     recentTopicActivityRows,
-    lessonHistoryRows as Array<Record<string, unknown>>,
+    lessonHistoryRows,
     'read_at'
   );
 
