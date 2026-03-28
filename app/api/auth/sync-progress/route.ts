@@ -118,13 +118,13 @@ export async function GET(request: Request) {
       enforceRateLimit({
         scope: 'sync_progress_get_user',
         key: user.id,
-        limit: 240,
+        limit: 60,
         windowSeconds: 5 * 60
       }),
       enforceRateLimit({
         scope: 'sync_progress_get_ip',
         key: getClientIp(request),
-        limit: 480,
+        limit: 120,
         windowSeconds: 5 * 60
       })
     ]);
@@ -196,13 +196,13 @@ export async function POST(request: Request) {
       enforceRateLimit({
         scope: 'sync_progress_post_user',
         key: user.id,
-        limit: 120,
+        limit: 30,
         windowSeconds: 5 * 60
       }),
       enforceRateLimit({
         scope: 'sync_progress_post_ip',
         key: clientIp,
-        limit: 240,
+        limit: 60,
         windowSeconds: 5 * 60
       })
     ]);

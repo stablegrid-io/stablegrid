@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { enforceRateLimit, getClientIp } from '@/lib/api/protection';
 import { createClient } from '@/lib/supabase/server';
 import { getCanonicalTheoryStats } from '@/lib/learn/theoryProgress';
 import { buildWorkerCareerSnapshot } from '@/lib/progressCareer';
@@ -195,7 +196,7 @@ const getNextShiftStep = (
   };
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = createClient();
   const {
     data: { user },
@@ -205,6 +206,11 @@ export async function GET() {
   if (userError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await Promise.all([
+    enforceRateLimit({ scope: 'profile_shift_summary_user', key: user.id, limit: 30, windowSeconds: 300 }),
+    enforceRateLimit({ scope: 'profile_shift_summary_ip', key: getClientIp(request), limit: 60, windowSeconds: 300 }),
+  ]);
 
   const [topicProgressResult, missionsResult, userProgressResult] = await Promise.all([
     supabase

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { enforceRateLimit, getClientIp } from '@/lib/api/protection';
 import { createClient } from '@/lib/supabase/server';
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   const supabase = createClient();
   const {
     data: { user }
@@ -11,6 +12,11 @@ export async function DELETE() {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await Promise.all([
+    enforceRateLimit({ scope: 'gdpr_delete_user', key: user.id, limit: 2, windowSeconds: 3600 }),
+    enforceRateLimit({ scope: 'gdpr_delete_ip', key: getClientIp(request), limit: 5, windowSeconds: 3600 }),
+  ]);
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

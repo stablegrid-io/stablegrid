@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { enforceRateLimit, getClientIp } from '@/lib/api/protection';
 import { GRID_OPS_ASSET_BY_ID, GRID_OPS_DEFAULT_SCENARIO, isValidScenarioId } from '@/lib/grid-ops/config';
 import {
   computeGridOpsState,
@@ -37,6 +38,11 @@ export async function GET(request: Request) {
   if (userError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await Promise.all([
+    enforceRateLimit({ scope: 'grid_ops_state_user', key: user.id, limit: 60, windowSeconds: 300 }),
+    enforceRateLimit({ scope: 'grid_ops_state_ip', key: getClientIp(request), limit: 120, windowSeconds: 300 }),
+  ]);
 
   const url = new URL(request.url);
   const scenarioParam = url.searchParams.get('scenario');

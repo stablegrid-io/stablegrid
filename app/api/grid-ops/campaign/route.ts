@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { enforceRateLimit, getClientIp } from '@/lib/api/protection';
 import {
   GRID_OPS_CAMPAIGN,
   GRID_OPS_DEFAULT_SCENARIO,
@@ -47,7 +48,7 @@ const fetchAllScenarioRows = async ({
   return map;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = createClient();
   const {
     data: { user },
@@ -57,6 +58,11 @@ export async function GET() {
   if (userError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await Promise.all([
+    enforceRateLimit({ scope: 'grid_ops_campaign_user', key: user.id, limit: 30, windowSeconds: 300 }),
+    enforceRateLimit({ scope: 'grid_ops_campaign_ip', key: getClientIp(request), limit: 60, windowSeconds: 300 }),
+  ]);
 
   try {
     const [userProgress, stateRows] = await Promise.all([

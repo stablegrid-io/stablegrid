@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
+import { enforceRateLimit, getClientIp } from '@/lib/api/protection';
 
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -20,6 +21,11 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await Promise.all([
+    enforceRateLimit({ scope: 'stripe_checkout_user', key: user.id, limit: 5, windowSeconds: 15 * 60 }),
+    enforceRateLimit({ scope: 'stripe_checkout_ip', key: getClientIp(request), limit: 10, windowSeconds: 15 * 60 }),
+  ]);
 
   const priceId = process.env.STRIPE_PRO_PRICE_ID;
   if (!priceId) {

@@ -212,22 +212,25 @@ const failIdempotentRequest = async (
 };
 
 export const getClientIp = (request: Request) => {
+  // Prefer Cloudflare's header (cannot be spoofed when behind CF)
+  const cloudflareIp = request.headers.get('cf-connecting-ip');
+  if (cloudflareIp?.trim()) {
+    return cloudflareIp.trim();
+  }
+
+  // Vercel's trusted header
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp?.trim()) {
+    return realIp.trim();
+  }
+
+  // Fallback — least trusted, can be spoofed if not behind a trusted proxy
   const forwardedFor = request.headers.get('x-forwarded-for');
   if (forwardedFor) {
     const [ip] = forwardedFor.split(',');
     if (ip?.trim()) {
       return ip.trim();
     }
-  }
-
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp?.trim()) {
-    return realIp.trim();
-  }
-
-  const cloudflareIp = request.headers.get('cf-connecting-ip');
-  if (cloudflareIp?.trim()) {
-    return cloudflareIp.trim();
   }
 
   return null;
@@ -253,14 +256,14 @@ export const enforceRateLimit = async ({
   limit,
   windowSeconds
 }: RateLimitOptions) => {
-  if (!key || key.trim().length === 0) {
-    return null;
-  }
+  // Use a global fallback key when IP/user key is unavailable
+  // This prevents silent rate-limit bypass when headers are missing
+  const resolvedKey = key && key.trim().length > 0 ? key.trim() : `__global_${scope}`;
 
   const admin = createAdminClient();
   const { data, error } = await admin.rpc('apply_api_rate_limit', {
     p_scope: scope,
-    p_key_hash: hashValue(key),
+    p_key_hash: hashValue(resolvedKey),
     p_limit: limit,
     p_window_seconds: windowSeconds
   });

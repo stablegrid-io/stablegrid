@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       enforceRateLimit({
         scope: 'analytics_events_ip',
         key: clientIp,
-        limit: 400,
+        limit: 120,
         windowSeconds: 5 * 60
       })
     ]);

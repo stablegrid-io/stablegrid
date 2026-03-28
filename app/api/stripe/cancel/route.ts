@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { enforceRateLimit, getClientIp } from '@/lib/api/protection';
 import { createClient } from '@/lib/supabase/server';
 
 function getStripeClient() {
@@ -11,7 +12,7 @@ function getStripeClient() {
   return new Stripe(secretKey);
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const supabase = createClient();
   const {
     data: { user }
@@ -20,6 +21,11 @@ export async function POST() {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await Promise.all([
+    enforceRateLimit({ scope: 'stripe_cancel_user', key: user.id, limit: 5, windowSeconds: 900 }),
+    enforceRateLimit({ scope: 'stripe_cancel_ip', key: getClientIp(request), limit: 10, windowSeconds: 900 }),
+  ]);
 
   try {
     const { data: subscription, error } = await supabase
