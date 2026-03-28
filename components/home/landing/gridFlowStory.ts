@@ -1,4 +1,4 @@
-'use client';
+
 
 export type GridFlowChapterVariant = 'intro' | 'story' | 'final';
 export type GridFlowChapterAlign = 'left' | 'right' | 'center';

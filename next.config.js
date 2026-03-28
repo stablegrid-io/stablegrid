@@ -4,7 +4,7 @@ const path = require('path');
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    optimizePackageImports: ['lucide-react', 'date-fns']
+    optimizePackageImports: ['lucide-react', 'date-fns', 'recharts', 'framer-motion']
   },
   webpack: (config, { isServer }) => {
     config.resolve.alias = {
@@ -37,7 +37,7 @@ const nextConfig = {
               reuseExistingChunk: true
             },
             vendorViz: {
-              test: /[\\/]node_modules[\\/](three|@react-three|recharts|d3|d3-[^\\/]+|plotly\\.js|plotly\\.js-dist-min)[\\/]/,
+              test: /[\\/]node_modules[\\/](recharts|d3|d3-[^\\/]+)[\\/]/,
               name: 'vendor-viz',
               chunks: 'all',
               priority: 45,

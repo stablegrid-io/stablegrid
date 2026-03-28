@@ -1,14 +1,35 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { Space_Grotesk, JetBrains_Mono, Inter } from 'next/font/google';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { CookieConsentManager } from '@/components/cookies/CookieConsentManager';
 import { Navigation } from '@/components/navigation/Navigation';
 
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space-grotesk',
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  weight: ['400', '500', '700'],
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: 'stableGrid',
   description:
-    'Earn kWh deployment credits through data engineering tasks and deploy infrastructure to stabilize a renewable grid simulation.',
+    'Premium data engineering learning platform — master PySpark, Fabric, Airflow, SQL, and more through structured theory tracks.',
   icons: {
     icon: '/icon.svg',
     shortcut: '/icon.svg'
@@ -21,13 +42,7 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={`dark ${spaceGrotesk.variable} ${jetbrainsMono.variable} ${inter.variable}`}>
       <body className="min-h-screen font-sans text-on-surface">
         <CookieConsentManager />
         <AuthProvider>

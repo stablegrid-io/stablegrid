@@ -13,7 +13,12 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(lib/admin/activation.ts:*)",
-      "Bash(__NEW_LINE_22d599b4feda7555__ echo:*)"
+      "Bash(__NEW_LINE_22d599b4feda7555__ echo:*)",
+      "Bash(du -sh /Users/nedasvaitkus/Desktop/grid/data/learn/theory/published/*.json)",
+      "Bash(du -sh /Users/nedasvaitkus/Desktop/grid/public/*)",
+      "Bash(ls /Users/nedasvaitkus/Desktop/grid/public/transmission_line/*.jpg)",
+      "Read(//Users/nedasvaitkus/Desktop/grid/{sum+=$1; count++} END {print sum/**)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

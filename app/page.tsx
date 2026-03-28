@@ -363,11 +363,10 @@ export default async function RootPage() {
 
   const userId = user.id;
 
+  // 3 queries instead of 5 — derive recentSessions and readingSignals from allSessions
   const [
     topicProgressResult,
-    recentSessionsResult,
     allReadingSessionsResult,
-    readingSignalsResult,
     userProgressResult
   ] =
     await Promise.all([
@@ -382,28 +381,7 @@ export default async function RootPage() {
         .select(
           'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,completed_lesson_ids,lesson_seconds_by_id,active_seconds,is_completed'
         )
-        .eq('user_id', userId)
-        .eq('is_completed', false)
-        .order('last_active_at', { ascending: false })
-        .limit(3),
-      supabase
-        .from('reading_sessions')
-        .select(
-          'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,completed_lesson_ids,lesson_seconds_by_id,active_seconds,is_completed'
-        )
         .eq('user_id', userId),
-      supabase
-        .from('reading_sessions')
-        .select(
-          'last_active_at,completed_at,is_completed'
-        )
-        .eq('user_id', userId)
-        .gte(
-          'last_active_at',
-          new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
-        )
-        .order('last_active_at', { ascending: false })
-        .limit(120),
       supabase
         .from('user_progress')
         .select('xp, streak, completed_questions, topic_progress, last_activity, updated_at')
@@ -412,10 +390,20 @@ export default async function RootPage() {
     ]);
 
   const topicProgressRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
-  const recentSessionRows = (recentSessionsResult.data ?? []) as ReadingSessionRowLike[];
   const allReadingSessionRows = (allReadingSessionsResult.data ?? []) as ReadingSessionRowLike[];
-  const readingSignalRows = (readingSignalsResult.data ?? []) as ReadingSignalRow[];
   const userProgress = (userProgressResult.data ?? null) as UserProgressRow | null;
+
+  // Derive subsets from the single reading_sessions query
+  const recentSessionRows = allReadingSessionRows
+    .filter((r) => !r.is_completed)
+    .sort((a, b) => Date.parse(String(b.last_active_at ?? '')) - Date.parse(String(a.last_active_at ?? '')))
+    .slice(0, 3) as ReadingSessionRowLike[];
+
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const readingSignalRows = allReadingSessionRows
+    .filter((r) => String(r.last_active_at ?? '') >= fourteenDaysAgo)
+    .sort((a, b) => Date.parse(String(b.last_active_at ?? '')) - Date.parse(String(a.last_active_at ?? '')))
+    .slice(0, 120) as ReadingSignalRow[];
 
   const theorySummaryByTopic = buildTheorySummaryByTopic(allReadingSessionRows);
   const topicProgress = topicProgressRows.map((row) => {
