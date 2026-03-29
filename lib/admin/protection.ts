@@ -6,6 +6,32 @@ import {
   runIdempotentJsonRequest
 } from '@/lib/api/protection';
 
+const DEFAULT_ADMIN_READ_WINDOW_SECONDS = 60;
+const DEFAULT_ADMIN_READ_USER_LIMIT = 30;
+const DEFAULT_ADMIN_READ_IP_LIMIT = 60;
+
+export const enforceAdminReadRateLimit = async (
+  request: Request,
+  adminUserId: string,
+  scope: string
+) => {
+  const clientIp = getClientIp(request);
+  await Promise.all([
+    enforceRateLimit({
+      scope: `${scope}_admin_read_user`,
+      key: adminUserId,
+      limit: DEFAULT_ADMIN_READ_USER_LIMIT,
+      windowSeconds: DEFAULT_ADMIN_READ_WINDOW_SECONDS
+    }),
+    enforceRateLimit({
+      scope: `${scope}_admin_read_ip`,
+      key: clientIp,
+      limit: DEFAULT_ADMIN_READ_IP_LIMIT,
+      windowSeconds: DEFAULT_ADMIN_READ_WINDOW_SECONDS
+    })
+  ]);
+};
+
 interface AdminProtectedMutationOptions<TResponse extends JsonObject> {
   adminUserId: string;
   execute: () => Promise<{

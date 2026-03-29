@@ -306,6 +306,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const [progressIssue, setProgressIssue] = useState<ProgressIssueState | null>(null);
   const [progressReloadToken, setProgressReloadToken] = useState(0);
   const lastTouchedRouteRef = useRef<string>('');
+  const syncFailCountRef = useRef(0);
   const lastTrackedChapterStartRef = useRef<string | null>(null);
   const sessionPickerInitializedRef = useRef(false);
   const addXP = useProgressStore((state) => state.addXP);
@@ -850,13 +851,19 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       moduleId: activeChapter.id,
       currentLessonId: activeLessonId,
       lastVisitedRoute: persistedRoute
+    }).then(() => {
+      syncFailCountRef.current = 0;
     }).catch((error) => {
+      syncFailCountRef.current += 1;
       console.warn('Failed to persist module route:', error);
-      setProgressIssue({
-        kind: 'sync',
-        message:
-          'Recent progress did not sync yet. Keep reading and retry to persist your latest route.'
-      });
+      if (syncFailCountRef.current >= 3) {
+        setProgressIssue({
+          kind: 'sync',
+          message:
+            'Progress sync temporarily unavailable. Your reading is not affected.'
+        });
+        setTimeout(() => setProgressIssue((current) => current?.kind === 'sync' ? null : current), 5000);
+      }
     });
   }, [
     activeChapter.id,
@@ -1101,16 +1108,16 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       {progressIssue ? (
         <div
           data-testid="theory-progress-recovery"
-          className="flex flex-wrap items-center justify-between gap-3 border-b border-tertiary/30 bg-tertiary/10 px-4 py-2 text-xs text-tertiary"
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] bg-white/[0.03] px-4 py-2 text-[0.75rem] text-white/40 backdrop-blur-sm"
           role="status"
         >
-          <p className="max-w-3xl font-mono">{progressIssue.message}</p>
+          <p>{progressIssue.message}</p>
           <button
             type="button"
             onClick={retryProgressSync}
-            className="inline-flex items-center border border-tertiary/40 bg-tertiary/10 px-3 py-1 text-xs font-mono font-semibold text-tertiary transition-colors hover:bg-tertiary/20 uppercase tracking-wider"
+            className="rounded-lg bg-white/[0.06] px-3 py-1 text-[0.75rem] font-medium text-white/50 transition-colors hover:bg-white/[0.1] hover:text-white/70"
           >
-            Retry sync
+            Retry
           </button>
         </div>
       ) : null}

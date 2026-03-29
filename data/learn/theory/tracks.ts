@@ -8,6 +8,8 @@ import { airflowTheory } from '@/data/learn/theory/airflow';
 import { airflowMidTheory } from '@/data/learn/theory/airflow-mid';
 import { airflowSeniorTheory } from '@/data/learn/theory/airflow-senior';
 import { sqlTheory } from '@/data/learn/theory/sql';
+import { sqlMidTheory } from '@/data/learn/theory/sql-mid';
+import { sqlSeniorTheory } from '@/data/learn/theory/sql-senior';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -165,9 +167,29 @@ const TOPIC_TRACK_CONFIGS: Record<string, TheoryTrackConfig[]> = {
       title: 'Junior-Level Track',
       eyebrow: 'Core Foundation',
       description:
-        'Build SQL capability from the ground up: relational databases, queries, joins, aggregations, subqueries, and production-ready data engineering patterns.',
+        'Build SQL capability from the ground up: relational databases, queries, joins, aggregations, subqueries, window functions, DDL, and production-ready data engineering patterns.',
       highlights: [],
       sourceDoc: sqlTheory,
+    },
+    {
+      slug: 'mid',
+      label: 'Mid-Level Track',
+      title: 'Mid-Level Track',
+      eyebrow: 'Advanced Systems',
+      description:
+        'Query optimization, advanced join patterns, analytical SQL, data modeling for pipelines, testing, CI/CD deployment, performance tuning, and data quality frameworks.',
+      highlights: [],
+      sourceDoc: sqlMidTheory,
+    },
+    {
+      slug: 'senior',
+      label: 'Senior-Level Track',
+      title: 'Senior-Level Track',
+      eyebrow: 'Platform Architecture',
+      description:
+        'Platform architecture at scale, optimizer internals, partition strategies, schema registries, SQL engine internals, storage I/O, multi-tenant security, streaming CDC, and enterprise governance.',
+      highlights: [],
+      sourceDoc: sqlSeniorTheory,
     }
   ]
 };

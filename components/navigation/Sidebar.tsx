@@ -83,7 +83,7 @@ export const Sidebar = () => {
 
   // Prefetch routes
   useEffect(() => {
-    const primaryRoutes = ['/home', '/theory', '/assignments', '/progress', '/energy'];
+    const primaryRoutes = ['/home', '/learn/theory'];
     const secondaryRoutes = ['/settings', '/profile'];
     const prefetchPrimary = () => primaryRoutes.forEach(prefetchRoute);
     const prefetchSecondary = () => secondaryRoutes.forEach(prefetchRoute);

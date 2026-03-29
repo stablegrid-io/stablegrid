@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdminAccess } from '@/lib/admin/access';
 import { parseJsonBody, toAdminErrorResponse } from '@/lib/admin/http';
+import { enforceAdminReadRateLimit } from '@/lib/admin/protection';
 
 const VALID_CATEGORIES = ['Hosting','AI / APIs','Subscriptions','Design','Development','Marketing','Miscellaneous'] as const;
 const VALID_DOMAINS = ['Infrastructure','Product','AI / ML','Marketing','Operations','Content','General'] as const;
@@ -13,7 +14,8 @@ export async function PATCH(
     const { id } = params;
     if (!id) return NextResponse.json({ error: 'Entry id is required.' }, { status: 400 });
 
-    const { adminSupabase } = await requireAdminAccess();
+    const { adminSupabase, user } = await requireAdminAccess();
+    await enforceAdminReadRateLimit(request, user.id, 'admin_spending_write');
     const body = await parseJsonBody(request);
     const { date, category, domain, amount, description } = body;
 
@@ -44,7 +46,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -53,7 +55,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Entry id is required.' }, { status: 400 });
     }
 
-    const { adminSupabase } = await requireAdminAccess();
+    const { adminSupabase, user: deleteUser } = await requireAdminAccess();
+    await enforceAdminReadRateLimit(request, deleteUser.id, 'admin_spending_write');
 
     const { error } = await adminSupabase
       .from('project_spending')

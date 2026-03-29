@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireAdminAccess } from '@/lib/admin/access';
 import { toAdminErrorResponse } from '@/lib/admin/http';
+import { enforceAdminReadRateLimit } from '@/lib/admin/protection';
 import { getTheoryDocForAdmin, listTheoryDocSummaries } from '@/lib/admin/theory';
 
 export async function GET(request: Request) {
   try {
-    await requireAdminAccess('content_admin');
+    const { user } = await requireAdminAccess('content_admin');
+    await enforceAdminReadRateLimit(request, user.id, 'admin_theory_docs');
     const { searchParams } = new URL(request.url);
     const topic = searchParams.get('topic');
 

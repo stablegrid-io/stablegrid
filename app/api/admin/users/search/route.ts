@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireAdminAccess } from '@/lib/admin/access';
 import { toAdminErrorResponse } from '@/lib/admin/http';
+import { enforceAdminReadRateLimit } from '@/lib/admin/protection';
 import { searchAdminUsers } from '@/lib/admin/service';
 
 export async function GET(request: Request) {
   try {
-    const { adminSupabase } = await requireAdminAccess();
+    const { adminSupabase, user } = await requireAdminAccess();
+    await enforceAdminReadRateLimit(request, user.id, 'admin_users_search');
     const { searchParams } = new URL(request.url);
     const rawQuery = searchParams.get('q') ?? '';
     const query = rawQuery.trim().slice(0, 200);

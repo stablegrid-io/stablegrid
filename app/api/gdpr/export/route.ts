@@ -21,20 +21,16 @@ export async function POST(request: Request) {
     profile,
     topicProgress,
     readingSessions,
-    practiceSessions,
-    functionViews,
     userProgress,
     subscriptions,
     cookieConsents
   ] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
-    supabase.from('topic_progress').select('*').eq('user_id', user.id),
-    supabase.from('reading_sessions').select('*').eq('user_id', user.id),
-    supabase.from('practice_sessions').select('*').eq('user_id', user.id),
-    supabase.from('function_views').select('*').eq('user_id', user.id),
-    supabase.from('user_progress').select('*').eq('user_id', user.id).maybeSingle(),
-    supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
-    supabase.from('cookie_consents').select('*').eq('user_id', user.id).maybeSingle()
+    supabase.from('profiles').select('id,name,email,avatar_url,created_at').eq('id', user.id).maybeSingle(),
+    supabase.from('topic_progress').select('topic,theory_chapters_completed,theory_sections_read,theory_total_minutes_read,practice_questions_attempted,practice_questions_correct,overall_completion_pct,first_activity_at,last_activity_at').eq('user_id', user.id),
+    supabase.from('reading_sessions').select('topic,chapter_id,started_at,last_active_at,completed_at,sections_total,sections_read,is_completed,active_seconds').eq('user_id', user.id),
+    supabase.from('user_progress').select('xp,streak,last_activity,updated_at').eq('user_id', user.id).maybeSingle(),
+    supabase.from('subscriptions').select('status,plan_id,current_period_start,current_period_end,cancel_at_period_end,created_at').eq('user_id', user.id).maybeSingle(),
+    supabase.from('cookie_consents').select('consent,source,updated_at').eq('user_id', user.id).maybeSingle()
   ]);
 
   const payload = {
@@ -46,8 +42,6 @@ export async function POST(request: Request) {
     profile: profile.data ?? null,
     topic_progress: topicProgress.data ?? [],
     reading_sessions: readingSessions.data ?? [],
-    practice_sessions: practiceSessions.data ?? [],
-    function_views: functionViews.data ?? [],
     user_progress: userProgress.data ?? null,
     subscription: subscriptions.data ?? null,
     cookie_consents: cookieConsents.data ?? null

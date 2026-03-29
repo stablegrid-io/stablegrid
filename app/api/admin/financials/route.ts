@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireAdminAccess } from '@/lib/admin/access';
 import { toAdminErrorResponse } from '@/lib/admin/http';
+import { enforceAdminReadRateLimit } from '@/lib/admin/protection';
 import { listAdminFinancials } from '@/lib/admin/service';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { adminSupabase } = await requireAdminAccess();
+    const { adminSupabase, user } = await requireAdminAccess();
+    await enforceAdminReadRateLimit(request, user.id, 'admin_financials');
     const data = await listAdminFinancials(adminSupabase);
 
     return NextResponse.json({ data });

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 export async function POST() {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' || process.env.ALLOW_E2E_USER_CREATION !== 'true') {
     return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   }
   if (process.env.ALLOW_E2E_USER_CREATION !== 'true') {

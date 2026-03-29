@@ -171,7 +171,7 @@ export async function POST(request: Request) {
         const MAX_XP_INCREASE_PER_SYNC = 500;
         const MAX_STREAK = 365;
         const safeXp = Math.max(existingXp, Math.min(payload.xp, existingXp + MAX_XP_INCREASE_PER_SYNC));
-        const safeStreak = Math.min(Math.max(payload.streak, 0), MAX_STREAK);
+        const safeStreak = Math.max(existingStreak, Math.min(Math.max(payload.streak, 0), MAX_STREAK));
 
         const topicProgress = {
           ...toRecord(existingProgress?.topic_progress),

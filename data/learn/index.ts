@@ -24,7 +24,7 @@ const THEORY_META: Record<string, { chapterCount: number; totalMinutes: number; 
   pyspark: { chapterCount: 10, totalMinutes: 2585, version: '1.0' },
   fabric: { chapterCount: 10, totalMinutes: 2530, version: '1.0' },
   airflow: { chapterCount: 10, totalMinutes: 2560, version: '1.0' },
-  sql: { chapterCount: 1, totalMinutes: 250, version: '1.0' },
+  sql: { chapterCount: 10, totalMinutes: 2560, version: '1.0' },
 };
 
 const getTheoryMeta = (topic: string) => THEORY_META[topic] ?? null;

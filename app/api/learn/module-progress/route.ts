@@ -572,37 +572,31 @@ export async function GET(request: Request) {
     const scopedRows = filterRowsForCanonicalModules(rows, canonicalModules);
     return NextResponse.json({ data: scopedRows, storage: 'module_progress' });
   } catch (error) {
-    if (isMissingModuleProgressTableError(error)) {
-      try {
-        const fallbackRows = await fetchFallbackRowsFromReadingSessions({
-          supabase,
-          userId: user.id,
-          topic,
-          canonicalModules
-        });
-        return NextResponse.json({
-          data: fallbackRows,
-          storage: 'reading_sessions_fallback',
-          warning:
-            'module_progress table missing; using reading_sessions fallback.'
-        });
-      } catch (fallbackError) {
-        return NextResponse.json(
-          {
-            error:
-              fallbackError instanceof Error
-                ? fallbackError.message
-                : 'Failed to fetch fallback module progress.'
-          },
-          { status: 500 }
-        );
-      }
-    }
+    console.warn('[module-progress GET] primary path failed:', error instanceof Error ? error.message : error);
 
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to fetch module progress.' },
-      { status: 500 }
-    );
+    // Try reading_sessions fallback for any failure (not just missing table)
+    try {
+      const fallbackRows = await fetchFallbackRowsFromReadingSessions({
+        supabase,
+        userId: user.id,
+        topic,
+        canonicalModules
+      });
+      return NextResponse.json({
+        data: fallbackRows,
+        storage: 'reading_sessions_fallback',
+        warning: 'Using reading_sessions fallback.'
+      });
+    } catch (fallbackError) {
+      console.warn('[module-progress GET] fallback also failed:', fallbackError instanceof Error ? fallbackError.message : fallbackError);
+
+      // Return empty data so the user can still read — don't block on progress
+      return NextResponse.json({
+        data: [],
+        storage: 'none',
+        warning: 'Progress temporarily unavailable. Reading is not affected.'
+      });
+    }
   }
 }
 
@@ -617,8 +611,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const payload = await parseModuleProgressRequestPayload(request);
+
   try {
-    const payload = await parseModuleProgressRequestPayload(request);
     const clientIp = getClientIp(request);
     const idempotencyKey = readIdempotencyKey(request);
 
@@ -822,6 +817,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json(response.body, { status: response.status });
   } catch (error) {
+    // For non-critical 'touch' actions (route bookmarking), return success
+    // so the user isn't interrupted while reading
+    if (payload.action === 'touch') {
+      console.warn('[module-progress POST touch] silenced error:', error instanceof Error ? error.message : error);
+      return NextResponse.json({ data: [], warning: 'Touch sync skipped.' });
+    }
     return toApiErrorResponse(error, 'Failed to update module progress.');
   }
 }

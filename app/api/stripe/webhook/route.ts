@@ -199,8 +199,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ received: true });
       }
 
-      const metadataUserId = subscription.metadata?.user_id ?? null;
-      const userId = metadataUserId ?? (await getUserIdFromCustomer(admin, currentCustomerId));
+      // Always resolve user from our database mapping, never trust metadata alone
+      const userId = await getUserIdFromCustomer(admin, currentCustomerId);
 
       if (!userId) {
         await finishWebhookEventProcessing(admin, event.id, 'skipped', {

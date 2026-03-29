@@ -1,12 +1,12 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { isNavItemActive, navItems, shouldHideNav } from './navigation-config';
 
 export const BottomNav = () => {
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useAuthStore();
 
   if (shouldHideNav(pathname, Boolean(user))) return null;
@@ -18,11 +18,10 @@ export const BottomNav = () => {
         const isActive = isNavItemActive(pathname, item);
 
         return (
-          <button
+          <Link
             key={item.href}
-            onClick={() => router.push(item.href)}
+            href={item.href}
             className="flex flex-col items-center justify-center gap-1 flex-1 h-full"
-            type="button"
           >
             <Icon
               className={`h-5 w-5 transition-colors ${
@@ -36,7 +35,7 @@ export const BottomNav = () => {
             >
               {item.label}
             </span>
-          </button>
+          </Link>
         );
       })}
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdminAccess } from '@/lib/admin/access';
 import { parseJsonBody, toAdminErrorResponse } from '@/lib/admin/http';
+import { enforceAdminReadRateLimit } from '@/lib/admin/protection';
 
 const VALID_CATEGORIES = [
   'Hosting',
@@ -33,9 +34,10 @@ function isValidDomain(value: unknown): value is Domain {
   return VALID_DOMAINS.includes(value as Domain);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { adminSupabase } = await requireAdminAccess();
+    const { adminSupabase, user } = await requireAdminAccess();
+    await enforceAdminReadRateLimit(request, user.id, 'admin_spending');
 
     const { data, error } = await adminSupabase
       .from('project_spending')
@@ -53,7 +55,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { adminSupabase } = await requireAdminAccess();
+    const { adminSupabase, user: postUser } = await requireAdminAccess();
+    await enforceAdminReadRateLimit(request, postUser.id, 'admin_spending_write');
     const body = await parseJsonBody(request);
 
     const { date, category, domain, amount, description } = body;

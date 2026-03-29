@@ -3601,19 +3601,36 @@ export const searchAdminUsers = async (
     return [];
   }
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id,name,email')
-    .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
-    .order('updated_at', { ascending: false })
-    .limit(12);
-  assertSuccess(error);
+  // Run separate queries for name and email to avoid PostgREST .or() injection
+  const pattern = `%${query}%`;
+  const [nameResult, emailResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id,name,email')
+      .ilike('name', pattern)
+      .order('updated_at', { ascending: false })
+      .limit(12),
+    supabase
+      .from('profiles')
+      .select('id,name,email')
+      .ilike('email', pattern)
+      .order('updated_at', { ascending: false })
+      .limit(12)
+  ]);
+  assertSuccess(nameResult.error);
+  assertSuccess(emailResult.error);
 
-  return ((data ?? []) as ProfileRow[]).map((row) => ({
-    id: row.id,
-    name: row.name,
-    email: row.email
-  }));
+  // Merge and deduplicate
+  const seen = new Set<string>();
+  const merged: AdminUserSearchResult[] = [];
+  for (const row of [...(nameResult.data ?? []), ...(emailResult.data ?? [])] as ProfileRow[]) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    merged.push({ id: row.id, name: row.name, email: row.email });
+    if (merged.length >= 12) break;
+  }
+
+  return merged;
 };
 
 export const getAdminUserProfile = async (

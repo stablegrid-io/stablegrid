@@ -21,7 +21,8 @@ export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as { reason?: string };
     if (payload.reason && payload.reason.trim()) {
-      reason = payload.reason.trim().slice(0, 200);
+      // Strip HTML tags to prevent stored XSS if rendered in admin UI
+      reason = payload.reason.trim().replace(/<[^>]*>/g, '').slice(0, 200);
     }
   } catch {
     // Ignore parsing errors and store fallback reason.
@@ -34,7 +35,8 @@ export async function POST(request: Request) {
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[gdpr/delete-reason]', error.message);
+    return NextResponse.json({ error: 'Failed to save deletion reason.' }, { status: 500 });
   }
 
   return NextResponse.json({ logged: true });

@@ -16,7 +16,7 @@ const TOPIC_SET = new Set<Topic>(['pyspark', 'fabric', 'airflow']);
 const isTopic = (value: string): value is Topic => TOPIC_SET.has(value as Topic);
 
 export async function POST(request: Request) {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' || process.env.ALLOW_E2E_USER_CREATION !== 'true') {
     return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   }
 

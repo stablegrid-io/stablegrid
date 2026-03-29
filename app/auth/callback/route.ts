@@ -11,8 +11,9 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // If caller explicitly specified a destination, honour it
-      if (next) {
+      // If caller explicitly specified a destination, honour it —
+      // but only allow relative paths starting with / (no protocol-relative //evil.com)
+      if (next && /^\/[a-zA-Z0-9]/.test(next)) {
         return NextResponse.redirect(`${origin}${next}`);
       }
 
