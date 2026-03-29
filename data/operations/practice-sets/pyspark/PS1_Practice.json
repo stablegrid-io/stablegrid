@@ -1,0 +1,393 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 1 — Why Spark Exists",
+  "description": "Test your understanding of distributed computing fundamentals, Spark's architecture, and the NordGrid Energy pipeline. This foundation practice set focuses on concept identification and output prediction — the building blocks you will need before writing PySpark code in Module 2.",
+  "version": "authored 2026-03-29, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PS1",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 55,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "foundation",
+    "taskTypeMix": {
+      "conceptIdentification": 3,
+      "outputPrediction": 2,
+      "synthesisTemplate": 1
+    }
+  },
+  "tasks": [
+    {
+      "id": "module-PS1-task-01",
+      "title": "Identify NordGrid's Processing Bottleneck",
+      "type": "concept_identification",
+      "estimatedMinutes": 7,
+      "description": {
+        "context": "NordGrid's operations team asks the data engineering team to reprocess one year of SCADA telemetry from 2,000 wind turbines. The hourly sensor data totals 120 GB across all turbine files. The team's development server has 32 GB of RAM, a modern SSD that reads at 500 MB/s, and 8 CPU cores. The team writes a Python script that loads all SCADA files into a single Pandas DataFrame for analysis.",
+        "task": "The script crashes with a MemoryError before any filtering or computation occurs. Identify which of the three single-machine processing walls caused the failure and explain why the crash is unavoidable on this hardware.",
+        "validationHint": "Only one of the three walls explains a crash that happens at the data-loading stage, before any computation begins."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS1-01-F1",
+            "type": "single_select",
+            "label": "Which processing wall caused the crash?",
+            "options": [
+              "Disk I/O bottleneck — the SSD cannot read the data fast enough",
+              "Memory capacity limit — the data does not fit in RAM",
+              "Compute throughput limit — the CPU cannot process the rows fast enough"
+            ],
+            "correctAnswer": "Memory capacity limit — the data does not fit in RAM",
+            "distractorRationale": "Disk I/O is plausible because 120 GB is a large read, but slow reads cause delays, not MemoryError crashes. Compute throughput is plausible because 2,000 turbines × 8,760 hours is many rows, but CPU limits cause slowness, not crashes at the loading stage."
+          },
+          {
+            "id": "PS1-01-F2",
+            "type": "single_select",
+            "label": "Why is this crash unavoidable on the development server?",
+            "options": [
+              "The SSD cannot read 120 GB in a reasonable time",
+              "120 GB of raw data expands beyond 32 GB of RAM when loaded into Python objects",
+              "The 8 CPU cores cannot parse SCADA sensor records fast enough",
+              "Python has a built-in file size limit of 32 GB"
+            ],
+            "correctAnswer": "120 GB of raw data expands beyond 32 GB of RAM when loaded into Python objects",
+            "distractorRationale": "SSD read time is plausible but causes slowness, not a crash. CPU parsing speed is plausible for large datasets but does not cause MemoryError. Python file size limit is fabricated but sounds plausible to someone unfamiliar with Python internals."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS1-task-02",
+      "title": "Choose NordGrid's Scaling Strategy",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's daily meter processing pipeline takes 35 minutes on a single server. The operations team needs it to finish in under 5 minutes because downstream dashboards depend on the results by 07:00 each morning. The data engineering team evaluates three proposals to solve the problem.",
+        "task": "Read each proposal and identify which scaling strategy it represents. Then determine which proposal best addresses NordGrid's long-term data growth as the meter fleet expands from 500,000 to over 1 million meters.",
+        "validationHint": "Two proposals match a named scaling strategy. One proposal addresses a different concern entirely."
+      },
+      "evidence": {
+        "type": "scenario_proposals",
+        "content": "Proposal A: Purchase a single high-end server with 1 TB of RAM, 128 CPU cores, and NVMe storage. Migrate the existing Python script to this machine without changing the code.\n\nProposal B: Connect eight existing 64 GB servers into a cluster. Install Apache Spark to distribute the meter processing across all eight machines.\n\nProposal C: Rewrite the Python pipeline in C++ to reduce per-row processing time. Continue running on the same single server."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS1-02-F1",
+            "type": "single_select",
+            "label": "What scaling strategy does Proposal A represent?",
+            "options": [
+              "Scaling up (bigger machine)",
+              "Scaling out (more machines)",
+              "Neither — this is a code optimization"
+            ],
+            "correctAnswer": "Scaling up (bigger machine)"
+          },
+          {
+            "id": "PS1-02-F2",
+            "type": "single_select",
+            "label": "What scaling strategy does Proposal B represent?",
+            "options": [
+              "Scaling up (bigger machine)",
+              "Scaling out (more machines)",
+              "Neither — this is a code optimization"
+            ],
+            "correctAnswer": "Scaling out (more machines)"
+          },
+          {
+            "id": "PS1-02-F3",
+            "type": "single_select",
+            "label": "What scaling strategy does Proposal C represent?",
+            "options": [
+              "Scaling up (bigger machine)",
+              "Scaling out (more machines)",
+              "Neither — this is a code optimization"
+            ],
+            "correctAnswer": "Neither — this is a code optimization",
+            "distractorRationale": "Students may confuse faster execution (better language) with scaling up (bigger hardware). The key distinction is that Proposal C does not change the physical resources — it changes the software. The three walls are physical limits, and a faster language does not move the walls, only delays reaching them."
+          },
+          {
+            "id": "PS1-02-F4",
+            "type": "single_select",
+            "label": "Which proposal best addresses long-term growth as NordGrid doubles its meter fleet?",
+            "options": [
+              "Proposal A — the 1 TB server handles double the data",
+              "Proposal B — the cluster can grow by adding more machines",
+              "Proposal C — the faster code handles double the rows"
+            ],
+            "correctAnswer": "Proposal B — the cluster can grow by adding more machines",
+            "distractorRationale": "Proposal A is plausible short-term but has a ceiling — the largest machine money can buy is finite. Proposal C is plausible for moderate growth but eventually hits the same physical walls on a single machine. Proposal B is the only option with linear, open-ended scaling."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS1-task-03",
+      "title": "Predict Cluster Utilization for Turbine Data",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's Spark cluster has 4 executors, each with 2 CPU cores (8 cores total). The daily SCADA telemetry file from 2,000 turbines is split into 12 partitions when Spark reads it. Each partition contains roughly the same number of turbine records.",
+        "task": "Predict how the cluster processes the 12 partitions. Determine how many partitions run in parallel, how many cores sit idle during the final batch, and what would happen if the file were split into fewer partitions.",
+        "validationHint": "Remember that each core processes one partition at a time, and Spark assigns new partitions to cores as they finish."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS1-03-F1",
+            "type": "numeric",
+            "label": "How many partitions can Spark process simultaneously in the first batch?",
+            "correctAnswer": 8,
+            "tolerance": 0,
+            "rationale": "8 cores available, 12 partitions to process. The first batch fills all 8 cores with 1 partition each."
+          },
+          {
+            "id": "PS1-03-F2",
+            "type": "numeric",
+            "label": "After the first batch of 8 partitions completes, how many cores sit idle while the remaining partitions are processed?",
+            "correctAnswer": 4,
+            "tolerance": 0,
+            "rationale": "12 - 8 = 4 remaining partitions. With 8 cores and only 4 partitions left, 4 cores are active and 4 sit idle."
+          },
+          {
+            "id": "PS1-03-F3",
+            "type": "single_select",
+            "label": "If the telemetry file were split into only 4 partitions instead of 12, what would happen?",
+            "options": [
+              "All 8 cores stay busy because Spark redistributes partitions automatically",
+              "4 cores process data while 4 cores sit idle for the entire job",
+              "The job fails because there are fewer partitions than cores",
+              "Spark combines cores so 2 cores work on each partition simultaneously"
+            ],
+            "correctAnswer": "4 cores process data while 4 cores sit idle for the entire job",
+            "distractorRationale": "Option 1 is plausible — students might expect Spark to optimize. Option 3 is a reasonable worry for beginners but incorrect — fewer partitions than cores simply means idle cores. Option 4 sounds logical but Spark assigns one partition per core, not multiple cores per partition."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS1-task-04",
+      "title": "Classify NordGrid's Datasets by Medallion Layer",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's data engineering team organizes all data into three layers: Bronze, Silver, and Gold. A new team member is reviewing the team's storage and needs to identify which layer each dataset belongs to based on its characteristics.",
+        "task": "Read the description of each dataset and classify it into the correct medallion architecture layer. Pay attention to the data quality characteristics, the format, and who consumes the data.",
+        "validationHint": "Each layer appears at least once. Think about what has been done to the data — nothing, cleaned, or aggregated."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS1-04-F1",
+            "type": "single_select",
+            "label": "Dataset A: A JSON file from the external weather API containing temperature readings for all NordGrid regions. The file is stored exactly as the API returned it, with no type conversions, no validation, and no deduplication.",
+            "options": [
+              "Bronze",
+              "Silver",
+              "Gold"
+            ],
+            "correctAnswer": "Bronze",
+            "distractorRationale": "Students might think weather data is a reference/lookup and place it in Silver. The key signal is 'stored exactly as the API returned it' — no transformations means Bronze."
+          },
+          {
+            "id": "PS1-04-F2",
+            "type": "single_select",
+            "label": "Dataset B: A Parquet file containing meter readings where the daily_kw column is a proper numeric type, rows with null meter_id have been removed, negative energy values have been filtered out, and each row includes the substation_name from the reference table.",
+            "options": [
+              "Bronze",
+              "Silver",
+              "Gold"
+            ],
+            "correctAnswer": "Silver",
+            "distractorRationale": "Students might select Gold because the data is 'clean.' The key distinction is granularity — this is still individual meter readings (one row per meter per day), which is Silver. Gold would be aggregated summaries."
+          },
+          {
+            "id": "PS1-04-F3",
+            "type": "single_select",
+            "label": "Dataset C: A table with exactly four rows — one per region — showing the total daily energy consumption, the count of active meters, and the average daily_kw for the operations dashboard.",
+            "options": [
+              "Bronze",
+              "Silver",
+              "Gold"
+            ],
+            "correctAnswer": "Gold",
+            "distractorRationale": "The signals are aggregation (total, count, average), few rows (4 vs 500,000), and a specific business consumer (operations dashboard). Students who focus only on data quality might confuse this with Silver."
+          },
+          {
+            "id": "PS1-04-F4",
+            "type": "single_select",
+            "label": "Dataset D: A raw CSV file of SCADA turbine sensor readings containing columns rpm, temp, and ts. Some rows have negative rpm values from sensor malfunctions. The file was copied from the SCADA system without modification.",
+            "options": [
+              "Bronze",
+              "Silver",
+              "Gold"
+            ],
+            "correctAnswer": "Bronze",
+            "distractorRationale": "Two datasets are Bronze to test whether students can identify the pattern consistently across different data sources (weather API JSON and SCADA CSV). The signal is identical: raw source data, no modifications, known quality issues preserved."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS1-task-05",
+      "title": "Trace a Spark Job Through Execution",
+      "type": "output_prediction",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "NordGrid's data engineering team writes a daily pipeline to process SCADA turbine telemetry. The pipeline reads raw sensor data from Bronze, removes records with null turbine IDs, filters out negative RPM values, casts the temperature column to a numeric type, joins with the turbine reference table to add turbine location, and writes the result to Silver as Parquet.",
+        "task": "Read the pipeline code below and predict how Spark executes it. Determine when execution actually begins, how many stages the job produces, and which operation triggers a shuffle.",
+        "validationHint": "Remember that Spark uses lazy evaluation — transformations build a plan, and only actions trigger execution."
+      },
+      "evidence": {
+        "type": "code_block",
+        "language": "python",
+        "content": "from pyspark.sql.functions import col\n\n# Read raw SCADA telemetry from Bronze\nscada = spark.read.parquet('bronze/scada/2026-03-22/')\n\n# Remove invalid records\nscada = scada.filter(col('turbine_id').isNotNull())\nscada = scada.filter(col('rpm') >= 0)\n\n# Cast temperature to proper numeric type\nscada = scada.withColumn('temp', col('temp').cast('double'))\n\n# Join with turbine reference for location data\nturbine_ref = spark.read.csv('bronze/turbine_reference.csv', header=True)\nscada = scada.join(turbine_ref, 'turbine_id', 'left')\n\n# Write enriched telemetry to Silver\nscada.write.mode('overwrite').parquet('silver/scada/2026-03-22/')"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS1-05-F1",
+            "type": "numeric",
+            "label": "How many actions in this pipeline trigger execution?",
+            "correctAnswer": 1,
+            "tolerance": 0,
+            "rationale": "The only action is write.parquet(). The read, filter, withColumn, and join lines are transformations that build the plan but do not trigger execution."
+          },
+          {
+            "id": "PS1-05-F2",
+            "type": "single_select",
+            "label": "When does Spark actually start reading the Parquet file from disk?",
+            "options": [
+              "When spark.read.parquet() runs — the data is loaded immediately",
+              "When the first filter() runs — filtering requires reading the data",
+              "When join() runs — the join needs both datasets in memory",
+              "When write.parquet() runs — the action triggers the entire plan"
+            ],
+            "correctAnswer": "When write.parquet() runs — the action triggers the entire plan",
+            "distractorRationale": "Option 1 is the most common misconception — students expect read to actually read. Option 2 is plausible because filtering logically requires data. Option 3 is plausible because joins are complex operations. The correct answer tests understanding of lazy evaluation."
+          },
+          {
+            "id": "PS1-05-F3",
+            "type": "single_select",
+            "label": "Which operation creates a shuffle boundary between stages?",
+            "options": [
+              "filter(col('turbine_id').isNotNull()) — filtering redistributes rows",
+              "withColumn('temp', col('temp').cast('double')) — type casting requires coordination",
+              "join(turbine_ref, 'turbine_id', 'left') — matching rows must be moved to the same executor",
+              "write.parquet() — writing to disk requires collecting all data"
+            ],
+            "correctAnswer": "join(turbine_ref, 'turbine_id', 'left') — matching rows must be moved to the same executor",
+            "distractorRationale": "Filter and withColumn are narrow transformations (no data movement needed) but students might think any transformation involves a shuffle. Write is an action, not a shuffle-causing transformation. The join is correct because rows with matching turbine_id values must end up on the same executor."
+          },
+          {
+            "id": "PS1-05-F4",
+            "type": "numeric",
+            "label": "How many stages does this job produce?",
+            "correctAnswer": 2,
+            "tolerance": 0,
+            "rationale": "Stage 1: read Parquet, filter nulls, filter negative RPM, cast temp (all narrow transformations, no data movement). Shuffle boundary at the join. Stage 2: join with turbine reference, write to Parquet."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS1-task-06",
+      "title": "Trace NordGrid's Meter Pipeline End to End",
+      "type": "synthesis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid is expanding from 500,000 to 750,000 smart meters over the next year. The data engineering team must ensure their daily pipeline can handle the increased volume. Currently, the pipeline reads raw meter CSV files from the source, cleans and validates the data, joins with substation reference data, and produces regional energy summaries for the operations dashboard.",
+        "task": "Trace the expanded pipeline through NordGrid's complete architecture — from the single-machine bottleneck to the distributed execution on the cluster. Each question tests a different concept from the module. Answer based on the scenario described above.",
+        "validationHint": "This task spans concepts from across the entire module. Each question is independent — a correct answer on one does not depend on another."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS1-06-F1",
+            "type": "single_select",
+            "label": "The expanded daily meter file is 2.2 GB. On the team's 16 GB development server, a Pandas script crashes with MemoryError when loading this file. Which wall is responsible?",
+            "options": [
+              "Disk I/O — the SSD cannot read 2.2 GB fast enough",
+              "Memory — the CSV data expands beyond 16 GB when loaded into Python objects",
+              "Compute — the CPU cannot process 750,000 rows",
+              "Network — the file transfer from the source system times out"
+            ],
+            "correctAnswer": "Memory — the CSV data expands beyond 16 GB when loaded into Python objects",
+            "conceptsTested": ["three_walls", "memory_expansion"]
+          },
+          {
+            "id": "PS1-06-F2",
+            "type": "single_select",
+            "label": "The team deploys the pipeline on a Spark cluster with 6 executors. When the PySpark script runs, which component builds the execution plan and assigns tasks to executors?",
+            "options": [
+              "The executors — they coordinate among themselves",
+              "The cluster manager — it plans all work across the cluster",
+              "The driver — it runs the Python code and orchestrates execution",
+              "The Py4J bridge — it translates Python commands into distributed tasks"
+            ],
+            "correctAnswer": "The driver — it runs the Python code and orchestrates execution",
+            "conceptsTested": ["driver_executor_architecture"]
+          },
+          {
+            "id": "PS1-06-F3",
+            "type": "single_select",
+            "label": "The raw 2.2 GB meter CSV arrives from the source system and is stored without any cleaning, type casting, or validation. Which medallion architecture layer does this raw file belong to?",
+            "options": [
+              "Bronze — raw data stored exactly as it arrived",
+              "Silver — the data has been loaded into storage",
+              "Gold — the file is ready for the operations team"
+            ],
+            "correctAnswer": "Bronze — raw data stored exactly as it arrived",
+            "conceptsTested": ["medallion_architecture", "bronze_layer"]
+          },
+          {
+            "id": "PS1-06-F4",
+            "type": "single_select",
+            "label": "After the pipeline filters invalid readings, casts daily_kw to a numeric type, and joins with the substation reference table, the result is stored as a Parquet file with a strict schema. Which layer does this output belong to?",
+            "options": [
+              "Bronze — it was derived from the raw meter file",
+              "Silver — it is cleaned, typed, validated, and joined with reference data",
+              "Gold — it is the final output of the pipeline"
+            ],
+            "correctAnswer": "Silver — it is cleaned, typed, validated, and joined with reference data",
+            "conceptsTested": ["medallion_architecture", "silver_layer"]
+          },
+          {
+            "id": "PS1-06-F5",
+            "type": "single_select",
+            "label": "The pipeline's final output is a summary table with one row per region (NORTH, SOUTH, EAST, WEST) showing total daily energy and active meter count for the operations dashboard. Which layer is this?",
+            "options": [
+              "Bronze — it preserves the raw regional data",
+              "Silver — it contains validated energy readings",
+              "Gold — it is an aggregated, business-ready summary for a specific consumer"
+            ],
+            "correctAnswer": "Gold — it is an aggregated, business-ready summary for a specific consumer",
+            "conceptsTested": ["medallion_architecture", "gold_layer"]
+          }
+        ]
+      },
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Three walls of single-machine processing (Lesson 1)",
+          "Driver-executor architecture (Lesson 4)",
+          "Bronze-Silver-Gold medallion layers (Lesson 7)",
+          "NordGrid scenario entities and data flow (Lessons 6-7)"
+        ],
+        "minimumConceptCount": 4,
+        "rationale": "This task traces a single NordGrid pipeline through the full architecture: from the physical bottleneck that motivates distribution, to the cluster component that plans execution, through all three medallion layers. The student must apply concepts from at least four lessons in a coherent end-to-end scenario."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 4,
+    "foundationModuleException": "Applied §4.3 — 3 concept identification, 2 output prediction, 1 synthesis template. No write-the-code tasks because Module 1 does not teach code writing (SparkSession creation begins in Module 2).",
+    "theoryPracticeBoundary": "Tasks use SCADA turbine data and weather API data where the theory examples use meter data. Same techniques applied to different scenario entities to test transfer, not recall."
+  }
+}

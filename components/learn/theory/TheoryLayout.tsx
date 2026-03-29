@@ -24,6 +24,8 @@ import {
 import { TheorySidebar } from '@/components/learn/theory/TheorySidebar';
 import { TheoryContent } from '@/components/learn/theory/TheoryContent';
 import { TheorySessionTopbar } from '@/components/learn/theory/TheorySessionTopbar';
+import { LessonCompletionToast } from '@/components/learn/theory/LessonCompletionToast';
+import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 
 const TheorySessionPicker = dynamic(
   () => import('@/components/learn/theory/TheorySessionPicker').then((m) => m.TheorySessionPicker),
@@ -137,22 +139,21 @@ const ModuleProgressRail = ({
 
   if (orderedLessons.length === 0) return null;
 
+  const completedCount = completedLessonIds.length;
+  const total = orderedLessons.length;
+  const pct = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+
   return (
     <div
-      className="hidden lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-30 flex-col items-center group/rail"
+      className="flex items-center gap-3 rounded-xl px-4 py-3 mx-auto my-6 w-fit"
       data-reading-mode={readingMode}
+      style={{
+        background: 'var(--rm-bg-elevated, rgba(255,255,255,0.03))',
+        border: '1px solid color-mix(in srgb, var(--rm-accent, rgb(var(--color-primary))) 12%, transparent)',
+      }}
     >
-      {/* Battery cap */}
-      <div className="w-5 h-2 mb-0.5" style={{ backgroundColor: 'var(--rm-accent, rgb(var(--color-primary)))' , opacity: 0.3 }} />
-      {/* Battery body */}
-      <div
-        className="p-1.5 flex flex-col-reverse gap-1 backdrop-blur-sm"
-        style={{
-          border: '2px solid color-mix(in srgb, var(--rm-accent, rgb(var(--color-primary))) 20%, transparent)',
-          backgroundColor: 'var(--rm-bg, rgb(var(--color-surface-container-lowest)))',
-          opacity: 0.9,
-        }}
-      >
+      {/* Segments */}
+      <div className="flex items-center gap-[3px]">
         {orderedLessons.map((l, i) => {
           const isCompleted = completedSet.has(l.id);
           const isActive = i === activeIndex && !isActiveLessonCompleted;
@@ -164,23 +165,23 @@ const ModuleProgressRail = ({
               type="button"
               onClick={() => onSelectLesson?.(l.id)}
               title={`Lesson ${i + 1}${l.title ? `: ${l.title}` : ''}`}
-              className="w-5 h-5 relative overflow-hidden transition-all duration-500 cursor-pointer hover:scale-125 focus:outline-none"
+              className="relative overflow-hidden rounded-[2px] transition-all duration-500 cursor-pointer hover:scale-y-150 focus:outline-none"
               style={{
+                width: `${Math.max(12, Math.min(24, 200 / total))}px`,
+                height: '6px',
                 backgroundColor: isCompleted
                   ? 'color-mix(in srgb, var(--rm-accent, rgb(var(--color-primary))) 80%, transparent)'
-                  : 'var(--rm-bg-elevated, rgba(255,255,255,0.05))',
-                border: isCurrent
-                  ? '2px solid var(--rm-accent, rgb(var(--color-primary)))'
-                  : isCompleted
-                    ? 'none'
-                    : '1px solid color-mix(in srgb, var(--rm-accent, rgb(var(--color-primary))) 10%, transparent)',
+                  : 'var(--rm-bg-elevated, rgba(255,255,255,0.06))',
+                boxShadow: isCurrent
+                  ? '0 0 6px color-mix(in srgb, var(--rm-accent, rgb(var(--color-primary))) 40%, transparent)'
+                  : 'none',
               }}
             >
               {isActive && (
                 <div
-                  className="absolute inset-x-0 bottom-0 transition-[height] duration-1000 ease-linear"
+                  className="absolute inset-y-0 left-0 transition-[width] duration-1000 ease-linear rounded-[2px]"
                   style={{
-                    height: `${activeProgress}%`,
+                    width: `${activeProgress}%`,
                     backgroundColor: 'color-mix(in srgb, var(--rm-accent, rgb(var(--color-primary))) 70%, transparent)',
                   }}
                 />
@@ -189,9 +190,10 @@ const ModuleProgressRail = ({
           );
         })}
       </div>
-      {/* Label */}
-      <span className="font-mono text-[8px] mt-2 font-bold" style={{ color: 'var(--rm-text-secondary, rgb(var(--color-primary) / 0.5))' }}>
-        {completedLessonIds.length}/{orderedLessons.length}
+
+      {/* Count */}
+      <span className="font-mono text-[10px] font-semibold tabular-nums whitespace-nowrap" style={{ color: 'var(--rm-accent, rgb(var(--color-primary)))' }}>
+        {completedCount}/{total}
       </span>
     </div>
   );
@@ -302,6 +304,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   );
   const [routeReady, setRouteReady] = useState(false);
   const [completionActionPending, setCompletionActionPending] = useState(false);
+  const [showCompletionToast, setShowCompletionToast] = useState(false);
   const [sessionPickerVisible, setSessionPickerVisible] = useState(false);
   const [progressIssue, setProgressIssue] = useState<ProgressIssueState | null>(null);
   const [progressReloadToken, setProgressReloadToken] = useState(0);
@@ -321,6 +324,13 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   );
   const theorySession = useTheorySessionTimer('global');
   const startTheorySession = theorySession.start;
+
+  // Auto-reset session when it completes (no overlay needed)
+  useEffect(() => {
+    if (theorySession.phase === 'complete') {
+      theorySession.reset();
+    }
+  }, [theorySession.phase]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const pendingNavigationRef = useRef<string | null>(null);
 
@@ -480,6 +490,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     if (nextModule) {
       setUnlockedChapterIds((prev) => new Set([...prev, nextModule.id]));
     }
+    setShowCompletionToast(true);
   }, [activeChapter.id, modules]);
   const handleChapterIncomplete = useCallback(() => {
     setCompletedChapterIds((prev) => {
@@ -1131,15 +1142,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           />
         ) : null}
 
-        {/* Vertical module progress rail */}
-        <ModuleProgressRail
-          orderedLessons={orderedActiveLessons}
-          completedLessonIds={completedLessonIds}
-          activeLessonId={activeLessonId}
-          readingMode={readingMode}
-          onSelectLesson={handleSelectLesson}
-        />
-
         <div
           ref={contentRef}
           data-reading-mode={readingMode}
@@ -1211,20 +1213,31 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         ) : null}
       </AnimatePresence>
 
+
+      {/* Module completion toast */}
       <AnimatePresence>
-        {theorySession.phase === 'complete' && theorySession.summary ? (
-          <TheorySessionSummary
-            lessonTitle={activeLesson?.title ?? doc.title}
-            totalElapsedSeconds={theorySession.summary.totalElapsedSeconds}
-            focusElapsedSeconds={theorySession.summary.focusElapsedSeconds}
-            breakElapsedSeconds={theorySession.summary.breakElapsedSeconds}
-            onNewSession={() => {
-              theorySession.reset();
-              setSessionPickerVisible(true);
-            }}
-            onDone={() => {
-              theorySession.reset();
-            }}
+        {showCompletionToast ? (
+          <LessonCompletionToast
+            moduleTitle={activeChapter.title.replace(/^Module\s*\d+\s*:\s*/i, '')}
+            moduleNumber={activeChapter.order ?? activeChapter.number}
+            totalModules={modules.length}
+            completedModules={completedChapterIds.size}
+            nextModuleTitle={
+              upcomingModule
+                ? upcomingModule.title.replace(/^Module\s*\d+\s*:\s*/i, '')
+                : null
+            }
+            onGoToNext={
+              upcomingModule
+                ? () => {
+                    setShowCompletionToast(false);
+                    setActiveChapter(upcomingModule);
+                    setActiveLessonId(null);
+                  }
+                : null
+            }
+            onDismiss={() => setShowCompletionToast(false)}
+            accentRgb={getTheoryTopicStyle(doc.topic).accentRgb}
           />
         ) : null}
       </AnimatePresence>

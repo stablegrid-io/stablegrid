@@ -7,8 +7,8 @@ import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
-import { SessionMiniPlayer } from '@/components/session/SessionMiniPlayer';
-import { isCompactDesktopNavPath, shouldHideNav } from './navigation-config';
+import { UnifiedMiniPlayer } from '@/components/session/UnifiedMiniPlayer';
+import { isCompactDesktopNavPath, isPracticeSessionPath, shouldHideNav } from './navigation-config';
 
 export const Navigation = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
@@ -18,7 +18,8 @@ export const Navigation = ({ children }: { children: ReactNode }) => {
   const isCompact = isCompactDesktopNavPath(pathname);
 
   const isTheoryPage = pathname.includes('/theory/');
-  const hideForFocus = focusMode && isTheoryPage;
+  const isPracticePage = isPracticeSessionPath(pathname);
+  const hideForFocus = focusMode && (isTheoryPage || isPracticePage);
 
   return (
     <>
@@ -43,7 +44,7 @@ export const Navigation = ({ children }: { children: ReactNode }) => {
       </div>
 
       {!hideForFocus && <BottomNav />}
-      <SessionMiniPlayer />
+      <UnifiedMiniPlayer />
     </>
   );
 };

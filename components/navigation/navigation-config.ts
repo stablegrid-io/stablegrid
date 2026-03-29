@@ -3,6 +3,7 @@
 import {
   type LucideIcon,
   BookOpen,
+  Crosshair,
   Home
 } from 'lucide-react';
 
@@ -21,6 +22,12 @@ export const navItems: NavItem[] = [
     icon: BookOpen,
     label: 'Theory',
     matchPrefixes: ['/theory', '/learn']
+  },
+  {
+    href: '/operations',
+    icon: Crosshair,
+    label: 'Operations',
+    matchPrefixes: ['/operations']
   }
 ];
 
@@ -36,8 +43,11 @@ export const shouldHideNav = (pathname?: string | null, _isAuthenticated?: boole
 export const isTheoryLessonPath = (pathname?: string | null) =>
   Boolean(pathname && /^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname));
 
+export const isPracticeSessionPath = (pathname?: string | null) =>
+  Boolean(pathname && /^\/operations\/practice\/[^/]+\/[^/]+\/[^/]+(?:\/)?$/.test(pathname));
+
 export const isCompactDesktopNavPath = (pathname?: string | null) =>
-  Boolean(pathname?.startsWith('/admin')) || isTheoryLessonPath(pathname);
+  Boolean(pathname?.startsWith('/admin')) || isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname);
 
 export const isNavItemActive = (pathname: string | null, item: NavItem) =>
   Boolean(

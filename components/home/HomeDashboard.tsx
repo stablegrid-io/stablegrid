@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
-import { ArrowRight, Zap, Clock, Clock3, Brain } from 'lucide-react';
+import { ArrowRight, Zap, Clock, Clock3, Brain, BookOpen } from 'lucide-react';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import { HOME_TOPIC_ORDER, getHomeTopicMeta } from '@/components/home/home/topicMeta';
@@ -17,6 +17,7 @@ interface HomeDashboardProps {
   user: User;
   topicProgress: TopicProgress[];
   recentSessions: ReadingSession[];
+  completedSessions: ReadingSession[];
   latestTheorySession: ReadingSession | null;
   lastClockedInAt: string | null;
   latestTaskAction: {
@@ -213,63 +214,72 @@ const TrackLevelBattery = ({ label, completed, total, color, delay }: {
   );
 };
 
-/* ── Session mode battery cell ── */
-const SessionModeCell = ({ label, Icon, color, count, delay }: {
-  label: string; Icon: typeof Zap; color: string; count: number; delay: number;
+/* ── Session mode cell ── */
+const SessionModeCell = ({ label, Icon, color, count, totalSeconds, delay }: {
+  label: string; Icon: typeof Zap; color: string; count: number; totalSeconds: number; delay: number;
 }) => {
-  const maxSessions = 10;
-  const fillPct = Math.min(100, (count / maxSessions) * 100);
-  const animatedFill = useFillAnimation(fillPct, delay);
+  const animatedCount = useCountUp(count, 800, delay);
+  const hours = Math.floor(totalSeconds / 3600);
+  const mins = Math.round((totalSeconds % 3600) / 60);
+  const timeLabel = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 transition-all hover:bg-white/[0.05]">
-      <div className="absolute inset-x-0 bottom-0 transition-all duration-[1.2s]"
-        style={{
-          height: `${animatedFill}%`,
-          background: `linear-gradient(to top, rgba(${color},0.12), rgba(${color},0.03))`,
-          transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-        }} />
-      {animatedFill > 0 && (
-        <div className="absolute inset-x-0 h-px transition-all duration-[1.2s]"
+    <div
+      className="group relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02]"
+      style={{
+        background: count > 0 ? `rgba(${color},0.04)` : 'rgba(255,255,255,0.02)',
+        border: `1px solid rgba(${color},${count > 0 ? 0.15 : 0.06})`,
+      }}
+    >
+      <div className="relative px-3 py-3 flex items-center gap-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
           style={{
-            bottom: `${animatedFill}%`,
-            background: `rgba(${color},0.3)`,
-            boxShadow: `0 0 8px rgba(${color},0.2)`,
-            transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-          }} />
-      )}
-      <div className="relative text-center">
-        <div className="mx-auto flex h-9 w-9 items-center justify-center border" style={{ borderColor: `rgba(${color},0.3)`, backgroundColor: `rgba(${color},0.08)` }}>
-          <Icon className="h-4 w-4" style={{ color: `rgb(${color})` }} />
+            background: `rgba(${color},${count > 0 ? 0.15 : 0.06})`,
+            boxShadow: count > 0 ? `0 0 10px rgba(${color},0.15)` : 'none',
+          }}>
+          <Icon className="h-3.5 w-3.5" style={{ color: `rgb(${color})` }} />
         </div>
-        <p className="text-[10px] font-semibold uppercase tracking-widest mt-2" style={{ color: `rgba(${color},0.7)` }}>{label}</p>
-        <p className="text-lg font-bold text-on-surface mt-1">{count}</p>
-        <p className="text-[9px] text-on-surface-variant/25 mt-0.5">sessions</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgba(${color},${count > 0 ? 0.8 : 0.4})` }}>{label}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <span className="text-[15px] font-bold tabular-nums" style={{ color: count > 0 ? `rgb(${color})` : 'rgba(255,255,255,0.15)' }}>
+            {count > 0 ? timeLabel : '--'}
+          </span>
+          <p className="text-[9px] text-white/20 tabular-nums">{animatedCount} sessions</p>
+        </div>
       </div>
     </div>
   );
 };
 
 /* ── Session mode batteries ── */
-const SessionModeBatteries = ({ sprintCount, pomodoroCount, deepFocusCount, totalHours }: {
-  sprintCount: number; pomodoroCount: number; deepFocusCount: number; totalHours: number;
+const SessionModeBatteries = ({ sprintCount, pomodoroCount, deepFocusCount, freeReadCount, totalHours, sprintSeconds, pomodoroSeconds, deepFocusSeconds, freeReadSeconds }: {
+  sprintCount: number; pomodoroCount: number; deepFocusCount: number; freeReadCount: number; totalHours: number;
+  sprintSeconds: number; pomodoroSeconds: number; deepFocusSeconds: number; freeReadSeconds: number;
 }) => (
-  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.1] animate-[fadeIn_1s_ease]">
-    <div className="flex items-center justify-between mb-4">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30">Session modes</p>
-      <p className="text-[11px] text-on-surface-variant/30">{Math.round(totalHours * 10) / 10}h total</p>
+  <div className="space-y-2 animate-[fadeIn_1s_ease]">
+    <div className="flex items-baseline justify-between px-1 mb-1">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/40">Sessions</p>
+      <div className="flex items-baseline gap-1">
+        <span className="font-mono text-2xl font-bold tabular-nums text-white/90">
+          {String(Math.floor(totalHours / 24)).padStart(2, '0')}:{String(Math.floor(totalHours % 24)).padStart(2, '0')}:{String(Math.round((totalHours % 1) * 60)).padStart(2, '0')}
+        </span>
+        <span className="text-[10px] text-on-surface-variant/30 font-mono">DD:HH:MM</span>
+      </div>
     </div>
-    <div className="grid grid-cols-3 gap-2">
-      <SessionModeCell label="Sprint" Icon={Zap} color="153,247,255" count={sprintCount} delay={600} />
-      <SessionModeCell label="Pomodoro" Icon={Clock3} color="255,113,108" count={pomodoroCount} delay={750} />
-      <SessionModeCell label="Deep Focus" Icon={Brain} color="191,129,255" count={deepFocusCount} delay={900} />
+    <div className="space-y-2">
+      <SessionModeCell label="Sprint" Icon={Zap} color="153,247,255" count={sprintCount} totalSeconds={sprintSeconds} delay={600} />
+      <SessionModeCell label="Pomodoro" Icon={Clock3} color="255,113,108" count={pomodoroCount} totalSeconds={pomodoroSeconds} delay={750} />
+      <SessionModeCell label="Deep Focus" Icon={Brain} color="191,129,255" count={deepFocusCount} totalSeconds={deepFocusSeconds} delay={900} />
+      <SessionModeCell label="Free Read" Icon={BookOpen} color="255,201,101" count={freeReadCount} totalSeconds={freeReadSeconds} delay={1050} />
     </div>
   </div>
 );
 
 /* ── Main Dashboard ── */
 export const HomeDashboard = ({
-  user, topicProgress, recentSessions, latestTheorySession,
+  user, topicProgress, recentSessions, completedSessions, latestTheorySession,
   lastClockedInAt: _lastClockedInAt, latestTaskAction: _latestTaskAction,
   readingSignals, trackMetaByTopic, stats: _stats
 }: HomeDashboardProps) => {
@@ -301,7 +311,6 @@ export const HomeDashboard = ({
     : topicSnapshots.find((s) => s.theoryPct > 0 && s.theoryPct < 100) ?? topicSnapshots[0];
 
   const weeklyVelocity = useMemo(() => computeWeeklyVelocity(readingSignals), [readingSignals]);
-  const totalHours = topicProgress.reduce((sum, p) => sum + (p.theoryTotalMinutesRead ?? 0), 0) / 60;
   const progressFill = useFillAnimation(currentTopic?.theoryPct ?? 0, 400);
 
   const userDisplayName =
@@ -365,15 +374,20 @@ export const HomeDashboard = ({
 
           </div>
 
-          {/* Right: Stats Panel */}
-          <div className="space-y-4">
+          {/* Right: Stats Panel — top padding matches left column header height */}
+          <div className="space-y-4 lg:pt-[72px]">
 
             {/* Session modes */}
             <SessionModeBatteries
-              sprintCount={recentSessions.filter((s) => s.activeSeconds > 0 && s.activeSeconds <= 900).length}
-              pomodoroCount={recentSessions.filter((s) => s.activeSeconds > 900 && s.activeSeconds <= 2700).length}
-              deepFocusCount={recentSessions.filter((s) => s.activeSeconds > 2700).length}
-              totalHours={totalHours}
+              sprintCount={completedSessions.filter((s) => s.activeSeconds > 0 && s.activeSeconds <= 900).length}
+              pomodoroCount={completedSessions.filter((s) => s.activeSeconds > 900 && s.activeSeconds <= 2700).length}
+              deepFocusCount={completedSessions.filter((s) => s.activeSeconds > 2700).length}
+              freeReadCount={completedSessions.length}
+              sprintSeconds={completedSessions.filter((s) => s.activeSeconds > 0 && s.activeSeconds <= 900).reduce((sum, s) => sum + s.activeSeconds, 0)}
+              pomodoroSeconds={completedSessions.filter((s) => s.activeSeconds > 900 && s.activeSeconds <= 2700).reduce((sum, s) => sum + s.activeSeconds, 0)}
+              deepFocusSeconds={completedSessions.filter((s) => s.activeSeconds > 2700).reduce((sum, s) => sum + s.activeSeconds, 0)}
+              freeReadSeconds={completedSessions.reduce((sum, s) => sum + s.activeSeconds, 0)}
+              totalHours={completedSessions.reduce((sum, s) => sum + s.activeSeconds, 0) / 3600}
             />
 
             {skillTags.length > 0 && (

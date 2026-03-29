@@ -32,7 +32,7 @@ const METHOD_ACCENTS: Record<TheorySessionMethodId, { hex: string; rgb: string }
   sprint:       { hex: '#99f7ff', rgb: '153,247,255' },
   pomodoro:     { hex: '#ff716c', rgb: '255,113,108' },
   'deep-focus': { hex: '#bf81ff', rgb: '191,129,255' },
-  'free-read':  { hex: '#bf81ff', rgb: '191,129,255' }
+  'free-read':  { hex: '#fbbf24', rgb: '251,191,36' }
 };
 
 const METHOD_STATS: Record<TheorySessionMethodId, [string, string, string, string]> = {
@@ -255,7 +255,7 @@ export const TheorySessionPicker = ({
               <button
                 type="button"
                 onClick={() => onStart(freeReadConfig)}
-                className="border border-outline-variant/40 px-6 py-2 font-mono text-[9px] text-on-surface-variant uppercase tracking-widest hover:border-primary/40 hover:text-primary transition-colors"
+                className="border border-amber-400/30 bg-amber-400/10 px-8 py-3 rounded-xl font-mono text-xs font-bold text-amber-400 uppercase tracking-widest hover:bg-amber-400/20 hover:border-amber-400/50 transition-all"
               >
                 FREE READ
               </button>

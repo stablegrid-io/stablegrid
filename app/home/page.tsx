@@ -459,6 +459,9 @@ export default async function HomePage() {
   });
   const resolvedTopicProgress = Array.from(topicProgressByTopic.values());
   const recentSessions = recentSessionRows.map(mapReadingSessionRow);
+  const completedSessions = allReadingSessionRows
+    .filter((r) => r.is_completed)
+    .map(mapReadingSessionRow);
   const allReadingSessions = allReadingSessionRows.map(mapReadingSessionRow);
   const latestTheorySession =
     allReadingSessions.length > 0
@@ -515,6 +518,7 @@ export default async function HomePage() {
         user={user}
         topicProgress={resolvedTopicProgress}
         recentSessions={recentSessions}
+        completedSessions={completedSessions}
         latestTheorySession={latestTheorySession}
         lastClockedInAt={lastClockedInAt}
         latestTaskAction={latestTaskAction}
