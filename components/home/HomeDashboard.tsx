@@ -368,66 +368,6 @@ export const HomeDashboard = ({
           {/* Right: Stats Panel */}
           <div className="space-y-4">
 
-            {currentTopic && currentTopic.theoryTotal > 0 && (
-              <div className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.1] animate-[fadeIn_0.4s_ease]">
-                <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(ellipse at top right, rgba(${currentTopic.accentRgb},0.04), transparent 60%)` }} />
-                <div className="relative">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30">Current focus</p>
-                      <h2 className="mt-1 text-lg font-bold tracking-tight text-on-surface">{currentTopic.label}</h2>
-                    </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl transition-transform group-hover:scale-110" style={{ backgroundColor: `rgba(${currentTopic.accentRgb},0.1)` }}>
-                      <BookOpen className="h-4 w-4" style={{ color: `rgb(${currentTopic.accentRgb})` }} />
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex gap-2">
-                    {(() => {
-                      const tracksMeta = trackMetaByTopic[currentTopic.topicId] ?? [];
-                      if (tracksMeta.length === 0) return null;
-
-                      let remainingCompleted = currentTopic.theoryCompleted;
-                      const trackData = tracksMeta.map((tm) => {
-                        const completed = Math.min(tm.moduleCount, Math.max(0, remainingCompleted));
-                        remainingCompleted = Math.max(0, remainingCompleted - tm.moduleCount);
-                        return { ...tm, completed };
-                      });
-
-                      return trackData.map((td, i) => {
-                        const levelColor = TRACK_LEVEL_COLORS[td.slug] ?? '153,247,255';
-                        return (
-                          <TrackLevelBattery
-                            key={td.slug}
-                            label={td.label.replace('-Level Track', '')}
-                            completed={td.completed}
-                            total={td.moduleCount}
-                            color={levelColor}
-                            delay={300 + i * 150}
-                          />
-                        );
-                      });
-                    })()}
-                  </div>
-
-                </div>
-              </div>
-            )}
-
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.1] hover:bg-white/[0.04] animate-[fadeIn_0.6s_ease]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30">Learning velocity</p>
-                  <p className="mt-1 text-[13px] text-on-surface-variant/50">Sessions per week</p>
-                </div>
-                <TrendingUp className="h-4 w-4 text-on-surface-variant/20" />
-              </div>
-              <div className="mt-3">
-                <VelocitySparkline data={weeklyVelocity} accentRgb={currentTopic?.accentRgb ?? '153,247,255'} />
-              </div>
-            </div>
-
-
             {/* Session modes */}
             <SessionModeBatteries
               sprintCount={recentSessions.filter((s) => s.activeSeconds > 0 && s.activeSeconds <= 900).length}

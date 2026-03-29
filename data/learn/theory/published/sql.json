@@ -99,30 +99,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Python (Imperative)",
-              "rightLabel": "SQL (Declarative)",
-              "rows": [
-                {
-                  "left": "You describe how to compute the result, step by step",
-                  "right": "You describe what result you want"
-                },
-                {
-                  "left": "You manage loops, variables, and data structures",
-                  "right": "The database manages execution strategy"
-                },
-                {
-                  "left": "You control the order of operations",
-                  "right": "The database optimizer chooses the best order"
-                },
-                {
-                  "left": "More control, more responsibility",
-                  "right": "Less control, less boilerplate"
-                },
-                {
-                  "left": "Flexible — can do anything",
-                  "right": "Specialized — best at structured data operations"
-                }
-              ]
+              "left": {
+                "label": "Python (Imperative)",
+                "points": [
+                  "You describe how to compute the result, step by step",
+                  "You manage loops, variables, and data structures",
+                  "You control the order of operations",
+                  "More control, more responsibility",
+                  "Flexible — can do anything"
+                ]
+              },
+              "right": {
+                "label": "SQL (Declarative)",
+                "points": [
+                  "You describe what result you want",
+                  "The database manages execution strategy",
+                  "The database optimizer chooses the best order",
+                  "Less control, less boilerplate",
+                  "Specialized — best at structured data operations"
+                ]
+              }
             },
             {
               "type": "heading",
@@ -866,30 +862,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "CSV File",
-              "rightLabel": "Database Table",
-              "rows": [
-                {
-                  "left": "Columns defined by the header row — no enforcement",
-                  "right": "Columns defined by the schema — enforced by the database"
-                },
-                {
-                  "left": "Any value can go in any cell — text in a numeric column is allowed",
-                  "right": "Values must match the column type — the database rejects violations"
-                },
-                {
-                  "left": "Rows can have different numbers of fields (malformed data)",
-                  "right": "Every row has exactly the declared columns — no exceptions"
-                },
-                {
-                  "left": "No built-in mechanism to prevent duplicate rows",
-                  "right": "Primary keys and unique constraints prevent duplicates"
-                },
-                {
-                  "left": "Reading requires parsing the entire file from disk",
-                  "right": "Indexes and the query optimizer enable fast selective reads"
-                }
-              ]
+              "left": {
+                "label": "CSV File",
+                "points": [
+                  "Columns defined by the header row — no enforcement",
+                  "Any value can go in any cell — text in a numeric column is allowed",
+                  "Rows can have different numbers of fields (malformed data)",
+                  "No built-in mechanism to prevent duplicate rows",
+                  "Reading requires parsing the entire file from disk"
+                ]
+              },
+              "right": {
+                "label": "Database Table",
+                "points": [
+                  "Columns defined by the schema — enforced by the database",
+                  "Values must match the column type — the database rejects violations",
+                  "Every row has exactly the declared columns — no exceptions",
+                  "Primary keys and unique constraints prevent duplicates",
+                  "Indexes and the query optimizer enable fast selective reads"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -1604,30 +1596,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Row-by-Row Thinking (Python)",
-              "rightLabel": "Set-Based Thinking (SQL)",
-              "rows": [
-                {
-                  "left": "For each row, check if region is BERN",
-                  "right": "The set of rows where region equals BERN"
-                },
-                {
-                  "left": "If true, add daily_kw to a running total",
-                  "right": "Compute AVG(daily_kw) across the set"
-                },
-                {
-                  "left": "After the loop, divide total by count",
-                  "right": "The database computes the average internally"
-                },
-                {
-                  "left": "You control the iteration order",
-                  "right": "The database chooses the optimal strategy"
-                },
-                {
-                  "left": "If the loop has a bug, debug the iteration",
-                  "right": "If the result is wrong, check the set definition"
-                }
-              ]
+              "left": {
+                "label": "Row-by-Row Thinking (Python)",
+                "points": [
+                  "For each row, check if region is BERN",
+                  "If true, add daily_kw to a running total",
+                  "After the loop, divide total by count",
+                  "You control the iteration order",
+                  "If the loop has a bug, debug the iteration"
+                ]
+              },
+              "right": {
+                "label": "Set-Based Thinking (SQL)",
+                "points": [
+                  "The set of rows where region equals BERN",
+                  "Compute AVG(daily_kw) across the set",
+                  "The database computes the average internally",
+                  "The database chooses the optimal strategy",
+                  "If the result is wrong, check the set definition"
+                ]
+              }
             },
             {
               "type": "heading",
@@ -2231,14 +2219,18 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Hard to Read",
-              "rightLabel": "Easy to Read",
-              "rows": [
-                {
-                  "left": "SELECT meter_id,daily_kw,date,region FROM silver.meter_readings WHERE customer_type='RESIDENTIAL' AND date>='2025-01-01' AND date<'2025-02-01' ORDER BY date;",
-                  "right": "SELECT meter_id,\n       daily_kw,\n       date,\n       region\nFROM   silver.meter_readings\nWHERE  customer_type = 'RESIDENTIAL'\n  AND  date >= '2025-01-01'\n  AND  date < '2025-02-01'\nORDER BY date;"
-                }
-              ]
+              "left": {
+                "label": "Hard to Read",
+                "points": [
+                  "SELECT meter_id,daily_kw,date,region FROM silver.meter_readings WHERE customer_type='RESIDENTIAL' AND date>='2025-01-01' AND date<'2025-02-01' ORDER BY date;"
+                ]
+              },
+              "right": {
+                "label": "Easy to Read",
+                "points": [
+                  "SELECT meter_id,\n       daily_kw,\n       date,\n       region\nFROM   silver.meter_readings\nWHERE  customer_type = 'RESIDENTIAL'\n  AND  date >= '2025-01-01'\n  AND  date < '2025-02-01'\nORDER BY date;"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -4361,26 +4353,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Condition in ON (outer join)",
-              "rightLabel": "Condition in WHERE (outer join)",
-              "rows": [
-                {
-                  "left": "Filters the right table before joining",
-                  "right": "Filters the result after joining"
-                },
-                {
-                  "left": "Unmatched left rows get NULLs and survive",
-                  "right": "Unmatched left rows (with NULLs) are excluded"
-                },
-                {
-                  "left": "Preserves LEFT JOIN behavior",
-                  "right": "Effectively converts LEFT JOIN to INNER JOIN"
-                },
-                {
-                  "left": "Use for conditions on the right table",
-                  "right": "Use for conditions on the left table or the joined result"
-                }
-              ]
+              "left": {
+                "label": "Condition in ON (outer join)",
+                "points": [
+                  "Filters the right table before joining",
+                  "Unmatched left rows get NULLs and survive",
+                  "Preserves LEFT JOIN behavior",
+                  "Use for conditions on the right table"
+                ]
+              },
+              "right": {
+                "label": "Condition in WHERE (outer join)",
+                "points": [
+                  "Filters the result after joining",
+                  "Unmatched left rows (with NULLs) are excluded",
+                  "Effectively converts LEFT JOIN to INNER JOIN",
+                  "Use for conditions on the left table or the joined result"
+                ]
+              }
             },
             {
               "type": "callout",
@@ -4919,30 +4909,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "IN (value matching)",
-              "rightLabel": "EXISTS (row existence)",
-              "rows": [
-                {
-                  "left": "Compares a column value against a list of values",
-                  "right": "Checks whether at least one related row exists"
-                },
-                {
-                  "left": "Subquery returns a list of values",
-                  "right": "Subquery returns TRUE/FALSE (rows exist or not)"
-                },
-                {
-                  "left": "NOT IN breaks with NULLs in the subquery result",
-                  "right": "NOT EXISTS handles NULLs correctly"
-                },
-                {
-                  "left": "Often simpler for straightforward value lookups",
-                  "right": "Often more efficient for large datasets"
-                },
-                {
-                  "left": "Subquery runs independently of the outer query",
-                  "right": "Subquery references the outer query (correlated)"
-                }
-              ]
+              "left": {
+                "label": "IN (value matching)",
+                "points": [
+                  "Compares a column value against a list of values",
+                  "Subquery returns a list of values",
+                  "NOT IN breaks with NULLs in the subquery result",
+                  "Often simpler for straightforward value lookups",
+                  "Subquery runs independently of the outer query"
+                ]
+              },
+              "right": {
+                "label": "EXISTS (row existence)",
+                "points": [
+                  "Checks whether at least one related row exists",
+                  "Subquery returns TRUE/FALSE (rows exist or not)",
+                  "NOT EXISTS handles NULLs correctly",
+                  "Often more efficient for large datasets",
+                  "Subquery references the outer query (correlated)"
+                ]
+              }
             },
             {
               "type": "callout",
@@ -5036,30 +5022,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Derived Table (FROM subquery)",
-              "rightLabel": "CTE (WITH clause)",
-              "rows": [
-                {
-                  "left": "Defined inside the FROM clause",
-                  "right": "Defined before the main query"
-                },
-                {
-                  "left": "Read inside-out",
-                  "right": "Read top-to-bottom"
-                },
-                {
-                  "left": "Cannot be referenced more than once",
-                  "right": "Can be referenced multiple times in the main query"
-                },
-                {
-                  "left": "Nesting creates deep indentation",
-                  "right": "Multiple CTEs stay flat"
-                },
-                {
-                  "left": "Works in all databases",
-                  "right": "Supported by PostgreSQL, Spark SQL, BigQuery, Snowflake, and SQL Server"
-                }
-              ]
+              "left": {
+                "label": "Derived Table (FROM subquery)",
+                "points": [
+                  "Defined inside the FROM clause",
+                  "Read inside-out",
+                  "Cannot be referenced more than once",
+                  "Nesting creates deep indentation",
+                  "Works in all databases"
+                ]
+              },
+              "right": {
+                "label": "CTE (WITH clause)",
+                "points": [
+                  "Defined before the main query",
+                  "Read top-to-bottom",
+                  "Can be referenced multiple times in the main query",
+                  "Multiple CTEs stay flat",
+                  "Supported by PostgreSQL, Spark SQL, BigQuery, Snowflake, and SQL Server"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -6467,30 +6449,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Table (CTAS)",
-              "rightLabel": "View (CREATE VIEW)",
-              "rows": [
-                {
-                  "left": "Stores data on disk — query reads from physical storage",
-                  "right": "Stores a query — data is computed fresh on every access"
-                },
-                {
-                  "left": "Fast to query (data is pre-computed)",
-                  "right": "Slower to query (join/aggregation runs every time)"
-                },
-                {
-                  "left": "Stale: reflects data at creation time",
-                  "right": "Always current: reflects the latest data in source tables"
-                },
-                {
-                  "left": "Takes storage space",
-                  "right": "No additional storage"
-                },
-                {
-                  "left": "Good for: Gold-layer analytical outputs queried frequently",
-                  "right": "Good for: abstractions, access control, simplifying complex joins"
-                }
-              ]
+              "left": {
+                "label": "Table (CTAS)",
+                "points": [
+                  "Stores data on disk — query reads from physical storage",
+                  "Fast to query (data is pre-computed)",
+                  "Stale: reflects data at creation time",
+                  "Takes storage space",
+                  "Good for: Gold-layer analytical outputs queried frequently"
+                ]
+              },
+              "right": {
+                "label": "View (CREATE VIEW)",
+                "points": [
+                  "Stores a query — data is computed fresh on every access",
+                  "Slower to query (join/aggregation runs every time)",
+                  "Always current: reflects the latest data in source tables",
+                  "No additional storage",
+                  "Good for: abstractions, access control, simplifying complex joins"
+                ]
+              }
             },
             {
               "type": "heading",
@@ -7307,30 +7285,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Python (Imperative)",
-              "rightLabel": "SQL (Declarative)",
-              "rows": [
-                {
-                  "left": "You describe how to compute the result, step by step",
-                  "right": "You describe what result you want"
-                },
-                {
-                  "left": "You manage loops, variables, and data structures",
-                  "right": "The database manages execution strategy"
-                },
-                {
-                  "left": "You control the order of operations",
-                  "right": "The database optimizer chooses the best order"
-                },
-                {
-                  "left": "More control, more responsibility",
-                  "right": "Less control, less boilerplate"
-                },
-                {
-                  "left": "Flexible — can do anything",
-                  "right": "Specialized — best at structured data operations"
-                }
-              ]
+              "left": {
+                "label": "Python (Imperative)",
+                "points": [
+                  "You describe how to compute the result, step by step",
+                  "You manage loops, variables, and data structures",
+                  "You control the order of operations",
+                  "More control, more responsibility",
+                  "Flexible — can do anything"
+                ]
+              },
+              "right": {
+                "label": "SQL (Declarative)",
+                "points": [
+                  "You describe what result you want",
+                  "The database manages execution strategy",
+                  "The database optimizer chooses the best order",
+                  "Less control, less boilerplate",
+                  "Specialized — best at structured data operations"
+                ]
+              }
             },
             {
               "type": "heading",
@@ -8074,30 +8048,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "CSV File",
-              "rightLabel": "Database Table",
-              "rows": [
-                {
-                  "left": "Columns defined by the header row — no enforcement",
-                  "right": "Columns defined by the schema — enforced by the database"
-                },
-                {
-                  "left": "Any value can go in any cell — text in a numeric column is allowed",
-                  "right": "Values must match the column type — the database rejects violations"
-                },
-                {
-                  "left": "Rows can have different numbers of fields (malformed data)",
-                  "right": "Every row has exactly the declared columns — no exceptions"
-                },
-                {
-                  "left": "No built-in mechanism to prevent duplicate rows",
-                  "right": "Primary keys and unique constraints prevent duplicates"
-                },
-                {
-                  "left": "Reading requires parsing the entire file from disk",
-                  "right": "Indexes and the query optimizer enable fast selective reads"
-                }
-              ]
+              "left": {
+                "label": "CSV File",
+                "points": [
+                  "Columns defined by the header row — no enforcement",
+                  "Any value can go in any cell — text in a numeric column is allowed",
+                  "Rows can have different numbers of fields (malformed data)",
+                  "No built-in mechanism to prevent duplicate rows",
+                  "Reading requires parsing the entire file from disk"
+                ]
+              },
+              "right": {
+                "label": "Database Table",
+                "points": [
+                  "Columns defined by the schema — enforced by the database",
+                  "Values must match the column type — the database rejects violations",
+                  "Every row has exactly the declared columns — no exceptions",
+                  "Primary keys and unique constraints prevent duplicates",
+                  "Indexes and the query optimizer enable fast selective reads"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -8812,30 +8782,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Row-by-Row Thinking (Python)",
-              "rightLabel": "Set-Based Thinking (SQL)",
-              "rows": [
-                {
-                  "left": "For each row, check if region is BERN",
-                  "right": "The set of rows where region equals BERN"
-                },
-                {
-                  "left": "If true, add daily_kw to a running total",
-                  "right": "Compute AVG(daily_kw) across the set"
-                },
-                {
-                  "left": "After the loop, divide total by count",
-                  "right": "The database computes the average internally"
-                },
-                {
-                  "left": "You control the iteration order",
-                  "right": "The database chooses the optimal strategy"
-                },
-                {
-                  "left": "If the loop has a bug, debug the iteration",
-                  "right": "If the result is wrong, check the set definition"
-                }
-              ]
+              "left": {
+                "label": "Row-by-Row Thinking (Python)",
+                "points": [
+                  "For each row, check if region is BERN",
+                  "If true, add daily_kw to a running total",
+                  "After the loop, divide total by count",
+                  "You control the iteration order",
+                  "If the loop has a bug, debug the iteration"
+                ]
+              },
+              "right": {
+                "label": "Set-Based Thinking (SQL)",
+                "points": [
+                  "The set of rows where region equals BERN",
+                  "Compute AVG(daily_kw) across the set",
+                  "The database computes the average internally",
+                  "The database chooses the optimal strategy",
+                  "If the result is wrong, check the set definition"
+                ]
+              }
             },
             {
               "type": "heading",
@@ -9439,14 +9405,18 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Hard to Read",
-              "rightLabel": "Easy to Read",
-              "rows": [
-                {
-                  "left": "SELECT meter_id,daily_kw,date,region FROM silver.meter_readings WHERE customer_type='RESIDENTIAL' AND date>='2025-01-01' AND date<'2025-02-01' ORDER BY date;",
-                  "right": "SELECT meter_id,\n       daily_kw,\n       date,\n       region\nFROM   silver.meter_readings\nWHERE  customer_type = 'RESIDENTIAL'\n  AND  date >= '2025-01-01'\n  AND  date < '2025-02-01'\nORDER BY date;"
-                }
-              ]
+              "left": {
+                "label": "Hard to Read",
+                "points": [
+                  "SELECT meter_id,daily_kw,date,region FROM silver.meter_readings WHERE customer_type='RESIDENTIAL' AND date>='2025-01-01' AND date<'2025-02-01' ORDER BY date;"
+                ]
+              },
+              "right": {
+                "label": "Easy to Read",
+                "points": [
+                  "SELECT meter_id,\n       daily_kw,\n       date,\n       region\nFROM   silver.meter_readings\nWHERE  customer_type = 'RESIDENTIAL'\n  AND  date >= '2025-01-01'\n  AND  date < '2025-02-01'\nORDER BY date;"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -11569,26 +11539,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Condition in ON (outer join)",
-              "rightLabel": "Condition in WHERE (outer join)",
-              "rows": [
-                {
-                  "left": "Filters the right table before joining",
-                  "right": "Filters the result after joining"
-                },
-                {
-                  "left": "Unmatched left rows get NULLs and survive",
-                  "right": "Unmatched left rows (with NULLs) are excluded"
-                },
-                {
-                  "left": "Preserves LEFT JOIN behavior",
-                  "right": "Effectively converts LEFT JOIN to INNER JOIN"
-                },
-                {
-                  "left": "Use for conditions on the right table",
-                  "right": "Use for conditions on the left table or the joined result"
-                }
-              ]
+              "left": {
+                "label": "Condition in ON (outer join)",
+                "points": [
+                  "Filters the right table before joining",
+                  "Unmatched left rows get NULLs and survive",
+                  "Preserves LEFT JOIN behavior",
+                  "Use for conditions on the right table"
+                ]
+              },
+              "right": {
+                "label": "Condition in WHERE (outer join)",
+                "points": [
+                  "Filters the result after joining",
+                  "Unmatched left rows (with NULLs) are excluded",
+                  "Effectively converts LEFT JOIN to INNER JOIN",
+                  "Use for conditions on the left table or the joined result"
+                ]
+              }
             },
             {
               "type": "callout",
@@ -12127,30 +12095,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "IN (value matching)",
-              "rightLabel": "EXISTS (row existence)",
-              "rows": [
-                {
-                  "left": "Compares a column value against a list of values",
-                  "right": "Checks whether at least one related row exists"
-                },
-                {
-                  "left": "Subquery returns a list of values",
-                  "right": "Subquery returns TRUE/FALSE (rows exist or not)"
-                },
-                {
-                  "left": "NOT IN breaks with NULLs in the subquery result",
-                  "right": "NOT EXISTS handles NULLs correctly"
-                },
-                {
-                  "left": "Often simpler for straightforward value lookups",
-                  "right": "Often more efficient for large datasets"
-                },
-                {
-                  "left": "Subquery runs independently of the outer query",
-                  "right": "Subquery references the outer query (correlated)"
-                }
-              ]
+              "left": {
+                "label": "IN (value matching)",
+                "points": [
+                  "Compares a column value against a list of values",
+                  "Subquery returns a list of values",
+                  "NOT IN breaks with NULLs in the subquery result",
+                  "Often simpler for straightforward value lookups",
+                  "Subquery runs independently of the outer query"
+                ]
+              },
+              "right": {
+                "label": "EXISTS (row existence)",
+                "points": [
+                  "Checks whether at least one related row exists",
+                  "Subquery returns TRUE/FALSE (rows exist or not)",
+                  "NOT EXISTS handles NULLs correctly",
+                  "Often more efficient for large datasets",
+                  "Subquery references the outer query (correlated)"
+                ]
+              }
             },
             {
               "type": "callout",
@@ -12244,30 +12208,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Derived Table (FROM subquery)",
-              "rightLabel": "CTE (WITH clause)",
-              "rows": [
-                {
-                  "left": "Defined inside the FROM clause",
-                  "right": "Defined before the main query"
-                },
-                {
-                  "left": "Read inside-out",
-                  "right": "Read top-to-bottom"
-                },
-                {
-                  "left": "Cannot be referenced more than once",
-                  "right": "Can be referenced multiple times in the main query"
-                },
-                {
-                  "left": "Nesting creates deep indentation",
-                  "right": "Multiple CTEs stay flat"
-                },
-                {
-                  "left": "Works in all databases",
-                  "right": "Supported by PostgreSQL, Spark SQL, BigQuery, Snowflake, and SQL Server"
-                }
-              ]
+              "left": {
+                "label": "Derived Table (FROM subquery)",
+                "points": [
+                  "Defined inside the FROM clause",
+                  "Read inside-out",
+                  "Cannot be referenced more than once",
+                  "Nesting creates deep indentation",
+                  "Works in all databases"
+                ]
+              },
+              "right": {
+                "label": "CTE (WITH clause)",
+                "points": [
+                  "Defined before the main query",
+                  "Read top-to-bottom",
+                  "Can be referenced multiple times in the main query",
+                  "Multiple CTEs stay flat",
+                  "Supported by PostgreSQL, Spark SQL, BigQuery, Snowflake, and SQL Server"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -13675,30 +13635,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Table (CTAS)",
-              "rightLabel": "View (CREATE VIEW)",
-              "rows": [
-                {
-                  "left": "Stores data on disk — query reads from physical storage",
-                  "right": "Stores a query — data is computed fresh on every access"
-                },
-                {
-                  "left": "Fast to query (data is pre-computed)",
-                  "right": "Slower to query (join/aggregation runs every time)"
-                },
-                {
-                  "left": "Stale: reflects data at creation time",
-                  "right": "Always current: reflects the latest data in source tables"
-                },
-                {
-                  "left": "Takes storage space",
-                  "right": "No additional storage"
-                },
-                {
-                  "left": "Good for: Gold-layer analytical outputs queried frequently",
-                  "right": "Good for: abstractions, access control, simplifying complex joins"
-                }
-              ]
+              "left": {
+                "label": "Table (CTAS)",
+                "points": [
+                  "Stores data on disk — query reads from physical storage",
+                  "Fast to query (data is pre-computed)",
+                  "Stale: reflects data at creation time",
+                  "Takes storage space",
+                  "Good for: Gold-layer analytical outputs queried frequently"
+                ]
+              },
+              "right": {
+                "label": "View (CREATE VIEW)",
+                "points": [
+                  "Stores a query — data is computed fresh on every access",
+                  "Slower to query (join/aggregation runs every time)",
+                  "Always current: reflects the latest data in source tables",
+                  "No additional storage",
+                  "Good for: abstractions, access control, simplifying complex joins"
+                ]
+              }
             },
             {
               "type": "heading",

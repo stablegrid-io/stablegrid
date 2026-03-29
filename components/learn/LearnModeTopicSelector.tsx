@@ -161,7 +161,7 @@ export function LearnModeTopicSelector({
     <div className="min-h-screen pb-24 lg:pb-10">
       <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Page header — matches Stitch Theory Hub */}
-        <header className="mb-12 border-l-2 border-primary pl-6">
+        <header className="mb-12 border-l-2 border-primary pl-6" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}>
           <h1 className="font-headline text-5xl font-extrabold tracking-tighter text-on-surface uppercase mb-2">
             Theory <span className="text-primary">Hub</span>
           </h1>
@@ -176,7 +176,7 @@ export function LearnModeTopicSelector({
         </header>
 
         {/* Filters */}
-        <div className="mb-10 inline-flex flex-col rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl overflow-hidden">
+        <div className="mb-10 inline-flex flex-col rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl overflow-hidden" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards' }}>
           {/* Row 0: Search */}
           <div className="flex items-center gap-3 px-4 py-2.5">
             <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30 w-14">
@@ -301,14 +301,17 @@ export function LearnModeTopicSelector({
 
               const wrapperClassName = `group h-full ${hasContent ? '' : 'cursor-default'}`;
               const wrapperKey = `${mode}-${topic.id}`;
+              const staggerDelay = index * 80;
               const cardInner = (
                   <section
                     className="bg-surface-container-low p-1 relative overflow-hidden transition-all duration-300 h-full"
                     style={{
                       border: `1px solid ${borderAccent}`,
+                      opacity: 0,
+                      animation: `fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${staggerDelay + 100}ms forwards`,
                     }}
-                    onMouseEnter={(e) => { if (hasContent) { e.currentTarget.style.boxShadow = `0 0 30px rgba(${style.accentRgb},0.15)`; e.currentTarget.style.borderColor = `rgba(${style.accentRgb},0.4)`; } }}
-                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = borderAccent; }}
+                    onMouseEnter={(e) => { if (hasContent) { e.currentTarget.style.boxShadow = `0 0 30px rgba(${style.accentRgb},0.15)`; e.currentTarget.style.borderColor = `rgba(${style.accentRgb},0.4)`; e.currentTarget.style.transform = 'scale(1.02)'; } }}
+                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = borderAccent; e.currentTarget.style.transform = 'scale(1)'; }}
                   >
                     <div className="absolute top-0 right-0 p-2 text-[10px] font-mono" style={{ color: `rgba(${style.accentRgb},0.3)` }}>
                       ID: TR-{String(index + 1).padStart(2, '0')}
@@ -381,7 +384,10 @@ export function LearnModeTopicSelector({
                                     className="flex-1 h-3"
                                     style={{
                                       backgroundColor: i < filledBlocks ? accent : `rgba(${style.accentRgb},0.1)`,
-                                      border: i >= filledBlocks ? `1px solid rgba(${style.accentRgb},0.1)` : 'none'
+                                      border: i >= filledBlocks ? `1px solid rgba(${style.accentRgb},0.1)` : 'none',
+                                      boxShadow: i < filledBlocks ? `0 0 6px rgba(${style.accentRgb},0.3)` : 'none',
+                                      opacity: 0,
+                                      animation: `fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) ${staggerDelay + 300 + i * 40}ms forwards`,
                                     }}
                                   />
                                 ))}

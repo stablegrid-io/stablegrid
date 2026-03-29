@@ -1410,26 +1410,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Range (date)",
-              "rightLabel": "List (country) / Hash (meter_id)",
-              "rows": [
-                {
-                  "left": "Prunes by value range: WHERE date >= ... AND date < ...",
-                  "right": "List prunes by equality: WHERE country = 'CH'. Hash prunes by exact key only."
-                },
-                {
-                  "left": "New partitions added chronologically — no existing data moves",
-                  "right": "List: new values require new partitions. Hash: fixed partition count, no growth."
-                },
-                {
-                  "left": "Partition size proportional to time-period data volume (predictable)",
-                  "right": "List: size proportional to category volume (may be skewed). Hash: uniform by design."
-                },
-                {
-                  "left": "Best for: time-series fact tables with date-range queries",
-                  "right": "List best for: regulatory isolation. Hash best for: parallel processing without range filters."
-                }
-              ]
+              "left": {
+                "label": "Range (date)",
+                "points": [
+                  "Prunes by value range: WHERE date >= ... AND date < ...",
+                  "New partitions added chronologically — no existing data moves",
+                  "Partition size proportional to time-period data volume (predictable)",
+                  "Best for: time-series fact tables with date-range queries"
+                ]
+              },
+              "right": {
+                "label": "List (country) / Hash (meter_id)",
+                "points": [
+                  "List prunes by equality: WHERE country = 'CH'. Hash prunes by exact key only.",
+                  "List: new values require new partitions. Hash: fixed partition count, no growth.",
+                  "List: size proportional to category volume (may be skewed). Hash: uniform by design.",
+                  "List best for: regulatory isolation. Hash best for: parallel processing without range filters."
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -1759,26 +1757,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Single-instance partitioning",
-              "rightLabel": "Sharding / Federation",
-              "rows": [
-                {
-                  "left": "Simplest operations: one instance to backup, monitor, upgrade",
-                  "right": "Multiple instances: each must be backed up, monitored, and upgraded independently"
-                },
-                {
-                  "left": "Single failure domain: instance failure affects all consumers",
-                  "right": "Isolated failure domains: one shard's failure does not affect other shards"
-                },
-                {
-                  "left": "ACID transactions within the instance are straightforward",
-                  "right": "Cross-shard transactions require distributed commit protocols (2PC) or eventual consistency"
-                },
-                {
-                  "left": "Sufficient for < 10TB, < 500 concurrent connections",
-                  "right": "Required above these thresholds, or for physical data residency isolation"
-                }
-              ]
+              "left": {
+                "label": "Single-instance partitioning",
+                "points": [
+                  "Simplest operations: one instance to backup, monitor, upgrade",
+                  "Single failure domain: instance failure affects all consumers",
+                  "ACID transactions within the instance are straightforward",
+                  "Sufficient for < 10TB, < 500 concurrent connections"
+                ]
+              },
+              "right": {
+                "label": "Sharding / Federation",
+                "points": [
+                  "Multiple instances: each must be backed up, monitored, and upgraded independently",
+                  "Isolated failure domains: one shard's failure does not affect other shards",
+                  "Cross-shard transactions require distributed commit protocols (2PC) or eventual consistency",
+                  "Required above these thresholds, or for physical data residency isolation"
+                ]
+              }
             },
             {
               "type": "callout",
@@ -2017,30 +2013,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Replicate (copy dimension to analytical engine)",
-              "rightLabel": "Federate (query source engine at join time)",
-              "rows": [
-                {
-                  "left": "Copy PostgreSQL dimensions to Delta Lake nightly via CDC/ETL",
-                  "right": "Spark SQL reads PostgreSQL via JDBC at query time"
-                },
-                {
-                  "left": "Join is local to Spark SQL — full optimizer support, no network at query time",
-                  "right": "Join involves network I/O — latency depends on result size and pushdown"
-                },
-                {
-                  "left": "Data staleness: dimension reflects last replication, not current state",
-                  "right": "Data freshness: always reads the current dimension values"
-                },
-                {
-                  "left": "Storage cost: dimension data duplicated across engines",
-                  "right": "No storage cost: data remains in source engine only"
-                },
-                {
-                  "left": "Best for: frequently joined dimensions that change slowly",
-                  "right": "Best for: rarely joined dimensions or dimensions that change frequently"
-                }
-              ]
+              "left": {
+                "label": "Replicate (copy dimension to analytical engine)",
+                "points": [
+                  "Copy PostgreSQL dimensions to Delta Lake nightly via CDC/ETL",
+                  "Join is local to Spark SQL — full optimizer support, no network at query time",
+                  "Data staleness: dimension reflects last replication, not current state",
+                  "Storage cost: dimension data duplicated across engines",
+                  "Best for: frequently joined dimensions that change slowly"
+                ]
+              },
+              "right": {
+                "label": "Federate (query source engine at join time)",
+                "points": [
+                  "Spark SQL reads PostgreSQL via JDBC at query time",
+                  "Join involves network I/O — latency depends on result size and pushdown",
+                  "Data freshness: always reads the current dimension values",
+                  "No storage cost: data remains in source engine only",
+                  "Best for: rarely joined dimensions or dimensions that change frequently"
+                ]
+              }
             },
             {
               "type": "heading",
@@ -5306,26 +5298,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "At-Least-Once (default, simpler)",
-              "rightLabel": "Exactly-Once (requires coordination)",
-              "rows": [
-                {
-                  "left": "Producer publishes to Kafka with acks=all; retry on failure",
-                  "right": "Producer publishes with idempotent writes (enable.idempotence=true); Kafka deduplicates"
-                },
-                {
-                  "left": "Consumer commits Kafka offset after processing; re-processes on failure → duplicates",
-                  "right": "Consumer commits offset atomically with the Delta Lake write → no duplicates"
-                },
-                {
-                  "left": "Delta Lake may contain duplicate rows after consumer restart",
-                  "right": "Delta Lake contains exactly one copy of each event"
-                },
-                {
-                  "left": "Requires downstream deduplication (MERGE with conflict resolution)",
-                  "right": "No downstream deduplication needed — correctness guaranteed by the pipeline"
-                }
-              ]
+              "left": {
+                "label": "At-Least-Once (default, simpler)",
+                "points": [
+                  "Producer publishes to Kafka with acks=all; retry on failure",
+                  "Consumer commits Kafka offset after processing; re-processes on failure → duplicates",
+                  "Delta Lake may contain duplicate rows after consumer restart",
+                  "Requires downstream deduplication (MERGE with conflict resolution)"
+                ]
+              },
+              "right": {
+                "label": "Exactly-Once (requires coordination)",
+                "points": [
+                  "Producer publishes with idempotent writes (enable.idempotence=true); Kafka deduplicates",
+                  "Consumer commits offset atomically with the Delta Lake write → no duplicates",
+                  "Delta Lake contains exactly one copy of each event",
+                  "No downstream deduplication needed — correctness guaranteed by the pipeline"
+                ]
+              }
             },
             {
               "type": "heading",
@@ -6095,26 +6085,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Centralized platform team",
-              "rightLabel": "Federated domain teams (data mesh)",
-              "rows": [
-                {
-                  "left": "One team owns all infrastructure, all pipelines, all governance",
-                  "right": "Each domain team owns their pipelines, their tables, their quality"
-                },
-                {
-                  "left": "Strong consistency: one coding style, one deployment process, one monitoring",
-                  "right": "Domain autonomy: teams choose their tools, patterns, and schedules"
-                },
-                {
-                  "left": "Bottleneck: central team becomes the chokepoint for all data requests",
-                  "right": "Coordination cost: cross-domain changes require negotiation between autonomous teams"
-                },
-                {
-                  "left": "Works at: 1-5 teams, < 50 pipelines, strong platform expertise",
-                  "right": "Works at: 5-20 teams, 50-500 pipelines, strong domain expertise"
-                }
-              ]
+              "left": {
+                "label": "Centralized platform team",
+                "points": [
+                  "One team owns all infrastructure, all pipelines, all governance",
+                  "Strong consistency: one coding style, one deployment process, one monitoring",
+                  "Bottleneck: central team becomes the chokepoint for all data requests",
+                  "Works at: 1-5 teams, < 50 pipelines, strong platform expertise"
+                ]
+              },
+              "right": {
+                "label": "Federated domain teams (data mesh)",
+                "points": [
+                  "Each domain team owns their pipelines, their tables, their quality",
+                  "Domain autonomy: teams choose their tools, patterns, and schedules",
+                  "Coordination cost: cross-domain changes require negotiation between autonomous teams",
+                  "Works at: 5-20 teams, 50-500 pipelines, strong domain expertise"
+                ]
+              }
             },
             {
               "type": "heading",
@@ -7754,26 +7742,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Range (date)",
-              "rightLabel": "List (country) / Hash (meter_id)",
-              "rows": [
-                {
-                  "left": "Prunes by value range: WHERE date >= ... AND date < ...",
-                  "right": "List prunes by equality: WHERE country = 'CH'. Hash prunes by exact key only."
-                },
-                {
-                  "left": "New partitions added chronologically — no existing data moves",
-                  "right": "List: new values require new partitions. Hash: fixed partition count, no growth."
-                },
-                {
-                  "left": "Partition size proportional to time-period data volume (predictable)",
-                  "right": "List: size proportional to category volume (may be skewed). Hash: uniform by design."
-                },
-                {
-                  "left": "Best for: time-series fact tables with date-range queries",
-                  "right": "List best for: regulatory isolation. Hash best for: parallel processing without range filters."
-                }
-              ]
+              "left": {
+                "label": "Range (date)",
+                "points": [
+                  "Prunes by value range: WHERE date >= ... AND date < ...",
+                  "New partitions added chronologically — no existing data moves",
+                  "Partition size proportional to time-period data volume (predictable)",
+                  "Best for: time-series fact tables with date-range queries"
+                ]
+              },
+              "right": {
+                "label": "List (country) / Hash (meter_id)",
+                "points": [
+                  "List prunes by equality: WHERE country = 'CH'. Hash prunes by exact key only.",
+                  "List: new values require new partitions. Hash: fixed partition count, no growth.",
+                  "List: size proportional to category volume (may be skewed). Hash: uniform by design.",
+                  "List best for: regulatory isolation. Hash best for: parallel processing without range filters."
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -8103,26 +8089,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Single-instance partitioning",
-              "rightLabel": "Sharding / Federation",
-              "rows": [
-                {
-                  "left": "Simplest operations: one instance to backup, monitor, upgrade",
-                  "right": "Multiple instances: each must be backed up, monitored, and upgraded independently"
-                },
-                {
-                  "left": "Single failure domain: instance failure affects all consumers",
-                  "right": "Isolated failure domains: one shard's failure does not affect other shards"
-                },
-                {
-                  "left": "ACID transactions within the instance are straightforward",
-                  "right": "Cross-shard transactions require distributed commit protocols (2PC) or eventual consistency"
-                },
-                {
-                  "left": "Sufficient for < 10TB, < 500 concurrent connections",
-                  "right": "Required above these thresholds, or for physical data residency isolation"
-                }
-              ]
+              "left": {
+                "label": "Single-instance partitioning",
+                "points": [
+                  "Simplest operations: one instance to backup, monitor, upgrade",
+                  "Single failure domain: instance failure affects all consumers",
+                  "ACID transactions within the instance are straightforward",
+                  "Sufficient for < 10TB, < 500 concurrent connections"
+                ]
+              },
+              "right": {
+                "label": "Sharding / Federation",
+                "points": [
+                  "Multiple instances: each must be backed up, monitored, and upgraded independently",
+                  "Isolated failure domains: one shard's failure does not affect other shards",
+                  "Cross-shard transactions require distributed commit protocols (2PC) or eventual consistency",
+                  "Required above these thresholds, or for physical data residency isolation"
+                ]
+              }
             },
             {
               "type": "callout",
@@ -8361,30 +8345,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Replicate (copy dimension to analytical engine)",
-              "rightLabel": "Federate (query source engine at join time)",
-              "rows": [
-                {
-                  "left": "Copy PostgreSQL dimensions to Delta Lake nightly via CDC/ETL",
-                  "right": "Spark SQL reads PostgreSQL via JDBC at query time"
-                },
-                {
-                  "left": "Join is local to Spark SQL — full optimizer support, no network at query time",
-                  "right": "Join involves network I/O — latency depends on result size and pushdown"
-                },
-                {
-                  "left": "Data staleness: dimension reflects last replication, not current state",
-                  "right": "Data freshness: always reads the current dimension values"
-                },
-                {
-                  "left": "Storage cost: dimension data duplicated across engines",
-                  "right": "No storage cost: data remains in source engine only"
-                },
-                {
-                  "left": "Best for: frequently joined dimensions that change slowly",
-                  "right": "Best for: rarely joined dimensions or dimensions that change frequently"
-                }
-              ]
+              "left": {
+                "label": "Replicate (copy dimension to analytical engine)",
+                "points": [
+                  "Copy PostgreSQL dimensions to Delta Lake nightly via CDC/ETL",
+                  "Join is local to Spark SQL — full optimizer support, no network at query time",
+                  "Data staleness: dimension reflects last replication, not current state",
+                  "Storage cost: dimension data duplicated across engines",
+                  "Best for: frequently joined dimensions that change slowly"
+                ]
+              },
+              "right": {
+                "label": "Federate (query source engine at join time)",
+                "points": [
+                  "Spark SQL reads PostgreSQL via JDBC at query time",
+                  "Join involves network I/O — latency depends on result size and pushdown",
+                  "Data freshness: always reads the current dimension values",
+                  "No storage cost: data remains in source engine only",
+                  "Best for: rarely joined dimensions or dimensions that change frequently"
+                ]
+              }
             },
             {
               "type": "heading",
@@ -11650,26 +11630,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "At-Least-Once (default, simpler)",
-              "rightLabel": "Exactly-Once (requires coordination)",
-              "rows": [
-                {
-                  "left": "Producer publishes to Kafka with acks=all; retry on failure",
-                  "right": "Producer publishes with idempotent writes (enable.idempotence=true); Kafka deduplicates"
-                },
-                {
-                  "left": "Consumer commits Kafka offset after processing; re-processes on failure → duplicates",
-                  "right": "Consumer commits offset atomically with the Delta Lake write → no duplicates"
-                },
-                {
-                  "left": "Delta Lake may contain duplicate rows after consumer restart",
-                  "right": "Delta Lake contains exactly one copy of each event"
-                },
-                {
-                  "left": "Requires downstream deduplication (MERGE with conflict resolution)",
-                  "right": "No downstream deduplication needed — correctness guaranteed by the pipeline"
-                }
-              ]
+              "left": {
+                "label": "At-Least-Once (default, simpler)",
+                "points": [
+                  "Producer publishes to Kafka with acks=all; retry on failure",
+                  "Consumer commits Kafka offset after processing; re-processes on failure → duplicates",
+                  "Delta Lake may contain duplicate rows after consumer restart",
+                  "Requires downstream deduplication (MERGE with conflict resolution)"
+                ]
+              },
+              "right": {
+                "label": "Exactly-Once (requires coordination)",
+                "points": [
+                  "Producer publishes with idempotent writes (enable.idempotence=true); Kafka deduplicates",
+                  "Consumer commits offset atomically with the Delta Lake write → no duplicates",
+                  "Delta Lake contains exactly one copy of each event",
+                  "No downstream deduplication needed — correctness guaranteed by the pipeline"
+                ]
+              }
             },
             {
               "type": "heading",
@@ -12439,26 +12417,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Centralized platform team",
-              "rightLabel": "Federated domain teams (data mesh)",
-              "rows": [
-                {
-                  "left": "One team owns all infrastructure, all pipelines, all governance",
-                  "right": "Each domain team owns their pipelines, their tables, their quality"
-                },
-                {
-                  "left": "Strong consistency: one coding style, one deployment process, one monitoring",
-                  "right": "Domain autonomy: teams choose their tools, patterns, and schedules"
-                },
-                {
-                  "left": "Bottleneck: central team becomes the chokepoint for all data requests",
-                  "right": "Coordination cost: cross-domain changes require negotiation between autonomous teams"
-                },
-                {
-                  "left": "Works at: 1-5 teams, < 50 pipelines, strong platform expertise",
-                  "right": "Works at: 5-20 teams, 50-500 pipelines, strong domain expertise"
-                }
-              ]
+              "left": {
+                "label": "Centralized platform team",
+                "points": [
+                  "One team owns all infrastructure, all pipelines, all governance",
+                  "Strong consistency: one coding style, one deployment process, one monitoring",
+                  "Bottleneck: central team becomes the chokepoint for all data requests",
+                  "Works at: 1-5 teams, < 50 pipelines, strong platform expertise"
+                ]
+              },
+              "right": {
+                "label": "Federated domain teams (data mesh)",
+                "points": [
+                  "Each domain team owns their pipelines, their tables, their quality",
+                  "Domain autonomy: teams choose their tools, patterns, and schedules",
+                  "Coordination cost: cross-domain changes require negotiation between autonomous teams",
+                  "Works at: 5-20 teams, 50-500 pipelines, strong domain expertise"
+                ]
+              }
             },
             {
               "type": "heading",

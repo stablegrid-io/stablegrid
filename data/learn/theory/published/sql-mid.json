@@ -633,34 +633,28 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "PostgreSQL Plans",
-              "rightLabel": "Spark SQL Plans",
-              "rows": [
-                {
-                  "left": "Index Scan uses B-tree indexes to find rows",
-                  "right": "No row-level indexes; uses partition pruning and Parquet column/row group skipping"
-                },
-                {
-                  "left": "Hash Join, Merge Join, Nested Loop",
-                  "right": "BroadcastHashJoin, SortMergeJoin, ShuffledHashJoin"
-                },
-                {
-                  "left": "Cost model uses page-level I/O estimates",
-                  "right": "Cost model uses data size and cluster resource estimates"
-                },
-                {
-                  "left": "ANALYZE updates statistics in the catalog",
-                  "right": "ANALYZE TABLE updates Hive metastore statistics for CBO"
-                },
-                {
-                  "left": "No shuffles — single server processes everything",
-                  "right": "Exchange operators represent shuffles — data movement between executors"
-                },
-                {
-                  "left": "EXPLAIN ANALYZE runs the query and shows actual times",
-                  "right": "No equivalent; use Spark UI's SQL tab for actual execution metrics"
-                }
-              ]
+              "left": {
+                "label": "PostgreSQL Plans",
+                "points": [
+                  "Index Scan uses B-tree indexes to find rows",
+                  "Hash Join, Merge Join, Nested Loop",
+                  "Cost model uses page-level I/O estimates",
+                  "ANALYZE updates statistics in the catalog",
+                  "No shuffles — single server processes everything",
+                  "EXPLAIN ANALYZE runs the query and shows actual times"
+                ]
+              },
+              "right": {
+                "label": "Spark SQL Plans",
+                "points": [
+                  "No row-level indexes; uses partition pruning and Parquet column/row group skipping",
+                  "BroadcastHashJoin, SortMergeJoin, ShuffledHashJoin",
+                  "Cost model uses data size and cluster resource estimates",
+                  "ANALYZE TABLE updates Hive metastore statistics for CBO",
+                  "Exchange operators represent shuffles — data movement between executors",
+                  "No equivalent; use Spark UI's SQL tab for actual execution metrics"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -1711,30 +1705,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "ROLLUP (hierarchical)",
-              "rightLabel": "CUBE (all combinations)",
-              "rows": [
-                {
-                  "left": "Produces N+1 grouping sets from N columns",
-                  "right": "Produces 2^N grouping sets from N columns"
-                },
-                {
-                  "left": "Subtotals follow a hierarchy: left columns always included",
-                  "right": "Subtotals for every possible column combination"
-                },
-                {
-                  "left": "ROLLUP(A, B, C) → (A,B,C), (A,B), (A), ()",
-                  "right": "CUBE(A, B, C) → (A,B,C), (A,B), (A,C), (B,C), (A), (B), (C), ()"
-                },
-                {
-                  "left": "Use for hierarchical dimensions (region → type → detail)",
-                  "right": "Use for cross-tab reports where every dimension is independent"
-                },
-                {
-                  "left": "Fewer output rows — simpler to consume",
-                  "right": "More output rows — comprehensive but potentially overwhelming"
-                }
-              ]
+              "left": {
+                "label": "ROLLUP (hierarchical)",
+                "points": [
+                  "Produces N+1 grouping sets from N columns",
+                  "Subtotals follow a hierarchy: left columns always included",
+                  "ROLLUP(A, B, C) → (A,B,C), (A,B), (A), ()",
+                  "Use for hierarchical dimensions (region → type → detail)",
+                  "Fewer output rows — simpler to consume"
+                ]
+              },
+              "right": {
+                "label": "CUBE (all combinations)",
+                "points": [
+                  "Produces 2^N grouping sets from N columns",
+                  "Subtotals for every possible column combination",
+                  "CUBE(A, B, C) → (A,B,C), (A,B), (A,C), (B,C), (A), (B), (C), ()",
+                  "Use for cross-tab reports where every dimension is independent",
+                  "More output rows — comprehensive but potentially overwhelming"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -2210,34 +2200,28 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Star Schema (denormalized dimensions)",
-              "rightLabel": "Snowflake Schema (normalized dimensions)",
-              "rows": [
-                {
-                  "left": "Fewer joins: fact → dimension in one hop",
-                  "right": "More joins: fact → dimension → sub-dimension"
-                },
-                {
-                  "left": "Redundant attributes: substation_name repeated per meter",
-                  "right": "No redundancy: each attribute stored once"
-                },
-                {
-                  "left": "Faster queries: fewer joins = less CPU, memory, and I/O",
-                  "right": "Slower queries: additional joins add latency"
-                },
-                {
-                  "left": "Harder updates: attribute changes require updating many rows",
-                  "right": "Easier updates: attribute changes update one row"
-                },
-                {
-                  "left": "Simpler SQL for analysts: no multi-hop joins needed",
-                  "right": "More complex SQL: analysts must know the join path"
-                },
-                {
-                  "left": "Best for: read-heavy analytical workloads, dashboards",
-                  "right": "Best for: write-heavy workloads, frequently changing attributes"
-                }
-              ]
+              "left": {
+                "label": "Star Schema (denormalized dimensions)",
+                "points": [
+                  "Fewer joins: fact → dimension in one hop",
+                  "Redundant attributes: substation_name repeated per meter",
+                  "Faster queries: fewer joins = less CPU, memory, and I/O",
+                  "Harder updates: attribute changes require updating many rows",
+                  "Simpler SQL for analysts: no multi-hop joins needed",
+                  "Best for: read-heavy analytical workloads, dashboards"
+                ]
+              },
+              "right": {
+                "label": "Snowflake Schema (normalized dimensions)",
+                "points": [
+                  "More joins: fact → dimension → sub-dimension",
+                  "No redundancy: each attribute stored once",
+                  "Slower queries: additional joins add latency",
+                  "Easier updates: attribute changes update one row",
+                  "More complex SQL: analysts must know the join path",
+                  "Best for: write-heavy workloads, frequently changing attributes"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -2751,30 +2735,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "INSERT ON CONFLICT (PostgreSQL)",
-              "rightLabel": "MERGE (SQL Standard)",
-              "rows": [
-                {
-                  "left": "Works with VALUES and SELECT — any INSERT",
-                  "right": "Requires a USING source table or subquery"
-                },
-                {
-                  "left": "Single-case logic: one action per conflict",
-                  "right": "Multi-case logic: different actions for MATCHED vs NOT MATCHED"
-                },
-                {
-                  "left": "Conflict target is a constraint or index",
-                  "right": "Match condition is an arbitrary ON clause"
-                },
-                {
-                  "left": "PostgreSQL-specific syntax (also supported in SQLite)",
-                  "right": "SQL standard (PostgreSQL 15+, Spark SQL 3.x, Snowflake, BigQuery)"
-                },
-                {
-                  "left": "More concise for simple upserts",
-                  "right": "More flexible for SCD processing and conditional logic"
-                }
-              ]
+              "left": {
+                "label": "INSERT ON CONFLICT (PostgreSQL)",
+                "points": [
+                  "Works with VALUES and SELECT — any INSERT",
+                  "Single-case logic: one action per conflict",
+                  "Conflict target is a constraint or index",
+                  "PostgreSQL-specific syntax (also supported in SQLite)",
+                  "More concise for simple upserts"
+                ]
+              },
+              "right": {
+                "label": "MERGE (SQL Standard)",
+                "points": [
+                  "Requires a USING source table or subquery",
+                  "Multi-case logic: different actions for MATCHED vs NOT MATCHED",
+                  "Match condition is an arbitrary ON clause",
+                  "SQL standard (PostgreSQL 15+, Spark SQL 3.x, Snowflake, BigQuery)",
+                  "More flexible for SCD processing and conditional logic"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -3683,26 +3663,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Test Fixtures",
-              "rightLabel": "Production/Staging Data",
-              "rows": [
-                {
-                  "left": "Fast: milliseconds to query 100–1,000 rows",
-                  "right": "Slow: seconds to minutes to query millions of rows"
-                },
-                {
-                  "left": "Deterministic: exact expected results known in advance",
-                  "right": "Non-deterministic: expected results are ranges, not exact numbers"
-                },
-                {
-                  "left": "Artificial: may miss edge cases present only in real data",
-                  "right": "Realistic: includes real-world edge cases and data quality issues"
-                },
-                {
-                  "left": "Best for: development, CTE-level tests, refactor validation",
-                  "right": "Best for: integration tests, statistical tests, reconciliation"
-                }
-              ]
+              "left": {
+                "label": "Test Fixtures",
+                "points": [
+                  "Fast: milliseconds to query 100–1,000 rows",
+                  "Deterministic: exact expected results known in advance",
+                  "Artificial: may miss edge cases present only in real data",
+                  "Best for: development, CTE-level tests, refactor validation"
+                ]
+              },
+              "right": {
+                "label": "Production/Staging Data",
+                "points": [
+                  "Slow: seconds to minutes to query millions of rows",
+                  "Non-deterministic: expected results are ranges, not exact numbers",
+                  "Realistic: includes real-world edge cases and data quality issues",
+                  "Best for: integration tests, statistical tests, reconciliation"
+                ]
+              }
             },
             {
               "type": "callout",
@@ -4712,30 +4690,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Materialized View",
-              "rightLabel": "CTAS Table (CREATE TABLE AS SELECT)",
-              "rows": [
-                {
-                  "left": "Stores the defining query — REFRESH recomputes from source",
-                  "right": "No stored query — must DROP and recreate to refresh"
-                },
-                {
-                  "left": "REFRESH CONCURRENTLY allows reads during refresh",
-                  "right": "DROP + CTAS has a window where the table does not exist"
-                },
-                {
-                  "left": "Cannot be INSERTed into directly — read-only",
-                  "right": "Can be INSERTed, UPDATEd, DELETEd — full DML"
-                },
-                {
-                  "left": "Indexes survive REFRESH and do not need to be recreated",
-                  "right": "Indexes must be recreated after every DROP + CTAS cycle"
-                },
-                {
-                  "left": "Best for: read-heavy precomputed aggregations with periodic refresh",
-                  "right": "Best for: one-time snapshots or tables that need DML after creation"
-                }
-              ]
+              "left": {
+                "label": "Materialized View",
+                "points": [
+                  "Stores the defining query — REFRESH recomputes from source",
+                  "REFRESH CONCURRENTLY allows reads during refresh",
+                  "Cannot be INSERTed into directly — read-only",
+                  "Indexes survive REFRESH and do not need to be recreated",
+                  "Best for: read-heavy precomputed aggregations with periodic refresh"
+                ]
+              },
+              "right": {
+                "label": "CTAS Table (CREATE TABLE AS SELECT)",
+                "points": [
+                  "No stored query — must DROP and recreate to refresh",
+                  "DROP + CTAS has a window where the table does not exist",
+                  "Can be INSERTed, UPDATEd, DELETEd — full DML",
+                  "Indexes must be recreated after every DROP + CTAS cycle",
+                  "Best for: one-time snapshots or tables that need DML after creation"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -6801,34 +6775,28 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "PostgreSQL Plans",
-              "rightLabel": "Spark SQL Plans",
-              "rows": [
-                {
-                  "left": "Index Scan uses B-tree indexes to find rows",
-                  "right": "No row-level indexes; uses partition pruning and Parquet column/row group skipping"
-                },
-                {
-                  "left": "Hash Join, Merge Join, Nested Loop",
-                  "right": "BroadcastHashJoin, SortMergeJoin, ShuffledHashJoin"
-                },
-                {
-                  "left": "Cost model uses page-level I/O estimates",
-                  "right": "Cost model uses data size and cluster resource estimates"
-                },
-                {
-                  "left": "ANALYZE updates statistics in the catalog",
-                  "right": "ANALYZE TABLE updates Hive metastore statistics for CBO"
-                },
-                {
-                  "left": "No shuffles — single server processes everything",
-                  "right": "Exchange operators represent shuffles — data movement between executors"
-                },
-                {
-                  "left": "EXPLAIN ANALYZE runs the query and shows actual times",
-                  "right": "No equivalent; use Spark UI's SQL tab for actual execution metrics"
-                }
-              ]
+              "left": {
+                "label": "PostgreSQL Plans",
+                "points": [
+                  "Index Scan uses B-tree indexes to find rows",
+                  "Hash Join, Merge Join, Nested Loop",
+                  "Cost model uses page-level I/O estimates",
+                  "ANALYZE updates statistics in the catalog",
+                  "No shuffles — single server processes everything",
+                  "EXPLAIN ANALYZE runs the query and shows actual times"
+                ]
+              },
+              "right": {
+                "label": "Spark SQL Plans",
+                "points": [
+                  "No row-level indexes; uses partition pruning and Parquet column/row group skipping",
+                  "BroadcastHashJoin, SortMergeJoin, ShuffledHashJoin",
+                  "Cost model uses data size and cluster resource estimates",
+                  "ANALYZE TABLE updates Hive metastore statistics for CBO",
+                  "Exchange operators represent shuffles — data movement between executors",
+                  "No equivalent; use Spark UI's SQL tab for actual execution metrics"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -7879,30 +7847,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "ROLLUP (hierarchical)",
-              "rightLabel": "CUBE (all combinations)",
-              "rows": [
-                {
-                  "left": "Produces N+1 grouping sets from N columns",
-                  "right": "Produces 2^N grouping sets from N columns"
-                },
-                {
-                  "left": "Subtotals follow a hierarchy: left columns always included",
-                  "right": "Subtotals for every possible column combination"
-                },
-                {
-                  "left": "ROLLUP(A, B, C) → (A,B,C), (A,B), (A), ()",
-                  "right": "CUBE(A, B, C) → (A,B,C), (A,B), (A,C), (B,C), (A), (B), (C), ()"
-                },
-                {
-                  "left": "Use for hierarchical dimensions (region → type → detail)",
-                  "right": "Use for cross-tab reports where every dimension is independent"
-                },
-                {
-                  "left": "Fewer output rows — simpler to consume",
-                  "right": "More output rows — comprehensive but potentially overwhelming"
-                }
-              ]
+              "left": {
+                "label": "ROLLUP (hierarchical)",
+                "points": [
+                  "Produces N+1 grouping sets from N columns",
+                  "Subtotals follow a hierarchy: left columns always included",
+                  "ROLLUP(A, B, C) → (A,B,C), (A,B), (A), ()",
+                  "Use for hierarchical dimensions (region → type → detail)",
+                  "Fewer output rows — simpler to consume"
+                ]
+              },
+              "right": {
+                "label": "CUBE (all combinations)",
+                "points": [
+                  "Produces 2^N grouping sets from N columns",
+                  "Subtotals for every possible column combination",
+                  "CUBE(A, B, C) → (A,B,C), (A,B), (A,C), (B,C), (A), (B), (C), ()",
+                  "Use for cross-tab reports where every dimension is independent",
+                  "More output rows — comprehensive but potentially overwhelming"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -8378,34 +8342,28 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Star Schema (denormalized dimensions)",
-              "rightLabel": "Snowflake Schema (normalized dimensions)",
-              "rows": [
-                {
-                  "left": "Fewer joins: fact → dimension in one hop",
-                  "right": "More joins: fact → dimension → sub-dimension"
-                },
-                {
-                  "left": "Redundant attributes: substation_name repeated per meter",
-                  "right": "No redundancy: each attribute stored once"
-                },
-                {
-                  "left": "Faster queries: fewer joins = less CPU, memory, and I/O",
-                  "right": "Slower queries: additional joins add latency"
-                },
-                {
-                  "left": "Harder updates: attribute changes require updating many rows",
-                  "right": "Easier updates: attribute changes update one row"
-                },
-                {
-                  "left": "Simpler SQL for analysts: no multi-hop joins needed",
-                  "right": "More complex SQL: analysts must know the join path"
-                },
-                {
-                  "left": "Best for: read-heavy analytical workloads, dashboards",
-                  "right": "Best for: write-heavy workloads, frequently changing attributes"
-                }
-              ]
+              "left": {
+                "label": "Star Schema (denormalized dimensions)",
+                "points": [
+                  "Fewer joins: fact → dimension in one hop",
+                  "Redundant attributes: substation_name repeated per meter",
+                  "Faster queries: fewer joins = less CPU, memory, and I/O",
+                  "Harder updates: attribute changes require updating many rows",
+                  "Simpler SQL for analysts: no multi-hop joins needed",
+                  "Best for: read-heavy analytical workloads, dashboards"
+                ]
+              },
+              "right": {
+                "label": "Snowflake Schema (normalized dimensions)",
+                "points": [
+                  "More joins: fact → dimension → sub-dimension",
+                  "No redundancy: each attribute stored once",
+                  "Slower queries: additional joins add latency",
+                  "Easier updates: attribute changes update one row",
+                  "More complex SQL: analysts must know the join path",
+                  "Best for: write-heavy workloads, frequently changing attributes"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -8919,30 +8877,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "INSERT ON CONFLICT (PostgreSQL)",
-              "rightLabel": "MERGE (SQL Standard)",
-              "rows": [
-                {
-                  "left": "Works with VALUES and SELECT — any INSERT",
-                  "right": "Requires a USING source table or subquery"
-                },
-                {
-                  "left": "Single-case logic: one action per conflict",
-                  "right": "Multi-case logic: different actions for MATCHED vs NOT MATCHED"
-                },
-                {
-                  "left": "Conflict target is a constraint or index",
-                  "right": "Match condition is an arbitrary ON clause"
-                },
-                {
-                  "left": "PostgreSQL-specific syntax (also supported in SQLite)",
-                  "right": "SQL standard (PostgreSQL 15+, Spark SQL 3.x, Snowflake, BigQuery)"
-                },
-                {
-                  "left": "More concise for simple upserts",
-                  "right": "More flexible for SCD processing and conditional logic"
-                }
-              ]
+              "left": {
+                "label": "INSERT ON CONFLICT (PostgreSQL)",
+                "points": [
+                  "Works with VALUES and SELECT — any INSERT",
+                  "Single-case logic: one action per conflict",
+                  "Conflict target is a constraint or index",
+                  "PostgreSQL-specific syntax (also supported in SQLite)",
+                  "More concise for simple upserts"
+                ]
+              },
+              "right": {
+                "label": "MERGE (SQL Standard)",
+                "points": [
+                  "Requires a USING source table or subquery",
+                  "Multi-case logic: different actions for MATCHED vs NOT MATCHED",
+                  "Match condition is an arbitrary ON clause",
+                  "SQL standard (PostgreSQL 15+, Spark SQL 3.x, Snowflake, BigQuery)",
+                  "More flexible for SCD processing and conditional logic"
+                ]
+              }
             },
             {
               "type": "paragraph",
@@ -9851,26 +9805,24 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Test Fixtures",
-              "rightLabel": "Production/Staging Data",
-              "rows": [
-                {
-                  "left": "Fast: milliseconds to query 100–1,000 rows",
-                  "right": "Slow: seconds to minutes to query millions of rows"
-                },
-                {
-                  "left": "Deterministic: exact expected results known in advance",
-                  "right": "Non-deterministic: expected results are ranges, not exact numbers"
-                },
-                {
-                  "left": "Artificial: may miss edge cases present only in real data",
-                  "right": "Realistic: includes real-world edge cases and data quality issues"
-                },
-                {
-                  "left": "Best for: development, CTE-level tests, refactor validation",
-                  "right": "Best for: integration tests, statistical tests, reconciliation"
-                }
-              ]
+              "left": {
+                "label": "Test Fixtures",
+                "points": [
+                  "Fast: milliseconds to query 100–1,000 rows",
+                  "Deterministic: exact expected results known in advance",
+                  "Artificial: may miss edge cases present only in real data",
+                  "Best for: development, CTE-level tests, refactor validation"
+                ]
+              },
+              "right": {
+                "label": "Production/Staging Data",
+                "points": [
+                  "Slow: seconds to minutes to query millions of rows",
+                  "Non-deterministic: expected results are ranges, not exact numbers",
+                  "Realistic: includes real-world edge cases and data quality issues",
+                  "Best for: integration tests, statistical tests, reconciliation"
+                ]
+              }
             },
             {
               "type": "callout",
@@ -10880,30 +10832,26 @@
             },
             {
               "type": "comparison",
-              "leftLabel": "Materialized View",
-              "rightLabel": "CTAS Table (CREATE TABLE AS SELECT)",
-              "rows": [
-                {
-                  "left": "Stores the defining query — REFRESH recomputes from source",
-                  "right": "No stored query — must DROP and recreate to refresh"
-                },
-                {
-                  "left": "REFRESH CONCURRENTLY allows reads during refresh",
-                  "right": "DROP + CTAS has a window where the table does not exist"
-                },
-                {
-                  "left": "Cannot be INSERTed into directly — read-only",
-                  "right": "Can be INSERTed, UPDATEd, DELETEd — full DML"
-                },
-                {
-                  "left": "Indexes survive REFRESH and do not need to be recreated",
-                  "right": "Indexes must be recreated after every DROP + CTAS cycle"
-                },
-                {
-                  "left": "Best for: read-heavy precomputed aggregations with periodic refresh",
-                  "right": "Best for: one-time snapshots or tables that need DML after creation"
-                }
-              ]
+              "left": {
+                "label": "Materialized View",
+                "points": [
+                  "Stores the defining query — REFRESH recomputes from source",
+                  "REFRESH CONCURRENTLY allows reads during refresh",
+                  "Cannot be INSERTed into directly — read-only",
+                  "Indexes survive REFRESH and do not need to be recreated",
+                  "Best for: read-heavy precomputed aggregations with periodic refresh"
+                ]
+              },
+              "right": {
+                "label": "CTAS Table (CREATE TABLE AS SELECT)",
+                "points": [
+                  "No stored query — must DROP and recreate to refresh",
+                  "DROP + CTAS has a window where the table does not exist",
+                  "Can be INSERTed, UPDATEd, DELETEd — full DML",
+                  "Indexes must be recreated after every DROP + CTAS cycle",
+                  "Best for: one-time snapshots or tables that need DML after creation"
+                ]
+              }
             },
             {
               "type": "paragraph",

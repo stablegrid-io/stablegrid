@@ -11,6 +11,8 @@ import { sqlTheory } from '@/data/learn/theory/sql';
 import { sqlMidTheory } from '@/data/learn/theory/sql-mid';
 import { sqlSeniorTheory } from '@/data/learn/theory/sql-senior';
 import { python_deTheory } from '@/data/learn/theory/python-de';
+import { python_deMidTheory } from '@/data/learn/theory/python-de-mid';
+import { python_deSeniorTheory } from '@/data/learn/theory/python-de-senior';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -203,6 +205,26 @@ const TOPIC_TRACK_CONFIGS: Record<string, TheoryTrackConfig[]> = {
         'Build Python capability from the ground up: data structures, functions, file I/O, error handling, data validation, APIs, and testing for production data pipelines.',
       highlights: [],
       sourceDoc: python_deTheory,
+    },
+    {
+      slug: 'mid',
+      label: 'Mid-Level Track',
+      title: 'Mid-Level Track',
+      eyebrow: 'Advanced Systems',
+      description:
+        'Advanced OOP for pipeline architecture, design patterns, metaclasses, and production-grade Python engineering.',
+      highlights: [],
+      sourceDoc: python_deMidTheory,
+    },
+    {
+      slug: 'senior',
+      label: 'Senior-Level Track',
+      title: 'Senior-Level Track',
+      eyebrow: 'Platform Architecture',
+      description:
+        'Platform architecture, runtime internals, distributed systems, compiler techniques, security engineering, and enterprise governance for production Python at scale.',
+      highlights: [],
+      sourceDoc: python_deSeniorTheory,
     }
   ]
 };
