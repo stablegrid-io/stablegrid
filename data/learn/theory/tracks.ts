@@ -10,6 +10,7 @@ import { airflowSeniorTheory } from '@/data/learn/theory/airflow-senior';
 import { sqlTheory } from '@/data/learn/theory/sql';
 import { sqlMidTheory } from '@/data/learn/theory/sql-mid';
 import { sqlSeniorTheory } from '@/data/learn/theory/sql-senior';
+import { python_deTheory } from '@/data/learn/theory/python-de';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -190,6 +191,18 @@ const TOPIC_TRACK_CONFIGS: Record<string, TheoryTrackConfig[]> = {
         'Platform architecture at scale, optimizer internals, partition strategies, schema registries, SQL engine internals, storage I/O, multi-tenant security, streaming CDC, and enterprise governance.',
       highlights: [],
       sourceDoc: sqlSeniorTheory,
+    }
+  ],
+  'python-de': [
+    {
+      slug: 'junior',
+      label: 'Junior-Level Track',
+      title: 'Junior-Level Track',
+      eyebrow: 'Core Foundation',
+      description:
+        'Build Python capability from the ground up: data structures, functions, file I/O, error handling, data validation, APIs, and testing for production data pipelines.',
+      highlights: [],
+      sourceDoc: python_deTheory,
     }
   ]
 };

@@ -15,21 +15,26 @@ export const enforceAdminReadRateLimit = async (
   adminUserId: string,
   scope: string
 ) => {
-  const clientIp = getClientIp(request);
-  await Promise.all([
-    enforceRateLimit({
-      scope: `${scope}_admin_read_user`,
-      key: adminUserId,
-      limit: DEFAULT_ADMIN_READ_USER_LIMIT,
-      windowSeconds: DEFAULT_ADMIN_READ_WINDOW_SECONDS
-    }),
-    enforceRateLimit({
-      scope: `${scope}_admin_read_ip`,
-      key: clientIp,
-      limit: DEFAULT_ADMIN_READ_IP_LIMIT,
-      windowSeconds: DEFAULT_ADMIN_READ_WINDOW_SECONDS
+  try {
+    const clientIp = getClientIp(request);
+    await Promise.all([
+      enforceRateLimit({
+        scope: `${scope}_admin_read_user`,
+        key: adminUserId,
+        limit: DEFAULT_ADMIN_READ_USER_LIMIT,
+        windowSeconds: DEFAULT_ADMIN_READ_WINDOW_SECONDS
+      }),
+      enforceRateLimit({
+        scope: `${scope}_admin_read_ip`,
+        key: clientIp,
+        limit: DEFAULT_ADMIN_READ_IP_LIMIT,
+        windowSeconds: DEFAULT_ADMIN_READ_WINDOW_SECONDS
     })
   ]);
+  } catch (error) {
+    // Rate limit RPC may not exist in database yet — log but don't block
+    console.warn('[admin rate limit] skipped:', error instanceof Error ? error.message : error);
+  }
 };
 
 interface AdminProtectedMutationOptions<TResponse extends JsonObject> {

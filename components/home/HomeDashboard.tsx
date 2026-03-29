@@ -309,7 +309,16 @@ export const HomeDashboard = ({
     (user.user_metadata?.name as string | undefined) ??
     user.email?.split('@')[0] ?? 'Operator';
 
-  const resumeHref = latestSession ? `/learn/${latestSession.topic}/theory` : currentTopic ? `/learn/${currentTopic.topicId}/theory` : '/learn/theory';
+  const resumeHref = useMemo(() => {
+    if (!latestSession) {
+      return currentTopic ? `/learn/${currentTopic.topicId}/theory` : '/learn/theory';
+    }
+    // Determine track from chapter ID pattern: mid chapters end with I+number, senior with S+number
+    const chId = latestSession.chapterId ?? '';
+    const prefix = chId.replace(/\d+$/, ''); // e.g. "module-AFI" or "module-AFS" or "module-AF"
+    const track = prefix.endsWith('S') ? 'senior' : prefix.endsWith('I') ? 'mid' : 'junior';
+    return `/learn/${latestSession.topic}/theory/${track}`;
+  }, [latestSession, currentTopic]);
 
   const skillTags = topicSnapshots
     .filter((s) => s.theoryCompleted > 0)
@@ -325,20 +334,17 @@ export const HomeDashboard = ({
     <div className="min-h-screen pb-24 lg:pb-8">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
 
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] items-start">
 
           {/* Left: Orbital Constellation */}
-          <div className="flex flex-col items-center justify-center">
-            <div className="mb-6 self-start">
+          <div className="flex flex-col">
+            <div className="mb-6">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/40 animate-[fadeIn_0.6s_ease]">
                 Status: {overallProgress > 0 ? 'Deep dive active' : 'Awaiting initialization'}
               </p>
               <h1 className="mt-2 text-4xl font-bold tracking-tight text-on-surface lg:text-5xl animate-[fadeIn_0.8s_ease]" style={{ fontFamily: 'var(--font-headline)' }}>
                 {userDisplayName}
               </h1>
-              <p className="mt-2 max-w-lg text-[13px] text-on-surface-variant/50 animate-[fadeIn_1s_ease]">
-                Traversing {activeTopics.length} theory tracks across the data engineering curriculum.
-              </p>
             </div>
 
             <div className="w-full">
@@ -346,12 +352,15 @@ export const HomeDashboard = ({
             </div>
 
             <Link href={resumeHref}
-              className="mt-6 self-stretch group flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/8 px-6 py-4 transition-all duration-300 hover:bg-primary/12 hover:border-primary/30 hover:shadow-[0_0_30px_rgba(153,247,255,0.08)] animate-[fadeIn_1.4s_ease]">
+              className="mt-4 group flex items-center justify-between rounded-2xl border border-primary/30 bg-primary/10 px-6 py-4 transition-all duration-300 hover:bg-primary/18 hover:border-primary/40 hover:shadow-[0_0_30px_rgba(153,247,255,0.12)] animate-[fadeIn_1.4s_ease]">
               <div className="flex items-center gap-3">
-                <Zap className="h-4 w-4 text-primary" />
-                <span className="text-[13px] font-semibold text-on-surface">Resume session</span>
+                <Zap className="h-5 w-5 text-primary" />
+                <div>
+                  <span className="text-[14px] font-semibold text-on-surface">Resume session</span>
+                  <p className="text-[11px] text-primary/60 mt-0.5">Continue where you left off</p>
+                </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-primary transition-transform group-hover:translate-x-1" />
+              <ArrowRight className="h-5 w-5 text-primary transition-transform group-hover:translate-x-1" />
             </Link>
 
           </div>

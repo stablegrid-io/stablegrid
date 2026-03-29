@@ -25,6 +25,7 @@ const THEORY_META: Record<string, { chapterCount: number; totalMinutes: number; 
   fabric: { chapterCount: 10, totalMinutes: 2530, version: '1.0' },
   airflow: { chapterCount: 10, totalMinutes: 2560, version: '1.0' },
   sql: { chapterCount: 10, totalMinutes: 2560, version: '1.0' },
+  'python-de': { chapterCount: 10, totalMinutes: 2460, version: '1.0' },
 };
 
 const getTheoryMeta = (topic: string) => THEORY_META[topic] ?? null;

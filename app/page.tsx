@@ -72,7 +72,9 @@ const TRACK_TOPICS: Topic[] = ['pyspark', 'fabric'];
 const ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC: Record<Topic, string> = {
   pyspark: '245,158,11',
   fabric: '34,185,153',
-  airflow: '139,92,246'
+  airflow: '139,92,246',
+  sql: '66,133,244',
+  'python-de': '55,118,171'
 };
 const DEFAULT_TASKS_ACCENT_RGB = '34,185,153';
 
