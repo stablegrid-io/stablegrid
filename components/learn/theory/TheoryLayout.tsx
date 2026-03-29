@@ -324,48 +324,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const pendingNavigationRef = useRef<string | null>(null);
 
-  // Browser beforeunload guard
-  useEffect(() => {
-    if (!theorySession.hasActiveSession) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [theorySession.hasActiveSession]);
-
-  // Intercept browser back/popstate
-  useEffect(() => {
-    if (!theorySession.hasActiveSession) return;
-    const handler = () => {
-      window.history.pushState(null, '', window.location.href);
-      setShowExitConfirm(true);
-    };
-    window.history.pushState(null, '', window.location.href);
-    window.addEventListener('popstate', handler);
-    return () => window.removeEventListener('popstate', handler);
-  }, [theorySession.hasActiveSession]);
-
-  // Intercept all client-side link clicks when session is active
-  useEffect(() => {
-    if (!theorySession.hasActiveSession) return;
-    const handler = (e: MouseEvent) => {
-      const anchor = (e.target as HTMLElement).closest('a[href]');
-      if (!anchor) return;
-      const href = anchor.getAttribute('href');
-      if (!href || href.startsWith('#') || href.startsWith('javascript')) return;
-      // Allow navigation within the current theory page (lesson switching)
-      if (href.includes(pathname ?? '')) return;
-      // Allow external links
-      if (href.startsWith('http')) return;
-      e.preventDefault();
-      e.stopPropagation();
-      pendingNavigationRef.current = href;
-      setShowExitConfirm(true);
-    };
-    document.addEventListener('click', handler, true);
-    return () => document.removeEventListener('click', handler, true);
-  }, [theorySession.hasActiveSession, pathname]);
 
   const retryProgressSync = useCallback(() => {
     setProgressIssue(null);
@@ -457,6 +415,55 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const persistedRoute = useMemo(() => {
     return buildLessonRoute(activeChapter.id, activeLessonId);
   }, [activeChapter.id, activeLessonId, buildLessonRoute]);
+
+  // Persist last reading route for the session mini-player
+  useEffect(() => {
+    if (persistedRoute) {
+      try {
+        window.sessionStorage.setItem('theory-session-reading-route:v1', persistedRoute);
+      } catch {
+        // Ignore storage failures
+      }
+    }
+  }, [persistedRoute]);
+
+  // Auto-resume session when returning to the reader
+  useEffect(() => {
+    if (theorySession.hasHydrated && theorySession.phase === 'paused') {
+      theorySession.resume();
+    }
+  }, [theorySession.hasHydrated]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-pause session when navigating away from the reader
+  // Write directly to sessionStorage on unmount since React state updates
+  // don't take effect after component is destroyed
+  useEffect(() => {
+    const STORAGE_KEY = 'theory-session-runtime:v1:global';
+
+    const pauseInStorage = () => {
+      try {
+        const raw = window.sessionStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const snapshot = JSON.parse(raw);
+        const rt = snapshot?.runtime;
+        if (!rt || (rt.phase !== 'focus' && rt.phase !== 'break')) return;
+        snapshot.runtime = { ...rt, pausedPhase: rt.phase, phase: 'paused' };
+        snapshot.savedAt = new Date().toISOString();
+        window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+      } catch { /* ignore */ }
+    };
+
+    const handleVisibility = () => {
+      if (document.hidden) pauseInStorage();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      pauseInStorage();
+    };
+  }, []);
+
   const activeLessonDurationMinutes =
     activeLesson?.durationMinutes ??
     activeLesson?.estimatedMinutes ??
@@ -895,17 +902,8 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       return;
     }
 
-    if (sessionPickerInitializedRef.current) {
-      return;
-    }
-
+    // Session picker no longer auto-opens — user clicks "Session" in toolbar
     sessionPickerInitializedRef.current = true;
-    // Query-param reader navigation can recreate this client subtree. Keep the
-    // dismissal for the current tab so the picker only auto-opens once per path.
-    if (hasDismissedSessionPicker()) {
-      return;
-    }
-    setSessionPickerVisible(true);
   }, [
     hasDismissedSessionPicker,
     routeReady,
@@ -1001,23 +999,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface lg:h-[calc(100dvh-3.5rem)]"
       data-focus-mode={focusMode ? 'true' : undefined}
     >
-      {/* Session exit confirmation modal */}
-      {showExitConfirm && (
-        <SessionExitModal
-          onContinue={() => {
-            setShowExitConfirm(false);
-            pendingNavigationRef.current = null;
-          }}
-          onEndSession={() => {
-            theorySession.stop();
-            setShowExitConfirm(false);
-            if (pendingNavigationRef.current) {
-              router.push(pendingNavigationRef.current);
-              pendingNavigationRef.current = null;
-            }
-          }}
-        />
-      )}
 
 
       {/* Floating controls — visible in focus mode */}
@@ -1096,10 +1077,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
               type="button"
               onClick={openSessionPicker}
               disabled={!sessionDefaultsHydrated}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/8 px-3 text-xs font-medium text-primary transition-all hover:bg-primary/15 hover:border-primary/30"
             >
               <Clock3 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Session</span>
+              <span className="hidden sm:inline">Start session</span>
             </button>
           )}
         </div>

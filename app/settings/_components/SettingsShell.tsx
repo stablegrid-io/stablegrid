@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import {
   Bug,
   Bell,
@@ -25,6 +24,10 @@ import { BillingTab } from './BillingTab';
 import { NotificationsTab } from './NotificationsTab';
 import { ReadingSessionsTab } from './ReadingSessionsTab';
 import { DangerZoneTab } from './DangerZoneTab';
+import { PrivacyTab } from './PrivacyTab';
+import { TermsTab } from './TermsTab';
+import { SupportTab } from './SupportTab';
+import { BugReportTab } from './BugReportTab';
 import { SettingsToast } from './ui';
 import type {
   ProfileRecord,
@@ -48,12 +51,14 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: typeof User; danger?
   { id: 'danger', label: 'Danger Zone', icon: Trash2, danger: true }
 ];
 
+const EXTRA_TAB_IDS: SettingsTabId[] = ['privacy', 'terms', 'support', 'bug'];
+
 function isTabId(value: string | null): value is SettingsTabId {
   if (!value) {
     return false;
   }
 
-  return TABS.some((tab) => tab.id === value);
+  return TABS.some((tab) => tab.id === value) || EXTRA_TAB_IDS.includes(value as SettingsTabId);
 }
 
 export function SettingsShell({
@@ -141,6 +146,22 @@ export function SettingsShell({
       return <NotificationsTab profile={profile} onToast={showToast} />;
     }
 
+    if (tab === 'privacy') {
+      return <PrivacyTab />;
+    }
+
+    if (tab === 'terms') {
+      return <TermsTab />;
+    }
+
+    if (tab === 'support') {
+      return <SupportTab onReportBug={() => setTab('bug')} />;
+    }
+
+    if (tab === 'bug') {
+      return <BugReportTab onBackToSupport={() => setTab('support')} />;
+    }
+
     return <DangerZoneTab onToast={showToast} />;
   }, [profile, subscription, tab, userEmail]);
 
@@ -190,13 +211,14 @@ export function SettingsShell({
             <p className="px-1 pb-1 font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">
               Policy & Help
             </p>
-            <Link
-              href="/privacy"
+            <button
+              type="button"
+              onClick={() => setTab('privacy')}
               className="flex w-full items-center gap-2 px-2 py-1.5 text-left font-mono text-[10px] text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary uppercase tracking-wider"
             >
               <Shield className="h-3.5 w-3.5" />
               Privacy
-            </Link>
+            </button>
             <button
               type="button"
               onClick={openCookiePreferencesDialog}
@@ -205,31 +227,30 @@ export function SettingsShell({
               <Cookie className="h-3.5 w-3.5" />
               Cookies
             </button>
-            <Link
-              href="/terms"
+            <button
+              type="button"
+              onClick={() => setTab('terms')}
               className="flex w-full items-center gap-2 px-2 py-1.5 text-left font-mono text-[10px] text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary uppercase tracking-wider"
             >
               <FileText className="h-3.5 w-3.5" />
               Terms
-            </Link>
-            <Link
-              href="/support"
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('support')}
               className="flex w-full items-center gap-2 px-2 py-1.5 text-left font-mono text-[10px] text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary uppercase tracking-wider"
             >
               <LifeBuoy className="h-3.5 w-3.5" />
               Support
-            </Link>
-            <Link
-              href={
-                pathname
-                  ? `/support/report-bug?from=${encodeURIComponent(pathname)}`
-                  : '/support/report-bug'
-              }
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('bug')}
               className="flex w-full items-center gap-2 px-2 py-1.5 text-left font-mono text-[10px] text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary uppercase tracking-wider"
             >
               <Bug className="h-3.5 w-3.5" />
               Report Bug
-            </Link>
+            </button>
           </div>
 
           <button

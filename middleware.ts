@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@/lib/supabase/middleware';
 
 const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/update-password'];
-const PROTECTED_ROUTES = ['/hub', '/missions', '/practice', '/workspace', '/onboarding'];
+const PROTECTED_ROUTES = ['/home', '/hub', '/missions', '/practice', '/workspace', '/onboarding'];
 const ADMIN_ROUTES = ['/admin'];
 
 const hasAdminMembership = async (userId: string) => {
@@ -66,7 +66,12 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && isAuthRoute) {
-    return NextResponse.redirect(new URL('/learn/theory', request.url));
+    return NextResponse.redirect(new URL('/home', request.url));
+  }
+
+  // Authenticated users visiting the landing page get redirected to dashboard
+  if (user && pathname === '/') {
+    return NextResponse.redirect(new URL('/home', request.url));
   }
 
   return response;

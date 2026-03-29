@@ -17,7 +17,7 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { href: '/home', icon: Home, label: 'Home', matchPrefixes: ['/home', '/'] },
   {
-    href: '/learn/theory',
+    href: '/theory',
     icon: BookOpen,
     label: 'Theory',
     matchPrefixes: ['/theory', '/learn']
@@ -26,7 +26,8 @@ export const navItems: NavItem[] = [
 
 export const shouldHideNav = (pathname?: string | null, _isAuthenticated?: boolean) => {
   if (!pathname) return false;
-  // Hide nav on auth pages only
+  // Hide nav on the landing page and auth pages
+  if (pathname === '/') return true;
   const authPages = ['/login', '/signup', '/reset-password', '/update-password'];
   if (authPages.includes(pathname)) return true;
   return false;

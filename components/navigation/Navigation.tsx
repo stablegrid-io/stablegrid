@@ -7,6 +7,7 @@ import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
+import { SessionMiniPlayer } from '@/components/session/SessionMiniPlayer';
 import { isCompactDesktopNavPath, shouldHideNav } from './navigation-config';
 
 export const Navigation = ({ children }: { children: ReactNode }) => {
@@ -42,6 +43,7 @@ export const Navigation = ({ children }: { children: ReactNode }) => {
       </div>
 
       {!hideForFocus && <BottomNav />}
+      <SessionMiniPlayer />
     </>
   );
 };

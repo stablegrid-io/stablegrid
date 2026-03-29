@@ -4,7 +4,11 @@ export type SettingsTabId =
   | 'billing'
   | 'reading'
   | 'notifs'
-  | 'danger';
+  | 'danger'
+  | 'privacy'
+  | 'terms'
+  | 'support'
+  | 'bug';
 
 export interface NotificationPrefs {
   streak_reminder: boolean;

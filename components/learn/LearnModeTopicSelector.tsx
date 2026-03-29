@@ -10,6 +10,14 @@ import { CATEGORY_COLORS, type CategoryName } from '@/components/home/orbitalMap
 
 type LearnMode = 'theory';
 type TopicFilter = 'all' | 'in-progress' | 'completed' | 'untouched';
+type SortOption = 'modules-desc' | 'modules-asc' | 'name-asc' | 'name-desc' | 'progress-desc' | 'progress-asc';
+
+const SORT_OPTIONS: Array<{ id: SortOption; label: string }> = [
+  { id: 'name-asc', label: 'A \u2192 Z' },
+  { id: 'name-desc', label: 'Z \u2192 A' },
+  { id: 'progress-desc', label: 'Most progress' },
+  { id: 'progress-asc', label: 'Least progress' },
+];
 
 const TOPIC_FILTERS: Array<{ id: TopicFilter; label: string }> = [
   { id: 'all', label: 'All' },
@@ -117,6 +125,7 @@ export function LearnModeTopicSelector({
   const [topicFilter, setTopicFilter] = useState<TopicFilter>('all');
   const [themeFilter, setThemeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('name-asc');
 
   const topicStatuses = useMemo(() => {
     const statuses: Record<string, 'completed' | 'in-progress' | 'untouched'> = {};
@@ -147,15 +156,52 @@ export function LearnModeTopicSelector({
     if (topicFilter !== 'all') {
       result = result.filter((t) => topicStatuses[t.id] === topicFilter);
     }
-    return result;
-  }, [orderedTopics, topicFilter, topicStatuses, themeFilter, searchQuery]);
 
-  const filterCounts = useMemo(() => ({
-    all: orderedTopics.length,
-    'in-progress': orderedTopics.filter((t) => topicStatuses[t.id] === 'in-progress').length,
-    completed: orderedTopics.filter((t) => topicStatuses[t.id] === 'completed').length,
-    untouched: orderedTopics.filter((t) => topicStatuses[t.id] === 'untouched').length,
-  }), [orderedTopics, topicStatuses]);
+    // Sort
+    result = [...result].sort((a, b) => {
+      const aCompleted = completedChapterCountByTopic[a.id] ?? 0;
+      const bCompleted = completedChapterCountByTopic[b.id] ?? 0;
+      const aTotal = chapterCountByTopic[a.id] ?? a.chapterCount;
+      const bTotal = chapterCountByTopic[b.id] ?? b.chapterCount;
+      const aPct = aTotal > 0 ? aCompleted / aTotal : 0;
+      const bPct = bTotal > 0 ? bCompleted / bTotal : 0;
+
+      switch (sortBy) {
+        case 'modules-desc': return bTotal - aTotal || a.title.localeCompare(b.title);
+        case 'modules-asc': return aTotal - bTotal || a.title.localeCompare(b.title);
+        case 'name-asc': return a.title.localeCompare(b.title);
+        case 'name-desc': return b.title.localeCompare(a.title);
+        case 'progress-desc': return bPct - aPct || a.title.localeCompare(b.title);
+        case 'progress-asc': return aPct - bPct || a.title.localeCompare(b.title);
+        default: return 0;
+      }
+    });
+
+    return result;
+  }, [orderedTopics, topicFilter, topicStatuses, themeFilter, searchQuery, sortBy, completedChapterCountByTopic, chapterCountByTopic]);
+
+  const filterCounts = useMemo(() => {
+    // Apply theme + search filters first, then count statuses
+    let base = orderedTopics;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      base = base.filter((t) =>
+        t.title.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q) ||
+        (TRACK_META_BY_TOPIC[t.id]?.category ?? '').toLowerCase().includes(q) ||
+        (TRACK_META_BY_TOPIC[t.id]?.classification ?? '').toLowerCase().includes(q)
+      );
+    }
+    if (themeFilter !== 'all') {
+      base = base.filter((t) => (TRACK_META_BY_TOPIC[t.id]?.category ?? 'Other') === themeFilter);
+    }
+    return {
+      all: base.length,
+      'in-progress': base.filter((t) => topicStatuses[t.id] === 'in-progress').length,
+      completed: base.filter((t) => topicStatuses[t.id] === 'completed').length,
+      untouched: base.filter((t) => topicStatuses[t.id] === 'untouched').length,
+    };
+  }, [orderedTopics, topicStatuses, themeFilter, searchQuery]);
 
   return (
     <div className="min-h-screen pb-24 lg:pb-10">
@@ -265,6 +311,35 @@ export function LearnModeTopicSelector({
                         {count}
                       </span>
                     )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="mx-4 h-px bg-white/[0.04]" />
+
+          {/* Row 3: Sort */}
+          <div className="flex items-center gap-3 px-4 py-2.5">
+            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30 w-14">
+              Sort
+            </span>
+            <div className="flex items-center gap-0.5">
+              {SORT_OPTIONS.map((opt) => {
+                const isActive = sortBy === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setSortBy(opt.id)}
+                    className={`rounded-lg px-3 py-1 text-[12px] font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'bg-white/[0.1] text-on-surface'
+                        : 'text-on-surface-variant/40 hover:text-on-surface-variant/70 hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    {opt.label}
                   </button>
                 );
               })}

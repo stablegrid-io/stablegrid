@@ -2,8 +2,9 @@
 
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, Lock } from 'lucide-react';
+import { ArrowLeft, Check, Lock, Zap, MapPin, Cpu, Calendar } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
+import { getTrackConceptMeta } from '@/data/learn/theory/trackConceptMeta';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import { getModuleCheckpointMeta } from '@/lib/learn/moduleCheckpoints';
@@ -226,56 +227,131 @@ export const TheoryTrackPath = ({
           </Link>
 
           {/* Header banner */}
-          <header
-            className="relative overflow-hidden glass-panel p-8"
-            style={{ borderColor: `rgba(${ta.rgb},0.2)`, border: `1px solid rgba(${ta.rgb},0.2)` }}
-          >
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 relative z-10">
-              <div className="space-y-4">
-                <h2 className="font-mono text-xs tracking-[0.3em]" style={{ color: ta.color }}>JOURNEY_MANIFEST</h2>
-                <h1 className="font-headline text-4xl lg:text-5xl font-black text-on-surface tracking-tighter">
-                  {track.title || track.label}
-                </h1>
-                {track.subtitle && (
-                  <p className="max-w-3xl text-sm text-on-surface-variant">
-                    {track.subtitle}
-                  </p>
-                )}
-                <div className="flex gap-12 font-mono text-sm text-on-surface-variant">
-                  <div><span style={{ color: ta.color }}>TOTAL_MODULES:</span> {track.chapterCount}</div>
-                  <div><span style={{ color: ta.color }}>SYNC_TIME:</span> {track.totalMinutes}M</div>
-                </div>
-              </div>
-              <div className="w-full md:w-96 space-y-2">
-                <div className="flex justify-between font-mono text-xs" style={{ color: ta.color }}>
-                  <span>PROGRESS_CORE</span>
-                  <span>{overallProgressPct}%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-3" style={{ backgroundColor: `rgba(${ta.rgb},0.3)` }} />
-                  <div
-                    className="flex-1 flex gap-0.5 p-1 bg-black/30"
-                    style={{ border: `2px solid rgba(${ta.rgb},0.2)` }}
-                  >
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 h-3"
-                        style={{
-                          backgroundColor: i < Math.round((overallProgressPct / 100) * 12) ? ta.color : `rgba(${ta.rgb},0.08)`,
-                          border: i >= Math.round((overallProgressPct / 100) * 12) ? `1px solid rgba(${ta.rgb},0.1)` : 'none',
-                          opacity: i < Math.round((overallProgressPct / 100) * 12) ? 0.8 : 1
-                        }}
-                      />
-                    ))}
+          {(() => {
+            const conceptMeta = getTrackConceptMeta(doc.topic, track.slug);
+            const filledBars = Math.round((overallProgressPct / 100) * 12);
+            return (
+              <header
+                className="relative overflow-hidden rounded-2xl border backdrop-blur-2xl"
+                style={{
+                  animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                  background: '#050507',
+                  borderColor: `rgba(${ta.rgb},0.15)`,
+                }}
+              >
+                {/* Top accent gradient */}
+                <div className="absolute top-0 inset-x-0 h-[2px]" style={{
+                  background: `linear-gradient(90deg, transparent 5%, rgba(${ta.rgb},0.8), transparent 95%)`,
+                }} />
+
+                {/* Ambient glow */}
+                <div className="absolute inset-0 pointer-events-none" style={{
+                  background: `radial-gradient(ellipse at top left, rgba(${ta.rgb},0.1), transparent 50%)`,
+                }} />
+
+                <div className="relative p-8 lg:p-10">
+                  {/* Eyebrow */}
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="h-6 w-6 rounded-lg flex items-center justify-center" style={{ background: `rgba(${ta.rgb},0.2)`, boxShadow: `0 0 12px rgba(${ta.rgb},0.15)` }}>
+                      <Zap className="h-3 w-3" style={{ color: ta.color }} />
+                    </div>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: ta.color }}>
+                      {track.eyebrow ?? 'Theory Track'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
+                    {/* Left: Title + meta */}
+                    <div className="flex-1 space-y-5">
+                      <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-on-surface">
+                        {track.title || track.label}
+                      </h1>
+
+                      {conceptMeta && (
+                        <p className="max-w-xl text-[13px] leading-relaxed text-on-surface-variant/60">
+                          {conceptMeta.tagline}
+                        </p>
+                      )}
+
+                      {/* Stats row */}
+                      <div className="flex flex-wrap gap-3">
+                        <div className="flex items-center gap-2 rounded-xl px-3 py-1.5" style={{ border: `1px solid rgba(${ta.rgb},0.12)`, background: `rgba(${ta.rgb},0.05)` }}>
+                          <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgba(${ta.rgb},0.5)` }}>Modules</span>
+                          <span className="text-[13px] font-bold text-white">{track.chapterCount}</span>
+                        </div>
+                        <div className="flex items-center gap-2 rounded-xl px-3 py-1.5" style={{ border: `1px solid rgba(${ta.rgb},0.12)`, background: `rgba(${ta.rgb},0.05)` }}>
+                          <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgba(${ta.rgb},0.5)` }}>Duration</span>
+                          <span className="text-[13px] font-bold text-white">
+                            {conceptMeta?.estimatedDuration ?? `${Math.round(track.totalMinutes / 60)}h`}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 rounded-xl px-3 py-1.5" style={{ border: `1px solid rgba(${ta.rgb},0.12)`, background: `rgba(${ta.rgb},0.05)` }}>
+                          <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgba(${ta.rgb},0.5)` }}>Format</span>
+                          <span className="text-[13px] font-bold text-white">Pure Theory</span>
+                        </div>
+                      </div>
+
+                      {/* Concept meta pills */}
+                      {conceptMeta && (
+                        <div className="flex flex-wrap gap-x-5 gap-y-2">
+                          <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant/50">
+                            <MapPin className="h-3 w-3 shrink-0" style={{ color: `rgba(${ta.rgb},0.7)` }} />
+                            <span>{conceptMeta.scenario}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant/50">
+                            <Cpu className="h-3 w-3 shrink-0" style={{ color: `rgba(${ta.rgb},0.7)` }} />
+                            <span>{conceptMeta.targetTechnology}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: Progress */}
+                    <div className="w-full lg:w-72 shrink-0 space-y-3">
+                      <div className="rounded-xl p-4" style={{ border: `1px solid rgba(${ta.rgb},0.15)`, background: `rgba(${ta.rgb},0.04)` }}>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgba(${ta.rgb},0.6)` }}>Progress</span>
+                          <span className="text-xl font-bold" style={{ color: ta.color }}>
+                            {overallProgressPct}<span className="text-[11px] font-normal text-on-surface-variant/30">%</span>
+                          </span>
+                        </div>
+
+                        {/* Segmented progress bar */}
+                        <div className="flex gap-[3px]">
+                          {Array.from({ length: 12 }, (_, i) => (
+                            <div
+                              key={i}
+                              className="flex-1 h-2 rounded-[2px] transition-all duration-500"
+                              style={{
+                                backgroundColor: i < filledBars
+                                  ? `rgba(${ta.rgb},${0.5 + (i / 12) * 0.4})`
+                                  : `rgba(${ta.rgb},0.06)`,
+                                boxShadow: i === filledBars - 1 && filledBars > 0
+                                  ? `0 0 6px rgba(${ta.rgb},0.4)`
+                                  : 'none',
+                                transitionDelay: `${i * 40}ms`,
+                              }}
+                            />
+                          ))}
+                        </div>
+
+                        <div className="mt-3 flex justify-between text-[10px] text-on-surface-variant/40">
+                          <span>{completedModules} completed</span>
+                          <span>{track.chapterCount - completedModules} remaining</span>
+                        </div>
+                      </div>
+
+                      {conceptMeta && (
+                        <p className="text-[10px] text-on-surface-variant/20 text-right">
+                          {conceptMeta.version}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            {/* L-bracket corners */}
-            <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2" style={{ borderColor: ta.color }} />
-            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2" style={{ borderColor: ta.color }} />
-          </header>
+              </header>
+            );
+          })()}
 
           <section className="mt-10">
             <div className="relative mx-auto max-w-5xl flex flex-col items-center">

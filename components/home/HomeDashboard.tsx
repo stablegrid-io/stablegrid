@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
-import { ArrowRight, Zap, BookOpen, Clock, Clock3, Target, TrendingUp, Brain } from 'lucide-react';
+import { ArrowRight, Zap, Clock, Clock3, Brain } from 'lucide-react';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import { HOME_TOPIC_ORDER, getHomeTopicMeta } from '@/components/home/home/topicMeta';
@@ -311,7 +311,7 @@ export const HomeDashboard = ({
 
   const resumeHref = useMemo(() => {
     if (!latestSession) {
-      return currentTopic ? `/learn/${currentTopic.topicId}/theory` : '/learn/theory';
+      return currentTopic ? `/learn/${currentTopic.topicId}/theory` : '/theory';
     }
     // Determine track from chapter ID pattern: mid chapters end with I+number, senior with S+number
     const chId = latestSession.chapterId ?? '';

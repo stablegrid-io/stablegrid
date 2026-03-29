@@ -20,12 +20,13 @@ import { spark_streamingData } from '@/data/learn/spark-streaming';
 import { governanceData } from '@/data/learn/governance';
 // Pre-computed theory meta to avoid importing 6.2 MB of theory JSON into client bundles.
 // Update these when theory content changes significantly.
+// Combined chapter counts across all tracks (Junior + Mid + Senior)
 const THEORY_META: Record<string, { chapterCount: number; totalMinutes: number; version: string }> = {
-  pyspark: { chapterCount: 10, totalMinutes: 2585, version: '1.0' },
-  fabric: { chapterCount: 10, totalMinutes: 2530, version: '1.0' },
-  airflow: { chapterCount: 10, totalMinutes: 2560, version: '1.0' },
-  sql: { chapterCount: 10, totalMinutes: 2560, version: '1.0' },
-  'python-de': { chapterCount: 10, totalMinutes: 2460, version: '1.0' },
+  pyspark: { chapterCount: 30, totalMinutes: 10265, version: '1.0' },
+  fabric: { chapterCount: 30, totalMinutes: 10060, version: '1.0' },
+  airflow: { chapterCount: 30, totalMinutes: 9750, version: '1.0' },
+  sql: { chapterCount: 30, totalMinutes: 10120, version: '1.0' },
+  'python-de': { chapterCount: 30, totalMinutes: 9960, version: '1.0' },
 };
 
 const getTheoryMeta = (topic: string) => THEORY_META[topic] ?? null;
