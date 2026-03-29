@@ -45,10 +45,21 @@ export const HOME_TOPICS: Record<Topic, HomeTopicMeta> = {
     softBorder: 'rgba(226, 77, 66, 0.25)',
     fallbackChapters: 10,
     fallbackQuestions: 0
+  },
+  sql: {
+    id: 'sql',
+    label: 'SQL',
+    trackLabel: 'SQL: Foundations Track',
+    icon: '🗄️',
+    color: '#4285f4',
+    softBg: 'rgba(66, 133, 244, 0.10)',
+    softBorder: 'rgba(66, 133, 244, 0.25)',
+    fallbackChapters: 10,
+    fallbackQuestions: 0
   }
 };
 
-export const HOME_TOPIC_ORDER: Topic[] = ['pyspark', 'fabric', 'airflow'];
+export const HOME_TOPIC_ORDER: Topic[] = ['pyspark', 'fabric', 'airflow', 'sql'];
 
 export const getHomeTopicMeta = (topic: string): HomeTopicMeta =>
   HOME_TOPICS[(topic as Topic) ?? 'pyspark'] ?? HOME_TOPICS.pyspark;

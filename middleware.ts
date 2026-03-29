@@ -74,18 +74,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/',
-    '/hub/:path*',
-    '/missions/:path*',
-    '/practice/:path*',
-    '/workspace/:path*',
-    '/onboarding/:path*',
-    '/onboarding',
-    '/admin',
-    '/admin/:path*',
-    '/login',
-    '/signup',
-    '/reset-password',
-    '/update-password'
+    '/((?!_next/static|_next/image|favicon.ico|icon.svg|transmission_line|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'
   ]
 };
