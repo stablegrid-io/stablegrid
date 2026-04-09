@@ -1,0 +1,418 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 4 \u2014 Lakehouse Architecture at Scale",
+  "description": "Design NordGrid\u2019s next-generation lakehouse: review the current architecture for weaknesses, evaluate cross-country federation strategies, design schema governance policies, evaluate data mesh vs centralized platform, and produce a comprehensive architectural decision record.",
+  "version": "authored 2026-04-06, targets PySpark 3.5+ / Delta Lake 3.x",
+  "metadata": {
+    "moduleId": "module-PX4",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 95,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "3.2M meters, 24 regions, 3 countries, 15 teams, 400 schemas",
+    "modulePhase": "extensibility",
+    "taskTypeMix": {
+      "designReview": 1,
+      "tradeOffAnalysis": 2,
+      "designArtifact": 1,
+      "architecturalSynthesis": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PX4_data_org_structure",
+      "file": "PX4_data_org_structure.csv",
+      "description": "15 teams across 3 countries with domains, headcounts, pipeline counts, and pain points.",
+      "usedByTasks": [
+        "module-PX4-task-01",
+        "module-PX4-task-04",
+        "module-PX4-task-05"
+      ]
+    },
+    {
+      "id": "PX4_data_schema_registry",
+      "file": "PX4_data_schema_registry.csv",
+      "description": "39 schemas with ownership, versions, contract test coverage, and breaking change history.",
+      "usedByTasks": [
+        "module-PX4-task-01",
+        "module-PX4-task-03"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PX4-task-01",
+      "title": "Review NordGrid\u2019s Current Medallion Architecture",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid\u2019s lakehouse has grown organically over 2 years. 15 teams, 3 countries, 200+ pipelines, and no formal architecture review. The platform team suspects structural problems but needs a systematic assessment.",
+        "task": "Examine the organizational structure and schema registry below. Identify the 5 most severe architectural weaknesses, rank them by business impact, and for each explain why it is a problem at NordGrid\u2019s scale.",
+        "validationHint": "Look for: ownership gaps, schema governance gaps, cross-country friction, coupling between teams, and missing contracts."
+      },
+      "evidence": {
+        "type": "combined",
+        "orgSummary": {
+          "label": "Organization and architecture summary",
+          "content": "15 teams across 3 countries (Norway, Sweden, Finland)\n7 domains: ingestion, transformation, analytics, billing, ML, reporting, infrastructure\n\nCurrent architecture:\n- Bronze: each country\u2019s ingestion team writes independently (3 different schemas for readings)\n- Silver: Norway\u2019s transform team owns the \u2018shared\u2019 Silver, but Sweden and Finland teams also modify it\n- Gold: each analytics/billing team creates Gold tables independently, some duplicating logic\n- Platinum: ML platform team in Norway, other countries depend on it\n- No centralized schema registry (schemas tracked in spreadsheets)\n- 56% of schemas have no contract tests\n- 18 breaking changes in the last 6 months across the platform"
+        },
+        "painPoints": {
+          "label": "Top pain points from team surveys",
+          "content": "1. transform-se: \u2018We want autonomy but are blocked by shared Silver that Norway controls.\u2019\n2. billing-fi: \u2018Finland regulatory requires different aggregation but we\u2019re forced to use Norway\u2019s schema.\u2019\n3. ml-platform: \u2018ML features table broke 4 times in 6 months from upstream schema changes. No one notified us.\u2019\n4. analytics-fi: \u2018Cross-country reporting requires manual CSV exports and merging.\u2019\n5. platform-core: \u2018We maintain shared infrastructure but have no authority over schema changes.\u2019\n6. ingestion-se: \u2018Sweden meter IDs use a different format. Norway\u2019s schema rejects them.\u2019"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX4-01-F1",
+            "type": "ordered_ranking",
+            "label": "Rank the 5 most severe architectural weaknesses by business impact (highest first):",
+            "options": [
+              "No schema governance: 56% have no contract tests, 18 breaking changes in 6 months \u2014 downstream pipelines break silently",
+              "Shared Silver coupling: Norway owns Silver that 3 countries depend on, blocking Sweden/Finland autonomy",
+              "No cross-country federation: cross-country queries require manual merging, no unified view",
+              "No ownership model: platform-core maintains infra but can\u2019t enforce standards; teams modify shared tables without review",
+              "Country-specific requirements ignored: Finland regulatory and Sweden meter IDs forced into Norway\u2019s schema"
+            ],
+            "correctOrder": [
+              "No schema governance: 56% have no contract tests, 18 breaking changes in 6 months \u2014 downstream pipelines break silently",
+              "No ownership model: platform-core maintains infra but can\u2019t enforce standards; teams modify shared tables without review",
+              "Shared Silver coupling: Norway owns Silver that 3 countries depend on, blocking Sweden/Finland autonomy",
+              "Country-specific requirements ignored: Finland regulatory and Sweden meter IDs forced into Norway\u2019s schema",
+              "No cross-country federation: cross-country queries require manual merging, no unified view"
+            ],
+            "rationale": "Schema governance ranks first because 18 breaking changes in 6 months directly cause pipeline failures. Ownership ranks second because it\u2019s the root cause of governance failures. Coupling ranks third because it blocks 2 of 3 countries. Country requirements rank fourth. Federation ranks fifth because it\u2019s a feature gap, not a failure mode."
+          },
+          {
+            "id": "PX4-01-F2",
+            "type": "single_select",
+            "label": "Which problem is the ROOT CAUSE that enables most of the others?",
+            "options": [
+              "No schema governance \u2014 if contracts existed, breaking changes would be caught",
+              "No ownership model \u2014 without clear ownership, no one is accountable for schema changes, contract enforcement, or cross-team communication. Governance, coupling, and federation all stem from undefined ownership.",
+              "Shared Silver coupling \u2014 if Silver were decoupled, teams would be independent",
+              "Missing schema registry \u2014 if schemas were registered, contracts could be enforced"
+            ],
+            "correctAnswer": "No ownership model \u2014 without clear ownership, no one is accountable for schema changes, contract enforcement, or cross-team communication. Governance, coupling, and federation all stem from undefined ownership."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX4-task-02",
+      "title": "Design Cross-Country Federation Strategy",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid operates in 3 countries with different schemas, regulatory requirements, and team structures. The executive dashboard needs cross-country metrics. The platform team evaluates 3 federation strategies.",
+        "task": "Evaluate the 3 strategies against NordGrid\u2019s constraints: query performance, schema evolution autonomy, Finland data sovereignty, and implementation cost.",
+        "validationHint": "No strategy is perfect. The choice depends on whether you prioritize query performance (unified), team autonomy (federated), or a balance (hybrid)."
+      },
+      "evidence": {
+        "type": "options",
+        "content": "Option A: Unified Schema\nOne Silver table for all 3 countries with a superset schema.\nPros: simplest queries, one schema to maintain, best cross-country join performance.\nCons: all countries must agree on every schema change; Finland data must leave Finland for writes; Sweden meter ID format must be normalized.\n\nOption B: Federated with Views\nEach country owns its Silver with its own schema. A federation layer provides UNION views that map country-specific columns to a common schema.\nPros: full country autonomy, Finland data stays in Finland, each team evolves independently.\nCons: cross-country queries are slower (UNION of 3 tables), schema mapping in views must be maintained, views can drift from source schemas.\n\nOption C: Hybrid (Domain Mesh)\nDomain-owned Silver per country + a centralized Gold federation layer. Each country\u2019s transform team owns their Silver. The platform team owns Gold tables that read from all 3 Silvers and produce unified outputs.\nPros: country autonomy for Silver, unified Gold for consumers, clear ownership at each layer.\nCons: platform team must maintain the Gold federation logic; schema changes in any Silver propagate to Gold."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX4-02-F1",
+            "type": "single_select",
+            "label": "Which option is eliminated by Finland\u2019s data sovereignty requirement?",
+            "options": [
+              "Option A (Unified) \u2014 writing Finland data to a shared Norway-hosted table violates sovereignty",
+              "Option B (Federated) \u2014 federation views cross sovereignty boundaries",
+              "Option C (Hybrid) \u2014 Gold tables aggregate Finland data outside Finland",
+              "None \u2014 all options can satisfy sovereignty with configuration"
+            ],
+            "correctAnswer": "Option A (Unified) \u2014 writing Finland data to a shared Norway-hosted table violates sovereignty",
+            "distractorRationale": "Option A requires all data in one table, likely hosted in one region. Finland data leaving Finland violates sovereignty. Options B and C keep Finland Silver in Finland; only aggregated Gold results cross borders (which may be acceptable for aggregated, non-PII data)."
+          },
+          {
+            "id": "PX4-02-F2",
+            "type": "single_select",
+            "label": "Which option best balances autonomy and unified reporting?",
+            "options": [
+              "Option A \u2014 unified is simplest for reporting",
+              "Option B \u2014 maximum autonomy with federation views",
+              "Option C (Hybrid) \u2014 country teams own their Silver autonomously; platform team owns unified Gold. Each layer has clear ownership. Consumers get unified tables without needing to understand per-country schemas.",
+              "All three are equally balanced"
+            ],
+            "correctAnswer": "Option C (Hybrid) \u2014 country teams own their Silver autonomously; platform team owns unified Gold. Each layer has clear ownership. Consumers get unified tables without needing to understand per-country schemas.",
+            "secondaryCorrectAnswer": "Option B \u2014 maximum autonomy with federation views"
+          },
+          {
+            "id": "PX4-02-F3",
+            "type": "single_select",
+            "label": "What is the key risk of Option C that must be mitigated?",
+            "options": [
+              "Gold tables will be too slow to query",
+              "The platform team becomes a bottleneck: every Silver schema change requires Gold federation logic updates. Mitigation: contract tests between Silver and Gold that automatically detect breaking changes before they reach Gold.",
+              "Country teams will refuse to use the unified Gold tables",
+              "The hybrid approach is too complex to implement"
+            ],
+            "correctAnswer": "The platform team becomes a bottleneck: every Silver schema change requires Gold federation logic updates. Mitigation: contract tests between Silver and Gold that automatically detect breaking changes before they reach Gold."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX4-task-03",
+      "title": "Design Schema Governance for 400 Schemas",
+      "type": "design_artifact",
+      "estimatedMinutes": 20,
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
+      "description": {
+        "context": "NordGrid\u2019s schema registry has grown to 400+ schemas with no governance. 56% lack contract tests. 18 breaking changes happened in 6 months, each causing 2-4 hours of downstream pipeline failures. The platform team must design a governance policy that prevents unreviewed breaking changes.",
+        "task": "Produce a schema governance policy as a structured DataFrame. Each row is one policy rule. Rules must cover: who can create schemas, who approves changes, how breaking changes are handled, deprecation process, contract test requirements, and version numbering.",
+        "validationHint": "Good governance policies are specific and enforceable. 'Breaking changes require approval' is vague. 'Breaking changes require approval from all downstream team leads listed in the schema\u2019s consumer registry, with 14-day notice period' is enforceable."
+      },
+      "evidence": {
+        "type": "governance_gap",
+        "content": "Current state:\n- No approval process for schema changes\n- No notification to downstream consumers before breaking changes\n- No deprecation timeline (schemas removed without warning)\n- Contract tests exist for only 44% of schemas\n- Version numbering is inconsistent (some use semver, some use dates, some use nothing)\n\nImpact of the gap:\n- 18 breaking changes in 6 months\n- Each breaking change: 2-4 hours of downstream failures\n- Total: 36-72 hours of pipeline downtime from governance failures\n- Estimated cost: $180K-$360K (engineering time + stale data impact)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX4-03-F1",
+            "type": "single_select",
+            "label": "What is the single most impactful governance rule to implement first?",
+            "options": [
+              "Require all schemas to use semantic versioning",
+              "Require contract tests for every schema with 2+ downstream consumers. This directly prevents the 18 breaking changes that caused 36-72 hours of downtime. Contract tests catch breaking changes in CI before they reach production.",
+              "Require approval from the platform team for all schema changes",
+              "Implement a schema registry tool"
+            ],
+            "correctAnswer": "Require contract tests for every schema with 2+ downstream consumers. This directly prevents the 18 breaking changes that caused 36-72 hours of downtime. Contract tests catch breaking changes in CI before they reach production."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-governance').master('local[*]').getOrCreate()\n\n# YOUR SOLUTION BELOW\n# Produce a governance policy as a DataFrame.\n# Each row = one rule.\n# Required columns: rule_id, category, rule_text, enforcement_method,\n#   applies_to, exception_process\n# Categories: creation, modification, breaking_change, deprecation,\n#   contract_testing, versioning\n# Minimum 8 rules.\n# Store in 'governance_policy'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('NordGrid Schema Governance Policy:')\ngovernance_policy.show(truncate=False)\nprint(f'Total rules: {governance_policy.count()}')"
+      },
+      "assertions": [
+        {
+          "id": "PX4-03-A1",
+          "description": "At least 8 rules",
+          "check": "governance_policy.count() >= 8"
+        },
+        {
+          "id": "PX4-03-A2",
+          "description": "Has required columns",
+          "check": "all(c in governance_policy.columns for c in ['rule_id', 'category', 'rule_text', 'enforcement_method'])"
+        },
+        {
+          "id": "PX4-03-A3",
+          "description": "At least 4 different categories",
+          "check": "governance_policy.select('category').distinct().count() >= 4"
+        },
+        {
+          "id": "PX4-03-A4",
+          "description": "At least one rule about contract tests",
+          "check": "governance_policy.filter(col('category') == 'contract_testing').count() >= 1"
+        },
+        {
+          "id": "PX4-03-A5",
+          "description": "At least one rule about breaking changes",
+          "check": "governance_policy.filter(col('category') == 'breaking_change').count() >= 1"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 field. Code (70%): 5 assertions."
+    },
+    {
+      "id": "module-PX4-task-04",
+      "title": "Evaluate Data Mesh vs Centralized Platform",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid\u2019s 8 engineering teams request more autonomy. The transform-se team wants to own Sweden\u2019s entire pipeline independently. The ml-platform team wants to manage their own infrastructure. The platform team evaluates whether to adopt a data mesh model (domain ownership) or maintain a centralized platform.",
+        "task": "Evaluate data mesh vs centralized platform for NordGrid\u2019s specific constraints: 3 countries, varying team maturity, shared infrastructure cost, and regulatory requirements.",
+        "validationHint": "Pure data mesh requires every domain team to be self-sufficient in infrastructure. NordGrid\u2019s smallest team (billing-fi) has 2 engineers. Pure centralized blocks the autonomy that transform-se needs. The answer is usually a hybrid."
+      },
+      "evidence": {
+        "type": "combined",
+        "meshOption": {
+          "label": "Option A: Full Data Mesh",
+          "content": "Each domain team owns their pipelines, infrastructure, and data products end-to-end.\nPros: maximum autonomy, teams ship faster, ownership is clear.\nCons: billing-fi (2 engineers) cannot maintain their own Spark cluster, schema registry, and monitoring. Duplicated infrastructure across 8 teams. Cross-domain data products (cross-country reporting) have no natural owner."
+        },
+        "centralOption": {
+          "label": "Option B: Centralized Platform",
+          "content": "Platform-core team owns all infrastructure, pipelines, and schemas.\nPros: no duplication, consistent standards, one team to maintain.\nCons: platform team (8 engineers) becomes bottleneck for 15 teams. transform-se waits weeks for platform team to implement Sweden-specific changes. Innovation blocked by centralized prioritization."
+        },
+        "hybridOption": {
+          "label": "Option C: Federated Platform (Platform as a Service)",
+          "content": "Platform-core provides shared infrastructure (clusters, monitoring, schema registry, CI/CD) as a self-service platform. Domain teams own their pipelines and data products, using the platform\u2019s tools.\nPros: small teams (billing-fi) get infrastructure without maintaining it. Large teams (transform-se) get autonomy within guardrails. Platform team focuses on tools, not pipelines.\nCons: requires investment in self-service tooling. Guardrails must be well-designed or teams will circumvent them."
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX4-04-F1",
+            "type": "single_select",
+            "label": "Why is pure data mesh impractical for NordGrid?",
+            "options": [
+              "Data mesh is always impractical",
+              "NordGrid\u2019s smallest teams (2-3 engineers) cannot maintain independent infrastructure (clusters, monitoring, schema registry). Pure mesh requires every domain to be self-sufficient, which is impossible at NordGrid\u2019s team size distribution.",
+              "Data mesh requires microservices architecture which NordGrid doesn\u2019t have",
+              "Data mesh only works with streaming, not batch"
+            ],
+            "correctAnswer": "NordGrid\u2019s smallest teams (2-3 engineers) cannot maintain independent infrastructure (clusters, monitoring, schema registry). Pure mesh requires every domain to be self-sufficient, which is impossible at NordGrid\u2019s team size distribution."
+          },
+          {
+            "id": "PX4-04-F2",
+            "type": "single_select",
+            "label": "Which option do you recommend?",
+            "options": [
+              "Option A (Full Mesh) \u2014 autonomy is the highest priority",
+              "Option B (Centralized) \u2014 consistency is the highest priority",
+              "Option C (Federated Platform) \u2014 platform team provides shared infrastructure as self-service; domain teams own their pipelines. Small teams get support; large teams get autonomy. The platform team shifts from doing work to enabling work.",
+              "A different hybrid not described above"
+            ],
+            "correctAnswer": "Option C (Federated Platform) \u2014 platform team provides shared infrastructure as self-service; domain teams own their pipelines. Small teams get support; large teams get autonomy. The platform team shifts from doing work to enabling work.",
+            "secondaryCorrectAnswer": "A different hybrid not described above"
+          },
+          {
+            "id": "PX4-04-F3",
+            "type": "single_select",
+            "label": "What must the platform team build to make Option C work?",
+            "options": [
+              "More pipelines \u2014 the platform team should write all pipelines",
+              "Self-service tools: schema registry with contract testing, CI/CD templates, monitoring dashboards, cost allocation dashboards. These guardrails enable autonomy while preventing the governance failures identified in Task 1.",
+              "A data catalog \u2014 discoverability is the only missing piece",
+              "Nothing \u2014 just assign ownership and teams will self-organize"
+            ],
+            "correctAnswer": "Self-service tools: schema registry with contract testing, CI/CD templates, monitoring dashboards, cost allocation dashboards. These guardrails enable autonomy while preventing the governance failures identified in Task 1."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX4-task-05",
+      "title": "Design NordGrid\u2019s Next-Generation Lakehouse Architecture",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 21,
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
+      "description": {
+        "context": "The CTO has approved the federated platform model (Option C from Task 4). The platform team must now design the specific architecture: layer ownership, federation strategy, schema governance, catalog design, and access control. This architecture will govern NordGrid\u2019s data platform for the next 3 years.",
+        "task": "Design the architecture as a structured DataFrame where each row is one architectural decision. Decisions must cover: layer ownership model, cross-country federation approach, schema governance enforcement, data catalog structure, and access control model. Each decision must include the rationale and the team responsible for implementation.",
+        "validationHint": "The architecture must resolve the 5 weaknesses from Task 1, implement the federation strategy from Task 2, and follow the governance policy from Task 3."
+      },
+      "evidence": {
+        "type": "approved_direction",
+        "content": "Approved decisions from Tasks 1-4:\n- Federated Platform model (domain teams own pipelines, platform provides tools)\n- Cross-country: Hybrid federation (country-owned Silver + unified Gold)\n- Schema governance: contract tests required for schemas with 2+ consumers\n- Finland data sovereignty: Silver stays in Finland; Gold aggregates may cross borders\n- Ownership: each layer has a clear owning team per country"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX4-05-F1",
+            "type": "single_select",
+            "label": "Who should own Silver tables in the new architecture?",
+            "options": [
+              "Platform-core team owns all Silver tables across all countries",
+              "Each country\u2019s transform team owns their country\u2019s Silver. transform-no owns Norway Silver, transform-se owns Sweden Silver, transform-fi owns Finland Silver. This gives each country autonomy while maintaining clear accountability.",
+              "Each domain (billing, analytics, ML) owns the Silver tables they consume",
+              "No ownership \u2014 any team can modify any Silver table"
+            ],
+            "correctAnswer": "Each country\u2019s transform team owns their country\u2019s Silver. transform-no owns Norway Silver, transform-se owns Sweden Silver, transform-fi owns Finland Silver. This gives each country autonomy while maintaining clear accountability."
+          },
+          {
+            "id": "PX4-05-F2",
+            "type": "single_select",
+            "label": "Who should own cross-country Gold tables (unified reporting)?",
+            "options": [
+              "The analytics team in each country owns their country\u2019s Gold",
+              "Platform-core team owns cross-country Gold. They maintain the federation logic that reads from 3 country Silvers and produces unified output. Contract tests between Silver and Gold catch schema drift.",
+              "The exec-dashboard team owns all Gold",
+              "No specific owner \u2014 Gold is auto-generated from Silver"
+            ],
+            "correctAnswer": "Platform-core team owns cross-country Gold. They maintain the federation logic that reads from 3 country Silvers and produces unified output. Contract tests between Silver and Gold catch schema drift."
+          },
+          {
+            "id": "PX4-05-F3",
+            "type": "single_select",
+            "label": "How should the schema registry enforce governance without blocking team velocity?",
+            "options": [
+              "All changes require platform team approval (blocks velocity)",
+              "Additive changes (new columns, new tables) are auto-approved. Breaking changes require approval from downstream consumer team leads with 14-day notice. Contract tests run in CI and block merges that fail. This balances safety with speed.",
+              "No enforcement \u2014 rely on team goodwill",
+              "Changes are approved by a weekly governance committee"
+            ],
+            "correctAnswer": "Additive changes (new columns, new tables) are auto-approved. Breaking changes require approval from downstream consumer team leads with 14-day notice. Contract tests run in CI and block merges that fail. This balances safety with speed."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-lakehouse-arch').master('local[*]').getOrCreate()\n\n# YOUR SOLUTION BELOW\n# Produce the architecture as a DataFrame.\n# Each row = one architectural decision.\n# Required columns: decision_id, category, decision, rationale,\n#   responsible_team, implementation_quarter\n# Categories: layer_ownership, federation, schema_governance,\n#   catalog, access_control, monitoring\n# Minimum 10 decisions.\n# Store in 'architecture'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('NordGrid Lakehouse Architecture:')\narchitecture.show(truncate=False)\nprint(f'Total decisions: {architecture.count()}')\nprint(f'Categories: {[r.category for r in architecture.select(\"category\").distinct().collect()]}')"
+      },
+      "assertions": [
+        {
+          "id": "PX4-05-A1",
+          "description": "At least 10 decisions",
+          "check": "architecture.count() >= 10"
+        },
+        {
+          "id": "PX4-05-A2",
+          "description": "Has required columns",
+          "check": "all(c in architecture.columns for c in ['decision_id', 'category', 'decision', 'rationale', 'responsible_team'])"
+        },
+        {
+          "id": "PX4-05-A3",
+          "description": "At least 5 categories covered",
+          "check": "architecture.select('category').distinct().count() >= 5"
+        },
+        {
+          "id": "PX4-05-A4",
+          "description": "Layer ownership decisions present",
+          "check": "architecture.filter(col('category') == 'layer_ownership').count() >= 1"
+        },
+        {
+          "id": "PX4-05-A5",
+          "description": "Schema governance decisions present",
+          "check": "architecture.filter(col('category') == 'schema_governance').count() >= 1"
+        }
+      ],
+      "partialCredit": "Template (55%): 3 fields. Code (45%): 5 assertions.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Architectural review: identifying weaknesses and root causes (Task 1)",
+          "Cross-country federation: unified vs federated vs hybrid (Task 2)",
+          "Schema governance policy design (Task 3, PM4)",
+          "Data mesh vs centralized: federated platform compromise (Task 4)",
+          "Layer ownership model (Lessons 1-3)",
+          "Access control and catalog design (Lessons 8-9)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This capstone produces NordGrid\u2019s 3-year lakehouse architecture as a structured decision document. Every decision traces back to a weakness identified in Task 1, a trade-off evaluated in Tasks 2-4, or a governance rule from Task 3. The artifact is a real architectural decision record (ADR) that a principal engineer would present to the CTO."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "tradeOffsGenuinelyCompeting": true,
+    "scaleMatters": "15 teams, 3 countries, 400 schemas. Governance, federation, and ownership decisions are meaningless at single-team scale.",
+    "designArtifactUsable": "The governance policy (Task 3) and architecture (Task 5) are ADRs that a CTO would review.",
+    "theoryPracticeBoundary": "Theory teaches lakehouse patterns individually. Practice requires designing a multi-country, multi-team architecture that resolves real organizational pain points."
+  }
+}

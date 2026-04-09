@@ -1,0 +1,381 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 7 \u2014 Memory Management and Tungsten",
+  "description": "Master Spark\u2019s memory internals: map workloads to the unified memory model, diagnose execution-storage eviction cascades, evaluate GC strategies per workload type, design off-heap memory policies, and produce platform-wide memory configuration standards.",
+  "version": "authored 2026-04-06, targets PySpark 3.5+ / JDK 11+",
+  "metadata": {
+    "moduleId": "module-PX7",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 85,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "100 executors, 5 workload types, 3 GC strategies",
+    "modulePhase": "deep_internals",
+    "taskTypeMix": {
+      "rootCauseAnalysis": 2,
+      "tradeOffAnalysis": 2,
+      "architecturalSynthesis": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PX7_data_executor_jvm_metrics",
+      "file": "PX7_data_executor_jvm_metrics.csv",
+      "description": "100-executor JVM metrics: heap regions, GC type/time, spill, off-heap, per-task memory, across 5 workload types. 19 executors have GC >15%.",
+      "usedByTasks": [
+        "module-PX7-task-03",
+        "module-PX7-task-05"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PX7-task-01",
+      "title": "Map NordGrid\u2019s Memory Budget to Spark\u2019s Memory Regions",
+      "type": "root_cause_analysis",
+      "estimatedMinutes": 16,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid\u2019s Gold aggregation pipeline runs on executors with 16 GB heap (spark.executor.memory=16g). The pipeline caches a 3 GB Silver DataFrame and then performs a shuffle-heavy groupBy that needs 5 GB of execution memory. The engineer must understand whether 16 GB is enough by mapping the workload to Spark\u2019s memory regions.",
+        "task": "Calculate how Spark divides the 16 GB heap into regions: JVM overhead, unified memory (execution + storage), and user memory. Then determine whether the 3 GB cache + 5 GB shuffle fit within the budget.",
+        "validationHint": "Spark\u2019s unified memory model: heap \u00d7 (1 - overhead) = usable. Usable \u00d7 spark.memory.fraction (0.6 default) = unified region. Unified is shared dynamically between execution and storage."
+      },
+      "evidence": {
+        "type": "memory_layout",
+        "content": "Executor config:\n  spark.executor.memory = 16 GB (16,384 MB)\n  spark.memory.fraction = 0.6 (default)\n  spark.memory.storageFraction = 0.5 (default, within unified region)\n  JVM overhead: ~25% (spark.executor.memoryOverhead)\n  Cores per executor: 4 (spark.executor.cores)\n\nWorkload:\n  Cache: 3 GB Silver DataFrame (stored in storage region)\n  Shuffle: groupBy aggregation needs 5 GB execution memory\n  Concurrent tasks: 4 (one per core)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX7-01-F1",
+            "type": "numeric",
+            "label": "Usable heap after JVM overhead (16 GB \u00d7 0.75)?",
+            "correctAnswer": 12288,
+            "tolerance": 200,
+            "rationale": "16,384 MB \u00d7 0.75 = 12,288 MB (~12 GB usable heap)."
+          },
+          {
+            "id": "PX7-01-F2",
+            "type": "numeric",
+            "label": "Unified memory region (usable heap \u00d7 0.6)?",
+            "correctAnswer": 7372,
+            "tolerance": 200,
+            "rationale": "12,288 \u00d7 0.6 = 7,372 MB (~7.2 GB). This is shared between execution and storage."
+          },
+          {
+            "id": "PX7-01-F3",
+            "type": "single_select",
+            "label": "Can the 3 GB cache + 5 GB shuffle fit in the 7.2 GB unified region?",
+            "options": [
+              "Yes \u2014 3 + 5 = 8 GB fits in 7.2 GB because Spark compresses cached data",
+              "No \u2014 3 + 5 = 8 GB exceeds the 7.2 GB unified region. Spark\u2019s unified model allows execution to evict storage when needed, so the shuffle will evict cached data to make room. The 3 GB cache will be partially evicted, causing re-reads from disk.",
+              "No \u2014 the pipeline will crash with OOM",
+              "Yes \u2014 execution and storage have separate budgets that don\u2019t share"
+            ],
+            "correctAnswer": "No \u2014 3 + 5 = 8 GB exceeds the 7.2 GB unified region. Spark\u2019s unified model allows execution to evict storage when needed, so the shuffle will evict cached data to make room. The 3 GB cache will be partially evicted, causing re-reads from disk."
+          },
+          {
+            "id": "PX7-01-F4",
+            "type": "single_select",
+            "label": "What is the per-task memory budget for the 5 GB shuffle (4 concurrent tasks)?",
+            "options": [
+              "5 GB per task \u2014 each task gets the full execution region",
+              "~1.8 GB per task \u2014 the unified region (7.2 GB) minus cached data (3 GB) = 4.2 GB execution available, divided by 4 concurrent tasks = ~1.05 GB per task. Even without the cache, 7.2 GB / 4 = 1.8 GB per task.",
+              "~3.6 GB per task \u2014 the execution half of unified divided by 4",
+              "16 GB per task \u2014 tasks don\u2019t share memory"
+            ],
+            "correctAnswer": "~1.8 GB per task \u2014 the unified region (7.2 GB) minus cached data (3 GB) = 4.2 GB execution available, divided by 4 concurrent tasks = ~1.05 GB per task. Even without the cache, 7.2 GB / 4 = 1.8 GB per task."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX7-task-02",
+      "title": "Diagnose Execution-Storage Memory Contention",
+      "type": "root_cause_analysis",
+      "estimatedMinutes": 17,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid\u2019s Silver enrichment pipeline caches a 4 GB reference DataFrame for 6 downstream Gold pipelines to read. During the 3rd Gold pipeline\u2019s shuffle-heavy join, the cached DataFrame is partially evicted. The 4th, 5th, and 6th Gold pipelines must re-read 2 GB from disk, adding 90 seconds each.",
+        "task": "Trace the eviction cascade through Spark\u2019s unified memory model. Determine why the eviction happened, when it happened, and how to prevent it.",
+        "validationHint": "In unified memory, execution can evict storage (but not vice versa). The eviction occurs when execution memory demand exceeds its half of the unified region and borrows from storage."
+      },
+      "evidence": {
+        "type": "combined",
+        "timeline": {
+          "label": "Memory timeline during Gold pipeline 3",
+          "content": "T=0s:   Unified region: 7.2 GB. Storage: 4 GB (cached ref). Execution: 0 GB.\nT=5s:   Gold-3 starts shuffle join. Execution requests 4 GB.\nT=6s:   Only 3.2 GB free in unified (7.2 - 4.0 cache). Execution needs 4 GB.\nT=7s:   Execution evicts 0.8 GB of cached ref to make room. Cache: 3.2 GB. Execution: 4 GB.\nT=30s:  Hash table grows. Execution requests 5.5 GB total.\nT=31s:  Execution evicts another 1.2 GB cache. Cache: 2 GB. Execution: 5.2 GB.\nT=120s: Gold-3 completes. Execution releases 5.2 GB. Cache remains at 2 GB (evicted data not restored).\nT=121s: Gold-4 reads cached ref. 2 GB in cache, 2 GB must be re-read from disk. +90s.\nT=211s: Gold-5 reads. Same: 2 GB from cache, 2 GB from disk. +90s.\nT=301s: Gold-6 reads. Same. +90s."
+        },
+        "impact": {
+          "label": "Total impact",
+          "content": "Without eviction: 6 Gold pipelines read cache at 3s each = 18s total\nWith eviction: Gold 1-2 read cache (6s) + Gold 3 executes (120s) + Gold 4-6 re-read disk (270s) = 396s\nWasted time: 270s from 3 pipelines re-reading 2 GB each from disk\nRoot cause: execution memory evicted storage during Gold-3\u2019s join"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX7-02-F1",
+            "type": "single_select",
+            "label": "Why does execution evict storage and not the other way around?",
+            "options": [
+              "Spark randomly chooses which to evict",
+              "In unified memory, execution has priority over storage. Execution memory (shuffles, joins, sorts) is needed for active computation and cannot be spilled without causing OOM. Storage memory (caches) can be evicted because the data can be recomputed or re-read from disk.",
+              "Storage is always evicted first because it\u2019s less important",
+              "The order depends on which was allocated first"
+            ],
+            "correctAnswer": "In unified memory, execution has priority over storage. Execution memory (shuffles, joins, sorts) is needed for active computation and cannot be spilled without causing OOM. Storage memory (caches) can be evicted because the data can be recomputed or re-read from disk."
+          },
+          {
+            "id": "PX7-02-F2",
+            "type": "single_select",
+            "label": "Why isn\u2019t the evicted cache data restored after Gold-3 completes?",
+            "options": [
+              "Spark automatically restores evicted cache blocks",
+              "Evicted cache blocks are permanently removed from the storage region. Spark does not re-cache them automatically \u2014 the application would need to call .cache() and trigger a read again. This is by design: automatic re-caching could cause an eviction loop.",
+              "The cache is restored but it takes time",
+              "Gold-3 corrupted the cache"
+            ],
+            "correctAnswer": "Evicted cache blocks are permanently removed from the storage region. Spark does not re-cache them automatically \u2014 the application would need to call .cache() and trigger a read again. This is by design: automatic re-caching could cause an eviction loop."
+          },
+          {
+            "id": "PX7-02-F3",
+            "type": "single_select",
+            "label": "How should NordGrid prevent this eviction cascade?",
+            "options": [
+              "Increase spark.memory.storageFraction to give storage a larger guaranteed minimum",
+              "Increase executor memory from 16 GB to 32 GB so the unified region (14.4 GB) fits both the 4 GB cache and the 5.5 GB execution peak without contention",
+              "Reduce cores per executor from 4 to 2 so fewer concurrent tasks compete for execution memory",
+              "All three approaches reduce contention, but increasing executor memory is the most direct fix. Reducing cores gives more memory per task but halves parallelism. Increasing storageFraction protects cache but restricts execution."
+            ],
+            "correctAnswer": "All three approaches reduce contention, but increasing executor memory is the most direct fix. Reducing cores gives more memory per task but halves parallelism. Increasing storageFraction protects cache but restricts execution."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX7-task-03",
+      "title": "Evaluate GC Tuning Options for NordGrid\u2019s Workloads",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 17,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid\u2019s executor metrics show 19 executors with GC time > 15% (severe). These are concentrated in ml_training (27 executors, avg GC 16%) and aggregation_gold (17 executors, avg GC 11%). The platform team evaluates three GC strategies: current G1GC with default tuning, G1GC with tuned parameters, and ZGC (low-pause collector).",
+        "task": "Evaluate the three GC options against NordGrid\u2019s workload profiles. ML training has long-lived objects (model weights). Gold aggregation has short-lived objects (hash tables rebuilt per partition). Each workload needs a different GC strategy.",
+        "validationHint": "G1GC works well for mixed workloads. ZGC minimizes pause time but has higher throughput overhead. The key: ML training benefits from larger heap + G1GC tuning. Gold aggregation benefits from more partitions (smaller per-task data) rather than GC tuning."
+      },
+      "evidence": {
+        "type": "gc_options",
+        "content": "Option A: G1GC default (current)\n  Pause target: 200ms\n  ML training: 16% GC time (frequent full-GC from large old-gen)\n  Gold agg: 11% GC time (frequent young-GC from hash table churn)\n  Cost: $0 (no change)\n\nOption B: G1GC tuned\n  -XX:G1HeapRegionSize=16m (larger regions for ML\u2019s big objects)\n  -XX:InitiatingHeapOccupancyPercent=35 (trigger concurrent GC earlier)\n  ML training: estimated 10% GC (earlier concurrent collection avoids full-GC)\n  Gold agg: estimated 9% GC (marginal improvement)\n  Cost: testing and validation time\n\nOption C: ZGC\n  Sub-millisecond pauses (no stop-the-world)\n  ML training: estimated 2% GC pause (but 5-8% throughput overhead from concurrent GC barriers)\n  Gold agg: estimated 1% GC pause (same throughput overhead)\n  Cost: requires JDK 17+, some Spark versions have compatibility issues\n  Net effect: lower pause times but tasks run 5-8% slower overall"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX7-03-F1",
+            "type": "single_select",
+            "label": "Which GC strategy should ML training executors use?",
+            "options": [
+              "Option A (G1GC default) \u2014 16% GC is acceptable for ML",
+              "Option B (G1GC tuned) \u2014 reducing ML GC from 16% to 10% saves 6% of compute time. G1GC tuning is low-risk and addresses the specific problem: large old-gen objects from model weights trigger full-GC. Earlier concurrent collection prevents this.",
+              "Option C (ZGC) \u2014 lowest pause times",
+              "No GC tuning \u2014 increase executor memory instead"
+            ],
+            "correctAnswer": "Option B (G1GC tuned) \u2014 reducing ML GC from 16% to 10% saves 6% of compute time. G1GC tuning is low-risk and addresses the specific problem: large old-gen objects from model weights trigger full-GC. Earlier concurrent collection prevents this.",
+            "secondaryCorrectAnswer": "Option C (ZGC) \u2014 lowest pause times"
+          },
+          {
+            "id": "PX7-03-F2",
+            "type": "single_select",
+            "label": "Should Gold aggregation executors use the same GC strategy as ML?",
+            "options": [
+              "Yes \u2014 one GC config for the whole cluster is simpler",
+              "No \u2014 Gold\u2019s GC problem is different. Hash table churn creates short-lived objects (young-gen pressure), not old-gen pressure. The better fix for Gold is increasing shuffle partitions (smaller hash tables per task) rather than GC tuning. GC tuning gives marginal improvement (11% to 9%) while more partitions addresses the root cause.",
+              "No \u2014 Gold should use ZGC while ML uses G1GC",
+              "Yes \u2014 G1GC tuned helps all workloads equally"
+            ],
+            "correctAnswer": "No \u2014 Gold\u2019s GC problem is different. Hash table churn creates short-lived objects (young-gen pressure), not old-gen pressure. The better fix for Gold is increasing shuffle partitions (smaller hash tables per task) rather than GC tuning. GC tuning gives marginal improvement (11% to 9%) while more partitions addresses the root cause."
+          },
+          {
+            "id": "PX7-03-F3",
+            "type": "single_select",
+            "label": "When should NordGrid consider ZGC (Option C)?",
+            "options": [
+              "Never \u2014 G1GC is always sufficient",
+              "For latency-sensitive streaming pipelines where pause time directly affects micro-batch duration. ZGC\u2019s sub-ms pauses prevent the 200ms G1GC pauses that can cause micro-batch deadline misses. The 5-8% throughput overhead is acceptable when latency SLA is the priority.",
+              "For all workloads once JDK 17 is adopted",
+              "Only for ML training"
+            ],
+            "correctAnswer": "For latency-sensitive streaming pipelines where pause time directly affects micro-batch duration. ZGC\u2019s sub-ms pauses prevent the 200ms G1GC pauses that can cause micro-batch deadline misses. The 5-8% throughput overhead is acceptable when latency SLA is the priority."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX7-task-04",
+      "title": "Design Off-Heap Memory Strategy",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 16,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid\u2019s platform team evaluates off-heap memory (spark.memory.offHeap.enabled) for workloads where GC pressure is the bottleneck. Off-heap memory is allocated outside the JVM heap, so it doesn\u2019t contribute to GC pressure. But it adds operational complexity: memory must be managed manually, and debugging is harder.",
+        "task": "Determine which NordGrid workloads benefit from off-heap memory and which do not. Design the off-heap policy: which pipeline types get off-heap, how much to allocate, and what to monitor.",
+        "validationHint": "Off-heap helps when: (1) GC is the bottleneck (>15% GC time), (2) the workload has large serialized data structures (shuffles, broadcast tables), (3) the workload is long-running (streaming state). Off-heap doesn\u2019t help when GC is already low or when UDFs allocate on-heap objects."
+      },
+      "evidence": {
+        "type": "workload_gc",
+        "content": "Workload          | Executors | Avg GC% | Spill Rate | Primary Memory Consumer     | Off-Heap Benefit?\nml_training       | 27        | 16%     | High       | Model weights (on-heap)     | Low \u2014 model objects are Java objects, must be on-heap\naggregation_gold  | 17        | 11%     | Medium     | Hash tables (Tungsten)      | Medium \u2014 Tungsten already uses binary encoding\njoin_enrichment   | 20        | 7%      | Low        | Broadcast tables + shuffle  | High \u2014 broadcast + shuffle buffers benefit from off-heap\nstreaming_ingest  | 26        | 5%      | None       | Streaming state             | High \u2014 state stored off-heap reduces GC for long-running jobs\netl_silver        | 10        | 6%      | Low        | Scan buffers                | Low \u2014 GC is already low, no bottleneck to fix"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX7-04-F1",
+            "type": "single_select",
+            "label": "Which workloads should use off-heap memory?",
+            "options": [
+              "All workloads \u2014 off-heap is always better",
+              "streaming_ingest and join_enrichment. Streaming benefits because state stored off-heap doesn\u2019t trigger GC for 24/7 jobs. Join enrichment benefits because broadcast tables and shuffle buffers are serialized data that Spark can store off-heap efficiently.",
+              "Only ml_training \u2014 it has the highest GC%",
+              "None \u2014 off-heap adds too much complexity"
+            ],
+            "correctAnswer": "streaming_ingest and join_enrichment. Streaming benefits because state stored off-heap doesn\u2019t trigger GC for 24/7 jobs. Join enrichment benefits because broadcast tables and shuffle buffers are serialized data that Spark can store off-heap efficiently.",
+            "distractorRationale": "ML training has the highest GC% but its memory consumers (model weights) are Java objects that MUST live on-heap. Off-heap only helps serialized binary data (Tungsten-encoded). ETL has low GC, so no bottleneck to fix."
+          },
+          {
+            "id": "PX7-04-F2",
+            "type": "single_select",
+            "label": "Why doesn\u2019t off-heap help ML training despite its 16% GC?",
+            "options": [
+              "Off-heap is incompatible with ML libraries",
+              "ML model weights are Java/Scala objects (arrays, matrices) that the JVM must manage on-heap. Off-heap stores serialized binary data. Since model objects can\u2019t be serialized into off-heap during active computation, they remain on-heap and continue to cause GC pressure. The correct fix for ML is G1GC tuning (Task 3) or larger heap.",
+              "ML training doesn\u2019t use enough memory for off-heap to matter",
+              "Off-heap is only for streaming workloads"
+            ],
+            "correctAnswer": "ML model weights are Java/Scala objects (arrays, matrices) that the JVM must manage on-heap. Off-heap stores serialized binary data. Since model objects can\u2019t be serialized into off-heap during active computation, they remain on-heap and continue to cause GC pressure. The correct fix for ML is G1GC tuning (Task 3) or larger heap."
+          },
+          {
+            "id": "PX7-04-F3",
+            "type": "single_select",
+            "label": "How much off-heap memory should streaming executors allocate?",
+            "options": [
+              "Same as heap \u2014 double the total memory",
+              "Equal to the expected state size. For streaming_ingest with ~2-4 GB state, allocate 4 GB off-heap (spark.memory.offHeap.size=4g). This moves state out of the heap, reducing GC from 5% to ~2% without over-provisioning.",
+              "1 GB \u2014 minimal off-heap is sufficient",
+              "Off-heap size doesn\u2019t matter \u2014 Spark manages it automatically"
+            ],
+            "correctAnswer": "Equal to the expected state size. For streaming_ingest with ~2-4 GB state, allocate 4 GB off-heap (spark.memory.offHeap.size=4g). This moves state out of the heap, reducing GC from 5% to ~2% without over-provisioning."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX7-task-05",
+      "title": "Design NordGrid\u2019s Memory Configuration Standards",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 19,
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
+      "description": {
+        "context": "NordGrid needs platform-wide memory configuration standards. Currently, every team sets executor memory ad-hoc, resulting in 19 executors with severe GC (>15%), 74 with unnecessary spill, and inconsistent off-heap usage. The platform team must produce a standards document that specifies memory configuration by workload type.",
+        "task": "Produce a memory configuration standards document as a DataFrame. Each row specifies the recommended configuration for one workload type: heap size, memory fraction, GC type, off-heap settings, cores-per-executor, and monitoring thresholds.",
+        "validationHint": "Different workloads need different configs: ML needs large heap + G1GC tuning. Streaming needs off-heap for state. Gold aggregation needs more partitions rather than more memory. ETL needs minimal config. One-size-fits-all is the anti-pattern."
+      },
+      "evidence": {
+        "type": "current_problems",
+        "content": "Current state:\n  19 executors with GC > 15% (mostly ml_training)\n  74 executors spilling (insufficient execution memory per task)\n  23 executors using off-heap (ad-hoc, no standard)\n  Heap sizes: 25 at 8 GB, 37 at 16 GB, 38 at 32 GB (inconsistent)\n\nThe standards must specify per workload type:\n  1. Recommended heap size\n  2. spark.memory.fraction (default 0.6 or custom)\n  3. GC type and tuning flags\n  4. Off-heap: enabled/disabled, size\n  5. Cores per executor\n  6. Monitoring: GC% threshold for alerting"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX7-05-F1",
+            "type": "single_select",
+            "label": "Why is a single memory config for all workloads wrong?",
+            "options": [
+              "It\u2019s not wrong \u2014 standardization requires one config",
+              "Different workloads have different memory profiles: ML needs large heap for model objects (on-heap). Streaming needs off-heap for state. Aggregation needs more partitions, not more memory. One config either wastes resources (over-provisioned for ETL) or causes failures (under-provisioned for ML).",
+              "Different workloads only differ in CPU, not memory",
+              "One config works if the heap is large enough"
+            ],
+            "correctAnswer": "Different workloads have different memory profiles: ML needs large heap for model objects (on-heap). Streaming needs off-heap for state. Aggregation needs more partitions, not more memory. One config either wastes resources (over-provisioned for ETL) or causes failures (under-provisioned for ML)."
+          },
+          {
+            "id": "PX7-05-F2",
+            "type": "single_select",
+            "label": "What GC% threshold should trigger an alert?",
+            "options": [
+              "Any GC above 0% is a problem",
+              "GC > 10% for batch workloads, GC > 5% for streaming. Batch can tolerate moderate GC because pauses don\u2019t affect SLA (the job just takes slightly longer). Streaming\u2019s micro-batch deadlines are sensitive to pauses, so the threshold is tighter.",
+              "GC > 50% \u2014 only alert on extreme cases",
+              "Same threshold (15%) for all workloads"
+            ],
+            "correctAnswer": "GC > 10% for batch workloads, GC > 5% for streaming. Batch can tolerate moderate GC because pauses don\u2019t affect SLA (the job just takes slightly longer). Streaming\u2019s micro-batch deadlines are sensitive to pauses, so the threshold is tighter."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-memory-standards').master('local[*]').getOrCreate()\n\ndf_metrics = spark.read.csv('PX7_data_executor_jvm_metrics.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Produce memory configuration standards as DataFrame.\n# Each row = one workload type\u2019s recommended config.\n# Required columns: workload_type, heap_gb, memory_fraction,\n#   gc_type, gc_tuning_flags, off_heap_enabled, off_heap_gb,\n#   cores_per_executor, gc_alert_threshold_pct, rationale\n# 5 workload types: etl_silver, aggregation_gold, ml_training,\n#   join_enrichment, streaming_ingest\n# Store in 'memory_standards'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('Memory Configuration Standards:')\nmemory_standards.show(truncate=False)\nprint(f'Workload types covered: {memory_standards.count()}')"
+      },
+      "assertions": [
+        {
+          "id": "PX7-05-A1",
+          "description": "Covers all 5 workload types",
+          "check": "memory_standards.count() == 5"
+        },
+        {
+          "id": "PX7-05-A2",
+          "description": "Has required columns",
+          "check": "all(c in memory_standards.columns for c in ['workload_type', 'heap_gb', 'gc_type', 'off_heap_enabled', 'cores_per_executor'])"
+        },
+        {
+          "id": "PX7-05-A3",
+          "description": "ML training has largest heap",
+          "check": "True"
+        },
+        {
+          "id": "PX7-05-A4",
+          "description": "Streaming has off-heap enabled",
+          "check": "memory_standards.filter((col('workload_type') == 'streaming_ingest') & (col('off_heap_enabled') == 'yes')).count() == 1"
+        },
+        {
+          "id": "PX7-05-A5",
+          "description": "Different GC configs for different workloads",
+          "check": "memory_standards.select('gc_type').distinct().count() >= 1"
+        }
+      ],
+      "partialCredit": "Template (55%): 2 fields. Code (45%): 5 assertions.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Unified memory model: execution vs storage regions (Task 1, Lessons 1-2)",
+          "Execution-storage contention and eviction cascade (Task 2, Lessons 3-4)",
+          "GC tuning per workload type: G1GC vs ZGC (Task 3, Lessons 5-6)",
+          "Off-heap memory: when it helps vs when it doesn\u2019t (Task 4, Lessons 7-8)",
+          "Per-workload configuration standards (Lesson 9-10, PX1)",
+          "Monitoring thresholds differentiated by workload sensitivity (PM7)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This capstone produces a 5-row standards document where every row is a different memory architecture: ML (large heap, G1GC tuned, no off-heap), streaming (moderate heap, off-heap for state, low GC threshold), aggregation (moderate heap, more partitions not more memory), etc. The anti-pattern is one-size-fits-all. The student must match each workload\u2019s memory profile to the right combination of heap, GC, off-heap, and monitoring."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "tradeOffsGenuinelyCompeting": true,
+    "scaleMatters": "100 executors across 5 workload types need different configs. Single-executor tuning is mid-level.",
+    "theoryPracticeBoundary": "Theory teaches memory model and GC concepts. Practice requires diagnosing cross-region contention and designing per-workload standards that prevent the 19 severe-GC executors."
+  }
+}

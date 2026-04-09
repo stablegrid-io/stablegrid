@@ -1,0 +1,391 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 3 \u2014 End-to-End Pipeline Optimization",
+  "description": "Optimize NordGrid\u2019s 59-pipeline platform: critical path analysis, caching for shared DataFrames, materialized view strategy, DAG review, and execution architecture redesign.",
+  "version": "authored 2026-04-06, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PX3",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 93,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "3.2M meters, 59 pipelines, 8 teams",
+    "modulePhase": "scaling_patterns",
+    "taskTypeMix": {
+      "tradeOffAnalysis": 3,
+      "designReview": 1,
+      "architecturalSynthesis": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PX3_data_pipeline_dag",
+      "file": "PX3_data_pipeline_dag.csv",
+      "description": "59-pipeline DAG: 12 Bronze, 20 Silver, 20 Gold, 7 Platinum. Dependencies, durations, consumers, SLA tiers.",
+      "usedByTasks": [
+        "module-PX3-task-01",
+        "module-PX3-task-02",
+        "module-PX3-task-03",
+        "module-PX3-task-04",
+        "module-PX3-task-05"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PX3-task-01",
+      "title": "Identify the Critical Path in NordGrid\u2019s Pipeline DAG",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 17,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid\u2019s daily pipeline fleet runs at 06:00. The SLA requires all Gold tables ready by 07:00 (60-minute window). With 59 pipelines across 4 layers, end-to-end time depends on the critical path.",
+        "task": "Examine the DAG structure. Determine the critical path, calculate duration, assess SLA risk, evaluate which optimization has most impact.",
+        "validationHint": "The critical path is the longest Bronze-Silver-Gold chain. Platinum (SLA=low) is excluded from Gold SLA analysis."
+      },
+      "evidence": {
+        "type": "dag_summary",
+        "content": "Chain A: PL-007 (bronze 15 min) > PL-025 (silver 30 min) > PL-048 (gold 18 min) = 63 min\nChain B: PL-003 (bronze 12 min) > PL-019 (silver 28 min) > PL-041 (gold 20 min) = 60 min\nChain C: PL-011 (bronze 14 min) > PL-031 (silver 25 min) > PL-055 (platinum 90 min) = 129 min (SLA=low)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX3-01-F1",
+            "type": "single_select",
+            "label": "Which chain is the critical path for Gold SLA?",
+            "options": [
+              "Chain A (63 min) - longest Gold chain, exceeds 60-min SLA",
+              "Chain B (60 min) - exactly at SLA boundary",
+              "Chain C (129 min) - longest total chain",
+              "All equally critical"
+            ],
+            "correctAnswer": "Chain A (63 min) - longest Gold chain, exceeds 60-min SLA"
+          },
+          {
+            "id": "PX3-01-F2",
+            "type": "single_select",
+            "label": "Which pipeline yields the most SLA benefit if optimized?",
+            "options": [
+              "PL-007 (bronze, 15 min)",
+              "PL-025 (silver, 30 min) - longest on critical path, most optimization potential",
+              "PL-048 (gold, 18 min)",
+              "Optimize all three equally"
+            ],
+            "correctAnswer": "PL-025 (silver, 30 min) - longest on critical path, most optimization potential"
+          },
+          {
+            "id": "PX3-01-F3",
+            "type": "single_select",
+            "label": "An engineer optimizes PL-041 (Chain B) from 20 to 10 min. Does this help Gold SLA?",
+            "options": [
+              "Yes - saving 10 min helps",
+              "No - PL-041 is on Chain B not Chain A. Chain A still takes 63 min.",
+              "Yes - brings Chain B under SLA",
+              "Depends on resource sharing"
+            ],
+            "correctAnswer": "No - PL-041 is on Chain B not Chain A. Chain A still takes 63 min."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX3-task-02",
+      "title": "Evaluate Caching Strategy for Shared Silver DataFrames",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "11 Silver tables are read by 3+ Gold pipelines. Top table: 8 GB, read 6 times daily (45s each Parquet read, 3s cached).",
+        "task": "Evaluate caching for top shared tables. Determine break-even, memory impact, and caching policy.",
+        "validationHint": "First read populates cache (full cost). Subsequent reads save I/O time."
+      },
+      "evidence": {
+        "type": "shared_tables",
+        "content": "silver.readings_se_20: 8 GB, 6 reads/day, 45s Parquet, 3s cached\nsilver.readings_fi_03: 6 GB, 6 reads/day, 35s Parquet, 2s cached\nsilver.readings_fi_06: 7 GB, 5 reads/day, 40s Parquet, 3s cached\nAvailable cache: 192 GB. Top 3 = 21 GB (11%)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX3-02-F1",
+            "type": "single_select",
+            "label": "Daily savings from caching silver.readings_se_20?",
+            "options": [
+              "270s - all reads from cache",
+              "210s - first read populates cache, 5 subsequent save 42s each",
+              "45s - one read saved",
+              "0s - overhead negates savings"
+            ],
+            "correctAnswer": "210s - first read populates cache, 5 subsequent save 42s each"
+          },
+          {
+            "id": "PX3-02-F2",
+            "type": "single_select",
+            "label": "Cache all 5 shared tables (35 GB) or top 3 (21 GB)?",
+            "options": [
+              "All 5 - 18% of cache budget is safe",
+              "Top 3 - 80% of savings at 60% memory cost, reserve rest for ad-hoc",
+              "Only the largest",
+              "No caching needed"
+            ],
+            "correctAnswer": "Top 3 - 80% of savings at 60% memory cost, reserve rest for ad-hoc",
+            "secondaryCorrectAnswer": "All 5 - 18% of cache budget is safe"
+          },
+          {
+            "id": "PX3-02-F3",
+            "type": "single_select",
+            "label": "When to unpersist cached tables?",
+            "options": [
+              "Never",
+              "After last downstream consumer reads it",
+              "After each consumer",
+              "Immediately"
+            ],
+            "correctAnswer": "After last downstream consumer reads it"
+          },
+          {
+            "id": "PX3-02-F4",
+            "type": "single_select",
+            "label": "Key caching principle?",
+            "options": [
+              "Cache everything read twice",
+              "Cache where (reads x time_savings) > memory_cost - value proportional to read frequency x savings",
+              "Never cache",
+              "Cache only Gold"
+            ],
+            "correctAnswer": "Cache where (reads x time_savings) > memory_cost - value proportional to read frequency x savings"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX3-task-03",
+      "title": "Design Materialized View Strategy for Gold Tables",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "8 Gold pipelines differ in freshness (30 min to 24h) and read frequency (2-40/day). Some are MV candidates.",
+        "task": "Identify MV candidates vs pipeline-only tables. Design refresh schedule for the best candidate.",
+        "validationHint": "Best MV candidates: high reads + relaxed freshness. Worst: low reads or strict freshness."
+      },
+      "evidence": {
+        "type": "gold_profile",
+        "content": "gold_billing: 18 min compute, 12 reads/day, <30 min stale\ngold_regional: 8 min, 25 reads/day, 2h stale OK\ngold_compliance: 15 min, 3 reads, <30 min stale\ngold_ops_summary: 5 min, 40 reads/day, 1h stale OK\ngold_exec_report: 7 min, 2 reads, 24h stale OK"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX3-03-F1",
+            "type": "single_select",
+            "label": "Best MV candidates?",
+            "options": [
+              "All 8",
+              "gold_regional (25 reads, 2h stale) + gold_ops_summary (40 reads, 1h stale)",
+              "gold_billing + gold_compliance",
+              "gold_exec_report"
+            ],
+            "correctAnswer": "gold_regional (25 reads, 2h stale) + gold_ops_summary (40 reads, 1h stale)"
+          },
+          {
+            "id": "PX3-03-F2",
+            "type": "single_select",
+            "label": "Which should remain as pipelines (not MVs)?",
+            "options": [
+              "None",
+              "gold_billing + gold_compliance - <30 min freshness means refresh overhead exceeds savings",
+              "Only gold_exec_report",
+              "gold_ml_features"
+            ],
+            "correctAnswer": "gold_billing + gold_compliance - <30 min freshness means refresh overhead exceeds savings"
+          },
+          {
+            "id": "PX3-03-F3",
+            "type": "single_select",
+            "label": "Refresh schedule for gold_ops_summary (40 reads/day, 1h stale OK, 5 min compute)?",
+            "options": [
+              "Real-time",
+              "Every 30 min (net +40 min cost vs no MV)",
+              "Every 60 min (net 80 min savings vs no MV)",
+              "Once per day"
+            ],
+            "correctAnswer": "Every 60 min (net 80 min savings vs no MV)",
+            "secondaryCorrectAnswer": "Every 30 min (net +40 min cost vs no MV)"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX3-task-04",
+      "title": "Review Pipeline DAG for Optimization Opportunities",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "5 proposed optimizations. One has no Gold SLA effect. Must rank valid ones by impact.",
+        "task": "Evaluate each proposal, identify the ineffective one, rank the rest.",
+        "validationHint": "Optimizing non-critical-path or non-Gold-SLA pipelines has zero Gold SLA impact."
+      },
+      "evidence": {
+        "type": "optimizations",
+        "content": "Opt 1: Cache shared Silver (saves 210s across reads)\nOpt 2: Fix PL-025 join (saves 12 min ON critical path)\nOpt 3: Parallelize two Gold pipelines (saves 18 min)\nOpt 4: Optimize PL-055 Platinum SLA=low (saves 30 min)\nOpt 5: Merge 4 small Gold pipelines (eliminate 3 redundant reads)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX3-04-F1",
+            "type": "single_select",
+            "label": "Which has NO Gold SLA effect?",
+            "options": [
+              "Opt 1 (cache)",
+              "Opt 4 (Platinum SLA=low) - not on Gold critical path",
+              "Opt 3 (parallelize Gold)",
+              "Opt 5 (merge Gold)"
+            ],
+            "correctAnswer": "Opt 4 (Platinum SLA=low) - not on Gold critical path"
+          },
+          {
+            "id": "PX3-04-F2",
+            "type": "single_select",
+            "label": "Highest Gold SLA impact?",
+            "options": [
+              "Opt 1 (cache, 210s)",
+              "Opt 2 (fix join, 12 min ON critical path)",
+              "Opt 3 (parallelize, 18 min)",
+              "Opt 5 (merge, eliminate reads)"
+            ],
+            "correctAnswer": "Opt 2 (fix join, 12 min ON critical path)"
+          },
+          {
+            "id": "PX3-04-F3",
+            "type": "ordered_ranking",
+            "label": "Rank 4 valid optimizations by impact (highest first)",
+            "options": [
+              "Opt 2: Fix critical-path join (12 min)",
+              "Opt 3: Parallelize Gold (18 min)",
+              "Opt 5: Merge Gold pipelines",
+              "Opt 1: Cache Silver (210s)"
+            ],
+            "correctOrder": [
+              "Opt 2: Fix critical-path join (12 min)",
+              "Opt 3: Parallelize Gold (18 min)",
+              "Opt 5: Merge Gold pipelines",
+              "Opt 1: Cache Silver (210s)"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX3-task-05",
+      "title": "Redesign NordGrid\u2019s Silver-to-Gold Execution Architecture",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 22,
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
+      "description": {
+        "context": "CTO targets: 60-min Gold SLA, 20% compute reduction, Platinum isolation. Current: 63 min critical path, 1078 min total compute.",
+        "task": "Design execution architecture: pipeline order, caching, MVs, resource pools. Produce config artifact.",
+        "validationHint": "Fix critical path first. Add caching for shared tables. Isolate Platinum from Gold."
+      },
+      "evidence": {
+        "type": "targets",
+        "content": "Gold SLA: 60 min. Compute: reduce 20% (1078 to 862 min). Platinum must not delay Gold. No new hardware."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX3-05-F1",
+            "type": "single_select",
+            "label": "Highest-priority change for Gold SLA?",
+            "options": [
+              "Cache all Silver",
+              "Fix critical path: optimize PL-025 join (30>18 min), Chain A drops from 63 to 51 min",
+              "Add executors",
+              "Convert all Gold to MVs"
+            ],
+            "correctAnswer": "Fix critical path: optimize PL-025 join (30>18 min), Chain A drops from 63 to 51 min"
+          },
+          {
+            "id": "PX3-05-F2",
+            "type": "single_select",
+            "label": "How to isolate Platinum from Gold?",
+            "options": [
+              "Run Platinum after Gold completes",
+              "Separate resource pools: Gold 80% during 06-07, Platinum 20% then full access after",
+              "Separate cluster",
+              "No isolation"
+            ],
+            "correctAnswer": "Separate resource pools: Gold 80% during 06-07, Platinum 20% then full access after",
+            "secondaryCorrectAnswer": "Run Platinum after Gold completes"
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-exec-arch').master('local[*]').getOrCreate()\ndf_dag = spark.read.csv('PX3_data_pipeline_dag.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Produce execution architecture DataFrame.\n# Columns: pipeline_id, pipeline_name, layer, execution_wave (1-5),\n#   resource_pool ('critical'/'standard'/'ml'),\n#   cache_output (yes/no), materialized_view (yes/no),\n#   optimization_applied (description)\n# Store in 'architecture'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('Execution Architecture:')\narchitecture.groupBy('layer', 'resource_pool').count().orderBy('layer').show()\nprint(f'Cached: {architecture.filter(col(\"cache_output\") == \"yes\").count()}')\nprint(f'Total: {architecture.count()}')"
+      },
+      "assertions": [
+        {
+          "id": "PX3-05-A1",
+          "description": "Covers all pipelines",
+          "check": "architecture.count() >= 55"
+        },
+        {
+          "id": "PX3-05-A2",
+          "description": "Has required columns",
+          "check": "all(c in architecture.columns for c in ['pipeline_id', 'layer', 'execution_wave', 'resource_pool'])"
+        },
+        {
+          "id": "PX3-05-A3",
+          "description": "At least 2 resource pools",
+          "check": "architecture.select('resource_pool').distinct().count() >= 2"
+        },
+        {
+          "id": "PX3-05-A4",
+          "description": "Some tables cached",
+          "check": "architecture.filter(col('cache_output') == 'yes').count() >= 3"
+        },
+        {
+          "id": "PX3-05-A5",
+          "description": "ML pipelines separated",
+          "check": "True"
+        }
+      ],
+      "partialCredit": "Template (55%): 2 fields. Code (45%): 5 assertions.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Critical path analysis (Task 1)",
+          "Caching strategy (Task 2)",
+          "Materialized view design (Task 3)",
+          "Optimization ranking (Task 4)",
+          "Resource pool design (PX1)",
+          "Execution wave planning"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "Combines every optimization lever into a single execution architecture for 59 pipelines under SLA, cost, and isolation constraints."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "tradeOffsGenuinelyCompeting": true,
+    "scaleMatters": "Critical path, caching, MV decisions require 59-pipeline DAG. Not meaningful at single-pipeline scale.",
+    "theoryPracticeBoundary": "Theory teaches optimization levers individually. Practice applies all simultaneously under competing constraints."
+  }
+}

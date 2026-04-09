@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
 import { Sidebar } from './Sidebar';
@@ -12,13 +12,15 @@ import { isCompactDesktopNavPath, isPracticeSessionPath, shouldHideNav } from '.
 
 export const Navigation = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams ? `?${searchParams.toString()}` : '';
   const { user } = useAuthStore();
   const focusMode = useReadingModeStore((s) => s.focusMode);
   const hideNav = shouldHideNav(pathname, Boolean(user));
+  const isPracticePage = isPracticeSessionPath(pathname, search);
   const isCompact = isCompactDesktopNavPath(pathname);
 
-  const isTheoryPage = pathname.includes('/theory/');
-  const isPracticePage = isPracticeSessionPath(pathname);
+  const isTheoryPage = pathname.includes('/theory/') && !isPracticePage;
   const hideForFocus = focusMode && (isTheoryPage || isPracticePage);
 
   return (
@@ -36,9 +38,10 @@ export const Navigation = ({ children }: { children: ReactNode }) => {
 
       <div
         data-testid="navigation-shell-content"
-        className={`relative z-10 pb-16 lg:pb-0 transition-[padding] duration-200 ${
-          hideForFocus ? '!p-0' : hideNav ? '' : isCompact ? 'lg:pl-16 pt-14' : 'lg:pl-48 pt-14'
+        className={`pb-16 lg:pb-0 transition-[padding,margin] duration-200 ${
+          hideForFocus ? '!p-0 !m-0' : hideNav ? '' : isCompact ? 'lg:ml-16 pt-14' : 'lg:ml-48 pt-14'
         }`}
+        style={{ isolation: 'isolate' }}
       >
         {children}
       </div>

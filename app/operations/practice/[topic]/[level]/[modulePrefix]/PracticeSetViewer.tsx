@@ -1,18 +1,14 @@
 'use client';
 
-import { useReducer, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useReducer, useCallback, useEffect, useMemo, useState, useContext } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ArrowLeft,
   Clock,
+  Clock3,
   Check,
   X,
-  FlaskConical,
-  Lightbulb,
-  BarChart3,
-  Code2,
-  Layers,
   ChevronDown,
   ChevronRight,
   RotateCcw,
@@ -23,11 +19,27 @@ import {
 } from 'lucide-react';
 import type { PracticeSet, PracticeTask, TemplateField } from '@/data/operations/practice-sets';
 import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
+import { useTheorySessionTimer } from '@/lib/hooks/useTheorySessionTimer';
+import {
+  useTheorySessionPreferencesStore,
+  resolveTheorySessionMethodConfigs,
+} from '@/lib/stores/useTheorySessionPreferencesStore';
+import { TheorySessionTopbar } from '@/components/learn/theory/TheorySessionTopbar';
 import dynamic from 'next/dynamic';
+
+const TheorySessionPicker = dynamic(
+  () => import('@/components/learn/theory/TheorySessionPicker').then((m) => m.TheorySessionPicker),
+  { ssr: false }
+);
 
 const ReadingModeDropdown = dynamic(
   () => import('@/components/learn/theory/ReadingModeDropdown').then((m) => m.ReadingModeDropdown),
   { ssr: false }
+);
+
+const SplitPanelCodeTask = dynamic(
+  () => import('@/components/operations/SplitPanelCodeTask').then((m) => m.SplitPanelCodeTask),
+  { ssr: false, loading: () => <div className="h-96 rounded-xl animate-pulse" style={{ backgroundColor: 'var(--rm-code-bg, #0d1117)' }} /> }
 );
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -35,13 +47,6 @@ const ReadingModeDropdown = dynamic(
 const ACCENT = '153,247,255';
 const GREEN = '34,197,94';
 const RED = '239,68,68';
-
-const TYPE_CONFIG: Record<string, { label: string; icon: typeof FlaskConical; color: string }> = {
-  concept_identification: { label: 'Concept ID', icon: Lightbulb, color: '168,162,255' },
-  output_prediction: { label: 'Output Prediction', icon: BarChart3, color: '108,200,255' },
-  synthesis: { label: 'Synthesis', icon: Layers, color: '255,180,108' },
-  write_the_code: { label: 'Write Code', icon: Code2, color: '120,255,180' },
-};
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -76,7 +81,8 @@ type SessionAction =
   | { type: 'REVIEW' }
   | { type: 'BACK_TO_RESULTS' }
   | { type: 'RESET'; taskCount: number }
-  | { type: 'RESTORE'; state: SessionState };
+  | { type: 'RESTORE'; state: SessionState }
+  | { type: 'BACK_TO_START' };
 
 // ── Validation helpers ─────────────────────────────────────────────────────────
 
@@ -145,8 +151,19 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
       const fields = task.template?.fields ?? [];
       const newStates = [...state.taskStates];
       const ts = { ...newStates[idx] };
-      const newAnswers: Record<string, FieldAnswer> = {};
+      const newAnswers: Record<string, FieldAnswer> = { ...ts.answers };
       let allCorrect = true;
+
+      // Code tasks: self-checked, mark as reviewed
+      if (task.type === 'write_the_code' && fields.length === 0) {
+        const codeVal = ts.answers['__code']?.value ?? '';
+        newAnswers['__code'] = { value: codeVal, result: true };
+        ts.answers = newAnswers;
+        ts.checked = true;
+        ts.allCorrect = true;
+        newStates[idx] = ts;
+        return { ...state, taskStates: newStates };
+      }
 
       for (const field of fields) {
         const userVal = ts.answers[field.id]?.value ?? '';
@@ -186,6 +203,9 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
     case 'RESTORE':
       return action.state;
 
+    case 'BACK_TO_START':
+      return { ...state, phase: 'start' };
+
     default:
       return state;
   }
@@ -212,8 +232,8 @@ function ProgressDots({
         const isChecked = ts?.checked;
         const isCorrect = ts?.allCorrect;
 
-        // Only allow navigating to checked tasks or the current task
-        const canNavigate = isChecked || isCurrent;
+        // Allow navigating to any task
+        const canNavigate = true;
 
         let bg: string;
         let border: string;
@@ -233,7 +253,7 @@ function ProgressDots({
           size = 'w-3 h-3';
         } else {
           bg = 'transparent';
-          border = 'rgba(255,255,255,0.15)';
+          border = 'var(--rm-border, rgba(255,255,255,0.15))';
           size = 'w-2.5 h-2.5';
         }
 
@@ -254,219 +274,14 @@ function ProgressDots({
   );
 }
 
-// ── FieldRenderer ──────────────────────────────────────────────────────────────
-
-function FieldRenderer({
-  field,
-  value,
-  result,
-  checked,
-  readOnly,
-  showResult,
-  onChange,
-}: {
-  field: TemplateField;
-  value: string;
-  result: boolean | null;
-  checked: boolean;
-  readOnly: boolean;
-  showResult: boolean;
-  onChange: (v: string) => void;
-}) {
-  const correctValue = getCorrectValue(field);
-  const showFeedback = checked && showResult;
-
-  return (
-    <div className="space-y-3">
-      {/* Field label */}
-      <div className="flex items-start gap-2">
-        <span className="text-[13px] leading-relaxed flex-1" style={{ color: 'var(--rm-text)' }}>
-          {field.label}
-        </span>
-        {showFeedback && result === true && (
-          <div className="flex items-center gap-1 shrink-0">
-            <Check className="h-3.5 w-3.5" style={{ color: `rgb(${GREEN})` }} />
-            <span className="text-[11px] font-medium" style={{ color: `rgb(${GREEN})` }}>Correct</span>
-          </div>
-        )}
-        {showFeedback && result === false && (
-          <div className="flex items-center gap-1 shrink-0">
-            <X className="h-3.5 w-3.5" style={{ color: `rgb(${RED})` }} />
-            <span className="text-[11px] font-medium" style={{ color: `rgb(${RED})` }}>Incorrect</span>
-          </div>
-        )}
-      </div>
-
-      {/* Single/multi select options */}
-      {(field.type === 'single_select' || field.type === 'multi_select') && field.options && (
-        <div className="space-y-2">
-          {field.options.map((opt) => {
-            const selected = value === opt;
-            const isCorrectOption = opt.toLowerCase() === correctValue.toLowerCase();
-            const showCorrectHighlight = showFeedback && result === false && isCorrectOption;
-
-            let bgClass = '';
-            let borderStyle = '1px solid var(--rm-border)';
-            let textClass = '';
-            let iconElement: React.ReactNode = null;
-
-            if (showCorrectHighlight) {
-              bgClass = '';
-              borderStyle = `1px solid rgba(${GREEN},0.3)`;
-              textClass = '';
-              iconElement = <Check className="h-4 w-4 shrink-0" style={{ color: `rgb(${GREEN})` }} />;
-            } else if (selected && showFeedback && result === true) {
-              bgClass = '';
-              borderStyle = `1px solid rgba(${GREEN},0.3)`;
-              textClass = '';
-              iconElement = <Check className="h-4 w-4 shrink-0" style={{ color: `rgb(${GREEN})` }} />;
-            } else if (selected && showFeedback && result === false) {
-              bgClass = '';
-              borderStyle = `1px solid rgba(${RED},0.3)`;
-              textClass = '';
-              iconElement = <X className="h-4 w-4 shrink-0" style={{ color: `rgb(${RED})` }} />;
-            } else if (selected) {
-              bgClass = '';
-              borderStyle = '1px solid var(--rm-border)';
-              textClass = '';
-              iconElement = (
-                <div className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center"
-                  style={{ background: `rgb(${ACCENT})` }}>
-                  <Check className="h-2.5 w-2.5 text-black" />
-                </div>
-              );
-            }
-
-            return (
-              <button
-                key={opt}
-                onClick={() => !readOnly && !checked && onChange(opt)}
-                disabled={readOnly || checked}
-                className={`w-full text-left rounded-xl px-4 py-3.5 text-[13px] leading-relaxed transition-all duration-200 ${bgClass} ${
-                  readOnly || checked ? 'cursor-default' : 'cursor-pointer'
-                }`}
-                style={{
-                  border: borderStyle,
-                  backgroundColor: showCorrectHighlight
-                    ? `rgba(${GREEN},0.05)`
-                    : selected && showFeedback && result === true
-                      ? `rgba(${GREEN},0.05)`
-                      : selected && showFeedback && result === false
-                        ? `rgba(${RED},0.05)`
-                        : 'var(--rm-bg-elevated)',
-                }}
-              >
-                <span className={`flex items-center gap-3 ${textClass}`}>
-                  {iconElement && iconElement}
-                  {!iconElement && !showFeedback && (
-                    <div
-                      className="w-4 h-4 rounded-full shrink-0 transition-all duration-200"
-                      style={{
-                        border: selected ? 'none' : '1.5px solid var(--rm-border)',
-                        background: 'transparent',
-                      }}
-                    />
-                  )}
-                  {!iconElement && showFeedback && (
-                    <div className="w-4 h-4 shrink-0" />
-                  )}
-                  <span
-                    style={{
-                      color: showCorrectHighlight
-                        ? `rgb(${GREEN})`
-                        : selected && showFeedback && result === true
-                          ? `rgb(${GREEN})`
-                          : selected && showFeedback && result === false
-                            ? `rgb(${RED})`
-                            : 'var(--rm-text)',
-                    }}
-                  >
-                    {opt}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Text / numeric inputs */}
-      {(field.type === 'short_text' || field.type === 'numeric') && (
-        <input
-          type={field.type === 'numeric' ? 'number' : 'text'}
-          value={value}
-          onChange={(e) => !readOnly && !checked && onChange(e.target.value)}
-          readOnly={readOnly || checked}
-          placeholder={field.type === 'numeric' ? 'Enter a number' : 'Type your answer...'}
-          className="w-full rounded-xl px-4 py-3.5 text-[13px] leading-relaxed outline-none transition-all duration-200"
-          style={{
-            border: showFeedback && result === true
-              ? `1px solid rgba(${GREEN},0.3)`
-              : showFeedback && result === false
-                ? `1px solid rgba(${RED},0.3)`
-                : '1px solid var(--rm-border)',
-            backgroundColor: showFeedback && result === true
-              ? `rgba(${GREEN},0.05)`
-              : showFeedback && result === false
-                ? `rgba(${RED},0.05)`
-                : 'var(--rm-bg-elevated)',
-            color: 'var(--rm-text)',
-          }}
-        />
-      )}
-
-      {/* Show correct answer when wrong (text/numeric) */}
-      {showFeedback && result === false && (field.type === 'short_text' || field.type === 'numeric') && (
-        <div
-          className="rounded-lg px-3 py-2 text-[12px] flex items-center gap-2"
-          style={{
-            background: `rgba(${GREEN},0.05)`,
-            border: `1px solid rgba(${GREEN},0.12)`,
-            color: `rgb(${GREEN})`,
-          }}
-        >
-          <Check className="h-3 w-3 shrink-0" />
-          Correct answer: {correctValue}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Rationale Card ─────────────────────────────────────────────────────────────
-
-function RationaleCard({ field, result }: { field: TemplateField; result: boolean | null }) {
-  const rationale = field.rationale || field.distractorRationale;
-  if (!rationale) return null;
-
-  const isCorrect = result === true;
-  const tint = isCorrect ? GREEN : RED;
-
-  return (
-    <div
-      className="rounded-xl px-4 py-3 text-[12px] leading-relaxed"
-      style={{
-        background: `rgba(${tint},0.03)`,
-        border: `1px solid rgba(${tint},0.08)`,
-        color: 'var(--rm-text-secondary)',
-      }}
-    >
-      <span className="font-semibold" style={{ color: `rgba(${tint === GREEN ? GREEN : RED},0.8)` }}>
-        {isCorrect ? 'Correct' : 'Explanation'}:
-      </span>{' '}
-      {rationale}
-    </div>
-  );
-}
-
 // ── StartScreen ────────────────────────────────────────────────────────────────
 
 function StartScreen({
   practiceSet,
-  onBegin,
+  sessionPath,
 }: {
   practiceSet: PracticeSet;
-  onBegin: () => void;
+  sessionPath: string;
 }) {
   return (
     <div className="relative mx-auto max-w-5xl px-6 py-16 sm:px-8 lg:py-24">
@@ -522,30 +337,69 @@ function StartScreen({
         </div>
 
         {/* Begin button */}
-        <button
-          onClick={onBegin}
-          className="group inline-flex items-center gap-3 rounded-2xl py-4 px-8 text-[15px] font-semibold transition-all duration-300 cursor-pointer"
+        <Link
+          href={sessionPath}
+          className="group inline-flex items-center gap-3 rounded-xl py-3.5 px-8 text-[15px] font-semibold transition-all duration-200 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
           style={{
             background: `rgba(${ACCENT},0.12)`,
             border: `1px solid rgba(${ACCENT},0.2)`,
             color: `rgb(${ACCENT})`,
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = `rgba(${ACCENT},0.18)`;
-            e.currentTarget.style.boxShadow = `0 0 40px rgba(${ACCENT},0.1)`;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = `rgba(${ACCENT},0.12)`;
-            e.currentTarget.style.boxShadow = 'none';
-          }}
         >
           Begin Practice
           <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-        </button>
+        </Link>
       </div>
     </div>
   );
 }
+
+// ── FocusWrapper ──────────────────────────────────────────────────────────────
+
+function FocusWrapper({
+  briefPath,
+  children,
+}: {
+  briefPath: string;
+  children: React.ReactNode;
+}) {
+  const exitLinkRef = React.useRef<HTMLAnchorElement>(null);
+
+  const exitSession = useCallback(() => {
+    clearSession();
+    const store = useReadingModeStore.getState();
+    if (store.focusMode) store.toggleFocus();
+    exitLinkRef.current?.click();
+  }, []);
+
+  // ESC: in focus mode → exit focus only; otherwise → exit session.
+  // Ignore when typing in inputs.
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const store = useReadingModeStore.getState();
+      if (store.focusMode) {
+        store.toggleFocus();
+        return;
+      }
+      exitSession();
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [exitSession]);
+
+  return (
+    <FocusWrapperContext.Provider value={exitSession}>
+      {/* Native <a> — Next.js Link/router.push fails silently during focus mode */}
+      <a ref={exitLinkRef} href={briefPath} className="hidden" aria-hidden tabIndex={-1} />
+      {children}
+    </FocusWrapperContext.Provider>
+  );
+}
+
+const FocusWrapperContext = React.createContext<(() => void) | null>(null);
 
 // ── TaskScreen ─────────────────────────────────────────────────────────────────
 
@@ -566,22 +420,15 @@ function TaskScreen({
   const isFirst = state.currentTaskIndex === 0;
   const readingMode = useReadingModeStore((s) => s.mode);
   const focusMode = useReadingModeStore((s) => s.focusMode);
-  const toggleFocus = useReadingModeStore((s) => s.toggleFocus);
+  const exitSession = useContext(FocusWrapperContext);
 
-  // ESC to exit focus mode
-  useEffect(() => {
-    if (!focusMode) return;
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') toggleFocus();
-    };
-    document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
-  }, [focusMode, toggleFocus]);
-
-  const allFieldsFilled = fields.every((f) => {
-    const val = taskState.answers[f.id]?.value?.trim();
-    return val && val.length > 0;
-  });
+  const isCodeTask = !!(task as any).starterScaffold;
+  const allFieldsFilled = isCodeTask
+    ? (taskState.answers['__code']?.value?.trim()?.length ?? 0) > 0
+    : fields.every((f) => {
+        const val = taskState.answers[f.id]?.value?.trim();
+        return val && val.length > 0;
+      });
 
   const handleCheck = useCallback(() => {
     dispatch({ type: 'CHECK_ANSWERS', tasks });
@@ -606,13 +453,17 @@ function TaskScreen({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [dispatch]);
 
+  const handleAnswerChange = useCallback((fieldId: string, value: string) => {
+    dispatch({ type: 'SET_ANSWER', taskIndex: state.currentTaskIndex, fieldId, value });
+  }, [dispatch, state.currentTaskIndex]);
+
   return (
     <div
       data-reading-mode={readingMode}
       className={focusMode ? 'fixed inset-0 z-40 overflow-y-auto' : ''}
       style={{ backgroundColor: 'var(--rm-bg, transparent)' }}
     >
-    <div className={`relative mx-auto max-w-5xl px-6 py-8 sm:px-8 lg:py-12 ${focusMode ? 'min-h-screen' : ''}`}>
+    <div className={`relative mx-auto w-[85%] py-8 lg:py-12 ${focusMode ? 'min-h-screen' : ''}`}>
 
       {/* Floating controls — visible in focus mode */}
       {focusMode && (
@@ -622,9 +473,8 @@ function TaskScreen({
           </div>
           <button
             type="button"
-            onClick={toggleFocus}
-            data-reading-mode={readingMode}
-            className="fixed top-3 left-3 z-50 flex items-center gap-2 rounded-lg px-3 py-1.5 backdrop-blur transition-opacity opacity-30 hover:opacity-100"
+            onClick={exitSession ?? undefined}
+            className="fixed top-3 left-3 z-50 flex items-center gap-2 rounded-lg px-3 py-1.5 backdrop-blur opacity-30 hover:opacity-100 transition-opacity cursor-pointer"
             style={{
               backgroundColor: 'var(--rm-bg-elevated)',
               border: '1px solid var(--rm-border)',
@@ -639,7 +489,7 @@ function TaskScreen({
                 color: 'var(--rm-text-secondary)',
               }}
             >ESC</kbd>
-            <span className="font-mono text-[10px] tracking-widest uppercase">Exit Focus</span>
+            <span className="font-mono text-[10px] tracking-widest uppercase">Exit Session</span>
           </button>
         </div>
       )}
@@ -657,15 +507,12 @@ function TaskScreen({
           {!isFirst && (
             <button
               onClick={handlePrev}
-              className="w-8 h-8 rounded-full flex items-center justify-center bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.08] transition-all duration-200 cursor-pointer"
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer"
+              style={{ backgroundColor: 'var(--rm-bg-elevated, rgba(255,255,255,0.04))', border: '1px solid var(--rm-border, rgba(255,255,255,0.06))', color: 'var(--rm-text-secondary)' }}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
             </button>
           )}
-          <span className="text-[13px] text-white/40 font-medium">
-            {state.currentTaskIndex + 1}
-            <span className="text-white/20"> / {tasks.length}</span>
-          </span>
         </div>
 
         {/* Center: progress dots */}
@@ -678,11 +525,11 @@ function TaskScreen({
 
         {/* Right: reading mode + review indicator */}
         <div className="flex items-center gap-2">
-          {!focusMode && <ReadingModeDropdown />}
           {state.isReview && (
             <button
               onClick={() => dispatch({ type: 'BACK_TO_RESULTS' })}
-              className="flex items-center gap-1.5 text-[12px] font-medium text-white/30 hover:text-white/60 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 text-[12px] font-medium transition-colors cursor-pointer"
+              style={{ color: 'var(--rm-text-secondary)' }}
             >
               <Eye className="h-3.5 w-3.5" />
               Exit Review
@@ -699,222 +546,102 @@ function TaskScreen({
           animation: 'fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 40ms forwards',
         }}
       >
-        {/* Task card */}
-        <div
-          className="rounded-2xl overflow-hidden"
-          style={{
-            backgroundColor: 'var(--rm-bg-elevated)',
-            border: '1px solid var(--rm-border)',
-          }}
-        >
-          <div className="p-8 sm:p-10 space-y-8">
-            {/* Task title */}
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-2" style={{ color: 'var(--rm-text-heading)' }}>
-                {task.title}
-              </h2>
-              <div className="flex items-center gap-3 text-[12px]" style={{ color: 'var(--rm-text-secondary)' }}>
-                {(() => {
-                  const typeInfo = TYPE_CONFIG[task.type];
-                  return typeInfo ? (
-                    <span className="flex items-center gap-1">
-                      {(() => { const Icon = typeInfo.icon; return <Icon className="h-3 w-3" />; })()}
-                      {typeInfo.label}
-                    </span>
-                  ) : null;
-                })()}
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {task.estimatedMinutes} min
-                </span>
-              </div>
-            </div>
+        {/* Task card — always split panel layout */}
+        <div className="space-y-6">
+          <SplitPanelCodeTask
+            key={task.id}
+            task={task}
+            practiceSet={practiceSet}
+            topic={practiceSet.topic}
+            taskState={taskState}
+            isReview={state.isReview}
+            onAnswerChange={handleAnswerChange}
+            onCheck={handleCheck}
+            onNext={handleNext}
+            onSkip={isCodeTask ? handleNext : () => {
+              if (state.isReview) {
+                dispatch({ type: 'BACK_TO_RESULTS' });
+              } else {
+                handleNext();
+              }
+            }}
+            checked={taskState.checked}
+            isLast={isLast}
+          />
 
-            {/* Context */}
-            <div>
-              <h4 className="text-[11px] font-medium uppercase tracking-[0.12em] mb-3" style={{ color: 'var(--rm-text-secondary)' }}>
-                Context
-              </h4>
-              <p className="text-[14px] leading-[1.7]" style={{ color: 'var(--rm-text)' }}>
-                {task.description.context}
-              </p>
-            </div>
-
-            {/* Evidence / code block */}
-            {task.evidence && (
-              <div>
-                <h4 className="text-[11px] font-medium uppercase tracking-[0.12em] mb-3" style={{ color: 'var(--rm-text-secondary)' }}>
-                  {task.evidence.type === 'code_block' ? 'Code' : 'Evidence'}
-                </h4>
-                <pre
-                  className="rounded-xl p-5 text-[13px] leading-relaxed overflow-x-auto font-mono whitespace-pre-wrap"
-                  style={{
-                    backgroundColor: 'var(--rm-code-bg)',
-                    border: '1px solid var(--rm-border)',
-                    color: 'var(--rm-code-text)',
-                  }}
-                >
-                  {task.evidence.content}
-                </pre>
-              </div>
+          {/* Footer navigation */}
+          <div className="flex items-center gap-3 pt-2">
+            {/* Previous */}
+            {!isFirst && (
+              <button
+                onClick={handlePrev}
+                className="rounded-xl px-5 py-3 text-[13px] font-medium transition-all duration-200 cursor-pointer flex items-center gap-2"
+                style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)', color: 'var(--rm-text-secondary)' }}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Previous
+              </button>
             )}
 
-            {/* Task instruction */}
-            <div>
-              <h4 className="text-[11px] font-medium uppercase tracking-[0.12em] mb-3" style={{ color: 'var(--rm-text-secondary)' }}>
-                Task
-              </h4>
-              <p className="text-[14px] leading-[1.7]" style={{ color: 'var(--rm-text)' }}>
-                {task.description.task}
-              </p>
-            </div>
+            {/* Spacer */}
+            <div className="flex-1" />
 
-            {/* Validation hint */}
-            {task.description.validationHint && (
-              <div
-                className="rounded-xl px-4 py-3 text-[13px] leading-relaxed"
+            {/* Non-code: Check Answer (before checked) */}
+            {!isCodeTask && !state.isReview && !taskState.checked && (
+              <button
+                onClick={handleCheck}
+                disabled={!allFieldsFilled}
+                className="rounded-xl px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{
-                  backgroundColor: 'var(--rm-callout-bg)',
-                  border: '1px solid var(--rm-callout-border)',
-                  color: 'var(--rm-text-secondary)',
+                  background: allFieldsFilled ? `rgba(${ACCENT},0.12)` : 'var(--rm-bg-elevated)',
+                  border: `1px solid ${allFieldsFilled ? `rgba(${ACCENT},0.2)` : 'var(--rm-border)'}`,
+                  color: allFieldsFilled ? `rgb(${ACCENT})` : 'var(--rm-text-secondary)',
                 }}
               >
-                <span className="font-medium" style={{ color: 'var(--rm-text)' }}>Hint:</span> {task.description.validationHint}
-              </div>
+                Check Answer
+              </button>
             )}
 
-            {/* Scaffold for code tasks */}
-            {task.scaffold && (
-              <div>
-                <h4 className="text-[11px] font-medium uppercase tracking-[0.12em] mb-3" style={{ color: 'var(--rm-text-secondary)' }}>
-                  Scaffold
-                </h4>
-                <pre
-                  className="rounded-xl p-5 text-[13px] leading-relaxed overflow-x-auto font-mono"
-                  style={{
-                    backgroundColor: 'var(--rm-code-bg)',
-                    border: '1px solid var(--rm-border)',
-                    color: 'var(--rm-code-text)',
-                  }}
-                >
-                  {task.scaffold}
-                </pre>
-              </div>
-            )}
-
-            {/* Divider before fields */}
-            {fields.length > 0 && (
-              <div className="h-px w-full" style={{ backgroundColor: 'var(--rm-border)' }} />
-            )}
-
-            {/* Answer fields */}
-            {fields.length > 0 && (
-              <div className="space-y-8">
-                {fields.map((field) => (
-                  <div key={field.id} className="space-y-3">
-                    <FieldRenderer
-                      field={field}
-                      value={taskState.answers[field.id]?.value ?? ''}
-                      result={taskState.answers[field.id]?.result ?? null}
-                      checked={taskState.checked}
-                      readOnly={state.isReview}
-                      showResult={taskState.checked}
-                      onChange={(v) =>
-                        dispatch({
-                          type: 'SET_ANSWER',
-                          taskIndex: state.currentTaskIndex,
-                          fieldId: field.id,
-                          value: v,
-                        })
-                      }
-                    />
-
-                    {/* Rationale after check */}
-                    {taskState.checked && (
-                      <RationaleCard
-                        field={field}
-                        result={taskState.answers[field.id]?.result ?? null}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Footer actions */}
-            <div className="pt-2 space-y-3">
-              {!state.isReview && !taskState.checked && (
-                <button
-                  onClick={handleCheck}
-                  disabled={!allFieldsFilled}
-                  className="w-full rounded-xl py-4 text-[14px] font-semibold transition-all duration-300 cursor-pointer disabled:cursor-not-allowed"
-                  style={{
-                    background: allFieldsFilled ? `rgba(${ACCENT},0.12)` : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${allFieldsFilled ? `rgba(${ACCENT},0.2)` : 'rgba(255,255,255,0.06)'}`,
-                    color: allFieldsFilled ? `rgb(${ACCENT})` : 'rgba(255,255,255,0.2)',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (allFieldsFilled) {
-                      e.currentTarget.style.background = `rgba(${ACCENT},0.18)`;
-                      e.currentTarget.style.boxShadow = `0 0 30px rgba(${ACCENT},0.08)`;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (allFieldsFilled) {
-                      e.currentTarget.style.background = `rgba(${ACCENT},0.12)`;
-                      e.currentTarget.style.boxShadow = 'none';
-                    }
-                  }}
-                >
-                  Check Answer
-                </button>
-              )}
-
-              {!state.isReview && taskState.checked && (
+            {/* Continue / See Results */}
+            {(isCodeTask || taskState.checked || state.isReview) && (
+              !isLast ? (
                 <button
                   onClick={handleNext}
-                  className="w-full rounded-xl py-4 text-[14px] font-semibold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+                  className="rounded-xl px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+                  style={{
+                    background: `rgba(${ACCENT},0.1)`,
+                    border: `1px solid rgba(${ACCENT},0.2)`,
+                    color: `rgb(${ACCENT})`,
+                  }}
+                >
+                  Continue
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleNext}
+                  className="rounded-xl px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                   style={{
                     background: `rgba(${ACCENT},0.12)`,
                     border: `1px solid rgba(${ACCENT},0.2)`,
                     color: `rgb(${ACCENT})`,
-                    opacity: 0,
-                    animation: 'fadeSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = `rgba(${ACCENT},0.18)`;
-                    e.currentTarget.style.boxShadow = `0 0 30px rgba(${ACCENT},0.08)`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = `rgba(${ACCENT},0.12)`;
-                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  {isLast ? 'See Results' : 'Continue'}
-                  <ArrowRight className="h-4 w-4" />
+                  See Results
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </button>
-              )}
+              )
+            )}
 
-              {state.isReview && (
-                <div className="flex gap-3">
-                  {!isLast && (
-                    <button
-                      onClick={() => dispatch({ type: 'NEXT_TASK' })}
-                      className="flex-1 rounded-xl py-3.5 text-[13px] font-semibold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 bg-white/[0.04] border border-white/[0.08] text-white/50 hover:bg-white/[0.08] hover:text-white/70"
-                    >
-                      Next Task
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => dispatch({ type: 'BACK_TO_RESULTS' })}
-                    className="flex-1 rounded-xl py-3.5 text-[13px] font-semibold transition-all duration-300 cursor-pointer bg-white/[0.04] border border-white/[0.08] text-white/50 hover:bg-white/[0.08] hover:text-white/70"
-                  >
-                    Back to Results
-                  </button>
-                </div>
-              )}
-            </div>
+            {state.isReview && (
+              <button
+                onClick={() => dispatch({ type: 'BACK_TO_RESULTS' })}
+                className="rounded-xl px-5 py-3 text-[13px] font-medium transition-all duration-200 cursor-pointer hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+                style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)', color: 'var(--rm-text-secondary)' }}
+              >
+                Back to Results
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -944,8 +671,8 @@ function ResultsBreakdownRow({
     <div
       className="rounded-xl overflow-hidden transition-all duration-200"
       style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: 'var(--rm-bg-elevated)',
+        border: '1px solid var(--rm-border)',
       }}
     >
       <button
@@ -987,7 +714,7 @@ function ResultsBreakdownRow({
       {expanded && (
         <div
           className="px-5 pb-5 space-y-2"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+          style={{ borderTop: '1px solid var(--rm-border)' }}
         >
           {fields.map((field) => {
             const answer = taskState.answers[field.id];
@@ -1133,7 +860,12 @@ function ResultsScreen({
         <div className="flex flex-col sm:flex-row gap-3 mt-10 max-w-md mx-auto">
           <button
             onClick={() => dispatch({ type: 'REVIEW' })}
-            className="flex-1 rounded-xl py-3.5 text-[13px] font-semibold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 bg-white/[0.04] border border-white/[0.08] text-white/50 hover:bg-white/[0.08] hover:text-white/70"
+            className="flex-1 rounded-xl py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+            style={{
+              background: 'var(--rm-bg-elevated)',
+              border: '1px solid var(--rm-border)',
+              color: 'var(--rm-text-secondary)',
+            }}
           >
             <Eye className="h-4 w-4" />
             Review Answers
@@ -1141,7 +873,12 @@ function ResultsScreen({
 
           <button
             onClick={() => dispatch({ type: 'RESET', taskCount: tasks.length })}
-            className="flex-1 rounded-xl py-3.5 text-[13px] font-semibold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 bg-white/[0.04] border border-white/[0.08] text-white/50 hover:bg-white/[0.08] hover:text-white/70"
+            className="flex-1 rounded-xl py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+            style={{
+              background: 'var(--rm-bg-elevated)',
+              border: '1px solid var(--rm-border)',
+              color: 'var(--rm-text-secondary)',
+            }}
           >
             <RotateCcw className="h-4 w-4" />
             Retry
@@ -1248,15 +985,70 @@ export function getActivePracticeSession(): PersistedPracticeSession | null {
   }
 }
 
-// ── Main Viewer ────────────────────────────────────────────────────────────────
+// ── Brief Viewer (start screen only — rendered at /[modulePrefix]) ───────────
 
-export function PracticeSetViewer({ practiceSet }: { practiceSet: PracticeSet }) {
+export function PracticeSetBrief({ practiceSet }: { practiceSet: PracticeSet }) {
+  const pathname = usePathname();
+  const sessionPath = `${pathname}/session`;
+
+  return (
+    <div className="min-h-screen" style={{ background: '#0a0c0e' }}>
+      <StartScreen
+        practiceSet={practiceSet}
+        sessionPath={sessionPath}
+      />
+    </div>
+  );
+}
+
+// ── Session Viewer (task + results — rendered at /[modulePrefix]/session) ─────
+
+export function PracticeSetSession({ practiceSet }: { practiceSet: PracticeSet }) {
   const tasks = practiceSet.tasks as PracticeTask[];
   const pathname = usePathname();
   const moduleId = practiceSet.metadata?.moduleId ?? '';
+  // ESC exits practice session and returns to the tree map.
+  // - When mounted under /learn/[topic]/theory/[level]?practice=..., the tree map IS this pathname (strip query).
+  // - When mounted under the legacy /operations/practice/[topic]/[level]/[modulePrefix] route, derive the learn URL.
+  let treeMapPath = pathname.replace(/\/session\/?$/, '');
+  const opsMatch = pathname.match(/^\/operations\/practice\/([^/]+)\/([^/]+)/);
+  if (opsMatch) {
+    treeMapPath = `/learn/${opsMatch[1]}/theory/${opsMatch[2]}`;
+  }
 
-  const [state, dispatch] = useReducer(sessionReducer, tasks.length, createInitialState);
+  const [state, dispatch] = useReducer(sessionReducer, tasks.length, (count) => ({
+    ...createInitialState(count),
+    phase: 'session' as const,
+  }));
   const [hydrated, setHydrated] = useState(false);
+  const [sessionPickerVisible, setSessionPickerVisible] = useState(false);
+  const focusMode = useReadingModeStore((s) => s.focusMode);
+
+  // Reuse the reading session timer with a separate scope so practice sessions
+  // (Sprint / Pomodoro / Deep Focus / Free Practice) run independently of reading.
+  const practiceSession = useTheorySessionTimer('practice-global');
+  const { methodConfigs: sessionMethodConfigs, hasHydrated: sessionDefaultsHydrated } =
+    useTheorySessionPreferencesStore((s) => ({
+      methodConfigs: s.methodConfigs,
+      hasHydrated: s.hasHydrated,
+    }));
+  const resolvedSessionMethodConfigs = useMemo(
+    () => resolveTheorySessionMethodConfigs(sessionMethodConfigs),
+    [sessionMethodConfigs]
+  );
+  const startPracticeSession = practiceSession.start;
+
+  // Auto-reset session when it completes
+  useEffect(() => {
+    if (practiceSession.phase === 'complete') {
+      practiceSession.reset();
+    }
+  }, [practiceSession.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openSessionPicker = useCallback(() => {
+    if (!sessionDefaultsHydrated) return;
+    setSessionPickerVisible(true);
+  }, [sessionDefaultsHydrated]);
 
   // Restore session from sessionStorage after mount
   useEffect(() => {
@@ -1270,40 +1062,117 @@ export function PracticeSetViewer({ practiceSet }: { practiceSet: PracticeSet })
   // Persist state to sessionStorage on every change (after hydration)
   useEffect(() => {
     if (!hydrated) return;
-    if (state.phase !== 'start') {
-      saveSession(moduleId, pathname ?? '', state);
-    }
+    saveSession(moduleId, pathname ?? '', state);
   }, [state, moduleId, pathname, hydrated]);
 
-  // Don't render until hydrated to avoid flash of start screen
+  // Don't render until hydrated to avoid flash
   if (!hydrated) {
     return <div className="min-h-screen" />;
   }
 
-  return (
-    <div className="min-h-screen" style={{ background: '#0a0c0e' }}>
-      {state.phase === 'start' && (
-        <StartScreen
-          practiceSet={practiceSet}
-          onBegin={() => dispatch({ type: 'START' })}
-        />
-      )}
+  const moduleNumber = (practiceSet.metadata?.moduleId ?? '').replace(/^module-/, '');
 
+  return (
+    <div
+      className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface lg:h-[calc(100dvh-3.5rem)]"
+      data-focus-mode={focusMode ? 'true' : undefined}
+    >
       {state.phase === 'session' && (
-        <TaskScreen
-          practiceSet={practiceSet}
-          state={state}
-          dispatch={dispatch}
-        />
+        <>
+          {/* Top bar — mirrors the reading session top bar */}
+          <div
+            data-hide-on-focus
+            className="flex h-12 flex-shrink-0 items-center border-b border-outline-variant/20 bg-surface/95 backdrop-blur-md px-4 sticky top-0 z-40"
+          >
+            {/* Left: back to tree map */}
+            <div className="flex items-center gap-1.5">
+              <a
+                href={treeMapPath}
+                onClick={(e) => {
+                  e.preventDefault();
+                  clearSession();
+                  window.location.href = treeMapPath;
+                }}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Track Map</span>
+              </a>
+            </div>
+
+            {/* Center: practice set context or active session */}
+            <div className="flex-1 flex items-center justify-center">
+              {practiceSession.hasActiveSession ? (
+                <TheorySessionTopbar session={practiceSession} />
+              ) : (
+                <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide">
+                  {moduleNumber}
+                  <span className="mx-1.5 text-outline-variant/50">·</span>
+                  <span className="text-on-surface/80">
+                    Task {state.currentTaskIndex + 1} of {tasks.length}
+                  </span>
+                </span>
+              )}
+            </div>
+
+            {/* Right: reading mode + start session */}
+            <div className="flex items-center gap-1">
+              <ReadingModeDropdown />
+              {!practiceSession.hasActiveSession && (
+                <button
+                  type="button"
+                  onClick={openSessionPicker}
+                  disabled={!sessionDefaultsHydrated}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/8 px-3 text-xs font-medium text-primary transition-all hover:bg-primary/15 hover:border-primary/30"
+                >
+                  <Clock3 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Start session</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            <FocusWrapper briefPath={treeMapPath}>
+              <TaskScreen
+                practiceSet={practiceSet}
+                state={state}
+                dispatch={dispatch}
+              />
+            </FocusWrapper>
+          </div>
+        </>
       )}
 
       {state.phase === 'results' && (
-        <ResultsScreen
-          practiceSet={practiceSet}
-          state={state}
-          dispatch={dispatch}
-        />
+        <div className="flex-1 overflow-y-auto">
+          <ResultsScreen
+            practiceSet={practiceSet}
+            state={state}
+            dispatch={dispatch}
+          />
+        </div>
       )}
+
+      {sessionPickerVisible && !practiceSession.hasActiveSession ? (
+        <TheorySessionPicker
+          isOpen
+          configsByMethod={resolvedSessionMethodConfigs}
+          lessonTitle={practiceSet.title}
+          lessonDurationMinutes={
+            tasks.reduce((s, t: any) => s + (t.estimatedMinutes ?? 0), 0)
+          }
+          onStart={(config) => {
+            setSessionPickerVisible(false);
+            startPracticeSession(config);
+          }}
+          onOpenSettings={() => {
+            setSessionPickerVisible(false);
+            window.location.href = '/settings?tab=reading';
+          }}
+          onDismiss={() => setSessionPickerVisible(false)}
+        />
+      ) : null}
     </div>
   );
 }

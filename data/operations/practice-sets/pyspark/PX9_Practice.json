@@ -1,0 +1,381 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 9 \u2014 Disaster Recovery and Data Lineage",
+  "description": "Design NordGrid\u2019s DR and lineage architecture: define tiered RPO/RTO targets, configure cross-region replication respecting sovereignty, evaluate lineage tracking tools, design impact analysis for schema changes, and produce a comprehensive DR and lineage decision record.",
+  "version": "authored 2026-04-06, targets Delta Lake 3.x",
+  "metadata": {
+    "moduleId": "module-PX9",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 92,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "80 tables, 3 countries, 4 tiers, sovereignty constraints",
+    "modulePhase": "enterprise_operations",
+    "taskTypeMix": {
+      "tradeOffAnalysis": 2,
+      "designArtifact": 1,
+      "designReview": 1,
+      "architecturalSynthesis": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PX9_data_dependency_graph",
+      "file": "PX9_data_dependency_graph.csv",
+      "description": "80-table dependency graph: upstream/downstream, SLA tiers, retention, backup status, owner teams. 8 critical tables lack backups. 6 compliance tables need 7-year retention.",
+      "usedByTasks": [
+        "module-PX9-task-01",
+        "module-PX9-task-02",
+        "module-PX9-task-04",
+        "module-PX9-task-05"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PX9-task-01",
+      "title": "Design RPO/RTO Targets for NordGrid\u2019s Data Tiers",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid must define Recovery Point Objective (RPO \u2014 maximum acceptable data loss) and Recovery Time Objective (RTO \u2014 maximum acceptable downtime) for each data tier. The cost of replication scales linearly with how tight these targets are. The business impact of data loss varies dramatically by tier: Gold billing data loss costs $40K/hour in unbilled revenue. Platinum ML feature loss costs $0/hour (re-derivable from Silver).",
+        "task": "Design RPO/RTO targets for each of NordGrid\u2019s 4 data tiers. Evaluate the replication cost against the business impact of data loss for each tier.",
+        "validationHint": "RPO/RTO should be proportional to business impact. Gold billing: tight RPO (1 hour) because data loss = revenue loss. Bronze: loose RPO (24 hours) because raw data can be re-ingested from source. Platinum: loosest RPO because features are re-derivable."
+      },
+      "evidence": {
+        "type": "combined",
+        "businessImpact": {
+          "label": "Business impact of data loss by tier",
+          "content": "Tier      | Tables | Impact of 1-hour data loss         | Impact of 24-hour loss\nBronze    | 20     | Re-ingest from source ($200 compute)| Re-ingest ($2,400 compute)\nSilver    | 25     | Re-derive from Bronze ($500, 2 hrs) | Re-derive ($6,000, 24 hrs)\nGold      | 25     | $40K unbilled revenue per hour      | $960K unbilled + regulatory fine\nPlatinum  | 10     | $0 (re-derive from Silver, 4 hrs)   | $0 (re-derive, 24 hrs)"
+        },
+        "replicationCost": {
+          "label": "Replication cost by RPO target",
+          "content": "RPO Target | Replication Method         | Monthly Cost per Table\n1 hour     | Continuous Delta replication| $120/table\n4 hours    | Snapshot every 4 hours     | $45/table\n24 hours   | Daily snapshot             | $15/table\n72 hours   | Backup every 3 days        | $8/table\nNone       | No backup                  | $0/table"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX9-01-F1",
+            "type": "single_select",
+            "label": "What RPO/RTO should Gold billing tables have?",
+            "options": [
+              "RPO 24h / RTO 8h \u2014 daily backup is sufficient",
+              "RPO 1h / RTO 30min \u2014 Gold billing loses $40K/hour. Continuous replication ($120/table \u00d7 25 tables = $3,000/month) is trivial compared to even one hour of data loss ($40K). RTO of 30 min means failover to the replica.",
+              "RPO 4h / RTO 2h \u2014 balance cost and risk",
+              "No RPO needed \u2014 Gold can be re-derived from Silver"
+            ],
+            "correctAnswer": "RPO 1h / RTO 30min \u2014 Gold billing loses $40K/hour. Continuous replication ($120/table \u00d7 25 tables = $3,000/month) is trivial compared to even one hour of data loss ($40K). RTO of 30 min means failover to the replica."
+          },
+          {
+            "id": "PX9-01-F2",
+            "type": "single_select",
+            "label": "What RPO/RTO should Platinum (ML features) tables have?",
+            "options": [
+              "RPO 1h / RTO 30min \u2014 same as Gold for consistency",
+              "RPO 72h / RTO 24h \u2014 or no backup at all. Platinum tables are fully derivable from Silver. The cost of re-derivation (4 hours compute, $500) is far less than the cost of continuous replication ($120/table/month). DR strategy: re-derive on demand, don\u2019t replicate.",
+              "RPO 24h / RTO 8h \u2014 daily backup as a safety net",
+              "RPO 4h / RTO 2h \u2014 ML models depend on fresh features"
+            ],
+            "correctAnswer": "RPO 72h / RTO 24h \u2014 or no backup at all. Platinum tables are fully derivable from Silver. The cost of re-derivation (4 hours compute, $500) is far less than the cost of continuous replication ($120/table/month). DR strategy: re-derive on demand, don\u2019t replicate.",
+            "secondaryCorrectAnswer": "RPO 24h / RTO 8h \u2014 daily backup as a safety net"
+          },
+          {
+            "id": "PX9-01-F3",
+            "type": "numeric",
+            "label": "Total monthly replication cost if Gold gets RPO 1h ($120/tbl), Silver gets RPO 4h ($45/tbl), Bronze gets RPO 24h ($15/tbl), Platinum gets none ($0)?",
+            "correctAnswer": 4425,
+            "tolerance": 500,
+            "rationale": "Gold: 25 \u00d7 $120 = $3,000. Silver: 25 \u00d7 $45 = $1,125. Bronze: 20 \u00d7 $15 = $300. Platinum: 10 \u00d7 $0 = $0. Total: $4,425/month."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX9-task-02",
+      "title": "Design Cross-Region Replication for Gold Tables",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
+      "description": {
+        "context": "NordGrid\u2019s Gold billing tables replicate from Norway-primary to Sweden-secondary for disaster recovery. If Norway\u2019s region goes down, Sweden takes over billing within 30 minutes (RTO). The platform team must design the replication configuration: which tables replicate, sync frequency, conflict resolution during failover, and failover trigger criteria.",
+        "task": "Produce a replication configuration as a DataFrame. Each row specifies one table\u2019s replication settings. Only Gold tables with SLA=critical or SLA=high need cross-region replication.",
+        "validationHint": "Not all 25 Gold tables need replication. Only critical and high SLA justify the cost. Standard and low SLA can be re-derived after failover."
+      },
+      "evidence": {
+        "type": "replication_context",
+        "content": "Primary region: Norway (Oslo)\nSecondary region: Sweden (Stockholm)\nNetwork latency: 15ms\nBandwidth: 10 Gbps dedicated replication link\n\nFailover criteria:\n  - Primary unresponsive for > 5 minutes\n  - Data staleness > RPO target (1 hour for critical)\n  - Manual trigger by on-call engineer\n\nConflict resolution:\n  - During failover: secondary becomes read-write\n  - After recovery: reconcile using Delta Lake MERGE (primary wins for conflicts)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX9-02-F1",
+            "type": "single_select",
+            "label": "Should Finland\u2019s Gold tables replicate to Sweden?",
+            "options": [
+              "Yes \u2014 Sweden is the secondary for all countries",
+              "No \u2014 Finland\u2019s data sovereignty requires that its DR target also be within Finland. Finland needs a separate DR region within Finland, not Sweden. Cross-border replication of Finnish billing data violates sovereignty.",
+              "No \u2014 Finland\u2019s tables are too small to justify replication",
+              "Yes \u2014 sovereignty only applies to primary processing, not DR"
+            ],
+            "correctAnswer": "No \u2014 Finland\u2019s data sovereignty requires that its DR target also be within Finland. Finland needs a separate DR region within Finland, not Sweden. Cross-border replication of Finnish billing data violates sovereignty."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, when, lit\n\nspark = SparkSession.builder.appName('nordgrid-replication').master('local[*]').getOrCreate()\n\ndf = spark.read.csv('PX9_data_dependency_graph.csv', header=True, inferSchema=True)\n\n# Filter to Gold tables that need replication\ndf_gold = df.filter(col('layer') == 'gold')\nprint(f'Gold tables: {df_gold.count()}')\nprint(f'Gold critical/high: {df_gold.filter(col(\"sla_tier\").isin(\"critical\",\"high\")).count()}')\n\n# YOUR SOLUTION BELOW\n# Produce replication config DataFrame.\n# Each row = one Gold table\u2019s replication settings.\n# Required columns: table_id, table_name, sla_tier, country,\n#   replication_target, sync_method, rpo_hours, failover_trigger,\n#   conflict_resolution\n# Only include critical + high SLA Gold tables.\n# Finland tables replicate within Finland, not to Sweden.\n# Store in 'replication_config'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('Replication Configuration:')\nreplication_config.show(truncate=False)\nprint(f'Tables configured: {replication_config.count()}')"
+      },
+      "assertions": [
+        {
+          "id": "PX9-02-A1",
+          "description": "Only critical/high Gold tables included",
+          "check": "replication_config.filter(~col('sla_tier').isin('critical', 'high')).count() == 0"
+        },
+        {
+          "id": "PX9-02-A2",
+          "description": "Has required columns",
+          "check": "all(c in replication_config.columns for c in ['table_id', 'sla_tier', 'replication_target', 'rpo_hours'])"
+        },
+        {
+          "id": "PX9-02-A3",
+          "description": "Finland tables do NOT replicate to Sweden",
+          "check": "replication_config.filter((col('country') == 'finland') & (col('replication_target').contains('sweden'))).count() == 0"
+        },
+        {
+          "id": "PX9-02-A4",
+          "description": "At least some tables have replication",
+          "check": "replication_config.count() > 0"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 field. Code (70%): 4 assertions."
+    },
+    {
+      "id": "module-PX9-task-03",
+      "title": "Evaluate Lineage Tracking Approaches",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 17,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid needs data lineage for two use cases: (1) impact analysis before schema changes (\u2018if I change Silver readings column X, which Gold tables break?\u2019) and (2) regulatory audit (\u2018show me every transformation applied to this billing number\u2019). The team evaluates three lineage tracking approaches.",
+        "task": "Evaluate the three approaches against NordGrid\u2019s two use cases, 80-table scale, and operational complexity.",
+        "validationHint": "Delta Lake history gives table-level lineage for free but not column-level. External tools (OpenLineage) give column-level but require integration work. Custom logging is flexible but unmaintained."
+      },
+      "evidence": {
+        "type": "options",
+        "content": "Option A: Delta Lake History (built-in)\n  Coverage: table-level operations (INSERT, MERGE, DELETE)\n  Granularity: table-level only (no column-level lineage)\n  Cost: free (built into Delta)\n  Effort: zero setup\n  Limitation: cannot answer \u2018which Gold column depends on Silver column X\u2019\n\nOption B: OpenLineage + Marquez (external tool)\n  Coverage: column-level lineage across Spark jobs\n  Granularity: column-to-column dependency tracking\n  Cost: $500/month hosted, or self-hosted infrastructure\n  Effort: Spark listener plugin + catalog integration (2 weeks setup)\n  Limitation: requires Spark job instrumentation; missed jobs = gaps\n\nOption C: Custom Logging\n  Coverage: whatever the team implements\n  Granularity: as detailed as the team codes\n  Cost: engineering time (4 weeks initial + ongoing maintenance)\n  Effort: high; must be maintained with every pipeline change\n  Limitation: undocumented, unmaintained, single-developer dependency"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX9-03-F1",
+            "type": "single_select",
+            "label": "Which approach satisfies the regulatory audit use case?",
+            "options": [
+              "Option A (Delta History) \u2014 DESCRIBE HISTORY shows every operation on the billing table",
+              "Option B (OpenLineage) \u2014 column-level lineage traces every transformation applied to a billing value from Bronze through Gold. This is what regulatory auditors require: a complete chain of custody for each data element.",
+              "Option C (Custom) \u2014 can be tailored to regulatory requirements",
+              "Both A and B together \u2014 Delta for table-level audit trail, OpenLineage for column-level transformation chain. Auditors need both: \u2018who changed the table\u2019 (Delta) and \u2018how was this value derived\u2019 (OpenLineage)."
+            ],
+            "correctAnswer": "Both A and B together \u2014 Delta for table-level audit trail, OpenLineage for column-level transformation chain. Auditors need both: \u2018who changed the table\u2019 (Delta) and \u2018how was this value derived\u2019 (OpenLineage).",
+            "secondaryCorrectAnswer": "Option B (OpenLineage) \u2014 column-level lineage traces every transformation applied to a billing value from Bronze through Gold. This is what regulatory auditors require: a complete chain of custody for each data element."
+          },
+          {
+            "id": "PX9-03-F2",
+            "type": "single_select",
+            "label": "Which approach should NordGrid implement FIRST?",
+            "options": [
+              "Option C \u2014 custom is fastest to prototype",
+              "Option A (Delta History) \u2014 zero setup, immediate value. Answers the impact analysis use case for table-level dependencies today. Then add Option B (OpenLineage) in quarter 2 for column-level lineage. Custom (C) should be avoided: it creates tech debt.",
+              "Option B \u2014 column-level from the start",
+              "All three simultaneously"
+            ],
+            "correctAnswer": "Option A (Delta History) \u2014 zero setup, immediate value. Answers the impact analysis use case for table-level dependencies today. Then add Option B (OpenLineage) in quarter 2 for column-level lineage. Custom (C) should be avoided: it creates tech debt."
+          },
+          {
+            "id": "PX9-03-F3",
+            "type": "single_select",
+            "label": "Why should Option C (custom logging) be avoided?",
+            "options": [
+              "Custom logging is technically inferior",
+              "Custom logging creates a single-developer dependency: only the developer who built it understands it. When they leave or the pipeline changes, the logging silently breaks. OpenLineage is community-maintained and standardized.",
+              "Custom logging is too expensive",
+              "Custom logging cannot track column-level lineage"
+            ],
+            "correctAnswer": "Custom logging creates a single-developer dependency: only the developer who built it understands it. When they leave or the pipeline changes, the logging silently breaks. OpenLineage is community-maintained and standardized."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX9-task-04",
+      "title": "Design Impact Analysis for Schema Changes",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid\u2019s transform-no team wants to rename Silver readings column \u2018daily_kw\u2019 to \u2018consumption_kwh\u2019. The dependency graph shows this column is referenced by 8 Gold tables, 3 compliance reports, and 2 ML feature pipelines. The current process: the engineer renames the column and pushes to production. No impact analysis. Last time this happened, 6 downstream pipelines broke.",
+        "task": "Review the proposed schema change process. Identify 4 missing safeguards, rank them by importance, and design an impact analysis workflow.",
+        "validationHint": "A safe schema change process: (1) discover all downstream consumers, (2) notify them, (3) provide migration window, (4) validate before and after, (5) rollback if failures detected."
+      },
+      "evidence": {
+        "type": "combined",
+        "proposedChange": {
+          "label": "Proposed schema change",
+          "content": "Table: silver.readings_norway\nChange: rename column daily_kw \u2192 consumption_kwh\nReason: align with ISO standard naming\n\nCurrent process:\n  1. Engineer modifies pipeline code\n  2. Pushes to production\n  3. No notification to downstream teams\n  4. No impact analysis\n  5. No migration window\n  6. No rollback plan"
+        },
+        "downstream": {
+          "label": "Downstream impact (from dependency graph)",
+          "content": "Tables referencing daily_kw:\n  Gold: billing_no_01, billing_no_02, regional_no_01, regional_no_02,\n        compliance_no_01, compliance_no_02, ops_no_01, ops_no_02\n  Platinum: features_no_01, features_no_02\n  Reports: compliance_quarterly, regulatory_annual, executive_dashboard\n  Total: 13 downstream consumers across 5 teams"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX9-04-F1",
+            "type": "ordered_ranking",
+            "label": "Rank the 4 most critical missing safeguards (most important first):",
+            "options": [
+              "Impact analysis: query the dependency graph to find all 13 consumers of daily_kw BEFORE making the change",
+              "Downstream notification: alert all 5 consuming teams with 14-day notice of the breaking change",
+              "Migration window: add consumption_kwh as an alias first, give teams 30 days to migrate, then remove daily_kw",
+              "Rollback plan: keep daily_kw available via a view or alias for 30 days after rename, revert if failures exceed threshold"
+            ],
+            "correctOrder": [
+              "Impact analysis: query the dependency graph to find all 13 consumers of daily_kw BEFORE making the change",
+              "Downstream notification: alert all 5 consuming teams with 14-day notice of the breaking change",
+              "Migration window: add consumption_kwh as an alias first, give teams 30 days to migrate, then remove daily_kw",
+              "Rollback plan: keep daily_kw available via a view or alias for 30 days after rename, revert if failures exceed threshold"
+            ],
+            "rationale": "Impact analysis is first because without knowing who is affected, no other safeguard can be targeted correctly. Notification is second because consuming teams need time to prepare. Migration window is third because it allows gradual transition. Rollback is fourth as the safety net."
+          },
+          {
+            "id": "PX9-04-F2",
+            "type": "single_select",
+            "label": "How should the impact analysis query work?",
+            "options": [
+              "Search all pipeline code for the string \u2018daily_kw\u2019",
+              "Query the lineage graph: start from silver.readings_norway.daily_kw, traverse all downstream edges to find every table, column, and pipeline that references it. Automated via OpenLineage or the dependency graph catalog.",
+              "Ask each team if they use daily_kw",
+              "Check only Gold billing tables \u2014 other consumers are unimportant"
+            ],
+            "correctAnswer": "Query the lineage graph: start from silver.readings_norway.daily_kw, traverse all downstream edges to find every table, column, and pipeline that references it. Automated via OpenLineage or the dependency graph catalog."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX9-task-05",
+      "title": "Design NordGrid\u2019s DR and Lineage Architecture",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 21,
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
+      "description": {
+        "context": "NordGrid\u2019s CTO has approved the tiered RPO/RTO model (Task 1), Norway-Sweden replication with Finland in-country DR (Task 2), Delta History + OpenLineage for lineage (Task 3), and the impact analysis workflow (Task 4). The platform team must produce the complete DR and lineage architecture.",
+        "task": "Produce the architecture as a DataFrame covering: RPO/RTO per tier, replication topology, lineage tracking tools, impact analysis workflow, rollback procedures, and audit log retention. Each decision must reference the business justification.",
+        "validationHint": "The architecture must: protect Gold billing with 1h RPO, keep Finland data in Finland, implement both table-level and column-level lineage, and require impact analysis for all breaking changes."
+      },
+      "evidence": {
+        "type": "approved_decisions",
+        "content": "From Tasks 1-4:\n- Gold: RPO 1h, RTO 30 min, continuous replication. Cost: $3,000/month.\n- Silver: RPO 4h, RTO 2h, snapshot replication. Cost: $1,125/month.\n- Bronze: RPO 24h, RTO 8h, daily snapshot. Cost: $300/month.\n- Platinum: no replication, re-derive on demand.\n- Finland: in-country DR only (sovereignty).\n- Lineage: Delta History (immediate) + OpenLineage (Q2).\n- Impact analysis: automated dependency graph traversal before any breaking change.\n- Compliance tables: 7-year retention."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX9-05-F1",
+            "type": "single_select",
+            "label": "What is the total monthly DR cost, and is it justified?",
+            "options": [
+              "$4,425/month is too expensive for a data platform",
+              "$4,425/month protects against losses of $40K/hour (Gold billing) + regulatory fines (compliance). One 4-hour Gold outage without DR would cost $160K \u2014 36 months of DR budget. The investment pays for itself if it prevents one major incident per 3 years.",
+              "$4,425/month should be reduced by eliminating Bronze replication",
+              "DR cost should be zero \u2014 re-derive everything from source"
+            ],
+            "correctAnswer": "$4,425/month protects against losses of $40K/hour (Gold billing) + regulatory fines (compliance). One 4-hour Gold outage without DR would cost $160K \u2014 36 months of DR budget. The investment pays for itself if it prevents one major incident per 3 years."
+          },
+          {
+            "id": "PX9-05-F2",
+            "type": "single_select",
+            "label": "How should audit log retention differ by tier?",
+            "options": [
+              "Same retention (1 year) for all tiers",
+              "Compliance/regulatory Gold tables: 7 years (legal requirement). Other Gold: 2 years. Silver: 1 year. Bronze: 90 days (raw data re-ingested from source). Platinum: 90 days (re-derivable). Retention should match both legal requirements and re-derivability.",
+              "All tables: 7 years for maximum safety",
+              "No audit logs needed \u2014 Delta History provides sufficient audit trail"
+            ],
+            "correctAnswer": "Compliance/regulatory Gold tables: 7 years (legal requirement). Other Gold: 2 years. Silver: 1 year. Bronze: 90 days (raw data re-ingested from source). Platinum: 90 days (re-derivable). Retention should match both legal requirements and re-derivability."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-dr-lineage').master('local[*]').getOrCreate()\n\ndf = spark.read.csv('PX9_data_dependency_graph.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Produce DR and lineage architecture as DataFrame.\n# Each row = one architectural decision.\n# Required columns: decision_id, category, scope, decision,\n#   business_justification, responsible_team, implementation_quarter\n# Categories: replication, rpo_rto, lineage_tracking,\n#   impact_analysis, rollback, audit_retention, failover\n# Minimum 10 decisions.\n# Store in 'architecture'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('DR and Lineage Architecture:')\narchitecture.show(truncate=False)\nprint(f'Total decisions: {architecture.count()}')\nprint(f'Categories: {[r.category for r in architecture.select(\"category\").distinct().collect()]}')"
+      },
+      "assertions": [
+        {
+          "id": "PX9-05-A1",
+          "description": "At least 10 decisions",
+          "check": "architecture.count() >= 10"
+        },
+        {
+          "id": "PX9-05-A2",
+          "description": "Has required columns",
+          "check": "all(c in architecture.columns for c in ['decision_id', 'category', 'decision', 'business_justification'])"
+        },
+        {
+          "id": "PX9-05-A3",
+          "description": "At least 5 categories",
+          "check": "architecture.select('category').distinct().count() >= 5"
+        },
+        {
+          "id": "PX9-05-A4",
+          "description": "Replication decisions present",
+          "check": "architecture.filter(col('category') == 'replication').count() >= 1"
+        },
+        {
+          "id": "PX9-05-A5",
+          "description": "Lineage tracking decisions present",
+          "check": "architecture.filter(col('category') == 'lineage_tracking').count() >= 1"
+        }
+      ],
+      "partialCredit": "Template (55%): 2 fields. Code (45%): 5 assertions.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Tiered RPO/RTO based on business impact (Task 1, Lessons 1-2)",
+          "Cross-region replication with sovereignty constraints (Task 2, PX4)",
+          "Lineage tracking: Delta History + OpenLineage (Task 3, Lessons 5-6)",
+          "Impact analysis for schema changes (Task 4, PX4, Lessons 7-8)",
+          "Audit retention by regulatory tier (Lessons 9-10)",
+          "Cost-benefit analysis: DR cost vs incident cost (Task 1)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This capstone produces NordGrid\u2019s complete DR and lineage architecture as a decision record. Every decision has a business justification: Gold replication costs $3K/month but prevents $160K outages. 7-year compliance retention costs storage but avoids regulatory fines. The student must balance protection cost against incident cost for every tier."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "tradeOffsGenuinelyCompeting": true,
+    "scaleMatters": "80 tables across 4 tiers need different RPO/RTO. Column-level lineage across 13 downstream consumers. Single-table DR is mid-level.",
+    "theoryPracticeBoundary": "Theory teaches DR and lineage concepts. Practice requires designing tiered policies with cost justification and sovereignty constraints."
+  }
+}

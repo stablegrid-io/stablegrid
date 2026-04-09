@@ -3,7 +3,6 @@
 import {
   type LucideIcon,
   BookOpen,
-  Crosshair,
   Home
 } from 'lucide-react';
 
@@ -18,16 +17,10 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { href: '/home', icon: Home, label: 'Home', matchPrefixes: ['/home', '/'] },
   {
-    href: '/theory',
+    href: '/learn',
     icon: BookOpen,
-    label: 'Theory',
+    label: 'Learn',
     matchPrefixes: ['/theory', '/learn']
-  },
-  {
-    href: '/operations',
-    icon: Crosshair,
-    label: 'Operations',
-    matchPrefixes: ['/operations']
   }
 ];
 
@@ -43,8 +36,12 @@ export const shouldHideNav = (pathname?: string | null, _isAuthenticated?: boole
 export const isTheoryLessonPath = (pathname?: string | null) =>
   Boolean(pathname && /^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname));
 
-export const isPracticeSessionPath = (pathname?: string | null) =>
-  Boolean(pathname && /^\/operations\/practice\/[^/]+\/[^/]+\/[^/]+(?:\/)?$/.test(pathname));
+export const isPracticeSessionPath = (pathname?: string | null, search?: string | null) => {
+  if (!pathname) return false;
+  if (/^\/operations\/practice\/[^/]+\/[^/]+\/[^/]+(?:\/session)?(?:\/)?$/.test(pathname)) return true;
+  if (/^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname) && search && /[?&]practice=/.test(search)) return true;
+  return false;
+};
 
 export const isCompactDesktopNavPath = (pathname?: string | null) =>
   Boolean(pathname?.startsWith('/admin')) || isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname);

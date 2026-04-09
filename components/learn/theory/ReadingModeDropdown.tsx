@@ -146,10 +146,7 @@ export const ReadingModeDropdown = () => {
               aria-checked={focusMode}
             >
               <Maximize2 className="h-4 w-4 flex-shrink-0" />
-              <span className="text-[11px] font-medium tracking-wide">
-                Focus Mode
-              </span>
-              {/* Toggle pill */}
+              <span className="text-[11px] font-medium tracking-wide">Focus Mode</span>
               <div
                 className="ml-auto relative w-8 h-[18px] rounded-full transition-colors duration-200"
                 style={{

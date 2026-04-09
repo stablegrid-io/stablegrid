@@ -1,0 +1,512 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set 1 — Why Fabric Exists",
+  "description": "Identify platform sprawl symptoms in NordGrid's pre-Fabric architecture, match data engineering tasks to Fabric workloads, classify SaaS-managed vs engineer-managed responsibilities, assign NordGrid data items to medallion layers, predict capacity consumption patterns, and trace a meter reading's journey through every Fabric component.",
+  "version": "authored 2026-04-06, targets Microsoft Fabric GA 2025+",
+  "metadata": {
+    "moduleId": "module-F1",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 45,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "500K meters, 4 regions, single team",
+    "modulePhase": "foundation",
+    "taskTypeMix": {
+      "writeTheCode": 0,
+      "outputPrediction": 3,
+      "conceptIdentification": 3,
+      "synthesisPipeline": 0
+    },
+    "foundationException": "Module F1 is entirely conceptual — it teaches why Fabric exists, the SaaS model, workload taxonomy, medallion architecture, and capacity basics. No code is introduced until Module F5. Per §4.3, this practice set uses 3 concept identification + 3 output prediction tasks with zero write-the-code tasks. The final task (output_prediction) serves as the module synthesis, combining 5 concepts across the module. The normal §4.2 max of 2 per task type is exceeded under the §4.3 Foundation exception."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-F1-task-01",
+      "title": "Identify Platform Sprawl at NordGrid",
+      "type": "concept_identification",
+      "estimatedMinutes": 6,
+      "description": {
+        "context": "Before adopting Fabric, NordGrid ran its data platform across multiple Azure services. Some situations were symptoms of platform sprawl — fragmented tools, duplicated data, inconsistent governance. Others reflected good unified practice. NordGrid's CTO reviewed these situations during the migration planning phase.",
+        "task": "For each situation, identify whether it is a symptom of platform sprawl or a characteristic of a unified platform.",
+        "validationHint": "Platform sprawl means data is duplicated, tools are fragmented, security is inconsistent, or teams cannot see each other's data. A unified platform means shared storage, shared governance, and cross-team visibility."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F1-01-F1",
+            "type": "single_select",
+            "label": "The billing team stores meter readings in their own Azure SQL Database. The operations team stores the same readings in a separate ADLS Gen2 account. Neither team can query the other's copy.",
+            "options": [
+              "Platform sprawl — same data duplicated in isolated stores with no cross-team access",
+              "Unified platform — each team has its own optimized storage",
+              "Neither — this is standard data partitioning"
+            ],
+            "correctAnswer": "Platform sprawl — same data duplicated in isolated stores with no cross-team access",
+            "distractorRationale": "Option 2 reframes sprawl as a feature. Isolated copies are not 'optimized storage' — they are fragmentation. Option 3 confuses partitioning (splitting data by key) with duplication (copying entire datasets)."
+          },
+          {
+            "id": "F1-01-F2",
+            "type": "single_select",
+            "label": "All NordGrid teams query the same Delta tables in OneLake. The billing team sees billing-relevant columns, the operations team sees operational columns, but the underlying data is stored once.",
+            "options": [
+              "Platform sprawl — different teams seeing different columns indicates fragmentation",
+              "Unified platform — single storage with role-based access provides one source of truth",
+              "Platform sprawl — Delta tables should not be shared across teams"
+            ],
+            "correctAnswer": "Unified platform — single storage with role-based access provides one source of truth",
+            "distractorRationale": "Option 1 confuses access control with fragmentation. Column-level visibility is governance, not sprawl. Option 3 is a fabricated rule — shared Delta tables are a core benefit of unified platforms."
+          },
+          {
+            "id": "F1-01-F3",
+            "type": "single_select",
+            "label": "NordGrid's data engineers manage their Spark clusters on Azure HDInsight. The analytics team uses a separate Azure Synapse workspace. The reporting team uses a standalone Power BI tenant. Each tool has its own security model and billing.",
+            "options": [
+              "Unified platform — each workload runs on the tool best suited for it",
+              "Platform sprawl — three separate tools with separate security, billing, and no shared storage",
+              "Neither — this is a standard microservices architecture"
+            ],
+            "correctAnswer": "Platform sprawl — three separate tools with separate security, billing, and no shared storage",
+            "distractorRationale": "Option 1 confuses 'best tool per workload' with sprawl. The issue is not the tool choice but the fragmentation: separate security, separate billing, no shared storage. Option 3 misapplies the microservices concept — microservices are for application architecture, not data platforms."
+          },
+          {
+            "id": "F1-01-F4",
+            "type": "single_select",
+            "label": "NordGrid's security team applies sensitivity labels and access policies once in Microsoft Purview. These policies automatically govern data across all Fabric workspaces — notebooks, pipelines, SQL queries, and Power BI reports.",
+            "options": [
+              "Platform sprawl — a single security system controlling everything is a single point of failure",
+              "Unified platform — one governance layer enforces consistent policies across all workloads",
+              "Platform sprawl — Purview is a separate tool from Fabric, so this is still fragmented"
+            ],
+            "correctAnswer": "Unified platform — one governance layer enforces consistent policies across all workloads",
+            "distractorRationale": "Option 1 conflates centralized governance with single point of failure — governance consistency is a benefit, not a risk. Option 3 misunderstands Purview's integration — Purview is integrated into Fabric, not a separate disconnected tool."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F1-task-02",
+      "title": "Match NordGrid's Tasks to Fabric Workloads",
+      "type": "concept_identification",
+      "estimatedMinutes": 7,
+      "description": {
+        "context": "NordGrid's data engineering team has five recurring tasks. Each task maps to a specific Fabric workload. The team lead needs to verify that every engineer knows which workload handles which responsibility.",
+        "task": "For each NordGrid task, select the Fabric workload that handles it.",
+        "validationHint": "Each workload has a distinct purpose: Data Engineering runs Spark notebooks, Data Factory orchestrates pipelines and copies data, Data Warehouse handles T-SQL workloads, Real-Time Intelligence processes streaming data, and Power BI delivers reports and dashboards."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F1-02-F1",
+            "type": "single_select",
+            "label": "Transform 500,000 daily meter readings from raw CSV into validated Delta tables using PySpark code in a notebook.",
+            "options": [
+              "Data Engineering",
+              "Data Factory",
+              "Data Warehouse",
+              "Real-Time Intelligence"
+            ],
+            "correctAnswer": "Data Engineering",
+            "distractorRationale": "Data Factory orchestrates but does not run PySpark transformation logic. Data Warehouse handles T-SQL, not PySpark notebooks. Real-Time Intelligence handles streaming, not daily batch notebooks."
+          },
+          {
+            "id": "F1-02-F2",
+            "type": "single_select",
+            "label": "Copy raw CSV files from NordGrid's external SFTP server into a Lakehouse every morning at 06:00, then trigger the transformation notebook to run.",
+            "options": [
+              "Data Engineering",
+              "Data Factory",
+              "Data Warehouse",
+              "Power BI"
+            ],
+            "correctAnswer": "Data Factory",
+            "distractorRationale": "Data Engineering runs notebooks but does not copy files from external sources or schedule orchestration. Data Warehouse is for SQL queries, not file ingestion. Power BI is for reporting."
+          },
+          {
+            "id": "F1-02-F3",
+            "type": "single_select",
+            "label": "Compute monthly energy consumption totals per region using T-SQL queries, store pre-computed aggregates, and serve them to analysts who write ad-hoc SQL.",
+            "options": [
+              "Data Engineering",
+              "Data Factory",
+              "Data Warehouse",
+              "Real-Time Intelligence"
+            ],
+            "correctAnswer": "Data Warehouse",
+            "distractorRationale": "Data Engineering uses PySpark, not T-SQL for persistent storage. Data Factory orchestrates but doesn't store or query aggregates. Real-Time Intelligence handles streaming telemetry, not batch SQL aggregation."
+          },
+          {
+            "id": "F1-02-F4",
+            "type": "single_select",
+            "label": "Process SCADA telemetry from 2,000 wind turbines arriving every 10 seconds, detect anomalies within 30 seconds, and alert the operations team.",
+            "options": [
+              "Data Engineering",
+              "Data Factory",
+              "Data Warehouse",
+              "Real-Time Intelligence"
+            ],
+            "correctAnswer": "Real-Time Intelligence",
+            "distractorRationale": "Data Engineering processes batch data in notebooks, not sub-second streaming. Data Factory copies and orchestrates but does not process real-time streams. Data Warehouse handles SQL queries, not streaming anomaly detection."
+          },
+          {
+            "id": "F1-02-F5",
+            "type": "single_select",
+            "label": "Build an interactive dashboard showing NordGrid's regional energy trends, with filters for region, date range, and customer type, refreshed automatically from Gold-layer tables.",
+            "options": [
+              "Data Engineering",
+              "Data Factory",
+              "Data Warehouse",
+              "Power BI"
+            ],
+            "correctAnswer": "Power BI",
+            "distractorRationale": "Data Engineering, Data Factory, and Data Warehouse produce and manage the data that Power BI visualizes. None of them build interactive dashboards for business users."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F1-task-03",
+      "title": "Predict SaaS vs Engineer Responsibilities",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid migrated from self-managed Azure services to Fabric's SaaS model. Some responsibilities that the team used to handle manually are now managed automatically by the platform. Others remain the engineer's job. NordGrid's new hire orientation includes a quiz on who handles what.",
+        "task": "For each responsibility, predict whether Fabric's SaaS platform handles it automatically or whether NordGrid's data engineer handles it.",
+        "validationHint": "SaaS handles infrastructure: compute provisioning, patching, storage durability, scaling. Engineers handle data decisions: schema design, data quality logic, pipeline business logic, access policy configuration."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F1-03-F1",
+            "type": "single_select",
+            "label": "Provisioning and starting the Spark cluster when a notebook runs.",
+            "options": [
+              "Fabric handles this automatically — Spark sessions are managed by the platform",
+              "The data engineer provisions the cluster manually before running the notebook",
+              "The workspace admin must pre-allocate Spark nodes each morning"
+            ],
+            "correctAnswer": "Fabric handles this automatically — Spark sessions are managed by the platform",
+            "distractorRationale": "Option 2 describes the IaaS model (Azure HDInsight / Databricks with manual cluster management). Option 3 is fabricated — Fabric does not require pre-allocated nodes."
+          },
+          {
+            "id": "F1-03-F2",
+            "type": "single_select",
+            "label": "Designing the schema for NordGrid's Silver meter readings table (which columns, which types, which partition key).",
+            "options": [
+              "Fabric handles this automatically — it infers the optimal schema from the data",
+              "The data engineer designs the schema — Fabric does not know NordGrid's business rules",
+              "The workspace admin defines all schemas through the portal settings"
+            ],
+            "correctAnswer": "The data engineer designs the schema — Fabric does not know NordGrid's business rules",
+            "distractorRationale": "Option 1 confuses inferSchema (a convenience for exploration) with production schema design. Fabric can infer types from data, but the decision of which columns to include, what types to enforce, and how to partition is a business decision. Option 3 invents a non-existent portal feature."
+          },
+          {
+            "id": "F1-03-F3",
+            "type": "single_select",
+            "label": "Patching the operating system and updating security fixes on the nodes that run Spark jobs.",
+            "options": [
+              "The data engineer applies patches during a weekly maintenance window",
+              "Fabric handles this automatically — the platform manages OS patches and security updates",
+              "NordGrid's IT security team patches Fabric nodes through Azure Update Manager"
+            ],
+            "correctAnswer": "Fabric handles this automatically — the platform manages OS patches and security updates",
+            "distractorRationale": "Options 1 and 3 describe IaaS responsibilities. In the SaaS model, the platform vendor handles infrastructure maintenance. Engineers never access or manage the underlying nodes."
+          },
+          {
+            "id": "F1-03-F4",
+            "type": "single_select",
+            "label": "Writing the PySpark code that filters out invalid meter readings (null meter_id, negative daily_kw) before promoting data from Bronze to Silver.",
+            "options": [
+              "Fabric handles this automatically — built-in data quality rules filter invalid records",
+              "The data engineer writes this logic — only the engineer knows NordGrid's validity rules",
+              "The Data Factory pipeline detects and removes invalid records during the Copy activity"
+            ],
+            "correctAnswer": "The data engineer writes this logic — only the engineer knows NordGrid's validity rules",
+            "distractorRationale": "Option 1 overstates Fabric's capabilities — Fabric does not know that negative daily_kw is invalid for NordGrid. Option 3 confuses Copy activity (which moves data without transformation) with data quality filtering."
+          },
+          {
+            "id": "F1-03-F5",
+            "type": "single_select",
+            "label": "Replicating OneLake data across availability zones to protect against hardware failure.",
+            "options": [
+              "The data engineer configures replication in the Lakehouse settings",
+              "Fabric handles this automatically — OneLake data is replicated by the underlying Azure storage layer",
+              "NordGrid must purchase a separate disaster recovery license for OneLake replication"
+            ],
+            "correctAnswer": "Fabric handles this automatically — OneLake data is replicated by the underlying Azure storage layer",
+            "distractorRationale": "Option 1 describes a manual IaaS configuration step. Option 3 invents a non-existent licensing tier. OneLake inherits ADLS Gen2's built-in replication."
+          },
+          {
+            "id": "F1-03-F6",
+            "type": "single_select",
+            "label": "Deciding which NordGrid team members can access the Silver workspace and what actions they can perform.",
+            "options": [
+              "Fabric handles this automatically — all users in the organization can access all workspaces",
+              "The data engineer or workspace admin assigns roles — Fabric enforces the roles but does not decide who gets what",
+              "OneLake's AI governance engine automatically determines access based on job titles"
+            ],
+            "correctAnswer": "The data engineer or workspace admin assigns roles — Fabric enforces the roles but does not decide who gets what",
+            "distractorRationale": "Option 1 would be a security disaster — no platform grants universal access by default. Option 3 invents a non-existent AI feature. Role assignment is a human decision; Fabric enforces it."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F1-task-04",
+      "title": "Assign NordGrid Data to Medallion Layers",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid uses the Bronze-Silver-Gold medallion architecture in Fabric. Bronze holds raw ingested data exactly as received. Silver holds validated, deduplicated, schema-enforced data. Gold holds business-ready aggregates optimized for consumers like analysts and dashboards. Each NordGrid data item belongs in exactly one layer.",
+        "task": "For each data item, identify which medallion layer it belongs to.",
+        "validationHint": "Bronze = raw, untransformed, as-received. Silver = cleaned, validated, typed, deduplicated. Gold = aggregated, denormalized, business-ready."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F1-04-F1",
+            "type": "single_select",
+            "label": "A CSV file copied from NordGrid's external SFTP server at 06:00 this morning. No columns were removed, no rows were filtered, no types were changed. An ingestion timestamp was added.",
+            "options": [
+              "Bronze — raw data as received, with only ingestion metadata added",
+              "Silver — the CSV was ingested, so it has been processed",
+              "Gold — the data is ready to use because CSV is a standard format"
+            ],
+            "correctAnswer": "Bronze — raw data as received, with only ingestion metadata added",
+            "distractorRationale": "Option 2 confuses ingestion (moving data) with transformation (changing data). Bronze is the landing zone for raw data. Option 3 confuses format standardization with business readiness."
+          },
+          {
+            "id": "F1-04-F2",
+            "type": "single_select",
+            "label": "Meter readings with an enforced schema (meter_id as string, daily_kw as double, date as date), with null meter_id rows removed, duplicates on (meter_id, date) deduplicated, and negative daily_kw filtered out. Stored as a partitioned Delta table.",
+            "options": [
+              "Bronze — it is stored as a table, which is a Bronze pattern",
+              "Silver — validated, typed, deduplicated, quality-filtered data",
+              "Gold — Delta tables with partitioning are a Gold-layer pattern"
+            ],
+            "correctAnswer": "Silver — validated, typed, deduplicated, quality-filtered data",
+            "distractorRationale": "Option 1 confuses the storage format with the layer — Bronze stores raw files, not validated tables. Option 3 confuses partitioning (a storage optimization) with aggregation (a Gold-layer transformation)."
+          },
+          {
+            "id": "F1-04-F3",
+            "type": "single_select",
+            "label": "A pre-computed table containing monthly average energy consumption per region, with columns region, month, avg_daily_kw, total_meters, and total_kw. Refreshed weekly for the reporting team's Power BI dashboard.",
+            "options": [
+              "Bronze — it is refreshed weekly from external sources",
+              "Silver — it contains validated, typed data",
+              "Gold — pre-computed business aggregate optimized for reporting consumers"
+            ],
+            "correctAnswer": "Gold — pre-computed business aggregate optimized for reporting consumers",
+            "distractorRationale": "Option 1 confuses refresh frequency with the Bronze pattern — Bronze is about raw ingestion, not weekly aggregation. Option 2 confuses validated data with aggregated data — Silver validates individual records, Gold aggregates them."
+          },
+          {
+            "id": "F1-04-F4",
+            "type": "single_select",
+            "label": "A JSON response from NordGrid's weather API, stored in the Lakehouse Files section exactly as received. Contains nested fields (station_id, temp_c, wind_speed, forecast array) with no schema enforcement.",
+            "options": [
+              "Bronze — raw API response stored without transformation",
+              "Silver — JSON is a structured format, so it qualifies as Silver",
+              "Gold — weather data enriches meter readings for the forecasting team"
+            ],
+            "correctAnswer": "Bronze — raw API response stored without transformation",
+            "distractorRationale": "Option 2 confuses file format with data quality — being JSON does not make data 'Silver.' Silver requires validation, type enforcement, and quality filtering. Option 3 confuses the eventual use of data (enrichment) with its current state (raw)."
+          },
+          {
+            "id": "F1-04-F5",
+            "type": "single_select",
+            "label": "Meter readings joined with substation metadata (substation_name, capacity_mw) and customer reference data (customer_type). Rows with null substation_id after the join were flagged with is_enriched = false rather than dropped.",
+            "options": [
+              "Bronze — the data still has nulls, so it is not fully clean",
+              "Silver — enriched, joined data with quality flags for downstream handling",
+              "Gold — joining data from multiple sources is a Gold-layer operation"
+            ],
+            "correctAnswer": "Silver — enriched, joined data with quality flags for downstream handling",
+            "distractorRationale": "Option 1 confuses the presence of quality flags with dirty data — flagging nulls is a Silver quality pattern, not a sign of rawness. Option 3 confuses enrichment joins (adding context to records) with aggregation (computing summaries). Enrichment is Silver; aggregation is Gold."
+          },
+          {
+            "id": "F1-04-F6",
+            "type": "single_select",
+            "label": "A ranked list of the top 10 highest-consuming meters per region for the current quarter, with columns rank, meter_id, region, quarterly_total_kw, and customer_type. Computed from Silver readings and served to the operations team through a Warehouse view.",
+            "options": [
+              "Bronze — it is derived from Silver data, so it sits below Silver",
+              "Silver — it uses quality-validated data and has proper types",
+              "Gold — pre-computed business-ready ranking optimized for a specific consumer team"
+            ],
+            "correctAnswer": "Gold — pre-computed business-ready ranking optimized for a specific consumer team",
+            "distractorRationale": "Option 1 inverts the medallion direction — Gold sits above Silver, not below. Option 2 confuses data quality (a Silver concern) with business optimization (a Gold concern). The ranking is computed for a specific consumer, which is the Gold-layer pattern."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F1-task-05",
+      "title": "Predict NordGrid's Capacity Consumption",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's Fabric capacity is shared across all workloads. Every Spark notebook, pipeline run, dataflow refresh, and SQL query consumes capacity units (CUs). The team lead needs all engineers to understand which activities consume the most capacity, because a long-running Spark job can slow down other workloads sharing the same capacity.",
+        "task": "Given three NordGrid activities with their described resource profiles, predict the relative capacity consumption and identify which activity the team should monitor most closely.",
+        "validationHint": "Capacity consumption depends on both compute intensity and duration. A 45-minute Spark job processing millions of rows consumes far more CU-seconds than a 2-minute dataflow refreshing 200 rows."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F1-05-F1",
+            "type": "single_select",
+            "label": "Activity A: A PySpark notebook transforms 500,000 meter readings from Bronze to Silver. It reads CSV files, enforces schemas, deduplicates, filters invalid rows, and writes partitioned Delta tables. Runtime: 25 minutes.\n\nActivity B: A Dataflow Gen2 refreshes NordGrid's substation reference table — 200 rows from an external database. It renames two columns and writes to a Lakehouse table. Runtime: 90 seconds.\n\nActivity C: A T-SQL query in the Gold Warehouse computes monthly regional totals from the Silver readings table (500,000 rows, GROUP BY region and month). Runtime: 8 seconds.\n\nWhich activity consumes the MOST capacity units?",
+            "options": [
+              "Activity A — 25-minute Spark notebook processing 500K rows",
+              "Activity B — the Dataflow Gen2 refresh, because dataflows use a separate compute engine",
+              "Activity C — the SQL query, because querying 500K rows is compute-intensive",
+              "All three consume roughly equal capacity"
+            ],
+            "correctAnswer": "Activity A — 25-minute Spark notebook processing 500K rows",
+            "distractorRationale": "Activity A runs for 25 minutes on a Spark cluster processing half a million rows — it dominates capacity consumption. Activity B runs for 90 seconds on 200 rows — minimal consumption. Activity C runs for 8 seconds — even with 500K rows, the duration is tiny. Option 4 ignores the dramatic difference in runtime and data volume."
+          },
+          {
+            "id": "F1-05-F2",
+            "type": "single_select",
+            "label": "NordGrid schedules Activity A (Silver notebook) at 06:00 daily. The analytics team runs a large Power BI dashboard refresh at 06:15 on the same capacity. During the overlap, both workloads run slower than usual. Why?",
+            "options": [
+              "The Spark notebook and the Power BI refresh share the same Fabric capacity — the combined compute demand exceeds what the capacity can provide at full speed, so both are throttled",
+              "Power BI cannot read from Delta tables while a notebook is writing to them",
+              "The Spark notebook locks the entire OneLake storage, preventing Power BI from reading",
+              "This is a bug in Fabric — different workloads should never affect each other"
+            ],
+            "correctAnswer": "The Spark notebook and the Power BI refresh share the same Fabric capacity — the combined compute demand exceeds what the capacity can provide at full speed, so both are throttled",
+            "distractorRationale": "Option 2 confuses capacity contention with table locking — Delta supports concurrent reads and writes. Option 3 invents a non-existent storage lock. Option 4 misunderstands the SaaS model — shared capacity means shared resources."
+          },
+          {
+            "id": "F1-05-F3",
+            "type": "single_select",
+            "label": "NordGrid's data engineering lead wants to reduce the capacity impact of the daily Silver notebook. Which approach directly reduces CU consumption?",
+            "options": [
+              "Move the notebook to a different workspace — workspaces have independent capacity pools",
+              "Reduce the notebook's runtime by optimizing the PySpark code (fewer shuffles, better filtering, column pruning) so it finishes in 12 minutes instead of 25",
+              "Run the notebook at midnight instead of 06:00 — off-peak hours have more available CUs",
+              "Switch from PySpark to Spark SQL — SQL queries consume fewer CUs than PySpark"
+            ],
+            "correctAnswer": "Reduce the notebook's runtime by optimizing the PySpark code (fewer shuffles, better filtering, column pruning) so it finishes in 12 minutes instead of 25",
+            "distractorRationale": "Option 1 is incorrect — workspaces within the same capacity share the same CU pool. Moving workspaces does not change capacity consumption. Option 3 is partially useful (less contention at midnight) but does not reduce total CU consumption — the notebook still uses the same compute. Option 4 is false — the compute engine (PySpark vs SQL) does not inherently determine CU cost; the work performed does."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F1-task-06",
+      "title": "Trace NordGrid's Meter Reading Through Fabric",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "A single meter reading — meter M-0042 in the NORTH region, daily_kw 1,847.3, date 2026-03-15 — enters NordGrid's Fabric platform from an external SFTP server and eventually appears on a Power BI dashboard showing the NORTH region's March energy total. The reading passes through every major Fabric component on this journey.",
+        "task": "Arrange the 8 stages of the reading's journey in the correct order, from external source to dashboard. Then identify which medallion layer applies at two key stages.",
+        "validationHint": "The journey follows the medallion pattern: raw ingestion (Bronze) → validation and enrichment (Silver) → aggregation (Gold) → visualization. Each stage uses a different Fabric component."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F1-06-F1",
+            "type": "single_select",
+            "label": "What is the FIRST Fabric component that acts on the reading after it leaves the external SFTP server?",
+            "options": [
+              "A Fabric notebook reads the CSV and transforms it",
+              "A Data Factory pipeline copies the CSV file into a Bronze Lakehouse",
+              "The SQL analytics endpoint makes the reading queryable",
+              "Power BI ingests the reading directly from SFTP"
+            ],
+            "correctAnswer": "A Data Factory pipeline copies the CSV file into a Bronze Lakehouse",
+            "distractorRationale": "Option 1 skips the ingestion step — the notebook transforms data that is already in Fabric, not data on the SFTP server. Option 3 skips multiple steps — the reading must be ingested and written to a table before the SQL endpoint can see it. Option 4 is architecturally incorrect — Power BI does not ingest raw data from external servers."
+          },
+          {
+            "id": "F1-06-F2",
+            "type": "single_select",
+            "label": "After the CSV file lands in the Bronze Lakehouse's Files section, what happens next?",
+            "options": [
+              "The SQL analytics endpoint automatically makes the CSV queryable with T-SQL",
+              "A Fabric notebook reads the CSV from Bronze, validates the schema, filters invalid rows, deduplicates, and writes a clean Delta table to the Silver Lakehouse",
+              "Power BI builds a report from the raw CSV",
+              "A Dataflow Gen2 automatically transforms every file that lands in the Files section"
+            ],
+            "correctAnswer": "A Fabric notebook reads the CSV from Bronze, validates the schema, filters invalid rows, deduplicates, and writes a clean Delta table to the Silver Lakehouse",
+            "distractorRationale": "Option 1 is incorrect — the SQL analytics endpoint serves the Tables section (Delta tables), not raw CSV files in the Files section. Option 3 skips Silver and Gold entirely. Option 4 invents an automatic trigger — Dataflows must be explicitly scheduled or invoked."
+          },
+          {
+            "id": "F1-06-F3",
+            "type": "single_select",
+            "label": "The reading is now a row in the Silver Lakehouse's Delta table. What Fabric artifact automatically makes this row queryable with T-SQL, without any additional configuration?",
+            "options": [
+              "A Data Factory pipeline that exposes the table to SQL users",
+              "The SQL analytics endpoint — Fabric generates it automatically for every Lakehouse",
+              "A Fabric Warehouse that the engineer must create manually",
+              "A Power BI semantic model that converts Delta to SQL"
+            ],
+            "correctAnswer": "The SQL analytics endpoint — Fabric generates it automatically for every Lakehouse",
+            "distractorRationale": "Option 1 confuses orchestration with querying. Option 3 describes a manual step — the question asks about automatic behavior. Option 4 confuses the semantic model (for Power BI) with the SQL endpoint (for T-SQL queries)."
+          },
+          {
+            "id": "F1-06-F4",
+            "type": "single_select",
+            "label": "An analyst writes a T-SQL query in the Gold Warehouse: SELECT region, SUM(daily_kw) FROM silver_readings WHERE month = 3 GROUP BY region. NordGrid's reading for M-0042 (1,847.3 kW, NORTH region) is included in the NORTH region's March total. Where does this aggregated result live?",
+            "options": [
+              "Bronze — it is derived from raw meter data",
+              "Silver — it queries the Silver table, so the result is Silver",
+              "Gold — it is a pre-computed business aggregate stored in the Warehouse for reporting"
+            ],
+            "correctAnswer": "Gold — it is a pre-computed business aggregate stored in the Warehouse for reporting",
+            "distractorRationale": "Option 1 inverts the direction — Bronze is raw, not derived. Option 2 confuses the source of the data with the destination of the result. The query reads from Silver but the aggregated output stored in the Warehouse is Gold."
+          },
+          {
+            "id": "F1-06-F5",
+            "type": "single_select",
+            "label": "The Power BI dashboard shows the NORTH region's March energy total (which includes M-0042's 1,847.3 kW). How does Power BI access this Gold-layer data in Fabric?",
+            "options": [
+              "Power BI imports a copy of the Gold data into its own storage",
+              "Power BI reads directly from OneLake using Direct Lake mode — no copy, no import",
+              "The data engineer exports a CSV from the Warehouse and uploads it to Power BI",
+              "Power BI can only read from the SQL analytics endpoint, not from the Warehouse"
+            ],
+            "correctAnswer": "Power BI reads directly from OneLake using Direct Lake mode — no copy, no import",
+            "distractorRationale": "Option 1 describes the legacy Import mode — Direct Lake eliminates the copy. Option 3 describes a manual anti-pattern. Option 4 is incorrect — Power BI can read from both the SQL endpoint and the Warehouse through Direct Lake."
+          },
+          {
+            "id": "F1-06-F6",
+            "type": "single_select",
+            "label": "Looking at the complete journey — SFTP → Pipeline → Bronze Lakehouse → Notebook → Silver Lakehouse → SQL endpoint → Gold Warehouse → Power BI — how many times was the underlying data physically copied between storage locations?",
+            "options": [
+              "Seven times — once for each arrow in the journey",
+              "Three times — SFTP to Bronze (copy), Bronze to Silver (write), Silver to Gold (query + write). The SQL endpoint and Power BI read from OneLake without copying.",
+              "Once — OneLake stores everything in one location, so data is never copied",
+              "Zero — Fabric uses shortcuts for everything, so no data movement occurs"
+            ],
+            "correctAnswer": "Three times — SFTP to Bronze (copy), Bronze to Silver (write), Silver to Gold (query + write). The SQL endpoint and Power BI read from OneLake without copying.",
+            "distractorRationale": "Option 1 counts every step as a copy — but the SQL endpoint and Power BI (Direct Lake) read in place without copying. Option 3 oversimplifies — data moves between layers (Bronze files → Silver Delta → Gold Warehouse). Option 4 confuses shortcuts (references to existing data) with the actual pipeline that transforms and writes new tables."
+          }
+        ]
+      },
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Data Factory's role as the ingestion orchestrator (Lesson 5, 10)",
+          "Bronze-Silver-Gold medallion layer classification (Lesson 7)",
+          "SaaS-managed artifacts: the auto-generated SQL analytics endpoint (Lesson 3, 10)",
+          "Capacity and compute: understanding that OneLake enables in-place reading without copies (Lesson 8)",
+          "Data engineer's role in the pipeline: the notebook transformation sits at the center (Lesson 9)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This task traces a single meter reading through the entire Fabric platform, requiring the student to recall which component handles which step, which layer applies at each stage, and how Fabric's unified storage model (OneLake) reduces data copying compared to the platform sprawl scenario from Task 1. It synthesizes the module's core narrative: Fabric exists to unify these components into a single platform where data flows through layers without fragmentation."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Applied. Module F1 is entirely conceptual — zero code is taught. The practice set uses 3 concept identification + 3 output prediction tasks with no write-the-code tasks. The normal §4.2 max of 2 per task type is exceeded under §4.3. The synthesis task (F1-task-06) is typed as output_prediction but serves the synthesis role, combining 5 concepts from across the module's 10 lessons. No code synthesis is possible because code is not introduced until Module F5.",
+    "theoryPracticeBoundary": "The theory traces NordGrid's data flow at a high level in Lesson 10 (The Life of Data in Fabric). The practice synthesis task (Task 6) asks the student to trace the same flow but through specific decision points: which component acts first, what artifact is auto-generated, which layer applies at each stage, and how many physical copies occur. This tests application of the mental model, not recall of the diagram from the lesson. Tasks 1–5 test individual concepts (sprawl, workloads, SaaS, layers, capacity) that the theory introduces separately — the practice requires the student to apply each concept to a new NordGrid scenario not used in the theory.",
+    "crossModuleNotes": "This practice set tests only Module F1 concepts. No knowledge from Modules F2–F10 is required. The SQL analytics endpoint is mentioned in Task 6 but only at the level taught in F1 Lesson 10 (it exists and auto-generates); the detailed F4 and F9 content is not needed.",
+    "datasetNotes": "No datasets. All 6 tasks are template-based. This is the only practice set in the Fabric junior track with zero datasets."
+  }
+}

@@ -1,33 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Target, Cpu, FlaskConical, Swords } from 'lucide-react';
+import { ArrowRight, Target, Cpu, Swords } from 'lucide-react';
 
 const OPERATIONS = [
   {
-    id: 'practice',
-    title: 'Practice Sets',
-    eyebrow: 'Skill Reinforcement',
-    description: 'Targeted exercises that test your understanding of theory concepts. Each set maps to a specific module — complete them to prove mastery before moving forward.',
-    icon: FlaskConical,
-    accentRgb: '153,247,255',
-    stats: [
-      { label: 'Format', value: 'Exercises' },
-      { label: 'Difficulty', value: 'Adaptive' },
-      { label: 'Scoring', value: 'Pass / Fail' },
-    ],
-    scenario: 'Hands-on practice tied to theory modules',
-    tech: 'SQL, PySpark, Python, Airflow, Fabric',
-    href: '/operations/practice',
-    status: 'available' as const,
-  },
-  {
-    id: 'missions',
-    title: 'Missions',
+    id: 'challenges',
+    title: 'Challenges',
     eyebrow: 'Applied Scenarios',
     description: 'Multi-step challenges that simulate real-world data engineering problems. Combine knowledge from multiple modules to build, debug, and optimize production-grade pipelines.',
     icon: Swords,
-    accentRgb: '255,113,108',
+    accentRgb: '153,247,255',
     stats: [
       { label: 'Format', value: 'Scenarios' },
       { label: 'Difficulty', value: 'Progressive' },
@@ -35,7 +18,24 @@ const OPERATIONS = [
     ],
     scenario: 'End-to-end pipeline challenges',
     tech: 'Cross-domain integration tasks',
-    href: '/operations/missions',
+    href: '/operations/challenges',
+    status: 'coming_soon' as const,
+  },
+  {
+    id: 'projects',
+    title: 'Projects',
+    eyebrow: 'Portfolio Builders',
+    description: 'Build complete data engineering projects from scratch. Design architectures, implement pipelines, and deploy solutions that demonstrate production-level skills.',
+    icon: Cpu,
+    accentRgb: '255,201,101',
+    stats: [
+      { label: 'Format', value: 'End-to-End' },
+      { label: 'Difficulty', value: 'Advanced' },
+      { label: 'Output', value: 'Portfolio' },
+    ],
+    scenario: 'Full project implementations',
+    tech: 'Multi-tool, multi-platform builds',
+    href: '/operations/projects',
     status: 'coming_soon' as const,
   },
 ];
@@ -51,7 +51,7 @@ export function OperationsHub() {
             Operations
           </h1>
           <p className="text-[13px] text-on-surface-variant/50 leading-relaxed max-w-xl">
-            Apply what you&apos;ve learned. Practice sets reinforce individual concepts, missions test your ability to combine them under pressure.
+            Put your skills to the test. Challenges simulate real-world scenarios, projects build your portfolio.
           </p>
         </header>
 

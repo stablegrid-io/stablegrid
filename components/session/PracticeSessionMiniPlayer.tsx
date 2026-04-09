@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { FlaskConical, ArrowRight } from 'lucide-react';
 import { isPracticeSessionPath, shouldHideNav } from '@/components/navigation/navigation-config';
 
@@ -22,6 +22,8 @@ interface PersistedSession {
 
 export function PracticeSessionMiniPlayer() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams ? `?${searchParams.toString()}` : '';
   const [session, setSession] = useState<PersistedSession | null>(null);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function PracticeSessionMiniPlayer() {
   }, []);
 
   // Hide on practice session pages (full UI is already showing)
-  if (isPracticeSessionPath(pathname)) return null;
+  if (isPracticeSessionPath(pathname, search)) return null;
   // Hide on landing/auth pages
   if (shouldHideNav(pathname)) return null;
   // Hide when no active session

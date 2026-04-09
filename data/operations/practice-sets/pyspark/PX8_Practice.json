@@ -1,0 +1,394 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 8 \u2014 Multi-Tenant Cluster Governance",
+  "description": "Design NordGrid\u2019s multi-tenant governance: diagnose a noisy-neighbor incident, design resource pools with preemption, evaluate cluster isolation models, implement cost allocation and chargeback, and produce a comprehensive governance policy.",
+  "version": "authored 2026-04-06, targets PySpark 3.5+ / YARN Fair Scheduler",
+  "metadata": {
+    "moduleId": "module-PX8",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 95,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "8 teams, 3 countries, 400 cpu-hours/day, noisy-neighbor incident",
+    "modulePhase": "enterprise_operations",
+    "taskTypeMix": {
+      "designReview": 1,
+      "designArtifact": 2,
+      "tradeOffAnalysis": 1,
+      "architecturalSynthesis": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PX8_data_team_usage",
+      "file": "PX8_data_team_usage.csv",
+      "description": "240 rows: daily usage per team for 30 days. Contains March 15-17 ML spike causing 15 SLA violations on analytics-no and ingestion-fi.",
+      "usedByTasks": [
+        "module-PX8-task-01",
+        "module-PX8-task-04",
+        "module-PX8-task-05"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PX8-task-01",
+      "title": "Review NordGrid\u2019s Current Cluster Sharing Model",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid\u2019s 8 teams share one production cluster with no resource quotas, no priority queues, and no cost visibility. On March 15-17, the ml-platform team ran a large training job that consumed 3.5x its normal resources. During those 3 days, analytics-no and ingestion-fi experienced all 15 of the month\u2019s SLA violations.",
+        "task": "Examine the usage data. Identify the 5 problems with the current sharing model, rank them by severity, and explain how each enables the next.",
+        "validationHint": "The noisy-neighbor incident (ml-platform spike \u2192 analytics/ingestion starved) is the symptom. The root causes are structural: no quotas, no priority, no isolation."
+      },
+      "evidence": {
+        "type": "combined",
+        "incidentSummary": {
+          "label": "March 15-17 noisy-neighbor incident",
+          "content": "ml-platform normal CPU: ~65 cpu-hours/day\nml-platform during incident: ~228 cpu-hours/day (3.5x spike)\nTotal cluster capacity: ~400 cpu-hours/day\nml-platform consumed 57% of cluster during incident\n\nImpact:\n  analytics-no: 2-5 SLA violations per day (Gold tables delivered late)\n  ingestion-fi: 1-3 SLA violations per day (Finland Bronze delayed)\n  Total: 15 SLA violations in 3 days\n  All other days in March: 0 SLA violations"
+        },
+        "structuralProblems": {
+          "label": "Structural problems identified by platform team",
+          "content": "1. No resource quotas: any team can consume unlimited cluster resources\n2. No priority system: ml-platform (SLA=low) jobs run at same priority as ingestion-no (SLA=critical)\n3. No cost visibility: teams don\u2019t know their consumption or cost\n4. No preemption: low-priority jobs cannot be paused for high-priority work\n5. No isolation: one team\u2019s spike directly starves all other teams"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX8-01-F1",
+            "type": "ordered_ranking",
+            "label": "Rank the 5 structural problems by severity (most severe first):",
+            "options": [
+              "No priority system \u2014 SLA=low jobs block SLA=critical, directly causing violations",
+              "No resource quotas \u2014 enables any team to consume unlimited resources",
+              "No preemption \u2014 cannot reclaim resources from low-priority jobs during spikes",
+              "No isolation \u2014 one team\u2019s spike starves all others",
+              "No cost visibility \u2014 teams have no incentive to optimize"
+            ],
+            "correctOrder": [
+              "No priority system \u2014 SLA=low jobs block SLA=critical, directly causing violations",
+              "No resource quotas \u2014 enables any team to consume unlimited resources",
+              "No preemption \u2014 cannot reclaim resources from low-priority jobs during spikes",
+              "No isolation \u2014 one team\u2019s spike starves all others",
+              "No cost visibility \u2014 teams have no incentive to optimize"
+            ],
+            "rationale": "Priority is most severe because the SLA inversion (low-priority ML blocking critical ingestion) directly caused all 15 violations. Quotas rank second as the structural enabler. Preemption ranks third as the missing recovery mechanism. Isolation and cost visibility are enabling factors."
+          },
+          {
+            "id": "PX8-01-F2",
+            "type": "single_select",
+            "label": "Why is the priority inversion (SLA=low blocking SLA=critical) the root cause?",
+            "options": [
+              "Because ml-platform used too much CPU",
+              "Because without priorities, the scheduler treats ml-platform\u2019s training job and ingestion-no\u2019s Bronze pipeline as equal. When resources are scarce, both wait equally. But ingestion-no has a 30-minute SLA while ml-platform has no time constraint. The scheduler should preempt ML to serve ingestion.",
+              "Because analytics-no has too many pipelines",
+              "Because the cluster is too small for 8 teams"
+            ],
+            "correctAnswer": "Because without priorities, the scheduler treats ml-platform\u2019s training job and ingestion-no\u2019s Bronze pipeline as equal. When resources are scarce, both wait equally. But ingestion-no has a 30-minute SLA while ml-platform has no time constraint. The scheduler should preempt ML to serve ingestion."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX8-task-02",
+      "title": "Design Resource Pool Allocation for 8 Teams",
+      "type": "design_artifact",
+      "estimatedMinutes": 20,
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
+      "description": {
+        "context": "NordGrid\u2019s platform team will implement YARN Fair Scheduler resource pools. Each pool has a guaranteed minimum share, a maximum cap, scheduling weight, and preemption policy. The design must prevent the March 15-17 incident while allowing flexible resource sharing during normal operations.",
+        "task": "Design the resource pool configuration as a DataFrame. Each row defines one pool with its guaranteed minimum, maximum cap, weight, preemption policy, and the teams assigned to it. The pools must reflect SLA tiers: critical pipelines get guaranteed resources; low-priority jobs get elastic capacity.",
+        "validationHint": "Pools don\u2019t need to map 1:1 to teams. Group teams by SLA tier: critical pool (ingestion + platform), high pool (transform), standard pool (analytics + Finland), ML pool (ml-platform). Each pool\u2019s minimum guarantee sums to \u2264100% of cluster."
+      },
+      "evidence": {
+        "type": "cluster_capacity",
+        "content": "Cluster total: 400 cpu-hours/day, 120 executor slots\n\nTeam SLA tiers:\n  Critical: platform-core, ingestion-no (must complete within 30 min)\n  High: transform-no, ingestion-se, transform-se (within 60 min)\n  Standard: analytics-no, ingestion-fi (within 120 min)\n  Low: ml-platform (no time constraint)\n\nFair Scheduler parameters per pool:\n  minShare: guaranteed minimum (executors always available)\n  maxShare: cap (cannot exceed, even if cluster is idle)\n  weight: scheduling priority when competing for resources\n  preemption: can this pool preempt others when under minimum?"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX8-02-F1",
+            "type": "single_select",
+            "label": "Should ml-platform have a maxShare cap?",
+            "options": [
+              "No cap \u2014 ML should use all available resources when idle",
+              "Yes \u2014 cap ml-platform at 40% of cluster (48 executor slots). Without a cap, ML\u2019s next training spike will again consume 57% of the cluster. The cap ensures 60% remains available for other teams even during ML peaks.",
+              "Cap at 10% \u2014 minimize ML\u2019s impact",
+              "Cap only during business hours (06:00-18:00)"
+            ],
+            "correctAnswer": "Yes \u2014 cap ml-platform at 40% of cluster (48 executor slots). Without a cap, ML\u2019s next training spike will again consume 57% of the cluster. The cap ensures 60% remains available for other teams even during ML peaks.",
+            "secondaryCorrectAnswer": "Cap only during business hours (06:00-18:00)"
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-resource-pools').master('local[*]').getOrCreate()\n\n# YOUR SOLUTION BELOW\n# Design resource pools as a DataFrame.\n# Each row = one resource pool.\n# Required columns: pool_name, sla_tier, assigned_teams,\n#   min_share_pct, max_share_pct, weight, preemption_enabled,\n#   rationale\n# Constraints: sum of min_share_pct <= 100\n# Minimum 4 pools (one per SLA tier).\n# Store in 'resource_pools'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('Resource Pool Configuration:')\nresource_pools.show(truncate=False)\ntotal_min = resource_pools.agg({'min_share_pct': 'sum'}).collect()[0][0]\nprint(f'Total min_share: {total_min}% (must be <= 100%)')"
+      },
+      "assertions": [
+        {
+          "id": "PX8-02-A1",
+          "description": "At least 4 pools",
+          "check": "resource_pools.count() >= 4"
+        },
+        {
+          "id": "PX8-02-A2",
+          "description": "Has required columns",
+          "check": "all(c in resource_pools.columns for c in ['pool_name', 'sla_tier', 'min_share_pct', 'max_share_pct', 'weight'])"
+        },
+        {
+          "id": "PX8-02-A3",
+          "description": "Total min_share <= 100%",
+          "check": "resource_pools.agg({'min_share_pct': 'sum'}).collect()[0][0] <= 100"
+        },
+        {
+          "id": "PX8-02-A4",
+          "description": "ML pool has a max cap",
+          "check": "resource_pools.filter(col('sla_tier') == 'low').select('max_share_pct').collect()[0][0] < 100"
+        },
+        {
+          "id": "PX8-02-A5",
+          "description": "Critical pool has preemption enabled",
+          "check": "resource_pools.filter(col('sla_tier') == 'critical').select('preemption_enabled').collect()[0][0] == 'yes'"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 field. Code (70%): 5 assertions."
+    },
+    {
+      "id": "module-PX8-task-03",
+      "title": "Evaluate Cluster-per-Team vs Shared Cluster",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 17,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "After the noisy-neighbor incident, some team leads want dedicated clusters. The platform team evaluates three isolation models: shared cluster with resource pools (Task 2), cluster-per-country, and cluster-per-SLA-tier.",
+        "task": "Evaluate the three models against NordGrid\u2019s constraints: cost, isolation strength, resource efficiency, and operational complexity.",
+        "validationHint": "More clusters = better isolation but worse efficiency (idle capacity can\u2019t be shared). The sweet spot depends on how much isolation the organization actually needs."
+      },
+      "evidence": {
+        "type": "options",
+        "content": "Option A: Shared Cluster + Resource Pools (from Task 2)\n  Clusters: 1\n  Cost: $15,600/month (current)\n  Isolation: soft (pools can be exceeded if others are idle)\n  Efficiency: ~85% (resources shared dynamically)\n  Complexity: low (one cluster to manage)\n\nOption B: Cluster-per-Country (Norway, Sweden, Finland)\n  Clusters: 3\n  Cost: $22,000/month (+41%)\n  Isolation: hard (country data stays in country)\n  Efficiency: ~55% (Finland cluster 30% utilized, can\u2019t share with Norway)\n  Complexity: medium (3 clusters, 3 configs)\n\nOption C: Cluster-per-SLA-Tier (critical+high, standard, ML)\n  Clusters: 3\n  Cost: $19,500/month (+25%)\n  Isolation: hard by SLA (ML can never affect critical)\n  Efficiency: ~65% (ML cluster bursty, often idle)\n  Complexity: medium (3 clusters, but pipelines may need cross-cluster data access)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX8-03-F1",
+            "type": "single_select",
+            "label": "Which model do you recommend?",
+            "options": [
+              "Option A (Shared + Pools) \u2014 lowest cost, highest efficiency. Resource pools with preemption prevent the noisy-neighbor incident without the overhead of multiple clusters.",
+              "Option B (per-country) \u2014 best for data sovereignty but 41% more expensive",
+              "Option C (per-SLA-tier) \u2014 guarantees ML can never affect critical, but 25% more expensive",
+              "Option A for Norway+Sweden, separate cluster for Finland (data sovereignty). 2 clusters total: shared pool for Norway+Sweden, dedicated Finland cluster."
+            ],
+            "correctAnswer": "Option A for Norway+Sweden, separate cluster for Finland (data sovereignty). 2 clusters total: shared pool for Norway+Sweden, dedicated Finland cluster.",
+            "secondaryCorrectAnswer": "Option A (Shared + Pools) \u2014 lowest cost, highest efficiency. Resource pools with preemption prevent the noisy-neighbor incident without the overhead of multiple clusters.",
+            "distractorRationale": "The 2-cluster hybrid addresses Finland\u2019s sovereignty constraint (hard requirement from PX4) while keeping the cost-efficient shared model for Norway+Sweden. Pure Option A ignores sovereignty. Pure Option B wastes 45% of Finland\u2019s cluster. The hybrid is the pragmatic compromise."
+          },
+          {
+            "id": "PX8-03-F2",
+            "type": "single_select",
+            "label": "What is the main risk of shared clusters with resource pools (Option A)?",
+            "options": [
+              "Pools don\u2019t actually limit resource usage",
+              "Soft isolation: if pool configs are misconfigured or preemption is delayed, a noisy neighbor can still cause transient SLA violations before preemption kicks in. Hard isolation (separate clusters) eliminates this risk entirely.",
+              "Shared clusters are always slower than dedicated",
+              "Resource pools add too much scheduling overhead"
+            ],
+            "correctAnswer": "Soft isolation: if pool configs are misconfigured or preemption is delayed, a noisy neighbor can still cause transient SLA violations before preemption kicks in. Hard isolation (separate clusters) eliminates this risk entirely."
+          },
+          {
+            "id": "PX8-03-F3",
+            "type": "single_select",
+            "label": "When should NordGrid upgrade from shared+pools to separate clusters?",
+            "options": [
+              "Immediately \u2014 separate clusters are always better",
+              "When the cost of SLA violations exceeds the cost of separate clusters. If pool-based isolation still produces 5+ violations/month ($4K+ in engineer time + business impact), the $4-6K/month premium for separate clusters is justified.",
+              "Never \u2014 shared is always sufficient with proper pools",
+              "When the cluster runs out of capacity"
+            ],
+            "correctAnswer": "When the cost of SLA violations exceeds the cost of separate clusters. If pool-based isolation still produces 5+ violations/month ($4K+ in engineer time + business impact), the $4-6K/month premium for separate clusters is justified."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX8-task-04",
+      "title": "Design Cost Allocation and Chargeback Model",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 35,
+        "code": 65
+      },
+      "description": {
+        "context": "NordGrid\u2019s finance team wants a monthly chargeback report: each team sees their compute cost and how it compares to their budget. The cost model must be fair (based on actual usage), transparent (teams can verify), and actionable (teams can reduce their cost by optimizing). The platform team must implement the model using the usage data.",
+        "task": "Implement the cost allocation model: compute each team\u2019s monthly cost from their CPU-hours and memory-GB-hours, add a shared overhead component, and produce a chargeback report. Include a budget comparison showing which teams are over/under budget.",
+        "validationHint": "Cost = (cpu_hours \u00d7 $0.10) + (memory_gb_hours \u00d7 $0.02) + overhead_share. Overhead = 20% of total allocated equally. Budget comparison: team annual budget / 12 = monthly budget."
+      },
+      "evidence": {
+        "type": "cost_model",
+        "content": "Pricing:\n  CPU: $0.10 per cpu-hour\n  Memory: $0.02 per GB-hour\n  Storage: $0.05 per TB-month\n  Overhead: 20% of total direct cost, split equally across 8 teams\n\nTeam annual budgets:\n  platform-core: $85,000  |  ingestion-no: $42,000\n  transform-no: $55,000   |  analytics-no: $28,000\n  ingestion-se: $38,000   |  transform-se: $45,000\n  ingestion-fi: $22,000   |  ml-platform: $65,000"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX8-04-F1",
+            "type": "single_select",
+            "label": "Why should cost allocation include CPU-hours AND memory-GB-hours (not just one)?",
+            "options": [
+              "CPU-hours alone is sufficient \u2014 memory correlates with CPU",
+              "Different workloads have different CPU/memory ratios. ML training is memory-heavy (32 GB executor, low CPU). ETL is CPU-heavy (8 GB, high CPU). Charging only CPU would under-charge ML and over-charge ETL. Both dimensions ensure fairness.",
+              "Memory is free \u2014 only CPU should be charged",
+              "Neither dimension matters \u2014 charge per pipeline run"
+            ],
+            "correctAnswer": "Different workloads have different CPU/memory ratios. ML training is memory-heavy (32 GB executor, low CPU). ETL is CPU-heavy (8 GB, high CPU). Charging only CPU would under-charge ML and over-charge ETL. Both dimensions ensure fairness."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, round as spark_round, lit\n\nspark = SparkSession.builder.appName('nordgrid-chargeback').master('local[*]').getOrCreate()\n\ndf_usage = spark.read.csv('PX8_data_team_usage.csv', header=True, inferSchema=True)\n\n# Team budgets (annual)\nbudgets = {'platform-core': 85000, 'ingestion-no': 42000, 'transform-no': 55000,\n           'analytics-no': 28000, 'ingestion-se': 38000, 'transform-se': 45000,\n           'ingestion-fi': 22000, 'ml-platform': 65000}\n\n# YOUR SOLUTION BELOW\n# 1. Aggregate usage per team for the month\n# 2. Compute direct_cost = cpu_hours*0.10 + memory_gb_hours*0.02 + storage_tb*0.05\n# 3. Compute total direct cost, then overhead_share = total*0.20/8\n# 4. total_cost = direct_cost + overhead_share\n# 5. Add monthly_budget = annual_budget / 12\n# 6. Add budget_status: 'over' if total_cost > monthly_budget, else 'under'\n# Store in 'chargeback'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('Monthly Chargeback Report:')\nchargeback.orderBy(col('total_cost').desc()).show()\nover = chargeback.filter(col('budget_status') == 'over').count()\nprint(f'Teams over budget: {over}')"
+      },
+      "assertions": [
+        {
+          "id": "PX8-04-A1",
+          "description": "chargeback has 8 rows",
+          "check": "chargeback.count() == 8"
+        },
+        {
+          "id": "PX8-04-A2",
+          "description": "Has cost columns",
+          "check": "all(c in chargeback.columns for c in ['team_name', 'direct_cost', 'total_cost', 'budget_status'])"
+        },
+        {
+          "id": "PX8-04-A3",
+          "description": "All teams have overhead share",
+          "check": "chargeback.filter(col('overhead_share') > 0).count() == 8"
+        },
+        {
+          "id": "PX8-04-A4",
+          "description": "ml-platform has highest direct cost (due to spike)",
+          "check": "chargeback.orderBy(col('direct_cost').desc()).first()['team_name'] == 'ml-platform' or chargeback.orderBy(col('direct_cost').desc()).first()['team_name'] == 'platform-core'"
+        },
+        {
+          "id": "PX8-04-A5",
+          "description": "Budget status column exists with over/under values",
+          "check": "set(r.budget_status for r in chargeback.select('budget_status').distinct().collect()).issubset({'over', 'under'})"
+        }
+      ],
+      "partialCredit": "Template (35%): 1 field. Code (65%): 5 assertions."
+    },
+    {
+      "id": "module-PX8-task-05",
+      "title": "Design NordGrid\u2019s Multi-Tenant Governance Policy",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 22,
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
+      "description": {
+        "context": "NordGrid\u2019s CTO has approved resource pools (Task 2) and chargeback (Task 4). The platform team must now produce the complete multi-tenant governance policy: resource pools, quotas, priority rules, cost allocation, SLA monitoring, escalation process, and capacity review cadence.",
+        "task": "Produce the governance policy as a structured DataFrame. Each row is one policy rule. The rules must form a coherent system: resource pools enforce isolation, chargeback provides incentives, SLA monitoring detects violations, and the escalation process resolves incidents.",
+        "validationHint": "The policy must prevent another March 15-17 incident. Test by tracing the scenario: if ml-platform spikes again, does the policy (1) cap ML at its max share, (2) preempt ML for critical jobs, (3) alert on-call, and (4) charge ML for the excess?"
+      },
+      "evidence": {
+        "type": "approved_decisions",
+        "content": "Approved from Tasks 1-4:\n- Resource pools by SLA tier with preemption\n- ML capped at 40% of cluster\n- Critical pool gets preemption rights\n- Chargeback based on CPU-hours + memory-GB-hours + storage + overhead\n- Finland on separate cluster (sovereignty)\n- Cost visibility via monthly reports"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX8-05-F1",
+            "type": "single_select",
+            "label": "What happens when ml-platform exceeds its 40% cap?",
+            "options": [
+              "ML jobs are immediately killed",
+              "ML jobs are queued until resources become available within the 40% cap. If critical/high pools need resources, ML jobs above the cap are preempted (gracefully terminated with checkpoint) to free resources. ML is charged for all consumed resources including the excess.",
+              "Nothing \u2014 the cap is advisory only",
+              "ML is billed at 2x rate for excess usage"
+            ],
+            "correctAnswer": "ML jobs are queued until resources become available within the 40% cap. If critical/high pools need resources, ML jobs above the cap are preempted (gracefully terminated with checkpoint) to free resources. ML is charged for all consumed resources including the excess."
+          },
+          {
+            "id": "PX8-05-F2",
+            "type": "single_select",
+            "label": "How often should the platform team review capacity and pool allocations?",
+            "options": [
+              "Only after incidents",
+              "Quarterly capacity review: examine 3 months of usage data, adjust pool min/max shares based on actual demand trends, review chargeback accuracy, and plan for growth. Annual budget review aligns pool sizes with team budgets.",
+              "Daily \u2014 continuous optimization",
+              "Never \u2014 set once and forget"
+            ],
+            "correctAnswer": "Quarterly capacity review: examine 3 months of usage data, adjust pool min/max shares based on actual demand trends, review chargeback accuracy, and plan for growth. Annual budget review aligns pool sizes with team budgets."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-governance').master('local[*]').getOrCreate()\n\n# YOUR SOLUTION BELOW\n# Produce multi-tenant governance policy as DataFrame.\n# Each row = one policy rule.\n# Required columns: rule_id, category, rule_text,\n#   enforcement_method, responsible_team, review_frequency\n# Categories: resource_pools, quotas, priority, cost_allocation,\n#   sla_monitoring, escalation, capacity_review\n# Minimum 10 rules.\n# Store in 'governance'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('Multi-Tenant Governance Policy:')\ngovernance.show(truncate=False)\nprint(f'Total rules: {governance.count()}')\nprint(f'Categories: {[r.category for r in governance.select(\"category\").distinct().collect()]}')"
+      },
+      "assertions": [
+        {
+          "id": "PX8-05-A1",
+          "description": "At least 10 rules",
+          "check": "governance.count() >= 10"
+        },
+        {
+          "id": "PX8-05-A2",
+          "description": "Has required columns",
+          "check": "all(c in governance.columns for c in ['rule_id', 'category', 'rule_text', 'enforcement_method'])"
+        },
+        {
+          "id": "PX8-05-A3",
+          "description": "At least 5 categories covered",
+          "check": "governance.select('category').distinct().count() >= 5"
+        },
+        {
+          "id": "PX8-05-A4",
+          "description": "Includes escalation rules",
+          "check": "governance.filter(col('category') == 'escalation').count() >= 1"
+        },
+        {
+          "id": "PX8-05-A5",
+          "description": "Includes SLA monitoring rules",
+          "check": "governance.filter(col('category') == 'sla_monitoring').count() >= 1"
+        }
+      ],
+      "partialCredit": "Template (55%): 2 fields. Code (45%): 5 assertions.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Noisy-neighbor diagnosis and structural root causes (Task 1, Lessons 1-2)",
+          "Resource pool design with min/max/weight/preemption (Task 2, Lessons 3-4)",
+          "Cluster isolation models and cost-benefit (Task 3, Lessons 5-6, PX1)",
+          "Cost allocation and chargeback (Task 4, Lessons 7-8, PX1)",
+          "SLA monitoring and escalation process (Lessons 9-10, PM6-7)",
+          "Capacity review cadence (Lesson 10)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This capstone produces NordGrid\u2019s complete multi-tenant governance policy. The student must design rules that form a coherent system: pools enforce isolation, chargeback provides incentives, monitoring detects violations, and escalation resolves incidents. The litmus test: trace the March 15-17 incident through the policy and verify that every failure point is now addressed."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "tradeOffsGenuinelyCompeting": true,
+    "scaleMatters": "8 teams competing for one cluster. Governance, pools, and chargeback are meaningless for a single team.",
+    "theoryPracticeBoundary": "Theory teaches resource management concepts. Practice requires designing a governance system that prevents a specific historical incident and creating operational policies other teams follow."
+  }
+}

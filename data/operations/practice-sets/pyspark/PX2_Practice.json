@@ -1,0 +1,441 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 2 \u2014 Advanced Partitioning and Bucketing",
+  "description": "Design NordGrid's table storage strategy at platform scale: evaluate bucketing vs partitioning for high-frequency joins, select partition columns for cross-country data, diagnose and fix file-size distributions, plan a zero-downtime partition migration, and produce platform-wide table format standards.",
+  "version": "authored 2026-04-06, targets PySpark 3.5+ / Delta Lake 3.x",
+  "metadata": {
+    "moduleId": "module-PX2",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 88,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "3.2M meters, 24 regions, 3 countries, 100 tables, 8 teams",
+    "modulePhase": "scaling_patterns",
+    "taskTypeMix": {
+      "tradeOffAnalysis": 2,
+      "designReview": 1,
+      "designArtifact": 1,
+      "architecturalSynthesis": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PX2_data_table_catalog",
+      "file": "PX2_data_table_catalog.csv",
+      "description": "NordGrid's 100-table catalog with metadata: layer, format, partition columns, row count, file count, average file size, query patterns, daily query count, and owner team. 75 tables have avg file size < 10 MB (small-file problem). 19 tables have > 1000 files.",
+      "usedByTasks": [
+        "module-PX2-task-01",
+        "module-PX2-task-02",
+        "module-PX2-task-03",
+        "module-PX2-task-04",
+        "module-PX2-task-05"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PX2-task-01",
+      "title": "Evaluate Bucketing vs Partitioning for NordGrid's Core Join",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 17,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's most frequent operation is joining Silver readings (3.2M rows/day, partitioned by date) with the meters reference table (200K rows, not partitioned) on meter_id. This join runs 50 times daily across 12 Gold pipelines. Each execution shuffles ~4 GB. The platform team is evaluating whether bucketing the Silver table by meter_id would eliminate the shuffle for this join.",
+        "task": "Evaluate three options: (A) current approach (partition by date, shuffle on every join), (B) bucket Silver by meter_id with 256 buckets (eliminates join shuffle but increases write cost), (C) bucket BOTH tables by meter_id with 256 buckets (eliminates shuffle and enables sort-merge without sort). Consider write cost, read cost, join cost, and maintenance complexity.",
+        "validationHint": "Bucketing trades write-time cost (sorting into buckets) for read-time savings (no shuffle on join). The break-even depends on how many times the table is read vs written. Silver is written once/day but joined 50 times/day."
+      },
+      "evidence": {
+        "type": "combined",
+        "currentCost": {
+          "label": "Current join cost (no bucketing)",
+          "content": "Silver readings: 3.2M rows, partitioned by date, 4 GB/day\nMeters reference: 200K rows, not partitioned, 50 MB\n\nEach join:\n  Shuffle Silver: 4 GB (both sides shuffled by meter_id)\n  Shuffle meters: 50 MB\n  Join duration: 3.2 minutes\n  50 joins/day: 160 minutes total join time, 200 GB total shuffle volume"
+        },
+        "bucketingCost": {
+          "label": "Bucketing overhead estimates",
+          "content": "Writing 256 buckets:\n  Sort overhead: +40% write time (sorting 3.2M rows by meter_id before writing)\n  Current Silver write: 2 minutes \u2192 bucketed write: 2.8 minutes (+0.8 min)\n  File count: 256 files per date partition (vs current ~16)\n  Small-file risk: 4 GB / 256 buckets = 15.6 MB per file (acceptable, above 10 MB threshold)\n\nBucketed join:\n  No shuffle needed (pre-sorted by meter_id, same bucket count)\n  Join duration: 0.8 minutes (vs 3.2 minutes unbucketed)\n  50 joins/day: 40 minutes total (vs 160 minutes), 0 GB shuffle"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX2-01-F1",
+            "type": "single_select",
+            "label": "What is the daily time savings of bucketing Silver by meter_id?",
+            "options": [
+              "No savings \u2014 the bucketing write overhead equals the join savings",
+              "~119 minutes net savings: 120 min saved on joins (160 \u2192 40) minus 0.8 min extra write time. Plus 200 GB/day eliminated shuffle I/O.",
+              "~40 minutes savings: bucketed joins are 40 min vs 160 min unbucketed",
+              "Negative \u2014 bucketing makes things slower due to more files"
+            ],
+            "correctAnswer": "~119 minutes net savings: 120 min saved on joins (160 \u2192 40) minus 0.8 min extra write time. Plus 200 GB/day eliminated shuffle I/O.",
+            "distractorRationale": "The write overhead is 0.8 min/day. The join savings are 120 min/day (50 joins \u00d7 2.4 min each). The net is overwhelmingly positive because the table is written once but read 50 times."
+          },
+          {
+            "id": "PX2-01-F2",
+            "type": "single_select",
+            "label": "Which option do you recommend?",
+            "options": [
+              "Option A (no bucketing) \u2014 simplicity is worth the shuffle cost",
+              "Option B (bucket Silver only) \u2014 eliminates shuffle on the large side; meters_ref is small enough to broadcast anyway",
+              "Option C (bucket both tables) \u2014 enables sort-merge join without sort, fastest possible join",
+              "Option B is the best balance: bucketing Silver eliminates the 4 GB shuffle (the expensive side), and the 50 MB meters table is small enough to broadcast regardless. Bucketing both adds complexity for the reference table's 50 MB with minimal additional benefit."
+            ],
+            "correctAnswer": "Option B is the best balance: bucketing Silver eliminates the 4 GB shuffle (the expensive side), and the 50 MB meters table is small enough to broadcast regardless. Bucketing both adds complexity for the reference table's 50 MB with minimal additional benefit.",
+            "secondaryCorrectAnswer": "Option C (bucket both tables) \u2014 enables sort-merge join without sort, fastest possible join",
+            "distractorRationale": "Both B and C are defensible. B is pragmatic: the meters table is small enough that broadcast eliminates its shuffle cheaply. C is technically optimal but adds bucketing maintenance to the reference table for marginal gain. The answer depends on whether the team optimizes for simplicity (B) or maximum performance (C)."
+          },
+          {
+            "id": "PX2-01-F3",
+            "type": "single_select",
+            "label": "What is the key principle this scenario illustrates about bucketing decisions?",
+            "options": [
+              "Always bucket every table for fastest joins",
+              "Never bucket \u2014 the write overhead is never worth it",
+              "Bucket when the write-once-read-many ratio is high. The higher the read/write ratio, the more the amortized write cost is offset by per-read savings. NordGrid's 50:1 ratio makes bucketing clearly worthwhile.",
+              "Bucket only tables larger than 10 GB"
+            ],
+            "correctAnswer": "Bucket when the write-once-read-many ratio is high. The higher the read/write ratio, the more the amortized write cost is offset by per-read savings. NordGrid's 50:1 ratio makes bucketing clearly worthwhile."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX2-task-02",
+      "title": "Design Partition Strategy for Cross-Country Data",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 17,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's Silver readings table must serve 3 countries \u00d7 8 regions each \u00d7 365 days of data. The potential partition space is enormous: partitionBy('country', 'region', 'date') = 3 \u00d7 8 \u00d7 365 = 8,760 directories per year. At 4 files per partition, that is 35,040 files. The platform team must choose a partition strategy that balances partition pruning benefit against the small-files problem.",
+        "task": "Evaluate four partition strategies against NordGrid's query patterns (80% filter by country+date, 15% filter by region+date, 5% full scans). Consider file count, pruning effectiveness, and maintenance complexity.",
+        "validationHint": "The rule of thumb: total partition directories should stay under 10,000 per table. Beyond that, file metadata overhead dominates. Fewer partition columns means larger files but less precise pruning."
+      },
+      "evidence": {
+        "type": "combined",
+        "queryPatterns": {
+          "label": "Query pattern distribution (from audit log)",
+          "content": "Pattern                           | Frequency | Example\ncountry + date filter             | 80%       | WHERE country='norway' AND date='2026-03-15'\nregion + date filter              | 15%       | WHERE region='NORTH_COAST' AND date BETWEEN ...\nfull table scan                   | 5%        | SELECT * (ML feature extraction)"
+        },
+        "options": {
+          "label": "Four partition strategy options",
+          "content": "Option A: partitionBy('country', 'region', 'date')\n  Directories: 8,760/year (3\u00d78\u00d7365)\n  Files: ~35,040/year (4 per partition)\n  Pruning: excellent for all query patterns\n  Risk: small files (avg 4.5 MB per file at 3.2M rows/day)\n\nOption B: partitionBy('country', 'date')\n  Directories: 1,095/year (3\u00d7365)\n  Files: ~4,380/year (4 per partition)\n  Pruning: excellent for 80% of queries, moderate for region queries\n  Risk: low (avg 36 MB per file)\n\nOption C: partitionBy('date')\n  Directories: 365/year\n  Files: ~1,460/year (4 per partition)\n  Pruning: good for date queries, no pruning for country or region\n  Risk: very low (avg 108 MB per file)\n\nOption D: partitionBy('country') + Z-ORDER BY (date, region)\n  Directories: 3/year (one per country)\n  Files: ~360/year (accumulate within each country directory)\n  Pruning: country-level partition pruning + date/region skipping via Z-ORDER\n  Risk: requires Delta Lake; Z-ORDER maintenance cost"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX2-02-F1",
+            "type": "single_select",
+            "label": "Which option should be eliminated first?",
+            "options": [
+              "Option A \u2014 8,760 directories/year with 4.5 MB avg file size is a severe small-files problem that degrades scan performance for the 5% full-scan ML queries",
+              "Option C \u2014 no country pruning, so 80% of queries scan 3x more data than needed",
+              "Option D \u2014 Z-ORDER is too complex to maintain",
+              "Option B \u2014 1,095 directories is still too many"
+            ],
+            "correctAnswer": "Option A \u2014 8,760 directories/year with 4.5 MB avg file size is a severe small-files problem that degrades scan performance for the 5% full-scan ML queries",
+            "distractorRationale": "Option A exceeds the 10,000 directory guideline within 14 months and produces 4.5 MB files well below the 128 MB target. While it provides the best pruning, the file overhead dominates. Option C is suboptimal but not dangerous. Option D is a valid advanced strategy."
+          },
+          {
+            "id": "PX2-02-F2",
+            "type": "single_select",
+            "label": "Which option do you recommend?",
+            "options": [
+              "Option B: partitionBy('country', 'date') \u2014 covers the 80% query pattern perfectly with 1,095 directories/year and 36 MB avg files. Region queries scan 8x more data within a country-date partition but this affects only 15% of queries.",
+              "Option D: partitionBy('country') + Z-ORDER BY (date, region) \u2014 fewest directories, Z-ORDER provides data skipping for date and region within each country partition. Best long-term strategy if Delta Lake is adopted.",
+              "Option C: partitionBy('date') \u2014 simplest, largest files, good enough for date-only queries",
+              "Both B and D are defensible \u2014 B for Parquet tables (simpler), D for Delta tables (Z-ORDER requires Delta). The choice depends on the table's format."
+            ],
+            "correctAnswer": "Both B and D are defensible \u2014 B for Parquet tables (simpler), D for Delta tables (Z-ORDER requires Delta). The choice depends on the table's format.",
+            "secondaryCorrectAnswer": "Option B: partitionBy('country', 'date') \u2014 covers the 80% query pattern perfectly with 1,095 directories/year and 36 MB avg files. Region queries scan 8x more data within a country-date partition but this affects only 15% of queries."
+          },
+          {
+            "id": "PX2-02-F3",
+            "type": "single_select",
+            "label": "NordGrid has both Parquet and Delta tables. How should the partition standard differ between formats?",
+            "options": [
+              "No difference \u2014 use the same partition strategy for both",
+              "Parquet tables: partitionBy('country', 'date') for directory-level pruning. Delta tables: partitionBy('country') + Z-ORDER BY (date, region) for finer-grained skipping with fewer directories. Delta's OPTIMIZE compacts small files automatically.",
+              "Delta tables should not be partitioned at all \u2014 Z-ORDER replaces partitioning",
+              "Parquet tables should use more partition columns because they lack Z-ORDER"
+            ],
+            "correctAnswer": "Parquet tables: partitionBy('country', 'date') for directory-level pruning. Delta tables: partitionBy('country') + Z-ORDER BY (date, region) for finer-grained skipping with fewer directories. Delta's OPTIMIZE compacts small files automatically."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX2-task-03",
+      "title": "Diagnose NordGrid's File Size Distribution",
+      "type": "design_review",
+      "estimatedMinutes": 17,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's platform team runs a monthly health check on the table catalog. This month's report shows that 75 of 100 tables have average file sizes below 10 MB \u2014 well below the 128\u2013256 MB target. 19 tables have more than 1,000 files. The team needs to identify the root causes, rank the tables by severity, and design a remediation plan.",
+        "task": "Examine the table catalog summary below. Identify the three root causes of the small-file problem, rank the 5 worst-affected tables by impact (considering daily query count and file count), and recommend the fix for each root cause.",
+        "validationHint": "Small files come from: (1) too many partition columns creating many tiny partitions, (2) streaming microbatches writing small files per trigger, (3) daily MERGE operations that add files without compaction. The fix differs for each cause."
+      },
+      "evidence": {
+        "type": "combined",
+        "catalogSummary": {
+          "label": "Table catalog health summary",
+          "content": "File Size Distribution (100 tables):\n  < 1 MB avg:     28 tables (worst offenders)\n  1-10 MB avg:    47 tables\n  10-50 MB avg:   15 tables\n  50-128 MB avg:  6 tables\n  128-256 MB avg: 3 tables (healthy)\n  > 256 MB avg:   1 table\n\nTop 5 worst tables by file count:\n  TBL-0045: silver.readings_norway  | 12,400 files | 0.8 MB avg | partition: region,date | 180 queries/day\n  TBL-0023: silver.readings_sweden  | 9,800 files  | 1.2 MB avg | partition: region,date | 150 queries/day\n  TBL-0078: gold.billing_finland    | 8,200 files  | 0.3 MB avg | partition: none        | 95 queries/day | format: delta (daily MERGE)\n  TBL-0091: silver.turbines_norway  | 5,600 files  | 2.1 MB avg | partition: date        | 40 queries/day | format: delta (streaming)\n  TBL-0012: bronze.weather_sweden   | 4,100 files  | 0.5 MB avg | partition: date        | 10 queries/day"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX2-03-F1",
+            "type": "single_select",
+            "label": "What causes TBL-0045 (12,400 files, 0.8 MB avg)?",
+            "options": [
+              "The table is too large for the cluster to compact",
+              "partitionBy('region', 'date') creates too many directories: 8 regions \u00d7 365+ days = 2,920+ partitions. With multiple files per partition, the file count explodes and each file is tiny.",
+              "The format is CSV which cannot be compacted",
+              "The table has too many columns"
+            ],
+            "correctAnswer": "partitionBy('region', 'date') creates too many directories: 8 regions \u00d7 365+ days = 2,920+ partitions. With multiple files per partition, the file count explodes and each file is tiny."
+          },
+          {
+            "id": "PX2-03-F2",
+            "type": "single_select",
+            "label": "What causes TBL-0078 (8,200 files, 0.3 MB avg, Delta with daily MERGE)?",
+            "options": [
+              "Delta Lake writes are always small",
+              "Each MERGE operation adds new files without removing old ones. Over months, the file count accumulates. Without regular OPTIMIZE, the table becomes a collection of thousands of tiny files from individual MERGE writes.",
+              "The table is not partitioned so all files are in one directory",
+              "The billing data is inherently small"
+            ],
+            "correctAnswer": "Each MERGE operation adds new files without removing old ones. Over months, the file count accumulates. Without regular OPTIMIZE, the table becomes a collection of thousands of tiny files from individual MERGE writes."
+          },
+          {
+            "id": "PX2-03-F3",
+            "type": "single_select",
+            "label": "What causes TBL-0091 (5,600 files, 2.1 MB avg, streaming Delta)?",
+            "options": [
+              "Streaming pipelines are inherently slow",
+              "Structured Streaming writes one file per microbatch trigger. With frequent triggers (e.g., every 30 seconds), the table accumulates thousands of small files over time. Each file is one microbatch's worth of data.",
+              "The turbine data has too many unique values",
+              "The date partitioning creates one partition per day which is too many"
+            ],
+            "correctAnswer": "Structured Streaming writes one file per microbatch trigger. With frequent triggers (e.g., every 30 seconds), the table accumulates thousands of small files over time. Each file is one microbatch's worth of data."
+          },
+          {
+            "id": "PX2-03-F4",
+            "type": "ordered_ranking",
+            "label": "Rank these 5 tables by remediation priority (highest first). Consider daily query count \u00d7 file count as the impact proxy.",
+            "options": [
+              "TBL-0045 (12,400 files \u00d7 180 queries = 2.23M impact)",
+              "TBL-0023 (9,800 files \u00d7 150 queries = 1.47M impact)",
+              "TBL-0078 (8,200 files \u00d7 95 queries = 779K impact)",
+              "TBL-0091 (5,600 files \u00d7 40 queries = 224K impact)",
+              "TBL-0012 (4,100 files \u00d7 10 queries = 41K impact)"
+            ],
+            "correctOrder": [
+              "TBL-0045 (12,400 files \u00d7 180 queries = 2.23M impact)",
+              "TBL-0023 (9,800 files \u00d7 150 queries = 1.47M impact)",
+              "TBL-0078 (8,200 files \u00d7 95 queries = 779K impact)",
+              "TBL-0091 (5,600 files \u00d7 40 queries = 224K impact)",
+              "TBL-0012 (4,100 files \u00d7 10 queries = 41K impact)"
+            ],
+            "rationale": "Impact = file_count \u00d7 daily_queries approximates total file-open overhead per day. TBL-0045 has the highest combined impact. TBL-0012 has many files but few queries, so it's lowest priority."
+          },
+          {
+            "id": "PX2-03-F5",
+            "type": "single_select",
+            "label": "What is the fix for each root cause?",
+            "options": [
+              "Run OPTIMIZE on all tables \u2014 same fix for all causes",
+              "Over-partitioned (TBL-0045, 0023): reduce partition columns to partitionBy('country', 'date'). MERGE accumulation (TBL-0078): schedule daily OPTIMIZE after MERGE. Streaming (TBL-0091): schedule periodic OPTIMIZE or use trigger.once() for compaction runs. Low-priority (TBL-0012): compact during next maintenance window.",
+              "Drop all partitions and use Z-ORDER for everything",
+              "Increase executor memory to handle more files"
+            ],
+            "correctAnswer": "Over-partitioned (TBL-0045, 0023): reduce partition columns to partitionBy('country', 'date'). MERGE accumulation (TBL-0078): schedule daily OPTIMIZE after MERGE. Streaming (TBL-0091): schedule periodic OPTIMIZE or use trigger.once() for compaction runs. Low-priority (TBL-0012): compact during next maintenance window."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX2-task-04",
+      "title": "Plan a Zero-Downtime Partition Migration",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 35,
+        "code": 65
+      },
+      "description": {
+        "context": "NordGrid's Silver readings table must migrate from partitionBy('date') to partitionBy('country', 'date') to support the new cross-country query patterns. The table has 365 date partitions with 3.2M rows each (1.17B total rows). The migration must be zero-downtime: the 50 daily Gold pipelines that read Silver cannot be disrupted. The team needs a phased migration plan.",
+        "task": "Design the migration plan as a structured DataFrame. Each row is one migration phase with its scope, duration estimate, validation criteria, and rollback strategy. The plan must address: how to handle the transition period where both old and new partitioning coexist, how to validate each phase before proceeding, and how to rollback if a phase fails.",
+        "validationHint": "A common pattern: write new data to the new partition scheme from Day 1, backfill old data in parallel, switch readers to the new path once backfill is validated, remove the old data after a grace period."
+      },
+      "evidence": {
+        "type": "migration_context",
+        "label": "Migration requirements",
+        "content": "Source: silver/readings/ partitioned by date (365 partitions, 1.17B rows)\nTarget: silver/readings_v2/ partitioned by country, date\nConstraints:\n  - 50 Gold pipelines read Silver every day; cannot tolerate > 5 min downtime\n  - Backfill 365 days at ~10 min/day = 61 hours total backfill compute\n  - Cluster spare capacity: 20% during 08:00-18:00\n  - Must validate row counts + checksums per date before switching readers\n  - Rollback: readers must be able to switch back to old path within 1 minute"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX2-04-F1",
+            "type": "single_select",
+            "label": "What migration pattern minimizes reader disruption?",
+            "options": [
+              "Big bang: rewrite all 365 partitions in one job, then switch all readers simultaneously",
+              "Dual-write: from Day 1, the Silver pipeline writes to BOTH old and new paths. Backfill old data to the new path in parallel. Switch readers one at a time to the new path. Remove old path after grace period.",
+              "Shadow copy: copy the entire table to the new path, then switch all readers",
+              "In-place migration: rewrite partitions one by one in the existing directory"
+            ],
+            "correctAnswer": "Dual-write: from Day 1, the Silver pipeline writes to BOTH old and new paths. Backfill old data to the new path in parallel. Switch readers one at a time to the new path. Remove old path after grace period."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import lit\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-partition-migration-plan') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# YOUR SOLUTION BELOW\n# Produce a migration plan as a DataFrame.\n# Each row = one phase of the migration.\n# Required columns: phase_number, phase_name, description, \n#   estimated_duration, validation_criteria, rollback_strategy\n# Minimum 5 phases: enable dual-write, backfill, validate, switch readers, cleanup\n# Store in 'migration_plan'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(\"NordGrid Partition Migration Plan:\")\nmigration_plan.show(truncate=False)"
+      },
+      "assertions": [
+        {
+          "id": "PX2-04-A1",
+          "description": "migration_plan has at least 5 phases",
+          "check": "migration_plan.count() >= 5"
+        },
+        {
+          "id": "PX2-04-A2",
+          "description": "Has required columns",
+          "check": "all(c in migration_plan.columns for c in ['phase_number', 'phase_name', 'description', 'validation_criteria', 'rollback_strategy'])"
+        },
+        {
+          "id": "PX2-04-A3",
+          "description": "Includes a dual-write or parallel-write phase",
+          "check": "True"
+        },
+        {
+          "id": "PX2-04-A4",
+          "description": "Includes a validation phase before switching readers",
+          "check": "True"
+        }
+      ],
+      "partialCredit": "Template (35%): 1 field. Code (65%): 4 assertions."
+    },
+    {
+      "id": "module-PX2-task-05",
+      "title": "Design NordGrid's Platform Table Format Standards",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 19,
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
+      "description": {
+        "context": "NordGrid's platform team is producing a standards document that governs how every table across the 100-table catalog is stored. The standards must specify: which tables should use partitioning vs bucketing, target file sizes per layer, Z-ORDER column selection criteria, OPTIMIZE scheduling per table type, and naming conventions for partition columns. The standards will be enforced through automated validation in the CI/CD pipeline.",
+        "task": "First, design the standards rules using the table catalog data (which layers get which treatment). Then produce the standards as a structured DataFrame where each row is one rule. The rules must be specific enough for automated enforcement.",
+        "validationHint": "Good standards are specific: 'Silver tables with > 1M rows and join-pattern queries SHOULD be bucketed by the join key with 128\u2013512 buckets' not 'consider bucketing for large tables.'"
+      },
+      "evidence": {
+        "type": "catalog_summary",
+        "label": "Table catalog summary by layer",
+        "content": "Layer    | Tables | Avg Rows    | Dominant Format | Dominant Query Pattern\nBronze   | 26     | 2.2M        | CSV (60%)       | scan:full (ingestion)\nSilver   | 37     | 4.8M        | Parquet/Delta   | filter:country,date (45%) + join:meter_id (30%)\nGold     | 24     | 82K         | Delta (70%)     | filter:region (40%) + filter:country (35%)\nPlatinum | 13     | 680K        | Delta (100%)    | scan:full (ML feature extraction)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX2-05-F1",
+            "type": "single_select",
+            "label": "Should Bronze tables be partitioned?",
+            "options": [
+              "Yes \u2014 partitionBy('date') for all Bronze tables to enable date-based ingestion",
+              "Minimal partitioning \u2014 partitionBy('date') for tables > 1M rows/day; no partitioning for smaller tables. Bronze preserves raw format so heavy partitioning is inappropriate.",
+              "No \u2014 Bronze should never be partitioned",
+              "Yes \u2014 partitionBy('country', 'date') to match Silver"
+            ],
+            "correctAnswer": "Minimal partitioning \u2014 partitionBy('date') for tables > 1M rows/day; no partitioning for smaller tables. Bronze preserves raw format so heavy partitioning is inappropriate."
+          },
+          {
+            "id": "PX2-05-F2",
+            "type": "single_select",
+            "label": "What is the target file size range, and should it differ by layer?",
+            "options": [
+              "128 MB for all layers \u2014 one standard simplifies governance",
+              "Bronze: 64\u2013256 MB (flexible, raw data). Silver: 128\u2013256 MB (optimized for repeated reads). Gold: 32\u2013128 MB (smaller tables, fewer files needed). Platinum: 128\u2013256 MB (ML reads benefit from larger files for sequential scan).",
+              "1 GB for all layers \u2014 fewer files is always better",
+              "No target \u2014 let Spark decide file sizes based on partition count"
+            ],
+            "correctAnswer": "Bronze: 64\u2013256 MB (flexible, raw data). Silver: 128\u2013256 MB (optimized for repeated reads). Gold: 32\u2013128 MB (smaller tables, fewer files needed). Platinum: 128\u2013256 MB (ML reads benefit from larger files for sequential scan)."
+          },
+          {
+            "id": "PX2-05-F3",
+            "type": "single_select",
+            "label": "Which Silver tables should be bucketed?",
+            "options": [
+              "All Silver tables \u2014 bucketing is always beneficial",
+              "Silver tables with join-pattern queries (30% of Silver tables) AND daily query count > 20. Bucketing adds write cost, so it's only worthwhile when the table is read frequently via joins. The bucket key should match the join key (usually meter_id).",
+              "No Silver tables \u2014 bucketing is too complex to maintain",
+              "Only the largest Silver table"
+            ],
+            "correctAnswer": "Silver tables with join-pattern queries (30% of Silver tables) AND daily query count > 20. Bucketing adds write cost, so it's only worthwhile when the table is read frequently via joins. The bucket key should match the join key (usually meter_id)."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-table-standards') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_catalog = spark.read.csv('PX2_data_table_catalog.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Produce a standards document as a DataFrame.\n# Each row = one rule for table storage.\n# Required columns: rule_id, layer, applies_to, standard, rationale\n# Minimum 8 rules covering: partitioning, bucketing, file size, Z-ORDER,\n# OPTIMIZE schedule, format choice, naming conventions\n# Store in 'standards'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(\"NordGrid Table Format Standards:\")\nstandards.show(truncate=False)\nprint(f\"Total rules: {standards.count()}\")"
+      },
+      "assertions": [
+        {
+          "id": "PX2-05-A1",
+          "description": "standards has at least 8 rules",
+          "check": "standards.count() >= 8"
+        },
+        {
+          "id": "PX2-05-A2",
+          "description": "Has required columns",
+          "check": "all(c in standards.columns for c in ['rule_id', 'layer', 'standard', 'rationale'])"
+        },
+        {
+          "id": "PX2-05-A3",
+          "description": "Covers at least 3 different layers",
+          "check": "standards.select('layer').distinct().count() >= 3"
+        },
+        {
+          "id": "PX2-05-A4",
+          "description": "At least one rule mentions bucketing",
+          "check": "standards.filter(col('standard').contains('bucket')).count() >= 1"
+        }
+      ],
+      "partialCredit": "Template (55%): 3 fields. Code (45%): 4 assertions.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Bucketing vs partitioning trade-offs (Task 1, Lessons 1-3)",
+          "Partition column selection for multi-country data (Task 2, Lessons 4-5)",
+          "File size diagnosis and root cause classification (Task 3, Lessons 6-7)",
+          "Z-ORDER strategy for Delta tables (Task 2, Lessons 5, 8)",
+          "OPTIMIZE scheduling per table type (Task 3, Lesson 9)",
+          "Standards that are specific enough for automated enforcement (Lesson 10)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This capstone produces a reusable platform artifact: a standards document that every team follows when creating new tables. The student must synthesize all partitioning, bucketing, and file-management concepts into rules that are specific enough for a CI/CD check to enforce. This is the kind of output that distinguishes a senior engineer: not solving one table's problem, but designing the rules that prevent the class of problems across 100 tables."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "tradeOffsGenuinelyCompeting": true,
+    "scaleMatters": "All decisions require 100-table, multi-country, multi-team context. A single-table decision would be mid-level.",
+    "designArtifactUsable": "The migration plan (Task 4) and table standards (Task 5) are artifacts that other engineers would consume and CI/CD would enforce.",
+    "acceptableRangesDocumented": true,
+    "theoryPracticeBoundary": "Theory teaches bucketing, partitioning, and Z-ORDER individually. Practice requires designing platform-wide standards that apply different strategies to different table types based on query patterns, file sizes, and format capabilities."
+  }
+}

@@ -1,0 +1,16 @@
+team_id,team_name,country,domain,headcount,pipeline_count,table_count,consumers,current_pain_points
+T-01,platform-core,norway,infrastructure,8,15,10,all teams,maintains shared infra; no ownership model for Silver tables
+T-02,ingestion-no,norway,ingestion,5,18,22,transform-no,raw data arrives in 3 formats; no schema registry
+T-03,transform-no,norway,transformation,6,22,28,analytics-no;billing-no,owns Norway Silver but other teams modify it without review
+T-04,analytics-no,norway,analytics,4,12,15,exec-dashboard;ops-no,Gold tables have no SLA; consumers complain about staleness
+T-05,billing-no,norway,billing,3,8,6,finance;regulatory-no,billing calculations must match regulatory definitions exactly
+T-06,ingestion-se,sweden,ingestion,4,14,18,transform-se,Sweden data uses different meter ID format than Norway
+T-07,transform-se,sweden,transformation,5,16,20,analytics-se;billing-se,wants autonomy from Norway platform team; blocked by shared Silver
+T-08,analytics-se,sweden,analytics,3,8,10,exec-dashboard;ops-se,cannot query Norway data without cross-country join overhead
+T-09,billing-se,sweden,billing,2,6,4,finance;regulatory-se,regulatory format differs from Norway; forced to use Norway schema
+T-10,ingestion-fi,finland,ingestion,3,10,14,transform-fi,Finland data sovereignty: must process within Finland region
+T-11,transform-fi,finland,transformation,4,12,16,analytics-fi;billing-fi,smallest team; wants to reuse Norway pipelines but schemas dont match
+T-12,analytics-fi,finland,analytics,2,6,8,exec-dashboard;ops-fi,no ML features pipeline; depends on Norway ml-platform
+T-13,billing-fi,finland,billing,2,5,3,finance;regulatory-fi,Finland regulatory requires different aggregation granularity
+T-14,ml-platform,norway,machine_learning,6,18,12,forecasting;asset-mgmt,ML features table has no versioning; model training breaks on schema changes
+T-15,exec-dashboard,norway,reporting,2,4,3,C-suite,cross-country reporting requires manual data merging

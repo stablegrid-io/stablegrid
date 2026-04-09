@@ -4,6 +4,8 @@ import { TheoryLayout } from '@/components/learn/theory/TheoryLayout';
 import { TheoryTrackPath } from '@/components/learn/theory/TheoryTrackPath';
 import { learnTopics } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
+import { getPracticeSets, getPracticeSet } from '@/data/operations/practice-sets';
+import { PracticeSetSession } from '@/app/operations/practice/[topic]/[level]/[modulePrefix]/PracticeSetViewer';
 import {
   filterTheoryDocByCategory,
   getChapterCategorySlug,
@@ -26,6 +28,7 @@ interface LearnTopicTheoryCategoryPageProps {
   searchParams?: {
     chapter?: string | string[];
     lesson?: string | string[];
+    practice?: string | string[];
   };
 }
 
@@ -67,6 +70,24 @@ export default async function LearnTopicTheoryCategoryPage({
   const track = getTheoryTrackBySlug(doc, categoryParam);
   if (track) {
     const trackDoc = getTheoryTrackDocBySlug(doc, categoryParam) ?? doc;
+
+    // Practice session view (?practice=module-XX)
+    const requestedPractice =
+      typeof searchParams?.practice === 'string'
+        ? searchParams.practice
+        : Array.isArray(searchParams?.practice)
+          ? searchParams.practice[0]
+          : null;
+
+    if (requestedPractice) {
+      const modulePrefix = requestedPractice.replace(/^module-/, '');
+      const practiceSet = getPracticeSet(params.topic, modulePrefix);
+      if (!practiceSet) {
+        notFound();
+      }
+      return <PracticeSetSession practiceSet={practiceSet} />;
+    }
+
     const requestedChapter =
       typeof searchParams?.chapter === 'string'
         ? searchParams.chapter
@@ -81,6 +102,18 @@ export default async function LearnTopicTheoryCategoryPage({
     const { completedChapterIds, chapterProgressById, moduleProgressById } =
       await loadServerTheoryProgress(trackDoc.topic);
 
+    // Load practice sets matching this topic + level
+    const allPracticeSets = getPracticeSets(params.topic);
+    const levelAliases: Record<string, string[]> = {
+      junior: ['junior'],
+      mid: ['mid', 'mid-level'],
+      senior: ['senior', 'senior-level'],
+    };
+    const matchLevels = levelAliases[categoryParam] ?? [categoryParam];
+    const levelPracticeSets = allPracticeSets.filter((s) =>
+      matchLevels.includes(s.metadata?.trackLevel ?? '')
+    );
+
     return (
       <TheoryTrackPath
         doc={trackDoc}
@@ -88,6 +121,8 @@ export default async function LearnTopicTheoryCategoryPage({
         completedChapterIds={completedChapterIds}
         chapterProgressById={chapterProgressById}
         moduleProgressById={moduleProgressById}
+        practiceSets={levelPracticeSets}
+        practiceBasePath={`/learn/${params.topic}/theory/${categoryParam}`}
       />
     );
   }

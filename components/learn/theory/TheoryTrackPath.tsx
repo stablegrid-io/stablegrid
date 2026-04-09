@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, Lock, Zap, MapPin, Cpu, Calendar } from 'lucide-react';
+import { ArrowLeft, Check, Lock, Zap, MapPin, Cpu, Calendar, FlaskConical, ArrowRight, Layers, Clock } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { getTrackConceptMeta } from '@/data/learn/theory/trackConceptMeta';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
@@ -14,6 +14,7 @@ import {
 } from '@/lib/learn/theoryTrackProgress';
 import type { TheoryDoc } from '@/types/theory';
 import type { TheoryTrackSummary } from '@/data/learn/theory/tracks';
+import type { PracticeSet } from '@/data/operations/practice-sets';
 import type {
   ServerTheoryChapterProgressSnapshot,
   ServerTheoryModuleProgressSnapshot
@@ -25,6 +26,10 @@ interface TheoryTrackPathProps {
   completedChapterIds: string[];
   chapterProgressById?: Record<string, ServerTheoryChapterProgressSnapshot>;
   moduleProgressById?: Record<string, ServerTheoryModuleProgressSnapshot>;
+  /** Practice sets to show after theory nodes in the same tree */
+  practiceSets?: PracticeSet[];
+  /** Base path for practice set links (e.g. /operations/practice/pyspark/junior) */
+  practiceBasePath?: string;
 }
 
 type ModuleStatus = 'completed' | 'active' | 'available' | 'locked';
@@ -94,7 +99,9 @@ export const TheoryTrackPath = ({
   track,
   completedChapterIds,
   chapterProgressById = {},
-  moduleProgressById = {}
+  moduleProgressById = {},
+  practiceSets = [],
+  practiceBasePath = '',
 }: TheoryTrackPathProps) => {
   const {
     completedChapterIds: liveCompletedChapterIds,
@@ -353,131 +360,231 @@ export const TheoryTrackPath = ({
             );
           })()}
 
+          {/* ── Dual Tree Maps ─────────────────────────────────────── */}
           <section className="mt-10">
-            <div className="relative mx-auto max-w-5xl flex flex-col items-center">
-              {/* Central data conduit */}
-              <div
-                className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px z-0"
-                aria-hidden="true"
-                style={{ background: `linear-gradient(to bottom, rgb(var(--theory-accent)), rgba(var(--theory-accent),0.4), transparent)` }}
-              />
+            <div className={`mx-auto max-w-6xl ${practiceSets.length > 0 ? 'grid grid-cols-1 lg:grid-cols-2 gap-8' : ''}`}>
 
-              <div className="space-y-0">
-                {moduleCards.map((card, index) => {
-                const isLeft = index % 2 !== 0;
-                const title = stripModulePrefix(card.module.title) || card.module.title;
-                const isCompleted = card.status === 'completed';
-                const isLocked = card.status === 'locked';
-                const nodeNumber = String(index + 1).padStart(2, '0');
-
-                const cardContent = (
-                  <div className={isLeft ? 'text-right' : ''}>
-                    <div className="font-mono text-[10px] mb-2" style={{ color: ta.color }}>
-                      [SKILL_NODE_{nodeNumber}]
-                    </div>
-                    <h3 className="font-headline text-lg font-bold mb-4 tracking-tight">
-                      {title}
-                    </h3>
-                    <div className={`flex items-center font-mono text-[11px] text-on-surface-variant gap-4 ${
-                      isLeft ? 'justify-end flex-row-reverse' : ''
-                    }`}>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[14px]">&#128214;</span>
-                        {card.lessonsDone}/{card.lessonsTotal} LESSONS
-                      </div>
-                      {card.module.totalMinutes > 0 && (
-                        <div className="flex items-center gap-1">
-                          <span className="text-[14px]">&#9201;</span>
-                          {card.module.totalMinutes} MIN
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-
-                return (
-                  <div key={card.module.id} className="relative w-full mb-20 flex justify-center">
-                    {/* Center node */}
-                    <div
-                      className="absolute left-1/2 -translate-x-1/2 top-10 w-8 h-8 bg-[#0c0e10] border-2 z-10 flex items-center justify-center"
-                      style={{
-                        borderColor: isCompleted ? ta.color : isLocked ? undefined : `rgba(${ta.rgb},0.5)`,
-                        boxShadow: isCompleted ? `0 0 15px rgba(${ta.rgb},0.5)` : undefined
-                      }}
-                    >
-                      {isCompleted ? (
-                        <div className="w-3 h-3" style={{ backgroundColor: ta.color }} />
-                      ) : isLocked ? (
-                        <Lock className="h-3 w-3 text-outline-variant" />
-                      ) : (
-                        <div className="w-2 h-2" style={{ backgroundColor: `rgba(${ta.rgb},0.6)` }} />
-                      )}
-                    </div>
-
-                    {/* Module card */}
-                    {isLocked ? (
-                      <div
-                        className={`relative w-full md:w-[320px] glass-panel border border-outline-variant/30 p-6 opacity-50 ${
-                          isLeft ? 'md:mr-[400px]' : 'md:ml-[400px]'
-                        }`}
-                      >
-                        {isLeft ? (
-                          <div className="hidden md:block absolute -right-3 top-8 w-3 h-px bg-outline-variant/40" />
-                        ) : (
-                          <div className="hidden md:block absolute -left-3 top-8 w-3 h-px bg-outline-variant/40" />
-                        )}
-                        {cardContent}
-                      </div>
-                    ) : (
-                      <Link
-                        href={card.href}
-                        className={`group relative w-full md:w-[320px] glass-panel border p-6 transition-all ${
-                          isCompleted ? '' : 'border-outline-variant/30'
-                        } ${isLeft ? 'md:mr-[400px]' : 'md:ml-[400px]'}`}
-                        style={{
-                          borderColor: isCompleted ? `rgba(${ta.rgb},0.3)` : undefined,
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = ta.color; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = isCompleted ? `rgba(${ta.rgb},0.3)` : ''; }}
-                      >
-                        {isLeft ? (
-                          <div className="hidden md:block absolute -right-3 top-8 w-3 h-px" style={{ backgroundColor: `rgba(${ta.rgb},0.4)` }} />
-                        ) : (
-                          <div className="hidden md:block absolute -left-3 top-8 w-3 h-px" style={{ backgroundColor: `rgba(${ta.rgb},0.4)` }} />
-                        )}
-                        {cardContent}
-                      </Link>
-                    )}
-                  </div>
-                );
-              })}
-              </div>
-
-              {/* Mastery Complete terminal node */}
-              <div className="relative w-full flex flex-col items-center mt-12">
-                <div
-                  className="w-16 h-16 border-4 flex items-center justify-center bg-[#0c0e10] z-10"
-                  style={{
-                    borderColor: overallProgressPct >= 100 ? ta.color : undefined,
-                    boxShadow: overallProgressPct >= 100 ? `0 0 30px rgba(${ta.rgb},0.3)` : undefined
-                  }}
-                >
-                  <Check className="h-8 w-8" style={{ color: overallProgressPct >= 100 ? ta.color : undefined }} />
+              {/* ── Theory Tree ──────────────────────────────────────── */}
+              <div className="relative flex flex-col items-center">
+                {/* Section label */}
+                <div className="flex items-center gap-2 mb-8">
+                  <Zap className="h-4 w-4" style={{ color: ta.color }} />
+                  <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ta.color }}>
+                    Theory
+                  </span>
+                  <span className="font-mono text-[11px] text-on-surface-variant/30">
+                    {modules.length} modules
+                  </span>
                 </div>
-                <div className="mt-6 text-center">
-                  <h4
-                    className={`font-headline text-xl font-black uppercase tracking-widest ${
-                      overallProgressPct >= 100 ? '' : 'text-outline-variant'
-                    }`}
-                    style={{ color: overallProgressPct >= 100 ? ta.color : undefined }}
+
+                {/* Conduit line */}
+                <div
+                  className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-12 bottom-0 w-px z-0"
+                  aria-hidden="true"
+                  style={{ background: `linear-gradient(to bottom, rgb(var(--theory-accent)), rgba(var(--theory-accent),0.4), transparent)` }}
+                />
+
+                <div className="space-y-0 w-full">
+                  {moduleCards.map((card, index) => {
+                  const isLeft = index % 2 !== 0;
+                  const title = stripModulePrefix(card.module.title) || card.module.title;
+                  const isCompleted = card.status === 'completed';
+                  const isLocked = card.status === 'locked';
+                  const nodeNumber = String(index + 1).padStart(2, '0');
+
+                  const cardContent = (
+                    <div className={isLeft ? 'text-right' : ''}>
+                      <div className="font-mono text-[10px] mb-2" style={{ color: ta.color }}>
+                        [SKILL_NODE_{nodeNumber}]
+                      </div>
+                      <h3 className="font-headline text-lg font-bold mb-4 tracking-tight">
+                        {title}
+                      </h3>
+                      <div className={`flex items-center font-mono text-[11px] text-on-surface-variant gap-4 ${
+                        isLeft ? 'justify-end flex-row-reverse' : ''
+                      }`}>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[14px]">&#128214;</span>
+                          {card.lessonsDone}/{card.lessonsTotal} LESSONS
+                        </div>
+                        {card.module.totalMinutes > 0 && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-[14px]">&#9201;</span>
+                            {card.module.totalMinutes} MIN
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+
+                  return (
+                    <div key={card.module.id} className="relative w-full mb-16 flex justify-center">
+                      {/* Center node */}
+                      <div
+                        className="absolute left-1/2 -translate-x-1/2 top-10 w-8 h-8 bg-[#0c0e10] border-2 z-10 flex items-center justify-center"
+                        style={{
+                          borderColor: isCompleted ? ta.color : isLocked ? undefined : `rgba(${ta.rgb},0.5)`,
+                          boxShadow: isCompleted ? `0 0 15px rgba(${ta.rgb},0.5)` : undefined
+                        }}
+                      >
+                        {isCompleted ? (
+                          <div className="w-3 h-3" style={{ backgroundColor: ta.color }} />
+                        ) : isLocked ? (
+                          <Lock className="h-3 w-3 text-outline-variant" />
+                        ) : (
+                          <div className="w-2 h-2" style={{ backgroundColor: `rgba(${ta.rgb},0.6)` }} />
+                        )}
+                      </div>
+
+                      {/* Module card */}
+                      {isLocked ? (
+                        <div
+                          className={`relative w-full md:w-[260px] glass-panel border border-outline-variant/30 p-5 opacity-50 ${
+                            isLeft ? 'md:mr-[300px]' : 'md:ml-[300px]'
+                          }`}
+                        >
+                          {isLeft ? (
+                            <div className="hidden md:block absolute -right-3 top-8 w-3 h-px bg-outline-variant/40" />
+                          ) : (
+                            <div className="hidden md:block absolute -left-3 top-8 w-3 h-px bg-outline-variant/40" />
+                          )}
+                          {cardContent}
+                        </div>
+                      ) : (
+                        <Link
+                          href={card.href}
+                          className={`group relative w-full md:w-[260px] glass-panel border p-5 transition-all ${
+                            isCompleted ? '' : 'border-outline-variant/30'
+                          } ${isLeft ? 'md:mr-[300px]' : 'md:ml-[300px]'}`}
+                          style={{
+                            borderColor: isCompleted ? `rgba(${ta.rgb},0.3)` : undefined,
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = ta.color; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = isCompleted ? `rgba(${ta.rgb},0.3)` : ''; }}
+                        >
+                          {isLeft ? (
+                            <div className="hidden md:block absolute -right-3 top-8 w-3 h-px" style={{ backgroundColor: `rgba(${ta.rgb},0.4)` }} />
+                          ) : (
+                            <div className="hidden md:block absolute -left-3 top-8 w-3 h-px" style={{ backgroundColor: `rgba(${ta.rgb},0.4)` }} />
+                          )}
+                          {cardContent}
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })}
+                </div>
+
+                {/* Theory mastery node */}
+                <div className="relative w-full flex flex-col items-center mt-8 mb-4">
+                  <div
+                    className="w-12 h-12 border-3 flex items-center justify-center bg-[#0c0e10] z-10"
+                    style={{
+                      borderColor: overallProgressPct >= 100 ? ta.color : undefined,
+                      boxShadow: overallProgressPct >= 100 ? `0 0 20px rgba(${ta.rgb},0.3)` : undefined
+                    }}
                   >
-                    Mastery Complete
-                  </h4>
-                  <p className="font-mono text-[10px] text-on-surface-variant mt-1">
-                    ALL NODES SYNCHRONIZED
+                    <Check className="h-6 w-6" style={{ color: overallProgressPct >= 100 ? ta.color : undefined }} />
+                  </div>
+                  <p className="mt-3 font-mono text-[10px] text-on-surface-variant/40 uppercase tracking-widest">
+                    {overallProgressPct >= 100 ? 'Theory Complete' : `${overallProgressPct}% Complete`}
                   </p>
                 </div>
               </div>
+
+              {/* ── Practice Tree ─────────────────────────────────────── */}
+              {practiceSets.length > 0 && (
+                <div className="relative flex flex-col items-center">
+                  {/* Section label */}
+                  <div className="flex items-center gap-2 mb-8">
+                    <FlaskConical className="h-4 w-4" style={{ color: ta.color }} />
+                    <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ta.color }}>
+                      Practice
+                    </span>
+                    <span className="font-mono text-[11px] text-on-surface-variant/30">
+                      {practiceSets.length} sets
+                    </span>
+                  </div>
+
+                  {/* Conduit line */}
+                  <div
+                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-12 bottom-0 w-px z-0"
+                    aria-hidden="true"
+                    style={{ background: `linear-gradient(to bottom, rgb(var(--theory-accent)), rgba(var(--theory-accent),0.4), transparent)` }}
+                  />
+
+                  <div className="space-y-0 w-full">
+                    {practiceSets.map((ps, psIdx) => {
+                      const isLeft = psIdx % 2 !== 0;
+                      const modulePrefix = ps.metadata?.moduleId?.replace('module-', '') ?? '';
+                      const taskCount = ps.tasks?.length ?? 0;
+                      const duration = ps.tasks?.reduce((s: number, t: { estimatedMinutes?: number }) => s + (t.estimatedMinutes ?? 0), 0) ?? 0;
+                      const nodeNumber = String(psIdx + 1).padStart(2, '0');
+
+                      return (
+                        <div key={ps.metadata.moduleId} className="relative w-full mb-16 flex justify-center">
+                          {/* Center node */}
+                          <div
+                            className="absolute left-1/2 -translate-x-1/2 top-10 w-8 h-8 bg-[#0c0e10] border-2 z-10 flex items-center justify-center"
+                            style={{ borderColor: `rgba(${ta.rgb},0.5)` }}
+                          >
+                            <FlaskConical className="h-3 w-3" style={{ color: `rgba(${ta.rgb},0.6)` }} />
+                          </div>
+
+                          {/* Practice set card */}
+                          <Link
+                            href={`${practiceBasePath}?practice=${ps.metadata?.moduleId ?? ''}`}
+                            className={`group relative w-full md:w-[260px] glass-panel border border-outline-variant/30 p-5 transition-all ${
+                              isLeft ? 'md:mr-[300px]' : 'md:ml-[300px]'
+                            }`}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = ta.color; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = ''; }}
+                          >
+                            {isLeft ? (
+                              <div className="hidden md:block absolute -right-3 top-8 w-3 h-px" style={{ backgroundColor: `rgba(${ta.rgb},0.4)` }} />
+                            ) : (
+                              <div className="hidden md:block absolute -left-3 top-8 w-3 h-px" style={{ backgroundColor: `rgba(${ta.rgb},0.4)` }} />
+                            )}
+                            <div className={isLeft ? 'text-right' : ''}>
+                              <div className="font-mono text-[10px] mb-2" style={{ color: ta.color }}>
+                                [PRACTICE_{nodeNumber}]
+                              </div>
+                              <h3 className="font-headline text-lg font-bold mb-3 tracking-tight">
+                                {ps.title.replace(/^Practice Set \d+\s*—?\s*/i, '')}
+                              </h3>
+                              <p className="text-[12px] leading-relaxed text-on-surface-variant/45 mb-4 line-clamp-2">
+                                {ps.description}
+                              </p>
+                              <div className={`flex items-center font-mono text-[11px] text-on-surface-variant gap-4 ${
+                                isLeft ? 'justify-end flex-row-reverse' : ''
+                              }`}>
+                                <div className="flex items-center gap-1">
+                                  <Layers className="h-3 w-3" />
+                                  {taskCount} TASKS
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {duration} MIN
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Practice mastery node */}
+                  <div className="relative w-full flex flex-col items-center mt-8 mb-4">
+                    <div className="w-12 h-12 border-3 flex items-center justify-center bg-[#0c0e10] z-10 border-outline-variant/20">
+                      <FlaskConical className="h-6 w-6 text-outline-variant" />
+                    </div>
+                    <p className="mt-3 font-mono text-[10px] text-on-surface-variant/40 uppercase tracking-widest">
+                      {practiceSets.length} Sets Available
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { ArrowRight, BookOpen, Clock3, Brain, Zap, FlaskConical, X } from 'lucide-react';
 import { isTheoryLessonPath, isPracticeSessionPath, shouldHideNav } from '@/components/navigation/navigation-config';
 
@@ -87,6 +87,8 @@ function readPracticeSession(): { active: boolean; modulePrefix: string; taskInd
 
 export function UnifiedMiniPlayer() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams ? `?${searchParams.toString()}` : '';
   const [theory, setTheory] = useState<ReturnType<typeof readTheorySession>>(null);
   const [practice, setPractice] = useState<ReturnType<typeof readPracticeSession>>(null);
   const [theoryDismissed, setTheoryDismissed] = useState(false);
@@ -104,7 +106,7 @@ export function UnifiedMiniPlayer() {
 
   // Hide on pages where the full UI is showing
   const isOnTheoryPage = isTheoryLessonPath(pathname);
-  const isOnPracticePage = isPracticeSessionPath(pathname);
+  const isOnPracticePage = isPracticeSessionPath(pathname, search);
   if (shouldHideNav(pathname)) return null;
 
   // Hide ALL mini-players when user is in any active session page (theory or practice)

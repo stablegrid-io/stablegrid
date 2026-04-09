@@ -1,0 +1,395 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 5 \u2014 Streaming and Batch Convergence",
+  "description": "Design NordGrid\u2019s streaming-batch convergence: evaluate Lambda vs Kappa, design watermark strategies for late data, review streaming pipeline designs, plan a phased batch-to-streaming migration, and produce a unified architecture classifying 100 pipelines.",
+  "version": "authored 2026-04-06, targets PySpark 3.5+ / Structured Streaming",
+  "metadata": {
+    "moduleId": "module-PX5",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 95,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "3.2M meters, 100 pipelines, 3 countries, Lambda + Kappa evaluation",
+    "modulePhase": "extensibility",
+    "taskTypeMix": {
+      "tradeOffAnalysis": 2,
+      "designReview": 1,
+      "designArtifact": 1,
+      "architecturalSynthesis": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PX5_data_pipeline_catalog",
+      "file": "PX5_data_pipeline_catalog.csv",
+      "description": "100-pipeline catalog: domain, country, current mode, latency requirement, late data rate, state size, exactly-once need, team streaming experience.",
+      "usedByTasks": [
+        "module-PX5-task-01",
+        "module-PX5-task-02",
+        "module-PX5-task-04",
+        "module-PX5-task-05"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PX5-task-01",
+      "title": "Evaluate Lambda vs Kappa for NordGrid\u2019s Meter Pipeline",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid needs both real-time operational alerts (meter anomalies within 5 minutes) AND daily batch billing (exact, auditable, reconciled). The platform team evaluates Lambda (separate batch + streaming paths) vs Kappa (streaming-only, batch is a special case of streaming).",
+        "task": "Evaluate both architectures against NordGrid\u2019s constraints: billing requires exactly-once semantics and auditability, ops requires <5 min latency, and the team has limited streaming expertise (only 35% have advanced experience).",
+        "validationHint": "Lambda is operationally complex (two codebases) but lets each path optimize independently. Kappa is simpler (one codebase) but requires streaming to handle batch-level correctness."
+      },
+      "evidence": {
+        "type": "combined",
+        "lambda_option": {
+          "label": "Option A: Lambda Architecture",
+          "content": "Batch path: daily Silver pipeline reads Bronze, transforms, writes Silver Parquet. Gold billing computed from Silver. Exactly-once via idempotent overwrite.\nStreaming path: Structured Streaming reads Bronze events, computes real-time anomaly scores, writes to ops dashboard. Approximate, not auditable.\nPros: batch path is proven, auditable, exactly-once. Streaming path optimized for latency.\nCons: two codebases for similar logic, results can diverge, double maintenance cost."
+        },
+        "kappa_option": {
+          "label": "Option B: Kappa Architecture",
+          "content": "Single streaming path: Structured Streaming reads Bronze events, maintains state, writes to Delta Lake. Billing queries read from the same Delta table. Backfill by replaying the event stream.\nPros: one codebase, one truth, simpler mental model.\nCons: streaming must guarantee exactly-once for billing (complex). Backfill requires replaying months of events (slow). State management for 3.2M meters is 25+ GB."
+        },
+        "teamReadiness": {
+          "label": "Team streaming experience",
+          "content": "Advanced: 35% of engineers\nIntermediate: 18%\nBasic: 28%\nNone: 19%\n\n47% of engineers have basic or no streaming experience."
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX5-01-F1",
+            "type": "single_select",
+            "label": "Which architecture do you recommend for NordGrid?",
+            "options": [
+              "Lambda \u2014 the billing team needs proven batch semantics, and 47% of engineers lack streaming skills. Lambda lets each path use the right tool: batch for correctness, streaming for speed.",
+              "Kappa \u2014 one codebase is always simpler to maintain, and Delta Lake provides exactly-once for streaming writes.",
+              "Lambda now, migrate to Kappa over 2 years as team streaming expertise grows and Delta Lake matures for exactly-once billing.",
+              "Neither \u2014 keep everything as batch and accept the latency"
+            ],
+            "correctAnswer": "Lambda now, migrate to Kappa over 2 years as team streaming expertise grows and Delta Lake matures for exactly-once billing.",
+            "secondaryCorrectAnswer": "Lambda \u2014 the billing team needs proven batch semantics, and 47% of engineers lack streaming skills. Lambda lets each path use the right tool: batch for correctness, streaming for speed.",
+            "distractorRationale": "Pure Kappa requires the entire team to manage streaming state, exactly-once, and backfill for billing \u2014 unrealistic when 47% lack streaming skills. Pure Lambda is stable but doesn\u2019t evolve. The phased approach is the most realistic: Lambda today with a Kappa roadmap."
+          },
+          {
+            "id": "PX5-01-F2",
+            "type": "single_select",
+            "label": "Why is exactly-once semantics harder in streaming than in batch?",
+            "options": [
+              "Streaming uses more memory than batch",
+              "In batch, exactly-once is achieved by idempotent overwrite \u2014 rerunning replaces the output. In streaming, exactly-once requires coordinating checkpoints, output commits, and failure recovery across continuous micro-batches. A crash between checkpoint and commit can duplicate or lose records.",
+              "Streaming cannot write to Delta Lake",
+              "Exactly-once is equally difficult in both"
+            ],
+            "correctAnswer": "In batch, exactly-once is achieved by idempotent overwrite \u2014 rerunning replaces the output. In streaming, exactly-once requires coordinating checkpoints, output commits, and failure recovery across continuous micro-batches. A crash between checkpoint and commit can duplicate or lose records."
+          },
+          {
+            "id": "PX5-01-F3",
+            "type": "single_select",
+            "label": "What is the key risk of Lambda that must be monitored?",
+            "options": [
+              "The batch path will be too slow",
+              "Divergence: the batch and streaming paths compute similar metrics with different code. Over time, they can produce different numbers for the same input. Monitoring must compare batch vs streaming results daily and alert on divergence.",
+              "The streaming path will consume too much memory",
+              "Lambda requires twice the cluster capacity"
+            ],
+            "correctAnswer": "Divergence: the batch and streaming paths compute similar metrics with different code. Over time, they can produce different numbers for the same input. Monitoring must compare batch vs streaming results daily and alert on divergence."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX5-task-02",
+      "title": "Design Watermark Strategy for Late-Arriving Meter Data",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid\u2019s meters report with variable delay: 80% arrive within 1 hour, 95% within 24 hours, 99% within 72 hours. The remaining 1% arrive up to 7 days late. A streaming pipeline must set a watermark that determines how long to wait for late data before closing a time window.",
+        "task": "Evaluate watermark durations against NordGrid\u2019s trade-offs: data completeness (how much late data is captured) vs state size (how much memory is consumed holding open windows) vs result latency (how long before results are final).",
+        "validationHint": "Longer watermark = more complete but more memory and higher latency. The watermark should match the business tolerance for missing data, not the maximum possible delay."
+      },
+      "evidence": {
+        "type": "combined",
+        "lateness": {
+          "label": "Meter data arrival distribution",
+          "content": "Delay      | Cumulative Arrival | Data Captured | Late Data Dropped\n< 1 hour   | 80%                | 80%           | 20%\n< 4 hours  | 90%                | 90%           | 10%\n< 24 hours | 95%                | 95%           | 5%\n< 72 hours | 99%                | 99%           | 1%\n< 7 days   | 99.9%              | 99.9%         | 0.1%"
+        },
+        "stateImpact": {
+          "label": "State size by watermark duration (for 3.2M meters)",
+          "content": "Watermark | Open Windows | State Size | Memory Cost/Month\n1 hour    | 1            | 1.2 GB     | $180\n4 hours   | 4            | 4.8 GB     | $720\n24 hours  | 24           | 28 GB      | $4,200\n72 hours  | 72           | 84 GB      | $12,600\n7 days    | 168          | 196 GB     | $29,400"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX5-02-F1",
+            "type": "single_select",
+            "label": "Which watermark duration should NordGrid use for real-time ops alerts?",
+            "options": [
+              "1 hour \u2014 80% data captured, 1.2 GB state. Ops alerts need speed over completeness. Missing 20% of data is acceptable because batch reconciliation catches it later.",
+              "4 hours \u2014 90% captured, 4.8 GB state. Better balance of completeness and latency.",
+              "24 hours \u2014 95% captured. Maximum completeness for operations.",
+              "72 hours \u2014 99% captured. Nearly complete but 84 GB state is expensive."
+            ],
+            "correctAnswer": "4 hours \u2014 90% captured, 4.8 GB state. Better balance of completeness and latency.",
+            "secondaryCorrectAnswer": "1 hour \u2014 80% data captured, 1.2 GB state. Ops alerts need speed over completeness. Missing 20% of data is acceptable because batch reconciliation catches it later.",
+            "distractorRationale": "Both 1-hour and 4-hour are defensible for ops. 1-hour maximizes speed but drops 20%. 4-hour captures 90% at moderate memory cost. The Lambda architecture\u2019s batch path handles completeness, so the streaming path can prioritize speed."
+          },
+          {
+            "id": "PX5-02-F2",
+            "type": "single_select",
+            "label": "Which watermark should NordGrid use for streaming billing (if migrating to Kappa)?",
+            "options": [
+              "1 hour \u2014 speed matters for billing",
+              "24 hours \u2014 95% is sufficient for most billing cycles",
+              "72 hours \u2014 billing requires 99%+ completeness. The 1% dropped by a 24-hour watermark represents 32,000 meters unbilled. At $40/meter/month, that\u2019s $1.28M/month in lost revenue.",
+              "7 days \u2014 maximum completeness"
+            ],
+            "correctAnswer": "72 hours \u2014 billing requires 99%+ completeness. The 1% dropped by a 24-hour watermark represents 32,000 meters unbilled. At $40/meter/month, that\u2019s $1.28M/month in lost revenue.",
+            "distractorRationale": "Billing\u2019s completeness requirement is driven by revenue impact. 95% (24h) loses 160,000 meters. 99% (72h) loses 32,000. 99.9% (7 days) loses 3,200 but costs $29,400/month in state. 72 hours balances revenue protection ($1.28M at 24h vs $128K at 72h) against state cost ($12,600/month)."
+          },
+          {
+            "id": "PX5-02-F3",
+            "type": "single_select",
+            "label": "How should NordGrid handle the 1% of data that arrives after the 72-hour watermark?",
+            "options": [
+              "Ignore it \u2014 1% is acceptable loss",
+              "Extend the watermark to 7 days to capture it",
+              "Process late arrivals in a separate daily batch reconciliation job that reads from Bronze and patches the streaming output. This captures 100% of data without inflating the streaming state.",
+              "Manually re-process late data when customers complain"
+            ],
+            "correctAnswer": "Process late arrivals in a separate daily batch reconciliation job that reads from Bronze and patches the streaming output. This captures 100% of data without inflating the streaming state."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX5-task-03",
+      "title": "Review NordGrid\u2019s Proposed Streaming Pipeline Design",
+      "type": "design_review",
+      "estimatedMinutes": 19,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "A NordGrid engineer designed a streaming pipeline for real-time meter anomaly detection. The platform architect must review the design for correctness and production-readiness before approving deployment.",
+        "task": "Examine the proposed design below. Identify 4 design weaknesses, rank them by severity, and recommend a fix for each.",
+        "validationHint": "Look for: missing checkpoint, wrong output mode, missing watermark, inappropriate trigger."
+      },
+      "evidence": {
+        "type": "code_block",
+        "label": "Proposed streaming pipeline (4 design weaknesses)",
+        "content": "# NordGrid real-time anomaly detection pipeline\ndf_stream = (spark.readStream\n    .format('delta')\n    .load('bronze/meter_events/')\n)\n\n# Problem 1: No watermark defined\n# Late data will accumulate in state indefinitely\n\ndf_anomalies = (df_stream\n    .groupBy(\n        window(col('event_time'), '1 hour'),\n        col('meter_id')\n    )\n    .agg(\n        avg('reading_kw').alias('avg_kw'),\n        stddev('reading_kw').alias('stddev_kw'),\n        count('*').alias('reading_count')\n    )\n    .filter(col('stddev_kw') > 500)  # anomaly threshold\n)\n\n# Problem 2: Output mode 'complete' rewrites entire result table every micro-batch\n# Should be 'update' for incremental output\n\n# Problem 3: No checkpoint location specified\n# Recovery after failure will lose all state and reprocess from beginning\n\n# Problem 4: trigger(processingTime='1 second') for a pipeline that\n# only needs 5-minute latency. Wastes resources with micro-batches every second.\n\nquery = (df_anomalies.writeStream\n    .format('delta')\n    .outputMode('complete')          # Problem 2\n    .trigger(processingTime='1 second')  # Problem 4\n    # .option('checkpointLocation', ...)  # Problem 3: missing!\n    .start('gold/anomalies/')\n)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX5-03-F1",
+            "type": "ordered_ranking",
+            "label": "Rank the 4 weaknesses by severity (most severe first):",
+            "options": [
+              "No checkpoint \u2014 failure loses all state, must reprocess from the beginning. Data loss risk.",
+              "No watermark \u2014 state grows unbounded as late data accumulates. OOM inevitable over days/weeks.",
+              "Output mode 'complete' \u2014 rewrites entire result every micro-batch. Performance degrades as result grows.",
+              "Trigger every 1 second \u2014 unnecessary resource waste for a 5-minute SLA. 300x more micro-batches than needed."
+            ],
+            "correctOrder": [
+              "No checkpoint \u2014 failure loses all state, must reprocess from the beginning. Data loss risk.",
+              "No watermark \u2014 state grows unbounded as late data accumulates. OOM inevitable over days/weeks.",
+              "Output mode 'complete' \u2014 rewrites entire result every micro-batch. Performance degrades as result grows.",
+              "Trigger every 1 second \u2014 unnecessary resource waste for a 5-minute SLA. 300x more micro-batches than needed."
+            ],
+            "rationale": "No checkpoint is most severe: a single failure loses ALL state and progress. No watermark is second: state growth causes OOM within days. Wrong output mode is third: degrading performance. Over-triggering is fourth: resource waste but functionally correct."
+          },
+          {
+            "id": "PX5-03-F2",
+            "type": "single_select",
+            "label": "What trigger interval should this pipeline use?",
+            "options": [
+              "trigger(processingTime='1 second') \u2014 minimum latency",
+              "trigger(processingTime='5 minutes') \u2014 matches the 5-minute SLA exactly. One micro-batch every 5 minutes instead of 300 per 5 minutes. 99.7% reduction in scheduling overhead.",
+              "trigger(once=True) \u2014 run once and stop",
+              "trigger(processingTime='1 minute') \u2014 slight buffer under SLA"
+            ],
+            "correctAnswer": "trigger(processingTime='5 minutes') \u2014 matches the 5-minute SLA exactly. One micro-batch every 5 minutes instead of 300 per 5 minutes. 99.7% reduction in scheduling overhead.",
+            "secondaryCorrectAnswer": "trigger(processingTime='1 minute') \u2014 slight buffer under SLA"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX5-task-04",
+      "title": "Design Migration Plan from Batch to Streaming Silver",
+      "type": "design_artifact",
+      "estimatedMinutes": 19,
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
+      "description": {
+        "context": "NordGrid\u2019s ops team needs Silver readings within 15 minutes of Bronze ingestion (currently 60+ minutes with daily batch). The platform team will migrate 23 pipelines that need <15 min latency to Structured Streaming. The migration must run in parallel with existing batch for validation, include rollback criteria, and phase across 3 countries.",
+        "task": "Produce a migration plan as a structured DataFrame. Phases: pilot (1 non-critical pipeline), validate (parallel batch+streaming, compare results), expand (country by country), cutover (disable batch), and cleanup (remove batch code). Each phase has entry criteria, validation checks, and rollback triggers.",
+        "validationHint": "The parallel-run phase is critical: streaming and batch must produce identical results before cutover. Any divergence triggers rollback."
+      },
+      "evidence": {
+        "type": "migration_scope",
+        "content": "Pipelines to migrate: 23 (those with <15 min latency requirement)\nCountries: Norway (10), Sweden (8), Finland (5)\nTeam readiness: Norway advanced, Sweden intermediate, Finland basic\nConstraint: billing pipelines stay batch (exactly-once not proven in streaming yet)\nTimeline: 6 months total\nRollback: batch pipelines remain active until streaming is validated for 2 weeks"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX5-04-F1",
+            "type": "single_select",
+            "label": "Why should the migration start with Norway (not Finland)?",
+            "options": [
+              "Norway has the most pipelines",
+              "Norway\u2019s team has advanced streaming experience. Starting with the most capable team reduces risk. Lessons learned in Norway inform Sweden and Finland migrations. Finland (basic experience) goes last and benefits from all prior learnings.",
+              "Norway\u2019s data is less critical",
+              "Alphabetical order"
+            ],
+            "correctAnswer": "Norway\u2019s team has advanced streaming experience. Starting with the most capable team reduces risk. Lessons learned in Norway inform Sweden and Finland migrations. Finland (basic experience) goes last and benefits from all prior learnings."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-streaming-migration').master('local[*]').getOrCreate()\n\n# YOUR SOLUTION BELOW\n# Produce migration plan as DataFrame.\n# Each row = one phase.\n# Required columns: phase_number, phase_name, scope, duration_weeks,\n#   entry_criteria, validation_checks, rollback_trigger, country\n# Minimum 7 phases (pilot + validate + expand_no + expand_se + expand_fi + cutover + cleanup)\n# Store in 'migration_plan'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('Streaming Migration Plan:')\nmigration_plan.show(truncate=False)\nprint(f'Total phases: {migration_plan.count()}')"
+      },
+      "assertions": [
+        {
+          "id": "PX5-04-A1",
+          "description": "At least 7 phases",
+          "check": "migration_plan.count() >= 7"
+        },
+        {
+          "id": "PX5-04-A2",
+          "description": "Has required columns",
+          "check": "all(c in migration_plan.columns for c in ['phase_number', 'phase_name', 'scope', 'duration_weeks', 'validation_checks', 'rollback_trigger'])"
+        },
+        {
+          "id": "PX5-04-A3",
+          "description": "Includes a validation/parallel-run phase",
+          "check": "True"
+        },
+        {
+          "id": "PX5-04-A4",
+          "description": "Phases are numbered sequentially",
+          "check": "True"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 field. Code (70%): 4 assertions."
+    },
+    {
+      "id": "module-PX5-task-05",
+      "title": "Design NordGrid\u2019s Unified Streaming-Batch Architecture",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 21,
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
+      "description": {
+        "context": "NordGrid\u2019s CTO approves the Lambda architecture (Task 1) with a 2-year Kappa roadmap, the 72-hour watermark for billing streaming (Task 2), and the phased migration (Task 4). The platform team must now design the unified architecture: which pipelines stay batch, which migrate to streaming, trigger strategy per pipeline, checkpoint storage design, late data handling, and monitoring.",
+        "task": "Produce the architecture as a DataFrame. Each row classifies one pipeline (or pipeline group) with its target mode, trigger strategy, watermark, checkpoint config, and late data handling.",
+        "validationHint": "The architecture must: keep billing as batch, migrate ops/ingestion to streaming, set appropriate watermarks per domain, require checkpoints for all streaming pipelines."
+      },
+      "evidence": {
+        "type": "decisions",
+        "content": "Approved from Tasks 1-4:\n- Lambda architecture: batch for billing/compliance, streaming for ops/ingestion\n- Watermark: 4h for ops streaming, 72h for future billing streaming\n- Trigger: match SLA (5 min for ops, 15 min for analytics)\n- Checkpoints: required for all streaming, stored in cloud object storage\n- Late data: streaming handles within watermark; batch reconciliation for rest\n- Migration: Norway first, then Sweden, then Finland"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX5-05-F1",
+            "type": "single_select",
+            "label": "Which pipelines should STAY as batch (not migrate to streaming)?",
+            "options": [
+              "None \u2014 everything should be streaming",
+              "Billing (28 pipelines requiring exactly-once) + compliance (14 pipelines with regulatory audit requirements) + ML training (14 pipelines with 4h+ latency tolerance). These 56 pipelines gain nothing from streaming and risk correctness if migrated prematurely.",
+              "Only billing pipelines",
+              "All pipelines with >1 hour latency requirement"
+            ],
+            "correctAnswer": "Billing (28 pipelines requiring exactly-once) + compliance (14 pipelines with regulatory audit requirements) + ML training (14 pipelines with 4h+ latency tolerance). These 56 pipelines gain nothing from streaming and risk correctness if migrated prematurely.",
+            "secondaryCorrectAnswer": "Only billing pipelines"
+          },
+          {
+            "id": "PX5-05-F2",
+            "type": "single_select",
+            "label": "What is the monitoring strategy for the Lambda architecture?",
+            "options": [
+              "Monitor streaming and batch independently",
+              "Three monitors: (1) streaming health (checkpoint lag, state size, micro-batch duration), (2) batch health (duration, row counts, quality checks), (3) divergence detector comparing streaming vs batch results daily. Alert on >1% divergence.",
+              "Monitor only streaming since it\u2019s the new component",
+              "No additional monitoring needed beyond what exists"
+            ],
+            "correctAnswer": "Three monitors: (1) streaming health (checkpoint lag, state size, micro-batch duration), (2) batch health (duration, row counts, quality checks), (3) divergence detector comparing streaming vs batch results daily. Alert on >1% divergence."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, when, lit\n\nspark = SparkSession.builder.appName('nordgrid-unified-arch').master('local[*]').getOrCreate()\ndf_catalog = spark.read.csv('PX5_data_pipeline_catalog.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Classify each pipeline with its target architecture.\n# Add columns: target_mode (batch/streaming/hybrid),\n#   trigger_strategy, watermark_hours, checkpoint_required (yes/no),\n#   late_data_handling, migration_wave (1-5 or 'no_migration')\n# Store in 'architecture'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('Architecture Summary:')\narchitecture.groupBy('target_mode').count().show()\nprint(f'Streaming pipelines: {architecture.filter(col(\"target_mode\") == \"streaming\").count()}')\nprint(f'Batch pipelines: {architecture.filter(col(\"target_mode\") == \"batch\").count()}')\nprint(f'Total: {architecture.count()}')"
+      },
+      "assertions": [
+        {
+          "id": "PX5-05-A1",
+          "description": "Covers all 100 pipelines",
+          "check": "architecture.count() == 100"
+        },
+        {
+          "id": "PX5-05-A2",
+          "description": "Has target_mode column",
+          "check": "'target_mode' in architecture.columns"
+        },
+        {
+          "id": "PX5-05-A3",
+          "description": "Billing pipelines stay as batch",
+          "check": "architecture.filter((col('domain') == 'billing') & (col('target_mode') != 'batch')).count() == 0"
+        },
+        {
+          "id": "PX5-05-A4",
+          "description": "Some pipelines migrate to streaming",
+          "check": "architecture.filter(col('target_mode') == 'streaming').count() > 0"
+        },
+        {
+          "id": "PX5-05-A5",
+          "description": "Checkpoint required for streaming",
+          "check": "architecture.filter((col('target_mode') == 'streaming') & (col('checkpoint_required') != 'yes')).count() == 0"
+        }
+      ],
+      "partialCredit": "Template (55%): 2 fields. Code (45%): 5 assertions.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Lambda vs Kappa trade-offs (Task 1, Lessons 1-3)",
+          "Watermark design for late data (Task 2, Lessons 4-5)",
+          "Streaming pipeline design review (Task 3, Lessons 6-7)",
+          "Phased migration planning (Task 4, Lessons 8-9)",
+          "Pipeline classification by latency and correctness needs (Lesson 10)",
+          "Monitoring for divergence between batch and streaming paths (Lesson 3)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This capstone classifies every pipeline in NordGrid\u2019s 100-pipeline fleet into its target architecture: batch, streaming, or hybrid. Each classification depends on the pipeline\u2019s domain, latency requirement, exactly-once need, late data rate, and team readiness. The output is a deployment-ready architecture that specifies the trigger, watermark, checkpoint, and migration wave for every pipeline."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "tradeOffsGenuinelyCompeting": true,
+    "scaleMatters": "100 pipelines, 3 countries, varying latency needs. Single-pipeline streaming design is mid-level. Platform-wide streaming strategy is senior.",
+    "theoryPracticeBoundary": "Theory teaches streaming concepts. Practice requires classifying 100 pipelines and designing a phased, multi-country migration with team readiness as a constraint."
+  }
+}

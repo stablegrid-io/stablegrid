@@ -1,0 +1,400 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 10 \u2014 Platform Migration and Capacity Planning",
+  "description": "Complete NordGrid\u2019s platform transformation: evaluate Spark upgrade strategies, build 3-year capacity forecasts, design pipeline deprecation policies, produce a version upgrade plan, and deliver a 12-month platform roadmap that sequences all initiatives under resource constraints.",
+  "version": "authored 2026-04-06, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PX10",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 95,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "150 pipelines, 11 teams, 3 countries, 12-month roadmap",
+    "modulePhase": "enterprise_operations",
+    "taskTypeMix": {
+      "tradeOffAnalysis": 2,
+      "designArtifact": 2,
+      "architecturalSynthesis": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PX10_data_platform_inventory",
+      "file": "PX10_data_platform_inventory.csv",
+      "description": "150-pipeline inventory: Spark versions, status, creation dates, costs, test coverage, documentation. 41 on old Spark. 12 deprecated/inactive. 46 without tests.",
+      "usedByTasks": [
+        "module-PX10-task-01",
+        "module-PX10-task-02",
+        "module-PX10-task-03",
+        "module-PX10-task-04",
+        "module-PX10-task-05"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PX10-task-01",
+      "title": "Evaluate Migration Strategies for NordGrid\u2019s Spark Upgrade",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid has 41 pipelines on Spark 3.2/3.3 (end-of-life). The platform team must upgrade all pipelines to Spark 3.5. Three migration strategies are proposed: big-bang (upgrade all at once), phased by team, and phased by Spark version. The migration must not disrupt production billing.",
+        "task": "Evaluate the three strategies against NordGrid\u2019s constraints: 150 pipelines, 11 teams, 46 pipelines without tests, and a billing freeze in Q2 (no billing pipeline changes April\u2013June).",
+        "validationHint": "Big-bang is fastest but riskiest. Phased-by-version is safest (3.2\u21923.3\u21923.4\u21923.5 step-by-step). Phased-by-team lets each team own their migration timeline."
+      },
+      "evidence": {
+        "type": "options",
+        "content": "Option A: Big-Bang\n  Upgrade all 150 pipelines to 3.5 in one weekend maintenance window.\n  Duration: 1 weekend. Rollback: revert entire cluster.\n  Risk: untested pipelines (46) may break silently. Billing disruption if billing pipelines fail.\n  Cost: lowest (one migration event).\n\nOption B: Phased by Team\n  Each team upgrades their pipelines on their own timeline (6 months total).\n  Duration: 6 months. Rollback: per-team revert.\n  Risk: version fragmentation during transition (some teams on 3.5, others on 3.3). Cross-team pipelines may have version conflicts.\n  Cost: medium (multiple migration events, some teams need support).\n\nOption C: Phased by Spark Version (step-up)\n  Upgrade in order: 3.2\u21923.3 first (19 pipelines), then 3.3\u21923.4 (22+19=41), then 3.4\u21923.5 (all 150).\n  Duration: 4 months. Each step validated before the next.\n  Risk: lowest (each step is a minor version bump with known changelogs). Billing can skip the Q2 freeze window.\n  Cost: highest (3 migration rounds).\n\nConstraints:\n  - 46 pipelines have no tests (risk of silent breakage)\n  - Billing freeze: April\u2013June, no billing pipeline changes\n  - 41 pipelines on 3.2/3.3 (end-of-life, security patches ending)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX10-01-F1",
+            "type": "single_select",
+            "label": "Which strategy should be ELIMINATED first?",
+            "options": [
+              "Option A (big-bang) \u2014 upgrading 150 pipelines in one weekend with 46 untested pipelines is unacceptable risk. A single silent breakage in billing during the weekend could go undetected until Monday\u2019s reconciliation.",
+              "Option B (phased by team) \u2014 version fragmentation causes cross-team conflicts",
+              "Option C (phased by version) \u2014 too slow and expensive",
+              "None can be eliminated \u2014 all are viable"
+            ],
+            "correctAnswer": "Option A (big-bang) \u2014 upgrading 150 pipelines in one weekend with 46 untested pipelines is unacceptable risk. A single silent breakage in billing during the weekend could go undetected until Monday\u2019s reconciliation."
+          },
+          {
+            "id": "PX10-01-F2",
+            "type": "single_select",
+            "label": "Which strategy do you recommend?",
+            "options": [
+              "Option B \u2014 team autonomy is the highest priority",
+              "Option C (phased by version) \u2014 each step is a minor version bump with known breaking changes. The platform team can write a compatibility guide per step. 3.2\u21923.3 affects only 19 pipelines (smallest blast radius). Billing pipelines on 3.4 can defer the 3.4\u21923.5 step until after the Q2 freeze.",
+              "A hybrid: Option C for the upgrade path, but Option B for execution. Platform team defines the version-step plan; each team executes within the plan at their own pace.",
+              "Both Option C and the hybrid are defensible. Option C is more controlled. The hybrid gives teams autonomy within a structured path."
+            ],
+            "correctAnswer": "Both Option C and the hybrid are defensible. Option C is more controlled. The hybrid gives teams autonomy within a structured path.",
+            "secondaryCorrectAnswer": "Option C (phased by version) \u2014 each step is a minor version bump with known breaking changes. The platform team can write a compatibility guide per step. 3.2\u21923.3 affects only 19 pipelines (smallest blast radius). Billing pipelines on 3.4 can defer the 3.4\u21923.5 step until after the Q2 freeze."
+          },
+          {
+            "id": "PX10-01-F3",
+            "type": "single_select",
+            "label": "What must happen BEFORE any upgrade for the 46 untested pipelines?",
+            "options": [
+              "Nothing \u2014 upgrade and fix issues as they arise",
+              "Write basic smoke tests (row count, schema validation, null rate check) for each untested pipeline BEFORE upgrading. Without tests, there is no way to detect silent breakage. The test-writing sprint is a prerequisite, not a parallel workstream.",
+              "Remove the 46 untested pipelines from the upgrade scope",
+              "Run the upgrade in a staging environment only"
+            ],
+            "correctAnswer": "Write basic smoke tests (row count, schema validation, null rate check) for each untested pipeline BEFORE upgrading. Without tests, there is no way to detect silent breakage. The test-writing sprint is a prerequisite, not a parallel workstream."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX10-task-02",
+      "title": "Build a 3-Year Capacity Forecast",
+      "type": "design_artifact",
+      "estimatedMinutes": 19,
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
+      "description": {
+        "context": "NordGrid\u2019s current monthly compute cost is $140,929 across 150 pipelines. Growth projections: meters grow 20% year-over-year (3.2M \u2192 3.84M \u2192 4.6M \u2192 5.5M), data volume grows 25% YoY (pipeline data proportional to meter count + new use cases), and 10 new pipelines are added per year. The platform team must forecast when current cluster capacity is exhausted.",
+        "task": "Produce a 3-year capacity forecast as a DataFrame. Each row is one year (2027, 2028, 2029). Columns include projected meters, pipelines, monthly cost, and capacity status (sufficient/at-risk/exceeded).",
+        "validationHint": "Year 1: 150 + 10 = 160 pipelines, cost \u00d7 1.25. Year 2: 170 pipelines, cost \u00d7 1.25\u00b2. Year 3: 180 pipelines, cost \u00d7 1.25\u00b3. Current cluster handles ~$180K/month; forecast when cost exceeds this."
+      },
+      "evidence": {
+        "type": "growth_data",
+        "content": "Current (2026):\n  Meters: 3,200,000\n  Pipelines: 150\n  Monthly compute: $140,929\n  Cluster capacity: ~$180,000/month equivalent (before needing new nodes)\n\nGrowth projections:\n  Meters: +20% YoY\n  Data volume / compute: +25% YoY (proportional to meters + new streaming workloads)\n  New pipelines: +10 per year (new use cases, ML models, compliance requirements)\n  Efficiency gains from optimization: -5% per year (AQE, bucketing, partitioning improvements)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX10-02-F1",
+            "type": "single_select",
+            "label": "When will NordGrid\u2019s current cluster capacity be exhausted?",
+            "options": [
+              "Never \u2014 efficiency gains offset growth",
+              "Mid-2027 (Year 1) \u2014 25% growth minus 5% efficiency = 20% net growth. $140,929 \u00d7 1.20 = $169,115. Approaching $180K capacity. By mid-2027, seasonal peaks will exceed capacity.",
+              "2028 (Year 2) \u2014 $169,115 \u00d7 1.20 = $202,938. Exceeds $180K. Cluster expansion needed by early 2028.",
+              "2029 (Year 3) \u2014 plenty of headroom"
+            ],
+            "correctAnswer": "2028 (Year 2) \u2014 $169,115 \u00d7 1.20 = $202,938. Exceeds $180K. Cluster expansion needed by early 2028.",
+            "secondaryCorrectAnswer": "Mid-2027 (Year 1) \u2014 25% growth minus 5% efficiency = 20% net growth. $140,929 \u00d7 1.20 = $169,115. Approaching $180K capacity. By mid-2027, seasonal peaks will exceed capacity."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit, round as spark_round\n\nspark = SparkSession.builder.appName('nordgrid-capacity-forecast').master('local[*]').getOrCreate()\n\n# Current baseline\ncurrent_meters = 3200000\ncurrent_pipelines = 150\ncurrent_monthly_cost = 140929\ncluster_capacity_usd = 180000\n\n# Growth rates\nmeter_growth = 0.20\ncompute_growth = 0.25\nefficiency_gain = 0.05\nnet_growth = compute_growth - efficiency_gain  # 20%\nnew_pipelines_per_year = 10\n\n# YOUR SOLUTION BELOW\n# Produce a 3-year forecast as DataFrame.\n# Each row = one year (2027, 2028, 2029).\n# Required columns: year, projected_meters, projected_pipelines,\n#   projected_monthly_cost, cluster_capacity_usd, capacity_status,\n#   action_needed\n# capacity_status: 'sufficient' if cost < 80% capacity,\n#   'at_risk' if 80-100%, 'exceeded' if > 100%\n# Store in 'forecast'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('3-Year Capacity Forecast:')\nforecast.show(truncate=False)"
+      },
+      "assertions": [
+        {
+          "id": "PX10-02-A1",
+          "description": "Forecast has 3 rows (years)",
+          "check": "forecast.count() == 3"
+        },
+        {
+          "id": "PX10-02-A2",
+          "description": "Has required columns",
+          "check": "all(c in forecast.columns for c in ['year', 'projected_meters', 'projected_monthly_cost', 'capacity_status'])"
+        },
+        {
+          "id": "PX10-02-A3",
+          "description": "Cost increases year over year",
+          "check": "True"
+        },
+        {
+          "id": "PX10-02-A4",
+          "description": "At least one year shows at_risk or exceeded",
+          "check": "forecast.filter(col('capacity_status').isin('at_risk', 'exceeded')).count() >= 1"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 field. Code (70%): 4 assertions."
+    },
+    {
+      "id": "module-PX10-task-03",
+      "title": "Design Pipeline Deprecation Policy",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 17,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid has 12 deprecated/inactive pipelines and 10 active pipelines with zero consumers. These 22 pipelines consume minimal resources ($538+/month) but create maintenance burden: they appear in monitoring dashboards, consume CI/CD slots, and confuse new engineers. The platform team wants a deprecation policy.",
+        "task": "Design the deprecation lifecycle: criteria for identifying candidates, grace period, notification process, data retention after shutdown, and exception handling for pipelines that are \u2018inactive but critical.\u2019",
+        "validationHint": "The hardest deprecation cases are active pipelines with zero visible consumers \u2014 they might have undocumented consumers (scripts, notebooks, manual queries). The policy needs a discovery phase before shutdown."
+      },
+      "evidence": {
+        "type": "deprecation_candidates",
+        "content": "Category 1: Deprecated (11 pipelines)\n  Status: deprecated, still running on schedule\n  Last meaningful output: 2-12 months ago\n  Consumer count: 0\n  Risk of shutdown: low (already flagged as deprecated)\n\nCategory 2: Inactive (1 pipeline)\n  Status: inactive, not running\n  Last run: 8 months ago\n  Consumer count: 0\n  Risk: none (already stopped)\n\nCategory 3: Active but zero consumers (10 pipelines)\n  Status: active, running daily\n  Consumer count: 0 in catalog\n  Risk: UNKNOWN \u2014 may have undocumented consumers (ad-hoc notebooks, direct file reads)\n  Monthly cost: ~$8,400\n\nTotal maintenance burden: 22 pipelines \u00d7 2 hours/month monitoring = 44 hours/month"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX10-03-F1",
+            "type": "single_select",
+            "label": "How should Category 3 (active, zero consumers) be handled differently from Category 1 (deprecated)?",
+            "options": [
+              "Shut them down immediately \u2014 zero consumers means no impact",
+              "Discovery phase first: announce planned shutdown 30 days in advance. Monitor access logs for any reads (scripts, notebooks, direct file access). If undocumented consumers surface, re-classify the pipeline as active with consumers. If no access detected in 30 days, proceed to shutdown.",
+              "Keep them running indefinitely \u2014 they might be needed someday",
+              "Treat them identically to Category 1 \u2014 deprecated status"
+            ],
+            "correctAnswer": "Discovery phase first: announce planned shutdown 30 days in advance. Monitor access logs for any reads (scripts, notebooks, direct file access). If undocumented consumers surface, re-classify the pipeline as active with consumers. If no access detected in 30 days, proceed to shutdown."
+          },
+          {
+            "id": "PX10-03-F2",
+            "type": "single_select",
+            "label": "How long should output data be retained after a pipeline is shut down?",
+            "options": [
+              "Delete immediately \u2014 the pipeline is no longer needed",
+              "90 days for non-compliance tables, 7 years for compliance tables. 90 days allows time to discover a mistake and re-derive if needed. Compliance retention is a legal requirement regardless of pipeline status.",
+              "Forever \u2014 storage is cheap",
+              "30 days \u2014 minimum viable retention"
+            ],
+            "correctAnswer": "90 days for non-compliance tables, 7 years for compliance tables. 90 days allows time to discover a mistake and re-derive if needed. Compliance retention is a legal requirement regardless of pipeline status."
+          },
+          {
+            "id": "PX10-03-F3",
+            "type": "single_select",
+            "label": "What criteria should automatically flag a pipeline for deprecation review?",
+            "options": [
+              "Any pipeline older than 2 years",
+              "No runs in 90 days OR zero consumers for 60 days OR owner team disbanded. These criteria catch the three common deprecation patterns: abandoned (no runs), orphaned (no consumers), and headless (no owner).",
+              "Monthly cost below $100",
+              "Pipeline has no documentation"
+            ],
+            "correctAnswer": "No runs in 90 days OR zero consumers for 60 days OR owner team disbanded. These criteria catch the three common deprecation patterns: abandoned (no runs), orphaned (no consumers), and headless (no owner)."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX10-task-04",
+      "title": "Design Spark Version Upgrade Plan",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
+      "description": {
+        "context": "NordGrid will upgrade from mixed Spark 3.2-3.4 to Spark 3.5. The platform team needs a detailed upgrade plan: compatibility scan, test matrix, phased rollout schedule, rollback triggers, and validation criteria. The plan must account for the Q2 billing freeze (April\u2013June: no billing pipeline changes).",
+        "task": "Produce the upgrade plan as a DataFrame. Each row is one phase with scope, timeline, entry criteria, validation checks, and rollback triggers.",
+        "validationHint": "Minimum phases: pre-scan (compatibility), test-sprint (write missing tests), pilot (1 non-critical pipeline), wave-1 (non-billing), wave-2 (billing, after Q2 freeze), validation, cleanup."
+      },
+      "evidence": {
+        "type": "upgrade_scope",
+        "content": "Pipelines by current version:\n  Spark 3.2.1: 19 pipelines (end-of-life, security risk)\n  Spark 3.3.0: 22 pipelines\n  Spark 3.4.2: 57 pipelines\n  Spark 3.5.1: 52 pipelines (already current)\n\nKey constraints:\n  - 46 active pipelines have no tests\n  - Q2 billing freeze: April\u2013June, no billing pipeline changes\n  - 8 critical SLA pipelines must not have downtime > 5 minutes\n  - ml-platform has custom UDFs that may break on version change"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX10-04-F1",
+            "type": "single_select",
+            "label": "What is the correct order to upgrade Spark versions?",
+            "options": [
+              "Jump all pipelines directly to 3.5",
+              "Step-up: 3.2\u21923.3, then 3.3\u21923.4, then 3.4\u21923.5. Each step has a known changelog. Direct 3.2\u21923.5 jumps skip 2 versions of breaking changes, making failures harder to diagnose.",
+              "Upgrade in reverse: start with 3.4\u21923.5 (largest group) for maximum impact",
+              "Random order \u2014 version order doesn\u2019t matter"
+            ],
+            "correctAnswer": "Step-up: 3.2\u21923.3, then 3.3\u21923.4, then 3.4\u21923.5. Each step has a known changelog. Direct 3.2\u21923.5 jumps skip 2 versions of breaking changes, making failures harder to diagnose."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-upgrade-plan').master('local[*]').getOrCreate()\n\ndf = spark.read.csv('PX10_data_platform_inventory.csv', header=True, inferSchema=True)\n\nprint(f'Total pipelines: {df.count()}')\nprint(f'Need upgrade: {df.filter(col(\"spark_version\") != \"3.5.1\").count()}')\nprint(f'Without tests: {df.filter((col(\"has_tests\") == \"no\") & (col(\"status\") == \"active\")).count()}')\n\n# YOUR SOLUTION BELOW\n# Produce upgrade plan as DataFrame.\n# Each row = one phase.\n# Required columns: phase_number, phase_name, scope, timeline_weeks,\n#   entry_criteria, validation_checks, rollback_trigger, affected_pipelines\n# Minimum 7 phases.\n# Account for: test-writing sprint, Q2 billing freeze, critical SLA pipelines.\n# Store in 'upgrade_plan'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('Spark Upgrade Plan:')\nupgrade_plan.show(truncate=False)\nprint(f'Total phases: {upgrade_plan.count()}')"
+      },
+      "assertions": [
+        {
+          "id": "PX10-04-A1",
+          "description": "At least 7 phases",
+          "check": "upgrade_plan.count() >= 7"
+        },
+        {
+          "id": "PX10-04-A2",
+          "description": "Has required columns",
+          "check": "all(c in upgrade_plan.columns for c in ['phase_number', 'phase_name', 'scope', 'timeline_weeks', 'rollback_trigger'])"
+        },
+        {
+          "id": "PX10-04-A3",
+          "description": "Phases are numbered sequentially",
+          "check": "True"
+        },
+        {
+          "id": "PX10-04-A4",
+          "description": "Includes a test-writing phase",
+          "check": "True"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 field. Code (70%): 4 assertions."
+    },
+    {
+      "id": "module-PX10-task-05",
+      "title": "Design NordGrid\u2019s Platform Roadmap",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 23,
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
+      "description": {
+        "context": "NordGrid\u2019s CTO wants a 12-month platform roadmap that combines the Spark upgrade (Task 1/4), capacity planning (Task 2), pipeline deprecation (Task 3), and new workload onboarding. The roadmap must sequence these initiatives to minimize risk and maximize impact.",
+        "task": "Produce the roadmap as a DataFrame. Each row is one initiative with its quarter, dependencies, teams involved, expected benefit, and risk. The roadmap must account for the Q2 billing freeze and resource constraints (the platform team has 8 engineers).",
+        "validationHint": "The roadmap must sequence correctly: test-writing before upgrade, deprecation before capacity expansion (removing waste before adding capacity), upgrade before new workload onboarding (onboard on the latest version). Q2 billing freeze blocks billing-related work April\u2013June."
+      },
+      "evidence": {
+        "type": "combined",
+        "initiatives": {
+          "label": "Approved initiatives",
+          "content": "1. Spark 3.5 upgrade: 41 pipelines need upgrade (Tasks 1, 4)\n2. Capacity expansion: cluster expansion needed by early 2028 (Task 2)\n3. Pipeline deprecation: 22 candidates for cleanup (Task 3)\n4. Test coverage sprint: 46 untested pipelines need smoke tests\n5. New workload onboarding: 3 new ML pipelines, 2 new compliance reports\n6. Streaming migration: 23 pipelines from batch to streaming (PX5)\n7. Schema governance rollout: contract tests for 400 schemas (PX4)"
+        },
+        "constraints": {
+          "label": "Resource and calendar constraints",
+          "content": "Platform team: 8 engineers (cannot run >2 major initiatives in parallel)\nQ2 billing freeze: April\u2013June 2026 (no billing pipeline changes)\nBudget: $200K annual compute + $50K for new initiatives\nDependencies: upgrade before onboarding, tests before upgrade, deprecation frees capacity"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX10-05-F1",
+            "type": "single_select",
+            "label": "What is the correct initiative sequence for Q1 2026 (January\u2013March)?",
+            "options": [
+              "Start with the Spark upgrade immediately",
+              "Q1: Test coverage sprint (46 untested pipelines) + pipeline deprecation (22 candidates). Tests are a prerequisite for the upgrade. Deprecation frees capacity and reduces upgrade scope. Both can run in parallel with 4 engineers each.",
+              "Q1: Streaming migration \u2014 highest business value",
+              "Q1: Schema governance \u2014 prevents future problems"
+            ],
+            "correctAnswer": "Q1: Test coverage sprint (46 untested pipelines) + pipeline deprecation (22 candidates). Tests are a prerequisite for the upgrade. Deprecation frees capacity and reduces upgrade scope. Both can run in parallel with 4 engineers each."
+          },
+          {
+            "id": "PX10-05-F2",
+            "type": "single_select",
+            "label": "How should the Q2 billing freeze affect the roadmap?",
+            "options": [
+              "Ignore the freeze \u2014 upgrades are infrastructure, not billing changes",
+              "Q2: upgrade non-billing pipelines (3.2\u21923.3\u21923.4 step-up). Defer billing pipeline upgrade to Q3. Use Q2 to complete the upgrade for the 100+ non-billing pipelines while billing is frozen. This is the most efficient use of the freeze window.",
+              "Pause all platform work during Q2",
+              "Move the billing freeze to Q3 to allow upgrades"
+            ],
+            "correctAnswer": "Q2: upgrade non-billing pipelines (3.2\u21923.3\u21923.4 step-up). Defer billing pipeline upgrade to Q3. Use Q2 to complete the upgrade for the 100+ non-billing pipelines while billing is frozen. This is the most efficient use of the freeze window."
+          },
+          {
+            "id": "PX10-05-F3",
+            "type": "single_select",
+            "label": "When should new workload onboarding begin?",
+            "options": [
+              "Immediately \u2014 new workloads can\u2019t wait for the upgrade",
+              "After the Spark 3.5 upgrade completes (Q3-Q4). Onboarding new pipelines on 3.5 from the start avoids re-upgrading them later. The 3 ML and 2 compliance pipelines are not urgent enough to justify onboarding on 3.4 and re-upgrading in Q3.",
+              "In parallel with the upgrade \u2014 different teams",
+              "Never \u2014 focus on existing pipelines"
+            ],
+            "correctAnswer": "After the Spark 3.5 upgrade completes (Q3-Q4). Onboarding new pipelines on 3.5 from the start avoids re-upgrading them later. The 3 ML and 2 compliance pipelines are not urgent enough to justify onboarding on 3.4 and re-upgrading in Q3."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-roadmap').master('local[*]').getOrCreate()\n\ndf = spark.read.csv('PX10_data_platform_inventory.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Produce 12-month platform roadmap as DataFrame.\n# Each row = one initiative in a specific quarter.\n# Required columns: initiative_id, initiative_name, quarter,\n#   description, dependencies, teams_involved, engineers_needed,\n#   expected_benefit, risk_level\n# Minimum 8 initiatives across 4 quarters.\n# Max 2 major initiatives per quarter (8 engineers constraint).\n# Store in 'roadmap'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('12-Month Platform Roadmap:')\nroadmap.show(truncate=False)\nprint(f'Total initiatives: {roadmap.count()}')\nfor q in ['Q1', 'Q2', 'Q3', 'Q4']:\n    count = roadmap.filter(col('quarter') == q).count()\n    print(f'  {q}: {count} initiatives')"
+      },
+      "assertions": [
+        {
+          "id": "PX10-05-A1",
+          "description": "At least 8 initiatives",
+          "check": "roadmap.count() >= 8"
+        },
+        {
+          "id": "PX10-05-A2",
+          "description": "Has required columns",
+          "check": "all(c in roadmap.columns for c in ['initiative_name', 'quarter', 'dependencies', 'expected_benefit'])"
+        },
+        {
+          "id": "PX10-05-A3",
+          "description": "All 4 quarters have initiatives",
+          "check": "roadmap.select('quarter').distinct().count() >= 4"
+        },
+        {
+          "id": "PX10-05-A4",
+          "description": "Test sprint appears before or in same quarter as upgrade",
+          "check": "True"
+        },
+        {
+          "id": "PX10-05-A5",
+          "description": "No more than ~4 initiatives per quarter (resource constraint)",
+          "check": "True"
+        }
+      ],
+      "partialCredit": "Template (55%): 3 fields. Code (45%): 5 assertions.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Spark version upgrade strategy (Task 1, Lessons 1-3)",
+          "Capacity forecasting and growth modeling (Task 2, Lessons 4-5)",
+          "Pipeline deprecation lifecycle (Task 3, Lessons 6-7)",
+          "Upgrade execution plan with test prerequisites (Task 4, Lessons 8-9)",
+          "Initiative sequencing under resource and calendar constraints (Lesson 10)",
+          "Cross-initiative dependencies from PX4, PX5, PX8, PX9"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This is the capstone of the entire senior track. The student sequences 7 platform initiatives across 4 quarters under 3 constraints (8 engineers, Q2 billing freeze, initiative dependencies). Every decision from the senior track contributes: PX1\u2019s cluster architecture, PX4\u2019s governance, PX5\u2019s streaming migration, PX8\u2019s resource pools, PX9\u2019s DR. The roadmap is the artifact a VP of Engineering would present to the CTO."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "tradeOffsGenuinelyCompeting": true,
+    "scaleMatters": "150 pipelines, 11 teams, 3-year forecast, 12-month roadmap. Single-pipeline upgrade is mid-level.",
+    "theoryPracticeBoundary": "Theory teaches migration and planning concepts. Practice requires sequencing 7 initiatives across 4 quarters under real constraints (billing freeze, team capacity, dependencies)."
+  }
+}
