@@ -3,7 +3,7 @@ node_modules
 .claude
 .git
 coverage
-tests
+tests/e2e
 playwright-report
 test-results
 *.log
