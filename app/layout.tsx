@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Space_Grotesk, JetBrains_Mono, Inter } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { CookieConsentManager } from '@/components/cookies/CookieConsentManager';
 import { Navigation } from '@/components/navigation/Navigation';
@@ -48,6 +49,7 @@ export default function RootLayout({
         <AuthProvider>
           <Navigation>{children}</Navigation>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
