@@ -407,6 +407,10 @@ export const validateTheoryDocs = (
   docs: Record<string, TheoryDoc>
 ): TheoryValidationResult => {
   const errors = Object.entries(docs).flatMap(([topic, doc]) => {
+    // Skip under-construction topics (docs with no modules yet)
+    if (!Array.isArray(doc.chapters) || doc.chapters.length === 0) {
+      return [];
+    }
     const result = validateTheoryDoc(doc);
     return result.errors.map((error) => ({
       ...error,
