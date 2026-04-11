@@ -29,6 +29,35 @@ import px8PracticeData from './pyspark/PX8_Practice.json';
 import px9PracticeData from './pyspark/PX9_Practice.json';
 import px10PracticeData from './pyspark/PX10_Practice.json';
 import f1PracticeData from './fabric/F1_Practice.json';
+import f2PracticeData from './fabric/F2_Practice.json';
+import f3PracticeData from './fabric/F3_Practice.json';
+import f4PracticeData from './fabric/F4_Practice.json';
+import f5PracticeData from './fabric/F5_Practice.json';
+import f6PracticeData from './fabric/F6_Practice.json';
+import f7PracticeData from './fabric/F7_Practice.json';
+import f8PracticeData from './fabric/F8_Practice.json';
+import f9PracticeData from './fabric/F9_Practice.json';
+import f10PracticeData from './fabric/F10_Practice.json';
+import fi1PracticeData from './fabric/FI1_Practice.json';
+import fi2PracticeData from './fabric/FI2_Practice.json';
+import fi3PracticeData from './fabric/FI3_Practice.json';
+import fi4PracticeData from './fabric/FI4_Practice.json';
+import fi5PracticeData from './fabric/FI5_Practice.json';
+import fi6PracticeData from './fabric/FI6_Practice.json';
+import fi7PracticeData from './fabric/FI7_Practice.json';
+import fi8PracticeData from './fabric/FI8_Practice.json';
+import fi9PracticeData from './fabric/FI9_Practice.json';
+import fi10PracticeData from './fabric/FI10_Practice.json';
+import fs1PracticeData from './fabric/FS1_Practice.json';
+import fs2PracticeData from './fabric/FS2_Practice.json';
+import fs3PracticeData from './fabric/FS3_Practice.json';
+import fs4PracticeData from './fabric/FS4_Practice.json';
+import fs5PracticeData from './fabric/FS5_Practice.json';
+import fs6PracticeData from './fabric/FS6_Practice.json';
+import fs7PracticeData from './fabric/FS7_Practice.json';
+import fs8PracticeData from './fabric/FS8_Practice.json';
+import fs9PracticeData from './fabric/FS9_Practice.json';
+import fs10PracticeData from './fabric/FS10_Practice.json';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -157,6 +186,35 @@ const ALL_PRACTICE_SETS: PracticeSet[] = [
   px9PracticeData as unknown as PracticeSet,
   px10PracticeData as unknown as PracticeSet,
   f1PracticeData as unknown as PracticeSet,
+  f2PracticeData as unknown as PracticeSet,
+  f3PracticeData as unknown as PracticeSet,
+  f4PracticeData as unknown as PracticeSet,
+  f5PracticeData as unknown as PracticeSet,
+  f6PracticeData as unknown as PracticeSet,
+  f7PracticeData as unknown as PracticeSet,
+  f8PracticeData as unknown as PracticeSet,
+  f9PracticeData as unknown as PracticeSet,
+  f10PracticeData as unknown as PracticeSet,
+  fi1PracticeData as unknown as PracticeSet,
+  fi2PracticeData as unknown as PracticeSet,
+  fi3PracticeData as unknown as PracticeSet,
+  fi4PracticeData as unknown as PracticeSet,
+  fi5PracticeData as unknown as PracticeSet,
+  fi6PracticeData as unknown as PracticeSet,
+  fi7PracticeData as unknown as PracticeSet,
+  fi8PracticeData as unknown as PracticeSet,
+  fi9PracticeData as unknown as PracticeSet,
+  fi10PracticeData as unknown as PracticeSet,
+  fs1PracticeData as unknown as PracticeSet,
+  fs2PracticeData as unknown as PracticeSet,
+  fs3PracticeData as unknown as PracticeSet,
+  fs4PracticeData as unknown as PracticeSet,
+  fs5PracticeData as unknown as PracticeSet,
+  fs6PracticeData as unknown as PracticeSet,
+  fs7PracticeData as unknown as PracticeSet,
+  fs8PracticeData as unknown as PracticeSet,
+  fs9PracticeData as unknown as PracticeSet,
+  fs10PracticeData as unknown as PracticeSet,
 ];
 
 // ── Public API ─────────────────────────────────────────────────────────────────

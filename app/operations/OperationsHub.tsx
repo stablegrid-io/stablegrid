@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Target, Cpu, Swords } from 'lucide-react';
+import { Target, Cpu, Swords } from 'lucide-react';
 
 const OPERATIONS = [
   {
@@ -124,53 +124,23 @@ export function OperationsHub() {
                   </div>
 
                   {/* CTA */}
-                  {op.status === 'available' ? (
-                    <div
-                      className="rounded-xl py-3 px-4 flex items-center justify-between text-[12px] font-semibold transition-all duration-300"
-                      style={{
-                        background: `rgba(${op.accentRgb},0.08)`,
-                        border: `1px solid rgba(${op.accentRgb},0.15)`,
-                        color: `rgb(${op.accentRgb})`,
-                      }}
-                    >
-                      <span>Browse Sets</span>
-                      <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  <div
+                    className="rounded-[14px] py-3 px-4 flex items-center justify-between text-[12px] font-semibold"
+                    style={{
+                      background: `rgba(${op.accentRgb},0.08)`,
+                      border: `1px solid rgba(${op.accentRgb},0.15)`,
+                      color: `rgba(${op.accentRgb},0.5)`,
+                    }}
+                  >
+                    <span>Coming soon</span>
+                    <div className="relative h-1 w-12 overflow-hidden rounded-full" style={{ background: `rgba(${op.accentRgb},0.06)` }}>
+                      <div className="absolute inset-y-0 left-0 w-1/3 rounded-full animate-[shimmer_2s_ease-in-out_infinite]"
+                        style={{ backgroundColor: `rgba(${op.accentRgb},0.15)` }} />
                     </div>
-                  ) : (
-                    <div
-                      className="rounded-xl py-3 px-4 flex items-center justify-between text-[12px] font-semibold"
-                      style={{
-                        background: `rgba(${op.accentRgb},0.08)`,
-                        border: `1px solid rgba(${op.accentRgb},0.15)`,
-                        color: `rgba(${op.accentRgb},0.5)`,
-                      }}
-                    >
-                      <span>Coming soon</span>
-                      <div className="relative h-1 w-12 overflow-hidden rounded-full" style={{ background: `rgba(${op.accentRgb},0.06)` }}>
-                        <div className="absolute inset-y-0 left-0 w-1/3 rounded-full animate-[shimmer_2s_ease-in-out_infinite]"
-                          style={{ backgroundColor: `rgba(${op.accentRgb},0.15)` }} />
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
             );
-
-            if (op.status === 'available') {
-              return (
-                <Link
-                  key={op.id}
-                  href={op.href}
-                  className="group block"
-                  style={{
-                    opacity: 0,
-                    animation: `fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${staggerDelay + 100}ms forwards`,
-                  }}
-                >
-                  {cardInner}
-                </Link>
-              );
-            }
 
             return (
               <div

@@ -45,8 +45,8 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
 
   if (!method.isTimed) {
     return (
-      <div className="border border-outline-variant/20 bg-surface-container-low p-4">
-        <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-widest text-on-surface-variant">
+      <div className="rounded-[14px] border border-outline-variant/20 bg-surface-container-low p-4">
+        <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-on-surface-variant">
           <span>RHYTHM</span>
           <span>No timer</span>
         </div>
@@ -59,8 +59,8 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
   const totalMinutes = getTheorySessionTotalMinutes(config);
 
   return (
-    <div className="border border-outline-variant/20 bg-surface-container-low p-4">
-      <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-widest text-on-surface-variant">
+    <div className="rounded-[14px] border border-outline-variant/20 bg-surface-container-low p-4">
+      <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-on-surface-variant">
         <span>RHYTHM</span>
         <span>{formatTheorySessionDuration(totalMinutes * 60)}</span>
       </div>
@@ -74,7 +74,7 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
         ))}
       </div>
 
-      <div className="mt-2 flex items-center gap-4 font-mono text-[9px] text-on-surface-variant">
+      <div className="mt-2 flex items-center gap-4 text-[9px] text-on-surface-variant">
         <span className="inline-flex items-center gap-2">
           <span className="h-1.5 w-3" style={{ backgroundColor: accent.color }} />
           Focus
@@ -91,7 +91,7 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
 };
 
 const MetaPill = ({ label, value }: { label: string; value: string }) => (
-  <div className="inline-flex items-center gap-2 border border-outline-variant/20 bg-surface-container px-3 py-1.5 font-mono text-[10px]">
+  <div className="inline-flex items-center gap-2 rounded-full border border-outline-variant/20 bg-surface-container px-3 py-1.5 text-[10px]">
     <span className="text-on-surface-variant uppercase tracking-widest">{label}</span>
     <span className="font-bold text-on-surface">{value}</span>
   </div>
@@ -119,7 +119,7 @@ const MethodSelectorCard = ({
     <button
       type="button"
       onClick={onSelect}
-      className={`p-4 text-left transition-all border ${
+      className={`rounded-[14px] p-4 text-left transition-all border ${
         isSelected
           ? 'border-primary/40 bg-surface-container-low shadow-[0_0_12px_rgba(153,247,255,0.1)]'
           : 'border-outline-variant/20 bg-surface-container hover:border-primary/20'
@@ -127,23 +127,23 @@ const MethodSelectorCard = ({
     >
       <div className="flex items-center gap-3">
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center border"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border"
           style={{ borderColor: `rgba(${accent.rgb},0.3)`, backgroundColor: `rgba(${accent.rgb},0.1)` }}
         >
           <Icon className="h-4 w-4" style={{ color: accent.color }} />
         </div>
         <div className="min-w-0">
-          <div className="font-mono text-xs font-bold uppercase tracking-widest text-on-surface">
+          <div className="text-xs font-bold uppercase tracking-widest text-on-surface">
             {method.label}
           </div>
-          <div className="mt-0.5 font-mono text-[9px] text-on-surface-variant">
+          <div className="mt-0.5 text-[9px] text-on-surface-variant">
             {method.isTimed
               ? `${config.focusMinutes} / ${config.breakMinutes} \u00b7 ${config.rounds} rounds`
               : 'No timer'}
           </div>
         </div>
       </div>
-      <div className="mt-3 font-mono text-[10px] text-on-surface-variant">
+      <div className="mt-3 text-[10px] text-on-surface-variant">
         {method.isTimed ? formatTheorySessionDuration(totalMinutes * 60) : 'Open-ended'}
       </div>
     </button>
@@ -165,26 +165,26 @@ const AdjustableRow = ({
   range: TheorySessionRange;
   onChange: (next: number) => void;
 }) => (
-  <div className="border border-outline-variant/20 bg-surface-container-low p-4">
+  <div className="rounded-[14px] border border-outline-variant/20 bg-surface-container-low p-4">
     <div className="flex items-center justify-between gap-4">
       <div>
-        <div className="font-mono text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">
+        <div className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">
           {label}
         </div>
-        <div className="mt-2 font-headline text-xl font-bold text-on-surface">
+        <div className="mt-2 text-xl font-bold text-on-surface">
           {displayValue}
         </div>
-        <div className="mt-1 font-mono text-[9px] text-on-surface-variant/60">
+        <div className="mt-1 text-[9px] text-on-surface-variant/60">
           {hint}
         </div>
       </div>
-      <div className="inline-flex items-center border border-outline-variant/30 bg-surface-container">
+      <div className="inline-flex items-center rounded-[10px] border border-outline-variant/30 bg-surface-container">
         <button
           type="button"
           aria-label={`Decrease ${label}`}
           onClick={() => onChange(Math.max(range.min, value - range.step))}
           disabled={value <= range.min}
-          className="flex h-9 w-9 items-center justify-center font-mono text-on-surface-variant transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
+          className="flex h-9 w-9 items-center justify-center text-on-surface-variant transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
         >
           -
         </button>
@@ -194,7 +194,7 @@ const AdjustableRow = ({
           aria-label={`Increase ${label}`}
           onClick={() => onChange(Math.min(range.max, value + range.step))}
           disabled={value >= range.max}
-          className="flex h-9 w-9 items-center justify-center font-mono text-on-surface-variant transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
+          className="flex h-9 w-9 items-center justify-center text-on-surface-variant transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
         >
           +
         </button>
@@ -212,14 +212,14 @@ const StaticRow = ({
   value: string;
   hint: string;
 }) => (
-  <div className="border border-outline-variant/20 bg-surface-container-low p-4">
-    <div className="font-mono text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">
+  <div className="rounded-[14px] border border-outline-variant/20 bg-surface-container-low p-4">
+    <div className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">
       {label}
     </div>
-    <div className="mt-2 font-headline text-xl font-bold text-on-surface">
+    <div className="mt-2 text-xl font-bold text-on-surface">
       {value}
     </div>
-    <div className="mt-1 font-mono text-[9px] text-on-surface-variant/60">
+    <div className="mt-1 text-[9px] text-on-surface-variant/60">
       {hint}
     </div>
   </div>
@@ -248,7 +248,7 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
         description="Loading your session tracker presets."
         icon={<Clock3 className="h-4 w-4" />}
       >
-        <p className="font-mono text-[10px] text-on-surface-variant">
+        <p className="text-[10px] text-on-surface-variant">
           Loading session configuration...
         </p>
       </SettingsCard>
@@ -270,12 +270,12 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
         description="Adjust the saved timing for each learning approach. The theory popup lets the user choose an approach, then starts it with the preset saved here."
         icon={<Clock3 className="h-4 w-4" />}
       >
-        <p className="font-mono text-[10px] text-on-surface-variant">
+        <p className="text-[10px] text-on-surface-variant">
           Saved automatically on this browser. The popup only chooses the approach.
         </p>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {THEORY_SESSION_METHODS.map((method) => (
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          {THEORY_SESSION_METHODS.filter((m) => m.id !== 'free-read').map((method) => (
             <MethodSelectorCard
               key={method.id}
               methodId={method.id}
@@ -286,20 +286,20 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
           ))}
         </div>
 
-        <section className="mt-5 border border-outline-variant/20 bg-surface-container-low p-5">
+        <section className="mt-5 rounded-[22px] border border-outline-variant/20 bg-surface-container-low p-5">
           <div className="flex flex-col gap-4 border-b border-outline-variant/20 pb-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-4">
               <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center border"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border"
                 style={{ borderColor: `rgba(${activeAccent.rgb},0.3)`, backgroundColor: `rgba(${activeAccent.rgb},0.1)` }}
               >
                 <ActiveIcon className="h-5 w-5" style={{ color: activeAccent.color }} />
               </div>
               <div>
-                <h3 className="font-headline text-xl font-bold text-on-surface uppercase tracking-wider">
+                <h3 className="text-xl font-bold text-on-surface uppercase tracking-wider">
                   {activeMethod.label}
                 </h3>
-                <p className="mt-1 max-w-2xl font-mono text-[10px] leading-relaxed text-on-surface-variant">
+                <p className="mt-1 max-w-2xl text-[10px] leading-relaxed text-on-surface-variant">
                   {activeMethod.bestFor}
                 </p>
               </div>
@@ -311,7 +311,7 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
                 resetMethodConfig(activeMethod.id);
                 onToast(`${activeMethod.label} reset to its default timing.`, 'info');
               }}
-              className="inline-flex items-center gap-1.5 self-start border border-outline-variant/30 px-3 py-1.5 font-mono text-[10px] font-medium text-on-surface-variant uppercase tracking-widest transition-colors hover:border-primary/40 hover:text-primary"
+              className="inline-flex items-center gap-1.5 self-start rounded-[14px] border border-outline-variant/30 px-3 py-1.5 text-[10px] font-medium text-on-surface-variant uppercase tracking-widest transition-colors hover:border-primary/40 hover:text-primary"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Reset

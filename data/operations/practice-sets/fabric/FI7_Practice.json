@@ -1,0 +1,457 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FI7 — CI/CD and Deployment Pipelines",
+  "description": "Implement governance for NordGrid's Fabric deployments: diagnose a direct-to-production edit incident from FI7 Lesson 1, build the three-environment workspace configuration, configure the pull request workflow with branch protection, diagnose a failed deployment caused by missing parameter overrides, build the rollback playbook for failed deployments, and design NordGrid's complete CI/CD pipeline integrating Git + deployment + environments + rollback.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+",
+  "metadata": {
+    "moduleId": "module-FI7",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 80,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "9 workspaces (3 medallion x 3 environments), 1.2M meters, F64 in production",
+    "modulePhase": "engineering_discipline",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 2,
+      "fixImplementation": 3,
+      "refactoring": 0,
+      "diagnosticWorkflow": 1
+    },
+    "calibrationNotes": "Seventh Fabric mid-level practice set. The first set with NO datasets at all — Fabric Git integration, deployment pipelines, branch protection, and rollback procedures are all governance artifacts that live in YAML/JSON config or portal settings, not in data. Every task is either a configuration artifact (Python dict construction) or a diagnostic template. This matches the F1 pattern from the junior track. Task type mix (2 diagnostic + 3 fix + 1 synthesis) is within all section 5.2 limits."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-FI7-task-01",
+      "title": "Diagnose the Direct-to-Production Edit Incident",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "The incident from FI7 Lesson 1, reported in NordGrid's post-incident review:\n\n  POST-INCIDENT REPORT — 2026-03-12\n  ============================================================\n  TIMELINE:\n    14:30  Engineer A opens the Production workspace to investigate a customer issue\n    14:35  Engineer A edits the production Silver notebook to add a debug print()\n           and a temporary filter (region = 'NORTH-A') to narrow the investigation\n    14:38  Engineer A finds the bug, copies the relevant data, closes the notebook\n           WITHOUT reverting the temporary edits\n    02:30  Overnight Silver pipeline runs the notebook AS-EDITED\n    02:32  The pipeline filters all incoming data to NORTH-A only — 11 of 12 regions\n           silently produce zero rows\n    08:00  Operations team notices the morning dashboard is missing 11 regions\n    08:15  On-call engineer identifies the unintended filter, reverts the edit, runs backfill\n    11:00  Backfill completes; ~6 hours of data was missing or wrong for 11 regions\n\n  IMPACT:\n    - 6 hours of incorrect data in 11 regions\n    - Morning analyst window disrupted for 3 teams\n    - Trust in the production environment damaged\n\n  ROOT CAUSE: Engineer A had direct write access to the production workspace and\n  edited the live notebook to investigate an issue, then forgot to revert.\n\nThis incident is the canonical motivation for the entire FI7 module.",
+        "task": "Diagnose the underlying causes and identify the controls that would have prevented this incident.",
+        "validationHint": "The proximate cause is the unreverted edit. The structural causes are: (1) engineers had direct write access to production, (2) there was no separation between investigation environment and execution environment, (3) there was no automated comparison detecting that production diverged from the Git baseline. The controls that would have prevented it: read-only production for engineers, all changes through pull requests, automated drift detection."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI7-01-F1",
+            "type": "single_select",
+            "label": "What is the most fundamental structural cause of this incident?",
+            "options": [
+              "Engineers had direct write access to the production workspace, allowing ad-hoc edits to bypass any review or testing process. The unreverted filter is just a symptom — the real issue is that production was editable at all by individual engineers",
+              "The engineer was careless about reverting their edit",
+              "The overnight pipeline lacked retry logic",
+              "NordGrid did not have a backup of the previous notebook version"
+            ],
+            "correctAnswer": "Engineers had direct write access to the production workspace, allowing ad-hoc edits to bypass any review or testing process. The unreverted filter is just a symptom — the real issue is that production was editable at all by individual engineers",
+            "rationale": "The incident report explicitly says engineers could edit the production notebook directly. Every other failure (the unreverted edit, the missing data, the late detection) follows from this one structural problem. The right fix is to remove direct production write access entirely, not to ask engineers to be more careful — humans WILL forget, the system must protect against it."
+          },
+          {
+            "id": "FI7-01-F2",
+            "type": "single_select",
+            "label": "Why is 'be more careful' not an acceptable response to this incident?",
+            "options": [
+              "Human engineers will forget some fraction of the time. A system that depends on every engineer remembering to revert every edit is a system that will fail eventually. The right response is to make the failure mode impossible, not to ask people to try harder",
+              "The engineer was new — a more experienced engineer would have remembered",
+              "Carelessness is the engineer's responsibility, not the platform's",
+              "Be more careful is acceptable but only after a written warning"
+            ],
+            "correctAnswer": "Human engineers will forget some fraction of the time. A system that depends on every engineer remembering to revert every edit is a system that will fail eventually. The right response is to make the failure mode impossible, not to ask people to try harder",
+            "rationale": "This is the core engineering culture lesson of FI7 Lesson 1. Process improvements that depend on human discipline are unreliable. Process improvements that make the failure mode impossible are reliable. The fix here is structural (revoke production edit access), not behavioral (try harder to remember)."
+          },
+          {
+            "id": "FI7-01-F3",
+            "type": "single_select",
+            "label": "Which control would have prevented this incident, even if Engineer A had still wanted to investigate the customer issue?",
+            "options": [
+              "Read-only production access for engineers + a separate dev/staging workspace where investigations and edits can happen freely without affecting production. The investigation in dev would not have touched the production notebook at all",
+              "Required pull request approval for production edits (which Engineer A would still have bypassed by approving their own PR)",
+              "An automated alert when production is edited (which would have fired AFTER the damage)",
+              "A weekly audit of production notebook content (too slow to catch overnight failures)"
+            ],
+            "correctAnswer": "Read-only production access for engineers + a separate dev/staging workspace where investigations and edits can happen freely without affecting production. The investigation in dev would not have touched the production notebook at all",
+            "rationale": "The right control matches the failure mode. Engineer A wanted to investigate (legitimate), but did so in production (the failure). The fix is to give them a dev workspace where investigation is welcome AND make production read-only so investigation cannot accidentally happen there. Distractor B has the right intent but a self-approval loophole. Distractors C and D detect AFTER the damage."
+          },
+          {
+            "id": "FI7-01-F4",
+            "type": "single_select",
+            "label": "What additional control would have caught the problem within minutes instead of hours?",
+            "options": [
+              "Automated drift detection: a scheduled job comparing the production notebook content to the Git main branch and alerting on any difference. The alert would have fired at 14:35 when Engineer A first edited the notebook, hours before the overnight run",
+              "Adding more print statements to the notebook",
+              "Manually reviewing the notebook before each pipeline run",
+              "Increasing the SLA window to 24 hours so issues have more time to be caught"
+            ],
+            "correctAnswer": "Automated drift detection: a scheduled job comparing the production notebook content to the Git main branch and alerting on any difference. The alert would have fired at 14:35 when Engineer A first edited the notebook, hours before the overnight run",
+            "rationale": "Drift detection is the production-grade approach to catching unintended changes. Comparing live workspace content to Git baseline catches any divergence regardless of cause — manual edits, partial deployments, time-of-day glitches. NordGrid's standard from FI7 Lesson 7 is to run drift detection every 15 minutes on production. This control is the safety net that catches what other controls miss."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI7-task-02",
+      "title": "Build the Three-Environment Workspace Configuration",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid uses 3 environments — development, staging, production — each as a separate Fabric workspace with its own capacity, Lakehouse paths, and connection strings. The platform team defines this configuration in a Python dict that lives in Git alongside the notebook code (FI7 Lesson 7's infrastructure-as-configuration pattern).\n\nFI7 Lesson 4's environment specification:\n- Workspace name: nordgrid-{env}\n- Capacity: dev=F2, staging=F8, production=F64\n- Lakehouse path: lh_silver_{env}\n- Source connection: dev points to a synthetic test feed, staging points to a sampled subset of production, production points to the live SCADA endpoint",
+        "task": "Build a Python dict called environments with 3 keys (dev, staging, production), each mapping to a nested dict with these keys: workspace_name, capacity, lakehouse_path, source_connection.\n\nDev: workspace_name='nordgrid-dev', capacity='F2', lakehouse_path='lh_silver_dev', source_connection='synthetic-test-feed'\nStaging: workspace_name='nordgrid-staging', capacity='F8', lakehouse_path='lh_silver_staging', source_connection='production-sampled-10pct'\nProduction: workspace_name='nordgrid-production', capacity='F64', lakehouse_path='lh_silver_production', source_connection='nordgrid-scada-stream'",
+        "validationHint": "Build the dict literally as described. The 4 inner keys must exist for every environment. The capacity values are string identifiers (F2, F8, F64), not numeric."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI7 Lessons 4-7: three-environment workspace configuration as code.\n# This dict lives in Git and is the source of truth for environment differences.\n\n# YOUR SOLUTION BELOW\n# Build environments with 3 top-level keys: dev, staging, production.\n# Each maps to a dict with: workspace_name, capacity, lakehouse_path, source_connection.\n\nenvironments = {\n    # Fill in dev, staging, production\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(environments, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI7-02-A1",
+          "description": "environments has the 3 required environment keys",
+          "check": "set(environments.keys()) == {'dev', 'staging', 'production'}"
+        },
+        {
+          "id": "FI7-02-A2",
+          "description": "Every environment has the 4 required inner keys",
+          "check": "all(set(env.keys()) >= {'workspace_name', 'capacity', 'lakehouse_path', 'source_connection'} for env in environments.values())"
+        },
+        {
+          "id": "FI7-02-A3",
+          "description": "dev has the correct values",
+          "check": "environments['dev']['workspace_name'] == 'nordgrid-dev' and environments['dev']['capacity'] == 'F2' and environments['dev']['lakehouse_path'] == 'lh_silver_dev' and environments['dev']['source_connection'] == 'synthetic-test-feed'"
+        },
+        {
+          "id": "FI7-02-A4",
+          "description": "staging has the correct values",
+          "check": "environments['staging']['workspace_name'] == 'nordgrid-staging' and environments['staging']['capacity'] == 'F8' and environments['staging']['lakehouse_path'] == 'lh_silver_staging' and environments['staging']['source_connection'] == 'production-sampled-10pct'"
+        },
+        {
+          "id": "FI7-02-A5",
+          "description": "production has the correct values",
+          "check": "environments['production']['workspace_name'] == 'nordgrid-production' and environments['production']['capacity'] == 'F64' and environments['production']['lakehouse_path'] == 'lh_silver_production' and environments['production']['source_connection'] == 'nordgrid-scada-stream'"
+        },
+        {
+          "id": "FI7-02-A6",
+          "description": "Capacities increase across environments (F2 < F8 < F64) — proves the student understood that production gets the most capacity",
+          "check": "environments['dev']['capacity'] == 'F2' and environments['staging']['capacity'] == 'F8' and environments['production']['capacity'] == 'F64'"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit."
+    },
+    {
+      "id": "module-FI7-task-03",
+      "title": "Configure the Pull Request Workflow",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid requires every change to production code to flow through a pull request with specific protections. FI7 Lesson 2's NordGrid policy:\n\n- The 'main' branch represents production-ready code\n- Direct pushes to main are forbidden — every change goes through a feature branch + pull request\n- Pull requests must have at least 1 reviewer who is NOT the author\n- Pull requests must pass a CI status check called 'fabric-tests' before merging\n- Pull requests cannot be merged with unresolved review comments\n- After merging, the source feature branch should be deleted to keep the repo clean",
+        "task": "Build a Python dict called branch_protection with these keys:\n  - branch: 'main'\n  - require_pull_request: True\n  - required_reviewers: 1\n  - dismiss_stale_reviews: True\n  - require_status_checks: a list containing at least 'fabric-tests'\n  - require_review_resolution: True\n  - delete_branch_on_merge: True\n  - allow_force_pushes: False",
+        "validationHint": "Build the dict literally with the values from the NordGrid policy. Every key matters — the protections work together to ensure no change reaches main without review and tests."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI7 Lesson 2: pull request workflow with branch protection.\n# In GitHub/Azure DevOps, this is configured as branch protection rules on 'main'.\n# Here we build the equivalent dict.\n\n# YOUR SOLUTION BELOW\n# Build branch_protection with the 8 keys from the task description.\n\nbranch_protection = {\n    # Fill in the 8 keys\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(branch_protection, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI7-03-A1",
+          "description": "branch_protection has all 8 required keys",
+          "check": "set(branch_protection.keys()) == {'branch', 'require_pull_request', 'required_reviewers', 'dismiss_stale_reviews', 'require_status_checks', 'require_review_resolution', 'delete_branch_on_merge', 'allow_force_pushes'}"
+        },
+        {
+          "id": "FI7-03-A2",
+          "description": "branch is 'main'",
+          "check": "branch_protection['branch'] == 'main'"
+        },
+        {
+          "id": "FI7-03-A3",
+          "description": "require_pull_request is True and required_reviewers is 1",
+          "check": "branch_protection['require_pull_request'] == True and branch_protection['required_reviewers'] == 1"
+        },
+        {
+          "id": "FI7-03-A4",
+          "description": "require_status_checks is a list containing 'fabric-tests'",
+          "check": "isinstance(branch_protection['require_status_checks'], list) and 'fabric-tests' in branch_protection['require_status_checks']"
+        },
+        {
+          "id": "FI7-03-A5",
+          "description": "require_review_resolution and delete_branch_on_merge are both True",
+          "check": "branch_protection['require_review_resolution'] == True and branch_protection['delete_branch_on_merge'] == True"
+        },
+        {
+          "id": "FI7-03-A6",
+          "description": "allow_force_pushes is False (the keystone — force pushes would bypass protections)",
+          "check": "branch_protection['allow_force_pushes'] == False"
+        },
+        {
+          "id": "FI7-03-A7",
+          "description": "dismiss_stale_reviews is True (re-review required after each push to the PR)",
+          "check": "branch_protection['dismiss_stale_reviews'] == True"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit. A6 is the keystone: force pushes can rewrite history and bypass review, so disabling them is critical."
+    },
+    {
+      "id": "module-FI7-task-04",
+      "title": "Diagnose a Failed Deployment",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid deployed a new Silver notebook from staging to production at 22:00 UTC last night. The deployment pipeline reported success. The overnight 02:30 run failed. The on-call engineer pulled the failure logs:\n\n  DEPLOYMENT REPORT — 2026-04-08 22:00 UTC\n  ============================================================\n  Source workspace:        nordgrid-staging\n  Target workspace:        nordgrid-production\n  Items deployed:          1 (notebook 'nb_silver_transform')\n  Status:                  Success\n  Validation:              All assertions passed in staging\n\n  PIPELINE RUN — 2026-04-09 02:30 UTC\n  ============================================================\n  Pipeline:    pl_silver_daily\n  Status:      FAILED\n  Failed activity: nb_silver_transform\n\n  ERROR (excerpt from notebook output):\n    DataLoadError: Cannot connect to source endpoint 'production-sampled-10pct'\n    The endpoint 'production-sampled-10pct' is configured for the staging environment.\n    Production should use 'nordgrid-scada-stream'.\n\n  NOTEBOOK TOP CELL (after deployment):\n    SOURCE_ENDPOINT = 'production-sampled-10pct'  # hardcoded\n    LAKEHOUSE_PATH  = 'lh_silver_staging'         # hardcoded\n\n  GIT HISTORY (notebook author's commit message):\n    'staging-only test: hardcoded staging endpoint to bypass parameter resolution'\n\nThe deployment succeeded technically — the notebook was copied from staging to production unchanged. But the notebook was hardcoded with staging-specific values that should have been parameters. The deployment pipeline did not catch this because it only verifies the items copy correctly, not whether they reference the right environment.",
+        "task": "Diagnose the deployment failure and identify the structural fix.",
+        "validationHint": "The proximate cause is hardcoded staging values in the notebook. The structural fix is to enforce parameter usage instead of hardcoded literals — environment-specific values come from the environment dict (Task 2), not from notebook source code. The deployment pipeline should also include a verification step that detects hardcoded environment-specific strings."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI7-04-F1",
+            "type": "single_select",
+            "label": "What is the proximate cause of the failure?",
+            "options": [
+              "The notebook was hardcoded with staging-specific values (source endpoint and lakehouse path) instead of reading them from environment parameters; the deployment copied the staging code to production unchanged, so production tried to connect to a staging-only endpoint",
+              "The deployment pipeline corrupted the notebook during copy",
+              "Production capacity was insufficient",
+              "The Git commit history was incorrect"
+            ],
+            "correctAnswer": "The notebook was hardcoded with staging-specific values (source endpoint and lakehouse path) instead of reading them from environment parameters; the deployment copied the staging code to production unchanged, so production tried to connect to a staging-only endpoint",
+            "rationale": "The error message and the notebook source both confirm the hardcoded values. The deployment did its job (copy items unchanged); the bug was that the items SHOULD have been parameterized but weren't. The author's commit message even admits to bypassing parameter resolution as a 'staging-only' shortcut — the shortcut became permanent when the code was promoted."
+          },
+          {
+            "id": "FI7-04-F2",
+            "type": "single_select",
+            "label": "Why did the staging deployment succeed but the production deployment fail?",
+            "options": [
+              "Staging happened to use the same hardcoded endpoint that the notebook was hardcoded to ('production-sampled-10pct'), so the staging tests passed coincidentally. Production uses a different endpoint, and the hardcoded value broke as soon as the code ran outside staging",
+              "Staging has more capacity than production",
+              "Production has stricter validation rules than staging",
+              "The deployment pipeline mutates code differently for production"
+            ],
+            "correctAnswer": "Staging happened to use the same hardcoded endpoint that the notebook was hardcoded to ('production-sampled-10pct'), so the staging tests passed coincidentally. Production uses a different endpoint, and the hardcoded value broke as soon as the code ran outside staging",
+            "rationale": "Hardcoded values create environment-coupled tests that pass for the wrong reason. The staging tests passed because the hardcoded value matched the staging environment — a false positive. Real verification would have caught the hardcoding by running the same notebook in BOTH environments and confirming both work, OR by static analysis detecting environment-specific strings in the source."
+          },
+          {
+            "id": "FI7-04-F3",
+            "type": "single_select",
+            "label": "What is the structural fix that prevents this class of failure?",
+            "options": [
+              "Notebooks read environment-specific values from a parameters dict (passed by the pipeline) rather than hardcoding them; the deployment pipeline includes a static analysis step that fails the deployment if hardcoded environment-specific strings are detected in the notebook source",
+              "Add a manual review step before every production deployment",
+              "Disable the deployment pipeline and copy notebooks by hand",
+              "Use the same endpoint for staging and production"
+            ],
+            "correctAnswer": "Notebooks read environment-specific values from a parameters dict (passed by the pipeline) rather than hardcoding them; the deployment pipeline includes a static analysis step that fails the deployment if hardcoded environment-specific strings are detected in the notebook source",
+            "rationale": "The right fix has two parts: (1) parameterize the notebook so it reads environment values at runtime, and (2) add a static check to the deployment pipeline that prevents deployment when hardcoded values are present. Together, these make the failure mode impossible — the same way Task 1's incident is prevented by removing direct production access."
+          },
+          {
+            "id": "FI7-04-F4",
+            "type": "single_select",
+            "label": "What is the immediate response to this failure?",
+            "options": [
+              "Roll back the notebook to the previous production version using the deployment pipeline (or Git revert + redeploy), then fix the parameterization in a new pull request, then redeploy",
+              "Edit the production notebook directly to fix the endpoint",
+              "Disable the pipeline until the bug is investigated",
+              "Wait for the next scheduled deployment cycle"
+            ],
+            "correctAnswer": "Roll back the notebook to the previous production version using the deployment pipeline (or Git revert + redeploy), then fix the parameterization in a new pull request, then redeploy",
+            "rationale": "The immediate response is rollback — restore the previous working version while the team investigates. Distractor B is exactly the anti-pattern from Task 1 (direct production edits). Distractor C delays investigation. Distractor D wastes data and SLA. Rolling back is fast, safe, and reversible — all properties the immediate response needs."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI7-task-05",
+      "title": "Build the Rollback Playbook",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's incident response standard from FI7 Lesson 6 requires every team to have a rollback playbook captured as configuration. When a production deployment fails, the on-call engineer follows the playbook in order. The playbook captures the steps as a structured spec so each step can be verified and the sequence is unambiguous.\n\nNordGrid's rollback playbook for failed deployments:\n  STEP 1 — Immediate alert: notify the on-call engineer within 60 seconds of the failure\n  STEP 2 — Revert Git: revert the merge commit on main and push the revert\n  STEP 3 — Redeploy: trigger the deployment pipeline to promote the (reverted) main branch back to production\n  STEP 4 — Restore data: if Delta tables were affected, restore them to the version before the bad deployment using time-travel (RESTORE TABLE ... VERSION AS OF N)\n  STEP 5 — Notify consumers: post in the #data-platform channel that the rollback is complete and data is being recomputed\n  STEP 6 — Backfill: run the historical pipeline for any missing time windows\n  STEP 7 — Post-incident review: schedule a review within 48 hours",
+        "task": "Build a Python dict called rollback_playbook with one key: steps, mapping to a list of EXACTLY 7 step dicts. Each step dict must have: order (integer 1-7), action (a short string like 'alert', 'git_revert', 'redeploy', 'restore_data', 'notify', 'backfill', 'postmortem'), and description (a short human-readable string).",
+        "validationHint": "Build the list with 7 step dicts in the correct order. The action strings are 'alert', 'git_revert', 'redeploy', 'restore_data', 'notify', 'backfill', 'postmortem' in steps 1-7 respectively. The order key matches the step number."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI7 Lesson 6: rollback playbook captured as configuration.\n# Lives in Git so it is version-controlled and discoverable during incidents.\n\n# YOUR SOLUTION BELOW\n# Build rollback_playbook = {'steps': [<7 step dicts>]}.\n# Each step dict has: order, action, description.\n\nrollback_playbook = {\n    'steps': [\n        # Fill in 7 step dicts in order 1-7\n    ]\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(rollback_playbook, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI7-05-A1",
+          "description": "rollback_playbook has the steps key and it is a list of exactly 7 entries",
+          "check": "'steps' in rollback_playbook and isinstance(rollback_playbook['steps'], list) and len(rollback_playbook['steps']) == 7"
+        },
+        {
+          "id": "FI7-05-A2",
+          "description": "Every step has the 3 required keys (order, action, description)",
+          "check": "all(set(s.keys()) >= {'order', 'action', 'description'} for s in rollback_playbook['steps'])"
+        },
+        {
+          "id": "FI7-05-A3",
+          "description": "Step order values are 1-7 in sequence",
+          "check": "[s['order'] for s in rollback_playbook['steps']] == [1, 2, 3, 4, 5, 6, 7]"
+        },
+        {
+          "id": "FI7-05-A4",
+          "description": "Step 1 action is 'alert' (the immediate notification)",
+          "check": "rollback_playbook['steps'][0]['action'] == 'alert'"
+        },
+        {
+          "id": "FI7-05-A5",
+          "description": "Step 2 action is 'git_revert' (the code rollback)",
+          "check": "rollback_playbook['steps'][1]['action'] == 'git_revert'"
+        },
+        {
+          "id": "FI7-05-A6",
+          "description": "Step 3 action is 'redeploy' (the deployment pipeline retrigger)",
+          "check": "rollback_playbook['steps'][2]['action'] == 'redeploy'"
+        },
+        {
+          "id": "FI7-05-A7",
+          "description": "Step 4 action is 'restore_data' (Delta time-travel restoration)",
+          "check": "rollback_playbook['steps'][3]['action'] == 'restore_data'"
+        },
+        {
+          "id": "FI7-05-A8",
+          "description": "Step 7 action is 'postmortem' (the post-incident review)",
+          "check": "rollback_playbook['steps'][6]['action'] == 'postmortem'"
+        }
+      ],
+      "partialCredit": "8 independent assertions. Each passed assertion earns 1/8 credit. The order assertions enforce that the playbook sequence matters — running steps in the wrong order can leave production in a worse state."
+    },
+    {
+      "id": "module-FI7-task-06",
+      "title": "Design NordGrid's Complete CI/CD Pipeline",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "This is the synthesis task. NordGrid's platform team is finalizing the complete CI/CD specification. Requirements:\n  - 3 environments: dev, staging, production (from Task 2)\n  - Pull request workflow: branch protection on main with required reviewers and tests (from Task 3)\n  - Promotion path: dev → staging → production through Fabric deployment pipelines\n  - Automatic test execution: every PR runs the fabric-tests check (from FI6) before being mergeable\n  - Drift detection: scheduled job comparing production workspace to Git main, alerting on any difference (from Task 1's lesson)\n  - Rollback playbook ready and version-controlled (from Task 5)\n\nYour job: (1) DIAGNOSIS — fill the 4-field template confirming the CI/CD design choices. (2) FIX — build the complete CI/CD spec as a Python dict integrating all components.",
+        "task": "Fill the diagnosis template AND build the cicd_pipeline dict.\n\nFor the FIX: Build a Python dict called cicd_pipeline with these top-level keys:\n  - environments: a list of the 3 environment names ['dev', 'staging', 'production']\n  - promotion_path: a list specifying the order ['dev', 'staging', 'production']\n  - branch_protection: a dict with at least branch='main' and required_reviewers=1\n  - automated_tests: a list with at least 'fabric-tests'\n  - drift_detection: a dict with target_environment='production' and frequency_minutes=15\n  - rollback_playbook_version_controlled: True\n  - direct_production_edits_allowed: False",
+        "validationHint": "The synthesis combines outputs from Tasks 2, 3, and 5 into a single CI/CD spec. The drift detection runs every 15 minutes on production (NordGrid's standard from Lesson 7). The 'direct_production_edits_allowed: False' assertion is the keystone — it captures the Task 1 lesson that production must be read-only for engineers."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI7-06-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does the promotion path go dev → staging → production rather than dev → production directly?",
+            "options": [
+              "Staging provides a production-like environment where integration tests can run against realistic data volumes and configurations BEFORE the change reaches production. Skipping staging means production becomes the first place a change is tested at scale — a recipe for the failures that staging exists to catch",
+              "Staging is required by Microsoft Fabric",
+              "Dev is too small to host the deployment pipeline source",
+              "There is no real difference; the third environment is just convention"
+            ],
+            "correctAnswer": "Staging provides a production-like environment where integration tests can run against realistic data volumes and configurations BEFORE the change reaches production. Skipping staging means production becomes the first place a change is tested at scale — a recipe for the failures that staging exists to catch",
+            "rationale": "The three-environment model exists because problems that don't show up in dev (with its tiny test data) often DO show up in staging (with realistic data shape). Staging catches failures that dev cannot. Skipping straight from dev to production makes production the test environment — exactly what FI7 Lesson 1's incident demonstrates the cost of."
+          },
+          {
+            "id": "FI7-06-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why must the rollback playbook be version-controlled in Git?",
+            "options": [
+              "Version-controlled playbooks are discoverable during incidents (the on-call engineer knows where to find them), reviewable for correctness, and updateable with proper change tracking. A playbook stored in someone's notes or in a wiki page is unreliable when it matters most — at 03:00 UTC during an incident",
+              "Git is faster than other storage",
+              "Microsoft Fabric requires playbooks in Git",
+              "Version control is tradition, not necessity"
+            ],
+            "correctAnswer": "Version-controlled playbooks are discoverable during incidents (the on-call engineer knows where to find them), reviewable for correctness, and updateable with proper change tracking. A playbook stored in someone's notes or in a wiki page is unreliable when it matters most — at 03:00 UTC during an incident",
+            "rationale": "Incident response depends on discoverability and reliability. A playbook in Git is in the same repo as the code, has the same access controls, has the same review process, and is found by the same `git grep` the engineer is already using. A playbook in a wiki page may be out of date, hard to find, or simply forgotten."
+          },
+          {
+            "id": "FI7-06-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why does drift detection run every 15 minutes instead of once per day?",
+            "options": [
+              "Drift detection's value is catching unintended changes BEFORE they cause damage. A 15-minute interval catches a problematic edit within 15 minutes maximum, before the next pipeline run can use the bad code. A daily interval would have caught the Task 1 incident only the next morning — long after the damage was done",
+              "Daily detection is more accurate",
+              "Microsoft Fabric requires 15-minute intervals",
+              "Hourly is the minimum supported interval"
+            ],
+            "correctAnswer": "Drift detection's value is catching unintended changes BEFORE they cause damage. A 15-minute interval catches a problematic edit within 15 minutes maximum, before the next pipeline run can use the bad code. A daily interval would have caught the Task 1 incident only the next morning — long after the damage was done",
+            "rationale": "Detection cadence should be tied to the time-to-damage. NordGrid's Silver pipeline runs nightly, so any edit between morning and midnight has up to 16 hours to cause damage if undetected. A 15-minute drift check guarantees the engineer is alerted while there is still time to revert before the overnight run."
+          },
+          {
+            "id": "FI7-06-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why is 'direct_production_edits_allowed: False' the most important entry in the entire CI/CD spec?",
+            "options": [
+              "Without this control, all the other CI/CD machinery (pull requests, deployment pipelines, drift detection) becomes optional. An engineer who can edit production directly bypasses the entire system. This single setting is the load-bearing constraint that makes everything else effective",
+              "It is just one of several equally important settings",
+              "It is the easiest setting to configure",
+              "It is required by Fabric's terms of service"
+            ],
+            "correctAnswer": "Without this control, all the other CI/CD machinery (pull requests, deployment pipelines, drift detection) becomes optional. An engineer who can edit production directly bypasses the entire system. This single setting is the load-bearing constraint that makes everything else effective",
+            "rationale": "CI/CD only works if direct production edits are impossible. Pull requests don't matter if engineers can edit prod directly. Deployment pipelines don't matter if engineers can edit prod directly. Drift detection helps catch the result, but the system shouldn't depend on detection — it should depend on prevention. Removing direct production write access is the ONE setting that makes everything else load-bearing."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI7 SYNTHESIS: NordGrid's complete CI/CD pipeline specification.\n# Pure Python dict — no Spark needed.\n\n# YOUR SOLUTION BELOW\n# Build cicd_pipeline with the structure from the task description.\n# Combine outputs from Tasks 2 (environments), 3 (branch_protection), and 5 (rollback).\n\ncicd_pipeline = {\n    # Fill in: environments, promotion_path, branch_protection, automated_tests,\n    #          drift_detection, rollback_playbook_version_controlled,\n    #          direct_production_edits_allowed\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(cicd_pipeline, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI7-06-A1",
+          "description": "cicd_pipeline has all 7 required top-level keys",
+          "check": "set(cicd_pipeline.keys()) >= {'environments', 'promotion_path', 'branch_protection', 'automated_tests', 'drift_detection', 'rollback_playbook_version_controlled', 'direct_production_edits_allowed'}"
+        },
+        {
+          "id": "FI7-06-A2",
+          "description": "environments is a list containing dev, staging, and production",
+          "check": "set(cicd_pipeline['environments']) == {'dev', 'staging', 'production'}"
+        },
+        {
+          "id": "FI7-06-A3",
+          "description": "promotion_path is the ordered list ['dev', 'staging', 'production']",
+          "check": "cicd_pipeline['promotion_path'] == ['dev', 'staging', 'production']"
+        },
+        {
+          "id": "FI7-06-A4",
+          "description": "branch_protection has branch='main' and required_reviewers=1",
+          "check": "cicd_pipeline['branch_protection']['branch'] == 'main' and cicd_pipeline['branch_protection']['required_reviewers'] == 1"
+        },
+        {
+          "id": "FI7-06-A5",
+          "description": "automated_tests includes 'fabric-tests'",
+          "check": "'fabric-tests' in cicd_pipeline['automated_tests']"
+        },
+        {
+          "id": "FI7-06-A6",
+          "description": "drift_detection targets production with 15-minute frequency",
+          "check": "cicd_pipeline['drift_detection']['target_environment'] == 'production' and cicd_pipeline['drift_detection']['frequency_minutes'] == 15"
+        },
+        {
+          "id": "FI7-06-A7",
+          "description": "rollback_playbook_version_controlled is True",
+          "check": "cicd_pipeline['rollback_playbook_version_controlled'] == True"
+        },
+        {
+          "id": "FI7-06-A8",
+          "description": "direct_production_edits_allowed is False (the keystone — production must be read-only for engineers)",
+          "check": "cicd_pipeline['direct_production_edits_allowed'] == False"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (8 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/8).",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Direct-production-edit prevention via read-only access (Lesson 1)",
+          "Pull request workflow with branch protection (Lesson 2)",
+          "Three-environment promotion path (Lessons 3-4)",
+          "Drift detection between Git and live workspace (Lesson 7)",
+          "Rollback playbook version control (Lesson 6)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis integrates the Git workflow, environment topology, drift detection, and rollback into a single CI/CD spec. The keystone assertion is A8 (direct_production_edits_allowed: False) — students who omit it or set it to True have not internalized the Lesson 1 incident's lesson. The diagnosis template forces them to articulate WHY each control matters, ensuring they can defend the design rather than just transcribe values."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "calibrationNotes": "Seventh Fabric mid-level practice set. First mid-level set with NO datasets — pure governance. Every task is configuration artifact (Python dict) or template. Establishes that some Fabric topics (CI/CD, security, capacity) are governance disciplines that don't have a Spark code surface, so practice tasks live entirely in dict construction and incident analysis. Task type mix (2 diagnostic + 3 fix + 1 synthesis) is within all section 5.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches CI/CD principles, Git integration, deployment pipelines, environment management, and rollback in Lessons 1-10. The practice tests application: Task 1 reproduces the canonical Lesson 1 incident with detailed timeline. Task 2 builds the environment dict that Lesson 4 describes. Task 3 builds the branch protection rules from Lesson 2. Task 4 reproduces a realistic deployment failure with the 'staging-only hardcoded test' anti-pattern. Task 5 captures the rollback playbook from Lesson 6 as an ordered step list. Task 6 synthesizes everything into a single CI/CD spec.",
+    "datasetNotes": "No datasets — every task is governance configuration or incident analysis. This is the same shape as F1 in the junior track."
+  }
+}

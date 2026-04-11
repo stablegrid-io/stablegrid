@@ -1,0 +1,491 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FS2 — Diagnose Optimizer Decisions in Production",
+  "description": "Trace plan regressions through the Catalyst rule chain, choose a statistics refresh strategy for a multi-team platform, review a suspicious physical plan for subtle anti-patterns, diagnose why AQE failed to convert a join, and design GridUnion's optimizer diagnostic toolkit. Senior-level practice in tracing plan decisions to their root cause through Catalyst internals, AQE adaptation mechanics, and Fabric's managed Spark configuration.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / Spark 3.5+",
+  "metadata": {
+    "moduleId": "module-FS2",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 90,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "GridUnion Continental",
+    "scenarioScale": "5M meters, 30 regions, 4 countries (DE/FR/NL/LU), 12 teams, 80 engineers, 500+ pipelines, 4 capacities, 15TB historical archive",
+    "modulePhase": "scaling_patterns",
+    "taskTypeMix": {
+      "tradeoffAnalysis": 1,
+      "designReview": 1,
+      "rootCauseAnalysis": 2,
+      "designArtifact": 0,
+      "architecturalSynthesis": 1
+    },
+    "calibrationNotes": "Senior practice set establishing the root cause analysis pattern for engine internals. Two root cause tasks (the section 6.2 max for this type) anchor the set: Task 1 traces a Catalyst rule-chain regression, and Task 4 traces a missed AQE conversion. Both use inline evidence (physical plans, plan diffs, AQE event logs) — no datasets. The trade-off task (Task 2) has 2 defensible answers per section 6.3. The design review task (Task 3) contains 4 subtle anti-patterns, none of which are textbook errors. The synthesis (Task 5) combines a diagnostic playbook template with a toolkit specification dict. Multi-defensible answer fields are documented in the rationale and acceptable_alternatives metadata."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-FS2-task-01",
+      "title": "Trace a Plan Regression in the Billing Pipeline",
+      "type": "root_cause_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's quarterly billing pipeline (pl_quarterly_billing_de) ran in 14 minutes for 6 months. After PR #412 was merged on 2026-03-30, the runtime jumped to 71 minutes — a 5x regression. The query is unchanged. The pipeline owner pulled the BEFORE and AFTER physical plans from the notebook outputs:\n\n  PR #412 SUMMARY:\n    - Added a new column 'tariff_zone_code' to dim_tariff (German regulator requirement)\n    - Updated the schema registry entry for dim_tariff (version 7 -> 8)\n    - Did NOT modify the billing query at all\n\n  PLAN A (BEFORE PR #412 — 14 minute runtime):\n\n    == Physical Plan ==\n    *(5) HashAggregate(keys=[country_code#10, tariff_zone#23], functions=[sum(billing_amount#15)])\n    +- Exchange hashpartitioning(country_code#10, tariff_zone#23, 200)\n       +- *(4) HashAggregate(keys=[country_code#10, tariff_zone#23], functions=[partial_sum(billing_amount#15)])\n          +- *(4) Project [country_code#10, tariff_zone#23, billing_amount#15]\n             +- *(4) BroadcastHashJoin [tariff_id#22], [tariff_id#42], Inner, BuildRight\n                :- *(4) Project [country_code#10, tariff_id#22, billing_amount#15]\n                :  +- *(4) BroadcastHashJoin [meter_id#11], [meter_id#31], Inner, BuildRight\n                :     :- *(4) FileScan parquet fact_billing_de[meter_id#11,country_code#10,tariff_id#22,billing_amount#15]\n                :     :     PushedFilters: [IsNotNull(country_code), EqualTo(country_code,DE)]\n                :     +- BroadcastExchange HashedRelationBroadcastMode([meter_id#31])\n                :        +- *(1) FileScan parquet dim_meters_de[meter_id#31]\n                +- BroadcastExchange HashedRelationBroadcastMode([tariff_id#42])\n                   +- *(2) FileScan parquet dim_tariff[tariff_id#42, tariff_zone#23]\n                       Statistics: 1,247 rows, 38 KB\n\n  PLAN B (AFTER PR #412 — 71 minute runtime):\n\n    == Physical Plan ==\n    *(7) HashAggregate(keys=[country_code#10, tariff_zone#23], functions=[sum(billing_amount#15)])\n    +- Exchange hashpartitioning(country_code#10, tariff_zone#23, 200)\n       +- *(6) HashAggregate(keys=[country_code#10, tariff_zone#23], functions=[partial_sum(billing_amount#15)])\n          +- *(6) Project [country_code#10, tariff_zone#23, billing_amount#15]\n             +- *(6) SortMergeJoin [tariff_id#22], [tariff_id#42], Inner\n                :- *(3) Sort [tariff_id#22 ASC], false, 0\n                :  +- Exchange hashpartitioning(tariff_id#22, 200)\n                :     +- *(3) Project [tariff_id#22, country_code#10, billing_amount#15]\n                :        +- *(3) BroadcastHashJoin [meter_id#11], [meter_id#31], Inner, BuildRight\n                :           :- *(3) FileScan parquet fact_billing_de[meter_id#11,country_code#10,tariff_id#22,billing_amount#15]\n                :           +- BroadcastExchange HashedRelationBroadcastMode([meter_id#31])\n                :              +- *(1) FileScan parquet dim_meters_de[meter_id#31]\n                +- *(5) Sort [tariff_id#42 ASC], false, 0\n                   +- Exchange hashpartitioning(tariff_id#42, 200)\n                      +- *(5) FileScan parquet dim_tariff[tariff_id#42, tariff_zone#23, tariff_zone_code#43]\n                          Statistics: (no statistics available)\n\nThe meter_id join still uses BroadcastHashJoin in both plans. The tariff_id join changed from BroadcastHashJoin to SortMergeJoin in Plan B — the same physical join that was 38 KB broadcast in Plan A is now triggering a full shuffle. The dim_tariff table grew by ONE column (tariff_zone_code, ~20 bytes per row), which physically adds at most 25 KB to the table.",
+        "task": "Diagnose the root cause by tracing the symptom through Catalyst's join strategy selection logic to identify the specific mechanism that flipped BroadcastHashJoin to SortMergeJoin.",
+        "validationHint": "The smoking gun is 'Statistics: (no statistics available)' on the dim_tariff scan in Plan B. PR #412 added a column to dim_tariff, which invalidated the table's statistics. Without statistics, Catalyst's CBO falls back to a worst-case size estimate (typically the configured spark.sql.autoBroadcastJoinThreshold default of 10MB or higher). The CBO concludes 'I don't know how big this table is, so I cannot guarantee broadcast safety' and chooses SortMergeJoin defensively. The fix is to refresh statistics on dim_tariff after the schema change."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS2-01-F1",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — SYMPTOM: What is the specific physical plan change between Plan A and Plan B?",
+            "options": [
+              "The tariff_id join changed from BroadcastHashJoin (Plan A) to SortMergeJoin (Plan B); the meter_id join is unchanged",
+              "Both joins changed from BroadcastHashJoin to SortMergeJoin",
+              "The meter_id join changed from BroadcastHashJoin to SortMergeJoin; the tariff_id join is unchanged",
+              "The aggregation strategy changed from HashAggregate to SortAggregate"
+            ],
+            "correctAnswer": "The tariff_id join changed from BroadcastHashJoin (Plan A) to SortMergeJoin (Plan B); the meter_id join is unchanged",
+            "rationale": "Comparing the two plans line-by-line: the inner BroadcastHashJoin on meter_id is identical in both plans. The outer join on tariff_id is BroadcastHashJoin in Plan A and SortMergeJoin in Plan B. Localizing the change to a single operator is the first step in any root cause analysis."
+          },
+          {
+            "id": "FS2-01-F2",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — COMPONENT: Which Catalyst component made the decision that flipped the join strategy?",
+            "options": [
+              "The Cost-Based Optimizer (CBO) — it estimates the build-side size of each join and selects BroadcastHashJoin only when the build side is below the broadcast threshold",
+              "The DAGScheduler — it decides physical operators based on stage boundaries",
+              "The TaskScheduler — it assigns join strategies to executors",
+              "AQE — it converts joins at runtime based on observed shuffle sizes"
+            ],
+            "correctAnswer": "The Cost-Based Optimizer (CBO) — it estimates the build-side size of each join and selects BroadcastHashJoin only when the build side is below the broadcast threshold",
+            "rationale": "Join strategy selection happens during physical planning, before the query runs. The CBO inspects table statistics to estimate the size of each join's build side. If the estimated size is below spark.sql.autoBroadcastJoinThreshold (10MB default), BroadcastHashJoin is selected; otherwise the optimizer falls back to SortMergeJoin (or ShuffleHashJoin in narrower cases). Distractor D (AQE) is plausible but wrong here: AQE can DOWNGRADE a SortMergeJoin to a broadcast at runtime, but the initial physical plan selection is the CBO's job. AQE conversion appears in the AQE event log, not in the explain output."
+          },
+          {
+            "id": "FS2-01-F3",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — MECHANISM: Why did the CBO's size estimate for dim_tariff change between Plan A and Plan B, given that PR #412 only added a single column adding ~25 KB?",
+            "options": [
+              "PR #412 invalidated dim_tariff's statistics; without statistics, the CBO falls back to a worst-case size estimate that exceeds the broadcast threshold. Plan B's scan output literally shows 'Statistics: (no statistics available)', while Plan A's scan shows '1,247 rows, 38 KB'",
+              "Adding any column doubles a table's CBO size estimate",
+              "The new column is inferred as a high-cardinality string and inflates the size",
+              "Catalyst caches stale statistics for 24 hours after schema changes"
+            ],
+            "correctAnswer": "PR #412 invalidated dim_tariff's statistics; without statistics, the CBO falls back to a worst-case size estimate that exceeds the broadcast threshold. Plan B's scan output literally shows 'Statistics: (no statistics available)', while Plan A's scan shows '1,247 rows, 38 KB'",
+            "rationale": "Schema changes invalidate table statistics in most table formats including Delta. Plan B's '(no statistics available)' output is the smoking gun. Without statistics, the CBO does not know the table is 38 KB; it conservatively assumes the table could be larger than the broadcast threshold and chooses SortMergeJoin to avoid an OutOfMemoryError on the executors. The actual physical size change (~25 KB for the new column) is irrelevant because the CBO cannot see it without refreshed statistics."
+          },
+          {
+            "id": "FS2-01-F4",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — FIX: What is the minimal correct fix?",
+            "options": [
+              "Refresh statistics on dim_tariff: ANALYZE TABLE dim_tariff COMPUTE STATISTICS FOR ALL COLUMNS — this restores the CBO's size knowledge and allows BroadcastHashJoin selection on the next plan",
+              "Force broadcast with a hint in every query: SELECT /*+ BROADCAST(dim_tariff) */ ... — this works but treats the symptom rather than the cause and fails the next time someone forgets the hint",
+              "Roll back PR #412 and revert the schema change",
+              "Increase spark.sql.autoBroadcastJoinThreshold from 10MB to 100MB"
+            ],
+            "correctAnswer": "Refresh statistics on dim_tariff: ANALYZE TABLE dim_tariff COMPUTE STATISTICS FOR ALL COLUMNS — this restores the CBO's size knowledge and allows BroadcastHashJoin selection on the next plan",
+            "secondaryCorrectAnswer": "Force broadcast with a hint in every query: SELECT /*+ BROADCAST(dim_tariff) */ ... — this works but treats the symptom rather than the cause and fails the next time someone forgets the hint",
+            "rationale": "PRIMARY answer is the statistics refresh because it addresses the root cause. SECONDARY answer (broadcast hint) is also accepted because it is a real production workaround that works immediately and is sometimes the right call when the team needs an emergency fix before the next pipeline run. The hint approach has the documented downside (treats symptom not cause) so the rationale field must reflect awareness of that limitation. Distractor C (rollback) is excessive — the schema change was a regulatory requirement, rolling back undoes legitimate work. Distractor D (raising the threshold) creates a global side-effect that affects every other query.",
+            "acceptable_alternatives": "Either the statistics refresh (primary) or the broadcast hint (secondary) is accepted. The reasoning fields determine which is appropriate for the student's chosen approach."
+          },
+          {
+            "id": "FS2-01-F5",
+            "type": "single_select",
+            "label": "PROCESS: What change-management control would have caught this regression BEFORE PR #412 was deployed?",
+            "options": [
+              "A pre-merge CI check that runs ANALYZE TABLE on any table whose schema is being modified, AND verifies the explain output of dependent queries has not changed shape (e.g., no Broadcast -> SortMerge conversions)",
+              "Manual review by a senior engineer is sufficient",
+              "Disable schema changes on production tables entirely",
+              "Run the billing pipeline after every schema change manually"
+            ],
+            "correctAnswer": "A pre-merge CI check that runs ANALYZE TABLE on any table whose schema is being modified, AND verifies the explain output of dependent queries has not changed shape (e.g., no Broadcast -> SortMerge conversions)",
+            "rationale": "Senior-level engineering replaces human discipline with automation. A pre-merge gate that explicitly couples schema changes with statistics refresh AND validates the plan shape of dependent queries catches this class of regression at the earliest possible point. This is the FS2 Lesson 8 plan regression detection pattern applied as a CI gate. Distractor B is unreliable. Distractor C is over-correction. Distractor D is reactive and depends on someone remembering to do it."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS2-task-02",
+      "title": "Choose a Statistics Refresh Strategy",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "After the Task 1 incident, GridUnion's platform team needs to establish a statistics refresh policy for the 200+ tables in the production Lakehouse. The team is evaluating three approaches:\n\n  OPTION A — SCHEDULED NIGHTLY:\n    All tables refresh statistics every night at 02:00 UTC, before the morning analyst window\n    - Pros: predictable, simple to implement, single CU consumption window\n    - Cons: stats can be up to 24 hours stale; large tables refresh wastefully when nothing changed; full refresh runs even on weekends and holidays\n    - CU cost: ~120 CU-hours per night across 200 tables\n\n  OPTION B — POST-WRITE TRIGGERED:\n    A pipeline activity runs ANALYZE TABLE immediately after any pipeline that writes to a table\n    - Pros: stats are always fresh (within minutes of the write); no waste on tables that did not change\n    - Cons: requires every pipeline to be modified; multiple writes per day to the same table cause repeated refreshes; failures in the analyze step block the pipeline\n    - CU cost: ~80 CU-hours per day on average, but spiky\n\n  OPTION C — MANUAL ON-DEMAND:\n    Engineers run ANALYZE TABLE manually when they notice plan regressions or when they make schema changes\n    - Pros: zero baseline CU cost; engineers learn to recognize when stats matter\n    - Cons: relies on human discipline (the same failure mode as the Task 1 incident); regressions often go unnoticed for days; not viable at 200-table scale\n    - CU cost: ~5-10 CU-hours per week (rough estimate)\n\n  GRIDUNION CONSTRAINTS:\n    - 200+ production tables across 4 countries\n    - Morning analyst window starts at 07:00 UTC (Europe time zones)\n    - Production capacity is F128 with ~3000 CU-hours/day available\n    - Platform team has 4 engineers; cannot manually monitor 200 tables\n    - Some tables receive multiple writes per day (Bronze ingestion), others receive one write per day (Silver), others change rarely (dimensions)",
+        "task": "Evaluate the three options against GridUnion's constraints and recommend ONE primary approach. Multiple defensible answers exist; the reasoning fields determine which is acceptable.",
+        "validationHint": "Both Option A (scheduled) and Option B (post-write) are defensible primary answers. Option A is the conservative, simpler choice that prioritizes operational simplicity. Option B is the technically optimal choice that minimizes staleness. Option C is NOT acceptable as a primary answer because it relies on human discipline at a scale where humans cannot maintain that discipline. A hybrid (scheduled for dimensions + post-write for fact tables) is also acceptable as a third defensible answer."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS2-02-F1",
+            "type": "single_select",
+            "label": "RECOMMENDATION: Which approach do you recommend as GridUnion's primary statistics refresh strategy?",
+            "options": [
+              "Option A (Scheduled Nightly) — predictable, simple, fits the morning analyst window",
+              "Option B (Post-Write Triggered) — minimizes staleness, fits the variable write cadence",
+              "Option C (Manual On-Demand) — engineers know best when stats matter",
+              "Hybrid: Option A for slow-changing dimensions + Option B for fact tables that receive multiple writes per day"
+            ],
+            "correctAnswer": "Option A (Scheduled Nightly) — predictable, simple, fits the morning analyst window",
+            "secondaryCorrectAnswer": "Hybrid: Option A for slow-changing dimensions + Option B for fact tables that receive multiple writes per day",
+            "rationale": "Both Option A (primary) and the Hybrid (secondary) are defensible at GridUnion's scale. Option A is the conservative choice that prioritizes operational simplicity over freshness optimization — appropriate when the morning analyst window is the dominant SLA constraint. The Hybrid is the technically optimal choice that segments tables by write cadence and applies the right strategy to each. A staff engineer would defend either, depending on the team's tolerance for operational complexity. Option B alone is rejected because the spiky CU cost and per-pipeline modification burden are too heavy for 200 tables. Option C is rejected because it depends on human discipline at unmanageable scale.",
+            "acceptable_alternatives": "Either Option A or the Hybrid is accepted with appropriate reasoning. Option B alone may be accepted if the student's reasoning explicitly addresses the per-pipeline modification burden and the spiky CU cost (rare but possible)."
+          },
+          {
+            "id": "FS2-02-F2",
+            "type": "multi_select",
+            "label": "TRADE-OFF FACTORS: Which factors does your chosen approach prioritize over the others? (Select all that apply)",
+            "options": [
+              "Operational simplicity (predictable schedule, single point of failure)",
+              "Statistics freshness (minimum staleness)",
+              "CU cost predictability (single nightly window vs spiky per-write)",
+              "Per-pipeline modification burden (zero modifications vs every pipeline updated)",
+              "Coverage of slow-changing tables (dimensions that rarely change get the same treatment)"
+            ],
+            "correctAnswer": ["Operational simplicity (predictable schedule, single point of failure)", "CU cost predictability (single nightly window vs spiky per-write)", "Per-pipeline modification burden (zero modifications vs every pipeline updated)"],
+            "rationale": "Option A (Scheduled Nightly) prioritizes simplicity, predictability, and zero per-pipeline modification — at the cost of up to 24 hours of staleness. The Hybrid prioritizes the same plus better freshness for fact tables. If the student picked Option B, the correct multi-select would emphasize freshness instead. The grading platform must accept the multi-select that matches the student's recommendation choice in F1.",
+            "acceptable_alternatives": "If F1 = Option B, accept {Statistics freshness, Per-write coverage}. If F1 = Hybrid, accept the union: {Operational simplicity, Statistics freshness, Coverage of slow-changing tables}."
+          },
+          {
+            "id": "FS2-02-F3",
+            "type": "single_select",
+            "label": "EXPIRATION CONDITION: Under what conditions would your recommended strategy stop being the right choice?",
+            "options": [
+              "When the morning analyst window shifts to require sub-hour staleness (e.g., real-time billing dashboards), Option A would no longer be acceptable and the team must move to Option B or the Hybrid",
+              "Never — Option A is always correct",
+              "When GridUnion adds a 5th country",
+              "When the table count grows past 1000"
+            ],
+            "correctAnswer": "When the morning analyst window shifts to require sub-hour staleness (e.g., real-time billing dashboards), Option A would no longer be acceptable and the team must move to Option B or the Hybrid",
+            "rationale": "Senior-level reasoning includes the expiration condition for every architectural choice. Option A is right NOW because the morning window is a daily SLA that nightly refreshes satisfy. If the SLA changes (real-time dashboards, intra-day decision making), the staleness becomes unacceptable and the team must migrate. This is the core senior pattern from FS2 Lesson 10: every decision has the conditions under which it should be revisited."
+          },
+          {
+            "id": "FS2-02-F4",
+            "type": "single_select",
+            "label": "REASONING: What is the strongest argument AGAINST your chosen approach that a peer reviewer might raise?",
+            "options": [
+              "Up to 24 hours of statistics staleness means the optimizer may make wrong join decisions during the day for tables that received writes since the last 02:00 refresh",
+              "Scheduled refreshes are unreliable",
+              "The CU cost is too high",
+              "There is no argument against scheduled refreshes"
+            ],
+            "correctAnswer": "Up to 24 hours of statistics staleness means the optimizer may make wrong join decisions during the day for tables that received writes since the last 02:00 refresh",
+            "rationale": "A senior engineer can articulate the strongest argument against their own recommendation. The peer reviewer would correctly point out that Option A leaves a 24-hour window where optimization decisions are based on yesterday's data. The student's defense is that the morning analyst window is the dominant SLA and that within-day staleness is acceptable for the read-heavy workloads that dominate GridUnion's pipeline. Distractor D ('no argument against') is the wrong answer because it indicates the student has not considered the trade-off. The right answer is to KNOW the trade-off and DEFEND the choice anyway."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS2-task-03",
+      "title": "Review a Suspicious Physical Plan",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A junior engineer on the French team submitted PR #427 for review. The PR contains a query that processes the cross-border meter readings for a regulatory submission. The query passed unit tests, but the senior reviewer wants to verify the physical plan before approving the merge. Here is the explain output:\n\n  QUERY:\n    SELECT r.region_code,\n           r.country_code,\n           COUNT(DISTINCT m.meter_id) AS active_meters,\n           SUM(reading.daily_kw) AS total_consumption,\n           t.tariff_zone\n    FROM fact_readings_fr reading\n    LEFT JOIN dim_meters m ON reading.meter_id = m.meter_id\n    LEFT JOIN dim_regions r ON m.region_id = r.region_id\n    LEFT JOIN dim_tariff t ON m.tariff_id = t.tariff_id\n    LEFT JOIN dim_metadata.nested.schedule s ON s.meter_id = m.meter_id\n    WHERE reading.date >= '2026-04-01'\n    GROUP BY r.region_code, r.country_code, t.tariff_zone\n\n  PHYSICAL PLAN:\n\n    == Physical Plan ==\n    *(8) HashAggregate(keys=[region_code#10, country_code#11, tariff_zone#23], functions=[count(distinct meter_id#31), sum(daily_kw#15)])\n    +- Exchange hashpartitioning(region_code#10, country_code#11, tariff_zone#23, 200)\n       +- *(7) HashAggregate(keys=[region_code#10, country_code#11, tariff_zone#23, meter_id#31], functions=[partial_sum(daily_kw#15)])\n          +- *(7) Project [region_code#10, country_code#11, tariff_zone#23, meter_id#31, daily_kw#15]\n             +- *(7) SortMergeJoin [meter_id#31], [meter_id#80], LeftOuter\n                :- *(5) Sort [meter_id#31 ASC NULLS FIRST], false, 0\n                :  +- Exchange hashpartitioning(meter_id#31, 200)\n                :     +- *(4) Project [region_code#10, country_code#11, tariff_zone#23, meter_id#31, daily_kw#15]\n                :        +- *(4) BroadcastHashJoin [tariff_id#22], [tariff_id#42], LeftOuter, BuildRight\n                :           :- *(4) Project [region_code#10, country_code#11, meter_id#31, daily_kw#15, tariff_id#22]\n                :           :  +- *(4) BroadcastHashJoin [region_id#33], [region_id#52], LeftOuter, BuildRight\n                :           :     :- *(4) Project [meter_id#31, daily_kw#15, tariff_id#22, region_id#33]\n                :           :     :  +- *(4) BroadcastHashJoin [meter_id#13], [meter_id#31], LeftOuter, BuildRight\n                :           :     :     :- *(4) FileScan parquet fact_readings_fr[meter_id#13,daily_kw#15,date#16]\n                :           :     :     :     PushedFilters: []\n                :           :     :     :     ReadSchema: struct<meter_id,daily_kw,date>\n                :           :     :     +- BroadcastExchange HashedRelationBroadcastMode([meter_id#31])\n                :           :     :        +- *(1) FileScan parquet dim_meters[meter_id#31,region_id#33,tariff_id#22,country_code#34,install_date#35,phase#36,billing_class#37,equipment_model#38,calibration_date#39,last_inspection#40]\n                :           :     +- BroadcastExchange HashedRelationBroadcastMode([region_id#52])\n                :           :        +- *(2) FileScan parquet dim_regions[region_id#52,region_code#10,country_code#11]\n                :           +- BroadcastExchange HashedRelationBroadcastMode([tariff_id#42])\n                :              +- *(3) FileScan parquet dim_tariff[tariff_id#42, tariff_zone#23]\n                +- *(6) Sort [meter_id#80 ASC NULLS FIRST], false, 0\n                   +- Exchange hashpartitioning(meter_id#80, 200)\n                      +- *(6) FileScan parquet dim_metadata[meter_id#80, schedule_payload#81 (struct with 47 fields)]\n                          ReadSchema: struct<meter_id:string,schedule_payload:struct<...47 fields...>>",
+        "task": "Identify the 4 problems in this physical plan. Each problem should reflect a real anti-pattern that a senior reviewer would block the PR on, not a textbook syntax error. Severity-rank each problem from 1 (most severe) to 4 (least severe).",
+        "validationHint": "The 4 problems are: (1) The fact_readings_fr scan has empty PushedFilters even though the query has WHERE reading.date >= '2026-04-01' — the date predicate is not being pushed down for some reason (likely a missing filter timing or a type mismatch issue). (2) The dim_meters scan reads all 10 columns even though only 4 are needed — column pruning is not happening. (3) The dim_metadata join is a SortMergeJoin (with shuffle) when it could potentially be a broadcast — and it reads the full nested schedule_payload struct (47 fields) when none are projected — nested column pruning is failing. (4) The dim_metadata join is a LEFT JOIN but the schedule_payload result is never used in the projection, meaning the entire join is dead code that the optimizer failed to eliminate (join elimination missed)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS2-03-F1",
+            "type": "single_select",
+            "label": "PROBLEM 1 IDENTIFICATION: Which is the most severe problem in the plan?",
+            "options": [
+              "The dim_metadata join is unnecessary — schedule_payload is never used in SELECT or GROUP BY, the join produces dead computation, and the optimizer failed to eliminate it. This is the largest single waste because the dim_metadata SortMergeJoin shuffles the entire fact table",
+              "fact_readings_fr has empty PushedFilters — the date predicate is not pushed down",
+              "dim_meters reads all 10 columns when only 4 are needed",
+              "dim_metadata reads the full 47-field nested schedule_payload struct"
+            ],
+            "correctAnswer": "The dim_metadata join is unnecessary — schedule_payload is never used in SELECT or GROUP BY, the join produces dead computation, and the optimizer failed to eliminate it. This is the largest single waste because the dim_metadata SortMergeJoin shuffles the entire fact table",
+            "secondaryCorrectAnswer": "fact_readings_fr has empty PushedFilters — the date predicate is not pushed down",
+            "rationale": "Both the dead-join and the missing pushdown are highest-severity problems that could be ranked first. The dead-join is the largest single waste (full shuffle for unused output) and is the textbook 'join elimination' miss from FS4 Lesson 4. Missing pushdown is also catastrophic because the entire fact table is read when only ~30 days of data are needed. A senior reviewer would block the PR on either; some reviewers would rank pushdown first because of the I/O cost, others rank the dead join first because of the shuffle cost. Both rankings are defensible.",
+            "acceptable_alternatives": "Either the dead join (primary) or the missing pushdown (secondary) is accepted as 'most severe'."
+          },
+          {
+            "id": "FS2-03-F2",
+            "type": "single_select",
+            "label": "PROBLEM 2 IDENTIFICATION: What is the next-most severe problem after the one identified in F1?",
+            "options": [
+              "The other catastrophic problem from F1 (whichever one was not selected as F1) — the dead join AND the missing pushdown are both blocking issues",
+              "dim_meters reads all 10 columns instead of 4",
+              "The Exchange uses 200 partitions",
+              "The query uses SortMergeJoin"
+            ],
+            "correctAnswer": "The other catastrophic problem from F1 (whichever one was not selected as F1) — the dead join AND the missing pushdown are both blocking issues",
+            "rationale": "Both the dead join and the missing pushdown are tier-1 severity. Whichever was not picked as F1 is F2. After those two, the column pruning issues (dim_meters wide read, dim_metadata nested struct read) are tier-2 — wasteful but not blocking on their own."
+          },
+          {
+            "id": "FS2-03-F3",
+            "type": "single_select",
+            "label": "PROBLEM 3 IDENTIFICATION: Which column-pruning issue is more impactful?",
+            "options": [
+              "The dim_metadata FileScan reads the full schedule_payload struct (47 fields) — at potentially several KB per row times the join's broadcast/shuffle volume, this is much larger than the dim_meters issue",
+              "The dim_meters FileScan reads 10 columns instead of 4",
+              "Both are equally impactful",
+              "Neither is impactful enough to mention"
+            ],
+            "correctAnswer": "The dim_metadata FileScan reads the full schedule_payload struct (47 fields) — at potentially several KB per row times the join's broadcast/shuffle volume, this is much larger than the dim_meters issue",
+            "rationale": "Nested struct reads at 47 fields each are dramatically larger than missing 6 narrow columns from dim_meters. The schedule_payload struct may be 2-4 KB per row uncompressed; the dim_meters extra columns are ~100 bytes total. This is exactly the FS2 Lesson 9 nested column pruning topic — the failure to prune nested fields is a senior-level optimization opportunity that mid-level engineers don't recognize."
+          },
+          {
+            "id": "FS2-03-F4",
+            "type": "single_select",
+            "label": "FIX RECOMMENDATION: What is the single highest-leverage fix the reviewer should ask for in the PR?",
+            "options": [
+              "Remove the dim_metadata join entirely — schedule_payload is unused, so the join is dead code. This single fix eliminates the SortMergeJoin shuffle, the nested struct scan, AND simplifies the query to only need 3 broadcast joins",
+              "Add the date filter to the join condition",
+              "Increase the broadcast threshold",
+              "Switch to a different table format"
+            ],
+            "correctAnswer": "Remove the dim_metadata join entirely — schedule_payload is unused, so the join is dead code. This single fix eliminates the SortMergeJoin shuffle, the nested struct scan, AND simplifies the query to only need 3 broadcast joins",
+            "rationale": "Removing the dead join is the single fix with the largest impact: it eliminates the SortMergeJoin (the only shuffle in the entire plan), eliminates the nested struct read (the largest column-pruning issue), and reduces the query to a clean 3-broadcast-join shape that the CBO will optimize correctly. After this fix, the missing date pushdown is the next thing to address. Distractor A reflects the second highest-leverage fix; distractors C and D are non-fixes."
+          },
+          {
+            "id": "FS2-03-F5",
+            "type": "single_select",
+            "label": "REVIEWER VERDICT: What should the reviewer's verdict be on PR #427?",
+            "options": [
+              "Block — the dead join and missing pushdown together represent a query that wastes 5-10x the necessary CUs at GridUnion scale; the PR should be sent back with the reviewer's concrete fix list",
+              "Approve with comment — the bugs are minor enough to fix in a follow-up PR",
+              "Approve as-is — the query produces correct results",
+              "Block and require senior author rewrite"
+            ],
+            "correctAnswer": "Block — the dead join and missing pushdown together represent a query that wastes 5-10x the necessary CUs at GridUnion scale; the PR should be sent back with the reviewer's concrete fix list",
+            "rationale": "Senior code review requires blocking PRs with significant performance issues, even when the output is correct. The query produces the right answer (correctness is fine), but at 5-10x the necessary cost in CU consumption, which translates to slower runs, more capacity contention, and worse SLAs. The reviewer's job is to teach the junior author about pushdown verification, dead join elimination, and nested column pruning — all of which are mid-to-senior level skills the author has not yet internalized. Distractor B (approve with follow-up) is a common cop-out that lets the bad code reach production."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS2-task-04",
+      "title": "Diagnose Why AQE Did NOT Convert the Join",
+      "type": "root_cause_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's regulatory pipeline runs a join between two filtered subsets. The post-filter sizes look small enough to broadcast. AQE is enabled (the Fabric default). Yet the runtime plan continues to use SortMergeJoin and the engineer wants to know why.\n\n  QUERY:\n    WITH filtered_meters AS (\n      SELECT meter_id, region_code, tariff_id\n      FROM dim_meters\n      WHERE country_code = 'NL' AND active = true\n    ),\n    filtered_readings AS (\n      SELECT meter_id, daily_kw, date\n      FROM fact_readings\n      WHERE date >= '2026-04-01' AND country_code = 'NL'\n    )\n    SELECT m.region_code, m.tariff_id, SUM(r.daily_kw) AS total\n    FROM filtered_readings r JOIN filtered_meters m ON r.meter_id = m.meter_id\n    GROUP BY m.region_code, m.tariff_id\n\n  AQE-ANNOTATED PHYSICAL PLAN (post-runtime):\n\n    AdaptiveSparkPlan isFinalPlan=true\n    +- *(7) HashAggregate(keys=[region_code#10, tariff_id#22], functions=[sum(daily_kw#15)])\n       +- AQEShuffleRead local\n          +- ShuffleQueryStage 4\n             +- Exchange hashpartitioning(region_code#10, tariff_id#22, 200), ENSURE_REQUIREMENTS\n                +- *(6) HashAggregate(keys=[region_code#10, tariff_id#22], functions=[partial_sum(daily_kw#15)])\n                   +- *(6) Project [region_code#10, tariff_id#22, daily_kw#15]\n                      +- *(6) SortMergeJoin [meter_id#13], [meter_id#31], Inner\n                         :- *(4) Sort [meter_id#13 ASC], false, 0\n                         :  +- AQEShuffleRead coalesced\n                         :     +- ShuffleQueryStage 0\n                         :        +- Exchange hashpartitioning(meter_id#13, 200), ENSURE_REQUIREMENTS\n                         :           +- *(1) Project [meter_id#13, daily_kw#15]\n                         :              +- *(1) Filter ((date#16 >= 2026-04-01) AND (country_code#17 = NL))\n                         :                 +- *(1) FileScan parquet fact_readings\n                         :                       PushedFilters: [GreaterThanOrEqual(date,2026-04-01),EqualTo(country_code,NL)]\n                         +- *(5) Sort [meter_id#31 ASC], false, 0\n                            +- AQEShuffleRead coalesced\n                               +- ShuffleQueryStage 1\n                                  +- Exchange hashpartitioning(meter_id#31, 200), ENSURE_REQUIREMENTS\n                                     +- *(2) Project [meter_id#31, region_code#10, tariff_id#22]\n                                        +- *(2) Filter ((country_code#34 = NL) AND active#41)\n                                           +- *(2) FileScan parquet dim_meters\n\n  AQE EVENT LOG (excerpts):\n\n    [stage 0] post-shuffle stats: rows=1,847,000  bytesRead=78 MB  partitionsCoalesced=200->24\n    [stage 1] post-shuffle stats: rows=4,200      bytesRead=180 KB partitionsCoalesced=200->1\n    [join eligibility check] checking if stage 1 can be converted to broadcast\n    [join eligibility check] stage 1 size: 180 KB (well under 10 MB threshold)\n    [join eligibility check] CONVERSION REJECTED: parent stage already started\n    [join continued as] SortMergeJoin\n\n  FABRIC SPARK CONFIGURATION (relevant defaults):\n    spark.sql.adaptive.enabled = true\n    spark.sql.adaptive.localShuffleReader.enabled = true\n    spark.sql.adaptive.coalescePartitions.enabled = true\n    spark.sql.adaptive.skewJoin.enabled = true\n    spark.sql.autoBroadcastJoinThreshold = 10485760  (10 MB)\n    spark.sql.adaptive.autoBroadcastJoinThreshold = 31457280  (30 MB, the AQE-time threshold)\n    spark.sql.adaptive.localShuffleReader.enabled = true",
+        "task": "Trace through AQE's join conversion logic to identify why a 180 KB build side was NOT converted to a broadcast despite being well below both the static (10 MB) and AQE (30 MB) thresholds.",
+        "validationHint": "The smoking gun is the AQE event log line: 'CONVERSION REJECTED: parent stage already started'. AQE's join conversion is timing-sensitive. AQE can convert a SortMergeJoin to a BroadcastHashJoin ONLY if both child shuffle stages complete BEFORE the parent join stage starts. In this query, stage 0 (the large fact_readings shuffle) and stage 1 (the small dim_meters shuffle) both finish around the same time, but the join stage may have begun reading from stage 0 before stage 1's stats were available. This is a known AQE limitation: the conversion window is narrow and depends on stage ordering. The fix is either an explicit broadcast hint (force the decision pre-runtime) or restructuring the query so the small side is read first."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS2-04-F1",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — SYMPTOM: What does the AQE event log specifically say about why the conversion was rejected?",
+            "options": [
+              "'CONVERSION REJECTED: parent stage already started' — the AQE event log explicitly states the conversion attempt happened too late, after the parent join stage had already begun",
+              "The conversion was rejected because the size exceeded the threshold",
+              "The conversion was rejected because AQE was disabled",
+              "The conversion was rejected because of a missing column"
+            ],
+            "correctAnswer": "'CONVERSION REJECTED: parent stage already started' — the AQE event log explicitly states the conversion attempt happened too late, after the parent join stage had already begun",
+            "rationale": "The first step in any root cause analysis is to read the actual error or rejection message verbatim. The AQE event log gives the exact reason: parent stage already started. This is much more specific than the generic 'AQE didn't help' that less experienced engineers might assume."
+          },
+          {
+            "id": "FS2-04-F2",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — COMPONENT: Which part of AQE makes the join conversion decision?",
+            "options": [
+              "The DynamicJoinSelection rule, which inspects the post-shuffle statistics of completed child stages and converts SortMergeJoin to BroadcastHashJoin if a child's size is below spark.sql.adaptive.autoBroadcastJoinThreshold AND the parent stage has not yet consumed the shuffle output",
+              "The DAGScheduler",
+              "The CBO statistics propagation rule",
+              "The TaskScheduler's locality preference logic"
+            ],
+            "correctAnswer": "The DynamicJoinSelection rule, which inspects the post-shuffle statistics of completed child stages and converts SortMergeJoin to BroadcastHashJoin if a child's size is below spark.sql.adaptive.autoBroadcastJoinThreshold AND the parent stage has not yet consumed the shuffle output",
+            "rationale": "Senior-level Spark knowledge includes the specific names of the AQE rules. DynamicJoinSelection is the rule that handles runtime join conversion. The 'parent stage has not yet consumed the shuffle output' constraint is the key timing requirement that explains why this query's conversion failed."
+          },
+          {
+            "id": "FS2-04-F3",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — MECHANISM: Why did the parent stage start before stage 1's stats were available, given that stage 1 only had to process 180 KB?",
+            "options": [
+              "Stage 0 (fact_readings, 78 MB) completed slightly earlier than stage 1; the join stage began consuming stage 0's output as soon as stage 0 was ready, and by the time stage 1's stats arrived, the conversion window had already closed. AQE's conversion is opportunistic, not guaranteed",
+              "Stage 1 was deliberately delayed by Fabric's scheduler",
+              "The 180 KB size estimate was wrong",
+              "The conversion threshold is set too low"
+            ],
+            "correctAnswer": "Stage 0 (fact_readings, 78 MB) completed slightly earlier than stage 1; the join stage began consuming stage 0's output as soon as stage 0 was ready, and by the time stage 1's stats arrived, the conversion window had already closed. AQE's conversion is opportunistic, not guaranteed",
+            "rationale": "This is the subtle senior-level insight: AQE's conversion is timing-dependent and opportunistic. Even though stage 1 was much smaller (180 KB vs 78 MB), the timing of stage completion and the parent stage start determines whether conversion can happen. In this case, the stages happened to complete in an order that closed the conversion window before stage 1's stats were checked. This is a known limitation of AQE that mid-level engineers often don't realize: 'AQE will convert if it CAN, but the conditions for can are narrower than the threshold suggests.'"
+          },
+          {
+            "id": "FS2-04-F4",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — FIX: What is the most reliable fix?",
+            "options": [
+              "Add an explicit BROADCAST hint to filtered_meters: SELECT /*+ BROADCAST(filtered_meters) */ ... — this forces the broadcast decision at PLAN time (not runtime), eliminating the AQE timing dependency entirely. The hint is the production-grade fix when the team needs reliable broadcast for a known-small dimension",
+              "Wait for AQE to figure it out next time",
+              "Increase the AQE conversion threshold from 30 MB to 1 GB",
+              "Disable AQE entirely"
+            ],
+            "correctAnswer": "Add an explicit BROADCAST hint to filtered_meters: SELECT /*+ BROADCAST(filtered_meters) */ ... — this forces the broadcast decision at PLAN time (not runtime), eliminating the AQE timing dependency entirely. The hint is the production-grade fix when the team needs reliable broadcast for a known-small dimension",
+            "secondaryCorrectAnswer": "Restructure the query so dim_meters is materialized as a temp view first and then joined; the read order may give the join stage time to see stage 1 before stage 0 finishes",
+            "rationale": "PRIMARY answer is the explicit broadcast hint because it removes the timing dependency entirely. Forcing broadcast at plan time means the optimizer commits to a broadcast strategy from the start, without depending on AQE's runtime conversion. This is the production-grade fix for any join where the team knows the build side is small enough. SECONDARY answer (restructuring) is a real workaround but less reliable because it depends on stage ordering that may change with data volume. Distractors B-D are wrong: B abandons the engineer's responsibility, C is over-correction with global side effects, D regresses to mid-level performance.",
+            "acceptable_alternatives": "Either the explicit hint (primary) or the query restructuring (secondary) is accepted. The primary is preferred because it is more reliable and the rationale field should reflect that preference."
+          },
+          {
+            "id": "FS2-04-F5",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — LESSON: What is the senior-level lesson about relying on AQE for join conversion?",
+            "options": [
+              "AQE conversion is opportunistic, not guaranteed. For joins where the team KNOWS the build side will be small, an explicit broadcast hint is more reliable than depending on AQE's runtime detection. AQE is best for handling skew and partition coalescing — for join strategy on known-small dimensions, hint at plan time",
+              "AQE is unreliable and should be disabled",
+              "AQE always converts joins correctly given enough time",
+              "AQE conversion is identical to plan-time broadcast selection"
+            ],
+            "correctAnswer": "AQE conversion is opportunistic, not guaranteed. For joins where the team KNOWS the build side will be small, an explicit broadcast hint is more reliable than depending on AQE's runtime detection. AQE is best for handling skew and partition coalescing — for join strategy on known-small dimensions, hint at plan time",
+            "rationale": "The mid-level rule of thumb 'trust AQE' becomes the senior-level nuance 'trust AQE for what it does well, hint for what you already know.' AQE shines for skew handling and partition coalescing because those decisions REQUIRE runtime data. Join strategy for a dimension table you know is small doesn't require runtime data — you already know the answer. Hinting at plan time makes the decision deterministic and removes the timing dependency that caused this incident. Distractor A overcorrects; distractor C is wrong (AQE has hard timing constraints); distractor D is wrong (plan-time and runtime conversion have different mechanics)."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS2-task-05",
+      "title": "Design GridUnion's Optimizer Diagnostic Toolkit",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "This is the synthesis task. GridUnion's platform team needs an optimizer diagnostic toolkit that the platform engineers can use whenever a query exhibits unexpected performance. The toolkit must integrate the lessons from this entire practice set:\n\n  - Catalyst plan capture (from Task 1: capturing BEFORE/AFTER plans)\n  - Statistics inspection (from Task 1: knowing when statistics are stale or missing)\n  - Plan shape comparison (from Task 1: detecting Broadcast -> SortMerge regressions)\n  - AQE event log capture (from Task 4: knowing why AQE did or did not convert)\n  - Plan regression detection (from Task 1: detecting when a plan changes for a previously-stable query)\n\nYour job has two parts: (1) DIAGNOSIS — fill the 4-field template articulating the diagnostic principles. (2) ARTIFACT — build a Python dict specifying the toolkit's components, integration points, and operational policies.",
+        "task": "Fill the diagnosis template AND build the toolkit specification dict.\n\nFor the ARTIFACT: Build a Python dict called optimizer_toolkit with these top-level keys:\n  - components: a list of EXACTLY 5 component dicts, each with name, purpose, and trigger. The 5 component names: 'plan_capture', 'statistics_inspector', 'plan_shape_comparator', 'aqe_event_log_reader', 'regression_detector'\n  - storage: a dict with location ('platform_lakehouse_diagnostics_table') and retention_days (90)\n  - integration: a dict with ci_check_enabled (True), runs_on_pr (True), runs_post_deployment (True)\n  - alert_policy: a dict with regression_alert_threshold_pct (20) and alert_channel ('platform_oncall')",
+        "validationHint": "The 5 components map directly to the 5 lessons from Tasks 1 and 4. The ci_check_enabled and runs_on_pr settings encode the FS2 Lesson 8 'plan regression detection as CI gate' pattern. The 20% regression threshold means: if a query's runtime increases by more than 20% compared to its baseline, the toolkit alerts the platform team."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS2-05-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why must plan capture happen at PR time, not after deployment?",
+            "options": [
+              "Capturing plans at PR time lets the team detect regressions BEFORE they reach production. By comparing the proposed plan against the current production plan, the CI gate can block PRs that would introduce regressions (like the Task 1 PR #412 that flipped a broadcast to sort-merge). Post-deployment capture only tells you about damage that has already happened",
+              "Plan capture only works during PR time",
+              "Post-deployment capture is too expensive",
+              "Plans are immutable after deployment"
+            ],
+            "correctAnswer": "Capturing plans at PR time lets the team detect regressions BEFORE they reach production. By comparing the proposed plan against the current production plan, the CI gate can block PRs that would introduce regressions (like the Task 1 PR #412 that flipped a broadcast to sort-merge). Post-deployment capture only tells you about damage that has already happened",
+            "rationale": "The same lesson as the entire mid-level track applied to senior tooling: prevention beats detection. Plan capture at PR time is the prevention. Post-deployment capture is the detection. Both are valuable, but PR-time capture is the one that prevents incidents."
+          },
+          {
+            "id": "FS2-05-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why does the toolkit need an AQE event log reader specifically (vs just inspecting the explain output)?",
+            "options": [
+              "AQE makes runtime decisions that do NOT appear in the explain output until after the query runs. The AQE event log is the only way to know why AQE did or did not convert a join, coalesce partitions, or split a skewed partition. Without the event log, the team cannot diagnose AQE-related issues like the Task 4 timing problem",
+              "The explain output is too long",
+              "AQE writes everything to the event log",
+              "The event log is faster to query"
+            ],
+            "correctAnswer": "AQE makes runtime decisions that do NOT appear in the explain output until after the query runs. The AQE event log is the only way to know why AQE did or did not convert a join, coalesce partitions, or split a skewed partition. Without the event log, the team cannot diagnose AQE-related issues like the Task 4 timing problem",
+            "rationale": "The Task 4 incident is the canonical example: the explain output showed the final SortMergeJoin, but the WHY (parent stage already started) was only in the AQE event log. The diagnostic toolkit must include both static plan inspection and runtime AQE inspection — they answer different questions."
+          },
+          {
+            "id": "FS2-05-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why is 90-day retention the right choice for plan history (instead of 7 days or 1 year)?",
+            "options": [
+              "90 days covers a full quarterly release cycle, allowing the team to compare current plans against the baseline from before the most recent set of deployments. 7 days is too short to span a release cycle. 1 year is unnecessarily expensive in storage and complicates plan comparison logic with too many candidate baselines",
+              "90 days is required by regulation",
+              "90 days is the minimum supported retention",
+              "It is arbitrary"
+            ],
+            "correctAnswer": "90 days covers a full quarterly release cycle, allowing the team to compare current plans against the baseline from before the most recent set of deployments. 7 days is too short to span a release cycle. 1 year is unnecessarily expensive in storage and complicates plan comparison logic with too many candidate baselines",
+            "secondaryCorrectAnswer": "It is arbitrary",
+            "rationale": "PRIMARY answer is the quarterly-release reasoning. SECONDARY answer (arbitrary) is honestly accepted because retention values ARE somewhat arbitrary within reasonable bounds — 60 days or 120 days would also work. The student should recognize that the choice has to be defensible but does not have a single correct value. Distractors B and C invent fake constraints."
+          },
+          {
+            "id": "FS2-05-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why is the regression alert threshold set to 20% instead of 5% or 50%?",
+            "options": [
+              "20% balances sensitivity (catches real regressions) against noise (doesn't fire on the natural variation in runtime due to caching, capacity contention, or data volume fluctuations). 5% would be too sensitive — every other run would trigger an alert. 50% would miss meaningful regressions like a 30% slowdown that compounds across 200 daily runs",
+              "20% is required by Fabric",
+              "20% is the only threshold the platform supports",
+              "The threshold is irrelevant"
+            ],
+            "correctAnswer": "20% balances sensitivity (catches real regressions) against noise (doesn't fire on the natural variation in runtime due to caching, capacity contention, or data volume fluctuations). 5% would be too sensitive — every other run would trigger an alert. 50% would miss meaningful regressions like a 30% slowdown that compounds across 200 daily runs",
+            "rationale": "Alert threshold tuning is a recurring pattern across the senior track: balance sensitivity vs noise based on the natural variance of the metric. Daily runtime variance is typically 5-15% due to load, caching, and data volume; a 20% threshold sits just above the noise floor. This is the same reasoning pattern as FI8's capacity throttling alert thresholds and FI3's transient failure detection."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS2 SYNTHESIS: GridUnion's optimizer diagnostic toolkit specification.\n\n# YOUR SOLUTION BELOW\n# Build optimizer_toolkit with the 4 top-level keys from the task description.\n# The 5 component names are fixed: plan_capture, statistics_inspector,\n# plan_shape_comparator, aqe_event_log_reader, regression_detector.\n\noptimizer_toolkit = {\n    # Fill in: components, storage, integration, alert_policy\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(optimizer_toolkit, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS2-05-A1",
+          "description": "optimizer_toolkit has all 4 required top-level keys",
+          "check": "set(optimizer_toolkit.keys()) >= {'components', 'storage', 'integration', 'alert_policy'}"
+        },
+        {
+          "id": "FS2-05-A2",
+          "description": "components is a list of exactly 5 entries",
+          "check": "isinstance(optimizer_toolkit['components'], list) and len(optimizer_toolkit['components']) == 5"
+        },
+        {
+          "id": "FS2-05-A3",
+          "description": "Every component has the 3 required keys (name, purpose, trigger)",
+          "check": "all(set(c.keys()) >= {'name', 'purpose', 'trigger'} for c in optimizer_toolkit['components'])"
+        },
+        {
+          "id": "FS2-05-A4",
+          "description": "All 5 expected component names are present",
+          "check": "set(c['name'] for c in optimizer_toolkit['components']) == {'plan_capture', 'statistics_inspector', 'plan_shape_comparator', 'aqe_event_log_reader', 'regression_detector'}"
+        },
+        {
+          "id": "FS2-05-A5",
+          "description": "storage has location and retention_days=90",
+          "check": "optimizer_toolkit['storage']['location'] == 'platform_lakehouse_diagnostics_table' and optimizer_toolkit['storage']['retention_days'] == 90"
+        },
+        {
+          "id": "FS2-05-A6",
+          "description": "integration has ci_check_enabled=True and runs_on_pr=True (the prevention pattern)",
+          "check": "optimizer_toolkit['integration']['ci_check_enabled'] == True and optimizer_toolkit['integration']['runs_on_pr'] == True"
+        },
+        {
+          "id": "FS2-05-A7",
+          "description": "integration has runs_post_deployment=True (the detection pattern)",
+          "check": "optimizer_toolkit['integration']['runs_post_deployment'] == True"
+        },
+        {
+          "id": "FS2-05-A8",
+          "description": "alert_policy has regression_alert_threshold_pct=20",
+          "check": "optimizer_toolkit['alert_policy']['regression_alert_threshold_pct'] == 20"
+        },
+        {
+          "id": "FS2-05-A9",
+          "description": "alert_policy has alert_channel='platform_oncall'",
+          "check": "optimizer_toolkit['alert_policy']['alert_channel'] == 'platform_oncall'"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (9 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/9). The 9 assertions verify both the structural completeness (5 components, all keys present) and the specific values that encode the lessons from Tasks 1 and 4.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Catalyst plan capture and inspection (Lesson 1, Task 1)",
+          "Statistics propagation and refresh (Lesson 2, Task 1)",
+          "Plan shape comparison for regression detection (Lesson 8, Task 1)",
+          "AQE event log reading for runtime diagnosis (Lesson 4, Task 4)",
+          "CI integration as prevention vs post-deployment as detection (FI7 carryover + Lesson 8)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines plan capture, statistics inspection, plan comparison, AQE event log reading, and regression detection into a unified toolkit. The CI integration assertions (A6, A7) encode the prevention vs detection duality. The keystone is A4 — students who omit any of the 5 components from the list have not internalized the diagnostic completeness lesson."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "tradeoffTasksHaveCompetingOptions": true,
+    "designReviewHasSubtleNotTextbookIssues": true,
+    "answerRangesDocumented": true,
+    "calibrationNotes": "Senior practice set establishing the trade-off + design review + root cause patterns. Two root cause tasks (max for the type) anchor the set with engine-internals diagnostic chains. The trade-off task has 2 defensible primary answers (Option A scheduled OR Hybrid) plus a tertiary acceptance for Option B with appropriate reasoning. The design review task's 4 problems are subtle (dead join elimination, missed pushdown, nested column pruning, wide column reads) — none are textbook syntax errors. Multiple defensible answers documented in acceptable_alternatives metadata for fields F1-04-F4 and F2-02-F1.",
+    "theoryPracticeBoundary": "The theory teaches Catalyst rule batches, statistics propagation, the CBO cost model, AQE adaptation mechanics, predicate pushdown internals, plan regression detection, and column pruning across 10 lessons. The practice tests application: Task 1 reproduces the canonical 'schema change invalidates statistics' regression with full plan diff evidence. Task 2 forces an architectural choice with 3 genuinely competing options. Task 3 reviews a query with 4 subtle issues that require senior-level pattern recognition (especially the nested column pruning miss from Lesson 9). Task 4 traces an AQE timing failure that mid-level engineers cannot diagnose because they don't know about DynamicJoinSelection's parent-stage timing constraint. Task 5 synthesizes the diagnostic capabilities into a toolkit specification that the platform team can implement.",
+    "datasetNotes": "No datasets — every diagnostic task uses inline evidence (physical plans, AQE event logs, plan diffs) formatted as preformatted text. Senior practice de-emphasizes data execution in favor of architectural reasoning. This matches FS2's nature as an internals module."
+  }
+}

@@ -1,0 +1,457 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FI9 — Multi-Team Governance and Security",
+  "description": "Govern NordGrid's 3-team Fabric environment: diagnose permission sprawl from an access audit, design the workspace hierarchy combining layer-based and team-based patterns, configure column-level security to mask customer data from the ML team, diagnose a sensitivity label drift incident from a Purview audit report, build the data certification checklist that gates production item promotion, and design NordGrid's complete governance framework integrating workspace hierarchy + security + Purview + certification + operational standards.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+",
+  "metadata": {
+    "moduleId": "module-FI9",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 80,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "3 teams (engineering 6 people, analytics 5 people, ML 4 people = 15 total), 9 workspaces, F64 production",
+    "modulePhase": "engineering_discipline",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 2,
+      "fixImplementation": 3,
+      "refactoring": 0,
+      "diagnosticWorkflow": 1
+    },
+    "calibrationNotes": "Ninth Fabric mid-level practice set. Same governance shape as FI7 and FI8: no datasets, all configuration artifacts and diagnostic templates. The 3-team scale (15 people) is the inflection point where ad-hoc permission grants become unmaintainable. Tasks combine workspace hierarchy decisions, fine-grained security (CLS, RLS), Purview integration, and certification governance. Task type mix (2 diagnostic + 3 fix + 1 synthesis) is within all section 5.2 limits."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-FI9-task-01",
+      "title": "Diagnose Permission Sprawl",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's quarterly access audit reveals accumulated overprivilege across the 3 teams:\n\n  ACCESS AUDIT — 2026-04-01\n  ============================================================\n  WORKSPACE: ws_silver_production (the production Silver Lakehouse)\n  ROLE: Admin (full edit + delete + permission grant)\n\n  USERS WITH ADMIN ROLE ON WS_SILVER_PRODUCTION:\n    User                Team           Role granted     Reason in audit log\n    ----                ----           --------------   --------------------\n    eng_alice           engineering    Admin            owner of Silver pipeline\n    eng_bob             engineering    Admin            backup owner\n    eng_charlie         engineering    Admin            'temporary' (granted 18 months ago)\n    eng_dan             engineering    Admin            on-call rotation member\n    analytics_eve       analytics      Admin            'needed access for one query' (8 months ago)\n    analytics_frank     analytics      Admin            'troubleshooting' (5 months ago)\n    ml_grace            ml             Admin            'feature engineering investigation' (4 months ago)\n    ml_henry            ml             Admin            inherited from a deleted user account\n    contractor_iris     contractor     Admin            'POC support' (contractor left 2 months ago)\n    former_jake         (left company) Admin            account not deactivated\n\n  TOTAL ADMINS ON SILVER PRODUCTION:  10\n  USERS WHO ACTUALLY EDITED THE WORKSPACE IN PAST 90 DAYS:  2 (eng_alice, eng_bob)\n  USERS WHO LOGGED IN BUT DID NOT EDIT:  3 (eng_dan, analytics_eve, ml_grace)\n  USERS WHO DID NOT LOG IN AT ALL:  5 (eng_charlie, analytics_frank, ml_henry, contractor_iris, former_jake)\n\n  AUDIT FINDING: 80% of admins on the production Silver workspace have not made any\n  edit in 90 days, including a former employee and a departed contractor.",
+        "task": "Diagnose the structural issues with the current access pattern and identify the principle that should govern role assignments.",
+        "validationHint": "The principle of least privilege says: each user should have the minimum permissions needed for their actual work. The audit shows 8 of 10 admins are unjustified — they were granted access for one-off needs and never had it revoked. The structural fixes are: (1) periodic access reviews, (2) time-bounded grants that expire automatically, (3) account deactivation tied to HR offboarding, (4) read-only access by default with admin granted only on demand."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI9-01-F1",
+            "type": "single_select",
+            "label": "What is the most fundamental problem with the current access pattern?",
+            "options": [
+              "Permissions accumulate over time without expiration: access granted for a one-off need (a single query, a temporary investigation) is never revoked, so the admin set grows monotonically until it includes departed employees and contractors. This violates the principle of least privilege",
+              "There are too many people on the engineering team",
+              "The audit happens too rarely",
+              "Microsoft Fabric assigns admin role automatically"
+            ],
+            "correctAnswer": "Permissions accumulate over time without expiration: access granted for a one-off need (a single query, a temporary investigation) is never revoked, so the admin set grows monotonically until it includes departed employees and contractors. This violates the principle of least privilege",
+            "rationale": "The audit's reasons column tells the story: 'temporary', 'one query', 'troubleshooting', 'POC support'. Each grant was justified at the time, but each grant became permanent because nothing in the system removed it after the need ended. Permission sprawl is an accumulation problem, not a granting problem — the fix is automatic expiration, not stricter granting."
+          },
+          {
+            "id": "FI9-01-F2",
+            "type": "single_select",
+            "label": "Which 2 entries in the audit are the most urgent to revoke?",
+            "options": [
+              "former_jake (left the company) and contractor_iris (departed contractor) — these are direct security violations because the users no longer have a legitimate relationship with NordGrid and should not have any access at all, let alone admin",
+              "eng_alice and eng_bob — they are the only active admins so revoking them prevents future damage",
+              "ml_grace and ml_henry — the ML team should not touch production",
+              "All 10 admins should be revoked simultaneously"
+            ],
+            "correctAnswer": "former_jake (left the company) and contractor_iris (departed contractor) — these are direct security violations because the users no longer have a legitimate relationship with NordGrid and should not have any access at all, let alone admin",
+            "rationale": "The departed-employee and departed-contractor entries are the clearest violations: there is no legitimate reason for them to retain ANY access. They should be the first revoked because they represent open security holes. The other entries are overprivilege but not unauthorized access — those need broader review, while the departed users are immediate revocations."
+          },
+          {
+            "id": "FI9-01-F3",
+            "type": "single_select",
+            "label": "What process would have prevented this sprawl from accumulating?",
+            "options": [
+              "Quarterly access reviews where every admin must be re-justified by an active sponsor; combined with automatic time-bounded grants (e.g., 90-day access for non-owners) so investigative grants expire by default and require renewal",
+              "A monthly all-hands meeting to discuss permissions",
+              "Only granting admin to engineering team members",
+              "Requiring CEO approval for every permission grant"
+            ],
+            "correctAnswer": "Quarterly access reviews where every admin must be re-justified by an active sponsor; combined with automatic time-bounded grants (e.g., 90-day access for non-owners) so investigative grants expire by default and require renewal",
+            "rationale": "The right combination is review (catches stale entries) + expiration (prevents accumulation in the first place). Reviews are the safety net; expiration is the prevention. Distractor B is bureaucratic without enforcement. Distractor C is overcorrection (sometimes ML legitimately needs admin). Distractor D is too heavy for routine grants."
+          },
+          {
+            "id": "FI9-01-F4",
+            "type": "single_select",
+            "label": "What should the engineering team's normal access level be on production Silver, given that only 2 of 10 admins actually edited the workspace?",
+            "options": [
+              "Read-only by default, with admin granted on-demand for the on-call engineer or pipeline owner. The 2 actual editors (alice, bob) get persistent admin as the named owners; everyone else gets read-only and elevates to admin only when paged for an incident",
+              "All engineers should keep admin in case of emergency",
+              "Only one person should ever have admin",
+              "Engineering should not have access to production at all"
+            ],
+            "correctAnswer": "Read-only by default, with admin granted on-demand for the on-call engineer or pipeline owner. The 2 actual editors (alice, bob) get persistent admin as the named owners; everyone else gets read-only and elevates to admin only when paged for an incident",
+            "rationale": "The right pattern is least privilege with on-demand elevation. Read-only access lets engineers diagnose problems (read logs, query tables) without being able to make changes. Admin is granted to the named owners (alice, bob) and the on-call engineer for the duration of their shift. This matches NordGrid's pattern from FI9 Lesson 3."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI9-task-02",
+      "title": "Design the Workspace Hierarchy",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid is restructuring the Fabric workspaces from an ad-hoc layout into the hybrid pattern from FI9 Lesson 2. The hybrid pattern uses:\n  - LAYER-BASED workspaces for the shared medallion architecture (one workspace per layer, used by all teams)\n  - TEAM-BASED workspaces for team-specific experimental work (one workspace per team for sandbox/exploration)\n\nNordGrid's specific design:\n  Shared medallion (layer-based, 3 environments × 3 layers = 9 workspaces):\n    ws_bronze_dev, ws_silver_dev, ws_gold_dev\n    ws_bronze_staging, ws_silver_staging, ws_gold_staging\n    ws_bronze_production, ws_silver_production, ws_gold_production\n\n  Team experimental (team-based, 1 per team = 3 workspaces):\n    ws_engineering_sandbox\n    ws_analytics_sandbox\n    ws_ml_sandbox",
+        "task": "Build a Python dict called workspace_hierarchy with two top-level keys:\n  - shared_medallion: a dict with two sub-keys: layers (a list of the 3 medallion layers ['bronze', 'silver', 'gold']) and environments (a list of the 3 environments ['dev', 'staging', 'production']). The full set of shared workspaces is the cartesian product (9 workspaces total).\n  - team_sandboxes: a dict mapping team names to their sandbox workspace name. Three entries: 'engineering' -> 'ws_engineering_sandbox', 'analytics' -> 'ws_analytics_sandbox', 'ml' -> 'ws_ml_sandbox'.\n\nAlso build a derived list called all_shared_workspaces containing all 9 'ws_{layer}_{env}' workspace names (e.g., 'ws_bronze_dev', 'ws_silver_production', etc.) computed from the shared_medallion dict.",
+        "validationHint": "The shared_medallion structure encodes the layer × environment matrix. Total shared workspaces: 3 layers × 3 environments = 9. Total team sandboxes: 3. Total: 12 workspaces. Compute all_shared_workspaces with a list comprehension: [f'ws_{l}_{e}' for l in shared_medallion['layers'] for e in shared_medallion['environments']]."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI9 Lesson 2: hybrid workspace hierarchy combining layer-based and team-based.\n\n# YOUR SOLUTION BELOW\n# Build workspace_hierarchy with shared_medallion (layers + environments) and team_sandboxes.\n\nworkspace_hierarchy = {\n    # Fill in shared_medallion and team_sandboxes\n}\n\n# Build all_shared_workspaces by combining layers and environments into ws_{layer}_{env} names\nall_shared_workspaces = [\n    # Fill in 9 workspace names\n]\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(workspace_hierarchy, indent=2))\nprint(f\"All shared workspaces: {len(all_shared_workspaces)}\")\nprint(all_shared_workspaces)"
+      },
+      "assertions": [
+        {
+          "id": "FI9-02-A1",
+          "description": "workspace_hierarchy has both top-level keys",
+          "check": "set(workspace_hierarchy.keys()) >= {'shared_medallion', 'team_sandboxes'}"
+        },
+        {
+          "id": "FI9-02-A2",
+          "description": "shared_medallion.layers is the 3-element list of medallion layers",
+          "check": "set(workspace_hierarchy['shared_medallion']['layers']) == {'bronze', 'silver', 'gold'}"
+        },
+        {
+          "id": "FI9-02-A3",
+          "description": "shared_medallion.environments is the 3-element list of environments",
+          "check": "set(workspace_hierarchy['shared_medallion']['environments']) == {'dev', 'staging', 'production'}"
+        },
+        {
+          "id": "FI9-02-A4",
+          "description": "team_sandboxes has exactly 3 team entries (engineering, analytics, ml)",
+          "check": "set(workspace_hierarchy['team_sandboxes'].keys()) == {'engineering', 'analytics', 'ml'}"
+        },
+        {
+          "id": "FI9-02-A5",
+          "description": "Each team sandbox name follows the ws_{team}_sandbox convention",
+          "check": "workspace_hierarchy['team_sandboxes']['engineering'] == 'ws_engineering_sandbox' and workspace_hierarchy['team_sandboxes']['analytics'] == 'ws_analytics_sandbox' and workspace_hierarchy['team_sandboxes']['ml'] == 'ws_ml_sandbox'"
+        },
+        {
+          "id": "FI9-02-A6",
+          "description": "all_shared_workspaces contains exactly 9 entries (3 layers × 3 environments)",
+          "check": "len(all_shared_workspaces) == 9"
+        },
+        {
+          "id": "FI9-02-A7",
+          "description": "all_shared_workspaces includes 'ws_bronze_dev', 'ws_silver_production', and 'ws_gold_staging' (sample of the cartesian product)",
+          "check": "'ws_bronze_dev' in all_shared_workspaces and 'ws_silver_production' in all_shared_workspaces and 'ws_gold_staging' in all_shared_workspaces"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-FI9-task-03",
+      "title": "Configure Column-Level Security",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's customer_dim table contains both energy consumption data (which the ML team needs for forecasting) AND personally identifiable information (which the ML team must NOT see). FI9 Lesson 4's column-level security pattern: define which columns are visible to which roles.\n\nThe customer_dim columns:\n  customer_id           — anonymous identifier (visible to all)\n  region                — energy region (visible to all)\n  customer_type         — residential / commercial / industrial (sensitive — billing only)\n  monthly_avg_kw        — consumption pattern (visible to all)\n  billing_address       — PII (sensitive — billing only)\n  contact_email         — PII (sensitive — billing only)\n  customer_name         — PII (sensitive — billing only)\n\nThe access roles:\n  role_billing_team     — sees ALL columns including PII (needs full access for invoicing)\n  role_ml_team          — sees only the energy columns (customer_id, region, monthly_avg_kw); PII columns are masked\n  role_engineering_team — sees ALL columns (needs full access for pipeline operations)\n  role_analytics_team   — sees customer_id, region, customer_type, monthly_avg_kw (no PII)",
+        "task": "Build a Python dict called cls_config with one key: role_visibility, mapping each of the 4 role names to a sorted list of the columns that role can see. Use the role-to-column mapping from the context. Total: 4 role entries.",
+        "validationHint": "role_billing_team and role_engineering_team see all 7 columns. role_ml_team sees 3 columns (customer_id, region, monthly_avg_kw — no PII, no customer_type). role_analytics_team sees 4 columns (customer_id, region, customer_type, monthly_avg_kw — no PII)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI9 Lesson 4: column-level security configuration.\n\nALL_COLUMNS = ['customer_id', 'region', 'customer_type', 'monthly_avg_kw',\n               'billing_address', 'contact_email', 'customer_name']\n\n# YOUR SOLUTION BELOW\n# Build cls_config = {'role_visibility': {<4 role names>: <list of visible columns>}}.\n# Use the role-to-column mapping from the task description.\n\ncls_config = {\n    'role_visibility': {\n        # Fill in 4 roles with their visible column lists\n    }\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nfor role, cols in cls_config['role_visibility'].items():\n    print(f\"{role}: {len(cols)} columns visible\")\nprint(json.dumps(cls_config, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI9-03-A1",
+          "description": "cls_config.role_visibility has exactly 4 role entries",
+          "check": "set(cls_config['role_visibility'].keys()) == {'role_billing_team', 'role_ml_team', 'role_engineering_team', 'role_analytics_team'}"
+        },
+        {
+          "id": "FI9-03-A2",
+          "description": "role_billing_team sees all 7 columns",
+          "check": "set(cls_config['role_visibility']['role_billing_team']) == {'customer_id', 'region', 'customer_type', 'monthly_avg_kw', 'billing_address', 'contact_email', 'customer_name'}"
+        },
+        {
+          "id": "FI9-03-A3",
+          "description": "role_engineering_team sees all 7 columns",
+          "check": "set(cls_config['role_visibility']['role_engineering_team']) == {'customer_id', 'region', 'customer_type', 'monthly_avg_kw', 'billing_address', 'contact_email', 'customer_name'}"
+        },
+        {
+          "id": "FI9-03-A4",
+          "description": "role_ml_team sees exactly 3 columns: customer_id, region, monthly_avg_kw (NO PII, NO customer_type)",
+          "check": "set(cls_config['role_visibility']['role_ml_team']) == {'customer_id', 'region', 'monthly_avg_kw'}"
+        },
+        {
+          "id": "FI9-03-A5",
+          "description": "role_analytics_team sees exactly 4 columns: customer_id, region, customer_type, monthly_avg_kw (NO PII)",
+          "check": "set(cls_config['role_visibility']['role_analytics_team']) == {'customer_id', 'region', 'customer_type', 'monthly_avg_kw'}"
+        },
+        {
+          "id": "FI9-03-A6",
+          "description": "ML team CANNOT see any of the 3 PII columns (billing_address, contact_email, customer_name)",
+          "check": "not any(c in cls_config['role_visibility']['role_ml_team'] for c in ['billing_address', 'contact_email', 'customer_name'])"
+        },
+        {
+          "id": "FI9-03-A7",
+          "description": "Analytics team CANNOT see any of the 3 PII columns",
+          "check": "not any(c in cls_config['role_visibility']['role_analytics_team'] for c in ['billing_address', 'contact_email', 'customer_name'])"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit. Assertions A6 and A7 are the safety keystones — they fail loudly if a student accidentally exposes PII to the wrong role."
+    },
+    {
+      "id": "module-FI9-task-04",
+      "title": "Diagnose a Sensitivity Label Drift",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's monthly Purview compliance review revealed that several production items have missing or incorrect sensitivity labels. The audit report:\n\n  PURVIEW SENSITIVITY LABEL AUDIT — 2026-04-01\n  ============================================================\n  POLICY: All production items must have an applied sensitivity label\n  CRITICAL POLICY: Items containing customer PII must be labeled 'Confidential - PII'\n\n  AUDIT RESULTS:\n  ----------------------------------------\n  Item                              Label                       Has PII?  Compliant?\n  ----                              -----                       --------  ----------\n  ws_silver_production              Confidential                no        YES\n  ws_gold_production                Confidential                no        YES\n  lh_silver_readings                Confidential                no        YES\n  lh_silver_customers               General                     YES       NO  <-- WRONG\n  wh_gold_billing                   Confidential - PII          YES       YES\n  sm_billing_dashboard              (no label applied)          YES       NO  <-- MISSING\n  sm_consumption_forecast           General                     no        YES\n  nb_silver_transform               Confidential                no        YES\n  nb_pii_anonymizer                 General                     YES       NO  <-- WRONG\n\n  COMPLIANCE SUMMARY:\n    Total production items:    9\n    Compliant:                 6\n    Non-compliant:             3\n    Missing labels:            1\n    Incorrect labels:          2\n\n  RISK ASSESSMENT:\n    The 3 non-compliant items all contain customer PII but are labeled as if they\n    do not. This means downstream consumers may share the data without applying\n    PII handling controls — a potential GDPR violation.",
+        "task": "Diagnose the audit findings and identify the right remediation order.",
+        "validationHint": "The 3 non-compliant items all contain PII but lack the 'Confidential - PII' label. lh_silver_customers and nb_pii_anonymizer are mis-labeled (have a label but the wrong one). sm_billing_dashboard has no label at all. All 3 are PII exposures and should be remediated immediately. The order can prioritize the most-consumed item (sm_billing_dashboard, which is a semantic model and likely has many downstream Power BI consumers) as the highest urgency."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI9-04-F1",
+            "type": "numeric",
+            "label": "How many production items contain customer PII but are NOT correctly labeled 'Confidential - PII'?",
+            "correctAnswer": 3,
+            "tolerance": 0,
+            "rationale": "The audit lists 3 non-compliant items, all marked 'Has PII? YES'. Counting them: lh_silver_customers (mislabeled General), sm_billing_dashboard (no label), nb_pii_anonymizer (mislabeled General). Total: 3."
+          },
+          {
+            "id": "FI9-04-F2",
+            "type": "single_select",
+            "label": "Which non-compliant item is the highest priority to remediate first?",
+            "options": [
+              "sm_billing_dashboard — it is a semantic model that downstream Power BI reports likely consume; its no-label state means consumers cannot tell it contains PII at all, creating the highest data-leakage risk",
+              "lh_silver_customers — Lakehouses are always more important than semantic models",
+              "nb_pii_anonymizer — notebooks must always be remediated first",
+              "All three are equally urgent"
+            ],
+            "correctAnswer": "sm_billing_dashboard — it is a semantic model that downstream Power BI reports likely consume; its no-label state means consumers cannot tell it contains PII at all, creating the highest data-leakage risk",
+            "rationale": "Priority should reflect blast radius. Semantic models have the most downstream consumers (every Power BI report that imports them). A mislabeled semantic model means dozens of reports may unknowingly handle PII without controls. The other items are still urgent but their consumer scope is smaller. Distractor B is a category bias; the right priority is impact-driven."
+          },
+          {
+            "id": "FI9-04-F3",
+            "type": "single_select",
+            "label": "What is the correct sensitivity label for these 3 PII items?",
+            "options": [
+              "Confidential - PII (the policy explicitly requires this label for any item containing customer PII)",
+              "General (the items contain analytics data)",
+              "Confidential (any confidential level is acceptable)",
+              "Restricted (the highest available level)"
+            ],
+            "correctAnswer": "Confidential - PII (the policy explicitly requires this label for any item containing customer PII)",
+            "rationale": "The audit's CRITICAL POLICY line literally states the required label. Distractor B underclassifies. Distractor C is too generic — the policy specifies 'PII' suffix for items containing PII so downstream tooling can apply PII-specific controls. Distractor D over-classifies and may trigger unnecessary access friction."
+          },
+          {
+            "id": "FI9-04-F4",
+            "type": "single_select",
+            "label": "What process change would have prevented this drift from accumulating?",
+            "options": [
+              "Automated label enforcement: when a new production item is created (or an existing item is modified to add PII columns), the platform automatically applies the correct label based on the column schema and the data classification policy. Manual label application is the source of drift",
+              "Daily manual audits by the compliance team",
+              "Asking engineers to remember to apply labels",
+              "Disabling PII columns entirely"
+            ],
+            "correctAnswer": "Automated label enforcement: when a new production item is created (or an existing item is modified to add PII columns), the platform automatically applies the correct label based on the column schema and the data classification policy. Manual label application is the source of drift",
+            "rationale": "The same lesson as FI7 Task 1 and FI8 Task 4: manual processes drift, automated processes don't. Automated label enforcement based on schema inspection catches missing or incorrect labels at creation time. Distractor B catches drift after it happens. Distractor C depends on memory. Distractor D is over-correction."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI9-task-05",
+      "title": "Build the Data Certification Checklist",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's data certification process from FI9 Lesson 7: any Lakehouse, Warehouse, or semantic model that downstream consumers depend on must be CERTIFIED before promotion to production. Certification is granted by the platform team after the item passes a checklist of governance criteria.\n\nThe NordGrid certification checklist:\n  1. has_owner: an active user is named as the item owner (not a departed employee)\n  2. has_sensitivity_label: a Purview sensitivity label is applied\n  3. has_documentation: the item has a description AND a usage doc link\n  4. has_test_coverage: the item has automated tests that run on every change (per FI6)\n  5. has_sla: a documented SLA exists (refresh frequency, allowed staleness)\n  6. has_recertification_date: a date 12 months in the future when re-certification is required\n\nAn item is certified ONLY if all 6 criteria are True.",
+        "task": "Build a Python dict called certification_checklist with one key: criteria, mapping to a list of EXACTLY 6 criterion dicts. Each criterion dict must have name (one of the 6 names from the context), required (True), and description (a short string). Then build a function called is_certified(item_status) that takes a dict mapping criterion names to booleans and returns True ONLY if all 6 are True. Test it with two scenarios: certified_status (all 6 True) and uncertified_status (one is False) and store the results in cert_passed and cert_failed.",
+        "validationHint": "The checklist is the spec; is_certified() is the predicate. is_certified should return all(item_status.get(c['name'], False) for c in criteria). With certified_status, is_certified returns True. With uncertified_status (any one criterion False), is_certified returns False."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI9 Lesson 7: data certification checklist for production items.\n\n# YOUR SOLUTION BELOW\n# Step 1: Build certification_checklist with criteria (list of 6 criterion dicts)\n\ncertification_checklist = {\n    'criteria': [\n        # Fill in 6 criterion dicts: name, required, description\n    ]\n}\n\n# Step 2: Define is_certified(item_status) -> bool\n# Returns True only if every criterion in the checklist is True in item_status\n\n\n\n\n# Step 3: Test with two scenarios\ncertified_status = {\n    'has_owner': True, 'has_sensitivity_label': True, 'has_documentation': True,\n    'has_test_coverage': True, 'has_sla': True, 'has_recertification_date': True\n}\nuncertified_status = {\n    'has_owner': True, 'has_sensitivity_label': True, 'has_documentation': True,\n    'has_test_coverage': True, 'has_sla': True, 'has_recertification_date': False  # missing\n}\n\n# cert_passed = is_certified(certified_status)\n# cert_failed = is_certified(uncertified_status)\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Certified status -> {cert_passed} (should be True)\")\nprint(f\"Uncertified status -> {cert_failed} (should be False)\")"
+      },
+      "assertions": [
+        {
+          "id": "FI9-05-A1",
+          "description": "certification_checklist has the criteria key with exactly 6 entries",
+          "check": "'criteria' in certification_checklist and len(certification_checklist['criteria']) == 6"
+        },
+        {
+          "id": "FI9-05-A2",
+          "description": "Every criterion has the 3 required keys (name, required, description)",
+          "check": "all(set(c.keys()) >= {'name', 'required', 'description'} for c in certification_checklist['criteria'])"
+        },
+        {
+          "id": "FI9-05-A3",
+          "description": "All 6 expected criterion names are present",
+          "check": "set(c['name'] for c in certification_checklist['criteria']) == {'has_owner', 'has_sensitivity_label', 'has_documentation', 'has_test_coverage', 'has_sla', 'has_recertification_date'}"
+        },
+        {
+          "id": "FI9-05-A4",
+          "description": "All 6 criteria are marked required=True",
+          "check": "all(c['required'] == True for c in certification_checklist['criteria'])"
+        },
+        {
+          "id": "FI9-05-A5",
+          "description": "is_certified is a callable function",
+          "check": "callable(is_certified)"
+        },
+        {
+          "id": "FI9-05-A6",
+          "description": "cert_passed equals True (certified status returns True)",
+          "check": "cert_passed == True"
+        },
+        {
+          "id": "FI9-05-A7",
+          "description": "cert_failed equals False (uncertified status returns False)",
+          "check": "cert_failed == False"
+        },
+        {
+          "id": "FI9-05-A8",
+          "description": "is_certified correctly returns False for an empty status dict (no criteria checked)",
+          "check": "is_certified({}) == False"
+        }
+      ],
+      "partialCredit": "8 independent assertions. Each passed assertion earns 1/8 credit. A8 tests the function with an additional input not covered by the student's own tests."
+    },
+    {
+      "id": "module-FI9-task-06",
+      "title": "Design NordGrid's Governance Framework",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "This is the synthesis task. NordGrid's platform team is finalizing the complete governance framework integrating:\n  - Workspace hierarchy from Task 2 (hybrid layer-based + team-based)\n  - Access principles from Task 1 (least privilege + time-bounded grants + access reviews)\n  - Column-level security from Task 3 (PII masked from ML team)\n  - Sensitivity labels from Task 4 (automated enforcement, no manual drift)\n  - Certification checklist from Task 5 (6 criteria for production items)\n  - Purview integration for audit and compliance reporting\n\nYour job: (1) DIAGNOSIS — fill the 4-field template confirming the governance design. (2) FIX — build the complete governance framework dict.",
+        "task": "Fill the diagnosis template AND build the governance_framework dict.\n\nFor the FIX: Build a Python dict called governance_framework with these keys:\n  - workspace_pattern: 'hybrid_layer_and_team'\n  - access_principle: 'least_privilege_with_time_bounded_grants'\n  - access_review_cadence: 'quarterly'\n  - column_level_security_enabled: True\n  - sensitivity_label_enforcement: 'automated' (not 'manual')\n  - certification_required_for: a list containing 'lakehouse', 'warehouse', 'semantic_model'\n  - certification_criteria_count: 6\n  - purview_integration: True",
+        "validationHint": "The values combine the answers from Tasks 1-5 plus the Purview integration. The keystone is sensitivity_label_enforcement='automated' — students who answer 'manual' have not internalized the Task 4 lesson about drift accumulation."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI9-06-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does the workspace hierarchy use BOTH layer-based AND team-based patterns instead of one or the other?",
+            "options": [
+              "The shared medallion layers (bronze/silver/gold) are used by all 3 teams for the same production data, so layer-based workspaces enable shared infrastructure with consistent permissions per layer. The team sandboxes are for team-specific experimental work that should not affect other teams, so team-based workspaces provide isolation. The two patterns serve different purposes and are both necessary",
+              "Hybrid is required by Microsoft Fabric",
+              "Team-based is more secure than layer-based",
+              "It is arbitrary — pick whichever the team prefers"
+            ],
+            "correctAnswer": "The shared medallion layers (bronze/silver/gold) are used by all 3 teams for the same production data, so layer-based workspaces enable shared infrastructure with consistent permissions per layer. The team sandboxes are for team-specific experimental work that should not affect other teams, so team-based workspaces provide isolation. The two patterns serve different purposes and are both necessary",
+            "rationale": "Workspace pattern choice should match the use case. Shared production data → shared workspaces by layer. Experimental/individual work → isolated workspaces by team. Forcing one pattern everywhere creates either too much sharing (team experiments visible to all) or too much isolation (production duplicated per team). The hybrid approach matches NordGrid's actual organizational structure."
+          },
+          {
+            "id": "FI9-06-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why must sensitivity label enforcement be automated rather than manual?",
+            "options": [
+              "Manual application drifts over time: as items are created and modified, some are labeled correctly and some are missed (the Task 4 audit showed 3 PII items mis-labeled or unlabeled). Automated enforcement applies the correct label at creation time based on the schema, eliminating drift entirely",
+              "Automated enforcement is faster than manual",
+              "Automated enforcement is required by GDPR",
+              "Manual enforcement is illegal in Fabric"
+            ],
+            "correctAnswer": "Manual application drifts over time: as items are created and modified, some are labeled correctly and some are missed (the Task 4 audit showed 3 PII items mis-labeled or unlabeled). Automated enforcement applies the correct label at creation time based on the schema, eliminating drift entirely",
+            "rationale": "The Task 4 evidence directly supports this answer: 3 of 9 production items had wrong or missing labels, all introduced through manual application. Automation is the only reliable approach at scale. This is the same drift-prevention pattern as FI7 (drift detection) and FI8 (per-notebook budgets) — humans drift, automation doesn't."
+          },
+          {
+            "id": "FI9-06-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why is certification required for Lakehouses, Warehouses, and semantic models specifically (and not, say, every notebook)?",
+            "options": [
+              "These three item types are the data INTERFACES that downstream consumers depend on — Lakehouses provide data, Warehouses provide queryable tables, semantic models provide BI access. Notebooks are implementation details. Certification governs the contract with consumers, not the implementation",
+              "Notebooks change too frequently to be certified",
+              "Certification only applies to permanent items",
+              "These three are the only item types Fabric allows certification on"
+            ],
+            "correctAnswer": "These three item types are the data INTERFACES that downstream consumers depend on — Lakehouses provide data, Warehouses provide queryable tables, semantic models provide BI access. Notebooks are implementation details. Certification governs the contract with consumers, not the implementation",
+            "rationale": "Certification is about consumer contracts: 'this item is reliable enough to depend on'. The items that consumers depend on are the data stores and query interfaces. Notebooks are implementation that produces the data — they need testing (per FI6) but not certification, because consumers don't directly depend on them. Distractor D is a fictional restriction."
+          },
+          {
+            "id": "FI9-06-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why is access review cadence set to quarterly rather than monthly or annually?",
+            "options": [
+              "Monthly is operationally expensive (4 reviews per year is already 80+ users × 9 workspaces of permissions to verify; monthly would be 12x). Annual lets stale grants accumulate for too long (the Task 1 audit showed grants accumulating over 18+ months). Quarterly catches sprawl within 90 days while keeping the review burden manageable",
+              "Monthly is required by GDPR",
+              "Annual reviews catch all drift",
+              "Quarterly is arbitrary and could be any value"
+            ],
+            "correctAnswer": "Monthly is operationally expensive (4 reviews per year is already 80+ users × 9 workspaces of permissions to verify; monthly would be 12x). Annual lets stale grants accumulate for too long (the Task 1 audit showed grants accumulating over 18+ months). Quarterly catches sprawl within 90 days while keeping the review burden manageable",
+            "rationale": "Cadence balances thoroughness with cost. Monthly: reviews are too frequent to be done well (review fatigue). Annual: grants have time to be exploited or forgotten. Quarterly: a stale grant is at most 90 days old when caught, and the review process is rare enough to invest real effort each time. Same reasoning pattern as FI8 Task 6 (weekly capacity review) — cadence matches the rate of problem development."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI9 SYNTHESIS: NordGrid's complete governance framework specification.\n\n# YOUR SOLUTION BELOW\n# Build governance_framework with the structure from the task description.\n\ngovernance_framework = {\n    # Fill in: workspace_pattern, access_principle, access_review_cadence,\n    #          column_level_security_enabled, sensitivity_label_enforcement,\n    #          certification_required_for, certification_criteria_count, purview_integration\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(governance_framework, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI9-06-A1",
+          "description": "governance_framework has all 8 required top-level keys",
+          "check": "set(governance_framework.keys()) >= {'workspace_pattern', 'access_principle', 'access_review_cadence', 'column_level_security_enabled', 'sensitivity_label_enforcement', 'certification_required_for', 'certification_criteria_count', 'purview_integration'}"
+        },
+        {
+          "id": "FI9-06-A2",
+          "description": "workspace_pattern is 'hybrid_layer_and_team'",
+          "check": "governance_framework['workspace_pattern'] == 'hybrid_layer_and_team'"
+        },
+        {
+          "id": "FI9-06-A3",
+          "description": "access_principle is 'least_privilege_with_time_bounded_grants'",
+          "check": "governance_framework['access_principle'] == 'least_privilege_with_time_bounded_grants'"
+        },
+        {
+          "id": "FI9-06-A4",
+          "description": "access_review_cadence is 'quarterly'",
+          "check": "governance_framework['access_review_cadence'] == 'quarterly'"
+        },
+        {
+          "id": "FI9-06-A5",
+          "description": "column_level_security_enabled is True",
+          "check": "governance_framework['column_level_security_enabled'] == True"
+        },
+        {
+          "id": "FI9-06-A6",
+          "description": "sensitivity_label_enforcement is 'automated' (the keystone — manual would not catch drift)",
+          "check": "governance_framework['sensitivity_label_enforcement'] == 'automated'"
+        },
+        {
+          "id": "FI9-06-A7",
+          "description": "certification_required_for is a list containing all 3 item types",
+          "check": "set(governance_framework['certification_required_for']) >= {'lakehouse', 'warehouse', 'semantic_model'}"
+        },
+        {
+          "id": "FI9-06-A8",
+          "description": "certification_criteria_count is 6 and purview_integration is True",
+          "check": "governance_framework['certification_criteria_count'] == 6 and governance_framework['purview_integration'] == True"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (8 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/8).",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Hybrid workspace hierarchy combining layer-based and team-based (Lesson 2)",
+          "Least privilege access with time-bounded grants (Lesson 3)",
+          "Column-level security for fine-grained access control (Lesson 4)",
+          "Automated sensitivity label enforcement (Lesson 5, 8)",
+          "Data certification as a quality gate (Lesson 7)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis integrates the workspace structure, access controls, fine-grained security, Purview compliance, and certification process into one governance framework. The keystone assertion is A6 (sensitivity_label_enforcement='automated') — students who answer 'manual' have not internalized the Task 4 evidence that manual processes drift. The diagnosis template forces students to articulate WHY each design choice was made, integrating constraints from multiple lessons."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "calibrationNotes": "Ninth Fabric mid-level practice set. Same governance shape as FI7 and FI8: no datasets, all configuration artifacts and diagnostic templates. Establishes the multi-team scale (3 teams, 15 people) as the inflection point where ad-hoc governance becomes unmaintainable. Task type mix (2 diagnostic + 3 fix + 1 synthesis) is within all section 5.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches workspace hierarchies, OneLake security, column-level security, Purview integration, certification, and governance synthesis in Lessons 2-10. The practice tests application: Task 1 reproduces a permission sprawl audit with realistic accumulation patterns. Task 2 builds the hybrid workspace hierarchy from Lesson 2's pattern. Task 3 implements column-level security with the role-to-column mapping from Lesson 4. Task 4 reproduces a sensitivity label drift audit. Task 5 builds the certification checklist from Lesson 7. Task 6 synthesizes all of these into a single governance framework.",
+    "datasetNotes": "No datasets — every task is governance configuration or audit analysis. Same shape as FI7 and FI8."
+  }
+}

@@ -1,0 +1,368 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 4 — Selecting and Filtering Data",
+  "description": "Apply the core data shaping operations: selecting columns with select() and alias(), filtering rows with compound conditions, handling null values, removing duplicates, and chaining transformations into a complete Bronze-to-Silver pipeline.",
+  "version": "authored 2026-03-30, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PS4",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 58,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "core_mechanics",
+    "taskTypeMix": {
+      "writeTheCode": 3,
+      "outputPrediction": 1,
+      "conceptIdentification": 1,
+      "synthesisPipeline": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PS4_data_readings",
+      "file": "PS4_data_readings.csv",
+      "description": "NordGrid daily meter readings with extra Bronze-layer columns. 121 rows including 8 nulls, 5 negatives, 2 zeros, and 6 duplicate meter_id+date keys.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false, "description": "Unique meter identifier (M-0001 through M-0115)"},
+          {"name": "daily_kw", "type": "double", "nullable": true, "description": "Daily energy consumption in kilowatts"},
+          {"name": "date", "type": "string", "nullable": false, "description": "Reading date in ISO format"},
+          {"name": "region", "type": "string", "nullable": false, "description": "Operating region: NORTH, SOUTH, EAST, or WEST"},
+          {"name": "ingestion_ts", "type": "string", "nullable": false, "description": "Timestamp when the row was ingested into Bronze"},
+          {"name": "source_file", "type": "string", "nullable": false, "description": "Name of the CSV batch file the row came from"},
+          {"name": "batch_id", "type": "integer", "nullable": false, "description": "Batch process ID"}
+        ],
+        "characteristics": {
+          "nulls": "8 rows have empty daily_kw (sensor malfunction)",
+          "negatives": "5 rows have negative daily_kw (faulty sensor)",
+          "zeros": "2 rows have daily_kw of exactly 0.0 (valid readings)",
+          "duplicates": "6 meter_id+date key pairs appear twice (overlapping ingestion windows)",
+          "extraColumns": "ingestion_ts, source_file, batch_id are Bronze metadata not needed in Silver",
+          "regionSkew": "NORTH: 51, SOUTH: 25, EAST: 27, WEST: 18"
+        }
+      },
+      "usedByTasks": ["module-PS4-task-01", "module-PS4-task-02", "module-PS4-task-03", "module-PS4-task-04", "module-PS4-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PS4-task-01",
+      "title": "Shape NordGrid's Readings for Silver",
+      "type": "write_the_code",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's Bronze meter readings table has seven columns, but the Silver schema requires only four: meter_id, energy_kw, reading_date, and region. The column names in the Bronze CSV do not match the Silver contract — daily_kw must become energy_kw and date must become reading_date. The three Bronze metadata columns (ingestion_ts, source_file, batch_id) must be excluded.",
+        "task": "Read PS4_data_readings.csv (with header=True and inferSchema=True) and use a single select() call with alias() to produce a DataFrame with exactly four columns named meter_id, energy_kw, reading_date, and region — in that order. Store the result in a variable called silver_shaped.",
+        "validationHint": "Your output should have exactly 4 columns in the correct order. The row count should remain 121 — select does not remove rows."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-silver-shaping') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS4_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Bronze columns: {df.columns}\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Silver columns: {silver_shaped.columns}\")\nprint(f\"Row count: {silver_shaped.count()}\")\nsilver_shaped.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS4-01-A1",
+          "description": "silver_shaped is a DataFrame",
+          "check": "isinstance(silver_shaped, DataFrame)"
+        },
+        {
+          "id": "PS4-01-A2",
+          "description": "Exactly 4 columns in the correct order",
+          "check": "silver_shaped.columns == ['meter_id', 'energy_kw', 'reading_date', 'region']"
+        },
+        {
+          "id": "PS4-01-A3",
+          "description": "Row count unchanged (select does not filter rows)",
+          "check": "silver_shaped.count() == 121"
+        },
+        {
+          "id": "PS4-01-A4",
+          "description": "energy_kw contains the same values as the original daily_kw (alias, not computed)",
+          "check": "silver_shaped.filter(col('energy_kw').isNull()).count() == df.filter(col('daily_kw').isNull()).count()"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS4-task-02",
+      "title": "Filter NordGrid's Northern High-Usage Meters",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's operations team wants to identify high-usage meters in the NORTH and EAST regions for a capacity planning review. They define high-usage as any meter with daily_kw above 1500. The report must exclude null readings and negative sensor errors, but should include readings of exactly 0.0 (meters that reported but measured no consumption are still relevant for capacity planning).",
+        "task": "Starting from the full readings DataFrame, apply filters to produce a DataFrame containing only rows where: (1) daily_kw is not null, (2) daily_kw is greater than or equal to 0, (3) daily_kw is greater than 1500, and (4) region is either NORTH or EAST. Use the chained filter pattern with one condition per filter call. Store the result in a variable called high_usage.",
+        "validationHint": "Apply the filters in the order listed. The null filter must come first to avoid null comparison issues. Use isin() for the region check."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-capacity-review') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS4_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Total rows: {df.count()}\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"High-usage rows: {high_usage.count()}\")\nhigh_usage.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS4-02-A1",
+          "description": "high_usage is a DataFrame",
+          "check": "isinstance(high_usage, DataFrame)"
+        },
+        {
+          "id": "PS4-02-A2",
+          "description": "No null daily_kw values remain",
+          "check": "high_usage.filter(col('daily_kw').isNull()).count() == 0"
+        },
+        {
+          "id": "PS4-02-A3",
+          "description": "No negative daily_kw values remain",
+          "check": "high_usage.filter(col('daily_kw') < 0).count() == 0"
+        },
+        {
+          "id": "PS4-02-A4",
+          "description": "All rows have daily_kw > 1500",
+          "check": "high_usage.filter(col('daily_kw') <= 1500).count() == 0"
+        },
+        {
+          "id": "PS4-02-A5",
+          "description": "Only NORTH and EAST regions present",
+          "check": "set(high_usage.select('region').distinct().toPandas()['region']) == {'NORTH', 'EAST'}"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS4-task-03",
+      "title": "Predict How Filters Handle Null Readings",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "A NordGrid engineer writes three different filter expressions on the same meter readings dataset (121 rows, 8 of which have null daily_kw). The engineer is confused about why the row counts differ between what appear to be equivalent filters.",
+        "task": "Read each filter expression and predict how many rows it keeps. Pay careful attention to how null values behave in each comparison.",
+        "validationHint": "Remember: when daily_kw is null, any comparison (>, <, ==, !=) evaluates to null, and filter() discards null results along with false results."
+      },
+      "evidence": {
+        "type": "code_block",
+        "language": "python",
+        "content": "df = spark.read.csv('PS4_data_readings.csv', header=True, inferSchema=True)\n# df has 121 rows total\n# 8 rows have null daily_kw\n# 5 rows have negative daily_kw\n# 2 rows have daily_kw == 0.0\n# 106 rows have positive daily_kw\n\nresult_a = df.filter(col('daily_kw') > 0)\nresult_b = df.filter(col('daily_kw') >= 0)\nresult_c = df.filter(~(col('daily_kw') > 0))"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS4-03-F1",
+            "type": "numeric",
+            "label": "How many rows does result_a contain? (filter: daily_kw > 0)",
+            "correctAnswer": 106,
+            "tolerance": 0,
+            "rationale": "daily_kw > 0 keeps the 106 positive rows. Nulls are discarded (null > 0 → null → discarded). Negatives are discarded (negative > 0 → false). Zeros are discarded (0 > 0 → false)."
+          },
+          {
+            "id": "PS4-03-F2",
+            "type": "numeric",
+            "label": "How many rows does result_b contain? (filter: daily_kw >= 0)",
+            "correctAnswer": 108,
+            "tolerance": 0,
+            "rationale": "daily_kw >= 0 keeps the 106 positive rows plus 2 zero-value rows (0 >= 0 → true). Nulls are discarded. Negatives are discarded."
+          },
+          {
+            "id": "PS4-03-F3",
+            "type": "numeric",
+            "label": "How many rows does result_c contain? (filter: NOT daily_kw > 0)",
+            "correctAnswer": 7,
+            "tolerance": 0,
+            "rationale": "~(col('daily_kw') > 0) inverts the boolean. For positive values: NOT true → false → discarded. For negatives: NOT false → true → kept (5 rows). For zeros: NOT false → true → kept (2 rows). For nulls: NOT null → null → discarded. Total: 5 + 2 = 7. The trap: students might expect 121 - 106 = 15, but nulls are discarded by both the original and the negated filter."
+          },
+          {
+            "id": "PS4-03-F4",
+            "type": "single_select",
+            "label": "Why don't result_a and result_c add up to 121 (the total rows)?",
+            "options": [
+              "Because filter() has a rounding error when counting rows",
+              "Because null rows are discarded by both filters — null is neither true nor false",
+              "Because zero-value rows are counted in both results",
+              "Because duplicate rows are removed automatically"
+            ],
+            "correctAnswer": "Because null rows are discarded by both filters — null is neither true nor false",
+            "distractorRationale": "Option 1 is implausible but sounds like a real bug. Option 3 would cause over-counting, not under-counting. Option 4 confuses filtering with deduplication. The key insight is SQL's three-valued logic: null comparisons produce null, and null is filtered out regardless of negation."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS4-task-04",
+      "title": "Deduplicate NordGrid's Overlapping Batches",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's Bronze ingestion pipeline ran twice within an overlapping window, producing duplicate readings for some meters. The same meter's reading for the same date appears in two different batch files. These duplicates will inflate regional totals if they reach Silver. The team needs to keep exactly one reading per meter per date combination.",
+        "task": "Read PS4_data_readings.csv and remove duplicate rows based on the meter_id and date columns using dropDuplicates(). The daily_kw values in duplicate rows are identical, so keeping an arbitrary row is safe. Then verify the duplicates are gone. Store the deduplicated result in a variable called deduped.",
+        "validationHint": "The dataset has 121 rows with 6 duplicate meter_id+date key pairs. After deduplication, you should have 115 rows."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-dedup') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS4_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Before dedup: {df.count()} rows\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"After dedup: {deduped.count()} rows\")\nprint(f\"Columns: {deduped.columns}\")"
+      },
+      "assertions": [
+        {
+          "id": "PS4-04-A1",
+          "description": "deduped is a DataFrame",
+          "check": "isinstance(deduped, DataFrame)"
+        },
+        {
+          "id": "PS4-04-A2",
+          "description": "Duplicates removed — row count is 115",
+          "check": "deduped.count() == 115"
+        },
+        {
+          "id": "PS4-04-A3",
+          "description": "All columns preserved (dropDuplicates does not remove columns)",
+          "check": "len(deduped.columns) == 7"
+        },
+        {
+          "id": "PS4-04-A4",
+          "description": "No duplicate meter_id+date pairs remain",
+          "check": "deduped.groupBy('meter_id', 'date').count().filter(col('count') > 1).count() == 0"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS4-task-05",
+      "title": "Evaluate Pipeline Transformation Choices",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's senior engineer is reviewing a junior engineer's Bronze-to-Silver pipeline code. The junior engineer made several transformation choices that the senior needs to evaluate. For each choice, identify whether it is correct, incorrect, or a matter of style preference.",
+        "task": "Read each code snippet and determine what happens when it runs. Focus on the behavior of select vs drop, filter vs where, and the effect of chaining on performance.",
+        "validationHint": "Remember that filter() and where() are aliases, chained filters are fused by Catalyst, and drop() silently ignores missing columns."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS4-05-F1",
+            "type": "single_select",
+            "label": "Code: df.drop('nonexistent_column') — what happens?",
+            "options": [
+              "Spark raises an error because the column does not exist",
+              "Spark silently returns the DataFrame unchanged — no error",
+              "Spark removes all columns and returns an empty DataFrame",
+              "Spark removes the first column as a fallback"
+            ],
+            "correctAnswer": "Spark silently returns the DataFrame unchanged — no error",
+            "distractorRationale": "Option 1 is the behavior of select() with a missing column, not drop(). This distinction is a key concept from Lesson 3."
+          },
+          {
+            "id": "PS4-05-F2",
+            "type": "single_select",
+            "label": "Are df.filter(col('daily_kw') > 0) and df.where(col('daily_kw') > 0) functionally different?",
+            "options": [
+              "Yes — filter() is faster because it was optimized first",
+              "Yes — where() checks for nulls automatically while filter() does not",
+              "No — they are exact aliases with identical behavior and performance",
+              "No — they produce the same result but where() skips Catalyst optimization"
+            ],
+            "correctAnswer": "No — they are exact aliases with identical behavior and performance",
+            "distractorRationale": "Options 1 and 4 suggest performance differences that don't exist. Option 2 invents a null-handling difference. The theory is explicit: same implementation, same behavior."
+          },
+          {
+            "id": "PS4-05-F3",
+            "type": "single_select",
+            "label": "A pipeline chains 5 filter() calls: df.filter(A).filter(B).filter(C).filter(D).filter(E). Does Spark scan the data 5 times?",
+            "options": [
+              "Yes — each filter triggers a separate data scan",
+              "No — Spark fuses them into one compound filter and scans the data once when an action triggers",
+              "No — Spark only executes the last filter and ignores the first four",
+              "It depends on whether the filters use & or are chained separately"
+            ],
+            "correctAnswer": "No — Spark fuses them into one compound filter and scans the data once when an action triggers",
+            "distractorRationale": "Option 1 ignores lazy evaluation. Option 3 misunderstands plan building. Option 4 is a subtle trap — the theory explicitly states that chained filters and compound & filters produce the same plan."
+          },
+          {
+            "id": "PS4-05-F4",
+            "type": "single_select",
+            "label": "The engineer writes: df.filter(col('daily_kw') > 0 & col('region') == 'NORTH'). What happens?",
+            "options": [
+              "It correctly filters for positive readings in the NORTH region",
+              "It raises a TypeError because of operator precedence — parentheses are required around each condition",
+              "It filters for NORTH only and ignores the daily_kw condition",
+              "It filters for positive daily_kw only and ignores the region condition"
+            ],
+            "correctAnswer": "It raises a TypeError because of operator precedence — parentheses are required around each condition",
+            "distractorRationale": "Options 3 and 4 describe partial execution that doesn't happen. Option 1 is what the engineer intended. The correct answer tests knowledge of the parentheses rule from Lesson 5."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS4-task-06",
+      "title": "Build NordGrid's Complete Bronze-to-Silver Pipeline",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 13,
+      "description": {
+        "context": "NordGrid's data engineering team needs a complete Bronze-to-Silver pipeline for the daily meter readings. The pipeline must handle every data quality issue present in the Bronze dataset: null readings, negative sensor errors, duplicate ingestion batches, and extra metadata columns. The Silver output must have exactly four columns named meter_id, energy_kw, reading_date, and region.",
+        "task": "Write a chained transformation pipeline that: (1) reads PS4_data_readings.csv with header and inferSchema; (2) filters out null daily_kw values; (3) filters out negative daily_kw values but keeps zeros; (4) removes duplicate rows based on meter_id and date; (5) produces the final output with exactly four columns — meter_id, daily_kw aliased as energy_kw, date aliased as reading_date, and region. Use the parenthesized chaining style. Store the result in a variable called silver.",
+        "validationHint": "Start with 121 rows. Remove 8 nulls (→ 113). Remove 5 negatives (→ 108). Remove 6 duplicates (→ 102). Final schema: 4 columns. The order of dedup vs filter may slightly change the count if duplicates have null/negative values — apply filters first, then dedup."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-bronze-to-silver') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\nreadings_path = 'PS4_data_readings.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nsilver.printSchema()\nprint(f\"Silver row count: {silver.count()}\")\nprint(f\"Silver columns: {silver.columns}\")\nsilver.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS4-06-A1",
+          "description": "silver is a DataFrame",
+          "check": "isinstance(silver, DataFrame)"
+        },
+        {
+          "id": "PS4-06-A2",
+          "description": "No null energy_kw values remain",
+          "check": "silver.filter(col('energy_kw').isNull()).count() == 0"
+        },
+        {
+          "id": "PS4-06-A3",
+          "description": "No negative energy_kw values remain",
+          "check": "silver.filter(col('energy_kw') < 0).count() == 0"
+        },
+        {
+          "id": "PS4-06-A4",
+          "description": "Zero-value readings preserved",
+          "check": "silver.filter(col('energy_kw') == 0.0).count() == 2"
+        },
+        {
+          "id": "PS4-06-A5",
+          "description": "No duplicate meter_id + reading_date pairs",
+          "check": "silver.groupBy('meter_id', 'reading_date').count().filter(col('count') > 1).count() == 0"
+        },
+        {
+          "id": "PS4-06-A6",
+          "description": "Exactly 4 columns with correct Silver names",
+          "check": "silver.columns == ['meter_id', 'energy_kw', 'reading_date', 'region']"
+        },
+        {
+          "id": "PS4-06-A7",
+          "description": "Correct final row count after all cleaning",
+          "check": "silver.count() == 102"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "select() with alias() for column shaping and renaming (Lessons 1, 8)",
+          "Chained filter() calls for null and negative removal (Lessons 4-6)",
+          "dropDuplicates() on key columns for dedup (Lesson 9)",
+          "Chaining pattern with parenthesized style (Lesson 10)",
+          "Zero-value edge case — filter >= 0, not > 0 (Lesson 4, 6)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This task is the full Bronze-to-Silver pipeline that Module 4 builds toward. The student must combine column shaping, null handling, negative filtering with zero preservation, deduplication, and renaming in a single chained pipeline. The order matters: filtering before dedup is the correct pattern because it removes invalid rows before dedup considers key uniqueness."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Not applicable — Module 4 is Core Mechanics phase.",
+    "theoryPracticeBoundary": "Theory examples use daily_kw > 0 and standard column names. Tasks require >= 0 (preserving zeros), aliasing to non-standard names (energy_kw, reading_date), and deduplication on key columns — same techniques, different parameters. Task 3 specifically tests the null behavior that the theory warns about but does not make students calculate.",
+    "datasetNotes": "PS4_data_readings.csv has 121 rows with 7 columns (3 extra Bronze metadata columns). Key characteristics: 8 nulls, 5 negatives, 2 zeros, 6 duplicate meter_id+date pairs. The extra columns force students to use select/drop rather than working with a pre-shaped dataset. Duplicates have identical daily_kw values so dropDuplicates on key columns is safe."
+  }
+}

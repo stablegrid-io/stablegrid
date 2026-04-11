@@ -108,7 +108,7 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
         description="Upgrade to Pro for full topic access and unlimited practice."
         icon={<CreditCard className="h-4 w-4" />}
       >
-        <div className="rounded-xl border border-light-border bg-light-bg p-4 dark:border-dark-border dark:bg-dark-bg">
+        <div className="rounded-xl border border-white/[0.06] bg-[#0c0e10] p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">

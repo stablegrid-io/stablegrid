@@ -1,0 +1,411 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set 8 — Dataflows Gen2: Low-Code Transformations",
+  "description": "Decide when to use a Dataflow Gen2 versus a notebook for NordGrid's transformations, order Power Query transformation steps correctly, predict the row and column count after applying a sequence of steps, choose the correct dataflow destination for each output type, and write the PySpark equivalent of NordGrid's substation reference refresh dataflow — proving the student understands what the dataflow's visual steps actually do under the hood.",
+  "version": "authored 2026-04-06, targets Microsoft Fabric GA 2025+ / PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-F8",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 45,
+    "maximumDurationMinutes": 75,
+    "taskCount": 5,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "500K meters, 4 regions, single team, 3 medallion workspaces",
+    "modulePhase": "essential_operations",
+    "taskTypeMix": {
+      "writeTheCode": 0,
+      "outputPrediction": 2,
+      "conceptIdentification": 2,
+      "synthesisPipeline": 1
+    },
+    "foundationException": "Not applied. F8 is Essential Operations phase. Dataflows Gen2 are configured visually in Power Query Online — there is no PySpark API for them, and the practice environment has no Power Query runtime. Tasks 1-4 use templates to test the conceptual decisions a junior engineer makes when building or reviewing a dataflow: when to choose a dataflow over a notebook, what order to apply transformation steps, what output a sequence of steps produces, and where to send the result. The synthesis task (F8-task-05) writes a PySpark pipeline that performs the EXACT operations a Power Query dataflow would perform for NordGrid's substation reference refresh — read source, rename columns, filter rows, change types, and write to a Lakehouse table. This tests whether the student understands what the dataflow's visual steps actually do, which is the bedrock requirement of the Dataflow vs Notebook decision (Lesson 9). Task type mix (2 concept_identification + 2 output_prediction + 1 synthesis_pipeline) is within §4.2 per-type limits."
+  },
+  "datasets": [
+    {
+      "id": "F8_data_substations_source",
+      "file": "F8_data_substations_source.csv",
+      "description": "NordGrid substation data as it arrives from the external operations database — 10 rows with the SOURCE column names (sub_id, sub_name, cap_mw, status). 8 substations are active, 2 are decommissioned (SUB-07 Kristiansand Solar, SUB-09 Alesund Old Plant). The Silver target schema uses different column names: substation_id, substation_name, capacity_mw. Used by the synthesis task to test the rename + filter + type cast + write sequence that the substation refresh dataflow performs.",
+      "schema": {
+        "columns": [
+          {"name": "sub_id", "type": "string", "nullable": false, "description": "SOURCE name; renamed to substation_id"},
+          {"name": "sub_name", "type": "string", "nullable": false, "description": "SOURCE name; renamed to substation_name"},
+          {"name": "cap_mw", "type": "double", "nullable": false, "description": "SOURCE name; renamed to capacity_mw"},
+          {"name": "status", "type": "string", "nullable": false, "description": "active or decommissioned; filter to active before writing"}
+        ]
+      },
+      "usedByTasks": ["module-F8-task-05"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-F8-task-01",
+      "title": "Decide Dataflow vs Notebook",
+      "type": "concept_identification",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's data engineering team faces a recurring decision: should a transformation be built as a Dataflow Gen2 or as a notebook? Lesson 9 of Module F8 lays out the trade-offs. Dataflows are faster to build for simple transformations on small datasets, especially when the transformation is column-level (rename, retype, filter, simple merge). Notebooks are more powerful and the right choice when the transformation involves complex logic, large data volumes, custom Python libraries, or operations that Power Query cannot express cleanly (UDFs, multi-step aggregations, schema enforcement on millions of rows).",
+        "task": "For each NordGrid transformation, choose the correct tool.",
+        "validationHint": "Dataflow for: small reference tables, simple column-level operations, low-code preference, business analyst contributors. Notebook for: large data, complex logic, PySpark libraries, schema enforcement on production-scale data, deduplication on composite keys, custom UDFs."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F8-01-F1",
+            "type": "single_select",
+            "label": "Refresh NordGrid's substation reference table (200 rows) from an external SQL database. The transformation: rename two columns, change one type, filter to active substations, write to a Silver Lakehouse table. The data team prefers low-code.",
+            "options": [
+              "Dataflow Gen2 — small dataset, simple column-level operations, low-code preference; this is the canonical Dataflow use case",
+              "Notebook — every NordGrid transformation should be PySpark for consistency",
+              "Both — build it twice for redundancy",
+              "Neither — refresh manually each week"
+            ],
+            "correctAnswer": "Dataflow Gen2 — small dataset, simple column-level operations, low-code preference; this is the canonical Dataflow use case",
+            "distractorRationale": "Option 2 contradicts the F8 Lesson 9 framework, which recommends Dataflows for exactly this profile. Option 3 doubles maintenance burden. Option 4 is operationally unsustainable. The 200-row reference refresh is the textbook example NordGrid uses to illustrate when Dataflows are the right tool."
+          },
+          {
+            "id": "F8-01-F2",
+            "type": "single_select",
+            "label": "Transform 500,000 daily meter readings: enforce an explicit StructType schema, filter null daily_kw, filter daily_kw outside (0, 10000), deduplicate on the composite key (meter_id, date), and write a partitioned Delta table.",
+            "options": [
+              "Dataflow Gen2 — visual transformations are easier to maintain",
+              "Notebook — complex transformation logic at production scale, schema enforcement, composite-key dedup, partitioned Delta write — every characteristic favors a notebook",
+              "Either — they handle the same operations equivalently",
+              "A pipeline with no transformation activity"
+            ],
+            "correctAnswer": "Notebook — complex transformation logic at production scale, schema enforcement, composite-key dedup, partitioned Delta write — every characteristic favors a notebook",
+            "distractorRationale": "Option 1 ignores every signal that points to a notebook: 500K rows is large, schema enforcement on this scale is a code task, and composite-key deduplication is awkward in Power Query. Option 3 misrepresents the trade-off — they have overlapping capabilities but different sweet spots. Option 4 misunderstands pipelines (which orchestrate, not transform)."
+          },
+          {
+            "id": "F8-01-F3",
+            "type": "single_select",
+            "label": "Filter and type-cast 500,000 NordGrid readings into a partitioned Delta table — same scale as Module F6's Silver pipeline, but with simpler logic (no dedup, just filter and cast).",
+            "options": [
+              "Dataflow Gen2 — simple column-level operations are the Dataflow strength",
+              "Notebook — even simple operations on 500K rows benefit from PySpark's distributed execution and integration with the existing Silver notebook codebase",
+              "Either — at this scale the choice is purely stylistic",
+              "Power BI Dataflow — Power BI handles million-row transformations natively"
+            ],
+            "correctAnswer": "Notebook — even simple operations on 500K rows benefit from PySpark's distributed execution and integration with the existing Silver notebook codebase",
+            "distractorRationale": "Option 1 is the trap — the operations look simple, so a student might pick Dataflow. But the 500K row scale plus the existing PySpark Silver pipeline makes notebook the right choice. Dataflows shine on small reference data, not production-scale meter readings. Option 3 understates the scale impact. Option 4 confuses Power BI dataflows (a different older product) with Fabric Dataflow Gen2."
+          },
+          {
+            "id": "F8-01-F4",
+            "type": "single_select",
+            "label": "Refresh NordGrid's region lookup table (4 rows: NORTH, SOUTH, EAST, WEST with display names and country codes) from a SharePoint list maintained by the operations team. Operations team members occasionally update the list themselves and want to see the change reflected in Fabric without engineering involvement.",
+            "options": [
+              "Dataflow Gen2 — SharePoint connector is a Power Query strength, the data is tiny, and the visual interface lets non-engineers understand the transformation logic",
+              "Notebook — even tiny transformations should use PySpark for consistency",
+              "Manual portal upload each time the SharePoint list changes",
+              "An Azure Function that triggers on SharePoint webhook"
+            ],
+            "correctAnswer": "Dataflow Gen2 — SharePoint connector is a Power Query strength, the data is tiny, and the visual interface lets non-engineers understand the transformation logic",
+            "distractorRationale": "Option 2 ignores both the scale (4 rows) and the connector strength (Power Query has first-class SharePoint support). Option 3 is operationally fragile and removes the engineering reproducibility benefit. Option 4 over-engineers a problem Dataflow Gen2 solves natively. SharePoint sources are a textbook Dataflow scenario."
+          },
+          {
+            "id": "F8-01-F5",
+            "type": "single_select",
+            "label": "Apply a custom Python machine-learning library (scikit-learn) to NordGrid's meter readings to detect anomalies. The library is available on PyPI, the model needs to be trained once and applied to incoming readings via a UDF.",
+            "options": [
+              "Dataflow Gen2 — Power Query has built-in ML support",
+              "Notebook — PyPI library, custom Python code, UDF application; Power Query cannot run scikit-learn",
+              "Both — train in Notebook, apply in Dataflow",
+              "Neither — anomaly detection requires Real-Time Intelligence"
+            ],
+            "correctAnswer": "Notebook — PyPI library, custom Python code, UDF application; Power Query cannot run scikit-learn",
+            "distractorRationale": "Option 1 invents a Power Query ML feature that does not exist in the F8 lesson scope. Option 3 ignores that Dataflow Gen2 cannot apply a scikit-learn model in its transformation steps. Option 4 over-applies Real-Time Intelligence to a batch-anomaly use case. Anything involving custom Python libraries or UDFs is firmly notebook territory."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F8-task-02",
+      "title": "Order the Power Query Transformation Steps",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's substation refresh dataflow has 6 transformation steps, but a junior engineer accidentally added them to the dataflow in the wrong order while building it in Power Query Online. The Applied Steps panel records every step in execution order, so the order matters: a step that depends on a renamed column must come AFTER the rename, and a destination step must come last. The 6 steps, presented in scrambled order, are:\n\n  A. Filter Rows: keep only rows where status equals 'active'\n  B. Connect to Source: read substations.csv from the external database\n  C. Set Destination: write to the Silver Lakehouse table substations_silver\n  D. Change Type: convert capacity_mw from text to decimal\n  E. Rename Columns: sub_id → substation_id, sub_name → substation_name, cap_mw → capacity_mw\n  F. Remove Columns: drop the status column (no longer needed after filtering)",
+        "task": "Place the 6 steps in the correct execution order for NordGrid's substation refresh dataflow.",
+        "validationHint": "Two rules govern the ordering. First, you cannot transform data you have not yet read — Connect to Source must come first. Second, the destination must come last. Between those, dependencies decide the order: filtering by 'status' must happen BEFORE removing the status column, and changing the capacity_mw type must happen AFTER renaming cap_mw → capacity_mw (or use the original column name and rename later — but the rename-first ordering is the conventional Power Query pattern)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F8-02-F1",
+            "type": "single_select",
+            "label": "What is the FIRST step in the dataflow?",
+            "options": [
+              "A. Filter Rows",
+              "B. Connect to Source",
+              "C. Set Destination",
+              "E. Rename Columns"
+            ],
+            "correctAnswer": "B. Connect to Source",
+            "distractorRationale": "Options A, C, and E all assume data is already loaded into the dataflow. The Connect to Source step is what loads the data — without it, every subsequent step has nothing to operate on. Connect is always first."
+          },
+          {
+            "id": "F8-02-F2",
+            "type": "single_select",
+            "label": "What is the LAST step in the dataflow?",
+            "options": [
+              "A. Filter Rows",
+              "C. Set Destination",
+              "F. Remove Columns",
+              "D. Change Type"
+            ],
+            "correctAnswer": "C. Set Destination",
+            "distractorRationale": "The destination step is where the transformed data is written out. Putting any other step after it would mean transforming data that has already been written, which Power Query does not support. Destination is always last."
+          },
+          {
+            "id": "F8-02-F3",
+            "type": "single_select",
+            "label": "Filter Rows (A) keeps only rows where status = 'active'. Remove Columns (F) drops the status column. Which must come first?",
+            "options": [
+              "Filter Rows (A) must come before Remove Columns (F) — you cannot filter on a column you have already removed",
+              "Remove Columns (F) must come before Filter Rows (A) — Power Query requires column removal before any filter",
+              "The order does not matter",
+              "They can run in parallel"
+            ],
+            "correctAnswer": "Filter Rows (A) must come before Remove Columns (F) — you cannot filter on a column you have already removed",
+            "distractorRationale": "Option 2 invents a Power Query rule that does not exist. Option 3 misses the column-dependency: a filter that references status fails if status has been dropped. Option 4 misunderstands Power Query's sequential step model — applied steps run in order, not in parallel."
+          },
+          {
+            "id": "F8-02-F4",
+            "type": "single_select",
+            "label": "Rename Columns (E) renames cap_mw → capacity_mw. Change Type (D) changes capacity_mw from text to decimal. Which must come first?",
+            "options": [
+              "Change Type (D) must come first — types are always set before column names",
+              "Rename Columns (E) must come first — the Change Type step references the new column name 'capacity_mw', which only exists after the rename",
+              "The order does not matter — Power Query auto-references both old and new names",
+              "Both must happen in the same step"
+            ],
+            "correctAnswer": "Rename Columns (E) must come first — the Change Type step references the new column name 'capacity_mw', which only exists after the rename",
+            "distractorRationale": "Option 1 invents a fixed ordering rule. Option 3 invents an auto-reference feature that does not exist. Option 4 misunderstands Power Query's step model — each transformation is its own step. In the scenario as written, the type change targets the renamed column, so the rename must precede it."
+          },
+          {
+            "id": "F8-02-F5",
+            "type": "single_select",
+            "label": "Putting it all together, which sequence is the correct order for all 6 steps?",
+            "options": [
+              "B → E → D → A → F → C",
+              "B → A → F → E → D → C",
+              "B → C → A → E → D → F",
+              "C → B → A → E → D → F"
+            ],
+            "correctAnswer": "B → E → D → A → F → C",
+            "distractorRationale": "Option 2 swaps Filter (A) before Rename (E), which works for status (still original name) but then puts Filter before Remove which is correct, but the type change is positioned after column removal — only valid because capacity_mw was never removed. The bigger issue: Rename must precede Change Type for the capacity_mw column. Option 3 puts Set Destination (C) second, which writes data before transforming it. Option 4 inverts Connect and Destination. The correct order: Connect first, then Rename to establish the target schema, then Change Type on the renamed column, then Filter on status (still present), then Remove status, then Destination."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F8-task-03",
+      "title": "Predict the Dataflow Output",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's data engineer is testing a small dataflow on a 10-row sample before promoting it to production. The dataflow connects to the source, applies 4 transformation steps in order, and the engineer wants to predict the row count, column count, and column names of the output BEFORE running it.\n\nThe input is a 10-row table with columns: meter_id, daily_kw, date, region, substation_id (5 columns). The transformations applied in order are:\n\n  Step 1. Filter Rows: keep only rows where region = 'NORTH'\n  Step 2. Remove Columns: drop substation_id\n  Step 3. Rename Columns: daily_kw → kwh\n  Step 4. Change Type: kwh from decimal to whole number (integer)\n\nThe input data:\n\n  Row 1: M-0001, 1200.5, 2026-03-10, NORTH, SUB-01\n  Row 2: M-0002, 1850.3, 2026-03-10, NORTH, SUB-01\n  Row 3: M-0003, 1500.0, 2026-03-10, SOUTH, SUB-03\n  Row 4: M-0004, 2100.7, 2026-03-10, NORTH, SUB-02\n  Row 5: M-0005, 1100.0, 2026-03-10, EAST, SUB-05\n  Row 6: M-0006, 1700.2, 2026-03-10, SOUTH, SUB-03\n  Row 7: M-0007, 950.8, 2026-03-10, NORTH, SUB-02\n  Row 8: M-0008, 1800.0, 2026-03-10, WEST, SUB-07\n  Row 9: M-0009, 2200.5, 2026-03-10, WEST, SUB-08\n  Row 10: M-0010, 1400.1, 2026-03-10, NORTH, SUB-01",
+        "task": "Predict the output of the dataflow.",
+        "validationHint": "Step 1 keeps only NORTH rows: rows 1, 2, 4, 7, 10 = 5 rows. Step 2 removes substation_id: 4 columns remain (meter_id, daily_kw, date, region). Step 3 renames daily_kw to kwh: still 4 columns. Step 4 truncates kwh values to integers (1200.5 → 1200, 1850.3 → 1850, etc.) but does not change the row or column count."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F8-03-F1",
+            "type": "numeric",
+            "label": "After all 4 steps, how many rows are in the output?",
+            "correctAnswer": 5,
+            "tolerance": 0,
+            "rationale": "Only Step 1 (Filter Rows) changes the row count. It keeps NORTH rows: rows 1, 2, 4, 7, and 10 = 5 rows. Steps 2, 3, and 4 do not affect row count."
+          },
+          {
+            "id": "F8-03-F2",
+            "type": "numeric",
+            "label": "After all 4 steps, how many columns are in the output?",
+            "correctAnswer": 4,
+            "tolerance": 0,
+            "rationale": "The input has 5 columns. Step 2 (Remove Columns) drops substation_id, leaving 4 columns. Step 3 (Rename Columns) and Step 4 (Change Type) modify column metadata but do not change the count."
+          },
+          {
+            "id": "F8-03-F3",
+            "type": "single_select",
+            "label": "What are the column names in the final output, in order?",
+            "options": [
+              "meter_id, daily_kw, date, region",
+              "meter_id, kwh, date, region",
+              "meter_id, daily_kw, date, region, substation_id",
+              "meter_id, kwh, date, region, substation_id"
+            ],
+            "correctAnswer": "meter_id, kwh, date, region",
+            "distractorRationale": "Option 1 is correct except for the rename — daily_kw was renamed to kwh in Step 3. Options 3 and 4 still include substation_id, which Step 2 removed. Only the option with both the rename applied AND substation_id removed is correct."
+          },
+          {
+            "id": "F8-03-F4",
+            "type": "single_select",
+            "label": "What is the kwh value for the row originally containing M-0004 (daily_kw 2100.7) after the type change to whole number?",
+            "options": [
+              "2101 — Power Query rounds to the nearest integer",
+              "2100 — Power Query truncates the decimal part",
+              "2100.7 — type changes do not affect existing values",
+              "Null — the cast fails because 2100.7 is not an integer"
+            ],
+            "correctAnswer": "2100 — Power Query truncates the decimal part",
+            "distractorRationale": "Option 1 is the most common misconception — most students assume rounding because that is the default in many languages. Power Query's whole-number conversion truncates toward zero. Option 3 misunderstands Change Type — it does modify the underlying values, not just the metadata. Option 4 invents a cast failure that does not occur for valid decimals."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F8-task-04",
+      "title": "Choose the Correct Dataflow Destination",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "Dataflow Gen2 supports multiple destination types: Lakehouse table (managed Delta in the Tables section), Warehouse table (read-write SQL), or an external Azure SQL Database. Each destination is suited to a different downstream use case. Choosing the wrong destination either breaks downstream consumers or makes the data harder to use than it needs to be.",
+        "task": "For each NordGrid dataflow output, select the correct destination.",
+        "validationHint": "Lakehouse table: when downstream notebooks or the Lakehouse SQL endpoint will consume the data. Warehouse table: when analysts will INSERT/UPDATE/DELETE the data after the dataflow writes it. External Azure SQL: when the data must flow OUT of Fabric to a system that consumes it directly."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F8-04-F1",
+            "type": "single_select",
+            "label": "NordGrid's substation reference table is refreshed daily. The output is consumed by NordGrid's Silver transformation notebook (which reads it from the Tables section) and by the SQL analytics endpoint for ad-hoc analyst queries. Nobody writes to this table after the dataflow.",
+            "options": [
+              "Lakehouse table — read-only consumers, notebook + SQL endpoint access, no downstream writes",
+              "Warehouse table — all SQL access requires a Warehouse",
+              "External Azure SQL Database — for sharing with external systems",
+              "Bronze Lakehouse Files section — keep raw"
+            ],
+            "correctAnswer": "Lakehouse table — read-only consumers, notebook + SQL endpoint access, no downstream writes",
+            "distractorRationale": "Option 2 over-applies the 'SQL = Warehouse' rule from F4 — read-only SQL access through the Lakehouse's auto-generated endpoint is sufficient. Option 3 ships the data outside Fabric for no reason. Option 4 puts a refined Silver-grade output back in Bronze raw storage, defeating the dataflow."
+          },
+          {
+            "id": "F8-04-F2",
+            "type": "single_select",
+            "label": "NordGrid's reporting team receives a pre-computed monthly summary table from a dataflow. After the dataflow writes the table, the reporting team manually adds reconciliation rows and updates incorrect values via T-SQL — they need INSERT, UPDATE, and DELETE access on the table.",
+            "options": [
+              "Lakehouse table — the SQL analytics endpoint can handle the writes",
+              "Warehouse table — supports full read-write T-SQL (INSERT, UPDATE, DELETE), which is what the reporting team requires",
+              "Files section — raw storage avoids destination decisions",
+              "Power BI semantic model — visual edits replace SQL"
+            ],
+            "correctAnswer": "Warehouse table — supports full read-write T-SQL (INSERT, UPDATE, DELETE), which is what the reporting team requires",
+            "distractorRationale": "Option 1 misunderstands the Lakehouse SQL endpoint — it is read-only (covered in F4 Lesson 7). Option 3 abandons the structured destination concept. Option 4 confuses Power BI semantic models (a query layer) with a writable SQL store. The Warehouse is the only destination that supports SQL DML."
+          },
+          {
+            "id": "F8-04-F3",
+            "type": "single_select",
+            "label": "NordGrid's compliance team maintains a separate Azure SQL Database that audits external regulatory submissions. A weekly dataflow extracts a slice of the Gold compliance table from Fabric and writes it to this external Azure SQL Database for the compliance team's external auditing tool.",
+            "options": [
+              "Lakehouse table — keep all data in Fabric",
+              "Warehouse table — Fabric Warehouse is functionally equivalent",
+              "External Azure SQL Database — the destination explicitly lives outside Fabric, in a system that the compliance team's tool already reads",
+              "OneLake shortcut to Azure SQL"
+            ],
+            "correctAnswer": "External Azure SQL Database — the destination explicitly lives outside Fabric, in a system that the compliance team's tool already reads",
+            "distractorRationale": "Options 1 and 2 keep the data in Fabric, but the scenario requires the data to flow OUT to an external system. Option 4 conflates shortcuts (which point Fabric AT external data) with destinations (which write data TO an external system). When the consuming tool lives outside Fabric, the destination must be external."
+          },
+          {
+            "id": "F8-04-F4",
+            "type": "single_select",
+            "label": "NordGrid's region lookup table (4 rows) refreshes weekly from a SharePoint list. Downstream consumers: notebooks reading region display names, and Power BI reports showing region filters. Nobody writes back to it.",
+            "options": [
+              "Lakehouse table — read-only consumers (notebooks + Power BI), no downstream writes",
+              "Warehouse table — Power BI requires a Warehouse",
+              "External Azure SQL Database — SharePoint must round-trip through SQL",
+              "An Azure Function that proxies the SharePoint list"
+            ],
+            "correctAnswer": "Lakehouse table — read-only consumers (notebooks + Power BI), no downstream writes",
+            "distractorRationale": "Option 2 invents a Power BI requirement that does not exist — Power BI reads Lakehouse tables natively through the auto-generated semantic model. Option 3 invents a transport requirement. Option 4 over-engineers a problem that the dataflow's SharePoint connector solves directly. Read-only + small + multiple consumer types = Lakehouse table."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F8-task-05",
+      "title": "Build the PySpark Equivalent of NordGrid's Substation Refresh Dataflow",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's substation reference refresh is built as a Dataflow Gen2 in production. But to prove you understand what the dataflow's visual steps are doing, your task is to write the PySpark equivalent. Each line of your code maps directly to one Power Query step. If you can write this PySpark version correctly, you understand the dataflow well enough to maintain it, debug it, and explain it to a junior teammate.\n\nThe substation source table arrives with the SOURCE column names (sub_id, sub_name, cap_mw, status) and contains 10 substations — 8 active, 2 decommissioned. Your task is to apply the 4 dataflow transformations in PySpark and write the result as a managed Delta table called substations_silver. The transformations:\n\n  Step 1. Read F8_data_substations_source.csv (Connect to Source)\n  Step 2. Rename columns: sub_id → substation_id, sub_name → substation_name, cap_mw → capacity_mw (Rename Columns)\n  Step 3. Filter to rows where status equals 'active' (Filter Rows)\n  Step 4. Drop the status column (no longer needed) — this is the Remove Columns step\n  Step 5. Write the result as a managed table called substations_silver with mode='overwrite' using saveAsTable (Set Destination)",
+        "task": "Build the full pipeline. Read the source CSV with header=True and inferSchema=True. Apply the 4 transformations in order. Write the result as a managed Delta table called substations_silver. After writing, read the table back into df_substations_silver and store the row count in silver_count. Then verify the rename and filter worked: store the column list in silver_columns, and store the count of any 'decommissioned' substations remaining (which should be 0) in decommissioned_remaining.",
+        "validationHint": "Use withColumnRenamed (or .toDF) for the renames, .filter() for the active filter, .drop('status') for the column removal, and .write.mode('overwrite').saveAsTable('substations_silver') for the destination. Expected: silver_count = 8 (10 source minus 2 decommissioned), silver_columns has substation_id/substation_name/capacity_mw (no status, no sub_*), decommissioned_remaining = 0."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F8 synthesis: write the PySpark equivalent of NordGrid's substation refresh dataflow.\n# Each Power Query step maps to one PySpark operation. If you understand the dataflow,\n# you can write this code. If you can write this code, you understand the dataflow.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-substation-refresh') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\nprint('Spark ready. Building substation refresh dataflow equivalent.')\n\n# YOUR SOLUTION BELOW\n\n# Step 1: Read F8_data_substations_source.csv (header=True, inferSchema=True)\n#         Store in df_source.\n\n\n\n# Step 2: Rename columns:\n#         sub_id -> substation_id\n#         sub_name -> substation_name\n#         cap_mw -> capacity_mw\n#         (Use withColumnRenamed three times, or chain.)\n#         Store in df_renamed.\n\n\n\n# Step 3: Filter to rows where status == 'active'.\n#         Store in df_active.\n\n\n\n# Step 4: Drop the 'status' column.\n#         Store in df_final.\n\n\n\n# Step 5: Write df_final as a managed table called 'substations_silver' with mode='overwrite'.\n#         Then read it back into df_substations_silver.\n\n\n\n# Compute verification values:\n#   silver_count = row count of df_substations_silver\n#   silver_columns = list of df_substations_silver column names\n#   decommissioned_remaining = count of rows in df_substations_silver whose substation_id is\n#                              one of the known decommissioned ids ('SUB-07', 'SUB-09').\n#                              If your filter worked, this is 0.\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Source rows: {df_source.count()}\")\nprint(f\"Silver rows: {silver_count}\")\nprint(f\"Silver columns: {silver_columns}\")\nprint(f\"Decommissioned remaining in Silver: {decommissioned_remaining}\")\ndf_substations_silver.show()"
+      },
+      "assertions": [
+        {
+          "id": "F8-05-A1",
+          "description": "df_source loaded with 10 rows from the source CSV",
+          "check": "df_source.count() == 10"
+        },
+        {
+          "id": "F8-05-A2",
+          "description": "df_renamed has the new column names (substation_id, substation_name, capacity_mw, status)",
+          "check": "set(df_renamed.columns) == {'substation_id', 'substation_name', 'capacity_mw', 'status'}"
+        },
+        {
+          "id": "F8-05-A3",
+          "description": "df_active has 8 rows (10 source minus 2 decommissioned)",
+          "check": "df_active.count() == 8"
+        },
+        {
+          "id": "F8-05-A4",
+          "description": "df_final has 3 columns (status removed)",
+          "check": "set(df_final.columns) == {'substation_id', 'substation_name', 'capacity_mw'}"
+        },
+        {
+          "id": "F8-05-A5",
+          "description": "substations_silver table exists and has 8 rows",
+          "check": "spark.table('substations_silver').count() == 8"
+        },
+        {
+          "id": "F8-05-A6",
+          "description": "silver_count equals 8",
+          "check": "silver_count == 8"
+        },
+        {
+          "id": "F8-05-A7",
+          "description": "silver_columns contains the 3 renamed columns and not the original sub_* names or status",
+          "check": "set(silver_columns) == {'substation_id', 'substation_name', 'capacity_mw'}"
+        },
+        {
+          "id": "F8-05-A8",
+          "description": "decommissioned_remaining equals 0 (the filter removed all decommissioned rows)",
+          "check": "decommissioned_remaining == 0"
+        },
+        {
+          "id": "F8-05-A9",
+          "description": "The 2 decommissioned substations (SUB-07, SUB-09) are NOT in the silver table",
+          "check": "spark.table('substations_silver').filter(col('substation_id').isin(['SUB-07', 'SUB-09'])).count() == 0"
+        }
+      ],
+      "partialCredit": "9 independent assertions. Each passed assertion earns 1/9 credit. A student who completes the source read, rename, and filter (steps 1-3) earns at least 3/9 even if the column drop or write fails.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Connecting to a source — equivalent to Power Query's 'Connect to Data Source' (Lesson 3)",
+          "Renaming columns — equivalent to Power Query's 'Rename Columns' transformation (Lesson 4)",
+          "Filtering rows by a status value — equivalent to Power Query's 'Filter Rows' transformation (Lesson 4)",
+          "Dropping a column — equivalent to Power Query's 'Remove Columns' transformation (Lesson 4)",
+          "Writing to a Lakehouse table destination — equivalent to Power Query's 'Set Destination' (Lesson 6)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This task is unusual: it tests F8 dataflow knowledge by asking the student to write code in PySpark. The pedagogical justification is in Lesson 9, which establishes the Dataflow vs Notebook decision framework. To make that decision well, the student must understand what each Power Query step DOES — which means they must be able to express the dataflow as code mentally. Writing the code makes that understanding concrete and auto-gradable. The 5 mapped concepts (one per dataflow step) cover Lessons 3, 4, and 6 — the core transformation lessons. A student who builds this pipeline correctly proves they understand both how a dataflow is structured AND how its operations map to PySpark equivalents — preparing them for the F9 SQL alternative and the F10 medallion synthesis."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Not applied. F8 is Essential Operations phase. Five tasks (the §2.2 minimum for junior). Task type mix is 2 concept_identification + 2 output_prediction + 1 synthesis_pipeline — within all §4.2 per-type limits. The synthesis task is the only code task, which is intentional: F8 has no PySpark API surface (Power Query is visual), so attempting more code tasks would mean teaching Power Query through code, which is awkward. The decision-and-prediction tasks fit the visual nature of dataflows.",
+    "theoryPracticeBoundary": "The theory teaches Power Query Online's visual interface and walks through NordGrid's substation refresh as the running example in Lessons 4, 5, and 10. The practice tests application: Task 1 uses transformation scenarios beyond the substation example to force the Dataflow-vs-Notebook decision. Task 2 takes the substation refresh and scrambles its steps, requiring the student to reason about ordering rules. Task 3 uses a 10-row sample with different data than the theory's example to test step-by-step output prediction. Task 4 tests destination decisions across 4 different scenarios. Task 5 takes the same substation refresh from the theory and asks the student to build the PySpark equivalent — proving they understand what each visual step does.",
+    "crossModuleNotes": "This practice set builds on multiple earlier modules. F4's Lakehouse vs Warehouse decision is reused in Task 4 (destination choice). F5's pre-configured spark and saveAsTable patterns are reused in Task 5. F6's transformation patterns (filter, rename, drop) are reused in Task 5 — the student writes the same operations in PySpark. F7's pipeline-vs-notebook distinction is implicit in Task 1 (Dataflow Gen2 is a third option alongside notebook and pipeline activities). None of these are tested in isolation — F8's testable concepts are the dataflow-specific ones: Power Query step ordering, Dataflow vs Notebook decision criteria, dataflow destinations, and the dataflow-to-PySpark equivalence. F9 and F10 concepts are not required.",
+    "datasetNotes": "One small dataset (10 rows) used only by the synthesis task. The source uses SOURCE column names (sub_id, sub_name, cap_mw, status) — different from the Silver target — so the rename step is meaningful. 2 of 10 rows are decommissioned (SUB-07, SUB-09), so the filter step removes exactly 2 rows leaving 8. The arithmetic is deterministic: 10 source - 2 decommissioned = 8 silver rows."
+  }
+}

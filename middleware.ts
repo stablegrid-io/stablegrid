@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@/lib/supabase/middleware';
 
 const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/update-password'];
-const PROTECTED_ROUTES = ['/home', '/hub', '/missions', '/practice', '/workspace', '/onboarding'];
+const PROTECTED_ROUTES = ['/home', '/hub', '/missions', '/practice', '/workspace', '/onboarding', '/operations', '/theory', '/learn', '/settings', '/progress'];
 const ADMIN_ROUTES = ['/admin'];
 
 const hasAdminMembership = async (userId: string) => {

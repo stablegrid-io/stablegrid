@@ -1,0 +1,450 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set 3 — OneLake: The Unified Data Lake",
+  "description": "Navigate OneLake's storage model: classify NordGrid data into Files vs Tables sections, select the correct file format for each scenario, predict how shortcuts and Delta tables behave, construct OneLake paths for NordGrid items, and design a complete OneLake layout that maps every NordGrid data source to its correct location.",
+  "version": "authored 2026-04-06, targets Microsoft Fabric GA 2025+",
+  "metadata": {
+    "moduleId": "module-F3",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 50,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "500K meters, 4 regions, single team, 3 medallion workspaces",
+    "modulePhase": "core_mechanics",
+    "taskTypeMix": {
+      "writeTheCode": 2,
+      "outputPrediction": 2,
+      "conceptIdentification": 2,
+      "synthesisPipeline": 0
+    },
+    "foundationException": "Not applied. Module F3 is in the Core Mechanics phase (§2.4). However, F3 teaches OneLake as a storage concept — it does not yet introduce Spark, notebooks, or DataFrame code (those arrive in F5). The two write-the-code tasks in this practice set are pure Python string construction: building OneLake abfss:// paths from workspace/item/file segments and producing a Python dictionary mapping data sources to OneLake locations. Neither task requires a Spark session, Fabric runtime, or any F5+ knowledge. They are Python-only tasks that test the student's understanding of OneLake's hierarchical namespace (Lesson 2) and path structure (Lesson 8). The final task (write-the-code, dictionary construction) serves as the synthesis, combining 5 module concepts."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-F3-task-01",
+      "title": "Classify NordGrid Data as Files or Tables",
+      "type": "concept_identification",
+      "estimatedMinutes": 7,
+      "description": {
+        "context": "NordGrid's data engineer is organizing the ws_nordgrid_silver workspace. Each Lakehouse has two sections: Files for unstructured and semi-structured data (CSVs, JSONs, images, raw exports) and Tables for structured Delta tables. Choosing the wrong section breaks downstream access — SQL queries cannot see data in Files, and the transaction log cannot protect data in Files.",
+        "task": "For each NordGrid data item, identify whether it belongs in the Files section or the Tables section of a Lakehouse.",
+        "validationHint": "The rule is about structure and management, not about layer. Files section = unmanaged storage for raw, unstructured, and semi-structured data. Tables section = managed Delta Lake storage queryable by the SQL analytics endpoint. Raw files land in Files; validated structured data is promoted to Tables."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F3-01-F1",
+            "type": "single_select",
+            "label": "A CSV file copied from NordGrid's external SFTP server at 06:00 this morning, containing 500,000 raw meter readings. No transformation has been applied.",
+            "options": [
+              "Files section — raw CSV files belong in unmanaged storage",
+              "Tables section — CSV with structured columns qualifies as a table",
+              "Neither — raw CSVs should be stored outside the Lakehouse"
+            ],
+            "correctAnswer": "Files section — raw CSV files belong in unmanaged storage",
+            "distractorRationale": "Option 2 confuses 'having columns' with 'being a Delta table.' The Tables section is specifically for Delta tables, not any tabular format. Option 3 invents a rule — raw CSV is the canonical Files section content."
+          },
+          {
+            "id": "F3-01-F2",
+            "type": "single_select",
+            "label": "A validated, deduplicated meter readings table stored as a Delta table with enforced schema (meter_id string, daily_kw double, date date, region string), queryable by the SQL analytics endpoint.",
+            "options": [
+              "Files section — Delta is a file format",
+              "Tables section — managed Delta tables belong here, and the SQL endpoint only sees the Tables section",
+              "Both sections simultaneously — Delta is stored in Files and surfaced in Tables"
+            ],
+            "correctAnswer": "Tables section — managed Delta tables belong here, and the SQL endpoint only sees the Tables section",
+            "distractorRationale": "Option 1 is the most common misconception — 'Delta is files, so it goes in Files.' Delta tables technically consist of Parquet files, but they are managed in the Tables section where the SQL endpoint can discover them. Option 3 invents dual storage that does not exist."
+          },
+          {
+            "id": "F3-01-F3",
+            "type": "single_select",
+            "label": "A JSON response from NordGrid's weather API, containing nested fields (station_id, temp_c, wind_speed, forecast array), stored exactly as received from the API.",
+            "options": [
+              "Files section — JSON with nested structure is semi-structured data",
+              "Tables section — JSON is a structured format",
+              "Files section — but only after converting to CSV first"
+            ],
+            "correctAnswer": "Files section — JSON with nested structure is semi-structured data",
+            "distractorRationale": "Option 2 confuses 'having a schema' with 'being a Delta table.' Option 3 invents a conversion requirement — JSON can be stored in Files as-is."
+          },
+          {
+            "id": "F3-01-F4",
+            "type": "single_select",
+            "label": "A PNG image file showing a monthly energy consumption chart that NordGrid's reporting team uploaded for reference.",
+            "options": [
+              "Files section — images are unstructured data",
+              "Tables section — the Lakehouse supports any file type in Tables",
+              "Neither — images cannot be stored in a Lakehouse"
+            ],
+            "correctAnswer": "Files section — images are unstructured data",
+            "distractorRationale": "Option 2 is incorrect — the Tables section is specifically for Delta tables, not arbitrary file types. Option 3 is wrong — Lakehouses accept any file type in the Files section."
+          },
+          {
+            "id": "F3-01-F5",
+            "type": "single_select",
+            "label": "A pre-computed monthly regional summary table with columns (region, month, total_kw, avg_daily_kw, meter_count), stored as a Delta table for the reporting team to query via T-SQL.",
+            "options": [
+              "Files section — aggregated summaries belong in Files for archival",
+              "Tables section — Delta table queryable by SQL endpoint belongs here",
+              "Files section — because it is read-only data"
+            ],
+            "correctAnswer": "Tables section — Delta table queryable by SQL endpoint belongs here",
+            "distractorRationale": "Options 1 and 3 invent rules. The decision is about format and access pattern: Delta + SQL endpoint = Tables. Neither archival nor read-only status determines the section."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F3-task-02",
+      "title": "Select the Correct Data Format",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid stores data in four formats in OneLake: CSV (human-readable, row-oriented, large files, no schema enforcement), JSON (semi-structured, nested, API-friendly, verbose), Parquet (columnar, compressed, schema-embedded, fast scans, no transaction log), and Delta (Parquet plus transaction log, ACID transactions, versioning, the Fabric default for analytical tables). Each format has a best use.",
+        "task": "For each NordGrid scenario, select the correct format.",
+        "validationHint": "Raw ingestion from external systems usually arrives as CSV or JSON. Analytical tables in the Tables section should be Delta (the Fabric default). Parquet is useful for columnar archival without transaction log overhead, but most analytical use cases should prefer Delta because of its ACID guarantees."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F3-02-F1",
+            "type": "single_select",
+            "label": "NordGrid's external SFTP server exports raw meter readings every morning. The export is a simple row-per-reading file with columns meter_id, daily_kw, date, region, intended for ingestion into the Bronze Files section.",
+            "options": [
+              "CSV — the natural format for row-oriented exports from external systems",
+              "JSON — because the data has structured fields",
+              "Parquet — for columnar efficiency",
+              "Delta — because Fabric prefers Delta"
+            ],
+            "correctAnswer": "CSV — the natural format for row-oriented exports from external systems",
+            "distractorRationale": "Option 2 overcomplicates — CSV already handles flat row-oriented data. Option 3 confuses the storage format with the ingestion format — NordGrid does not control what format the SFTP export arrives in. Option 4 misunderstands Delta's purpose — Delta is for managed analytical tables, not raw ingestion from external sources."
+          },
+          {
+            "id": "F3-02-F2",
+            "type": "single_select",
+            "label": "NordGrid's weather API returns nested JSON with station_id, temp_c, wind_speed, and a forecast array containing hourly predictions for the next 48 hours. The data lands in the Bronze Files section exactly as received.",
+            "options": [
+              "CSV — the simplest format",
+              "JSON — the natural format for nested API responses",
+              "Parquet — for compression",
+              "Delta — because Fabric prefers Delta"
+            ],
+            "correctAnswer": "JSON — the natural format for nested API responses",
+            "distractorRationale": "Option 1 cannot represent nested arrays without flattening, which would destroy the structure. Option 3 would require converting from JSON, which is what the raw landing zone explicitly avoids. Option 4 again confuses raw landing with managed analytical tables."
+          },
+          {
+            "id": "F3-02-F3",
+            "type": "single_select",
+            "label": "NordGrid's Silver layer stores validated, deduplicated meter readings that are queried by the SQL analytics endpoint, Power BI reports, and downstream notebooks. The table is updated daily with new incremental data, and the team occasionally needs to roll back to yesterday's version when a bad pipeline run is detected.",
+            "options": [
+              "CSV — simple and easy to query",
+              "JSON — flexible schema",
+              "Parquet — columnar and compressed",
+              "Delta — ACID transactions, versioning for rollback, the Fabric default for analytical tables"
+            ],
+            "correctAnswer": "Delta — ACID transactions, versioning for rollback, the Fabric default for analytical tables",
+            "distractorRationale": "Options 1 and 2 lack the transaction log and cannot support the versioning/rollback requirement. Option 3 (Parquet) is close but lacks the transaction log that provides ACID and versioning. The rollback requirement is the strongest signal for Delta."
+          },
+          {
+            "id": "F3-02-F4",
+            "type": "single_select",
+            "label": "NordGrid archives five years of historical meter readings in OneLake for regulatory retention. The archive is written once and never modified. It is rarely read, but when read, queries scan large date ranges and only select a few columns.",
+            "options": [
+              "CSV — simple format for long-term archival",
+              "JSON — flexible for future schema changes",
+              "Parquet — columnar format optimized for column-subset scans over large datasets; the transaction log overhead of Delta is unnecessary for write-once archival",
+              "Delta — always use Delta because Fabric prefers it"
+            ],
+            "correctAnswer": "Parquet — columnar format optimized for column-subset scans over large datasets; the transaction log overhead of Delta is unnecessary for write-once archival",
+            "distractorRationale": "Option 1 (CSV) would be far larger and slower to scan for column subsets. Option 2 is verbose and slow. Option 4 is the 'Delta is always right' trap — Delta is the default for managed analytical tables, but write-once archival does not benefit from the transaction log, and the overhead is pure cost. Parquet is the correct archival choice."
+          },
+          {
+            "id": "F3-02-F5",
+            "type": "single_select",
+            "label": "NordGrid's Gold layer stores a monthly regional aggregation table used by Power BI dashboards. The table is overwritten each month. Consumers need stable schema, fast reads, and the ability to see which version of the data the current report is showing.",
+            "options": [
+              "CSV",
+              "JSON",
+              "Parquet — columnar and compressed",
+              "Delta — schema enforcement, versioning to track which data the report reflects, fast columnar reads"
+            ],
+            "correctAnswer": "Delta — schema enforcement, versioning to track which data the report reflects, fast columnar reads",
+            "distractorRationale": "Options 1 and 2 lack the performance and schema enforcement. Option 3 (Parquet) provides the columnar benefit but lacks the version tracking that lets consumers identify which data version the report reflects. The versioning requirement is the key signal."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F3-task-03",
+      "title": "Predict Shortcut Behavior",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's platform team creates an internal OneLake shortcut from ws_nordgrid_gold/lh_gold_analytics to the Delta table ws_nordgrid_silver/lh_meter_readings/Tables/readings_silver. The shortcut appears in the Gold workspace's Lakehouse as if it were a local table. The engineering team needs to understand how shortcuts behave before relying on them in production.",
+        "task": "Predict the behavior of the shortcut in five scenarios.",
+        "validationHint": "Shortcuts reference data without copying. Reads go through the shortcut to the source. Updates at the source propagate immediately. Shortcuts have no independent storage or lifecycle — deleting the source affects the shortcut."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F3-03-F1",
+            "type": "single_select",
+            "label": "When the shortcut is created, how much data is physically copied into the Gold workspace?",
+            "options": [
+              "The entire Silver table is copied once when the shortcut is created",
+              "No data is copied — the shortcut is a reference that reads from the source location on demand",
+              "Only the table schema is copied; data is fetched on the first read",
+              "A compressed summary is copied for performance"
+            ],
+            "correctAnswer": "No data is copied — the shortcut is a reference that reads from the source location on demand",
+            "distractorRationale": "Option 1 describes a physical copy, which defeats the entire purpose of shortcuts. Option 3 invents a 'lazy schema + eager data' model that shortcuts do not use. Option 4 invents a compressed-summary pattern. Shortcuts are pure references — no copying at creation or afterward."
+          },
+          {
+            "id": "F3-03-F2",
+            "type": "single_select",
+            "label": "An engineer adds 1,000 new rows to the Silver readings_silver Delta table. What happens in the Gold workspace when someone queries the shortcut immediately after?",
+            "options": [
+              "The Gold shortcut shows only the previous version until the shortcut is manually refreshed",
+              "The Gold shortcut sees the new 1,000 rows immediately because it reads directly from the Silver source",
+              "The Gold shortcut rejects reads until a refresh job runs",
+              "The 1,000 rows must be propagated through a pipeline before Gold can see them"
+            ],
+            "correctAnswer": "The Gold shortcut sees the new 1,000 rows immediately because it reads directly from the Silver source",
+            "distractorRationale": "Option 1 describes cached data with a refresh cycle — shortcuts do not cache. Option 3 invents a refresh-required model. Option 4 describes pipeline-based propagation, which is the copy pattern shortcuts exist to avoid. Shortcuts read live from the source."
+          },
+          {
+            "id": "F3-03-F3",
+            "type": "single_select",
+            "label": "NordGrid's platform team accidentally deletes the Silver Lakehouse lh_meter_readings. What happens to the shortcut in the Gold workspace?",
+            "options": [
+              "Nothing — the shortcut retains its own copy of the data",
+              "The shortcut still exists as a catalog entry but reads from it fail because the source no longer exists",
+              "The shortcut automatically falls back to the last cached version",
+              "The shortcut is automatically deleted when the source is deleted"
+            ],
+            "correctAnswer": "The shortcut still exists as a catalog entry but reads from it fail because the source no longer exists",
+            "distractorRationale": "Option 1 contradicts the no-copy nature of shortcuts. Option 3 invents a fallback cache. Option 4 is partially true conceptually but not mechanically — the shortcut object remains in the Gold workspace catalog, but queries against it fail. The broken reference is the canonical failure mode."
+          },
+          {
+            "id": "F3-03-F4",
+            "type": "single_select",
+            "label": "An engineer in the Gold workspace has Contributor rights on ws_nordgrid_gold but has no role on ws_nordgrid_silver. They try to read the shortcut. What happens?",
+            "options": [
+              "The read succeeds — shortcut access is governed by the Gold workspace role",
+              "The read fails — access to the shortcut requires access to the underlying source workspace",
+              "The read succeeds with partial data — only columns marked as public",
+              "The read succeeds but shows a warning banner"
+            ],
+            "correctAnswer": "The read fails — access to the shortcut requires access to the underlying source workspace",
+            "distractorRationale": "Option 1 would allow users to bypass workspace security simply by creating a shortcut into a workspace they have access to — a critical security hole. Options 3 and 4 invent partial-access models. Shortcuts are references, and reading through a reference requires access to what it points to."
+          },
+          {
+            "id": "F3-03-F5",
+            "type": "single_select",
+            "label": "NordGrid's team wants to shortcut data from an external ADLS Gen2 account (not OneLake) — a legacy dataset still living on the old storage during migration. Is this possible, and what kind of shortcut is it?",
+            "options": [
+              "Not possible — shortcuts only work within OneLake",
+              "Possible — an external shortcut pointing to ADLS Gen2 (or S3) lets OneLake reference non-OneLake data without copying it",
+              "Possible, but requires copying the data into OneLake first",
+              "Possible only if the ADLS Gen2 account is in the same Azure region as the Fabric tenant"
+            ],
+            "correctAnswer": "Possible — an external shortcut pointing to ADLS Gen2 (or S3) lets OneLake reference non-OneLake data without copying it",
+            "distractorRationale": "Option 1 ignores external shortcuts, which are a core feature. Option 3 is self-contradictory — copying first would make a shortcut redundant. Option 4 invents a region constraint. External shortcuts to ADLS Gen2 and S3 are the standard pattern for bridging legacy storage into OneLake."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F3-task-04",
+      "title": "Construct OneLake Paths for NordGrid Items",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's engineers sometimes need to construct OneLake paths explicitly — for external tools like Azure Storage Explorer, for ADLS Gen2 API access, or for abfss:// URIs in configuration files. The OneLake path structure is hierarchical: abfss://<workspace_name>@onelake.dfs.fabric.microsoft.com/<item_name>.<item_type>/<section>/<subpath>.\n\nYou have workspace and item metadata for three NordGrid items. Your task is to construct the correct abfss:// paths for each.\n\nThis is a pure Python string construction task. No Spark, no Fabric runtime — just string formatting.",
+        "task": "Construct three abfss:// paths as strings and store them in the specified variables. Use f-strings, .format(), or string concatenation. The function signatures and expected outputs are documented in the scaffold.",
+        "validationHint": "The abfss:// template is: abfss://{workspace}@onelake.dfs.fabric.microsoft.com/{item}.{type}/{section}/{subpath}. Item types for OneLake paths: Lakehouse items use the suffix '.Lakehouse', Warehouse items use '.Warehouse'. Section is either 'Files' or 'Tables'."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# OneLake path construction — pure Python, no Spark required.\n#\n# Path template:\n#   abfss://{workspace}@onelake.dfs.fabric.microsoft.com/{item}.{type}/{section}/{subpath}\n#\n# Given NordGrid metadata:\n#   workspace: ws_nordgrid_bronze\n#   item: lh_meter_readings (Lakehouse)\n#   section: Files\n#   subpath: meter_exports/2026/03/15/readings.csv\n#\n# The path is:\n#   abfss://ws_nordgrid_bronze@onelake.dfs.fabric.microsoft.com/lh_meter_readings.Lakehouse/Files/meter_exports/2026/03/15/readings.csv\n\nONELAKE_HOST = 'onelake.dfs.fabric.microsoft.com'\n\n# YOUR SOLUTION BELOW\n\n# Path 1: a raw CSV in the Bronze Lakehouse's Files section\n#   workspace: ws_nordgrid_bronze\n#   item: lh_meter_readings (Lakehouse)\n#   section: Files\n#   subpath: meter_exports/2026/03/15/readings.csv\n# Store the result in a variable called path_bronze_csv\n\n\n\n# Path 2: a Delta table in the Silver Lakehouse's Tables section\n#   workspace: ws_nordgrid_silver\n#   item: lh_meter_readings (Lakehouse)\n#   section: Tables\n#   subpath: readings_silver\n# Store the result in a variable called path_silver_table\n\n\n\n# Path 3: a Warehouse table in the Gold workspace\n#   workspace: ws_nordgrid_gold\n#   item: dw_nordgrid_analytics (Warehouse)\n#   section: Tables\n#   subpath: dbo/monthly_regional_summary\n# Store the result in a variable called path_gold_warehouse\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Bronze CSV:       {path_bronze_csv}\")\nprint(f\"Silver table:     {path_silver_table}\")\nprint(f\"Gold warehouse:   {path_gold_warehouse}\")"
+      },
+      "assertions": [
+        {
+          "id": "F3-04-A1",
+          "description": "path_bronze_csv is a string",
+          "check": "isinstance(path_bronze_csv, str)"
+        },
+        {
+          "id": "F3-04-A2",
+          "description": "path_bronze_csv matches the expected Bronze CSV path exactly",
+          "check": "path_bronze_csv == 'abfss://ws_nordgrid_bronze@onelake.dfs.fabric.microsoft.com/lh_meter_readings.Lakehouse/Files/meter_exports/2026/03/15/readings.csv'"
+        },
+        {
+          "id": "F3-04-A3",
+          "description": "path_silver_table is a string",
+          "check": "isinstance(path_silver_table, str)"
+        },
+        {
+          "id": "F3-04-A4",
+          "description": "path_silver_table uses the Silver workspace, Lakehouse type suffix, and Tables section",
+          "check": "path_silver_table == 'abfss://ws_nordgrid_silver@onelake.dfs.fabric.microsoft.com/lh_meter_readings.Lakehouse/Tables/readings_silver'"
+        },
+        {
+          "id": "F3-04-A5",
+          "description": "path_gold_warehouse is a string",
+          "check": "isinstance(path_gold_warehouse, str)"
+        },
+        {
+          "id": "F3-04-A6",
+          "description": "path_gold_warehouse uses the Warehouse type suffix (not Lakehouse)",
+          "check": "path_gold_warehouse == 'abfss://ws_nordgrid_gold@onelake.dfs.fabric.microsoft.com/dw_nordgrid_analytics.Warehouse/Tables/dbo/monthly_regional_summary'"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit. Students who get 2 of 3 paths correct earn 4/6."
+    },
+    {
+      "id": "module-F3-task-05",
+      "title": "Predict Delta Table Version Behavior",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's engineer creates a Delta table readings_silver in the Tables section of lh_meter_readings. They perform a sequence of three writes over three days:\n\n- Day 1 (March 13): Initial write with 400 rows — mode('overwrite')\n- Day 2 (March 14): Append 50 new rows — mode('append')\n- Day 3 (March 15): Overwrite with 480 rows (deduplicated data from Days 1 and 2) — mode('overwrite')\n\nThe engineer is learning how Delta's transaction log tracks these operations. They need to predict the version count, which historical data remains accessible, and what the transaction log records.",
+        "task": "Predict the state of the Delta table and its transaction log after all three writes.",
+        "validationHint": "Each Delta write operation creates a new version entry in the transaction log. The version counter starts at 0 for the initial write and increments with each subsequent write. The transaction log tracks operation type (overwrite, append), the files added, and the files removed. Historical versions remain accessible through time travel until VACUUM removes their underlying files (VACUUM is not triggered here)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F3-05-F1",
+            "type": "numeric",
+            "label": "After all three writes, how many versions exist in the transaction log? (Count version 0, version 1, etc.)",
+            "correctAnswer": 3,
+            "tolerance": 0,
+            "rationale": "Version 0 = initial overwrite (Day 1). Version 1 = append (Day 2). Version 2 = second overwrite (Day 3). Each write creates exactly one version. Three writes = three versions."
+          },
+          {
+            "id": "F3-05-F2",
+            "type": "numeric",
+            "label": "If an engineer queries the current version of the table, how many rows do they see?",
+            "correctAnswer": 480,
+            "tolerance": 0,
+            "rationale": "The current version is version 2 (Day 3's overwrite), which wrote 480 rows. The previous versions (400 rows and 450 rows) are historical and not returned by a normal query."
+          },
+          {
+            "id": "F3-05-F3",
+            "type": "numeric",
+            "label": "If the engineer uses time travel to query version 1 (the state after Day 2's append), how many rows do they see?",
+            "correctAnswer": 450,
+            "tolerance": 0,
+            "rationale": "Version 1 is the state after Day 2: Day 1's 400 rows plus Day 2's 50 appended rows = 450 rows. Time travel exposes this snapshot without requiring the table to be rolled back."
+          },
+          {
+            "id": "F3-05-F4",
+            "type": "single_select",
+            "label": "Which of the following best describes what the transaction log records for the Day 3 overwrite (version 2)?",
+            "options": [
+              "Nothing — overwrites replace the table and clear the log",
+              "The operation type 'WRITE' with mode 'Overwrite', a list of new Parquet files added, and a list of previous Parquet files removed (marked for deletion)",
+              "Only the new row count",
+              "A diff of which columns changed"
+            ],
+            "correctAnswer": "The operation type 'WRITE' with mode 'Overwrite', a list of new Parquet files added, and a list of previous Parquet files removed (marked for deletion)",
+            "distractorRationale": "Option 1 is the opposite of how the transaction log works — the log preserves history across operations. Option 3 misses the file-level tracking that enables time travel. Option 4 describes row-level diff tracking, which Delta does not perform. The log tracks files added and files removed at each version."
+          },
+          {
+            "id": "F3-05-F5",
+            "type": "single_select",
+            "label": "Right after Day 3's overwrite, the engineer notices the overwrite removed some rows it should have kept. They want to restore the Day 2 state. What does Delta's transaction log let them do?",
+            "options": [
+              "Nothing — the log only tracks operations, not data, so recovery is impossible",
+              "Run time travel to query version 1 and overwrite the current table with those rows — because the underlying Parquet files from version 1 are still present until VACUUM removes them",
+              "Restore is only possible if the team manually backed up the table before the overwrite",
+              "Delta automatically prevents overwrites that remove data, so this scenario cannot occur"
+            ],
+            "correctAnswer": "Run time travel to query version 1 and overwrite the current table with those rows — because the underlying Parquet files from version 1 are still present until VACUUM removes them",
+            "distractorRationale": "Option 1 contradicts the purpose of the transaction log. Option 3 describes the pre-Delta world. Option 4 invents a protection that does not exist — Delta does not prevent destructive overwrites; it enables recovery from them. The correct answer uses time travel to read the historical version and write it back as the current version."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F3-task-06",
+      "title": "Design NordGrid's Complete OneLake Layout",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's platform team is documenting the complete OneLake layout for the data engineering onboarding guide. The guide needs a single Python dictionary that maps every NordGrid data source to its correct OneLake location, including the workspace, the Lakehouse or Warehouse, the section (Files or Tables), and the format. New engineers read this dictionary to understand where to find and write each data type.\n\nYou need to produce this dictionary as a Python value. No Spark is required — this is pure Python data structure construction that synthesizes the module's key concepts: Files vs Tables (Lesson 4), data format selection (Lesson 6), workspace and item naming (carry-over from F2), and OneLake's hierarchical namespace (Lesson 2).\n\nThe dictionary has five entries, one per NordGrid data source. Each entry maps a source name to a dict with keys: workspace, item, section, format, and description.",
+        "task": "Build a Python dictionary called nordgrid_layout with exactly 5 entries. Each value is a dict with the 5 required keys. The expected entries are documented in the scaffold comments. Apply the rules from the module: raw exports go in Files, validated analytical tables go in Tables, CSV/JSON for raw ingestion, Delta for managed analytical tables, Parquet for write-once archival.",
+        "validationHint": "The 5 sources are: (1) raw meter CSV from SFTP, (2) weather API JSON, (3) Silver validated readings Delta, (4) Gold monthly summary Delta, (5) 5-year historical archive Parquet. Apply the decision rules: where should each live, and in what format."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# Build the complete NordGrid OneLake layout as a Python dictionary.\n# No Spark required — pure Python data structure.\n#\n# Each entry has this shape:\n#   {\n#     'workspace': '<workspace_name>',\n#     'item': '<item_name>',\n#     'section': 'Files' or 'Tables',\n#     'format': 'CSV', 'JSON', 'Parquet', or 'Delta',\n#     'description': '<short description>'\n#   }\n#\n# The 5 entries you need to build:\n#\n# 1. Key 'raw_meter_readings':\n#      - Daily CSV export from external SFTP server, as received, no transformation\n#      - Lives in the Bronze workspace, in a Lakehouse called lh_meter_readings\n#\n# 2. Key 'raw_weather_api':\n#      - Nested JSON from the weather API (station_id, temp_c, forecast array)\n#      - Lives in the Bronze workspace, in a Lakehouse called lh_weather\n#\n# 3. Key 'silver_readings':\n#      - Validated, deduplicated, schema-enforced readings\n#      - Queryable by SQL analytics endpoint, daily incremental updates, rollback support needed\n#      - Lives in the Silver workspace, in a Lakehouse called lh_meter_readings\n#\n# 4. Key 'gold_monthly_summary':\n#      - Pre-computed monthly regional aggregates, overwritten monthly\n#      - Consumers need to identify which data version their report reflects\n#      - Lives in the Gold workspace, in a Lakehouse called lh_gold_analytics\n#\n# 5. Key 'historical_archive':\n#      - 5 years of historical readings, written once, rarely read, column-subset scans\n#      - No ACID or rollback needs — transaction log overhead is unnecessary\n#      - Lives in the Gold workspace, in a Lakehouse called lh_archive\n\n# YOUR SOLUTION BELOW\n\nnordgrid_layout = {\n    # Add the 5 entries here\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Entry count: {len(nordgrid_layout)}\")\nfor key, entry in nordgrid_layout.items():\n    print(f\"  {key}: {entry['workspace']}/{entry['item']}/{entry['section']} ({entry['format']})\")"
+      },
+      "assertions": [
+        {
+          "id": "F3-06-A1",
+          "description": "nordgrid_layout is a dictionary with exactly 5 entries",
+          "check": "isinstance(nordgrid_layout, dict) and len(nordgrid_layout) == 5"
+        },
+        {
+          "id": "F3-06-A2",
+          "description": "raw_meter_readings is CSV in Bronze Files section",
+          "check": "nordgrid_layout['raw_meter_readings']['workspace'] == 'ws_nordgrid_bronze' and nordgrid_layout['raw_meter_readings']['item'] == 'lh_meter_readings' and nordgrid_layout['raw_meter_readings']['section'] == 'Files' and nordgrid_layout['raw_meter_readings']['format'] == 'CSV'"
+        },
+        {
+          "id": "F3-06-A3",
+          "description": "raw_weather_api is JSON in Bronze Files section",
+          "check": "nordgrid_layout['raw_weather_api']['workspace'] == 'ws_nordgrid_bronze' and nordgrid_layout['raw_weather_api']['item'] == 'lh_weather' and nordgrid_layout['raw_weather_api']['section'] == 'Files' and nordgrid_layout['raw_weather_api']['format'] == 'JSON'"
+        },
+        {
+          "id": "F3-06-A4",
+          "description": "silver_readings is Delta in Silver Tables section (validation + versioning requires Delta)",
+          "check": "nordgrid_layout['silver_readings']['workspace'] == 'ws_nordgrid_silver' and nordgrid_layout['silver_readings']['item'] == 'lh_meter_readings' and nordgrid_layout['silver_readings']['section'] == 'Tables' and nordgrid_layout['silver_readings']['format'] == 'Delta'"
+        },
+        {
+          "id": "F3-06-A5",
+          "description": "gold_monthly_summary is Delta in Gold Tables section (version tracking requires Delta)",
+          "check": "nordgrid_layout['gold_monthly_summary']['workspace'] == 'ws_nordgrid_gold' and nordgrid_layout['gold_monthly_summary']['item'] == 'lh_gold_analytics' and nordgrid_layout['gold_monthly_summary']['section'] == 'Tables' and nordgrid_layout['gold_monthly_summary']['format'] == 'Delta'"
+        },
+        {
+          "id": "F3-06-A6",
+          "description": "historical_archive is Parquet in Gold Files section (write-once archival does not need Delta's transaction log overhead)",
+          "check": "nordgrid_layout['historical_archive']['workspace'] == 'ws_nordgrid_gold' and nordgrid_layout['historical_archive']['item'] == 'lh_archive' and nordgrid_layout['historical_archive']['format'] == 'Parquet'"
+        },
+        {
+          "id": "F3-06-A7",
+          "description": "Every entry has all 5 required keys (workspace, item, section, format, description)",
+          "check": "all(set(entry.keys()) >= {'workspace', 'item', 'section', 'format', 'description'} for entry in nordgrid_layout.values())"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit. A student who correctly places 3 of 5 entries earns approximately 4/7.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Files vs Tables section classification (Lesson 4)",
+          "Data format selection: CSV for raw row-oriented, JSON for nested API, Delta for managed analytical, Parquet for write-once archival (Lesson 6)",
+          "Workspace and item naming from F2, applied to OneLake paths (carry-over, tested in context)",
+          "Delta's versioning and rollback as the driver for choosing Delta over Parquet in Silver and Gold (Lesson 3)",
+          "Recognizing when NOT to use Delta — the historical archive case, where transaction log overhead is unnecessary (Lesson 3, 6)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This task synthesizes the module by requiring the student to apply every key OneLake decision to a realistic NordGrid scenario. A student who memorized 'use Delta everywhere' will place the historical archive incorrectly (Parquet is the right answer because the scenario explicitly says no ACID needs and no rollback — the Delta overhead is pure cost). A student who memorized 'Files for raw, Tables for analytical' will correctly place the raw CSV and raw JSON in Files, and the Silver/Gold Delta tables in Tables. A student who understands the format decision tree will correctly distinguish Delta from Parquet by the versioning requirement. This requires synthesizing 5 distinct module concepts, meeting the §4.4 synthesis quality bar."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Not applied. F3 is Core Mechanics phase. The two write-the-code tasks (Task 4 and Task 6) are pure Python string/dict construction that require no Spark, no Fabric runtime, and no knowledge from F5+. They respect the one-module scope rule because they test OneLake's hierarchical namespace (Lesson 2), path structure (Lesson 8), Files vs Tables (Lesson 4), and format selection (Lesson 6) — all within F3's scope. The task type mix is 2 concept_identification + 2 output_prediction + 2 write_the_code, all within §4.2 limits (max 5 write-the-code, max 2 concept_identification, max 2 output_prediction). The task type mix matches the §2.4 guideline for the transition from Foundation to Core Mechanics — more code, fewer templates, but still template-heavy because OneLake is a conceptual model, not a coding API.",
+    "theoryPracticeBoundary": "The theory uses NordGrid's meter readings path as the canonical example in Lesson 2 and the shortcut-from-Silver-to-Gold pattern in Lesson 5. The practice tests application: Task 4 asks the student to construct paths for three different items (including a Warehouse, which the theory covers in Lesson 2 but does not use as the primary example), and Task 6 asks the student to place 5 data sources into the layout — including a historical archive case that tests whether the student understands when NOT to use Delta (Lesson 3 and 6 together). Task 3's shortcut scenarios extend the theory's Silver-to-Gold example with failure modes and access control questions not explicitly walked through in the lessons.",
+    "crossModuleNotes": "This practice set builds on F2's workspace and item naming conventions (ws_nordgrid_*, lh_*, dw_*) but tests only F3 concepts. The student needs to know the names from F2 to construct paths in Task 4 and build the layout in Task 6, but the concepts being tested (Files vs Tables, format selection, Delta behavior, shortcuts, path structure) are all F3-scoped. F4 concepts (Lakehouse auto-generated artifacts, SQL endpoint capabilities) are referenced at the F3 level only (e.g., 'queryable by SQL analytics endpoint' as a requirement driver for placing data in Tables) but not tested directly. F5+ concepts (writing PySpark code, mssparkutils, Spark sessions) are not required.",
+    "datasetNotes": "No CSV or Parquet datasets. Task 4 uses hardcoded metadata in the scaffold comments. Task 6 uses hardcoded requirements in the scaffold comments. Both tasks produce Python data structures (strings and dicts) that are validated directly without reading any files."
+  }
+}

@@ -1,0 +1,433 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FI6 — Testing Fabric Pipelines",
+  "description": "Build a systematic testing practice for NordGrid's Silver pipeline: refactor inline notebook logic into a testable function, write edge-case tests for the deduplication function, build a schema validation function, build a 5-rule data quality suite, diagnose a failing regression test from row count and per-region evidence, and assemble the complete test notebook combining unit tests + schema tests + data quality tests + regression tests.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FI6",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 75,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, 3 teams sharing the Silver pipeline test suite",
+    "modulePhase": "engineering_discipline",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 1,
+      "fixImplementation": 3,
+      "refactoring": 1,
+      "diagnosticWorkflow": 1
+    },
+    "calibrationNotes": "Sixth Fabric mid-level practice set. The easiest set in the mid-level track to grade because everything runs in plain PySpark — no Delta, no KQL, no Warehouse — and the testing patterns the student writes are the same patterns they would write in production. Tasks 1-4 and 6 are code execution tasks; only Task 5 is a pure template (regression diagnosis from inline evidence). The single shared dataset has carefully calibrated quality issues so a 5-rule data quality suite produces deterministic pass/fail values. Task type mix (1 diagnostic + 3 fix + 1 refactoring + 1 synthesis) is within all section 5.2 limits."
+  },
+  "datasets": [
+    {
+      "id": "FI6_data_readings",
+      "file": "FI6_data_readings.csv",
+      "description": "NordGrid raw readings with controlled data quality issues for the test suite. 40 rows total. 36 are 'clean' rows: 12 regions × 3 dates per region (2026-04-06, 2026-04-07, 2026-04-08), each with a unique meter_id (M-001 through M-036). 4 are 'dirty' rows: 1 with null meter_id, 1 with negative daily_kw (-100.0), and 2 duplicates (one of M-001 / 2026-04-06 / NORTH-A and one of M-013 / 2026-04-06 / EAST-A). After applying all 5 quality rules (drop nulls, filter daily_kw > 0, dedup on meter_id+date), exactly 36 clean rows remain — one per region per date. The 5 quality rules are: row count > 0, no null meter_id, daily_kw in (0, 10000), all 12 regions present, no duplicates on (meter_id, date).",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": true, "description": "1 row has null meter_id"},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FI6-task-01", "module-FI6-task-02", "module-FI6-task-03", "module-FI6-task-04", "module-FI6-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FI6-task-01",
+      "title": "Extract Transformation into a Testable Function",
+      "type": "refactoring",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's Silver notebook has the cleansing logic written inline in a single cell:\n\n  # cell 4 (current — untestable)\n  df_silver = (df_bronze\n               .filter(col('meter_id').isNotNull())\n               .filter((col('daily_kw') > 0) & (col('daily_kw') < 10000))\n               .dropDuplicates(['meter_id', 'date'])\n               .select('meter_id', 'daily_kw', 'date', 'region'))\n\nThe problem: this code cannot be unit-tested. To test it, you would have to run the entire notebook on a real dataset every time. Mid-level engineers extract logic into named functions so each function can be tested in isolation with small known inputs.\n\nFI6 Lesson 2's refactoring pattern: extract the cell into a function that takes a DataFrame and returns the cleansed DataFrame. Once the function exists, tests can call it directly with known inputs and assert specific outputs.",
+        "task": "Refactor the inline transformation into a function called clean_silver(df) that takes a DataFrame and returns the cleansed result by applying the same 4 operations (drop null meter_id, filter daily_kw in range, dedup on (meter_id, date), select 4 columns). After defining the function, call it with the FI6_data_readings.csv as input and store the result in df_cleaned. Store the row count in cleaned_count.",
+        "validationHint": "The function signature is: def clean_silver(df). Inside, apply the 4 operations from the inline cell. Return the cleansed DataFrame. Then call df_cleaned = clean_silver(df_raw). Expected: cleaned_count = 36 (40 raw - 1 null - 1 negative - 2 duplicates)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI6 Lesson 2: extract inline notebook logic into a testable function.\n# Once extracted, the function can be unit-tested with known inputs and expected outputs.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-extract-function') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_raw = spark.read.csv('FI6_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Raw rows: {df_raw.count()}\")\n\n# YOUR SOLUTION BELOW\n# Step 1: Define the clean_silver function. Signature: def clean_silver(df).\n#         Inside, apply the 4 operations:\n#           - filter to non-null meter_id\n#           - filter daily_kw > 0 and daily_kw < 10000\n#           - dropDuplicates on ['meter_id', 'date']\n#           - select the 4 columns: meter_id, daily_kw, date, region\n#         Return the cleansed DataFrame.\n\n\n\n\n# Step 2: Call clean_silver(df_raw) and store in df_cleaned\n# Step 3: Store the row count in cleaned_count\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Cleaned rows: {cleaned_count}\")\nprint(f\"Function exists: {callable(clean_silver)}\")\ndf_cleaned.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "FI6-01-A1",
+          "description": "clean_silver is defined as a callable function",
+          "check": "callable(clean_silver)"
+        },
+        {
+          "id": "FI6-01-A2",
+          "description": "df_cleaned has 36 rows (40 raw - 1 null - 1 negative - 2 duplicates)",
+          "check": "df_cleaned.count() == 36"
+        },
+        {
+          "id": "FI6-01-A3",
+          "description": "cleaned_count equals 36",
+          "check": "cleaned_count == 36"
+        },
+        {
+          "id": "FI6-01-A4",
+          "description": "df_cleaned has the 4 expected columns",
+          "check": "set(df_cleaned.columns) == {'meter_id', 'daily_kw', 'date', 'region'}"
+        },
+        {
+          "id": "FI6-01-A5",
+          "description": "df_cleaned has no null meter_id values",
+          "check": "df_cleaned.filter(col('meter_id').isNull()).count() == 0"
+        },
+        {
+          "id": "FI6-01-A6",
+          "description": "df_cleaned has no rows with daily_kw <= 0 or >= 10000",
+          "check": "df_cleaned.filter('daily_kw <= 0 OR daily_kw >= 10000').count() == 0"
+        },
+        {
+          "id": "FI6-01-A7",
+          "description": "Calling clean_silver again with the same input produces the same row count (idempotent)",
+          "check": "clean_silver(df_raw).count() == 36"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit. A7 specifically tests that clean_silver works as a reusable function (not a one-shot script)."
+    },
+    {
+      "id": "module-FI6-task-02",
+      "title": "Test the Deduplication Function with Edge Cases",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's Silver pipeline includes a dedup function that removes duplicate (meter_id, date) pairs. The scaffold provides the function. Your job is to write 5 test cases that verify it handles edge cases correctly:\n\n  TEST 1: Empty DataFrame — should return an empty DataFrame, not crash\n  TEST 2: Single row — should return the single row unchanged\n  TEST 3: All duplicates (3 copies of the same row) — should return exactly 1 row\n  TEST 4: No duplicates (3 unique rows) — should return all 3 rows\n  TEST 5: Mixed (5 rows: 2 duplicate pairs + 1 unique) — should return 3 rows\n\nFI6 Lesson 3's pattern: build small test DataFrames in code, call the function, and assert the row count and column values match expectations.",
+        "task": "For each of the 5 test cases, build a small test DataFrame, call dedup(test_df), and store the resulting row count in test1_count, test2_count, ..., test5_count. The expected values are test1_count=0, test2_count=1, test3_count=1, test4_count=3, test5_count=3.",
+        "validationHint": "Build DataFrames with spark.createDataFrame([(meter_id, date), ...], ['meter_id', 'date']). Call dedup() on each. Expected counts are listed in the task description. The 5 test cases together cover the boundary behaviors that distinguish a correct dedup from a buggy one."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI6 Lesson 3: testing with small DataFrames covering edge cases.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-dedup-tests') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Provided: the function under test\ndef dedup(df):\n    return df.dropDuplicates(['meter_id', 'date'])\n\n# YOUR SOLUTION BELOW\n# Build 5 test DataFrames with the schema (meter_id: string, date: string),\n# call dedup on each, and store the result row counts.\n#\n# Hint: spark.createDataFrame([], 'meter_id string, date string') creates an empty DataFrame\n#       spark.createDataFrame([('M-001','2026-04-06')], ['meter_id','date']) creates a 1-row DataFrame\n\n# TEST 1: Empty DataFrame -> expected dedup count: 0\n\n\n# TEST 2: Single row -> expected dedup count: 1\n\n\n# TEST 3: 3 copies of the same row -> expected dedup count: 1\n\n\n# TEST 4: 3 unique rows -> expected dedup count: 3\n\n\n# TEST 5: 5 rows = 2 duplicate pairs + 1 unique -> expected dedup count: 3\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Test 1 (empty):       {test1_count}\")\nprint(f\"Test 2 (single):      {test2_count}\")\nprint(f\"Test 3 (all dupes):   {test3_count}\")\nprint(f\"Test 4 (no dupes):    {test4_count}\")\nprint(f\"Test 5 (mixed):       {test5_count}\")"
+      },
+      "assertions": [
+        {
+          "id": "FI6-02-A1",
+          "description": "TEST 1 (empty DataFrame) produces 0 rows after dedup",
+          "check": "test1_count == 0"
+        },
+        {
+          "id": "FI6-02-A2",
+          "description": "TEST 2 (single row) produces 1 row after dedup",
+          "check": "test2_count == 1"
+        },
+        {
+          "id": "FI6-02-A3",
+          "description": "TEST 3 (3 copies of the same row) produces 1 row after dedup",
+          "check": "test3_count == 1"
+        },
+        {
+          "id": "FI6-02-A4",
+          "description": "TEST 4 (3 unique rows) produces 3 rows after dedup (no removal)",
+          "check": "test4_count == 3"
+        },
+        {
+          "id": "FI6-02-A5",
+          "description": "TEST 5 (mixed: 2 dup pairs + 1 unique) produces 3 rows after dedup",
+          "check": "test5_count == 3"
+        }
+      ],
+      "partialCredit": "5 independent assertions, one per edge case. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-FI6-task-03",
+      "title": "Write a Schema Validation Function",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's Silver schema is fixed: 4 columns with specific types. If a transformation accidentally changes the schema (extra column, missing column, wrong type), downstream consumers break. FI6 Lesson 4's pattern: write a validate_schema function that compares the actual DataFrame schema to the expected schema and returns True/False.\n\nThe expected Silver schema:\n  meter_id    StringType\n  daily_kw    DoubleType\n  date        StringType\n  region      StringType\n\nThe function must verify both the column names AND the column types. A DataFrame with the right column names but wrong types should fail validation. A DataFrame with extra or missing columns should fail validation.",
+        "task": "Write a function called validate_schema(df, expected) that takes a DataFrame and an expected schema (a dict mapping column names to type names like 'StringType' or 'DoubleType') and returns True if the DataFrame matches exactly, False otherwise. Then test it with FI6_data_readings.csv loaded with inferSchema and store the result in test_a_passed (should be True). Then test it with a deliberately wrong schema (where 'date' is mapped to 'IntegerType') and store the result in test_b_passed (should be False).",
+        "validationHint": "Use df.schema.fields to iterate over column metadata. Each field has .name and .dataType. Compare against the expected dict. To get the type name, use type(field.dataType).__name__ which gives 'StringType' or 'DoubleType'. Test A passes because the loaded CSV matches. Test B fails because date is actually a string but the wrong-expected says it should be an integer."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI6 Lesson 4: schema validation tests.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-schema-validation') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('FI6_data_readings.csv', header=True, inferSchema=True)\nprint(\"Loaded schema:\")\ndf_readings.printSchema()\n\n# Expected schemas\nexpected_correct = {\n    'meter_id': 'StringType',\n    'daily_kw': 'DoubleType',\n    'date': 'StringType',\n    'region': 'StringType'\n}\n\nexpected_wrong = {\n    'meter_id': 'StringType',\n    'daily_kw': 'DoubleType',\n    'date': 'IntegerType',  # WRONG: date is actually a string\n    'region': 'StringType'\n}\n\n# YOUR SOLUTION BELOW\n# Step 1: Define validate_schema(df, expected) -> bool\n#   - Iterate over df.schema.fields\n#   - For each field, check that field.name is in expected AND\n#     type(field.dataType).__name__ == expected[field.name]\n#   - Also check that the set of actual column names equals the set of expected keys\n#     (catches missing or extra columns)\n#   - Return True only if everything matches; otherwise False\n\n\n\n\n# Step 2: Test with the correct expected schema\n# test_a_passed = validate_schema(df_readings, expected_correct)  -- should be True\n\n\n# Step 3: Test with the wrong expected schema (date as IntegerType)\n# test_b_passed = validate_schema(df_readings, expected_wrong)  -- should be False\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Test A (correct expected): {test_a_passed} (should be True)\")\nprint(f\"Test B (wrong expected):   {test_b_passed} (should be False)\")"
+      },
+      "assertions": [
+        {
+          "id": "FI6-03-A1",
+          "description": "validate_schema is defined as a callable function",
+          "check": "callable(validate_schema)"
+        },
+        {
+          "id": "FI6-03-A2",
+          "description": "test_a_passed is True (correct schema validates successfully)",
+          "check": "test_a_passed == True"
+        },
+        {
+          "id": "FI6-03-A3",
+          "description": "test_b_passed is False (wrong schema is rejected)",
+          "check": "test_b_passed == False"
+        },
+        {
+          "id": "FI6-03-A4",
+          "description": "validate_schema correctly rejects a DataFrame missing a column",
+          "check": "validate_schema(df_readings.drop('region'), expected_correct) == False"
+        },
+        {
+          "id": "FI6-03-A5",
+          "description": "validate_schema correctly accepts a DataFrame matching the expected schema exactly",
+          "check": "validate_schema(df_readings, expected_correct) == True"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit. Assertions A4 and A5 test the function with additional inputs not covered by the student's own tests."
+    },
+    {
+      "id": "module-FI6-task-04",
+      "title": "Build a Data Quality Suite for NordGrid Silver",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's data quality team requires every Silver run to pass 5 validation rules before being marked as production-ready. FI6 Lesson 5 establishes the pattern: a single validation function that runs all rules and returns a result dict, with one boolean per rule plus an overall pass/fail.\n\nThe 5 rules for Silver readings:\n  RULE 1: Row count is greater than 0 (the table is not empty)\n  RULE 2: No null meter_id values\n  RULE 3: All daily_kw values are in the open interval (0, 10000) — strictly positive AND strictly less than 10000\n  RULE 4: All 12 NordGrid regions are present (NORTH-A, NORTH-B, SOUTH-A, SOUTH-B, EAST-A, EAST-B, EAST-C, WEST-A, WEST-B, CENTRAL-A, CENTRAL-B, CENTRAL-C)\n  RULE 5: No duplicate (meter_id, date) pairs\n\nThe validation function returns a dict with 6 keys: one per rule plus 'all_passed'.",
+        "task": "Read FI6_data_readings.csv, apply the cleansing logic from Task 1 (drop nulls, filter range, dedup), then write a function called run_dq_suite(df) that returns a dict with the 6 keys: row_count_positive, no_null_meter_id, daily_kw_in_range, all_regions_present, no_duplicates, and all_passed (which is True only if the other 5 are all True). Call the function on the cleansed DataFrame and store the result in dq_result. The cleansed DataFrame should pass all 5 rules.",
+        "validationHint": "After cleansing, the result has 36 rows (12 regions × 3 dates), no nulls, no negatives, no duplicates. All 5 rules should return True. dq_result['all_passed'] should be True. The set of regions in the cleansed data is exactly the 12 NordGrid regions."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI6 Lesson 5: data quality suite for Silver validation.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-dq-suite') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Load and cleanse (using the pattern from Task 1)\ndf_raw = spark.read.csv('FI6_data_readings.csv', header=True, inferSchema=True)\ndf_cleansed = (df_raw\n               .filter(col('meter_id').isNotNull())\n               .filter((col('daily_kw') > 0) & (col('daily_kw') < 10000))\n               .dropDuplicates(['meter_id', 'date'])\n               .select('meter_id', 'daily_kw', 'date', 'region'))\nprint(f\"Cleansed: {df_cleansed.count()} rows\")\n\nEXPECTED_REGIONS = {'NORTH-A','NORTH-B','SOUTH-A','SOUTH-B','EAST-A','EAST-B','EAST-C','WEST-A','WEST-B','CENTRAL-A','CENTRAL-B','CENTRAL-C'}\n\n# YOUR SOLUTION BELOW\n# Define run_dq_suite(df) that returns a dict with these 6 keys:\n#   - row_count_positive: True if df.count() > 0\n#   - no_null_meter_id: True if df.filter(col('meter_id').isNull()).count() == 0\n#   - daily_kw_in_range: True if all daily_kw values are in (0, 10000) exclusive\n#   - all_regions_present: True if the set of distinct regions equals EXPECTED_REGIONS\n#   - no_duplicates: True if no (meter_id, date) pair has count > 1\n#   - all_passed: True if all 5 above are True\n\n\n\n\n# Call run_dq_suite on the cleansed DataFrame and store the result in dq_result\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(\"DQ result:\")\nfor k, v in dq_result.items():\n    print(f\"  {k}: {v}\")"
+      },
+      "assertions": [
+        {
+          "id": "FI6-04-A1",
+          "description": "run_dq_suite is a callable function",
+          "check": "callable(run_dq_suite)"
+        },
+        {
+          "id": "FI6-04-A2",
+          "description": "dq_result is a dict with all 6 expected keys",
+          "check": "isinstance(dq_result, dict) and set(dq_result.keys()) >= {'row_count_positive', 'no_null_meter_id', 'daily_kw_in_range', 'all_regions_present', 'no_duplicates', 'all_passed'}"
+        },
+        {
+          "id": "FI6-04-A3",
+          "description": "row_count_positive is True (cleansed has 36 rows > 0)",
+          "check": "dq_result['row_count_positive'] == True"
+        },
+        {
+          "id": "FI6-04-A4",
+          "description": "no_null_meter_id is True (cleansing removed the null row)",
+          "check": "dq_result['no_null_meter_id'] == True"
+        },
+        {
+          "id": "FI6-04-A5",
+          "description": "daily_kw_in_range is True (cleansing removed the negative row)",
+          "check": "dq_result['daily_kw_in_range'] == True"
+        },
+        {
+          "id": "FI6-04-A6",
+          "description": "all_regions_present is True (all 12 regions appear in the cleansed data)",
+          "check": "dq_result['all_regions_present'] == True"
+        },
+        {
+          "id": "FI6-04-A7",
+          "description": "no_duplicates is True (cleansing removed the duplicate rows)",
+          "check": "dq_result['no_duplicates'] == True"
+        },
+        {
+          "id": "FI6-04-A8",
+          "description": "all_passed is True (the conjunction of all 5 rules)",
+          "check": "dq_result['all_passed'] == True"
+        }
+      ],
+      "partialCredit": "8 independent assertions. Each passed assertion earns 1/8 credit. The 6 individual rule assertions plus the function-callable check plus the all_passed conjunction give fine-grained partial credit."
+    },
+    {
+      "id": "module-FI6-task-05",
+      "title": "Diagnose a Failing Regression Test",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's regression test compares today's Silver output against last week's golden baseline. This morning the test failed. The data engineer pulled the regression report:\n\n  REGRESSION TEST OUTPUT — silver_readings / 2026-04-08\n  ============================================================\n  GOLDEN BASELINE (2026-04-01 known-good run):\n    Total rows:          1,200\n    Sum daily_kw:        1,800,000\n    Per-region counts:\n      NORTH-A:    100    NORTH-B:    100\n      SOUTH-A:    100    SOUTH-B:    100\n      EAST-A:     100    EAST-B:     100    EAST-C:     100\n      WEST-A:     100    WEST-B:     100\n      CENTRAL-A:  100    CENTRAL-B:  100    CENTRAL-C:  100\n\n  CURRENT RUN (2026-04-08):\n    Total rows:          1,199    <-- 1 row missing\n    Sum daily_kw:        1,798,500    <-- 1500 lower\n    Per-region counts:\n      NORTH-A:    100    NORTH-B:    100\n      SOUTH-A:     99    <-- short by 1    SOUTH-B:    100\n      EAST-A:     100    EAST-B:     100    EAST-C:     100\n      WEST-A:     100    WEST-B:     100\n      CENTRAL-A:  100    CENTRAL-B:  100    CENTRAL-C:  100\n\n  REGRESSION ASSERTION:\n    AssertionError: row count mismatch (expected 1200, got 1199)\n    Per-region delta: SOUTH-A -1 row, daily_kw -1500.0\n\n  RECENT CODE CHANGES (past 7 days):\n    - 2026-04-05: PR #234 added a new filter rule excluding daily_kw < 200 as 'unrealistic minimum consumption'\n    - 2026-04-07: PR #241 updated the meters reference table format\n    - 2026-04-08: pipeline ran",
+        "task": "Diagnose the regression: identify which region lost a row, estimate the daily_kw value of the missing row, and identify the most likely cause from the recent code changes.",
+        "validationHint": "SOUTH-A is the only region with a delta. The missing row's daily_kw is exactly the sum delta divided by 1: 1500 kWh. PR #234 added a filter excluding daily_kw < 200 — but 1500 is well above 200, so PR #234 cannot be the cause. PR #241 updated the meters reference format — if the Silver pipeline joins to meters reference and a meter from SOUTH-A is now missing from the new format, the row would be lost in the join. PR #241 is the suspect."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI6-05-F1",
+            "type": "single_select",
+            "label": "Which region lost a row?",
+            "options": [
+              "SOUTH-A — its current count (99) is exactly 1 below the golden count (100), and all other regions are unchanged",
+              "NORTH-A and SOUTH-A both lost rows",
+              "All regions lost rows uniformly",
+              "Cannot tell from the report"
+            ],
+            "correctAnswer": "SOUTH-A — its current count (99) is exactly 1 below the golden count (100), and all other regions are unchanged",
+            "rationale": "The per-region counts directly show SOUTH-A at 99 vs golden's 100. Every other region matches the golden count. The 1-row total deficit is fully attributable to SOUTH-A. This is what regression tests are FOR — they pinpoint the exact location of unexpected changes."
+          },
+          {
+            "id": "FI6-05-F2",
+            "type": "numeric",
+            "label": "What was the daily_kw value of the missing row? (Hint: the sum delta tells you exactly.)",
+            "correctAnswer": 1500,
+            "tolerance": 0,
+            "rationale": "Sum delta = 1,800,000 - 1,798,500 = 1,500 kWh. Since exactly one row is missing, the missing row's daily_kw equals the entire sum delta: 1500. This is one of the simplest forms of regression debugging — when one row is missing, the sum delta IS the missing value."
+          },
+          {
+            "id": "FI6-05-F3",
+            "type": "single_select",
+            "label": "Which recent code change is the most likely cause of the missing row?",
+            "options": [
+              "PR #234 (the daily_kw < 200 filter) — because the missing row's value (1500) is below some threshold",
+              "PR #241 (the meters reference format change) — because a meter from SOUTH-A may now be missing from the new format, causing it to fall out of the inner join during the Silver enrichment",
+              "Both PR #234 and PR #241 contributed equally",
+              "Neither PR — the row is missing from the source data"
+            ],
+            "correctAnswer": "PR #241 (the meters reference format change) — because a meter from SOUTH-A may now be missing from the new format, causing it to fall out of the inner join during the Silver enrichment",
+            "rationale": "PR #234 cannot be the cause because the missing row's daily_kw (1500) is well above the 200 threshold the new filter excludes. PR #241 is consistent with the symptom: a meters reference format change can cause a join lookup to fail for one specific meter, dropping that meter from the result. The 'one specific meter dropped' pattern matches reference table issues, not value-based filters."
+          },
+          {
+            "id": "FI6-05-F4",
+            "type": "single_select",
+            "label": "What is the recommended next investigation step?",
+            "options": [
+              "Open the staging environment, run the pipeline against PR #241 specifically, and check whether the dropped row reappears when PR #241 is reverted",
+              "Lower the regression test row count threshold to 1199 so the test passes",
+              "Disable regression testing for the current week until the team has more time",
+              "Restore the database from yesterday's backup"
+            ],
+            "correctAnswer": "Open the staging environment, run the pipeline against PR #241 specifically, and check whether the dropped row reappears when PR #241 is reverted",
+            "rationale": "The right move is to test the suspected cause in isolation. Run the pipeline against PR #241 reverted and see if the row count returns to 1200. If yes, PR #241 is confirmed; if no, dig further. Distractor B is the worst possible response — quieting the alarm hides the bug. Distractor C delays the investigation when the evidence is fresh. Distractor D is excessive when only one row is at issue."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI6-task-06",
+      "title": "Build NordGrid's Complete Test Suite",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 13,
+      "description": {
+        "context": "This is the synthesis task. NordGrid's testing standard from FI6 Lesson 10 requires every production notebook to have a corresponding test notebook that runs:\n  - Unit tests (the dedup edge cases from Task 2)\n  - Schema validation (from Task 3)\n  - Data quality suite (from Task 4)\n  - Regression test (compares today's row count and per-region counts to a golden baseline)\n\nYour job: (1) DIAGNOSIS — fill the 4-field template confirming the test pyramid composition. (2) FIX — build the complete test suite as a function that runs all 4 test categories and returns a structured result dict. Both are graded independently and combined 50/50.",
+        "task": "Fill the diagnosis template AND build the test suite.\n\nFor the FIX: Build a function called run_test_suite(df) that takes the cleansed Silver DataFrame and returns a dict with these keys:\n  - unit_tests: a dict with at least one passed key (e.g., 'dedup_idempotent') True/False\n  - schema_test: True if validate_schema returns True\n  - dq_suite: the full dq_result from Task 4\n  - regression_test: True if the row count equals the golden count (36 for the full cleansed dataset)\n  - all_passed: True only if every test passes\n\nThe scaffold provides validate_schema, run_dq_suite (from Task 4), the dedup function, the cleansed DataFrame, and the golden row count (36). You compose them into the test suite function.",
+        "validationHint": "The synthesis is composing existing functions, not rewriting them. Your run_test_suite function should call validate_schema(df, expected), run_dq_suite(df), and compare df.count() to the golden count. all_passed is the conjunction of all sub-results. Expected: every test passes when run on the cleansed 36-row DataFrame, so all_passed is True."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI6-06-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does the test pyramid include both unit tests AND data quality tests?",
+            "options": [
+              "Unit tests verify that individual FUNCTIONS behave correctly with known inputs (catch bugs in the transformation logic). DQ tests verify that the OUTPUT DATA matches expectations (catch bugs in the data itself, regardless of code). They cover different failure modes — both are necessary",
+              "Unit tests are faster than DQ tests, so they replace DQ tests",
+              "DQ tests are more accurate than unit tests, so they replace unit tests",
+              "They are the same thing with different names"
+            ],
+            "correctAnswer": "Unit tests verify that individual FUNCTIONS behave correctly with known inputs (catch bugs in the transformation logic). DQ tests verify that the OUTPUT DATA matches expectations (catch bugs in the data itself, regardless of code). They cover different failure modes — both are necessary",
+            "rationale": "Unit tests catch logic bugs (the dedup function uses wrong key columns). DQ tests catch data bugs (an upstream meter went missing). Both can pass independently — a function can be perfectly correct AND the data can still be wrong. Skipping either layer creates a coverage gap."
+          },
+          {
+            "id": "FI6-06-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why does regression testing add value on top of unit tests + DQ tests?",
+            "options": [
+              "Regression tests catch UNEXPECTED CHANGES — when the output today differs from yesterday in ways the unit tests and DQ tests do not look for. They are the safety net that catches drift the explicit rules miss",
+              "Regression tests are required by Microsoft Fabric",
+              "Regression tests are faster than the other two types",
+              "Regression tests replace the need for code review"
+            ],
+            "correctAnswer": "Regression tests catch UNEXPECTED CHANGES — when the output today differs from yesterday in ways the unit tests and DQ tests do not look for. They are the safety net that catches drift the explicit rules miss",
+            "rationale": "Unit tests check what the developer THOUGHT to test. DQ tests check the rules the team WROTE DOWN. Regression tests catch the changes that nobody anticipated — including the SOUTH-A row drop from Task 5, where neither unit tests nor DQ rules would catch it. The 3 layers form a defense-in-depth strategy."
+          },
+          {
+            "id": "FI6-06-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Should the test suite RUN before or AFTER the Silver transformation?",
+            "options": [
+              "The test suite runs AFTER the transformation, against the OUTPUT of the Silver pipeline. The unit tests can run independently anytime, but the schema, DQ, and regression tests need the actual output to validate against",
+              "Always before — tests should run on raw input only",
+              "Always during — tests interrupt the transformation if something is wrong",
+              "Tests should run weekly, not per pipeline run"
+            ],
+            "correctAnswer": "The test suite runs AFTER the transformation, against the OUTPUT of the Silver pipeline. The unit tests can run independently anytime, but the schema, DQ, and regression tests need the actual output to validate against",
+            "rationale": "The natural ordering is transform → validate. The transformation produces the output; the tests verify it meets all requirements. Some tests (unit tests for individual functions) can run earlier in the development workflow, but the full suite that includes regression and DQ must run after. NordGrid's standard from FI6 Lesson 10 is exactly this: pipeline writes to Silver, then test notebook runs against the result."
+          },
+          {
+            "id": "FI6-06-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: What should happen when the test suite fails?",
+            "options": [
+              "The pipeline marks the run as failed, alerts the on-call engineer, and downstream consumers are notified that the data is not yet certified for use. The data may be present in the Silver table but should not be queried until the test failure is investigated",
+              "The pipeline ignores the failure and proceeds normally",
+              "The pipeline silently retries the test until it passes",
+              "The pipeline rolls back the Silver write automatically"
+            ],
+            "correctAnswer": "The pipeline marks the run as failed, alerts the on-call engineer, and downstream consumers are notified that the data is not yet certified for use. The data may be present in the Silver table but should not be queried until the test failure is investigated",
+            "rationale": "Test failures must be visible and actionable. The right response is to mark the run as failed, alert operators, and flag the data as uncertified — preventing downstream consumers from using bad data while the team investigates. Distractor B is the anti-pattern that causes silent data corruption. Distractor C wastes time. Distractor D is sometimes appropriate but heavy-handed; flagging-and-investigating is the standard mid-level response."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI6 SYNTHESIS: NordGrid's complete test suite combining unit + schema + DQ + regression.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-test-suite') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Provided: cleansed DataFrame (the result of running the Silver transformation)\ndf_raw = spark.read.csv('FI6_data_readings.csv', header=True, inferSchema=True)\ndf_silver = (df_raw\n             .filter(col('meter_id').isNotNull())\n             .filter((col('daily_kw') > 0) & (col('daily_kw') < 10000))\n             .dropDuplicates(['meter_id', 'date'])\n             .select('meter_id', 'daily_kw', 'date', 'region'))\n\n# Provided: validate_schema (the function from Task 3)\ndef validate_schema(df, expected):\n    actual = {f.name: type(f.dataType).__name__ for f in df.schema.fields}\n    return actual == expected\n\nEXPECTED_SCHEMA = {\n    'meter_id': 'StringType',\n    'daily_kw': 'DoubleType',\n    'date': 'StringType',\n    'region': 'StringType'\n}\n\nEXPECTED_REGIONS = {'NORTH-A','NORTH-B','SOUTH-A','SOUTH-B','EAST-A','EAST-B','EAST-C','WEST-A','WEST-B','CENTRAL-A','CENTRAL-B','CENTRAL-C'}\n\n# Provided: run_dq_suite (the function from Task 4, simplified)\ndef run_dq_suite(df):\n    rules = {\n        'row_count_positive': df.count() > 0,\n        'no_null_meter_id': df.filter(col('meter_id').isNull()).count() == 0,\n        'daily_kw_in_range': df.filter('daily_kw <= 0 OR daily_kw >= 10000').count() == 0,\n        'all_regions_present': set(r['region'] for r in df.select('region').distinct().collect()) == EXPECTED_REGIONS,\n        'no_duplicates': df.groupBy('meter_id', 'date').count().filter('count > 1').count() == 0,\n    }\n    rules['all_passed'] = all(v for k, v in rules.items() if k != 'all_passed')\n    return rules\n\n# Provided: dedup function (the function from Task 1)\ndef dedup(df):\n    return df.dropDuplicates(['meter_id', 'date'])\n\n# Provided: golden baseline\nGOLDEN_ROW_COUNT = 36\n\n# YOUR SOLUTION BELOW\n# Build run_test_suite(df) returning a dict with these keys:\n#   - unit_tests: a sub-dict with at least 'dedup_idempotent': True if dedup(dedup(df)).count() == dedup(df).count()\n#   - schema_test: True if validate_schema(df, EXPECTED_SCHEMA)\n#   - dq_suite: the full result of run_dq_suite(df)\n#   - regression_test: True if df.count() == GOLDEN_ROW_COUNT\n#   - all_passed: True if all of the above pass (use the bool of unit_tests entries, schema_test, dq_suite['all_passed'], regression_test)\n\n\n\n\n# Call run_test_suite(df_silver) and store the result in suite_result\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(suite_result, indent=2, default=str))"
+      },
+      "assertions": [
+        {
+          "id": "FI6-06-A1",
+          "description": "run_test_suite is a callable function",
+          "check": "callable(run_test_suite)"
+        },
+        {
+          "id": "FI6-06-A2",
+          "description": "suite_result has all 5 required top-level keys",
+          "check": "set(suite_result.keys()) >= {'unit_tests', 'schema_test', 'dq_suite', 'regression_test', 'all_passed'}"
+        },
+        {
+          "id": "FI6-06-A3",
+          "description": "schema_test is True (the cleansed DataFrame matches the expected schema)",
+          "check": "suite_result['schema_test'] == True"
+        },
+        {
+          "id": "FI6-06-A4",
+          "description": "dq_suite has all_passed = True",
+          "check": "suite_result['dq_suite']['all_passed'] == True"
+        },
+        {
+          "id": "FI6-06-A5",
+          "description": "regression_test is True (cleansed row count equals golden)",
+          "check": "suite_result['regression_test'] == True"
+        },
+        {
+          "id": "FI6-06-A6",
+          "description": "unit_tests is a dict with at least one True entry (dedup_idempotent)",
+          "check": "isinstance(suite_result['unit_tests'], dict) and any(v == True for v in suite_result['unit_tests'].values())"
+        },
+        {
+          "id": "FI6-06-A7",
+          "description": "all_passed is True (the conjunction of every test layer)",
+          "check": "suite_result['all_passed'] == True"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (7 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/7).",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Unit testing extracted functions (Lesson 2)",
+          "Schema validation against expected metadata (Lesson 4)",
+          "Data quality suite with multiple rules (Lesson 5)",
+          "Regression testing against a golden baseline (Lesson 8)",
+          "Test suite composition combining all 4 categories (Lesson 9, 10)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines all 5 testing categories from FI6 into a single composable suite. The student does not rewrite the individual tests — those are provided in the scaffold. The synthesis tests whether the student can COMPOSE existing test functions into a unified test runner that produces a structured result dict. This is exactly the production pattern from FI6 Lesson 10. The diagnosis template forces students to articulate WHY each test layer is necessary (the test pyramid principle)."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "calibrationNotes": "Sixth Fabric mid-level practice set. Code-heavy: 5 of 6 tasks execute Spark code. Establishes the test composition pattern for the engineering discipline phase. Task 1 refactors inline logic into a function. Tasks 2-4 build the test components (unit tests, schema validator, DQ suite). Task 5 reads a regression report inline. Task 6 composes the components into a suite. The mid-level pattern of 'compose existing pieces' rather than 'write everything from scratch' matches how production test code actually evolves. Task type mix (1 diagnostic + 3 fix + 1 refactoring + 1 synthesis) is within all section 5.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches each testing category separately in Lessons 2-9 and synthesizes them in Lesson 10. The practice tests application: Task 1 forces students to extract a function before testing it (the prerequisite for unit testing). Task 2 covers the 5 specific edge cases the lesson describes but does not enumerate. Task 3 builds the schema validator the lesson references but does not show in code. Task 4 implements the 5-rule DQ suite from the lesson. Task 5 reproduces the regression failure pattern from FI6 Lesson 1's incident description. Task 6 composes everything into a suite — the production pattern from Lesson 10.",
+    "datasetNotes": "One dataset (40 rows) shared across all code execution tasks. The structure (12 regions × 3 dates clean + 4 dirty rows) gives clean integer arithmetic: 40 → 36 after applying the 5 cleansing rules. The 4 dirty rows are deliberately one of each type (1 null, 1 negative, 2 duplicates) so each cleansing rule has exactly one row to remove, making bugs in any single rule visible in the final count."
+  }
+}

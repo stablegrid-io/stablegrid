@@ -1,0 +1,7 @@
+column_name,data_type,nullable,description
+meter_id,string,false,Unique meter identifier
+daily_kw,double,true,Daily energy consumption in kilowatts
+date,date,false,Reading date
+region,string,false,Operating region (12 values)
+customer_type,string,false,"residential, commercial, or industrial"
+substation_id,string,false,Reference to substations table

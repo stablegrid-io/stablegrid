@@ -1,0 +1,500 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set 10 — The Medallion Architecture in Fabric",
+  "description": "The capstone practice set. Classify NordGrid operations into Bronze/Silver/Gold layers, build the Bronze landing pattern with metadata enrichment, build the Silver cleansing transformation, build the Gold aggregation in T-SQL, trace a specific meter reading through the entire pipeline, and produce the complete end-to-end NordGrid medallion pipeline that combines notebook code and SQL into a single coherent flow.",
+  "version": "authored 2026-04-06, targets Microsoft Fabric GA 2025+ / PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-F10",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 64,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "500K meters, 4 regions, 3 medallion workspaces, complete pipeline",
+    "modulePhase": "synthesis_toolkit",
+    "taskTypeMix": {
+      "writeTheCode": 3,
+      "outputPrediction": 1,
+      "conceptIdentification": 1,
+      "synthesisPipeline": 1
+    },
+    "foundationException": "Not applied. F10 is the capstone module of the Synthesis/Toolkit phase. This practice set is the largest in the Fabric junior track because it tests the student's ability to combine concepts from every preceding module: medallion classification (F1), Files vs Tables (F3), Lakehouse vs Warehouse (F4), notebooks (F5), transformations (F6), pipeline orchestration concepts (F7), Dataflow alternatives (F8), and SQL aggregation (F9). The synthesis task (F10-task-06) is the most ambitious in the entire track — a 17-minute end-to-end Bronze→Silver→Gold pipeline that uses both PySpark notebook code and Spark SQL queries. Task type mix (3 write_the_code + 1 output_prediction + 1 concept_identification + 1 synthesis_pipeline) is within all §4.2 per-type limits."
+  },
+  "datasets": [
+    {
+      "id": "F10_data_readings",
+      "file": "F10_data_readings.csv",
+      "description": "NordGrid raw Bronze CSV for the capstone synthesis. 30 rows spanning 2 months (February and March 2026) across 4 regions, with embedded data quality issues that the Silver layer must clean: 2 rows with null meter_id, 2 rows with negative daily_kw (sensor malfunctions), and 4 duplicate (meter_id, date) pairs. After Silver cleaning, 22 rows survive: 30 - 2 (nulls) - 2 (negatives) - 4 (duplicates) = 22. After Gold aggregation (GROUP BY region + month), 8 rows result: 4 regions × 2 months. All daily_kw values are integer multiples of 100 so aggregations produce clean integer totals (no floating-point comparison issues).",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": true, "description": "Nullable because 2 rows have empty meter_id"},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false, "description": "ISO format YYYY-MM-DD"},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-F10-task-02", "module-F10-task-03", "module-F10-task-04", "module-F10-task-05", "module-F10-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-F10-task-01",
+      "title": "Classify NordGrid Operations by Medallion Layer",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's data engineer is reviewing 8 operations that happen across the daily pipeline. Each operation belongs to exactly one medallion layer: Bronze (raw landing), Silver (validated and structured), or Gold (business-ready aggregates). Misclassifying an operation usually means putting it in the wrong workspace, which breaks the data quality boundary the medallion pattern is supposed to enforce.",
+        "task": "For each operation, identify which medallion layer it belongs to.",
+        "validationHint": "Bronze = ingestion, no transformation, preserve raw. Silver = schema enforcement, quality filtering, type casting, deduplication, validated structured tables. Gold = pre-computed business aggregates optimized for consumers (analysts, dashboards, reports)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F10-01-F1",
+            "type": "single_select",
+            "label": "Copy NordGrid's daily meter CSV from the external SFTP server to a Lakehouse Files section, adding an ingestion_timestamp column to record when the file was copied.",
+            "options": [
+              "Bronze — raw ingestion with metadata enrichment is the canonical Bronze pattern",
+              "Silver — adding columns counts as transformation",
+              "Gold — copying data is the final delivery step"
+            ],
+            "correctAnswer": "Bronze — raw ingestion with metadata enrichment is the canonical Bronze pattern",
+            "distractorRationale": "Option 2 confuses metadata addition (Bronze enrichment) with data transformation (Silver). Adding ingestion_timestamp is a Bronze standard from F10 Lesson 2 — it does not change the data, it records WHEN the data arrived. Option 3 confuses copying with consuming."
+          },
+          {
+            "id": "F10-01-F2",
+            "type": "single_select",
+            "label": "Apply an explicit StructType schema to a Bronze CSV, cast date strings to DateType, filter out rows with null meter_id, and write the result as a partitioned Delta table.",
+            "options": [
+              "Bronze",
+              "Silver — schema enforcement, type casting, quality filtering, and Delta writes are the Silver standards",
+              "Gold"
+            ],
+            "correctAnswer": "Silver — schema enforcement, type casting, quality filtering, and Delta writes are the Silver standards",
+            "distractorRationale": "Option 1 ignores the transformations — Bronze never enforces schemas or filters data. Option 3 confuses cleansed data with aggregated data — Silver delivers row-level validated records, Gold delivers row-level aggregates."
+          },
+          {
+            "id": "F10-01-F3",
+            "type": "single_select",
+            "label": "Compute SUM(daily_kw) GROUP BY region AND MONTH(date) from the Silver readings table and store the result as a pre-computed table for the reporting team's Power BI dashboard.",
+            "options": [
+              "Bronze",
+              "Silver",
+              "Gold — pre-computed business aggregate optimized for a reporting consumer"
+            ],
+            "correctAnswer": "Gold — pre-computed business aggregate optimized for a reporting consumer",
+            "distractorRationale": "Option 1 inverts the medallion direction. Option 2 confuses validated row-level data (Silver) with aggregated business metrics (Gold). The 'pre-computed for reporting consumer' phrasing is the Gold signature."
+          },
+          {
+            "id": "F10-01-F4",
+            "type": "single_select",
+            "label": "Drop duplicate rows where the (meter_id, date) pair appears more than once in the Bronze data, keeping the first occurrence.",
+            "options": [
+              "Bronze — deduplication happens at ingestion",
+              "Silver — deduplication is part of the Bronze-to-Silver transformation",
+              "Gold — aggregation includes implicit deduplication"
+            ],
+            "correctAnswer": "Silver — deduplication is part of the Bronze-to-Silver transformation",
+            "distractorRationale": "Option 1 contradicts the Bronze 'preserve raw' principle — Bronze records what arrived, including duplicates. Option 3 confuses GROUP BY (which collapses duplicates as a side effect of aggregation) with explicit deduplication (a Silver quality operation)."
+          },
+          {
+            "id": "F10-01-F5",
+            "type": "single_select",
+            "label": "Add a source_file column recording the filename the row came from, without modifying any of the original data values.",
+            "options": [
+              "Bronze — adding source metadata without transforming data is a Bronze enrichment pattern",
+              "Silver — adding columns is a transformation, so it belongs in Silver",
+              "Gold — provenance metadata supports business reporting"
+            ],
+            "correctAnswer": "Bronze — adding source metadata without transforming data is a Bronze enrichment pattern",
+            "distractorRationale": "Option 2 conflates 'adding a column' with 'transformation.' Bronze allows metadata enrichment (timestamp, source file, ingestion ID) — these are non-data columns that record HOW the data arrived. The data values themselves are unchanged. Option 3 misplaces provenance — it lives with the raw data, not with the aggregated reports."
+          },
+          {
+            "id": "F10-01-F6",
+            "type": "single_select",
+            "label": "Build a denormalized 'top 10 customers by quarterly consumption' table for the operations team's quarterly review.",
+            "options": [
+              "Bronze",
+              "Silver",
+              "Gold — pre-computed denormalized table for a specific consumer team"
+            ],
+            "correctAnswer": "Gold — pre-computed denormalized table for a specific consumer team",
+            "distractorRationale": "Options 1 and 2 confuse layers. Bronze is raw, Silver is row-level validated. A denormalized 'top 10' table is computed from validated data, optimized for one specific consumer — the canonical Gold pattern."
+          },
+          {
+            "id": "F10-01-F7",
+            "type": "single_select",
+            "label": "Validate that the cleansed table has no null meter_id values, no negative daily_kw values, and no duplicate (meter_id, date) pairs — running this check after the cleansing transformation completes.",
+            "options": [
+              "Bronze — Bronze validates incoming data",
+              "Silver — post-write validation is the final step of the Bronze-to-Silver transformation",
+              "Gold — validation prepares data for business consumers"
+            ],
+            "correctAnswer": "Silver — post-write validation is the final step of the Bronze-to-Silver transformation",
+            "distractorRationale": "Option 1 contradicts Bronze's principle (no transformation, no validation — just preserve what arrived). Option 3 confuses the validation checkpoint (Silver responsibility) with consumer preparation (Gold responsibility). Validation lives at the Bronze-to-Silver boundary because that boundary is where raw becomes trusted."
+          },
+          {
+            "id": "F10-01-F8",
+            "type": "single_select",
+            "label": "Write a CREATE VIEW statement on the Lakehouse SQL endpoint that filters Silver readings to only show NORTH region readings — used by analysts who only work with NORTH data.",
+            "options": [
+              "Bronze",
+              "Silver — views over Silver tables are part of the Silver layer interface",
+              "Gold — views serve consumers, which is a Gold responsibility"
+            ],
+            "correctAnswer": "Gold — views serve consumers, which is a Gold responsibility",
+            "distractorRationale": "This is the trap field. Option 2 reasons that the view is built ON Silver tables, so it must BE Silver. But the medallion classification is about purpose, not source: the view exists to serve a specific consumer (NORTH-region analysts), making it part of the Gold consumption layer. Many Gold artifacts read from Silver — that does not make them Silver. F10 Lesson 4 covers the 'pre-computed views and aggregates for specific consumers' as a Gold pattern."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F10-task-02",
+      "title": "Build the Bronze Landing Pattern",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's Bronze layer adds two metadata columns to every incoming file before writing it: ingestion_timestamp (when the file was processed) and source_file (which file the data came from). This is the F10 Lesson 2 standard. The data values themselves are NOT modified — Bronze preserves raw data. Your task is to build the Bronze landing transformation: read the raw CSV, add the two metadata columns, write the result as a managed table called bronze_readings.",
+        "task": "Read F10_data_readings.csv into df_raw. Use withColumn to add two columns: ingestion_timestamp (set to the literal string '2026-04-06 06:00:00') and source_file (set to the literal string 'F10_data_readings.csv'). Store the resulting DataFrame in df_bronze. Write df_bronze as a managed table called bronze_readings using mode='overwrite' and saveAsTable. After writing, read it back into df_bronze_read and store the row count in bronze_count.",
+        "validationHint": "Use lit() from pyspark.sql.functions to create literal column values: df.withColumn('ingestion_timestamp', lit('2026-04-06 06:00:00')). The Bronze layer preserves all 30 rows (no filtering) but adds 2 new columns, bringing the total to 6 columns (meter_id, daily_kw, date, region, ingestion_timestamp, source_file). bronze_count should equal 30."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F10 Lesson 2: Bronze landing pattern. Add metadata columns (ingestion_timestamp,\n# source_file) without modifying any data values. Bronze preserves raw data plus provenance.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import lit\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-bronze-landing') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\ndf_raw = spark.read.csv('F10_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Raw rows: {df_raw.count()}\")\n\n# YOUR SOLUTION BELOW\n# 1. Add column 'ingestion_timestamp' = literal '2026-04-06 06:00:00'\n# 2. Add column 'source_file' = literal 'F10_data_readings.csv'\n# 3. Store the enriched DataFrame in df_bronze\n# 4. Write df_bronze as a managed table called 'bronze_readings' with mode='overwrite'\n# 5. Read the table back into df_bronze_read\n# 6. Store the row count in bronze_count\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Bronze rows: {bronze_count}\")\nprint(f\"Bronze columns: {df_bronze_read.columns}\")\ndf_bronze_read.show(3)"
+      },
+      "assertions": [
+        {
+          "id": "F10-02-A1",
+          "description": "df_bronze has 30 rows (Bronze preserves all raw rows)",
+          "check": "df_bronze.count() == 30"
+        },
+        {
+          "id": "F10-02-A2",
+          "description": "df_bronze has 6 columns (4 original + 2 metadata)",
+          "check": "set(df_bronze.columns) == {'meter_id', 'daily_kw', 'date', 'region', 'ingestion_timestamp', 'source_file'}"
+        },
+        {
+          "id": "F10-02-A3",
+          "description": "bronze_readings table exists with 30 rows",
+          "check": "spark.table('bronze_readings').count() == 30"
+        },
+        {
+          "id": "F10-02-A4",
+          "description": "bronze_count equals 30",
+          "check": "bronze_count == 30"
+        },
+        {
+          "id": "F10-02-A5",
+          "description": "Every row has the same ingestion_timestamp value",
+          "check": "spark.table('bronze_readings').select('ingestion_timestamp').distinct().count() == 1"
+        },
+        {
+          "id": "F10-02-A6",
+          "description": "Every row has the same source_file value 'F10_data_readings.csv'",
+          "check": "spark.table('bronze_readings').filter(\"source_file != 'F10_data_readings.csv'\").count() == 0"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit."
+    },
+    {
+      "id": "module-F10-task-03",
+      "title": "Build the Silver Cleansing Transformation",
+      "type": "write_the_code",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "NordGrid's Silver layer transforms the Bronze raw data into validated, cleansed records ready for analytical consumption. The Silver standards from F10 Lesson 3 apply: filter rows with null meter_id, filter rows with daily_kw <= 0 (sensor malfunctions), deduplicate on the composite key (meter_id, date), and write as a managed Delta table. The metadata columns added in Bronze (ingestion_timestamp, source_file) are NOT carried into Silver — Silver focuses on the data itself.",
+        "task": "Read F10_data_readings.csv directly (do not depend on the Bronze table from Task 2 — this task stands alone). Apply the Silver transformations: drop rows with null meter_id, filter daily_kw > 0, deduplicate on ['meter_id', 'date']. Select only the 4 data columns (meter_id, daily_kw, date, region) — do not include any metadata columns. Write the result as a managed table called silver_readings with mode='overwrite'. Read it back into df_silver_read and store the row count in silver_count.",
+        "validationHint": "30 raw rows - 2 nulls - 2 negatives - 4 duplicates = 22 silver rows. Use dropna(subset=['meter_id']) or filter(col('meter_id').isNotNull()) for the null filter. Use dropDuplicates(['meter_id', 'date']) for dedup. Order matters slightly: filter nulls before computing daily_kw > 0 (so the negative-rows-with-null-meter-id case doesn't double-count). silver_count should equal 22."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F10 Lesson 3: Silver cleansing transformation. Apply the F6 patterns to produce a\n# validated, deduplicated table ready for analytical consumption.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-silver-cleanse') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\ndf_raw = spark.read.csv('F10_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Raw rows: {df_raw.count()}\")\n\n# YOUR SOLUTION BELOW\n# Apply the Silver standards in any order:\n#   1. Drop rows where meter_id is null\n#   2. Filter to rows where daily_kw > 0\n#   3. Deduplicate on the composite key (meter_id, date)\n#   4. Keep only the 4 data columns (meter_id, daily_kw, date, region)\n# Write the result as 'silver_readings' (mode='overwrite').\n# Read it back into df_silver_read.\n# Store the row count in silver_count.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Silver rows: {silver_count}\")\nprint(f\"Silver columns: {df_silver_read.columns}\")\nprint('Per-region row counts:')\ndf_silver_read.groupBy('region').count().orderBy('region').show()"
+      },
+      "assertions": [
+        {
+          "id": "F10-03-A1",
+          "description": "silver_readings table exists with exactly 22 rows (30 - 2 nulls - 2 negatives - 4 duplicates)",
+          "check": "spark.table('silver_readings').count() == 22"
+        },
+        {
+          "id": "F10-03-A2",
+          "description": "silver_count equals 22",
+          "check": "silver_count == 22"
+        },
+        {
+          "id": "F10-03-A3",
+          "description": "df_silver_read has exactly 4 columns (no metadata columns from Bronze)",
+          "check": "set(df_silver_read.columns) == {'meter_id', 'daily_kw', 'date', 'region'}"
+        },
+        {
+          "id": "F10-03-A4",
+          "description": "No null meter_id values in Silver",
+          "check": "spark.table('silver_readings').filter(col('meter_id').isNull()).count() == 0"
+        },
+        {
+          "id": "F10-03-A5",
+          "description": "No daily_kw values <= 0 in Silver",
+          "check": "spark.table('silver_readings').filter(col('daily_kw') <= 0).count() == 0"
+        },
+        {
+          "id": "F10-03-A6",
+          "description": "No duplicate (meter_id, date) pairs in Silver",
+          "check": "spark.table('silver_readings').groupBy('meter_id', 'date').count().filter('count > 1').count() == 0"
+        },
+        {
+          "id": "F10-03-A7",
+          "description": "All 4 NordGrid regions represented in Silver",
+          "check": "set(r['region'] for r in spark.table('silver_readings').select('region').distinct().collect()) == {'NORTH', 'SOUTH', 'EAST', 'WEST'}"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-F10-task-04",
+      "title": "Build the Gold Aggregation in T-SQL",
+      "type": "write_the_code",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "NordGrid's Gold layer pre-computes monthly regional totals from the Silver table. The team uses SQL for the Gold aggregation because the operation is set-based and the analyst team can read and modify SQL more easily than PySpark. The Gold output is written as a managed Delta table called gold_monthly_region. After Task 3 produces silver_readings, this task runs the SQL aggregation and persists the result.",
+        "task": "Register the silver_readings table from Task 3 as the input. Write a SQL query (via spark.sql()) that selects region, MONTH(date) AS month_num, and SUM(daily_kw) AS total_kw FROM silver_readings, GROUPed BY region and MONTH(date), ORDERed BY region ASC, month_num ASC. Store the resulting DataFrame in df_gold. Write df_gold as a managed table called gold_monthly_region (mode='overwrite'). Then read it back and store the row count in gold_count.",
+        "validationHint": "Expected: 8 rows (4 regions × 2 months). The integer values: NORTH/SOUTH/EAST month=2 each total 4500.0 (3 readings × 1500 average), NORTH/SOUTH/EAST month=3 each total 5000.0, WEST month=2 totals 6000.0 (asymmetric — see if your code catches this), and WEST month=3 totals 2000.0. The asymmetry is intentional — a student who hardcodes 'all regions equal' will fail."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F10 Lesson 4: Gold aggregation in T-SQL. Use spark.sql() to aggregate the Silver\n# table into a region-by-month summary, then write the result as a managed table.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-gold-aggregate') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\n# Build the silver_readings table from scratch (this task stands alone — do not\n# depend on Task 3 having run first in the grading environment).\ndf_raw = spark.read.csv('F10_data_readings.csv', header=True, inferSchema=True)\ndf_silver = (df_raw\n             .filter(col('meter_id').isNotNull())\n             .filter(col('daily_kw') > 0)\n             .dropDuplicates(['meter_id', 'date'])\n             .select('meter_id', 'daily_kw', 'date', 'region'))\ndf_silver.write.mode('overwrite').saveAsTable('silver_readings')\nprint(f\"silver_readings ready with {spark.table('silver_readings').count()} rows.\")\n\n# YOUR SOLUTION BELOW\n# 1. Write a SQL query (via spark.sql) that aggregates silver_readings into:\n#      region, MONTH(date) AS month_num, SUM(daily_kw) AS total_kw\n#    GROUP BY region, MONTH(date)\n#    ORDER BY region ASC, month_num ASC\n#    Store the result in df_gold.\n# 2. Write df_gold as a managed table called 'gold_monthly_region' (mode='overwrite').\n# 3. Read it back and store the row count in gold_count.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Gold rows: {gold_count}\")\ndf_gold.show()"
+      },
+      "assertions": [
+        {
+          "id": "F10-04-A1",
+          "description": "df_gold is a DataFrame with exactly 8 rows (4 regions × 2 months)",
+          "check": "df_gold.count() == 8"
+        },
+        {
+          "id": "F10-04-A2",
+          "description": "df_gold has the 3 expected columns",
+          "check": "set(df_gold.columns) == {'region', 'month_num', 'total_kw'}"
+        },
+        {
+          "id": "F10-04-A3",
+          "description": "gold_monthly_region table exists with 8 rows",
+          "check": "spark.table('gold_monthly_region').count() == 8"
+        },
+        {
+          "id": "F10-04-A4",
+          "description": "gold_count equals 8",
+          "check": "gold_count == 8"
+        },
+        {
+          "id": "F10-04-A5",
+          "description": "NORTH month 2 total_kw equals 4500.0",
+          "check": "df_gold.filter(\"region = 'NORTH' AND month_num = 2\").first()['total_kw'] == 4500.0"
+        },
+        {
+          "id": "F10-04-A6",
+          "description": "NORTH month 3 total_kw equals 5000.0",
+          "check": "df_gold.filter(\"region = 'NORTH' AND month_num = 3\").first()['total_kw'] == 5000.0"
+        },
+        {
+          "id": "F10-04-A7",
+          "description": "WEST month 2 total_kw equals 6000.0 (the asymmetric region — catches hardcoded answers)",
+          "check": "df_gold.filter(\"region = 'WEST' AND month_num = 2\").first()['total_kw'] == 6000.0"
+        },
+        {
+          "id": "F10-04-A8",
+          "description": "WEST month 3 total_kw equals 2000.0 (the asymmetric region)",
+          "check": "df_gold.filter(\"region = 'WEST' AND month_num = 3\").first()['total_kw'] == 2000.0"
+        }
+      ],
+      "partialCredit": "8 independent assertions. Each passed assertion earns 1/8 credit."
+    },
+    {
+      "id": "module-F10-task-05",
+      "title": "Trace a Reading Through the Pipeline",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "F10 Lesson 6 introduces end-to-end data lineage: tracing a single reading from the raw Bronze CSV to its final appearance in a Power BI dashboard. NordGrid's data engineer needs to confirm she understands how each meter reading flows through the layers — which columns it acquires, which it loses, and at what point it gets aggregated into a regional total (losing its individual identity). Three specific readings from F10_data_readings.csv:\n\n  Reading A: meter_id='M-0001', daily_kw=1000.0, date='2026-02-15', region='NORTH'\n  Reading B: meter_id='M-0019', daily_kw=-200.0, date='2026-03-10', region='EAST'\n  Reading C: meter_id=NULL, daily_kw=1500.0, date='2026-03-10', region='NORTH'",
+        "task": "For each reading, predict its fate at each medallion layer.",
+        "validationHint": "Trace each reading through the Bronze (preserve raw + add metadata), Silver (filter nulls, filter negatives, dedup), and Gold (group by region + month) layers. A reading either survives to a layer or gets removed. Surviving to Gold means the reading's daily_kw value contributes to a Gold total — but the reading's individual identity (meter_id) is lost in the GROUP BY."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F10-05-F1",
+            "type": "single_select",
+            "label": "Reading A (M-0001, 1000.0, 2026-02-15, NORTH): does it survive to the Bronze layer?",
+            "options": [
+              "Yes — Bronze preserves all rows, including this one and its duplicate elsewhere in the file",
+              "No — duplicates are removed at Bronze",
+              "No — Bronze rejects valid readings"
+            ],
+            "correctAnswer": "Yes — Bronze preserves all rows, including this one and its duplicate elsewhere in the file",
+            "distractorRationale": "Option 2 contradicts the Bronze 'preserve raw' principle. Option 3 inverts the layer's purpose. Bronze is the no-questions-asked landing zone."
+          },
+          {
+            "id": "F10-05-F2",
+            "type": "single_select",
+            "label": "Reading A (M-0001, 1000.0, 2026-02-15, NORTH): does it survive to the Silver layer?",
+            "options": [
+              "Yes — exactly one copy survives, because dedup keeps the first occurrence and removes the duplicate",
+              "Yes — both copies survive because they have the same valid values",
+              "No — Silver rejects all duplicates entirely (even one copy)"
+            ],
+            "correctAnswer": "Yes — exactly one copy survives, because dedup keeps the first occurrence and removes the duplicate",
+            "distractorRationale": "Option 2 misunderstands dedup semantics — keeping all duplicates defeats the purpose. Option 3 over-applies dedup — removing ALL copies (even the original) would lose the reading entirely. Dedup keeps one and removes the rest."
+          },
+          {
+            "id": "F10-05-F3",
+            "type": "single_select",
+            "label": "Reading A's individual contribution (1000.0 kWh) appears in the Gold layer how?",
+            "options": [
+              "As a row with meter_id='M-0001'",
+              "As part of a GROUP BY total — the reading's 1000.0 contributes to the (NORTH, month=2) total of 4500.0 alongside two other NORTH-February readings; the meter_id is lost",
+              "It does not appear in Gold because Gold only contains the most recent month",
+              "It appears unchanged because Gold preserves Silver row identity"
+            ],
+            "correctAnswer": "As part of a GROUP BY total — the reading's 1000.0 contributes to the (NORTH, month=2) total of 4500.0 alongside two other NORTH-February readings; the meter_id is lost",
+            "distractorRationale": "Option 1 misunderstands GROUP BY — the result has region and month_num columns, not meter_id. Option 3 invents a recency restriction. Option 4 confuses Silver (row-level) with Gold (aggregated). The reading's value is preserved in the sum, but its identity is collapsed into the group."
+          },
+          {
+            "id": "F10-05-F4",
+            "type": "single_select",
+            "label": "Reading B (M-0019, -200.0, 2026-03-10, EAST): at which layer is it removed, and why?",
+            "options": [
+              "Removed at Bronze because Bronze validates incoming data",
+              "Removed at Silver because the daily_kw > 0 filter rejects negative values",
+              "Removed at Gold because GROUP BY excludes negatives",
+              "Survives to Gold and is included in the EAST month=3 total"
+            ],
+            "correctAnswer": "Removed at Silver because the daily_kw > 0 filter rejects negative values",
+            "distractorRationale": "Option 1 contradicts Bronze's preserve-raw principle. Option 3 invents a GROUP BY behavior that does not exist. Option 4 ignores the Silver filter entirely. Silver is where invalid values are removed."
+          },
+          {
+            "id": "F10-05-F5",
+            "type": "single_select",
+            "label": "Reading C (NULL meter_id, 1500.0, 2026-03-10, NORTH): at which layer is it removed?",
+            "options": [
+              "Removed at Bronze because Bronze rejects nulls",
+              "Removed at Silver because the null meter_id filter excludes it",
+              "Survives to Gold because daily_kw = 1500.0 is valid",
+              "Removed at Gold because GROUP BY cannot handle null keys"
+            ],
+            "correctAnswer": "Removed at Silver because the null meter_id filter excludes it",
+            "distractorRationale": "Option 1 contradicts Bronze's preserve-raw principle. Option 3 misses the null filter — the daily_kw value is valid but the meter_id is not. Option 4 invents a Gold behavior that does not occur (Gold groups by region, not meter_id, so nulls in meter_id would not affect a region/month grouping anyway). The null check happens at Silver, well before Gold."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F10-task-06",
+      "title": "Build NordGrid's Complete End-to-End Medallion Pipeline",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 17,
+      "description": {
+        "context": "This is the capstone of the Fabric junior track. Build NordGrid's complete daily medallion pipeline as a single Python program: read the raw CSV, create the Bronze table with metadata, create the Silver table with cleansing, create the Gold table with SQL aggregation, and produce a final validation report with row counts at each layer.\n\nThis task synthesizes every concept the student has learned across the 10 Fabric junior modules: workspace and item naming (F2), Files vs Tables (F3), Lakehouses (F4), notebook code (F5), transformations (F6), Bronze/Silver/Gold pattern (F7+F10), the Dataflow alternative (F8 — explicitly NOT used here, but the student should recognize that), SQL aggregation (F9), and the medallion architecture (F10). It is the largest single task in the entire Fabric junior practice track.",
+        "task": "Build the complete pipeline:\n\n(1) Read F10_data_readings.csv into df_raw.\n\n(2) BRONZE: Add ingestion_timestamp ('2026-04-06 06:00:00') and source_file ('F10_data_readings.csv') columns. Write as managed table 'final_bronze_readings' with mode='overwrite'. Compute final_bronze_count (should equal 30).\n\n(3) SILVER: From df_raw, drop nulls in meter_id, filter daily_kw > 0, deduplicate on (meter_id, date), select only the 4 data columns. Write as managed table 'final_silver_readings' with mode='overwrite'. Compute final_silver_count (should equal 22).\n\n(4) GOLD: Use spark.sql() to aggregate final_silver_readings into (region, month_num, total_kw) by region and MONTH(date). Write the result as managed table 'final_gold_monthly' with mode='overwrite'. Compute final_gold_count (should equal 8).\n\n(5) VALIDATION REPORT: Read all three tables back. Build a validation_report dict with these keys:\n  - bronze_rows: row count of final_bronze_readings (30)\n  - silver_rows: row count of final_silver_readings (22)\n  - gold_rows: row count of final_gold_monthly (8)\n  - silver_total_kw: SUM of daily_kw in final_silver_readings (a number)\n  - gold_total_kw: SUM of total_kw in final_gold_monthly (must equal silver_total_kw — Gold aggregation preserves the total)\n  - rows_dropped: bronze_rows - silver_rows (8)\n  - regions_in_gold: distinct region count in final_gold_monthly (4)",
+        "validationHint": "The bronze_total and silver_total invariant is the key correctness check: SUM(daily_kw) in Silver MUST equal SUM(total_kw) in Gold, because Gold's aggregation preserves the total — it just regroups it. Specifically, silver_total_kw should equal 36500.0 (the sum of all 22 valid Silver readings) and gold_total_kw should also equal 36500.0. If these differ, your Gold aggregation has a bug."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F10 CAPSTONE: NordGrid's complete end-to-end medallion pipeline.\n# Synthesizes the entire Fabric junior track into a single coherent pipeline.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-medallion-capstone') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\nprint('=' * 60)\nprint('NordGrid Daily Medallion Pipeline')\nprint('=' * 60)\n\n# YOUR SOLUTION BELOW\n\n# Step 1: Read F10_data_readings.csv into df_raw\n\n\n\n# Step 2 (BRONZE): Add ingestion_timestamp and source_file columns.\n#                  Write as 'final_bronze_readings' (overwrite). Compute final_bronze_count.\n\n\n\n# Step 3 (SILVER): From df_raw, drop nulls in meter_id, filter daily_kw > 0,\n#                  dedup on (meter_id, date), select only the 4 data columns.\n#                  Write as 'final_silver_readings' (overwrite). Compute final_silver_count.\n\n\n\n# Step 4 (GOLD): Use spark.sql() to aggregate final_silver_readings into\n#                (region, month_num, total_kw). Use MONTH(date) for month_num.\n#                Write as 'final_gold_monthly' (overwrite). Compute final_gold_count.\n\n\n\n# Step 5 (VALIDATION REPORT): Build a dict with keys:\n#   bronze_rows, silver_rows, gold_rows,\n#   silver_total_kw, gold_total_kw,\n#   rows_dropped, regions_in_gold\n# Store in validation_report.\n# (Hint: silver_total_kw can be computed via\n#  spark.table('final_silver_readings').agg({'daily_kw': 'sum'}).collect()[0][0])\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint('\\nValidation Report:')\nfor key, value in validation_report.items():\n    print(f\"  {key}: {value}\")\nprint('\\nGold table:')\nspark.table('final_gold_monthly').orderBy('region', 'month_num').show()"
+      },
+      "assertions": [
+        {
+          "id": "F10-06-A1",
+          "description": "final_bronze_readings exists with 30 rows",
+          "check": "spark.table('final_bronze_readings').count() == 30"
+        },
+        {
+          "id": "F10-06-A2",
+          "description": "final_bronze_readings has 6 columns including ingestion_timestamp and source_file",
+          "check": "set(spark.table('final_bronze_readings').columns) == {'meter_id', 'daily_kw', 'date', 'region', 'ingestion_timestamp', 'source_file'}"
+        },
+        {
+          "id": "F10-06-A3",
+          "description": "final_silver_readings exists with exactly 22 rows",
+          "check": "spark.table('final_silver_readings').count() == 22"
+        },
+        {
+          "id": "F10-06-A4",
+          "description": "final_silver_readings has only the 4 data columns (no Bronze metadata)",
+          "check": "set(spark.table('final_silver_readings').columns) == {'meter_id', 'daily_kw', 'date', 'region'}"
+        },
+        {
+          "id": "F10-06-A5",
+          "description": "final_silver_readings has no null meter_id, no negative daily_kw, no duplicate pairs",
+          "check": "spark.table('final_silver_readings').filter(col('meter_id').isNull()).count() == 0 and spark.table('final_silver_readings').filter(col('daily_kw') <= 0).count() == 0 and spark.table('final_silver_readings').groupBy('meter_id', 'date').count().filter('count > 1').count() == 0"
+        },
+        {
+          "id": "F10-06-A6",
+          "description": "final_gold_monthly exists with exactly 8 rows (4 regions × 2 months)",
+          "check": "spark.table('final_gold_monthly').count() == 8"
+        },
+        {
+          "id": "F10-06-A7",
+          "description": "final_gold_monthly has the 3 expected columns (region, month_num, total_kw)",
+          "check": "set(spark.table('final_gold_monthly').columns) == {'region', 'month_num', 'total_kw'}"
+        },
+        {
+          "id": "F10-06-A8",
+          "description": "validation_report has all 7 required keys",
+          "check": "set(validation_report.keys()) >= {'bronze_rows', 'silver_rows', 'gold_rows', 'silver_total_kw', 'gold_total_kw', 'rows_dropped', 'regions_in_gold'}"
+        },
+        {
+          "id": "F10-06-A9",
+          "description": "validation_report row counts: bronze=30, silver=22, gold=8",
+          "check": "validation_report['bronze_rows'] == 30 and validation_report['silver_rows'] == 22 and validation_report['gold_rows'] == 8"
+        },
+        {
+          "id": "F10-06-A10",
+          "description": "validation_report rows_dropped equals 8 (30 - 22)",
+          "check": "validation_report['rows_dropped'] == 8"
+        },
+        {
+          "id": "F10-06-A11",
+          "description": "validation_report regions_in_gold equals 4",
+          "check": "validation_report['regions_in_gold'] == 4"
+        },
+        {
+          "id": "F10-06-A12",
+          "description": "silver_total_kw equals 36500.0 (sum of all valid Silver readings)",
+          "check": "validation_report['silver_total_kw'] == 36500.0"
+        },
+        {
+          "id": "F10-06-A13",
+          "description": "gold_total_kw equals silver_total_kw — the conservation invariant proving Gold aggregation preserves the total",
+          "check": "validation_report['gold_total_kw'] == validation_report['silver_total_kw']"
+        },
+        {
+          "id": "F10-06-A14",
+          "description": "Specific Gold value: WEST month 2 = 6000.0 (the asymmetric region — catches hardcoded uniformity)",
+          "check": "spark.table('final_gold_monthly').filter(\"region = 'WEST' AND month_num = 2\").first()['total_kw'] == 6000.0"
+        }
+      ],
+      "partialCredit": "14 independent assertions for the largest synthesis task in the track. Each passed assertion earns 1/14 credit. A student who completes Bronze and Silver (steps 1-3) earns at least 5/14 even if Gold and the validation report fail.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Bronze landing pattern with metadata enrichment (F10 Lesson 2 + F1 + F3)",
+          "Silver cleansing transformation: schema enforcement, null filter, range filter, dedup (F6 Lessons 2-7 + F10 Lesson 3)",
+          "Writing managed Delta tables to a Lakehouse Tables section (F4 Lesson 4 + F5 Lesson 6 + F6 Lesson 8)",
+          "Gold aggregation in T-SQL: GROUP BY with SUM and MONTH() (F9 Lessons 3, 8 + F10 Lesson 4)",
+          "Validation report: row counts at each layer + total-conservation invariant (F6 Lesson 9 + F10 Lesson 7)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This is the capstone of the entire Fabric junior practice track. It synthesizes 5 distinct concept clusters from across the course into a single coherent pipeline. The total-conservation invariant (silver_total_kw == gold_total_kw) is the most distinctive synthesis check: it tests whether the student understands that aggregation regroups data without losing it. A student who introduces a bug into either layer typically breaks this invariant, making it a strong indicator of correctness. The 14 assertions provide fine-grained partial credit so a student who completes Bronze and Silver but stumbles on Gold or the validation report still earns substantial credit. The asymmetric WEST region (6000.0 vs 2000.0) catches students who hardcoded uniform regional totals."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Not applied. F10 is the capstone module of the Synthesis/Toolkit phase. This practice set is the most concept-dense in the Fabric junior track, with the largest synthesis task (17 minutes, 14 assertions) in the entire track. F10 explicitly draws on every preceding module — F1 (medallion concept), F2 (workspace/item naming context), F3 (Files vs Tables), F4 (Lakehouse + Tables section), F5 (notebook patterns), F6 (transformation patterns), F7 (orchestration framing), F8 (the Dataflow alternative the student recognizes but does not use here), and F9 (SQL aggregation). The §2.1 one-module scope rule is satisfied because F10's specific testable content is the medallion architecture itself — which by design synthesizes everything that came before. Task type mix (3 write_the_code + 1 output_prediction + 1 concept_identification + 1 synthesis_pipeline) is within all §4.2 per-type limits.",
+    "theoryPracticeBoundary": "The theory walks through NordGrid's medallion architecture in F10 Lessons 1-6 and ties it together in Lesson 10. The practice tests application: Task 1 includes 8 layer classifications, with the final field testing the trap that 'a view BUILT on Silver' is actually a Gold artifact when its purpose is to serve a specific consumer. Task 2 builds the Bronze landing pattern as code — the theory describes the standard but does not walk through the lit() pattern. Task 3 builds the Silver cleansing — the theory describes the standards but does not require the student to write a single working pipeline that satisfies all 4 standards simultaneously. Task 4 implements the Gold aggregation in T-SQL — building on F9 but applied to the F10 medallion context. Task 5 traces 3 specific readings (one valid, one with null meter_id, one negative) through the layers — testing the lineage understanding from Lesson 6 with concrete data. Task 6 is the capstone build that the entire course has been preparing the student to complete.",
+    "crossModuleNotes": "This practice set explicitly assumes knowledge from all 9 prior modules. F2's naming conventions (lh_*, dw_*, ws_nordgrid_*) appear in context. F3's Files vs Tables distinction is implicit in the Bronze (Files) vs Silver (Tables) split — though both Bronze and Silver here use managed tables in the local environment for grading. F4's Lakehouse model underlies every saveAsTable call. F5's spark.read.csv and saveAsTable patterns are used throughout. F6's filter, dropna, dropDuplicates patterns are used in Silver. F7's pipeline orchestration is implicit but not tested directly. F8's Dataflow alternative is implicit (the synthesis uses notebooks, not dataflows, because the data scale exceeds the Dataflow sweet spot). F9's spark.sql with GROUP BY and MONTH() is used in the Gold layer.",
+    "datasetNotes": "One dataset (30 rows). Hand-crafted with 4 specific embedded characteristics: 2 null meter_id rows, 2 negative daily_kw rows, 4 duplicate (meter_id, date) pairs, and 22 clean rows that survive to Silver. All daily_kw values are integer multiples of 100 so aggregations produce clean integer totals (4500, 5000, 6000, 2000) without floating-point comparison issues. The WEST region is intentionally asymmetric (6000 in Feb, 2000 in Mar) to catch students who incorrectly hardcode uniform regional totals. The total Silver kWh equals 36500.0 — used by the synthesis task's conservation invariant assertion."
+  }
+}

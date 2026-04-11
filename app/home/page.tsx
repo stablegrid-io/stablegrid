@@ -12,6 +12,7 @@ import {
 import type { Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import { buildTrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
+import { theoryDocs } from '@/data/learn/theory';
 
 export const metadata: Metadata = {
   title: 'stableGrid.io',
@@ -512,6 +513,26 @@ export default async function HomePage() {
   // Pre-compute track metadata server-side (~1KB vs 6.2MB of full theory JSON)
   const trackMetaByTopic = buildTrackMetaByTopic();
 
+  // Resolve chapter + lesson titles for the resume card
+  let resumeContext: { chapterTitle: string; lessonTitle: string } | null = null;
+  if (latestTheorySession) {
+    const doc = theoryDocs[latestTheorySession.topic];
+    if (doc) {
+      const chapters = doc.modules ?? doc.chapters ?? [];
+      const chapter = chapters.find((c: { id: string }) => c.id === latestTheorySession.chapterId);
+      if (chapter) {
+        const lastLessonId = latestTheorySession.sectionsIdsRead?.[latestTheorySession.sectionsIdsRead.length - 1];
+        const lesson = lastLessonId
+          ? (chapter.sections ?? []).find((s: { id: string }) => s.id === lastLessonId)
+          : null;
+        resumeContext = {
+          chapterTitle: (chapter.title ?? '').replace(/^module\s*\d+\s*:\s*/i, '').trim(),
+          lessonTitle: lesson?.title ?? '',
+        };
+      }
+    }
+  }
+
   return (
     <Suspense fallback={<HomeSkeleton />}>
       <HomeDashboard
@@ -520,6 +541,7 @@ export default async function HomePage() {
         recentSessions={recentSessions}
         completedSessions={completedSessions}
         latestTheorySession={latestTheorySession}
+        resumeContext={resumeContext}
         lastClockedInAt={lastClockedInAt}
         latestTaskAction={latestTaskAction}
         readingSignals={readingSignals}

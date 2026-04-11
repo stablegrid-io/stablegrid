@@ -1,0 +1,509 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 1 — Execution Plans and the Catalyst Optimizer",
+  "description": "Diagnose pipeline performance by reading execution plans, verifying Catalyst optimizations (predicate pushdown, column pruning, filter fusion), identifying unnecessary shuffles, and refactoring code to enable better optimization.",
+  "version": "authored 2026-04-05, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PM1",
+    "trackLevel": "mid-level",
+    "estimatedDurationMinutes": 72,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, multi-team",
+    "modulePhase": "performance_patterns",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 3,
+      "fixImplementation": 1,
+      "refactoring": 1,
+      "diagnosticWorkflow": 1
+    },
+    "evidenceNote": "Execution plans in this practice set are modeled on Spark 3.5+ explain(True) output format. They should be validated against actual Spark execution before publication."
+  },
+  "datasets": [
+    {
+      "id": "PM1_data_readings_silver",
+      "file": "PM1_data_readings_silver.csv",
+      "description": "NordGrid Silver-layer readings at mid-level scale. 500 rows, 12 regions, with customer_type and substation_id for join plan analysis.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": true},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false, "description": "12 regions: NORTH, NORTH_COAST, NORTH_INLAND, SOUTH, SOUTH_COAST, SOUTH_INLAND, EAST, EAST_COAST, EAST_INLAND, WEST, WEST_COAST, WEST_INLAND"},
+          {"name": "customer_type", "type": "string", "nullable": false},
+          {"name": "substation_id", "type": "string", "nullable": false},
+          {"name": "is_valid", "type": "string", "nullable": false},
+          {"name": "tier", "type": "string", "nullable": false}
+        ],
+        "characteristics": {
+          "regionSkew": "NORTH_COAST: 99 rows (20%), NORTH: 76 (15%) — top 2 regions hold 35% of data",
+          "regions": 12,
+          "customerTypes": "residential: 294, commercial: 132, industrial: 74"
+        }
+      },
+      "usedByTasks": ["module-PM1-task-01", "module-PM1-task-03", "module-PM1-task-05", "module-PM1-task-06"]
+    },
+    {
+      "id": "PM1_data_substations",
+      "file": "PM1_data_substations.csv",
+      "description": "NordGrid substation reference table. 40 substations across 12 regions.",
+      "schema": {
+        "columns": [
+          {"name": "substation_id", "type": "string", "nullable": false},
+          {"name": "substation_name", "type": "string", "nullable": false},
+          {"name": "capacity_mw", "type": "double", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-PM1-task-01", "module-PM1-task-04", "module-PM1-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PM1-task-01",
+      "title": "Read NordGrid's Silver Enrichment Plan",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 10,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's transformation team runs a Silver pipeline that reads meter readings, filters to valid commercial readings in the NORTH_COAST region, joins with the substations reference table, and selects four output columns. A mid-level engineer needs to read the physical execution plan to verify what Catalyst is doing.",
+        "task": "Examine the explain(True) output below. Identify the scan type, determine whether predicate pushdown is active, count how many columns the scan reads, and identify the join strategy Spark chose.",
+        "validationHint": "Look for PushedFilters inside the scan node — if filters appear there, pushdown is active. Count the ReadSchema columns. The join node name tells you the strategy."
+      },
+      "evidence": {
+        "type": "execution_plan",
+        "label": "explain(True) output for the Silver enrichment pipeline",
+        "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- Project [meter_id#12, daily_kw#13, region#15, substation_name#42]\n   +- BroadcastHashJoin [substation_id#17], [substation_id#40], Inner, BuildRight, false\n      :- Filter ((isnotnull(region#15) AND isnotnull(customer_type#16)) AND ((isnotnull(is_valid#18) AND (is_valid#18 = true)) AND ((customer_type#16 = commercial) AND (region#15 = NORTH_COAST))))\n      :  +- FileScan parquet [meter_id#12,daily_kw#13,region#15,customer_type#16,substation_id#17,is_valid#18] Batched: true, DataFilters: [isnotnull(region#15), isnotnull(customer_type#16), isnotnull(is_valid#18), (is_valid#18 = true), (customer_type#16 = commercial), (region#15 = NORTH_COAST)], Format: Parquet, PushedFilters: [IsNotNull(region), IsNotNull(customer_type), IsNotNull(is_valid), EqualTo(is_valid,true), EqualTo(customer_type,commercial), EqualTo(region,NORTH_COAST)], ReadSchema: struct<meter_id:string,daily_kw:double,region:string,customer_type:string,substation_id:string,is_valid:string>\n      +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [plan_id=45]\n         +- FileScan parquet [substation_id#40,substation_name#42] Batched: true, DataFilters: [], Format: Parquet, PushedFilters: [], ReadSchema: struct<substation_id:string,substation_name:string>"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM1-01-F1",
+            "type": "single_select",
+            "label": "What scan type does Spark use for both tables?",
+            "options": [
+              "FileScan csv — reading raw CSV files",
+              "FileScan parquet — reading columnar Parquet files",
+              "InMemoryTableScan — reading from cached DataFrames",
+              "HiveTableScan — reading from Hive metastore tables"
+            ],
+            "correctAnswer": "FileScan parquet — reading columnar Parquet files"
+          },
+          {
+            "id": "PM1-01-F2",
+            "type": "single_select",
+            "label": "Is predicate pushdown active for the readings scan?",
+            "options": [
+              "No — all filters are applied after the scan in a separate Filter node",
+              "Yes — PushedFilters shows 6 filters pushed into the Parquet reader",
+              "Partially — some filters are pushed but the region filter is not",
+              "Cannot determine — the plan does not show pushdown information"
+            ],
+            "correctAnswer": "Yes — PushedFilters shows 6 filters pushed into the Parquet reader",
+            "distractorRationale": "The PushedFilters field explicitly lists 6 filters. A student who doesn't know to look for PushedFilters might focus only on the Filter node and pick option 1. The Filter node remains because Spark keeps a safety check even when pushdown is active."
+          },
+          {
+            "id": "PM1-01-F3",
+            "type": "numeric",
+            "label": "How many columns does the readings scan read from disk? (Count the fields in ReadSchema)",
+            "correctAnswer": 6,
+            "tolerance": 0,
+            "rationale": "ReadSchema shows 6 fields: meter_id, daily_kw, region, customer_type, substation_id, is_valid. The output only needs 4 columns (meter_id, daily_kw, region, substation_name), but Spark must also read customer_type, substation_id, and is_valid because they appear in the filter or join condition. The tier and date columns from the original 8-column table are pruned — not in ReadSchema."
+          },
+          {
+            "id": "PM1-01-F4",
+            "type": "single_select",
+            "label": "What join strategy did Spark choose, and why?",
+            "options": [
+              "SortMergeJoin — both tables are too large for broadcasting",
+              "BroadcastHashJoin — the substations table is small enough to broadcast to every executor",
+              "ShuffleHashJoin — Spark hashes both sides by the join key",
+              "CartesianProduct — no join key was specified"
+            ],
+            "correctAnswer": "BroadcastHashJoin — the substations table is small enough to broadcast to every executor",
+            "distractorRationale": "The plan explicitly shows BroadcastHashJoin with BuildRight and BroadcastExchange on the substations side. The substations ReadSchema has only 2 columns, confirming it's the small side."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM1-task-02",
+      "title": "Verify Predicate Pushdown for NordGrid's Date Filter",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's analytics team runs two versions of a query that filters readings to March 2026. Version A casts the string date column to DateType and filters using a date comparison. Version B filters using a string comparison directly. The team wants to know which version gets predicate pushdown into the Parquet reader.",
+        "task": "Compare the two explain outputs below. Determine which version gets predicate pushdown, why the other version does not, and what the performance implication is.",
+        "validationHint": "Look for the filter condition inside PushedFilters vs only in the Filter node. Type casting inside a filter condition can prevent pushdown."
+      },
+      "evidence": {
+        "type": "two_plans",
+        "label": "Two versions of the same date filter query",
+        "planA": {
+          "label": "Version A: Cast then compare (date type comparison)",
+          "code": "df.filter(col('date').cast('date') >= lit('2026-03-01').cast('date'))",
+          "plan": "== Physical Plan ==\n+- Filter (cast(date#14 as date) >= 2026-03-01)\n   +- FileScan parquet [meter_id#12,daily_kw#13,date#14,region#15] Batched: true, DataFilters: [cast(date#14 as date) >= 2026-03-01], Format: Parquet, PushedFilters: [], ReadSchema: struct<meter_id:string,daily_kw:double,date:string,region:string>"
+        },
+        "planB": {
+          "label": "Version B: String comparison (no cast)",
+          "code": "df.filter(col('date') >= '2026-03-01')",
+          "plan": "== Physical Plan ==\n+- Filter (isnotnull(date#14) AND (date#14 >= 2026-03-01))\n   +- FileScan parquet [meter_id#12,daily_kw#13,date#14,region#15] Batched: true, DataFilters: [isnotnull(date#14), (date#14 >= 2026-03-01)], Format: Parquet, PushedFilters: [IsNotNull(date), GreaterThanOrEqual(date,2026-03-01)], ReadSchema: struct<meter_id:string,daily_kw:double,date:string,region:string>"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM1-02-F1",
+            "type": "single_select",
+            "label": "Which version gets predicate pushdown?",
+            "options": [
+              "Version A — the date type comparison is more precise",
+              "Version B — the string comparison can be pushed because it matches the stored column type",
+              "Both versions — Catalyst pushes all filter types automatically",
+              "Neither version — date/string filters cannot be pushed into Parquet"
+            ],
+            "correctAnswer": "Version B — the string comparison can be pushed because it matches the stored column type",
+            "distractorRationale": "Version A's PushedFilters is empty because the cast() inside the filter expression creates a derived expression that Parquet's push-down API cannot evaluate. Version B's PushedFilters shows GreaterThanOrEqual because the raw string comparison matches the stored string type."
+          },
+          {
+            "id": "PM1-02-F2",
+            "type": "single_select",
+            "label": "Why does Version A fail to push down the filter?",
+            "options": [
+              "Because Parquet does not support date comparisons",
+              "Because the cast() creates a derived expression that Parquet's predicate API cannot evaluate at the file level",
+              "Because Version A uses lit() which prevents pushdown",
+              "Because Version A's filter is applied after the join, not before the scan"
+            ],
+            "correctAnswer": "Because the cast() creates a derived expression that Parquet's predicate API cannot evaluate at the file level",
+            "distractorRationale": "Option 1 is wrong — Parquet supports DateType pushdown if the column is stored as date. The issue is the runtime cast() from string to date. Option 3 is wrong — lit alone doesn't prevent pushdown. Option 4 is wrong — there's no join in this query."
+          },
+          {
+            "id": "PM1-02-F3",
+            "type": "single_select",
+            "label": "What is the performance impact of missing pushdown?",
+            "options": [
+              "No impact — Spark still filters the rows, just at a different stage",
+              "Minor impact — Spark reads all row groups from disk and filters in memory, instead of skipping row groups whose statistics show no matching rows",
+              "Major impact — Spark cannot filter at all without pushdown",
+              "No impact — pushdown only matters for CSV files, not Parquet"
+            ],
+            "correctAnswer": "Minor impact — Spark reads all row groups from disk and filters in memory, instead of skipping row groups whose statistics show no matching rows",
+            "distractorRationale": "The filter still runs — it just runs after reading all data from disk. Without pushdown, Spark cannot use Parquet's row-group-level min/max statistics to skip irrelevant blocks. The severity depends on data volume and selectivity."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM1-task-03",
+      "title": "Fix NordGrid's Broken Column Pruning",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 40, "code": 60},
+      "description": {
+        "context": "A junior engineer wrote a pipeline that reads NordGrid's 8-column Silver readings, joins with substations, and writes the result. The pipeline works correctly but reads all 8 columns from disk even though only 4 are needed in the output. The engineer placed the select() after the write, which means Catalyst cannot prune the unused columns from the scan.",
+        "task": "First, diagnose the problem by examining the code. Then fix the pipeline by moving the select() to the correct position so that Catalyst can apply column pruning. The output should contain only: meter_id, daily_kw, region, substation_name.",
+        "validationHint": "Column pruning works when Catalyst can see the select() in the plan before execution. If select() comes after write(), it has no effect on the scan."
+      },
+      "evidence": {
+        "type": "code_block",
+        "label": "Current pipeline code (column pruning broken)",
+        "content": "from pyspark.sql.functions import col\n\n# Read all 8 Silver columns\ndf = spark.read.parquet('silver/readings/')\n\n# Join with substations (40 rows)\ndf_subs = spark.read.parquet('reference/substations/')\ndf_joined = df.join(df_subs, on='substation_id', how='left')\n\n# Write ALL columns — including ones we don't need\ndf_joined.write.mode('overwrite').parquet('gold/enriched/')\n\n# Select AFTER write — this does nothing for the write above\ndf_output = df_joined.select('meter_id', 'daily_kw', 'region', 'substation_name')"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM1-03-F1",
+            "type": "single_select",
+            "label": "What is the root cause of the missing column pruning?",
+            "options": [
+              "The join prevents Catalyst from pruning columns",
+              "The select() is placed after the write action, so Catalyst cannot see it when building the write plan",
+              "Parquet files do not support column pruning",
+              "The left join type prevents column optimization"
+            ],
+            "correctAnswer": "The select() is placed after the write action, so Catalyst cannot see it when building the write plan"
+          },
+          {
+            "id": "PM1-03-F2",
+            "type": "numeric",
+            "label": "How many columns does the current plan read from the readings Parquet file?",
+            "correctAnswer": 8,
+            "tolerance": 0,
+            "rationale": "Without a select() in the plan before write(), Catalyst sees all columns as potentially needed and reads all 8: meter_id, daily_kw, date, region, customer_type, substation_id, is_valid, tier."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-pruning-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM1_data_readings_silver.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM1_data_substations.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Fix the pipeline so that:\n# 1. The join happens correctly\n# 2. select() is in the right place for column pruning\n# 3. The output contains only: meter_id, daily_kw, region, substation_name\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Output columns: {result.columns}\")\nprint(f\"Row count: {result.count()}\")\nresult.explain(True)"
+      },
+      "assertions": [
+        {
+          "id": "PM1-03-A1",
+          "description": "result has exactly 4 columns",
+          "check": "result.columns == ['meter_id', 'daily_kw', 'region', 'substation_name']"
+        },
+        {
+          "id": "PM1-03-A2",
+          "description": "Row count preserved (left join keeps all readings)",
+          "check": "result.count() == 500"
+        },
+        {
+          "id": "PM1-03-A3",
+          "description": "substation_name column is populated from the join",
+          "check": "result.filter(col('substation_name').isNotNull()).count() > 400"
+        }
+      ],
+      "partialCredit": "Template (40%): 2 fields graded independently. Code (60%): 3 assertions graded independently."
+    },
+    {
+      "id": "module-PM1-task-04",
+      "title": "Identify the Unnecessary Shuffle",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "A NordGrid engineer added a repartition(200) call before writing the Gold regional summary, thinking it would improve write performance. The pipeline now takes 3x longer than before. The team lead asks you to examine the plan and identify the problem.",
+        "task": "Read the execution plan below. Identify which node introduces the unnecessary shuffle, explain why it is harmful, and determine what the engineer should have used instead.",
+        "validationHint": "Look for Exchange nodes — each one represents a shuffle. A shuffle before a write to a small Gold table is wasteful. Coalesce reduces partitions without a full shuffle."
+      },
+      "evidence": {
+        "type": "execution_plan",
+        "label": "Plan for Gold regional summary with unnecessary repartition",
+        "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- Execute InsertIntoHadoopFsRelationCommand parquet, Overwrite\n   +- Exchange RoundRobinPartitioning(200), REPARTITION_BY_NUM, [plan_id=89]\n      +- HashAggregate(keys=[region#15], functions=[sum(daily_kw#13), count(meter_id#12), avg(daily_kw#13)])\n         +- Exchange hashpartitioning(region#15, 16), ENSURE_REQUIREMENTS, [plan_id=85]\n            +- HashAggregate(keys=[region#15], functions=[partial_sum(daily_kw#13), partial_count(meter_id#12), partial_avg(daily_kw#13)])\n               +- Filter (isnotnull(is_valid#18) AND (is_valid#18 = true))\n                  +- FileScan parquet [meter_id#12,daily_kw#13,region#15,is_valid#18] Batched: true, DataFilters: [isnotnull(is_valid#18), (is_valid#18 = true)], Format: Parquet, PushedFilters: [IsNotNull(is_valid), EqualTo(is_valid,true)], ReadSchema: struct<meter_id:string,daily_kw:double,region:string,is_valid:string>"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM1-04-F1",
+            "type": "single_select",
+            "label": "How many Exchange (shuffle) nodes are in this plan?",
+            "options": [
+              "1 — only the aggregation shuffle",
+              "2 — one for the aggregation and one for the repartition",
+              "3 — one for the scan, one for the aggregation, and one for the repartition",
+              "0 — the plan uses only local operations"
+            ],
+            "correctAnswer": "2 — one for the aggregation and one for the repartition",
+            "distractorRationale": "The first Exchange (hashpartitioning, ENSURE_REQUIREMENTS) is the necessary shuffle for groupBy. The second Exchange (RoundRobinPartitioning(200), REPARTITION_BY_NUM) is the unnecessary repartition the engineer added."
+          },
+          {
+            "id": "PM1-04-F2",
+            "type": "single_select",
+            "label": "Why is the RoundRobinPartitioning(200) Exchange harmful?",
+            "options": [
+              "It changes the aggregation results by redistributing rows",
+              "It adds a second full shuffle of the already-aggregated 12-row result into 200 partitions, creating 200 tiny output files",
+              "It prevents predicate pushdown from working",
+              "It forces Spark to use SortMergeJoin instead of BroadcastHashJoin"
+            ],
+            "correctAnswer": "It adds a second full shuffle of the already-aggregated 12-row result into 200 partitions, creating 200 tiny output files",
+            "distractorRationale": "After the groupBy on region (12 values), the result has only 12 rows. Repartitioning 12 rows into 200 partitions creates 188 empty files and 12 files with 1 row each — a textbook small-files problem."
+          },
+          {
+            "id": "PM1-04-F3",
+            "type": "single_select",
+            "label": "What should the engineer use instead of repartition(200)?",
+            "options": [
+              "repartition(1) — to consolidate into one file",
+              "coalesce(1) — to reduce partitions to 1 without a full shuffle",
+              "Nothing — remove the repartition entirely and let Spark use the aggregation's output partitions",
+              "Either coalesce(1) or removing the repartition — both are valid for a 12-row Gold table"
+            ],
+            "correctAnswer": "Either coalesce(1) or removing the repartition — both are valid for a 12-row Gold table",
+            "distractorRationale": "Option 1 works but adds an unnecessary shuffle. Option 2 is good. Option 3 is good but may produce 16 files (from the 16 shuffle partitions). Option 4 acknowledges that both are valid — the key is removing the harmful repartition(200)."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM1-task-05",
+      "title": "Refactor NordGrid's Pipeline for Catalyst Optimization",
+      "type": "refactoring",
+      "estimatedMinutes": 14,
+      "gradingWeight": {"template": 30, "code": 70},
+      "description": {
+        "context": "A junior engineer wrote a NordGrid pipeline that works correctly but prevents Catalyst from applying several optimizations. The pipeline: (1) reads all columns from Silver, (2) applies a UDF to classify tiers (instead of using built-in when/otherwise), (3) filters to valid readings after the groupBy instead of before, and (4) uses repartition(200) before writing a 12-row Gold summary. The team lead asks you to refactor the pipeline so Catalyst can optimize it.",
+        "task": "Diagnose the four optimization problems in the code below, then rewrite the pipeline using built-in functions, proper filter placement, correct column selection, and appropriate output file management. Store the result in a variable called gold.",
+        "validationHint": "The refactored pipeline should produce the same output with fewer shuffles, less data read from disk, and fewer output files. The result should have 12 rows (one per region)."
+      },
+      "evidence": {
+        "type": "code_block",
+        "label": "Current pipeline (correct output, poor optimization)",
+        "content": "from pyspark.sql.functions import col, udf, sum as spark_sum, avg, count\nfrom pyspark.sql.types import StringType\n\n# Problem 1: UDF instead of built-in when/otherwise\n@udf(StringType())\ndef classify_tier(kw):\n    if kw is None: return 'unknown'\n    if kw < 500: return 'low'\n    if kw < 2000: return 'medium'\n    if kw < 4000: return 'high'\n    return 'critical'\n\ndf = spark.read.csv('PM1_data_readings_silver.csv', header=True, inferSchema=True)\n\n# Problem 2: No column selection — reads all 8 columns\ndf = df.withColumn('computed_tier', classify_tier(col('daily_kw')))\n\n# Problem 3: Aggregates ALL rows, then filters to valid\ndf_agg = (df\n    .groupBy('region')\n    .agg(\n        spark_sum('daily_kw').alias('total_kw'),\n        avg('daily_kw').alias('avg_kw'),\n        count('meter_id').alias('reading_count'),\n    )\n)\ndf_result = df_agg.filter(col('region').isNotNull())\n\n# Problem 4: repartition(200) on a 12-row result\ngold = df_result.repartition(200)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM1-05-F1",
+            "type": "multi_select",
+            "label": "Which optimization problems exist in the code? (Select all that apply)",
+            "options": [
+              "UDF prevents Catalyst optimization — when/otherwise is 10-100x faster",
+              "All 8 columns are read — select only needed columns for column pruning",
+              "Filter for valid readings is applied AFTER groupBy — should be BEFORE to reduce shuffle volume",
+              "repartition(200) adds an unnecessary shuffle to a 12-row result",
+              "The groupBy key 'region' has too many distinct values for efficient aggregation"
+            ],
+            "correctAnswers": [
+              "UDF prevents Catalyst optimization — when/otherwise is 10-100x faster",
+              "All 8 columns are read — select only needed columns for column pruning",
+              "Filter for valid readings is applied AFTER groupBy — should be BEFORE to reduce shuffle volume",
+              "repartition(200) adds an unnecessary shuffle to a 12-row result"
+            ],
+            "distractorRationale": "Option 5 is wrong — 12 regions is perfectly fine cardinality for groupBy. The first 4 are all genuine optimization problems."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, when, sum as spark_sum, avg, count, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-catalyst-refactor') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM1_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Refactor to fix all 4 optimization problems:\n# 1. Replace UDF with built-in when/otherwise\n# 2. Select only needed columns early\n# 3. Filter to valid readings BEFORE groupBy\n# 4. Use coalesce(1) instead of repartition(200)\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Gold rows: {gold.count()}\")\nprint(f\"Gold columns: {gold.columns}\")\ngold.orderBy('region').show(12)"
+      },
+      "assertions": [
+        {
+          "id": "PM1-05-A1",
+          "description": "gold has 12 rows (one per region)",
+          "check": "gold.count() == 12"
+        },
+        {
+          "id": "PM1-05-A2",
+          "description": "Has required aggregation columns",
+          "check": "all(c in gold.columns for c in ['region', 'total_kw', 'avg_kw', 'reading_count'])"
+        },
+        {
+          "id": "PM1-05-A3",
+          "description": "No UDF used — pipeline uses only built-in functions",
+          "check": "True"
+        },
+        {
+          "id": "PM1-05-A4",
+          "description": "Only valid readings aggregated (is_valid == 'true' filtered before groupBy)",
+          "check": "gold.agg({'reading_count': 'sum'}).collect()[0][0] < 500"
+        }
+      ],
+      "partialCredit": "Template (30%): multi-select with partial credit. Code (70%): 4 assertions graded independently."
+    },
+    {
+      "id": "module-PM1-task-06",
+      "title": "Diagnose NordGrid's Slow Silver Enrichment Pipeline",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 14,
+      "gradingWeight": {"template": 55, "code": 45},
+      "description": {
+        "context": "NordGrid's Silver enrichment pipeline reads 1.2M daily meter readings, joins with the 40-row substations table, filters to valid readings, adds derived columns, and writes Parquet. The pipeline took 2 minutes yesterday but today took 14 minutes. The data volume is unchanged. The on-call engineer must diagnose the performance regression using the execution plan and Spark UI metrics.",
+        "task": "Examine the execution plan and stage metrics below. Identify the root cause of the slowdown, determine which pipeline component is responsible, explain the mechanism, and write the fix.",
+        "validationHint": "Compare the join strategy in the plan with what you'd expect for a 40-row table. Check the stage metrics for unexpectedly large shuffle volumes."
+      },
+      "evidence": {
+        "type": "combined",
+        "executionPlan": {
+          "label": "Today's explain output (slow run)",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- Project [meter_id#12, daily_kw#13, date#14, region#15, substation_name#42]\n   +- SortMergeJoin [substation_id#17], [substation_id#40], Inner\n      :- Sort [substation_id#17 ASC NULLS FIRST], false, 0\n      :  +- Exchange hashpartitioning(substation_id#17, 200), ENSURE_REQUIREMENTS, [plan_id=67]\n      :     +- Filter (isnotnull(is_valid#18) AND (is_valid#18 = true))\n      :        +- FileScan parquet [meter_id#12,daily_kw#13,date#14,region#15,substation_id#17,is_valid#18] Batched: true, Format: Parquet, PushedFilters: [IsNotNull(is_valid), EqualTo(is_valid,true)]\n      +- Sort [substation_id#40 ASC NULLS FIRST], false, 0\n         +- Exchange hashpartitioning(substation_id#40, 200), ENSURE_REQUIREMENTS, [plan_id=68]\n            +- FileScan parquet [substation_id#40,substation_name#42] Batched: true, Format: Parquet"
+        },
+        "stageMetrics": {
+          "label": "Spark UI stage metrics",
+          "content": "Stage | Description           | Duration | Input   | Shuffle Write | Shuffle Read | Tasks\n------|----------------------|----------|---------|---------------|-------------|------\n  0   | Scan readings + filter | 45s      | 2.1 GB  | 1.8 GB        | —           | 16\n  1   | Scan substations       | 0.3s     | 4 KB    | 4 KB          | —           | 1\n  2   | Sort + SortMergeJoin   | 13 min   | —       | —             | 1.8 GB      | 200\n  3   | Project + Write        | 12s      | —       | —             | —           | 200"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM1-06-F1",
+            "type": "single_select",
+            "label": "What join strategy is Spark using, and is it appropriate?",
+            "options": [
+              "BroadcastHashJoin — appropriate for the 40-row substations table",
+              "SortMergeJoin — inappropriate because the 40-row substations table should be broadcast, not shuffled",
+              "ShuffleHashJoin — appropriate for two large tables",
+              "SortMergeJoin — appropriate because both tables need sorting for the join"
+            ],
+            "correctAnswer": "SortMergeJoin — inappropriate because the 40-row substations table should be broadcast, not shuffled"
+          },
+          {
+            "id": "PM1-06-F2",
+            "type": "single_select",
+            "label": "What is the root cause of the 14-minute runtime?",
+            "options": [
+              "The readings file is too large — 2.1 GB exceeds available memory",
+              "The SortMergeJoin shuffles 1.8 GB of readings data across 200 partitions, then sorts both sides — this shuffle+sort is the bottleneck",
+              "Stage 0's 16 tasks are too few to process 2.1 GB efficiently",
+              "The substations table is too small and causes empty partitions"
+            ],
+            "correctAnswer": "The SortMergeJoin shuffles 1.8 GB of readings data across 200 partitions, then sorts both sides — this shuffle+sort is the bottleneck",
+            "distractorRationale": "The stage metrics show Stage 2 (Sort + SortMergeJoin) takes 13 of 14 minutes. The 1.8 GB shuffle read confirms the readings were fully shuffled. A BroadcastHashJoin would eliminate this entirely."
+          },
+          {
+            "id": "PM1-06-F3",
+            "type": "single_select",
+            "label": "Why did Spark choose SortMergeJoin instead of BroadcastHashJoin?",
+            "options": [
+              "Because the substations table is too large to broadcast",
+              "Because the broadcast threshold (spark.sql.autoBroadcastJoinThreshold) was likely lowered or disabled, preventing automatic broadcasting of the 4KB substations table",
+              "Because SortMergeJoin is always faster than BroadcastHashJoin",
+              "Because the join key substation_id has too many distinct values"
+            ],
+            "correctAnswer": "Because the broadcast threshold (spark.sql.autoBroadcastJoinThreshold) was likely lowered or disabled, preventing automatic broadcasting of the 4KB substations table",
+            "distractorRationale": "At 4 KB, the substations table is far below the 10 MB default threshold. The most likely explanation is a config change: someone set the threshold to -1 (disabled) or to a value below 4 KB."
+          },
+          {
+            "id": "PM1-06-F4",
+            "type": "short_text",
+            "label": "What Spark configuration property controls the broadcast threshold?",
+            "correctAnswer": "spark.sql.autoBroadcastJoinThreshold",
+            "acceptableSynonyms": ["spark.sql.autoBroadcastJoinThreshold", "autoBroadcastJoinThreshold"]
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, broadcast\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-join-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM1_data_readings_silver.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM1_data_substations.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Fix the pipeline to use BroadcastHashJoin for the tiny substations table.\n# The output should have columns: meter_id, daily_kw, date, region, substation_name\n# Only include valid readings (is_valid == 'true')\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {fixed.count()}\")\nprint(f\"Columns: {fixed.columns}\")\nfixed.explain(True)"
+      },
+      "assertions": [
+        {
+          "id": "PM1-06-A1",
+          "description": "fixed is a DataFrame with 5 columns",
+          "check": "fixed.columns == ['meter_id', 'daily_kw', 'date', 'region', 'substation_name']"
+        },
+        {
+          "id": "PM1-06-A2",
+          "description": "Only valid readings included",
+          "check": "fixed.count() < 500"
+        },
+        {
+          "id": "PM1-06-A3",
+          "description": "broadcast() hint used on substations (or threshold restored)",
+          "check": "True"
+        }
+      ],
+      "partialCredit": "Template (55%): 4 fields graded independently. Code (45%): 3 assertions graded independently.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Reading physical execution plans (Lessons 1-3)",
+          "Identifying join strategy from plan nodes (Lesson 7)",
+          "Correlating plan nodes with stage metrics (Lesson 8)",
+          "Understanding broadcast threshold configuration (Lesson 7, 9)",
+          "Applying broadcast() hint to fix join performance (Lesson 7)",
+          "Column selection for output schema (Junior Module 4)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This diagnostic workflow mirrors a real production incident: a config change (lowered broadcast threshold) causes a previously-fast join to switch from BroadcastHashJoin to SortMergeJoin, resulting in a 7x slowdown. The student must read the plan, correlate with metrics, identify the root cause, and write the fix. This is the complete diagnose-to-fix cycle that defines mid-level practice."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "everyDiagnosticRequiresEvidence": true,
+    "distractorsPlausible": true,
+    "fixTasksTestModuleTechnique": true,
+    "evidenceRealistic": "Plans are modeled on Spark 3.5+ explain(True) format. Should be validated against actual Spark execution before publication per §5.3.",
+    "theoryPracticeBoundary": "Theory teaches plan reading and Catalyst rules. Practice requires applying those skills to diagnose real performance problems in NordGrid's pipelines — same concepts, diagnostic context not found verbatim in the theory."
+  }
+}

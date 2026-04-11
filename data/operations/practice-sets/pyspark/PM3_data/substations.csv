@@ -1,0 +1,41 @@
+substation_id,substation_name,capacity_mw,region
+SUB-001,North Wind Hub,358.0,NORTH
+SUB-002,North Coast Solar Array,440.0,NORTH_COAST
+SUB-003,North Inland Grid Node,417.0,NORTH_INLAND
+SUB-004,South Coastal Plant,406.0,SOUTH
+SUB-005,South Coast Distribution,636.0,SOUTH_COAST
+SUB-006,South Inland Relay Station,564.0,SOUTH_INLAND
+SUB-007,East Wind Park,723.0,EAST
+SUB-008,East Coast Offshore Link,448.0,EAST_COAST
+SUB-009,East Inland Transformer,203.0,EAST_INLAND
+SUB-010,West Switching Yard,233.0,WEST
+SUB-011,West Coast Wind Hub,718.0,WEST_COAST
+SUB-012,West Inland Solar Array,444.0,WEST_INLAND
+SUB-013,North Grid Node,517.0,NORTH
+SUB-014,North Coast Coastal Plant,318.0,NORTH_COAST
+SUB-015,North Inland Distribution,567.0,NORTH_INLAND
+SUB-016,South Relay Station,716.0,SOUTH
+SUB-017,South Coast Wind Park,276.0,SOUTH_COAST
+SUB-018,South Inland Offshore Link,664.0,SOUTH_INLAND
+SUB-019,East Transformer,224.0,EAST
+SUB-020,East Coast Switching Yard,397.0,EAST_COAST
+SUB-021,East Inland Wind Hub,457.0,EAST_INLAND
+SUB-022,West Solar Array,646.0,WEST
+SUB-023,West Coast Grid Node,422.0,WEST_COAST
+SUB-024,West Inland Coastal Plant,416.0,WEST_INLAND
+SUB-025,North Distribution,407.0,NORTH
+SUB-026,North Coast Relay Station,649.0,NORTH_COAST
+SUB-027,North Inland Wind Park,526.0,NORTH_INLAND
+SUB-028,South Offshore Link,323.0,SOUTH
+SUB-029,South Coast Transformer,775.0,SOUTH_COAST
+SUB-030,South Inland Switching Yard,708.0,SOUTH_INLAND
+SUB-031,East Wind Hub,587.0,EAST
+SUB-032,East Coast Solar Array,656.0,EAST_COAST
+SUB-033,East Inland Grid Node,601.0,EAST_INLAND
+SUB-034,West Coastal Plant,451.0,WEST
+SUB-035,West Coast Distribution,303.0,WEST_COAST
+SUB-036,West Inland Relay Station,530.0,WEST_INLAND
+SUB-037,North Wind Park,649.0,NORTH
+SUB-038,North Coast Offshore Link,586.0,NORTH_COAST
+SUB-039,North Inland Transformer,609.0,NORTH_INLAND
+SUB-040,South Switching Yard,648.0,SOUTH

@@ -23,7 +23,7 @@ export function GhostButton({
 }: GhostButtonProps) {
   return (
     <button
-      className={`border bg-transparent font-headline font-bold text-xs py-4 px-6 tracking-widest uppercase active:scale-[0.98] transition-all ${colorStyles[color]} ${fullWidth ? 'w-full' : ''} ${className}`}
+      className={`border bg-transparent font-bold text-xs py-4 px-6 tracking-widest uppercase active:scale-[0.98] transition-all ${colorStyles[color]} ${fullWidth ? 'w-full' : ''} ${className}`}
       {...props}
     >
       {children}

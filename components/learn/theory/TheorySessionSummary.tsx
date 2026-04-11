@@ -41,7 +41,7 @@ export const TheorySessionSummary = ({
         <div className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-primary">
           SESSION COMPLETE
         </div>
-        <h2 className="mt-3 font-headline text-2xl font-bold text-on-surface tracking-tight">
+        <h2 className="mt-3 text-2xl font-bold text-on-surface tracking-tight">
           {lessonTitle}
         </h2>
 
@@ -54,7 +54,7 @@ export const TheorySessionSummary = ({
               <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-on-surface-variant">
                 {stat.label}
               </div>
-              <div className="mt-2 font-headline text-lg font-bold text-on-surface">
+              <div className="mt-2 text-lg font-bold text-on-surface">
                 {stat.value}
               </div>
             </div>
@@ -72,7 +72,7 @@ export const TheorySessionSummary = ({
           <button
             type="button"
             onClick={onNewSession}
-            className="bg-primary px-5 py-2 font-headline font-bold text-xs text-on-primary uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98]"
+            className="bg-primary px-5 py-2 font-bold text-xs text-on-primary uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98]"
           >
             New Session
           </button>

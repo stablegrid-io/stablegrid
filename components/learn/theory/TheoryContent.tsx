@@ -362,7 +362,7 @@ export const TheoryContent = ({
             type="button"
             onClick={handleNext}
             disabled={nextModuleLocked || checkpointPending}
-            className={`shrink-0 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            className={`shrink-0 inline-flex items-center gap-2 rounded-[14px] px-4 py-2 text-sm font-medium transition-colors ${
               nextModuleLocked || checkpointPending
                 ? 'cursor-not-allowed bg-light-hover text-text-light-disabled dark:bg-dark-hover dark:text-text-dark-disabled'
                 : 'bg-brand-500 text-[#06110d] hover:bg-brand-400 dark:bg-brand-500 dark:text-[#06110d] dark:hover:bg-brand-400'

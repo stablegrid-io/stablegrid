@@ -1,0 +1,379 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 6 — Aggregations and Grouping",
+  "description": "Apply aggregation techniques to build Gold-layer summaries: groupBy with multiple aggregations, filtering before and after aggregation, pivot tables, understanding the shuffle, and handling nulls in aggregation functions.",
+  "version": "authored 2026-03-30, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PS6",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 60,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "essential_operations",
+    "taskTypeMix": {
+      "writeTheCode": 3,
+      "outputPrediction": 1,
+      "conceptIdentification": 1,
+      "synthesisPipeline": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PS6_data_readings_silver",
+      "file": "PS6_data_readings_silver.csv",
+      "description": "NordGrid Silver-layer meter readings. 150 rows across 4 regions and 15 dates. Includes 6 null daily_kw values and 4 negative values, all marked is_valid=false.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false, "description": "Unique meter identifier"},
+          {"name": "daily_kw", "type": "double", "nullable": true, "description": "Daily energy consumption in kilowatts"},
+          {"name": "date", "type": "string", "nullable": false, "description": "Reading date (2026-03-01 through 2026-03-15)"},
+          {"name": "region", "type": "string", "nullable": false, "description": "NORTH, SOUTH, EAST, or WEST"},
+          {"name": "is_valid", "type": "string", "nullable": false, "description": "'true' for valid readings, 'false' for null/negative readings"}
+        ],
+        "characteristics": {
+          "nulls": "6 rows have empty daily_kw (is_valid=false)",
+          "negatives": "4 rows have negative daily_kw (is_valid=false)",
+          "validCount": "140 rows with is_valid=true",
+          "regionDistribution": "NORTH: 55, EAST: 39, SOUTH: 38, WEST: 18",
+          "validByRegion": "NORTH: 51, EAST: 38, SOUTH: 36, WEST: 15",
+          "dateRange": "2026-03-01 to 2026-03-15 (15 unique dates)"
+        }
+      },
+      "usedByTasks": ["module-PS6-task-01", "module-PS6-task-02", "module-PS6-task-03", "module-PS6-task-04", "module-PS6-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PS6-task-01",
+      "title": "Build NordGrid's Regional Summary",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's operations dashboard shows a daily regional summary: the total energy consumption, the average consumption per meter, and the number of readings for each of the four regions. This Gold-layer table is rebuilt every morning from the Silver meter readings.",
+        "task": "Read PS6_data_readings_silver.csv (header=True, inferSchema=True). Filter to only valid readings (is_valid == 'true'). Group by region and compute three aggregations: (1) sum of daily_kw aliased as total_kw, (2) avg of daily_kw aliased as avg_kw, (3) count of meter_id aliased as reading_count. Round avg_kw to 1 decimal place. Store the result in a variable called regional_summary.",
+        "validationHint": "The result should have exactly 4 rows (one per region). NORTH should have the highest reading_count (51) and WEST the lowest (15)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, avg as spark_avg, count, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-regional-summary') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {regional_summary.count()}\")\nregional_summary.orderBy('region').show()"
+      },
+      "assertions": [
+        {
+          "id": "PS6-01-A1",
+          "description": "regional_summary is a DataFrame",
+          "check": "isinstance(regional_summary, DataFrame)"
+        },
+        {
+          "id": "PS6-01-A2",
+          "description": "Exactly 4 rows (one per region)",
+          "check": "regional_summary.count() == 4"
+        },
+        {
+          "id": "PS6-01-A3",
+          "description": "Has correct columns: region, total_kw, avg_kw, reading_count",
+          "check": "set(regional_summary.columns) == {'region', 'total_kw', 'avg_kw', 'reading_count'}"
+        },
+        {
+          "id": "PS6-01-A4",
+          "description": "Only valid readings included (no null/negative daily_kw in the aggregation input)",
+          "check": "regional_summary.agg(spark_sum('reading_count')).collect()[0][0] == 140"
+        },
+        {
+          "id": "PS6-01-A5",
+          "description": "NORTH region has 51 readings",
+          "check": "regional_summary.filter(col('region') == 'NORTH').select('reading_count').collect()[0][0] == 51"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS6-task-02",
+      "title": "Find NordGrid's High-Consumption Regions",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's capacity planning team wants to identify regions where average daily consumption per meter exceeds 2,400 kW. These regions may need grid infrastructure upgrades. The analysis should only include valid readings, and the result should only show regions that exceed the threshold.",
+        "task": "Read PS6_data_readings_silver.csv. Apply a pre-aggregation filter to keep only valid readings (is_valid == 'true'). Group by region, compute avg(daily_kw) aliased as avg_kw rounded to 1 decimal. Then apply a post-aggregation filter to keep only regions where avg_kw > 2400. Store the result in a variable called high_consumption.",
+        "validationHint": "This task uses both pre-aggregation filtering (WHERE equivalent) and post-aggregation filtering (HAVING equivalent). Not all 4 regions will appear in the output."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, avg as spark_avg, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-capacity-planning') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"High-consumption regions: {high_consumption.count()}\")\nhigh_consumption.show()"
+      },
+      "assertions": [
+        {
+          "id": "PS6-02-A1",
+          "description": "high_consumption is a DataFrame",
+          "check": "isinstance(high_consumption, DataFrame)"
+        },
+        {
+          "id": "PS6-02-A2",
+          "description": "All regions in result have avg_kw > 2400",
+          "check": "high_consumption.filter(col('avg_kw') <= 2400).count() == 0"
+        },
+        {
+          "id": "PS6-02-A3",
+          "description": "Result excludes regions below threshold (EAST avg ≈ 1945 should be excluded)",
+          "check": "high_consumption.filter(col('region') == 'EAST').count() == 0"
+        },
+        {
+          "id": "PS6-02-A4",
+          "description": "Result has correct column names",
+          "check": "set(high_consumption.columns) == {'region', 'avg_kw'}"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS6-task-03",
+      "title": "Predict Null Behavior in Aggregations",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "A NordGrid engineer runs whole-DataFrame aggregations on the Silver meter readings without first filtering out invalid readings. The dataset has 150 rows total, of which 6 have null daily_kw and 4 have negative daily_kw. The engineer is surprised that different count functions return different numbers.",
+        "task": "Read the aggregation code below and predict the value of each metric. Pay attention to how each aggregation function handles null values.",
+        "validationHint": "count('*') counts all rows regardless of nulls. count('daily_kw') counts only non-null values. avg() computes the average of non-null values only — nulls reduce the denominator."
+      },
+      "evidence": {
+        "type": "code_block",
+        "language": "python",
+        "content": "from pyspark.sql.functions import count, avg, sum as spark_sum, min as spark_min, max as spark_max\n\n# No pre-filtering — includes nulls and negatives\ndf = spark.read.csv('PS6_data_readings_silver.csv', header=True, inferSchema=True)\n\ndf.agg(\n    count('*').alias('count_all'),\n    count('daily_kw').alias('count_non_null'),\n    spark_min('daily_kw').alias('min_kw'),\n).show()\n\n# Dataset facts:\n# 150 total rows\n# 6 rows with null daily_kw\n# 4 rows with negative daily_kw (values between -80 and -1)\n# 140 rows with valid positive daily_kw"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS6-03-F1",
+            "type": "numeric",
+            "label": "What is the value of count_all (count('*'))?",
+            "correctAnswer": 150,
+            "tolerance": 0,
+            "rationale": "count('*') counts all rows regardless of null values. All 150 rows are counted."
+          },
+          {
+            "id": "PS6-03-F2",
+            "type": "numeric",
+            "label": "What is the value of count_non_null (count('daily_kw'))?",
+            "correctAnswer": 144,
+            "tolerance": 0,
+            "rationale": "count('daily_kw') counts only rows where daily_kw is not null. 150 - 6 nulls = 144."
+          },
+          {
+            "id": "PS6-03-F3",
+            "type": "single_select",
+            "label": "Is min_kw positive, negative, zero, or null?",
+            "options": [
+              "Positive — min() ignores negative values",
+              "Negative — min() finds the smallest value among all non-null rows, including negatives",
+              "Zero — min() treats negatives as zero",
+              "Null — min() returns null because some rows have null daily_kw"
+            ],
+            "correctAnswer": "Negative — min() finds the smallest value among all non-null rows, including negatives",
+            "distractorRationale": "Option 1 incorrectly assumes min ignores negatives. Option 3 invents a floor behavior. Option 4 incorrectly assumes null propagation — min() ignores nulls and operates on non-null values."
+          },
+          {
+            "id": "PS6-03-F4",
+            "type": "single_select",
+            "label": "If the engineer computes avg('daily_kw') without filtering, the denominator is:",
+            "options": [
+              "150 — the total number of rows",
+              "144 — the number of non-null daily_kw values",
+              "140 — the number of valid (positive) readings only",
+              "4 — the number of regions"
+            ],
+            "correctAnswer": "144 — the number of non-null daily_kw values",
+            "distractorRationale": "Option 1 would over-count by including nulls. Option 3 confuses non-null with valid — avg doesn't know about the is_valid flag. Option 4 confuses group count with row count. The avg function divides the sum of non-null values by the count of non-null values."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS6-task-04",
+      "title": "Pivot NordGrid's Regional Consumption by Week",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's regulatory team needs a consumption matrix where each row is a week number and each column is a region's total consumption. The dates in the dataset span March 1–15, 2026, covering ISO weeks 9 and 10. The regulator expects the four region columns (NORTH, SOUTH, EAST, WEST) in that specific order.",
+        "task": "Read PS6_data_readings_silver.csv. Filter to valid readings only. Add a week_number column using weekofyear(col('date').cast('date')). Then use groupBy('week_number').pivot('region', ['NORTH', 'SOUTH', 'EAST', 'WEST']).agg() with sum of daily_kw rounded to 0 decimals. Order the result by week_number. Store in a variable called weekly_pivot.",
+        "validationHint": "The result should have 2–3 rows (one per week) and 5 columns (week_number + 4 region columns). Specifying the pivot values as ['NORTH', 'SOUTH', 'EAST', 'WEST'] ensures consistent column order."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, round as spark_round, weekofyear\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-regulatory-pivot') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {weekly_pivot.count()}\")\nprint(f\"Columns: {weekly_pivot.columns}\")\nweekly_pivot.show()"
+      },
+      "assertions": [
+        {
+          "id": "PS6-04-A1",
+          "description": "weekly_pivot is a DataFrame",
+          "check": "isinstance(weekly_pivot, DataFrame)"
+        },
+        {
+          "id": "PS6-04-A2",
+          "description": "Has correct columns: week_number + 4 region columns",
+          "check": "weekly_pivot.columns == ['week_number', 'NORTH', 'SOUTH', 'EAST', 'WEST']"
+        },
+        {
+          "id": "PS6-04-A3",
+          "description": "Result has 2 or 3 rows (one per week in the date range)",
+          "check": "weekly_pivot.count() in (2, 3)"
+        },
+        {
+          "id": "PS6-04-A4",
+          "description": "NORTH column has the highest total (most readings)",
+          "check": "True"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS6-task-05",
+      "title": "Identify Aggregation Behaviors and Mistakes",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's senior engineer is reviewing code from three different pipeline drafts. Each draft contains either a correct pattern or a common aggregation mistake. The senior engineer needs to identify the issues.",
+        "task": "For each code snippet, determine whether it is correct or contains a mistake. If it contains a mistake, identify what the mistake is.",
+        "validationHint": "Think about narrow vs wide transformations, where to place filters relative to groupBy, and what happens when high-cardinality columns appear in groupBy."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS6-05-F1",
+            "type": "single_select",
+            "label": "Draft A: df.groupBy('region').agg(spark_sum('daily_kw')).filter(col('is_valid') == 'true') — is this correct for computing regional totals of valid readings?",
+            "options": [
+              "Correct — the filter removes invalid groups after aggregation",
+              "Wrong — is_valid is a row-level column that does not exist after groupBy; the filter must come before groupBy",
+              "Wrong — filter should use where() instead of filter() after aggregation",
+              "Correct — Catalyst automatically moves the filter before the groupBy"
+            ],
+            "correctAnswer": "Wrong — is_valid is a row-level column that does not exist after groupBy; the filter must come before groupBy",
+            "distractorRationale": "Option 1 misunderstands what columns survive aggregation. Option 3 confuses filter/where which are aliases. Option 4 overstates Catalyst's capabilities — Catalyst can push some filters but not one referencing a column that doesn't exist in the output."
+          },
+          {
+            "id": "PS6-05-F2",
+            "type": "single_select",
+            "label": "Draft B: df.filter(col('is_valid') == 'true').groupBy('region', 'meter_id').agg(spark_sum('daily_kw').alias('total_kw')) — the engineer expects 4 rows (one per region). What went wrong?",
+            "options": [
+              "Nothing — this correctly groups by region",
+              "meter_id is accidentally included in groupBy, creating one group per meter instead of one per region",
+              "The filter should come after groupBy to exclude invalid meters",
+              "spark_sum should be count for regional summaries"
+            ],
+            "correctAnswer": "meter_id is accidentally included in groupBy, creating one group per meter instead of one per region",
+            "distractorRationale": "This is the 'accidental cartesian' mistake from Lesson 10. Including meter_id produces ~140 groups instead of 4."
+          },
+          {
+            "id": "PS6-05-F3",
+            "type": "single_select",
+            "label": "Which of these transformations triggers a shuffle (data moving between executors)?",
+            "options": [
+              "df.filter(col('daily_kw') > 0) — filtering requires checking every partition",
+              "df.withColumn('year', year(col('date'))) — adding a column touches every row",
+              "df.groupBy('region').agg(spark_sum('daily_kw')) — grouping requires moving rows with the same key to the same executor",
+              "df.select('meter_id', 'daily_kw', 'region') — selecting columns reads from every partition"
+            ],
+            "correctAnswer": "df.groupBy('region').agg(spark_sum('daily_kw')) — grouping requires moving rows with the same key to the same executor",
+            "distractorRationale": "Options 1, 2, and 4 are narrow transformations — they process each partition independently without moving data. Only groupBy is a wide transformation that triggers a shuffle."
+          },
+          {
+            "id": "PS6-05-F4",
+            "type": "single_select",
+            "label": "A pipeline aggregates the full 3-year Silver table (500M rows) and then filters to Q1 2026. A colleague suggests filtering to Q1 before aggregating. What is the impact?",
+            "options": [
+              "No impact — Catalyst optimizes both versions to the same plan",
+              "The filter-first version shuffles much less data because only Q1 rows enter the groupBy",
+              "The filter-first version produces different results because it only sees Q1 data",
+              "The aggregate-first version is faster because it reads the data only once"
+            ],
+            "correctAnswer": "The filter-first version shuffles much less data because only Q1 rows enter the groupBy",
+            "distractorRationale": "Option 1 is wrong because Catalyst cannot always push temporal filters before shuffles. Option 3 is wrong because the final result for Q1 is identical either way. Option 4 is wrong because the aggregate-first version shuffles ALL data, not just Q1."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS6-task-06",
+      "title": "Build NordGrid's Gold-Layer Operations Dashboard",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's operations team needs a Gold-layer dashboard table rebuilt every morning. The table must show, for each region: total energy consumed (total_kw), average consumption per meter (avg_kw), number of meter readings (reading_count), number of distinct meters that reported (meter_count), and a consumption category — 'high' if avg_kw > 2400, 'moderate' if avg_kw > 1500, and 'low' otherwise. The pipeline must exclude invalid readings before aggregating.",
+        "task": "Write a pipeline that: (1) reads PS6_data_readings_silver.csv; (2) filters to valid readings only (is_valid == 'true'); (3) groups by region; (4) computes total_kw (sum), avg_kw (avg, rounded to 1), reading_count (count of meter_id), and meter_count (countDistinct of meter_id); (5) adds a consumption_category column using when/otherwise based on avg_kw; (6) orders by total_kw descending. Store the result in a variable called dashboard.",
+        "validationHint": "The result should have exactly 4 rows. NORTH should have the highest total_kw. The consumption_category column should have at least two distinct values."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import (\n    col, sum as spark_sum, avg as spark_avg, count, countDistinct,\n    round as spark_round, when\n)\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-ops-dashboard') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {dashboard.count()}\")\nprint(f\"Columns: {dashboard.columns}\")\ndashboard.show()"
+      },
+      "assertions": [
+        {
+          "id": "PS6-06-A1",
+          "description": "dashboard is a DataFrame",
+          "check": "isinstance(dashboard, DataFrame)"
+        },
+        {
+          "id": "PS6-06-A2",
+          "description": "Exactly 4 rows (one per region)",
+          "check": "dashboard.count() == 4"
+        },
+        {
+          "id": "PS6-06-A3",
+          "description": "Has all required columns",
+          "check": "set(dashboard.columns) >= {'region', 'total_kw', 'avg_kw', 'reading_count', 'meter_count', 'consumption_category'}"
+        },
+        {
+          "id": "PS6-06-A4",
+          "description": "Total reading_count across all regions is 140 (only valid readings)",
+          "check": "dashboard.agg(spark_sum('reading_count')).collect()[0][0] == 140"
+        },
+        {
+          "id": "PS6-06-A5",
+          "description": "NORTH has the highest total_kw (first row when ordered descending)",
+          "check": "dashboard.orderBy(col('total_kw').desc()).first()['region'] == 'NORTH'"
+        },
+        {
+          "id": "PS6-06-A6",
+          "description": "consumption_category has no null values",
+          "check": "dashboard.filter(col('consumption_category').isNull()).count() == 0"
+        },
+        {
+          "id": "PS6-06-A7",
+          "description": "EAST region (avg ~1945) is categorized as 'moderate' (> 1500 but <= 2400)",
+          "check": "dashboard.filter(col('region') == 'EAST').select('consumption_category').collect()[0][0] == 'moderate'"
+        },
+        {
+          "id": "PS6-06-A8",
+          "description": "meter_count uses distinct counting (not same as reading_count)",
+          "check": "'meter_count' in dashboard.columns"
+        }
+      ],
+      "partialCredit": "8 independent assertions. Each passed assertion earns 1/8 credit.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Pre-aggregation filtering for valid readings (Module 4 + Lesson 5)",
+          "groupBy with multiple agg functions (Lessons 3-4)",
+          "Aliasing aggregated columns (Lesson 4)",
+          "countDistinct for unique meter count (Lesson 8)",
+          "Post-aggregation derived column with when/otherwise (Module 5 + Lesson 5)",
+          "orderBy for presentation (Module 4)",
+          "round() for numeric formatting (Module 5)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This task builds a realistic Gold-layer dashboard table combining skills from Modules 4-6. The student must pre-filter invalid data, aggregate with four different functions including countDistinct, add a post-aggregation derived column using when/otherwise, and order the output. The consumption_category column tests whether students can apply Module 5's conditional logic after Module 6's aggregation — a cross-module combination per §2.4 Essential Operations guidance."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 7,
+    "foundationModuleException": "Not applicable — Module 6 is Essential Operations phase.",
+    "theoryPracticeBoundary": "Theory examples aggregate NordGrid's 500K-row production data. Practice uses 150-row Silver dataset with the same schema and characteristics. Theory's regional summary groups by region alone; Task 4 groups by week_number and pivots by region — same technique, different dimension. Task 6 adds a post-aggregation derived column (consumption_category) that the theory shows in Lesson 9 but with different thresholds.",
+    "crossModuleNotes": "Task 6 combines Module 5's when/otherwise with Module 6's groupBy/agg — this is the cross-concept pattern expected in Essential Operations phase per §2.4. Task 2 combines Module 4's filter-before-aggregation with Module 6's filter-after-aggregation, testing the WHERE vs HAVING distinction.",
+    "datasetNotes": "PS6_data_readings_silver.csv has 150 rows simulating Silver-layer quality: is_valid flag pre-computed, 6 nulls and 4 negatives marked invalid. The 140/150 valid ratio forces students to pre-filter — aggregating all 150 rows produces different results than aggregating the 140 valid rows."
+  }
+}

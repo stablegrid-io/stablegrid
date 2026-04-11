@@ -1,0 +1,532 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set 2 — The Fabric Portal and Workspaces",
+  "description": "Navigate NordGrid's workspace structure: assign the right workspace roles to team members, identify Fabric item types from their descriptions, fix naming convention violations, predict what each role can and cannot do, design a workspace-per-domain structure, and build NordGrid's complete workspace inventory following the medallion pattern.",
+  "version": "authored 2026-04-06, targets Microsoft Fabric GA 2025+",
+  "metadata": {
+    "moduleId": "module-F2",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 50,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "500K meters, 4 regions, single team, 3 medallion workspaces",
+    "modulePhase": "foundation",
+    "taskTypeMix": {
+      "writeTheCode": 0,
+      "outputPrediction": 3,
+      "conceptIdentification": 3,
+      "synthesisPipeline": 0
+    },
+    "foundationException": "Module F2 is entirely UI and organizational — it teaches the portal, workspaces, roles, items, the OneLake Catalog, and domains. No code is introduced until Module F5. Per §4.3, this practice set uses 3 concept identification + 3 output prediction tasks with zero write-the-code tasks, exceeding the normal §4.2 max of 2 per task type. The final task (concept_identification) serves as the synthesis, combining 5 concepts from across the module into a complete workspace inventory design."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-F2-task-01",
+      "title": "Assign Workspace Roles to NordGrid's Team",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's data engineering team lead is setting up the ws_nordgrid_silver workspace and needs to assign roles to four team members. Each person has a different responsibility and should receive the minimum role that lets them do their job (principle of least privilege). The four roles are Admin, Member, Contributor, and Viewer.",
+        "task": "For each team member, select the correct workspace role based on their responsibilities.",
+        "validationHint": "Admin manages the workspace itself (add users, delete workspace, change capacity). Member can add users and manage most content but cannot delete the workspace. Contributor creates and edits items but cannot manage access. Viewer can only read and run existing items. Apply the least privilege that lets each person do their job."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F2-01-F1",
+            "type": "single_select",
+            "label": "Ingrid is a senior data engineer who writes and updates the Silver transformation notebooks daily, creates new Lakehouse tables, and modifies pipeline schedules. She should not be able to add or remove other users from the workspace.",
+            "options": [
+              "Admin — she works with the workspace daily",
+              "Member — she needs to manage content and users",
+              "Contributor — she creates and edits items but does not manage access",
+              "Viewer — she reads the items to understand what to edit"
+            ],
+            "correctAnswer": "Contributor — she creates and edits items but does not manage access",
+            "distractorRationale": "Option 1 gives too much power — Ingrid does not need to delete the workspace or change capacity. Option 2 grants user management, which the scenario explicitly excludes. Option 4 cannot create or modify items, which is exactly what Ingrid does. Contributor is the correct least-privilege match for her responsibilities."
+          },
+          {
+            "id": "F2-01-F2",
+            "type": "single_select",
+            "label": "Lars leads NordGrid's billing analytics team. He needs to see the Silver tables and run queries to validate the data, but he must not be able to modify any notebooks, pipelines, or tables.",
+            "options": [
+              "Admin",
+              "Member",
+              "Contributor",
+              "Viewer"
+            ],
+            "correctAnswer": "Viewer",
+            "distractorRationale": "Admin, Member, and Contributor all grant write access that Lars explicitly should not have. Viewer is the only role that allows reading and running items without modification. This is the standard pattern for downstream consumers."
+          },
+          {
+            "id": "F2-01-F3",
+            "type": "single_select",
+            "label": "Mikael is the data engineering team lead. He needs to add new engineers to the workspace, remove people who leave the team, and create and edit items. However, NordGrid's platform team is responsible for workspace-level settings like capacity assignment and Git integration.",
+            "options": [
+              "Admin — he manages the team",
+              "Member — he manages users and content but does not change workspace-level settings",
+              "Contributor — he creates and edits items",
+              "Viewer — he oversees the team's work"
+            ],
+            "correctAnswer": "Member — he manages users and content but does not change workspace-level settings",
+            "distractorRationale": "Option 1 grants workspace-level settings that the scenario reserves for the platform team. Option 3 cannot add or remove users, which Mikael must do. Option 4 cannot create or edit items. Member is the correct match: it grants user management and content control without granting workspace-level configuration rights."
+          },
+          {
+            "id": "F2-01-F4",
+            "type": "single_select",
+            "label": "The NordGrid platform team is responsible for all workspaces across the organization. They configure capacity assignments, set Git integration, define Spark compute defaults, and intervene when a workspace needs to be deleted or reassigned.",
+            "options": [
+              "Admin — they manage the workspace itself",
+              "Member — they manage users and content",
+              "Contributor — they create items",
+              "Viewer — they observe workspace health"
+            ],
+            "correctAnswer": "Admin — they manage the workspace itself",
+            "distractorRationale": "Options 2–4 cannot change capacity, configure Git integration, or delete workspaces. Only the Admin role grants workspace-level management. The platform team is the canonical Admin holder."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F2-task-02",
+      "title": "Identify Fabric Item Types",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's junior data engineer is reviewing the ws_nordgrid_silver workspace and sees six items in the content list. For each item, they need to identify the correct Fabric item type based on its described purpose. The item types taught in this module are: Lakehouse, Notebook, Pipeline, Dataflow, Warehouse, and Semantic Model.",
+        "task": "For each described item, select the correct Fabric item type.",
+        "validationHint": "Each item type has a distinct purpose. Lakehouse stores files and Delta tables. Notebook runs PySpark or SQL code. Pipeline orchestrates activities (copy, notebook runs, dataflows). Dataflow provides low-code transformations. Warehouse serves read-write T-SQL. Semantic model is the business-friendly layer for Power BI."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F2-02-F1",
+            "type": "single_select",
+            "label": "lh_meter_readings — stores raw CSV files in a Files section and validated Delta tables in a Tables section. Acts as the primary data store for the Silver layer.",
+            "options": [
+              "Lakehouse",
+              "Notebook",
+              "Warehouse",
+              "Semantic Model"
+            ],
+            "correctAnswer": "Lakehouse",
+            "distractorRationale": "Notebook is for code, not storage. Warehouse stores data in a SQL-first model without a Files section. Semantic Model is a business layer on top of stored data, not the store itself. Only Lakehouse has both a Files section and a Tables section."
+          },
+          {
+            "id": "F2-02-F2",
+            "type": "single_select",
+            "label": "nb_silver_transform — contains PySpark code cells that read from Bronze, apply transformations, and write validated tables to the Silver Lakehouse. The data engineer runs it daily or on a schedule.",
+            "options": [
+              "Lakehouse",
+              "Notebook",
+              "Dataflow",
+              "Pipeline"
+            ],
+            "correctAnswer": "Notebook",
+            "distractorRationale": "Lakehouse stores data, not code. Dataflow is for low-code Power Query transformations, not PySpark cells. Pipeline orchestrates other items but does not contain code cells itself. Only a Notebook has PySpark code cells."
+          },
+          {
+            "id": "F2-02-F3",
+            "type": "single_select",
+            "label": "pl_daily_ingest — runs every morning at 06:00, copies CSV files from an external SFTP server into the Bronze Lakehouse, then triggers nb_silver_transform to run after the copy completes.",
+            "options": [
+              "Notebook",
+              "Pipeline",
+              "Dataflow",
+              "Warehouse"
+            ],
+            "correctAnswer": "Pipeline",
+            "distractorRationale": "A Notebook cannot schedule itself or copy files from SFTP — it only runs code when invoked. A Dataflow performs transformations but does not orchestrate other items. A Warehouse stores T-SQL data, unrelated to orchestration. Only a Pipeline orchestrates copy activities and chains them to notebook runs."
+          },
+          {
+            "id": "F2-02-F4",
+            "type": "single_select",
+            "label": "df_refresh_substations — a low-code transformation that reads NordGrid's substation reference table from an external database, renames two columns, changes a type, and writes the result to a Lakehouse table. Built visually in Power Query Online, no code written.",
+            "options": [
+              "Notebook",
+              "Pipeline",
+              "Dataflow",
+              "Semantic Model"
+            ],
+            "correctAnswer": "Dataflow",
+            "distractorRationale": "Notebook requires writing code, which this item explicitly avoids. Pipeline orchestrates activities but does not itself perform Power Query transformations. Semantic Model does not transform or write data. Only a Dataflow provides a visual, low-code Power Query Online experience."
+          },
+          {
+            "id": "F2-02-F5",
+            "type": "single_select",
+            "label": "dw_nordgrid_analytics — stores pre-computed monthly aggregates. Supports INSERT, UPDATE, and DELETE through T-SQL. NordGrid's analysts write ad-hoc queries against it and the reporting team maintains summary tables in it.",
+            "options": [
+              "Lakehouse",
+              "Warehouse",
+              "Semantic Model",
+              "Pipeline"
+            ],
+            "correctAnswer": "Warehouse",
+            "distractorRationale": "A Lakehouse's SQL analytics endpoint is read-only — it does not support INSERT, UPDATE, or DELETE. A Semantic Model does not store data in a T-SQL-queryable form. A Pipeline orchestrates, it does not store. Only a Warehouse supports full read-write T-SQL."
+          },
+          {
+            "id": "F2-02-F6",
+            "type": "single_select",
+            "label": "sm_grid_operations — a business-friendly data layer that exposes NordGrid's Silver tables to the Power BI reporting team. Defines friendly names for columns, measures (total_kw, avg_daily_kw), and relationships between tables. Power BI reports connect directly to it.",
+            "options": [
+              "Warehouse",
+              "Lakehouse",
+              "Dataflow",
+              "Semantic Model"
+            ],
+            "correctAnswer": "Semantic Model",
+            "distractorRationale": "A Warehouse stores T-SQL data but does not define Power BI measures and friendly names. A Lakehouse is the underlying store, not the business-friendly layer. A Dataflow transforms data but does not define relationships or measures. Only a Semantic Model provides the business layer for Power BI."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F2-task-03",
+      "title": "Predict What Each Role Can Do",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's new junior engineer, Anya, has been assigned the Contributor role on ws_nordgrid_silver. On her first day she tries to perform six actions in the workspace. Her team lead wants to confirm she understands which actions her role permits and which require a higher role.",
+        "task": "For each action, predict whether Anya (Contributor) can perform it, or whether it requires a higher role (Member or Admin).",
+        "validationHint": "Contributor can create, edit, delete, and run items inside the workspace. Contributor cannot add or remove users (Member can), and cannot change workspace-level settings like capacity or Git integration (Admin can). The role hierarchy is Viewer < Contributor < Member < Admin."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F2-03-F1",
+            "type": "single_select",
+            "label": "Anya wants to create a new Notebook called nb_quality_checks inside ws_nordgrid_silver.",
+            "options": [
+              "Yes — Contributor can create items",
+              "No — creating items requires Member or higher",
+              "No — creating items requires Admin"
+            ],
+            "correctAnswer": "Yes — Contributor can create items",
+            "distractorRationale": "Options 2 and 3 overstate the privilege requirement. Creating items is the core Contributor capability — this is what Contributors exist for."
+          },
+          {
+            "id": "F2-03-F2",
+            "type": "single_select",
+            "label": "Anya wants to add her intern, Olav, to ws_nordgrid_silver as a Viewer so he can learn by watching her pipelines run.",
+            "options": [
+              "Yes — any team member can add users to the workspace",
+              "No — adding users requires Member or Admin",
+              "Yes — Contributor can add users with roles equal to or below their own"
+            ],
+            "correctAnswer": "No — adding users requires Member or Admin",
+            "distractorRationale": "Option 1 describes an open-access model that no enterprise platform uses. Option 3 invents a 'role hierarchy' rule that Fabric does not implement — Contributors cannot assign any role, not even below their own. User management starts at Member."
+          },
+          {
+            "id": "F2-03-F3",
+            "type": "single_select",
+            "label": "Anya wants to run nb_silver_transform to test a code change she just committed.",
+            "options": [
+              "Yes — Contributor can run items",
+              "No — running items requires Member",
+              "No — only Admin can trigger notebook runs"
+            ],
+            "correctAnswer": "Yes — Contributor can run items",
+            "distractorRationale": "Options 2 and 3 overstate the requirement. Running items is within Contributor rights. Even Viewer can run existing items. Contributor is well above what is needed for this action."
+          },
+          {
+            "id": "F2-03-F4",
+            "type": "single_select",
+            "label": "Anya notices that ws_nordgrid_silver is assigned to the small F2 capacity, but she thinks the Silver notebook would run faster on F4. She wants to reassign the workspace to a different capacity.",
+            "options": [
+              "Yes — Contributor can change capacity assignments",
+              "No — changing capacity requires Admin",
+              "No — changing capacity requires Member"
+            ],
+            "correctAnswer": "No — changing capacity requires Admin",
+            "distractorRationale": "Capacity assignment is a workspace-level setting that affects cost and shared compute across all workloads. Only Admin can modify it. Member can manage users and items but not capacity. Contributor can do neither."
+          },
+          {
+            "id": "F2-03-F5",
+            "type": "single_select",
+            "label": "Anya wants to delete a pipeline she created last week because she realized it was a duplicate of an existing one.",
+            "options": [
+              "Yes — Contributor can delete items they created",
+              "Yes — Contributor can delete any item in the workspace, regardless of who created it",
+              "No — only the original creator can delete an item",
+              "No — deletion requires Admin"
+            ],
+            "correctAnswer": "Yes — Contributor can delete any item in the workspace, regardless of who created it",
+            "distractorRationale": "Option 1 is partially right but too restrictive — Fabric does not scope delete rights to the creator. Option 3 invents a 'creator-only' rule that does not exist. Option 4 overstates the requirement. Contributor can delete any item in the workspace, which is why delete rights must be managed through role assignment, not through item ownership."
+          },
+          {
+            "id": "F2-03-F6",
+            "type": "single_select",
+            "label": "Anya wants to delete the entire ws_nordgrid_silver workspace because she thinks it's named incorrectly and wants to recreate it with a different name.",
+            "options": [
+              "Yes — Contributor can delete workspaces",
+              "No — only Admin can delete a workspace",
+              "No — only Member or Admin can delete a workspace",
+              "Yes — any role can delete a workspace if all items inside are deleted first"
+            ],
+            "correctAnswer": "No — only Admin can delete a workspace",
+            "distractorRationale": "Option 1 grants far too much power to Contributor — deleting a workspace would destroy all items inside, an action reserved for the highest role. Option 3 promotes Member to a deletion-capable role, which is incorrect. Option 4 invents a 'delete dependencies first' rule that Fabric does not use. Workspace deletion is strictly Admin-only."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F2-task-04",
+      "title": "Fix NordGrid's Naming Convention Violations",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's platform team has established a naming convention for workspaces and items. Workspaces follow the pattern ws_nordgrid_[layer] where layer is bronze, silver, or gold (e.g., ws_nordgrid_silver). Items within a workspace follow the pattern [type_prefix]_[descriptive_name] where the type prefix is one of: lh (Lakehouse), nb (Notebook), pl (Pipeline), df (Dataflow), dw (Warehouse), sm (Semantic Model). Names use lowercase letters, digits, and underscores only — no spaces, no hyphens, no camelCase, no uppercase.\n\nDuring a workspace audit, the platform team found six proposed names. Some follow the convention. Others violate it.",
+        "task": "For each proposed name, identify whether it is valid or — if invalid — which specific rule it violates.",
+        "validationHint": "Check each name against four rules: (1) workspaces use ws_nordgrid_[layer], (2) items use a type prefix followed by underscore followed by a descriptive name, (3) names are lowercase only, (4) names use letters, digits, and underscores only — no spaces, hyphens, or camelCase."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F2-04-F1",
+            "type": "single_select",
+            "label": "Proposed name: ws_nordgrid_silver (intended as a workspace)",
+            "options": [
+              "Valid — follows the ws_nordgrid_[layer] pattern correctly",
+              "Invalid — workspaces should not include the company name",
+              "Invalid — 'silver' should be capitalized"
+            ],
+            "correctAnswer": "Valid — follows the ws_nordgrid_[layer] pattern correctly",
+            "distractorRationale": "Option 2 contradicts the stated convention, which explicitly requires the nordgrid segment. Option 3 contradicts the lowercase rule. This name is the canonical example from the convention."
+          },
+          {
+            "id": "F2-04-F2",
+            "type": "single_select",
+            "label": "Proposed name: nb_Silver_Transform (intended as a notebook)",
+            "options": [
+              "Valid — uses the nb_ prefix and descriptive name",
+              "Invalid — contains uppercase letters; should be nb_silver_transform",
+              "Invalid — notebooks should use the notebook_ prefix, not nb_"
+            ],
+            "correctAnswer": "Invalid — contains uppercase letters; should be nb_silver_transform",
+            "distractorRationale": "Option 1 overlooks the case violation ('Silver' and 'Transform' are capitalized). Option 3 invents a 'notebook_' prefix that contradicts the stated convention, which uses nb_. The only violation is case."
+          },
+          {
+            "id": "F2-04-F3",
+            "type": "single_select",
+            "label": "Proposed name: Lakehouse Meter Readings (intended as a Lakehouse)",
+            "options": [
+              "Valid — descriptive and easy to read",
+              "Invalid — contains spaces and does not use the lh_ type prefix; should be lh_meter_readings",
+              "Invalid — only the spaces are a problem; 'Lakehouse Meter Readings' could be rewritten with underscores as Lakehouse_Meter_Readings"
+            ],
+            "correctAnswer": "Invalid — contains spaces and does not use the lh_ type prefix; should be lh_meter_readings",
+            "distractorRationale": "Option 1 ignores both the space violation and the missing prefix. Option 3 catches the space but misses the prefix requirement and keeps the uppercase violation — Lakehouse_Meter_Readings would still be invalid. The correct fix requires prefix, underscores, and lowercase."
+          },
+          {
+            "id": "F2-04-F4",
+            "type": "single_select",
+            "label": "Proposed name: pl-daily-ingest (intended as a pipeline)",
+            "options": [
+              "Valid — hyphens are a common separator",
+              "Invalid — names must use underscores only, not hyphens; should be pl_daily_ingest",
+              "Invalid — pipelines use the pipeline_ prefix, not pl_"
+            ],
+            "correctAnswer": "Invalid — names must use underscores only, not hyphens; should be pl_daily_ingest",
+            "distractorRationale": "Option 1 contradicts the explicit rule that names use letters, digits, and underscores only. Option 3 invents a prefix that the convention does not use. The only violation here is the hyphen separator."
+          },
+          {
+            "id": "F2-04-F5",
+            "type": "single_select",
+            "label": "Proposed name: dw_nordgrid_analytics (intended as a Warehouse)",
+            "options": [
+              "Valid — uses the dw_ prefix, lowercase, underscores",
+              "Invalid — Warehouses should be named by business area, not by company",
+              "Invalid — dw_ is the prefix for dataflow, not warehouse"
+            ],
+            "correctAnswer": "Valid — uses the dw_ prefix, lowercase, underscores",
+            "distractorRationale": "Option 2 invents a naming restriction that contradicts the convention. Option 3 is factually wrong — dw_ is the warehouse prefix; df_ is for dataflow. This name is valid."
+          },
+          {
+            "id": "F2-04-F6",
+            "type": "single_select",
+            "label": "Proposed name: nbSilverTransform2024 (intended as a notebook)",
+            "options": [
+              "Valid — uses nb prefix and is descriptive",
+              "Invalid — camelCase is not allowed; missing underscore after prefix; should be nb_silver_transform_2024",
+              "Invalid — digits are not allowed in item names"
+            ],
+            "correctAnswer": "Invalid — camelCase is not allowed; missing underscore after prefix; should be nb_silver_transform_2024",
+            "distractorRationale": "Option 1 ignores both the missing underscore after the prefix and the camelCase violation. Option 3 invents a rule — the convention explicitly allows digits alongside letters and underscores. The two violations are the missing underscore and the camelCase."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F2-task-05",
+      "title": "Predict the OneLake Catalog and Domain Behavior",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid has grown from one team to three business areas: Grid Operations (meter readings, SCADA telemetry), Corporate Finance (billing, revenue), and Asset Management (turbine maintenance, substation planning). The platform team organized workspaces into two domains: 'Grid Operations' and 'Corporate Finance'. Each domain contains multiple workspaces. A junior engineer is learning how the OneLake Catalog and domains behave across this structure.",
+        "task": "Predict what the junior engineer will see and be able to do in three scenarios involving the OneLake Catalog and domain organization.",
+        "validationHint": "The OneLake Catalog is the discovery experience — it lets users search across workspaces for items they have access to. Domains group workspaces by business area for decentralized ownership. Domains do not grant access automatically — workspace-level roles still govern who can see what."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F2-05-F1",
+            "type": "single_select",
+            "label": "The junior engineer searches the OneLake Catalog for 'meter readings' while logged in as a Contributor on ws_nordgrid_silver and a Viewer on ws_nordgrid_gold. They have no role on the Corporate Finance workspaces. What does the catalog show them?",
+            "options": [
+              "Every item in every workspace across the NordGrid tenant — the catalog is organization-wide",
+              "Only items in workspaces where they have a role (Silver and Gold), filtered by their search term",
+              "Only items in the Grid Operations domain, regardless of their role",
+              "Nothing — the catalog only shows items they created themselves"
+            ],
+            "correctAnswer": "Only items in workspaces where they have a role (Silver and Gold), filtered by their search term",
+            "distractorRationale": "Option 1 describes an insecure catalog that ignores permissions. Option 3 confuses domain organization with access control — domains group workspaces for governance but do not grant access. Option 4 describes a 'creator-only' catalog that would defeat the purpose of discovery. The catalog respects workspace roles."
+          },
+          {
+            "id": "F2-05-F2",
+            "type": "single_select",
+            "label": "NordGrid's platform team moves ws_nordgrid_silver from the Grid Operations domain into a new 'Core Data' domain. What changes for the engineers currently working in that workspace?",
+            "options": [
+              "They lose access and must be re-added by a workspace admin",
+              "All their items are moved to the new domain and may have broken references",
+              "They keep their roles and access; only the domain assignment changes for governance and organizational grouping",
+              "Their workspace is renamed automatically to reflect the new domain"
+            ],
+            "correctAnswer": "They keep their roles and access; only the domain assignment changes for governance and organizational grouping",
+            "distractorRationale": "Option 1 confuses domain reassignment with workspace deletion. Option 2 misunderstands domains — they do not physically move items; they are a governance grouping. Option 4 invents an auto-rename feature. Domain reassignment is a governance operation that preserves all existing access and content."
+          },
+          {
+            "id": "F2-05-F3",
+            "type": "single_select",
+            "label": "NordGrid's Grid Operations domain owner wants to enforce that every workspace in the Grid Operations domain has Git integration enabled and uses a specific Spark compute default. Where should these settings be configured?",
+            "options": [
+              "At the tenant level — it affects the whole organization",
+              "At each workspace individually — there is no way to enforce workspace defaults from a domain",
+              "At the workspace level by the workspace admin — the platform team configures these settings on each workspace, and the domain provides the governance context for why the settings were chosen",
+              "At the item level — each notebook and pipeline sets its own Git integration"
+            ],
+            "correctAnswer": "At the workspace level by the workspace admin — the platform team configures these settings on each workspace, and the domain provides the governance context for why the settings were chosen",
+            "distractorRationale": "Option 1 overstates domain reach — tenant-level settings affect all domains, not just one. Option 2 is pessimistic but technically correct that workspace settings are set per-workspace; however, it misses the governance point that the domain is where the policy is established. Option 4 misplaces the setting — Git integration is a workspace-level, not item-level, configuration. The correct answer recognizes that the technical setting is applied per-workspace by admins, while the domain provides the organizational policy that makes each admin apply the same settings."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F2-task-06",
+      "title": "Design NordGrid's Complete Workspace Inventory",
+      "type": "concept_identification",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's platform team is provisioning the complete workspace structure for the data engineering team. The structure follows the medallion pattern: three workspaces (Bronze, Silver, Gold), each containing the items needed for its layer. The team lead, Mikael, needs Admin rights on all three. Ingrid (senior engineer) and Anya (junior engineer) need Contributor rights on all three so they can develop and test across layers. Lars (billing analyst) needs Viewer rights on Gold only.\n\nThis task walks through the complete design: workspace names, the items in each workspace, and the role assignments.",
+        "task": "Answer six questions that together specify the complete NordGrid workspace inventory.",
+        "validationHint": "Apply the naming convention (ws_nordgrid_[layer], item type prefixes, lowercase, underscores). Match items to layers (raw ingestion → Bronze, transformation code → Silver, aggregation Warehouse → Gold). Assign least-privilege roles based on each person's responsibilities."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F2-06-F1",
+            "type": "single_select",
+            "label": "What is the correct name for the Gold-layer workspace?",
+            "options": [
+              "ws_nordgrid_gold",
+              "ws_gold_nordgrid",
+              "nordgrid_ws_gold",
+              "ws_Gold_NordGrid"
+            ],
+            "correctAnswer": "ws_nordgrid_gold",
+            "distractorRationale": "Option 2 reorders the segments — the convention is ws_nordgrid_[layer], not ws_[layer]_nordgrid. Option 3 puts 'ws' in the middle, breaking the pattern. Option 4 violates the lowercase rule."
+          },
+          {
+            "id": "F2-06-F2",
+            "type": "single_select",
+            "label": "The Bronze workspace needs a Lakehouse to store raw CSV files from the external SFTP server and a pipeline to copy the files into it daily. What is the correct set of items?",
+            "options": [
+              "lh_meter_readings and pl_daily_ingest",
+              "lh_bronze_readings and pipeline_daily_ingest",
+              "bronze_lakehouse and bronze_pipeline",
+              "nb_ingest and lh_bronze"
+            ],
+            "correctAnswer": "lh_meter_readings and pl_daily_ingest",
+            "distractorRationale": "Option 2 uses pipeline_ instead of the pl_ prefix. Option 3 omits the type prefixes and uses descriptive-only names without the convention. Option 4 introduces a notebook where a pipeline is needed (copy activities live in pipelines, not notebooks). Option 1 follows the convention and assigns items correctly — ingest is a pipeline responsibility, and the Lakehouse name describes its content, not its layer."
+          },
+          {
+            "id": "F2-06-F3",
+            "type": "single_select",
+            "label": "The Silver workspace needs a Lakehouse for validated Delta tables and a notebook that reads from Bronze, validates the schema, filters invalid rows, deduplicates, and writes to the Silver Lakehouse. What is the correct set of items?",
+            "options": [
+              "lh_meter_readings and nb_silver_transform",
+              "lh_silver and df_silver_transform",
+              "warehouse_silver and nb_transform",
+              "lh_meter_readings and pl_silver_transform"
+            ],
+            "correctAnswer": "lh_meter_readings and nb_silver_transform",
+            "distractorRationale": "Option 2 uses a Dataflow (df_) where a PySpark notebook is needed — validation, deduplication, and schema enforcement are notebook work, not low-code Power Query. Option 3 uses a Warehouse (which cannot store the Delta tables written by notebooks in the same way) and omits the prefix. Option 4 uses a Pipeline where a Notebook is needed — the scenario describes code-driven transformation, which is a notebook responsibility. Note that lh_meter_readings is reused across Bronze and Silver: each workspace has its own Lakehouse with the same name, scoped to that workspace."
+          },
+          {
+            "id": "F2-06-F4",
+            "type": "single_select",
+            "label": "The Gold workspace needs to serve pre-computed monthly regional aggregates to NordGrid's reporting team. Analysts need to write ad-hoc T-SQL queries against the same store, and the reporting team maintains summary tables that require INSERT and UPDATE support. Which item type belongs in Gold?",
+            "options": [
+              "A Lakehouse — because Gold data should be stored as Delta tables",
+              "A Warehouse (dw_nordgrid_analytics) — because it supports read-write T-SQL and ad-hoc analyst queries",
+              "A Dataflow — because aggregations are a low-code operation",
+              "A Semantic Model — because Gold data is served to Power BI"
+            ],
+            "correctAnswer": "A Warehouse (dw_nordgrid_analytics) — because it supports read-write T-SQL and ad-hoc analyst queries",
+            "distractorRationale": "Option 1 ignores the INSERT/UPDATE requirement — a Lakehouse's SQL endpoint is read-only. Option 3 misidentifies dataflows as aggregation tools at the storage layer. Option 4 confuses the business layer (Semantic Model) with the store (Warehouse); Semantic Model can sit on top, but the store that supports read-write T-SQL is the Warehouse."
+          },
+          {
+            "id": "F2-06-F5",
+            "type": "single_select",
+            "label": "Mikael (team lead), Ingrid (senior engineer), Anya (junior engineer), and Lars (billing analyst) need access. Mikael manages the team and must add/remove users on all three workspaces. Ingrid and Anya develop items across all three. Lars needs read-only access to Gold only. Which role assignment for ws_nordgrid_gold is correct?",
+            "options": [
+              "Mikael: Admin, Ingrid: Contributor, Anya: Contributor, Lars: Viewer",
+              "Mikael: Member, Ingrid: Contributor, Anya: Contributor, Lars: Viewer",
+              "Mikael: Admin, Ingrid: Admin, Anya: Contributor, Lars: Contributor",
+              "Mikael: Admin, Ingrid: Member, Anya: Viewer, Lars: Viewer"
+            ],
+            "correctAnswer": "Mikael: Member, Ingrid: Contributor, Anya: Contributor, Lars: Viewer",
+            "distractorRationale": "Option 1 grants Mikael Admin, but the scenario reserves workspace-level configuration (capacity, Git) for the platform team, not the team lead — Member is the correct least-privilege role for 'manage users and content, not workspace settings.' Option 3 grants Ingrid Admin (too much) and Lars Contributor (write access he should not have). Option 4 demotes Ingrid to Member (wrong — she develops items, which is Contributor work) and Anya to Viewer (wrong — she also develops items)."
+          },
+          {
+            "id": "F2-06-F6",
+            "type": "single_select",
+            "label": "Looking at the complete inventory — 3 workspaces (ws_nordgrid_bronze, ws_nordgrid_silver, ws_nordgrid_gold), Bronze containing lh_meter_readings + pl_daily_ingest, Silver containing lh_meter_readings + nb_silver_transform, Gold containing dw_nordgrid_analytics — which domain should these workspaces be grouped into?",
+            "options": [
+              "Each workspace in its own domain — one domain per medallion layer",
+              "All three workspaces in a single 'Grid Operations' domain, because they share a business area (grid operations) even though they serve different medallion layers",
+              "All three workspaces in a 'Medallion' domain that groups them by architecture pattern",
+              "Workspaces do not need domain assignments — domains are optional organizational metadata"
+            ],
+            "correctAnswer": "All three workspaces in a single 'Grid Operations' domain, because they share a business area (grid operations) even though they serve different medallion layers",
+            "distractorRationale": "Option 1 confuses medallion layers (a data architecture pattern) with domains (a business area grouping). Option 3 groups by architecture pattern, missing the purpose of domains — which is to reflect organizational ownership, not technical structure. Option 4 is technically true that domains can be left unassigned, but the question asks which grouping is correct, and the Grid Operations business area is the right answer per the theory. Domains reflect business areas; all three NordGrid layer workspaces belong to Grid Operations."
+          }
+        ]
+      },
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Workspace naming convention (Lesson 3)",
+          "Workspace roles and least privilege (Lesson 4)",
+          "Fabric item types and their purposes (Lesson 5, 6)",
+          "Matching item types to workflow responsibilities — Pipeline for ingestion, Notebook for transformation, Warehouse for read-write SQL (Lesson 5)",
+          "Domains as business-area grouping, not architecture or layer grouping (Lesson 9)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This task synthesizes the entire module by requiring the student to build NordGrid's complete workspace inventory from scratch. Each field tests a different concept: naming convention (F1), item-to-responsibility matching (F2, F3, F4), role assignment with least privilege (F5), and domain grouping by business area (F6). A student who understands any one concept in isolation cannot complete this task — they must apply all five concepts together. This mirrors the real-world activity the student will perform when joining a Fabric team: understanding the workspace layout, their role in it, and why it was designed that way."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Applied. Module F2 is entirely UI/organizational — it teaches the portal, workspaces, roles, items, catalog, and domains. No code is introduced until Module F5. The practice set uses 3 concept identification + 3 output prediction tasks with zero write-the-code tasks, exceeding the normal §4.2 max of 2 per task type under §4.3. The synthesis task (F2-task-06) is typed as concept_identification but serves the synthesis role, combining 5 concepts from across the module's 10 lessons into a complete workspace inventory design.",
+    "theoryPracticeBoundary": "The theory walks through NordGrid's canonical workspace structure (ws_nordgrid_bronze/silver/gold) as the running example in Lessons 3 and 10. The practice tasks use the same workspace names but test application: assigning roles to new team members not shown in the theory (Task 1), identifying items from functional descriptions rather than names (Task 2), predicting role capabilities for a specific new hire (Task 3), validating naming against the convention for names not shown in the theory (Task 4), predicting catalog and domain behavior in multi-domain scenarios extending beyond the theory's single-domain example (Task 5), and building the complete inventory from scratch (Task 6). Tasks apply the concepts to new scenarios rather than recalling the theory's examples.",
+    "crossModuleNotes": "Module F2 introduces item types (Lakehouse, Notebook, Pipeline, Dataflow, Warehouse, Semantic Model) at an identification level — the student learns what each item is for, not how to use it. The practice respects this boundary: tasks ask 'which item type' (F2 scope) but never 'write code in a notebook' (F5 scope) or 'configure Lakehouse Files/Tables sections' (F4 scope). Task 6 mentions the Bronze Lakehouse, Silver Lakehouse with Delta tables, and Gold Warehouse, but only at the level F2 establishes: what each item is for. The student does not need to know how Delta tables work (F3), how to create a Lakehouse (F4), or how notebooks work (F5).",
+    "datasetNotes": "No datasets. All 6 tasks are template-based. F1 and F2 are the only practice sets in the Fabric junior track with zero datasets, reflecting that both Foundation modules are entirely conceptual."
+  }
+}

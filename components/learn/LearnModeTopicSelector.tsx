@@ -9,7 +9,7 @@ import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { CATEGORY_COLORS, type CategoryName } from '@/components/home/orbitalMapData';
 
 type LearnMode = 'theory';
-type TopicFilter = 'all' | 'in-progress' | 'completed' | 'untouched';
+type TopicFilter = 'all' | 'in-progress' | 'completed' | 'untouched' | 'under-construction';
 type SortOption = 'modules-desc' | 'modules-asc' | 'name-asc' | 'name-desc' | 'progress-desc' | 'progress-asc';
 
 const SORT_OPTIONS: Array<{ id: SortOption; label: string }> = [
@@ -24,6 +24,7 @@ const TOPIC_FILTERS: Array<{ id: TopicFilter; label: string }> = [
   { id: 'in-progress', label: 'In Progress' },
   { id: 'completed', label: 'Completed' },
   { id: 'untouched', label: 'Untouched' },
+  { id: 'under-construction', label: 'Under Construction' },
 ];
 
 interface LearnModeTopicSelectorProps {
@@ -128,11 +129,12 @@ export function LearnModeTopicSelector({
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
 
   const topicStatuses = useMemo(() => {
-    const statuses: Record<string, 'completed' | 'in-progress' | 'untouched'> = {};
+    const statuses: Record<string, 'completed' | 'in-progress' | 'untouched' | 'under-construction'> = {};
     for (const t of orderedTopics) {
       const completed = completedChapterCountByTopic[t.id] ?? 0;
-      const total = chapterCountByTopic[t.id] ?? 0;
-      if (total > 0 && completed >= total) statuses[t.id] = 'completed';
+      const total = chapterCountByTopic[t.id] ?? t.chapterCount ?? 0;
+      if (total === 0) statuses[t.id] = 'under-construction';
+      else if (completed >= total) statuses[t.id] = 'completed';
       else if (completed > 0) statuses[t.id] = 'in-progress';
       else statuses[t.id] = 'untouched';
     }
@@ -157,12 +159,16 @@ export function LearnModeTopicSelector({
       result = result.filter((t) => topicStatuses[t.id] === topicFilter);
     }
 
-    // Sort
+    // Sort — always push topics with no content to the end
     result = [...result].sort((a, b) => {
-      const aCompleted = completedChapterCountByTopic[a.id] ?? 0;
-      const bCompleted = completedChapterCountByTopic[b.id] ?? 0;
       const aTotal = chapterCountByTopic[a.id] ?? a.chapterCount;
       const bTotal = chapterCountByTopic[b.id] ?? b.chapterCount;
+      const aHasContent = aTotal > 0 ? 0 : 1;
+      const bHasContent = bTotal > 0 ? 0 : 1;
+      if (aHasContent !== bHasContent) return aHasContent - bHasContent;
+
+      const aCompleted = completedChapterCountByTopic[a.id] ?? 0;
+      const bCompleted = completedChapterCountByTopic[b.id] ?? 0;
       const aPct = aTotal > 0 ? aCompleted / aTotal : 0;
       const bPct = bTotal > 0 ? bCompleted / bTotal : 0;
 
@@ -200,6 +206,7 @@ export function LearnModeTopicSelector({
       'in-progress': base.filter((t) => topicStatuses[t.id] === 'in-progress').length,
       completed: base.filter((t) => topicStatuses[t.id] === 'completed').length,
       untouched: base.filter((t) => topicStatuses[t.id] === 'untouched').length,
+      'under-construction': base.filter((t) => topicStatuses[t.id] === 'under-construction').length,
     };
   }, [orderedTopics, topicStatuses, themeFilter, searchQuery]);
 
@@ -208,21 +215,13 @@ export function LearnModeTopicSelector({
       <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Page header — matches Stitch Theory Hub */}
         <header className="mb-12 border-l-2 border-primary pl-6" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}>
-          <h1 className="font-headline text-5xl font-extrabold tracking-tighter text-on-surface uppercase mb-2">
+          <h1 className="text-5xl font-extrabold tracking-tighter text-on-surface uppercase mb-2">
             Theory <span className="text-primary">Hub</span>
           </h1>
-          <div className="flex items-center gap-4 font-mono text-xs text-on-surface-variant">
-            <span className="bg-primary/10 text-primary px-2 py-0.5 border border-primary/20">
-              SYSTEM_READY
-            </span>
-            <span className="tracking-widest uppercase">
-              Select a track to begin deep learning protocols.
-            </span>
-          </div>
         </header>
 
         {/* Filters */}
-        <div className="mb-10 inline-flex flex-col rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl overflow-hidden" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards' }}>
+        <div className="mb-10 inline-flex flex-col rounded-[22px] border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl overflow-hidden" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards' }}>
           {/* Row 0: Search */}
           <div className="flex items-center gap-3 px-4 py-2.5">
             <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30 w-14">
@@ -371,35 +370,31 @@ export function LearnModeTopicSelector({
               const hasContent = totalTopicChapters > 0;
               const accent = `rgb(${style.accentRgb})`;
               const accentDim = `rgba(${style.accentRgb},0.15)`;
-              const borderAccent = `rgba(${style.accentRgb},0.2)`;
-              const borderAccentInner = `rgba(${style.accentRgb},0.1)`;
+              const borderAccent = 'rgba(255,255,255,0.06)';
+              const borderAccentInner = 'rgba(255,255,255,0.04)';
 
               const wrapperClassName = `group h-full ${hasContent ? '' : 'cursor-default'}`;
               const wrapperKey = `${mode}-${topic.id}`;
               const staggerDelay = index * 80;
               const cardInner = (
                   <section
-                    className="bg-surface-container-low p-1 relative overflow-hidden transition-all duration-300 h-full"
+                    className="bg-[#111416] relative overflow-hidden transition-all duration-300 h-full rounded-[22px]"
                     style={{
                       border: `1px solid ${borderAccent}`,
                       opacity: 0,
                       animation: `fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${staggerDelay + 100}ms forwards`,
                     }}
-                    onMouseEnter={(e) => { if (hasContent) { e.currentTarget.style.boxShadow = `0 0 30px rgba(${style.accentRgb},0.15)`; e.currentTarget.style.borderColor = `rgba(${style.accentRgb},0.4)`; e.currentTarget.style.transform = 'scale(1.02)'; } }}
+                    onMouseEnter={(e) => { if (hasContent) { e.currentTarget.style.boxShadow = '0 0 30px rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.transform = 'scale(1.02)'; } }}
                     onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = borderAccent; e.currentTarget.style.transform = 'scale(1)'; }}
                   >
-                    <div className="absolute top-0 right-0 p-2 text-[10px] font-mono" style={{ color: `rgba(${style.accentRgb},0.3)` }}>
-                      ID: TR-{String(index + 1).padStart(2, '0')}
-                    </div>
                     <div
-                      className="p-6 h-full flex flex-col relative bg-surface-container-low"
-                      style={{ border: `1px solid ${borderAccentInner}` }}
+                      className="p-6 h-full flex flex-col relative"
                     >
                       {/* Icon + badge */}
                       <div className="mb-6 flex justify-between items-start">
                         <div
-                          className="w-12 h-12 flex items-center justify-center"
-                          style={{ backgroundColor: accentDim, border: `1px solid ${borderAccent}` }}
+                          className="w-12 h-12 flex items-center justify-center rounded-[14px]"
+                          style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                         >
                           <Image
                             src={trackIconSrc}
@@ -413,7 +408,7 @@ export function LearnModeTopicSelector({
                           const catRgb = CATEGORY_COLORS[meta.category as CategoryName] ?? style.accentRgb;
                           return (
                             <span
-                              className="font-mono text-[10px] px-2 py-0.5 uppercase"
+                              className="font-mono text-[10px] px-2 py-0.5 uppercase rounded-full"
                               style={{ color: `rgb(${catRgb})`, border: `1px solid rgba(${catRgb},0.3)`, backgroundColor: `rgba(${catRgb},0.06)` }}
                             >
                               {meta.category}
@@ -423,7 +418,7 @@ export function LearnModeTopicSelector({
                       </div>
 
                       {/* Title + description */}
-                      <h3 className="font-headline text-2xl font-bold mb-3 tracking-tight uppercase">
+                      <h3 className="text-2xl font-bold mb-3 tracking-tight uppercase">
                         {getSimpleTrackName(topic.title)}
                       </h3>
                       <p className="text-on-surface-variant text-sm font-body mb-8 leading-relaxed">
@@ -435,46 +430,39 @@ export function LearnModeTopicSelector({
                         {hasContent ? (
                           <>
                             <div className="flex justify-between items-end mb-2">
-                              <span className="font-mono text-[10px] text-on-surface-variant">
-                                SYNC STATUS
+                              <span className="font-mono text-[10px] text-on-surface-variant/35 uppercase tracking-widest">
+                                Progress
                               </span>
-                              <span className="font-mono text-sm font-bold" style={{ color: accent }}>
+                              <span className="font-mono text-sm font-bold" style={{ color: '#99f7ff' }}>
                                 {topicProgressPct}%
                               </span>
                             </div>
 
-                            {/* Battery bar */}
-                            <div className="flex items-center gap-1 mb-8">
-                              <div
-                                className="w-1.5 h-3"
-                                style={{ backgroundColor: `rgba(${style.accentRgb},0.3)` }}
-                              />
-                              <div
-                                className="flex-1 flex gap-0.5 p-1"
-                                style={{ border: `2px solid rgba(${style.accentRgb},0.2)`, backgroundColor: 'rgba(0,0,0,0.3)' }}
-                              >
-                                {Array.from({ length: 10 }, (_, i) => (
-                                  <div
-                                    key={i}
-                                    className="flex-1 h-3"
-                                    style={{
-                                      backgroundColor: i < filledBlocks ? accent : `rgba(${style.accentRgb},0.1)`,
-                                      border: i >= filledBlocks ? `1px solid rgba(${style.accentRgb},0.1)` : 'none',
-                                      boxShadow: i < filledBlocks ? `0 0 6px rgba(${style.accentRgb},0.3)` : 'none',
-                                      opacity: 0,
-                                      animation: `fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) ${staggerDelay + 300 + i * 40}ms forwards`,
-                                    }}
-                                  />
-                                ))}
-                              </div>
+                            {/* Segmented progress bar */}
+                            <div className="flex gap-[3px] mb-8">
+                              {Array.from({ length: 10 }, (_, i) => (
+                                <div
+                                  key={i}
+                                  className="flex-1 h-[7px] rounded-[1px]"
+                                  style={{
+                                    backgroundColor: i < filledBlocks
+                                      ? `rgba(153,247,255,${0.55 + (i / 10) * 0.45})`
+                                      : 'rgba(255,255,255,0.04)',
+                                    boxShadow: i === filledBlocks - 1 && filledBlocks > 0
+                                      ? '0 0 6px rgba(153,247,255,0.4)' : 'none',
+                                    opacity: 0,
+                                    animation: `fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) ${staggerDelay + 300 + i * 40}ms forwards`,
+                                  }}
+                                />
+                              ))}
                             </div>
 
                             {/* CTA */}
                             {completedTopicChapters > 0 ? (
                               <div
-                                className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase"
+                                className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase rounded-[14px]"
                                 style={{
-                                  backgroundColor: accent,
+                                  backgroundColor: '#99f7ff',
                                   color: '#0c0e10'
                                 }}
                               >
@@ -482,10 +470,10 @@ export function LearnModeTopicSelector({
                               </div>
                             ) : (
                               <div
-                                className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase"
+                                className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase rounded-[14px]"
                                 style={{
-                                  border: `1px solid ${accent}`,
-                                  color: accent
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  color: '#99f7ff'
                                 }}
                               >
                                 Initialize Track
@@ -578,7 +566,7 @@ export function LearnModeTopicSelector({
                   <div className="text-[10px] font-mono text-on-surface-variant uppercase">
                     {getSimpleTrackName(topic.title)}
                   </div>
-                  <div className="text-xl font-headline font-bold">
+                  <div className="text-xl font-bold">
                     {completedTopicChapters} / {totalTopicChapters}
                   </div>
                 </div>

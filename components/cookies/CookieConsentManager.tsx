@@ -337,9 +337,9 @@ export function CookieConsentManager() {
                     role="switch"
                     aria-checked="true"
                     disabled
-                    className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-emerald-500/25 border border-emerald-500/20 transition"
+                    className="relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full p-[2px] bg-[#99f7ff] transition"
                   >
-                    <span className="inline-block h-4 w-4 translate-x-[1.375rem] rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.3)] transition-transform" />
+                    <span className="inline-block h-[18px] w-[18px] translate-x-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-transform" />
                     <span className="sr-only">Necessary cookies always active</span>
                   </button>
                 </div>
@@ -379,17 +379,17 @@ export function CookieConsentManager() {
                             })
                           );
                         }}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
+                        className={`relative inline-flex h-[22px] w-[38px] shrink-0 cursor-pointer items-center rounded-full p-[2px] transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                           draftConsent[category]
-                            ? 'border-emerald-500/20 bg-emerald-500/25'
-                            : 'border-white/[0.08] bg-white/[0.04]'
+                            ? 'bg-[#99f7ff]'
+                            : 'bg-white/[0.08]'
                         }`}
                       >
                         <span
-                          className={`inline-block h-4 w-4 rounded-full shadow-sm transition-all ${
+                          className={`block h-[18px] w-[18px] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-transform duration-200 ease-in-out ${
                             draftConsent[category]
-                              ? 'translate-x-[1.375rem] bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.3)]'
-                              : 'translate-x-[0.2rem] bg-white/30'
+                              ? 'translate-x-4'
+                              : 'translate-x-0'
                           }`}
                         />
                       </button>

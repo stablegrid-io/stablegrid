@@ -1,0 +1,494 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FI2 — Advanced Delta Lake Operations",
+  "description": "Master Delta Lake's production patterns: diagnose a slow MERGE caused by an unfiltered source, implement an idempotent daily upsert that produces the same result on re-run, classify schema changes as safe or breaking, diagnose a VACUUM failure caused by retention rules, recover a Silver table from a bad pipeline run using time-travel restoration, and design NordGrid's complete Delta maintenance schedule combining OPTIMIZE, VACUUM, Z-ORDER, and the schema change workflow.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / Delta Lake 3.0+",
+  "metadata": {
+    "moduleId": "module-FI2",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 75,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, F64 capacity, 9 workspaces",
+    "modulePhase": "performance_patterns",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 3,
+      "fixImplementation": 2,
+      "refactoring": 0,
+      "diagnosticWorkflow": 1
+    },
+    "calibrationNotes": "Second Fabric mid-level practice set. The grading challenge: Delta Lake's MERGE INTO, OPTIMIZE, VACUUM, and time travel commands are not available in a vanilla PySpark sandbox without delta-spark installed. This practice set uses two equivalence patterns explicitly noted in the scaffolds: (1) MERGE INTO is simulated as anti-join + union (existing.join(batch_keys, leftanti).unionByName(batch)) — this produces the same final state and tests the upsert semantics, even though the syntax differs from production Delta. (2) Time-travel recovery is simulated by providing the previous version as a separate CSV — students read the v11 file and overwrite the current table, which mirrors the conceptual workflow of RESTORE TABLE ... VERSION AS OF 11. Diagnostic tasks (1, 3, 4) are pure templates with inline evidence (MERGE execution summary, schema change list, VACUUM error message). The synthesis task uses combined grading per section 5.2: 4 template fields (50%) plus a configuration artifact (50%) specifying the maintenance schedule as a Python dict."
+  },
+  "datasets": [
+    {
+      "id": "FI2_data_existing",
+      "file": "FI2_data_existing.csv",
+      "description": "NordGrid Silver readings for 2026-04-08 — the existing Delta table state before today's MERGE. 50 rows (M-0001 to M-0050) across 12 regions, all with valid daily_kw values in the 1000-2400 range. Used by Task 2 as the MERGE target and by Task 5 as the 'good v11' that recovery restores from.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FI2-task-02", "module-FI2-task-05"]
+    },
+    {
+      "id": "FI2_data_batch",
+      "file": "FI2_data_batch.csv",
+      "description": "Today's incremental batch for the MERGE. 30 rows: 10 corrections to existing meters (M-0001 to M-0010, with daily_kw 500 higher than the existing values — these test that MERGE updates existing rows) and 20 new meters (M-0051 to M-0070 — these test that MERGE inserts new rows). After MERGE: 50 - 10 (matched) + 30 (all batch) = 70 rows.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FI2-task-02"]
+    },
+    {
+      "id": "FI2_data_existing_v12",
+      "file": "FI2_data_existing_v12.csv",
+      "description": "The bad version (v12) of the Silver readings table after a buggy pipeline run. Same 50 keys as FI2_data_existing.csv, but 5 specific meters (M-0011 to M-0015) have daily_kw values multiplied by 100 — the symptom of the bad pipeline. Used by Task 5 as the 'bad current state' that the student rolls back from.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FI2-task-05"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FI2-task-01",
+      "title": "Diagnose a Slow MERGE",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's daily MERGE into the Silver readings table runs every morning at 02:30 UTC. Last week, runtime jumped from 90 seconds to 600 seconds. The data engineer captured the MERGE statement and the execution summary from the Fabric monitoring hub:\n\n  MERGE INTO readings_silver AS target\n  USING readings_batch AS source\n  ON target.meter_id = source.meter_id\n     AND target.date = source.date\n  WHEN MATCHED THEN\n    UPDATE SET target.daily_kw = source.daily_kw\n  WHEN NOT MATCHED THEN\n    INSERT *\n\n  EXECUTION SUMMARY (run on 2026-04-08)\n  ----------------------------------------\n  Total runtime:           600 seconds  (was 90 seconds last month)\n  Source DataFrame rows:   1,200,000  <-- full daily file, no filter\n  Target table rows:       180,000,000  <-- 5 months of accumulated readings\n  Target rows matched:     45,000\n  Target rows inserted:    1,200\n  Target rows unchanged:   179,953,800\n  Files rewritten:         1,150 of 1,200  (96%)\n  Shuffle volume:          18 GB\n  Spilled to disk:         4.2 GB\n\nThe MERGE only needs to update 45,000 rows and insert 1,200 — yet it rewrites 96% of the target's files and shuffles 18 GB. The data engineer suspects the MERGE is doing dramatically more work than necessary.",
+        "task": "Diagnose why the MERGE is rewriting almost the entire target table even though only 46,200 rows need to change.",
+        "validationHint": "The fix is partition pruning. The match condition includes target.date = source.date, but neither side is pre-filtered to today's date — so Delta has no way to know it only needs the 2026-04-08 partition. Pre-filtering the source to today's date (and ideally the target query hint) lets Delta prune all other date partitions and rewrite only today's files."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI2-01-F1",
+            "type": "single_select",
+            "label": "What does the 'Files rewritten: 1,150 of 1,200 (96%)' metric tell you about how Delta is processing this MERGE?",
+            "options": [
+              "Delta is rewriting nearly every file in the target — the 5 months of historical data are being touched even though only today's date should be affected",
+              "Delta is correctly rewriting only the files that contain matched rows",
+              "The metric is misleading — file count is unrelated to MERGE work",
+              "Delta requires rewriting all files for any MERGE operation"
+            ],
+            "correctAnswer": "Delta is rewriting nearly every file in the target — the 5 months of historical data are being touched even though only today's date should be affected",
+            "rationale": "96% of files rewritten when only 0.025% of rows actually changed (46,200 / 180M) is the smoking gun. Delta should rewrite only the files that contain rows matching today's date — ideally just today's partition. The fact that 1,150 of 1,200 files are being rewritten means the MERGE is touching files across many date partitions, not just today's."
+          },
+          {
+            "id": "FI2-01-F2",
+            "type": "single_select",
+            "label": "Why is the source DataFrame size (1.2M rows) a problem for this MERGE?",
+            "options": [
+              "MERGE compares every source row against the target — a 1.2M-row source against a 180M-row target produces a massive shuffle even though only 46,200 rows actually change. Pre-filtering the source to just today's date would shrink the comparison set to ~46,200 rows",
+              "1.2M rows is too small — MERGE works better on larger datasets",
+              "The source size does not affect MERGE performance",
+              "1.2M rows exceeds Delta's MERGE row limit"
+            ],
+            "correctAnswer": "MERGE compares every source row against the target — a 1.2M-row source against a 180M-row target produces a massive shuffle even though only 46,200 rows actually change. Pre-filtering the source to just today's date would shrink the comparison set to ~46,200 rows",
+            "rationale": "MERGE shuffles both source and target on the join keys. A 1.2M-row source against a 180M-row target means Delta has to consider every source row against every target row in the matched partitions. Pre-filtering the source eliminates 96% of the source rows that aren't relevant to today's update."
+          },
+          {
+            "id": "FI2-01-F3",
+            "type": "single_select",
+            "label": "What is the most effective fix for this MERGE?",
+            "options": [
+              "Pre-filter the source to today's date BEFORE the MERGE: source_today = source.filter(col('date') == '2026-04-08'). This combined with the existing 'target.date = source.date' match condition lets Delta partition-prune the target to only today's partition",
+              "Disable shuffle entirely with spark.conf.set('spark.sql.shuffle.partitions', '1')",
+              "Switch from MERGE to INSERT INTO ... ON CONFLICT",
+              "Increase the cluster size to handle the 18 GB shuffle"
+            ],
+            "correctAnswer": "Pre-filter the source to today's date BEFORE the MERGE: source_today = source.filter(col('date') == '2026-04-08'). This combined with the existing 'target.date = source.date' match condition lets Delta partition-prune the target to only today's partition",
+            "rationale": "The structural fix is dynamic partition pruning. With both sides constrained to today's date, Delta knows to scan and rewrite only today's partition (~46,200 rows out of 180M). Distractor B breaks parallelism. Distractor C invents non-existent syntax. Distractor D treats the symptom (large shuffle) instead of the cause (no pruning)."
+          },
+          {
+            "id": "FI2-01-F4",
+            "type": "numeric",
+            "label": "After the fix, approximately how many target rows should the MERGE actually rewrite (rows matched + rows inserted)?",
+            "correctAnswer": 46200,
+            "tolerance": 1000,
+            "rationale": "45,000 matched + 1,200 inserted = 46,200 rows that actually change. Delta will rewrite the files containing these rows (likely a subset of today's partition's files), not the 96% of files it currently touches. The expected file count drop is from 1,150 to ~5-10."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI2-task-02",
+      "title": "Implement an Idempotent Daily MERGE",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's Bronze-to-Silver promotion needs to be idempotent: if the daily pipeline fails halfway and reruns, the final Silver state must be the same as if it had run once. The current implementation uses df.write.mode('append'), which creates duplicates on rerun. Your task is to replace it with the upsert pattern.\n\nIN PRODUCTION FABRIC, this is a single MERGE INTO statement:\n\n  MERGE INTO readings_silver AS target\n  USING readings_batch AS source\n  ON target.meter_id = source.meter_id AND target.date = source.date\n  WHEN MATCHED THEN UPDATE SET target.daily_kw = source.daily_kw\n  WHEN NOT MATCHED THEN INSERT *\n\nThe local practice environment does not have Delta Lake installed, so you cannot run MERGE INTO. Instead, you will simulate the same upsert semantics with anti-join + union — the standard PySpark pattern that produces identical final state to MERGE.",
+        "task": "Read both CSVs. Build df_merged by applying the upsert pattern: (1) anti-join existing against batch on (meter_id, date) to keep only the existing rows whose key is NOT in the batch, then (2) union with all batch rows. Store the row count in merged_count and verify idempotency by running the same merge AGAIN against df_merged with the same batch — the result should still be 70 rows. Store the second-merge count in idempotent_count.",
+        "validationHint": "Pattern: existing.join(batch.select('meter_id', 'date'), ['meter_id', 'date'], 'leftanti').unionByName(batch). Expected merged_count: 70 (50 existing - 10 matched + 30 batch). Expected idempotent_count: 70 (re-running with the same batch removes the same 10 keys and re-adds the same 30 rows). Also verify M-0001's daily_kw was updated: it should now be 1500.0 (the batch value), not 1100.0 (the original existing value)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI2 Lessons 2-3: MERGE upsert pattern with idempotency.\n# In production Fabric/Delta, this is one MERGE INTO statement (see task description).\n# Locally, we simulate with anti-join + union — produces the same final state.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-idempotent-merge') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_existing = spark.read.csv('FI2_data_existing.csv', header=True, inferSchema=True)\ndf_batch = spark.read.csv('FI2_data_batch.csv', header=True, inferSchema=True)\nprint(f\"Existing (target): {df_existing.count()} rows\")\nprint(f\"Batch (source):    {df_batch.count()} rows\")\n\n# YOUR SOLUTION BELOW\n# Step 1: Apply the upsert pattern to produce df_merged.\n#   - Anti-join existing against batch on (meter_id, date) to keep existing rows whose key\n#     is NOT in the batch. Hint: df_existing.join(df_batch.select('meter_id', 'date'),\n#                                                  ['meter_id', 'date'], 'leftanti')\n#   - Union the result with df_batch (use unionByName for safety).\n#   - Store in df_merged.\n# Step 2: Store the row count in merged_count.\n# Step 3: Re-run the SAME upsert pattern against df_merged with df_batch — store the\n#         result in df_merged_again and the row count in idempotent_count.\n#         The pattern should produce the same row count, proving idempotency.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"After first merge:  {merged_count} rows\")\nprint(f\"After second merge: {idempotent_count} rows (should equal first)\")\nm0001_kw = df_merged.filter(col('meter_id') == 'M-0001').first()['daily_kw']\nprint(f\"M-0001 daily_kw after merge: {m0001_kw} (should be 1500.0, the batch value)\")"
+      },
+      "assertions": [
+        {
+          "id": "FI2-02-A1",
+          "description": "df_merged has exactly 70 rows (50 existing - 10 matched + 30 batch)",
+          "check": "df_merged.count() == 70"
+        },
+        {
+          "id": "FI2-02-A2",
+          "description": "merged_count equals 70",
+          "check": "merged_count == 70"
+        },
+        {
+          "id": "FI2-02-A3",
+          "description": "idempotent_count equals 70 — re-running the merge with the same batch produces the same row count",
+          "check": "idempotent_count == 70"
+        },
+        {
+          "id": "FI2-02-A4",
+          "description": "M-0001's daily_kw was UPDATED to the batch value (1500.0), not left at the original existing value (1100.0)",
+          "check": "df_merged.filter(col('meter_id') == 'M-0001').first()['daily_kw'] == 1500.0"
+        },
+        {
+          "id": "FI2-02-A5",
+          "description": "M-0051 (a new row from the batch) is present in df_merged",
+          "check": "df_merged.filter(col('meter_id') == 'M-0051').count() == 1"
+        },
+        {
+          "id": "FI2-02-A6",
+          "description": "No duplicate (meter_id, date) pairs in df_merged — proves the anti-join correctly removed matched rows before union",
+          "check": "df_merged.groupBy('meter_id', 'date').count().filter('count > 1').count() == 0"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit."
+    },
+    {
+      "id": "module-FI2-task-03",
+      "title": "Classify Schema Changes",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's downstream consumers (3 analytics teams, 5 Power BI reports, 2 ML feature tables) all read from the Silver readings table. Whenever a schema change is proposed, the data engineer must classify it as SAFE (additive — backward compatible — handled by Delta's mergeSchema option) or BREAKING (downstream consumers may fail — requires overwriteSchema and a notification cycle).\n\nFI2 Lesson 4's classification rules:\n- Adding a new column: SAFE — old queries continue to work, they just don't see the new column\n- Adding a new column with a NOT NULL constraint without a default: BREAKING — old code that inserts without the column fails\n- Renaming a column: BREAKING — every query referencing the old name fails\n- Removing a column: BREAKING — every query referencing the column fails\n- Widening a numeric type (int to long, float to double): SAFE — values fit, casts are implicit\n- Narrowing a numeric type (long to int, double to float): BREAKING — values may overflow or lose precision\n- Changing a column from nullable to not-null: BREAKING — existing nulls cause violations\n- Changing a column from not-null to nullable: SAFE — existing values still satisfy the looser constraint",
+        "task": "Classify each of the 5 proposed schema changes for NordGrid's readings_silver table.",
+        "validationHint": "Apply the classification rules above. Three changes are SAFE (additive or relaxing) and two are BREAKING (renames or type narrowing)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI2-03-F1",
+            "type": "single_select",
+            "label": "PROPOSED CHANGE 1: Add a new column ingestion_source (string, nullable) to track which source pipeline wrote each row.",
+            "options": [
+              "SAFE — additive change, nullable column, existing queries unaffected",
+              "BREAKING — adding any column requires downstream consumers to update their SELECT lists",
+              "SAFE only if every existing row is backfilled with a value first",
+              "BREAKING — Delta does not support adding columns without overwriteSchema"
+            ],
+            "correctAnswer": "SAFE — additive change, nullable column, existing queries unaffected",
+            "rationale": "Adding a nullable column is the canonical safe change. SELECT * queries get an extra column they did not expect (which is fine), and existing INSERT statements that do not reference the column work because the new column defaults to null. Use mergeSchema=true."
+          },
+          {
+            "id": "FI2-03-F2",
+            "type": "single_select",
+            "label": "PROPOSED CHANGE 2: Rename column daily_kw to daily_consumption_kw to match the data dictionary.",
+            "options": [
+              "SAFE — rename is just a metadata operation",
+              "BREAKING — every query, view, notebook, and Power BI report that references daily_kw will fail until updated. Requires overwriteSchema and a coordinated notification + deployment to all downstream consumers",
+              "SAFE if a SQL view aliases the new name back to the old name",
+              "BREAKING only for SQL queries; PySpark code is unaffected"
+            ],
+            "correctAnswer": "BREAKING — every query, view, notebook, and Power BI report that references daily_kw will fail until updated. Requires overwriteSchema and a coordinated notification + deployment to all downstream consumers",
+            "rationale": "Column renames are the most insidious breaking change because they masquerade as a 'small fix.' Every consumer must be updated simultaneously. Distractor C is a real workaround NordGrid sometimes uses, but it does not change the classification — the rename itself is breaking."
+          },
+          {
+            "id": "FI2-03-F3",
+            "type": "single_select",
+            "label": "PROPOSED CHANGE 3: Widen daily_kw from float to double for higher precision.",
+            "options": [
+              "SAFE — float values fit in double without loss; existing queries reading double work fine",
+              "BREAKING — any change to a column type requires overwriteSchema",
+              "SAFE only if the column is currently empty",
+              "BREAKING — existing analytical queries assume float precision"
+            ],
+            "correctAnswer": "SAFE — float values fit in double without loss; existing queries reading double work fine",
+            "rationale": "Widening (float -> double, int -> long, short -> int) is one of the few type changes Delta accepts as safe. Every float value is representable as a double. Distractor D inverts the rule — increased precision is never a problem; decreased precision is."
+          },
+          {
+            "id": "FI2-03-F4",
+            "type": "single_select",
+            "label": "PROPOSED CHANGE 4: Narrow daily_kw from double to float to save storage.",
+            "options": [
+              "SAFE — both are floating-point types",
+              "BREAKING — values that fit in double may overflow or lose precision when cast to float; existing rows may fail the conversion or silently change value",
+              "SAFE if there are no values larger than the float maximum",
+              "BREAKING only at write time"
+            ],
+            "correctAnswer": "BREAKING — values that fit in double may overflow or lose precision when cast to float; existing rows may fail the conversion or silently change value",
+            "rationale": "Narrowing is dangerous because the new type may not represent every existing value. Even if no value currently overflows, future values might, and existing values may lose precision (a double like 1234.5678 becomes float 1234.567). The right way is to migrate downstream to read double, not narrow upstream. Storage savings are tiny relative to the risk."
+          },
+          {
+            "id": "FI2-03-F5",
+            "type": "single_select",
+            "label": "PROPOSED CHANGE 5: Change region from 'NOT NULL' to nullable (relaxing the constraint).",
+            "options": [
+              "SAFE — existing values still satisfy a looser constraint; queries that already handle null values are unaffected; queries that don't will continue to work because the existing rows are all non-null",
+              "BREAKING — relaxing constraints requires overwriteSchema",
+              "BREAKING — any nullable column will cause downstream Power BI reports to fail",
+              "SAFE only after a backfill"
+            ],
+            "correctAnswer": "SAFE — existing values still satisfy a looser constraint; queries that already handle null values are unaffected; queries that don't will continue to work because the existing rows are all non-null",
+            "rationale": "Relaxing a constraint is safe in the SAME direction as widening a type — existing values still satisfy the new constraint, so no row needs to be rewritten. The first time someone WRITES a null is when downstream impact begins, but that is a data change, not a schema change. The schema change itself is backward-compatible."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI2-task-04",
+      "title": "Diagnose a VACUUM Failure",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's data engineer is cleaning up storage on a Silver Delta table that has accumulated months of versioned files. She runs VACUUM with a 24-hour retention period and immediately gets an error:\n\n  VACUUM readings_silver RETAIN 24 HOURS\n\n  Error: IllegalArgumentException: requirement failed: Are you sure you want to vacuum\n  files with such a low retention period? If you have writers that are currently writing\n  to this table, there is a risk that you may corrupt the state of your Delta table.\n\n  If you are certain that there are no operations being performed on this table, such as\n  insert/upsert/delete/optimize, then you may turn off this check by setting:\n  spark.databricks.delta.retentionDurationCheck.enabled = false\n\n  Default retention check threshold: 168 hours (7 days)\n\nThe error mentions disabling the safety check. The data engineer knows from FI2 Lesson 5 that this is dangerous and there are usually better options.",
+        "task": "Diagnose the VACUUM failure and identify the safe fix.",
+        "validationHint": "The 168-hour (7-day) default exists because Delta uses files for time travel. Aggressively deleting files breaks queries that try to read older versions and breaks any concurrent reader still scanning an older version. The safe fix is to use a retention period >= 168 hours, not to disable the check."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI2-04-F1",
+            "type": "single_select",
+            "label": "Why does Delta block VACUUM with a retention period under 168 hours by default?",
+            "options": [
+              "Delta uses old file versions to support time travel queries (RESTORE TABLE, VERSION AS OF) and concurrent readers; deleting files newer than the retention threshold can corrupt active queries and destroy time travel history",
+              "Delta requires 168 hours to compute statistics",
+              "Microsoft Fabric bills VACUUM operations and the 168-hour limit reduces cost",
+              "VACUUM is rate-limited to once per week"
+            ],
+            "correctAnswer": "Delta uses old file versions to support time travel queries (RESTORE TABLE, VERSION AS OF) and concurrent readers; deleting files newer than the retention threshold can corrupt active queries and destroy time travel history",
+            "rationale": "The 168-hour floor exists for two reasons: (1) it preserves a week of time travel history for debugging and recovery, and (2) it ensures concurrent readers that started before VACUUM still find the files they expect. Both are real correctness concerns, not arbitrary limits."
+          },
+          {
+            "id": "FI2-04-F2",
+            "type": "numeric",
+            "label": "What is the minimum safe retention period (in HOURS) for VACUUM without disabling the safety check?",
+            "correctAnswer": 168,
+            "tolerance": 0,
+            "rationale": "The default Delta safety check is exactly 168 hours = 7 days. A VACUUM with RETAIN 168 HOURS or longer passes the check. Any value below 168 triggers the error in the task description."
+          },
+          {
+            "id": "FI2-04-F3",
+            "type": "single_select",
+            "label": "What is the recommended fix for the data engineer?",
+            "options": [
+              "Run VACUUM readings_silver RETAIN 168 HOURS — uses the minimum safe retention, deletes all files older than 7 days, and preserves a week of time travel history",
+              "Run spark.conf.set('spark.databricks.delta.retentionDurationCheck.enabled', 'false') and then VACUUM readings_silver RETAIN 24 HOURS",
+              "Drop the table and recreate it from Bronze",
+              "Skip VACUUM entirely; storage is cheap"
+            ],
+            "correctAnswer": "Run VACUUM readings_silver RETAIN 168 HOURS — uses the minimum safe retention, deletes all files older than 7 days, and preserves a week of time travel history",
+            "rationale": "The right answer is to honor the safety check, not bypass it. A 7-day retention is the production-safe minimum. Distractor B is what the error message suggests, but only as a last resort with explicit confirmation that no concurrent readers exist — risky in a multi-team Fabric workspace. NordGrid's standard from FI2 Lesson 5 is VACUUM with the default retention as part of the bi-weekly maintenance window."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI2-task-05",
+      "title": "Time-Travel Recovery After Bad Pipeline Run",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "On 2026-04-08, NordGrid's Silver pipeline produced a bad version (v12) of readings_silver: 5 specific meters (M-0011 to M-0015) had their daily_kw values mistakenly multiplied by 100 due to a unit conversion bug. The previous version (v11) was correct. The team needs to roll back to v11 immediately so the morning analyst queries see correct values.\n\nIN PRODUCTION FABRIC, this is two SQL commands:\n\n  DESCRIBE HISTORY readings_silver  -- find that v11 is the last good version\n  RESTORE TABLE readings_silver TO VERSION AS OF 11\n\nThe local practice environment does not have Delta time travel. This task simulates the recovery: the v11 version is provided as FI2_data_existing.csv (the good state) and the bad v12 version is provided as FI2_data_existing_v12.csv (the current corrupted state). Your job is to (a) verify that v12 is in fact corrupted, (b) load v11 as the recovery source, (c) overwrite the table with v11, (d) verify the corrupted meters are now back to their correct values.",
+        "task": "Read both CSVs into df_v12 (the current corrupted state) and df_v11 (the recovery source). Compute v12_max_kw = the maximum daily_kw in df_v12 and v11_max_kw = the maximum daily_kw in df_v11 — the v12 max should be huge (~210000) because of the corruption, the v11 max should be reasonable (~2400). Then write df_v11 as a managed table called readings_silver with mode='overwrite' (this is the local equivalent of RESTORE TABLE). Read the table back into df_recovered and confirm M-0011's daily_kw is restored to its v11 value. Store M-0011's recovered daily_kw in m0011_recovered_kw.",
+        "validationHint": "Use spark.read.csv for both files. The v12 maximum will be ~210000 (the corrupted M-0011..M-0015 values, originally ~2100 multiplied by 100). The v11 maximum will be ~2400 (the largest legitimate reading). After overwriting with v11, M-0011's daily_kw should equal 2100.0 (the correct value). Use df_v11.write.mode('overwrite').saveAsTable('readings_silver') for the recovery."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI2 Lesson 7: time-travel recovery from a bad pipeline run.\n# In production Fabric/Delta:\n#   DESCRIBE HISTORY readings_silver\n#   RESTORE TABLE readings_silver TO VERSION AS OF 11\n# Locally we simulate by providing the v11 data as a separate CSV (FI2_data_existing.csv)\n# and overwriting the table with it.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-time-travel-recovery') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\n# YOUR SOLUTION BELOW\n# Step 1: Read FI2_data_existing_v12.csv into df_v12 (the corrupted current state)\n# Step 2: Read FI2_data_existing.csv into df_v11 (the good recovery source)\n# Step 3: Compute v12_max_kw = max(daily_kw) in df_v12 — proves the corruption is visible\n# Step 4: Compute v11_max_kw = max(daily_kw) in df_v11 — proves v11 is healthy\n# Step 5: Overwrite the table by writing df_v11 as 'readings_silver' with mode='overwrite'\n#         using saveAsTable. This is the local equivalent of RESTORE TABLE ... VERSION AS OF 11.\n# Step 6: Read the table back into df_recovered\n# Step 7: Store M-0011's daily_kw from df_recovered in m0011_recovered_kw\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"v12 max daily_kw (corrupted): {v12_max_kw}\")\nprint(f\"v11 max daily_kw (healthy):   {v11_max_kw}\")\nprint(f\"Recovered table row count:    {df_recovered.count()}\")\nprint(f\"M-0011 recovered daily_kw:    {m0011_recovered_kw} (should be 2100.0, not 210000.0)\")"
+      },
+      "assertions": [
+        {
+          "id": "FI2-05-A1",
+          "description": "df_v12 loaded with 50 rows from the corrupted version",
+          "check": "df_v12.count() == 50"
+        },
+        {
+          "id": "FI2-05-A2",
+          "description": "v12_max_kw is much larger than 100000 — proves the corruption is detected (the bug multiplied 5 values by 100)",
+          "check": "v12_max_kw >= 100000"
+        },
+        {
+          "id": "FI2-05-A3",
+          "description": "v11_max_kw is reasonable (between 1000 and 5000) — proves v11 is the healthy version",
+          "check": "1000 <= v11_max_kw <= 5000"
+        },
+        {
+          "id": "FI2-05-A4",
+          "description": "readings_silver managed table exists with 50 rows after recovery",
+          "check": "spark.table('readings_silver').count() == 50"
+        },
+        {
+          "id": "FI2-05-A5",
+          "description": "df_recovered has 50 rows (matches v11)",
+          "check": "df_recovered.count() == 50"
+        },
+        {
+          "id": "FI2-05-A6",
+          "description": "m0011_recovered_kw equals 2100.0 — the v11 value, NOT the v12 corrupted value (210000.0)",
+          "check": "m0011_recovered_kw == 2100.0"
+        },
+        {
+          "id": "FI2-05-A7",
+          "description": "No row in the recovered table has daily_kw above 5000 — confirms all 5 corrupted values are gone",
+          "check": "spark.table('readings_silver').filter(col('daily_kw') > 5000).count() == 0"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-FI2-task-06",
+      "title": "Design NordGrid's Delta Maintenance Schedule",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "This is the synthesis task. NordGrid's platform team needs to author the maintenance schedule for the Silver readings table, which has the following characteristics:\n\n  TABLE STATS — readings_silver\n  ----------------------------------------\n  Row count:           180 million\n  Daily MERGE rows:    46,200 (45,000 updates + 1,200 inserts)\n  File count:          12,400 (degrading from small files left by daily MERGEs)\n  Avg file size:       3.2 MB (well below the 128-256 MB target)\n  Days of history:     150 days\n  Time travel needed:  90 days for regulatory audit\n  Most-queried cols:   region, date (filter), meter_id (join key)\n  Downstream consumers: 3 analyst teams, 5 Power BI reports, 2 ML feature tables\n\nYour job has two parts: (1) DIAGNOSIS — fill the 4-field template choosing the right OPTIMIZE/VACUUM/Z-ORDER strategy, and (2) FIX — build the maintenance schedule as a Python dict. Both are graded independently and the final score combines them 50/50.",
+        "task": "Fill the diagnosis template AND build the maintenance schedule dict.\n\nFor the FIX: Build a Python dict called maintenance_schedule with these keys:\n  - table_name: 'readings_silver'\n  - optimize: a nested dict with cadence ('weekly'), day_of_week ('Sunday'), zorder_columns (a list of the right columns to Z-ORDER)\n  - vacuum: a nested dict with cadence ('biweekly'), retention_hours (the integer hours), rationale (a short string)\n  - schema_change_workflow: a nested dict with steps (a list of step names in order)",
+        "validationHint": "The OPTIMIZE Z-ORDER columns should be the most-queried filter and join columns: region, date (filter columns are the highest priority for Z-ORDER because they enable file skipping). The VACUUM retention_hours should be 2160 (90 days * 24 hours) because the regulatory audit requires 90 days of time travel — vacuuming earlier would destroy required history. The schema_change_workflow should have at least 4 steps in order: classify, review, notify, deploy (matching FI2 Lesson 4's NordGrid policy)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI2-06-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: With 12,400 files averaging 3.2 MB each (well below the 128-256 MB target), what should OPTIMIZE accomplish, and how often?",
+            "options": [
+              "OPTIMIZE compacts small files into larger ones (target 128-256 MB), reducing the file count and improving scan performance. Run weekly so daily MERGEs don't accumulate into thousands of small files between maintenance runs",
+              "OPTIMIZE rewrites all files for time travel — run only when explicitly requested",
+              "OPTIMIZE creates indexes — run nightly",
+              "OPTIMIZE is not needed because files smaller than 128 MB are optimal for OneLake"
+            ],
+            "correctAnswer": "OPTIMIZE compacts small files into larger ones (target 128-256 MB), reducing the file count and improving scan performance. Run weekly so daily MERGEs don't accumulate into thousands of small files between maintenance runs",
+            "rationale": "OPTIMIZE's primary job is small-file compaction. The 12,400-file count is the symptom; weekly OPTIMIZE prevents it from growing further. NordGrid's standard from FI2 Lesson 10 is exactly this: OPTIMIZE weekly on Silver tables, scheduled before the morning analyst window so query plans get fresh statistics."
+          },
+          {
+            "id": "FI2-06-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Which columns should Z-ORDER target, given that region, date (filter), and meter_id (join key) are the most-queried columns?",
+            "options": [
+              "Z-ORDER on region and date — these are the filter columns most likely to benefit from file skipping; Z-ORDER co-locates similar values in the same files so partition pruning becomes more effective",
+              "Z-ORDER on meter_id only — primary keys are always the right Z-ORDER target",
+              "Z-ORDER on every column — more sorting is always better",
+              "Z-ORDER is not necessary; partition by date achieves the same result"
+            ],
+            "correctAnswer": "Z-ORDER on region and date — these are the filter columns most likely to benefit from file skipping; Z-ORDER co-locates similar values in the same files so partition pruning becomes more effective",
+            "rationale": "Z-ORDER's payoff is greatest on columns used in WHERE clauses, because it lets Delta skip files that don't match. region and date are both heavy filter targets at NordGrid. meter_id is a join key but joins on equality benefit less from Z-ORDER. Distractor C is a real anti-pattern (Z-ORDER on too many columns dilutes the benefit). Distractor D conflates partitioning (which IS by date typically) with Z-ORDER (which sorts within partitions)."
+          },
+          {
+            "id": "FI2-06-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: The regulatory audit needs 90 days of time travel. What VACUUM retention should you use?",
+            "options": [
+              "RETAIN 2160 HOURS (90 days * 24) — preserves the full audit window. Vacuuming earlier would destroy time travel history needed by regulators",
+              "RETAIN 168 HOURS (7 days) — the Delta default safety floor",
+              "RETAIN 720 HOURS (30 days) — a sensible compromise",
+              "Skip VACUUM entirely so no history is ever deleted"
+            ],
+            "correctAnswer": "RETAIN 2160 HOURS (90 days * 24) — preserves the full audit window. Vacuuming earlier would destroy time travel history needed by regulators",
+            "rationale": "VACUUM retention must be at least as long as the longest time-travel requirement. Regulatory audit at 90 days = 2160 hours. Vacuuming sooner would delete files needed by audit queries — a compliance violation. The 168-hour default applies to tables WITHOUT longer requirements; tables with audit requirements override the default upward, never downward."
+          },
+          {
+            "id": "FI2-06-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: A schema change is proposed. What is NordGrid's correct workflow order from FI2 Lesson 4?",
+            "options": [
+              "Classify (safe vs breaking) → Review (with downstream owners) → Notify (consumers of the change date) → Deploy (with mergeSchema or overwriteSchema)",
+              "Deploy → Test → Notify → Review",
+              "Notify → Deploy → Classify → Review",
+              "Schema changes require no workflow; just push them"
+            ],
+            "correctAnswer": "Classify (safe vs breaking) → Review (with downstream owners) → Notify (consumers of the change date) → Deploy (with mergeSchema or overwriteSchema)",
+            "rationale": "The workflow order matters because each step depends on the previous. Classification determines whether review is even needed (safe changes can sometimes skip review). Review surfaces unknown consumers. Notification gives consumers time to update their code. Deploy is the last step, not the first. Distractor B inverts the order entirely. Distractor D is the anti-pattern that caused NordGrid's incident in Lesson 4's introduction."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI2 SYNTHESIS: build NordGrid's complete Delta maintenance schedule.\n# Pure Python dictionary construction — no Spark needed.\n\n# YOUR SOLUTION BELOW\n# Build maintenance_schedule with the structure described in the task.\n# Use the diagnosis answers from the template to determine the right values.\n\nmaintenance_schedule = {\n    # Fill in the keys: table_name, optimize, vacuum, schema_change_workflow\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(maintenance_schedule, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI2-06-A1",
+          "description": "maintenance_schedule has the 4 required top-level keys",
+          "check": "set(maintenance_schedule.keys()) >= {'table_name', 'optimize', 'vacuum', 'schema_change_workflow'}"
+        },
+        {
+          "id": "FI2-06-A2",
+          "description": "table_name is 'readings_silver'",
+          "check": "maintenance_schedule['table_name'] == 'readings_silver'"
+        },
+        {
+          "id": "FI2-06-A3",
+          "description": "optimize cadence is weekly with Sunday as the day",
+          "check": "maintenance_schedule['optimize']['cadence'] == 'weekly' and maintenance_schedule['optimize']['day_of_week'] == 'Sunday'"
+        },
+        {
+          "id": "FI2-06-A4",
+          "description": "optimize.zorder_columns is a list containing both 'region' and 'date'",
+          "check": "set(maintenance_schedule['optimize']['zorder_columns']) >= {'region', 'date'} and isinstance(maintenance_schedule['optimize']['zorder_columns'], list)"
+        },
+        {
+          "id": "FI2-06-A5",
+          "description": "vacuum cadence is biweekly",
+          "check": "maintenance_schedule['vacuum']['cadence'] == 'biweekly'"
+        },
+        {
+          "id": "FI2-06-A6",
+          "description": "vacuum retention_hours equals 2160 (90 days), respecting the regulatory audit requirement",
+          "check": "maintenance_schedule['vacuum']['retention_hours'] == 2160"
+        },
+        {
+          "id": "FI2-06-A7",
+          "description": "schema_change_workflow.steps is a list containing classify, review, notify, deploy in the correct order",
+          "check": "[s.lower() for s in maintenance_schedule['schema_change_workflow']['steps']][:4] == ['classify', 'review', 'notify', 'deploy']"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (7 code checks, 50% weight). Each template field earns 1/4 of the template portion. Each assertion earns 1/7 of the code portion. Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/7).",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "OPTIMIZE compaction strategy and weekly cadence (Lesson 5)",
+          "Z-ORDER column selection based on query patterns (Lesson 5)",
+          "VACUUM retention rules and the time-travel interaction (Lesson 5, 7)",
+          "Regulatory time-travel requirements override default retention (Lesson 7)",
+          "Schema change classification and workflow (Lesson 4)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines maintenance cadence, Z-ORDER strategy, retention policy, and the schema change workflow into a single specification. The retention assertion is particularly important: a student who applies the default 168 hours without checking the regulatory requirement gets the answer wrong, demonstrating that they did not synthesize the audit constraint with the maintenance schedule. This is the calibration target — synthesis tasks must require the student to integrate constraints from multiple lessons, not just chain operations."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "calibrationNotes": "Second Fabric mid-level practice set. Establishes the equivalence pattern for tools that don't run locally: explicit translation notes in the scaffold (Delta MERGE -> anti-join + union, RESTORE TABLE -> CSV swap + overwrite). The synthesis task uses combined grading (template + Python dict construction) following the FI1 calibration. Task type mix (3 diagnostic_analysis + 2 fix_implementation + 1 diagnostic_workflow) is within section 5.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches MERGE, schema evolution, OPTIMIZE/VACUUM, and time travel through NordGrid examples in Lessons 2-7 and 10. The practice tests application: Task 1 uses an execution summary (not a code listing) to force diagnostic reasoning rather than syntax recall. Task 2 implements the upsert pattern with idempotency verification (the second-merge check is the key test). Task 3 classifies 5 specific schema changes, each chosen to test a different rule. Task 4 reproduces the standard Delta retention check error and tests the safe response. Task 5 simulates the time-travel recovery workflow with two CSV versions. Task 6 builds the production maintenance schedule, integrating constraints from multiple lessons.",
+    "datasetNotes": "Three datasets totaling 130 rows. FI2_data_existing.csv (50 rows) is the merge target / good v11 version. FI2_data_batch.csv (30 rows) is the merge source with 10 overlapping keys and 20 new keys, producing the deterministic 70-row merged result. FI2_data_existing_v12.csv (50 rows) is the corrupted current state with 5 specific meters multiplied by 100, providing detectable corruption that the recovery test verifies is gone after rollback. The arithmetic 50 + 30 - 10 = 70 is the keystone for Task 2; the assertion that M-0011 = 2100.0 (not 210000.0) is the keystone for Task 5."
+  }
+}

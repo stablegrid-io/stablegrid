@@ -172,6 +172,27 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes scanForge {
+  0% { top: 0%; }
+  50% { top: 100%; }
+  100% { top: 0%; }
+}
+
+@keyframes pageFlipOut {
+  0% { transform: rotateY(0deg); opacity: 1; }
+  100% { transform: rotateY(-15deg); opacity: 0; }
+}
+
+@keyframes pageFlipIn {
+  0% { transform: rotateY(15deg); opacity: 0; }
+  100% { transform: rotateY(0deg); opacity: 1; }
+}
+
 /* ── Reading Mode Tokens ── */
 [data-reading-mode="dark"] {
   --rm-bg: #141a1e;
@@ -396,6 +417,26 @@
 
 [data-focus-mode="true"] {
   height: 100dvh !important;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-[14px] px-4 py-2 text-sm font-medium;
+    @apply transition-all duration-150;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-primary text-on-primary;
+    @apply hover:shadow-[0_0_16px_rgba(153,247,255,0.3)];
+  }
+  .btn-secondary {
+    @apply border border-white/[0.08] bg-white/[0.04] text-on-surface-variant;
+    @apply hover:bg-white/[0.08] hover:text-on-surface;
+  }
+  .btn-danger {
+    @apply bg-error text-white;
+    @apply hover:shadow-[0_0_16px_rgba(255,113,108,0.3)];
+  }
 }
 
 @layer utilities {

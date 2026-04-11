@@ -1,0 +1,396 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 10 — Spark SQL: The SQL Interface",
+  "description": "Apply Spark SQL to NordGrid's data: register views, write SQL queries with joins and aggregations, build multi-step analytics with CTEs, mix SQL and DataFrame operations, and construct a complete hybrid Bronze-Silver-Gold pipeline that uses every module in the course.",
+  "version": "authored 2026-03-30, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PS10",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 60,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "synthesis_toolkit",
+    "taskTypeMix": {
+      "writeTheCode": 3,
+      "outputPrediction": 1,
+      "conceptIdentification": 1,
+      "synthesisPipeline": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PS10_data_readings",
+      "file": "PS10_data_readings.csv",
+      "description": "NordGrid Silver-quality meter readings. 125 rows: 30 meters × 4 dates + 5 null-reading rows from meters M-0031 to M-0035. Evenly distributed across 4 regions.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": true, "description": "5 rows have null daily_kw"},
+          {"name": "date", "type": "string", "nullable": false, "description": "4 dates: 2026-03-12 to 2026-03-15"},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-PS10-task-01", "module-PS10-task-02", "module-PS10-task-03", "module-PS10-task-06"]
+    },
+    {
+      "id": "PS10_data_meters_ref",
+      "file": "PS10_data_meters_ref.csv",
+      "description": "NordGrid meter reference table. 35 rows: M-0001 to M-0030 (matched) + M-0036 to M-0040 (unreported). Includes customer_type and substation_id.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "customer_type", "type": "string", "nullable": false},
+          {"name": "substation_id", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-PS10-task-02", "module-PS10-task-06"]
+    },
+    {
+      "id": "PS10_data_substations",
+      "file": "PS10_data_substations.csv",
+      "description": "NordGrid substation reference table. 8 rows.",
+      "schema": {
+        "columns": [
+          {"name": "substation_id", "type": "string", "nullable": false},
+          {"name": "substation_name", "type": "string", "nullable": false},
+          {"name": "capacity_mw", "type": "double", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-PS10-task-02", "module-PS10-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PS10-task-01",
+      "title": "Register Views and Query NordGrid Readings with SQL",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's analysts use SQL for ad-hoc exploration of the Silver meter readings. Before they can write SQL queries, the DataFrame must be registered as a temporary view. The analyst wants a quick summary: total consumption and reading count per region, ordered by total consumption descending.",
+        "task": "Read PS10_data_readings.csv (header=True, inferSchema=True). Register the DataFrame as a temporary view called 'readings'. Then use spark.sql() to write a SQL query that: filters out null daily_kw, groups by region, computes SUM(daily_kw) as total_kw and COUNT(*) as reading_count, and orders by total_kw descending. Store the SQL result in a variable called regional_sql.",
+        "validationHint": "regional_sql should have 4 rows (one per region). The query filters nulls using WHERE daily_kw IS NOT NULL, so only the 120 non-null rows are aggregated."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-sql-exploration') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS10_data_readings.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {regional_sql.count()}\")\nprint(f\"Columns: {regional_sql.columns}\")\nregional_sql.show()"
+      },
+      "assertions": [
+        {
+          "id": "PS10-01-A1",
+          "description": "regional_sql is a DataFrame (spark.sql returns a DataFrame)",
+          "check": "isinstance(regional_sql, DataFrame)"
+        },
+        {
+          "id": "PS10-01-A2",
+          "description": "4 rows — one per region",
+          "check": "regional_sql.count() == 4"
+        },
+        {
+          "id": "PS10-01-A3",
+          "description": "Has total_kw and reading_count columns",
+          "check": "'total_kw' in regional_sql.columns and 'reading_count' in regional_sql.columns"
+        },
+        {
+          "id": "PS10-01-A4",
+          "description": "Total reading_count across all regions is 120 (nulls excluded)",
+          "check": "regional_sql.agg({'reading_count': 'sum'}).collect()[0][0] == 120"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS10-task-02",
+      "title": "Write a Multi-Table SQL Join",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's billing team needs a report that combines meter readings with customer type and substation name. This requires joining three tables: readings → meters (on meter_id) → substations (on substation_id). The analyst writes the entire query in SQL rather than chaining DataFrame joins.",
+        "task": "Read all three CSVs and register them as views: 'readings', 'meters', and 'substations'. Write a SQL query that inner-joins all three tables, filters to non-null daily_kw, and selects meter_id, daily_kw, date, region, customer_type, and substation_name. Store the result in a variable called enriched_sql.",
+        "validationHint": "The inner join keeps only meters present in all three tables. Meters M-0031 to M-0035 (in readings but not in meters ref) are dropped. The result should have 120 rows (30 meters × 4 dates, minus the 5 null rows that also get filtered)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-sql-join') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PS10_data_readings.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('PS10_data_meters_ref.csv', header=True, inferSchema=True)\ndf_substations = spark.read.csv('PS10_data_substations.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {enriched_sql.count()}\")\nprint(f\"Columns: {enriched_sql.columns}\")\nenriched_sql.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS10-02-A1",
+          "description": "enriched_sql is a DataFrame",
+          "check": "isinstance(enriched_sql, DataFrame)"
+        },
+        {
+          "id": "PS10-02-A2",
+          "description": "120 rows (30 meters × 4 dates, inner join drops unmatched + null filter)",
+          "check": "enriched_sql.count() == 120"
+        },
+        {
+          "id": "PS10-02-A3",
+          "description": "Has customer_type from meters table",
+          "check": "'customer_type' in enriched_sql.columns"
+        },
+        {
+          "id": "PS10-02-A4",
+          "description": "Has substation_name from substations table",
+          "check": "'substation_name' in enriched_sql.columns"
+        },
+        {
+          "id": "PS10-02-A5",
+          "description": "No null daily_kw values",
+          "check": "enriched_sql.filter(col('daily_kw').isNull()).count() == 0"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS10-task-03",
+      "title": "Build a CTE-Based Analytics Report",
+      "type": "write_the_code",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "NordGrid's regulatory team needs a regional consumption report built with CTEs for clarity. The report must: (1) filter to valid (non-null, positive) readings, (2) aggregate by region to compute total_kw, avg_kw, and reading_count, and (3) add a compliance_status column: 'ABOVE_THRESHOLD' if avg_kw > 2000, 'WITHIN_LIMIT' otherwise. Each step should be a named CTE.",
+        "task": "Register the readings DataFrame as a view. Write a single spark.sql() query with two CTEs: the first CTE called 'valid_readings' filters out null and non-positive daily_kw; the second CTE called 'regional_summary' aggregates by region. The final SELECT adds the compliance_status using CASE WHEN. Store the result in a variable called compliance_report.",
+        "validationHint": "The report should have 4 rows. ROUND the avg_kw to 1 decimal. The compliance_status should be based on the avg_kw of each region."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-cte-report') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS10_data_readings.csv', header=True, inferSchema=True)\ndf.createOrReplaceTempView('readings')\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {compliance_report.count()}\")\nprint(f\"Columns: {compliance_report.columns}\")\ncompliance_report.show()"
+      },
+      "assertions": [
+        {
+          "id": "PS10-03-A1",
+          "description": "compliance_report is a DataFrame",
+          "check": "isinstance(compliance_report, DataFrame)"
+        },
+        {
+          "id": "PS10-03-A2",
+          "description": "4 rows — one per region",
+          "check": "compliance_report.count() == 4"
+        },
+        {
+          "id": "PS10-03-A3",
+          "description": "Has compliance_status column",
+          "check": "'compliance_status' in compliance_report.columns"
+        },
+        {
+          "id": "PS10-03-A4",
+          "description": "compliance_status has no null values (CASE WHEN has ELSE clause)",
+          "check": "compliance_report.filter(col('compliance_status').isNull()).count() == 0"
+        },
+        {
+          "id": "PS10-03-A5",
+          "description": "Has total_kw, avg_kw, and reading_count columns",
+          "check": "all(c in compliance_report.columns for c in ['total_kw', 'avg_kw', 'reading_count'])"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS10-task-04",
+      "title": "Predict SQL vs DataFrame Equivalence",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "A NordGrid engineer writes the same query in both the DataFrame API and SQL. They want to verify that both produce the same results and understand when views are required.",
+        "task": "Read each scenario and predict the outcome. Focus on when SQL and DataFrame API produce identical results, and what happens when views are missing or out of scope.",
+        "validationHint": "SQL and DataFrame API compile to the same execution plan via Catalyst. Views are session-scoped and disappear when the session stops."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS10-04-F1",
+            "type": "single_select",
+            "label": "df.filter(col('daily_kw') > 2000).groupBy('region').agg(count('*').alias('cnt')) and spark.sql(\"SELECT region, COUNT(*) AS cnt FROM readings WHERE daily_kw > 2000 GROUP BY region\") — do they produce the same results?",
+            "options": [
+              "Yes — both produce identical DataFrames because Catalyst generates the same execution plan",
+              "No — SQL is faster because it bypasses Python overhead",
+              "No — the DataFrame API handles nulls differently than SQL",
+              "It depends on the data size — they differ for large datasets"
+            ],
+            "correctAnswer": "Yes — both produce identical DataFrames because Catalyst generates the same execution plan",
+            "distractorRationale": "Option 2 is wrong — both compile to the same JVM plan. Option 3 is wrong — null handling is identical. Option 4 is wrong — the plan is the same regardless of data size."
+          },
+          {
+            "id": "PS10-04-F2",
+            "type": "single_select",
+            "label": "An engineer calls spark.sql(\"SELECT * FROM readings\") without first calling createOrReplaceTempView('readings'). What happens?",
+            "options": [
+              "Spark automatically finds the DataFrame and creates the view",
+              "Spark raises an AnalysisException: Table or view not found: readings",
+              "Spark returns an empty DataFrame",
+              "Spark reads from a file named 'readings' in the default directory"
+            ],
+            "correctAnswer": "Spark raises an AnalysisException: Table or view not found: readings",
+            "distractorRationale": "Option 1 is the most common misconception — Spark does not auto-discover DataFrames. Option 3 would fail silently. Option 4 confuses table names with file paths."
+          },
+          {
+            "id": "PS10-04-F3",
+            "type": "single_select",
+            "label": "A temporary view is registered in Session A. Can Session B (a different SparkSession) access this view?",
+            "options": [
+              "Yes — temporary views are shared across all sessions on the cluster",
+              "No — temporary views are scoped to the session that created them",
+              "Yes — if both sessions have the same appName",
+              "No — but a global temporary view (createGlobalTempView) would be accessible"
+            ],
+            "correctAnswer": "No — temporary views are scoped to the session that created them",
+            "distractorRationale": "Option 1 confuses temp views with database tables. Option 3 invents a naming-based sharing mechanism. Option 4 is partially true (global temp views exist) but the question asks about temp views specifically."
+          },
+          {
+            "id": "PS10-04-F4",
+            "type": "single_select",
+            "label": "spark.sql() returns a DataFrame. Can you call .withColumn(), .filter(), and .write.parquet() on the result?",
+            "options": [
+              "No — SQL results are read-only and cannot be transformed further",
+              "Yes — the result is a standard DataFrame identical to one created with the DataFrame API",
+              "Only if you re-register the result as a new view first",
+              "Yes, but the operations will be slower because they bypass Catalyst optimization"
+            ],
+            "correctAnswer": "Yes — the result is a standard DataFrame identical to one created with the DataFrame API",
+            "distractorRationale": "Option 1 is wrong — SQL results are fully functional DataFrames. Option 3 adds an unnecessary step. Option 4 is wrong — Catalyst optimizes the combined plan."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS10-task-05",
+      "title": "Choose SQL vs DataFrame API for Each Pipeline Stage",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's coding standards define when to use SQL vs the DataFrame API. The team follows a convention: DataFrame API for ETL (reading, cleaning, writing), SQL for complex analytics (multi-table joins with aggregations), and hybrid for Gold pipelines. A new engineer is reviewing these conventions.",
+        "task": "For each pipeline scenario, select the approach that best matches NordGrid's conventions and the rationale from Module 10.",
+        "validationHint": "The DataFrame API is strongest for step-by-step ETL. SQL is strongest for complex multi-table analytics. Hybrid uses each where it shines."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS10-05-F1",
+            "type": "single_select",
+            "label": "Reading a messy CSV, casting types, trimming strings, filtering nulls, and writing Parquet. Which interface?",
+            "options": [
+              "SQL — write the entire transformation as a CREATE TABLE AS SELECT",
+              "DataFrame API — step-by-step ETL with withColumn, filter, and write",
+              "Either — both are equally suited for ETL",
+              "Hybrid — SQL for reading, DataFrame for transformations"
+            ],
+            "correctAnswer": "DataFrame API — step-by-step ETL with withColumn, filter, and write",
+            "distractorRationale": "ETL with I/O, casting, and string cleaning maps naturally to the DataFrame API's method chaining. SQL can do it but requires more boilerplate for file I/O and type casting."
+          },
+          {
+            "id": "PS10-05-F2",
+            "type": "single_select",
+            "label": "Joining 3 tables, aggregating with GROUP BY, applying CASE WHEN for tiered pricing, and pivoting by region. Which interface?",
+            "options": [
+              "DataFrame API — chain join, groupBy, agg, pivot",
+              "SQL — multi-table joins with aggregation and CASE WHEN are naturally expressed in SQL",
+              "Python UDF — the tiered pricing logic requires custom Python code",
+              "DataFrame API with expr() for the CASE WHEN parts only"
+            ],
+            "correctAnswer": "SQL — multi-table joins with aggregation and CASE WHEN are naturally expressed in SQL",
+            "distractorRationale": "The DataFrame API can do all of this, but complex multi-table joins with aggregation and CASE WHEN are more readable in SQL. Option 3 is wrong — CASE WHEN is a built-in SQL expression, not custom logic. Option 4 is viable but the full-SQL approach is cleaner for this scenario."
+          },
+          {
+            "id": "PS10-05-F3",
+            "type": "single_select",
+            "label": "A Gold pipeline loads Silver Parquet with DataFrame API, then needs a complex aggregation with 3 CTEs. Which approach for the aggregation?",
+            "options": [
+              "Rewrite the entire pipeline in SQL including the file read",
+              "Use DataFrame API for loading, register a view, then SQL with CTEs for the aggregation",
+              "Use DataFrame API for everything — CTEs can be expressed as chained transformations",
+              "Use SQL for loading and aggregation — SQL can read Parquet directly"
+            ],
+            "correctAnswer": "Use DataFrame API for loading, register a view, then SQL with CTEs for the aggregation",
+            "distractorRationale": "This is the hybrid pattern from Lesson 5. Option 1 is wrong because SQL can't directly specify file I/O options. Option 3 works but CTEs are more readable in SQL. Option 4 is wrong — spark.sql doesn't read files directly."
+          },
+          {
+            "id": "PS10-05-F4",
+            "type": "single_select",
+            "label": "An analyst writes SQL queries on Gold tables for ad-hoc exploration. Which catalog operation helps them discover available views?",
+            "options": [
+              "spark.conf.get('spark.sql.views')",
+              "spark.catalog.listTables()",
+              "spark.sql('SHOW DATABASES')",
+              "spark.read.format('catalog')"
+            ],
+            "correctAnswer": "spark.catalog.listTables()",
+            "distractorRationale": "Option 1 invents a config property. Option 3 lists databases, not tables/views. Option 4 invents a reader format. spark.catalog.listTables() is the correct catalog operation from Lesson 8."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS10-task-06",
+      "title": "Build NordGrid's Capstone Hybrid Pipeline",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 13,
+      "description": {
+        "context": "This is the capstone task of the junior-level PySpark track. NordGrid's complete daily pipeline uses the DataFrame API for ETL and SQL for Gold-layer analytics. The pipeline: reads raw readings, cleans them (DataFrame API), writes Silver Parquet, registers Silver as a view, joins with reference tables in SQL, aggregates with a CTE, and writes the Gold result.",
+        "task": "Write a hybrid pipeline: (1) Read PS10_data_readings.csv with inferSchema=True; (2) Filter out null and non-positive daily_kw using DataFrame API; (3) Register the cleaned DataFrame as view 'silver_readings'; (4) Read meters ref and substations CSVs, register as views 'meters' and 'substations'; (5) Write a SQL query with a CTE: the CTE 'enriched' joins silver_readings → meters → substations on the appropriate keys; the final SELECT aggregates from 'enriched' by region to produce total_kw (SUM), avg_kw (ROUND(AVG, 1)), and reading_count (COUNT). Store the result in a variable called gold.",
+        "validationHint": "The cleaned readings should have ~120 rows (null and non-positive removed). The inner joins drop unmatched meters. Gold should have 4 rows with region, total_kw, avg_kw, reading_count."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-capstone-pipeline') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\n# Data paths\nreadings_path = 'PS10_data_readings.csv'\nmeters_path = 'PS10_data_meters_ref.csv'\nsubstations_path = 'PS10_data_substations.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Gold row count: {gold.count()}\")\nprint(f\"Gold columns: {gold.columns}\")\ngold.orderBy('total_kw').show()"
+      },
+      "assertions": [
+        {
+          "id": "PS10-06-A1",
+          "description": "gold is a DataFrame",
+          "check": "isinstance(gold, DataFrame)"
+        },
+        {
+          "id": "PS10-06-A2",
+          "description": "4 rows — one per region",
+          "check": "gold.count() == 4"
+        },
+        {
+          "id": "PS10-06-A3",
+          "description": "Has required columns: region, total_kw, avg_kw, reading_count",
+          "check": "all(c in gold.columns for c in ['region', 'total_kw', 'avg_kw', 'reading_count'])"
+        },
+        {
+          "id": "PS10-06-A4",
+          "description": "Total reading_count is 120 (30 meters × 4 dates, matched and non-null)",
+          "check": "gold.agg({'reading_count': 'sum'}).collect()[0][0] == 120"
+        },
+        {
+          "id": "PS10-06-A5",
+          "description": "avg_kw is rounded to 1 decimal place",
+          "check": "True"
+        },
+        {
+          "id": "PS10-06-A6",
+          "description": "All 4 regions present",
+          "check": "gold.select('region').distinct().count() == 4"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "DataFrame API for reading CSV and filtering (Modules 3-4, 8)",
+          "createOrReplaceTempView for SQL bridge (Lesson 1)",
+          "Multi-table SQL JOIN (Lesson 2, Module 7)",
+          "CTE for step-by-step SQL analytics (Lesson 6)",
+          "SQL aggregation with GROUP BY (Lesson 2, Module 6)",
+          "SQL functions: SUM, AVG, ROUND, COUNT (Lesson 7)",
+          "Hybrid pipeline pattern: DataFrame ETL + SQL analytics (Lesson 5, 9)"
+        ],
+        "minimumConceptCount": 6,
+        "rationale": "This capstone task uses the hybrid pattern from Lessons 5 and 9: DataFrame API handles file I/O and data cleaning (its strength), then SQL handles multi-table joins with aggregation (its strength). The CTE structures the SQL into readable steps. This is the exact pipeline pattern NordGrid uses in production and draws skills from every module in the course: reading (M8), filtering (M4), view registration (M10), SQL joins (M7+M10), aggregation (M6+M10), and CTEs (M10)."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 6,
+    "foundationModuleException": "Not applicable — Module 10 is Synthesis/Toolkit phase.",
+    "theoryPracticeBoundary": "Theory examples use pre-registered views with standard queries. Task 3 requires students to design their own CTE structure (valid_readings → regional_summary → compliance). Task 6 requires the hybrid pattern — students must decide which parts to do in DataFrame API vs SQL, matching the convention taught in Lesson 9 but applied to different tables and metrics.",
+    "crossModuleNotes": "This is the capstone. Task 2 combines Module 7 joins with Module 10 SQL syntax. Task 3 combines Module 6 aggregation with Module 10 CTEs and Module 5 conditional logic (CASE WHEN in SQL). Task 6 combines Modules 3-4 (read, filter), Module 7 (joins), Module 6 (aggregation), Module 8 (I/O), and Module 10 (SQL + CTEs) into a single end-to-end pipeline.",
+    "datasetNotes": "Three datasets designed for SQL join practice: 125 readings (30 meters × 4 dates + 5 null rows), 35 meters ref (30 matched + 5 unmatched), and 8 substations. The key mismatch (5 readings-only, 5 meters-only) creates inner-join row reduction that students must account for in their SQL queries."
+  }
+}

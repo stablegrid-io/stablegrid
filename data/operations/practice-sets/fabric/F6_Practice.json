@@ -1,0 +1,426 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set 6 — Transforming Data in Notebooks",
+  "description": "Apply every transformation pattern NordGrid uses to move data from Bronze to Silver: enforce an explicit schema, filter invalid records, cast types from CSV strings to the correct Spark types, deduplicate on a composite key, predict the output of chained transformations, write a partitioned Delta table, and build the complete Silver pipeline that combines every technique.",
+  "version": "authored 2026-04-06, targets Microsoft Fabric GA 2025+ / PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-F6",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 60,
+    "maximumDurationMinutes": 75,
+    "taskCount": 7,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "500K meters, 4 regions, single team, 3 medallion workspaces",
+    "modulePhase": "essential_operations",
+    "taskTypeMix": {
+      "writeTheCode": 5,
+      "outputPrediction": 1,
+      "conceptIdentification": 0,
+      "synthesisPipeline": 1
+    },
+    "foundationException": "Not applied. F6 is in Essential Operations phase — the heart of code-heavy junior practice. Task type mix (5 write_the_code + 1 output_prediction + 1 synthesis_pipeline = 7 tasks) uses the full §4.2 allowance for write_the_code tasks and matches the §2.2 maximum of 7 tasks per junior practice set. Every code task follows the F5 scaffold pattern: the pre-configured `spark` variable is provided above the YOUR SOLUTION marker to mirror Fabric's automatic session."
+  },
+  "datasets": [
+    {
+      "id": "F6_data_readings",
+      "file": "F6_data_readings.csv",
+      "description": "NordGrid raw meter readings for 2026-03-10. 25 rows containing every data quality issue this module teaches: 16 clean valid rows (4 per region), 2 rows with null daily_kw, 2 rows with negative daily_kw, 1 row with an extreme daily_kw (99999.0), and 4 duplicate (meter_id, date) pairs. After the full Silver transformation (filter nulls + filter daily_kw > 0 + filter daily_kw < 10000 + dedup on (meter_id, date)), exactly 16 rows survive.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": true, "description": "Nullable because 2 rows have missing values"},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-F6-task-01", "module-F6-task-02", "module-F6-task-04", "module-F6-task-06", "module-F6-task-07"]
+    },
+    {
+      "id": "F6_data_readings_typed",
+      "file": "F6_data_readings_typed.csv",
+      "description": "NordGrid meter readings with daily_kw stored as a STRING column (daily_kw_str). 20 rows: 15 valid numeric strings that cast cleanly to double, and 5 rows with 'N/A' strings that cannot be cast and produce null after casting. Designed to test explicit type casting from CSV strings to the correct PySpark type.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw_str", "type": "string", "nullable": false, "description": "String column — student must cast to double"},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-F6-task-03"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-F6-task-01",
+      "title": "Enforce NordGrid's Reading Schema",
+      "type": "write_the_code",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's production notebooks never rely on inferSchema in Silver transformations — it is slow on large inputs and silently drifts when the source CSV adds or reorders columns. Instead, every notebook defines an explicit StructType for each expected input and passes it to spark.read.csv(). Your task is to define the schema for NordGrid's meter readings and use it to read the Bronze CSV.",
+        "task": "Import StructType, StructField, StringType, and DoubleType from pyspark.sql.types. Define a StructType called readings_schema with four fields: meter_id (StringType, not nullable), daily_kw (DoubleType, nullable), date (StringType, not nullable), and region (StringType, not nullable). Read F6_data_readings.csv using this schema (with header=True, no inferSchema). Store the DataFrame in df_readings and the Spark type of the daily_kw column in daily_kw_type (as a string such as 'DoubleType').",
+        "validationHint": "Use StructType([StructField('meter_id', StringType(), False), ...]). Pass the schema with spark.read.csv(path, header=True, schema=readings_schema). Extract the column type with df_readings.schema['daily_kw'].dataType — calling str() on it or using .simpleString() gives a human-readable name. The dataset has 25 rows total."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F6 Lesson 2: schema enforcement. Define an explicit StructType and pass it to\n# spark.read.csv() instead of using inferSchema. This is the NordGrid production pattern.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-schema-enforce') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\nprint('Spark ready. Define the schema, then read F6_data_readings.csv with it.')\n\n# YOUR SOLUTION BELOW\n# 1. Define a StructType called readings_schema with the 4 fields listed in the task\n# 2. Read F6_data_readings.csv using header=True and schema=readings_schema (no inferSchema)\n# 3. Store the DataFrame in df_readings\n# 4. Store the daily_kw column's type name in daily_kw_type (e.g., 'DoubleType' or 'double')\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {df_readings.count()}\")\nprint(f\"Schema:\")\ndf_readings.printSchema()\nprint(f\"daily_kw type: {daily_kw_type}\")"
+      },
+      "assertions": [
+        {
+          "id": "F6-01-A1",
+          "description": "readings_schema is a StructType with exactly 4 fields",
+          "check": "isinstance(readings_schema, StructType) and len(readings_schema.fields) == 4"
+        },
+        {
+          "id": "F6-01-A2",
+          "description": "All 4 expected field names are present",
+          "check": "set(f.name for f in readings_schema.fields) == {'meter_id', 'daily_kw', 'date', 'region'}"
+        },
+        {
+          "id": "F6-01-A3",
+          "description": "daily_kw field is DoubleType",
+          "check": "isinstance(readings_schema['daily_kw'].dataType, DoubleType)"
+        },
+        {
+          "id": "F6-01-A4",
+          "description": "df_readings has 25 rows loaded with the explicit schema",
+          "check": "df_readings.count() == 25"
+        },
+        {
+          "id": "F6-01-A5",
+          "description": "daily_kw_type references DoubleType (case-insensitive match on 'double')",
+          "check": "'double' in str(daily_kw_type).lower()"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-F6-task-02",
+      "title": "Filter Invalid Meter Readings",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's Silver layer has strict data quality rules: meter readings must have a non-null daily_kw, daily_kw must be strictly greater than 0 (sensor malfunctions produce negative values), and daily_kw must be strictly less than 10000 (values above this are calibration errors from decimal-point shifts). The Bronze CSV for 2026-03-10 contains 25 rows. Several violate one or more rules.",
+        "task": "Read F6_data_readings.csv with header=True and inferSchema=True. Apply the three quality rules in any order — the result should be a DataFrame where every row has a non-null daily_kw between 0 (exclusive) and 10000 (exclusive). Store the filtered DataFrame in df_valid and the number of rows removed by filtering in rows_removed.",
+        "validationHint": "The dataset has 2 null daily_kw, 2 negative daily_kw, and 1 extreme daily_kw (99999.0). Total invalid: 5 rows. Note: the 4 duplicate rows are NOT removed by this task — duplicates are handled in Task 4. Expected df_valid count: 25 - 5 = 20. Expected rows_removed: 5."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F6 Lesson 3: filtering invalid records. Use filter() or where() with compound\n# conditions. Chaining multiple filter calls is equivalent to combining with &.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-filter-invalid') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_raw = spark.read.csv('F6_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Raw rows: {df_raw.count()}\")\n\n# YOUR SOLUTION BELOW\n# Apply 3 filters:\n#   1. daily_kw is not null\n#   2. daily_kw > 0\n#   3. daily_kw < 10000\n# Store the filtered DataFrame in df_valid.\n# Store the number of rows removed (df_raw.count() - df_valid.count()) in rows_removed.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Valid rows: {df_valid.count()}\")\nprint(f\"Rows removed: {rows_removed}\")\nprint(f\"daily_kw range: {df_valid.agg({'daily_kw': 'min'}).collect()[0][0]} to {df_valid.agg({'daily_kw': 'max'}).collect()[0][0]}\")"
+      },
+      "assertions": [
+        {
+          "id": "F6-02-A1",
+          "description": "df_valid is a DataFrame",
+          "check": "hasattr(df_valid, 'count') and hasattr(df_valid, 'columns')"
+        },
+        {
+          "id": "F6-02-A2",
+          "description": "df_valid has 20 rows (25 raw minus 5 invalid)",
+          "check": "df_valid.count() == 20"
+        },
+        {
+          "id": "F6-02-A3",
+          "description": "rows_removed equals 5",
+          "check": "rows_removed == 5"
+        },
+        {
+          "id": "F6-02-A4",
+          "description": "No rows in df_valid have null daily_kw",
+          "check": "df_valid.filter(col('daily_kw').isNull()).count() == 0"
+        },
+        {
+          "id": "F6-02-A5",
+          "description": "No rows in df_valid have daily_kw <= 0",
+          "check": "df_valid.filter(col('daily_kw') <= 0).count() == 0"
+        },
+        {
+          "id": "F6-02-A6",
+          "description": "No rows in df_valid have daily_kw >= 10000",
+          "check": "df_valid.filter(col('daily_kw') >= 10000).count() == 0"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit."
+    },
+    {
+      "id": "module-F6-task-03",
+      "title": "Cast daily_kw from String to Double",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's external SCADA system exports meter readings as CSVs where daily_kw is serialized as a string (daily_kw_str). Most values are numeric strings like '1200.5' that cast cleanly to double. But when a meter fails to report, the SCADA system writes 'N/A' instead of leaving the field empty — and 'N/A' cannot be cast to a number. The Silver transformation must handle both cases: cast successfully where possible, and identify the rows where casting failed so they can be filtered out.",
+        "task": "Read F6_data_readings_typed.csv with header=True and inferSchema=True. Add a new column called daily_kw that is the result of casting daily_kw_str to DoubleType — rows with 'N/A' will become null in this new column. Store the full DataFrame (with the original and cast columns) in df_casted. Store the number of rows where the cast failed (produced null) in cast_failures. Then produce df_clean by dropping the rows where daily_kw is null.",
+        "validationHint": "Use withColumn('daily_kw', col('daily_kw_str').cast(DoubleType())) or cast('double') — both work. The dataset has 20 rows, 5 with 'N/A' that will produce null after cast. Expected: df_casted.count() == 20, cast_failures == 5, df_clean.count() == 15."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F6 Lesson 6: type casting from CSV strings to correct Spark types. The cast()\n# method returns null for values that cannot be converted — filter these out after.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\nfrom pyspark.sql.types import DoubleType\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-type-cast') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_raw = spark.read.csv('F6_data_readings_typed.csv', header=True, inferSchema=True)\nprint(f\"Raw schema:\")\ndf_raw.printSchema()\nprint(f\"Raw row count: {df_raw.count()}\")\n\n# YOUR SOLUTION BELOW\n# 1. Add a new column 'daily_kw' = cast of 'daily_kw_str' to DoubleType. Store in df_casted.\n# 2. Count rows where daily_kw is null after the cast (these are the cast failures). Store in cast_failures.\n# 3. Drop rows where daily_kw is null to produce df_clean.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"df_casted row count: {df_casted.count()}\")\nprint(f\"Cast failures (null daily_kw): {cast_failures}\")\nprint(f\"df_clean row count: {df_clean.count()}\")\nprint(f\"df_clean schema:\")\ndf_clean.printSchema()"
+      },
+      "assertions": [
+        {
+          "id": "F6-03-A1",
+          "description": "df_casted has 20 rows (all rows preserved, including failed casts as null)",
+          "check": "df_casted.count() == 20"
+        },
+        {
+          "id": "F6-03-A2",
+          "description": "df_casted has a daily_kw column of DoubleType",
+          "check": "'daily_kw' in df_casted.columns and isinstance(df_casted.schema['daily_kw'].dataType, DoubleType)"
+        },
+        {
+          "id": "F6-03-A3",
+          "description": "cast_failures equals 5 (the 5 N/A rows)",
+          "check": "cast_failures == 5"
+        },
+        {
+          "id": "F6-03-A4",
+          "description": "df_clean has 15 rows (20 minus 5 cast failures)",
+          "check": "df_clean.count() == 15"
+        },
+        {
+          "id": "F6-03-A5",
+          "description": "df_clean has no null daily_kw values",
+          "check": "df_clean.filter(col('daily_kw').isNull()).count() == 0"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-F6-task-04",
+      "title": "Deduplicate Readings on Composite Key",
+      "type": "write_the_code",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's Bronze ingestion uses a retry policy: if the daily SFTP pull fails partway through, the pipeline retries the entire file. This can cause the same meter reading to land in Bronze twice for the same (meter_id, date) pair. The Silver layer must deduplicate on this composite key — keeping one reading per meter per day. Deduplication must NOT use distinct() across all columns because two rows might differ in only one column due to source noise, and the team wants the first occurrence preserved regardless of other columns.",
+        "task": "Read F6_data_readings.csv into df_raw. Use dropDuplicates() with the composite key subset ['meter_id', 'date'] to deduplicate. Store the result in df_deduped. Store the number of duplicate rows removed (df_raw.count() - df_deduped.count()) in dupes_removed.",
+        "validationHint": "The dataset has 25 raw rows. 4 of them are exact duplicates of other rows on (meter_id, date): M-0001, M-0005, M-0009, M-0013 each appear twice. After dedup: 25 - 4 = 21 rows. dupes_removed should be 4."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F6 Lesson 7: deduplication on a composite key. Use dropDuplicates(subset=[...])\n# rather than distinct() when you want to deduplicate on specific columns.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-dedup') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_raw = spark.read.csv('F6_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Raw rows: {df_raw.count()}\")\n\n# YOUR SOLUTION BELOW\n# 1. Deduplicate df_raw on the composite key (meter_id, date). Store in df_deduped.\n# 2. Store the count of rows removed (raw - deduped) in dupes_removed.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Deduped rows: {df_deduped.count()}\")\nprint(f\"Duplicates removed: {dupes_removed}\")\n# Check: meter M-0001 on 2026-03-10 should appear exactly once\nfrom pyspark.sql.functions import col\nm1_count = df_deduped.filter((col('meter_id') == 'M-0001') & (col('date') == '2026-03-10')).count()\nprint(f\"M-0001 on 2026-03-10 appears {m1_count} time(s) after dedup\")"
+      },
+      "assertions": [
+        {
+          "id": "F6-04-A1",
+          "description": "df_deduped has 21 rows (25 raw minus 4 duplicates)",
+          "check": "df_deduped.count() == 21"
+        },
+        {
+          "id": "F6-04-A2",
+          "description": "dupes_removed equals 4",
+          "check": "dupes_removed == 4"
+        },
+        {
+          "id": "F6-04-A3",
+          "description": "Meter M-0001 appears exactly once on 2026-03-10",
+          "check": "df_deduped.filter(\"meter_id = 'M-0001' AND date = '2026-03-10'\").count() == 1"
+        },
+        {
+          "id": "F6-04-A4",
+          "description": "Meter M-0013 appears exactly once on 2026-03-10",
+          "check": "df_deduped.filter(\"meter_id = 'M-0013' AND date = '2026-03-10'\").count() == 1"
+        },
+        {
+          "id": "F6-04-A5",
+          "description": "No (meter_id, date) pair is duplicated after dedup",
+          "check": "df_deduped.groupBy('meter_id', 'date').count().filter('count > 1').count() == 0"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-F6-task-05",
+      "title": "Predict the Transformation Output",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's data engineer is reviewing a 10-row sample from the Bronze readings file before promoting a code change to production. She needs to predict the row count at each stage of the Silver transformation pipeline to make sure her mental model is right. The sample is:\n\n  1. M-A, 1000.0, 2026-03-10, NORTH\n  2. M-B, 1200.0, 2026-03-10, SOUTH\n  3. M-C, NULL,   2026-03-10, EAST   (null daily_kw)\n  4. M-D, -50.0,  2026-03-10, WEST   (negative)\n  5. M-A, 1000.0, 2026-03-10, NORTH  (duplicate of row 1)\n  6. M-E, 99999.0, 2026-03-10, NORTH (extreme)\n  7. M-F, 1500.0, 2026-03-10, SOUTH\n  8. M-G, 1800.0, 2026-03-10, EAST\n  9. M-B, 1200.0, 2026-03-10, SOUTH  (duplicate of row 2)\n  10. M-H, 2000.0, 2026-03-10, WEST\n\nThe Silver pipeline applies these transformations in order: (1) drop nulls in daily_kw, (2) filter daily_kw > 0, (3) filter daily_kw < 10000, (4) deduplicate on (meter_id, date).",
+        "task": "Predict the row count remaining after each stage of the pipeline.",
+        "validationHint": "Trace each transformation step in order. Start with 10 rows. Step 1 removes row 3 (null). Step 2 removes row 4 (negative). Step 3 removes row 6 (extreme). After 3 filter steps, 7 rows remain. Step 4 removes rows 5 and 9 (the duplicates). Final: 5 rows."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F6-05-F1",
+            "type": "numeric",
+            "label": "After Step 1 (drop nulls in daily_kw), how many rows remain?",
+            "correctAnswer": 9,
+            "tolerance": 0,
+            "rationale": "Row 3 (M-C) has NULL daily_kw and is removed. 10 - 1 = 9."
+          },
+          {
+            "id": "F6-05-F2",
+            "type": "numeric",
+            "label": "After Step 2 (filter daily_kw > 0), how many rows remain?",
+            "correctAnswer": 8,
+            "tolerance": 0,
+            "rationale": "Row 4 (M-D) has daily_kw = -50.0 and is removed. 9 - 1 = 8."
+          },
+          {
+            "id": "F6-05-F3",
+            "type": "numeric",
+            "label": "After Step 3 (filter daily_kw < 10000), how many rows remain?",
+            "correctAnswer": 7,
+            "tolerance": 0,
+            "rationale": "Row 6 (M-E) has daily_kw = 99999.0 and is removed. 8 - 1 = 7."
+          },
+          {
+            "id": "F6-05-F4",
+            "type": "numeric",
+            "label": "After Step 4 (deduplicate on (meter_id, date)), how many rows remain?",
+            "correctAnswer": 5,
+            "tolerance": 0,
+            "rationale": "Rows 5 (duplicate M-A) and 9 (duplicate M-B) are removed. Remaining: M-A, M-B, M-F, M-G, M-H = 5 rows."
+          },
+          {
+            "id": "F6-05-F5",
+            "type": "single_select",
+            "label": "If the pipeline reversed the order — deduplicate first, then apply the 3 filter steps — would the final row count be different?",
+            "options": [
+              "Yes — deduplicate first produces a different count because the duplicates might protect some rows",
+              "No — the final count is the same (5) because in this specific sample, the duplicates are of valid rows, so they get removed by dedup whether filters run first or second",
+              "Yes — the final count would be 7 because filters cannot remove rows that already passed dedup",
+              "Cannot tell without running the code"
+            ],
+            "correctAnswer": "No — the final count is the same (5) because in this specific sample, the duplicates are of valid rows, so they get removed by dedup whether filters run first or second",
+            "distractorRationale": "Option 1 is the trap — intuitively order seems to matter, but in this sample the 2 duplicates (rows 5 and 9) are copies of valid rows (1 and 2) which survive all filters, so dedup removes them in either ordering. Option 3 misunderstands filter semantics — filters operate on the current DataFrame regardless of prior operations. Option 4 misses that you can reason about this without execution when the data is small. Note that order CAN matter in general — if a duplicate row were itself invalid (say two copies of a null row), filter-first would remove both before dedup ran, while dedup-first would remove one and then filter would remove the other. The result is still the same, but intermediate counts differ."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F6-task-06",
+      "title": "Write a Partitioned Delta Table",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's Silver layer stores the readings table partitioned by region. Partitioning enables downstream queries that filter by region (most of NordGrid's analytics) to scan only the relevant partition instead of the entire table. Your task is to write a cleaned DataFrame as a managed Delta table partitioned by region.",
+        "task": "Read F6_data_readings.csv with header=True and inferSchema=True. Drop rows where daily_kw is null (leaving 23 rows). Write the result as a managed table called readings_partitioned using mode='overwrite' and partitionBy('region') and saveAsTable. After writing, read the table back into df_partitioned and store the distinct region count in region_partition_count.",
+        "validationHint": "Chain .write.mode('overwrite').partitionBy('region').saveAsTable('readings_partitioned'). The input has 25 rows, 2 with null daily_kw, so 23 rows are written. Partitioning by region creates 4 region partitions (NORTH, SOUTH, EAST, WEST). Expected: df_partitioned.count() == 23, region_partition_count == 4."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F6 Lesson 8: writing partitioned Delta tables. partitionBy() creates one\n# subdirectory per unique value of the partition column(s).\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, countDistinct\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-partitioned-write') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\ndf_raw = spark.read.csv('F6_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Raw rows: {df_raw.count()}\")\n\n# YOUR SOLUTION BELOW\n# 1. Drop rows where daily_kw is null (use dropna or filter)\n# 2. Write the result as a managed table called 'readings_partitioned' with:\n#      - mode='overwrite'\n#      - partitionBy('region')\n#      - saveAsTable\n# 3. Read the table back into df_partitioned\n# 4. Compute the distinct region count and store in region_partition_count\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"df_partitioned count: {df_partitioned.count()}\")\nprint(f\"Distinct regions: {region_partition_count}\")\ndf_partitioned.groupBy('region').count().orderBy('region').show()"
+      },
+      "assertions": [
+        {
+          "id": "F6-06-A1",
+          "description": "readings_partitioned table exists and has 23 rows",
+          "check": "spark.table('readings_partitioned').count() == 23"
+        },
+        {
+          "id": "F6-06-A2",
+          "description": "df_partitioned has 23 rows",
+          "check": "df_partitioned.count() == 23"
+        },
+        {
+          "id": "F6-06-A3",
+          "description": "region_partition_count equals 4 (NORTH, SOUTH, EAST, WEST)",
+          "check": "region_partition_count == 4"
+        },
+        {
+          "id": "F6-06-A4",
+          "description": "No rows have null daily_kw",
+          "check": "df_partitioned.filter(col('daily_kw').isNull()).count() == 0"
+        },
+        {
+          "id": "F6-06-A5",
+          "description": "All 4 NordGrid regions are represented",
+          "check": "set(r.region for r in df_partitioned.select('region').distinct().collect()) == {'NORTH', 'SOUTH', 'EAST', 'WEST'}"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-F6-task-07",
+      "title": "Build NordGrid's Complete Silver Transformation",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "This is the complete NordGrid Bronze-to-Silver transformation notebook. It synthesizes every concept from Module F6: schema enforcement (Lesson 2), quality filtering (Lesson 3), null handling (Lesson 5), deduplication (Lesson 7), writing a partitioned Delta table (Lesson 8), and output validation (Lesson 9). When this pipeline runs in production, it turns the raw meter readings CSV into NordGrid's authoritative Silver table — the single source of truth that downstream consumers query.\n\nThe pipeline has 5 steps. Each step uses a concept from a specific F6 lesson.",
+        "task": "Build the complete Silver transformation:\n\n(1) Define readings_schema as a StructType with the 4 fields (meter_id StringType not-null, daily_kw DoubleType nullable, date StringType not-null, region StringType not-null). Read F6_data_readings.csv with this schema. Store in df_bronze.\n\n(2) Apply all quality filters: daily_kw is not null, daily_kw > 0, daily_kw < 10000. Store in df_filtered.\n\n(3) Deduplicate on the composite key ['meter_id', 'date']. Store in df_silver.\n\n(4) Write df_silver as a managed table called nordgrid_silver_readings partitioned by region with mode='overwrite' and saveAsTable.\n\n(5) Validate the output: read the table back into df_silver_read, then compute the validation summary and store the following values — silver_row_count (total rows in the Silver table), silver_region_count (distinct regions), silver_null_daily_kw (rows with null daily_kw, must be 0), and silver_duplicate_pairs (rows where (meter_id, date) is duplicated, must be 0).",
+        "validationHint": "Expected values after all transformations: silver_row_count = 16 (25 - 5 invalid - 4 duplicates), silver_region_count = 4, silver_null_daily_kw = 0, silver_duplicate_pairs = 0. The final Silver table mirrors NordGrid's production behavior: exactly one valid reading per meter per day, no nulls, no duplicates, partitioned by region for efficient downstream queries."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# Complete NordGrid Bronze-to-Silver transformation — the synthesis task.\n# Combines schema enforcement, filtering, deduplication, partitioned writes, and validation.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-silver-pipeline') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\nprint('Building NordGrid Silver pipeline...')\n\n# YOUR SOLUTION BELOW\n\n# Step 1: Define readings_schema (StructType with 4 fields) and read F6_data_readings.csv.\n#         Store in df_bronze.\n\n\n\n# Step 2: Apply the 3 quality filters. Store in df_filtered.\n\n\n\n# Step 3: Deduplicate on ['meter_id', 'date']. Store in df_silver.\n\n\n\n# Step 4: Write df_silver as 'nordgrid_silver_readings' partitioned by region (overwrite mode).\n\n\n\n# Step 5: Read the table back into df_silver_read. Compute and store:\n#         silver_row_count, silver_region_count, silver_null_daily_kw, silver_duplicate_pairs\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Bronze rows: {df_bronze.count()}\")\nprint(f\"After filters: {df_filtered.count()}\")\nprint(f\"After dedup (Silver): {df_silver.count()}\")\nprint(f\"Silver table row count: {silver_row_count}\")\nprint(f\"Silver region count: {silver_region_count}\")\nprint(f\"Silver null daily_kw: {silver_null_daily_kw}\")\nprint(f\"Silver duplicate pairs: {silver_duplicate_pairs}\")\nprint('Per-region breakdown:')\ndf_silver_read.groupBy('region').count().orderBy('region').show()"
+      },
+      "assertions": [
+        {
+          "id": "F6-07-A1",
+          "description": "readings_schema is a StructType with 4 fields including a DoubleType daily_kw",
+          "check": "isinstance(readings_schema, StructType) and len(readings_schema.fields) == 4 and isinstance(readings_schema['daily_kw'].dataType, DoubleType)"
+        },
+        {
+          "id": "F6-07-A2",
+          "description": "df_bronze has 25 rows loaded with the explicit schema",
+          "check": "df_bronze.count() == 25"
+        },
+        {
+          "id": "F6-07-A3",
+          "description": "df_filtered has 20 rows (25 minus 5 invalid)",
+          "check": "df_filtered.count() == 20"
+        },
+        {
+          "id": "F6-07-A4",
+          "description": "df_silver has 16 rows (20 filtered minus 4 duplicates)",
+          "check": "df_silver.count() == 16"
+        },
+        {
+          "id": "F6-07-A5",
+          "description": "nordgrid_silver_readings managed table exists with 16 rows",
+          "check": "spark.table('nordgrid_silver_readings').count() == 16"
+        },
+        {
+          "id": "F6-07-A6",
+          "description": "silver_row_count equals 16",
+          "check": "silver_row_count == 16"
+        },
+        {
+          "id": "F6-07-A7",
+          "description": "silver_region_count equals 4",
+          "check": "silver_region_count == 4"
+        },
+        {
+          "id": "F6-07-A8",
+          "description": "silver_null_daily_kw equals 0 (no nulls survived)",
+          "check": "silver_null_daily_kw == 0"
+        },
+        {
+          "id": "F6-07-A9",
+          "description": "silver_duplicate_pairs equals 0 (no duplicate (meter_id, date) pairs)",
+          "check": "silver_duplicate_pairs == 0"
+        },
+        {
+          "id": "F6-07-A10",
+          "description": "df_silver_read contains all 4 regions",
+          "check": "set(r.region for r in df_silver_read.select('region').distinct().collect()) == {'NORTH', 'SOUTH', 'EAST', 'WEST'}"
+        }
+      ],
+      "partialCredit": "10 independent assertions. Each passed assertion earns 1/10 credit. A student who completes steps 1-3 correctly but fails steps 4-5 earns at least 4/10.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Schema enforcement with explicit StructType (Lesson 2)",
+          "Quality filtering: null check, positivity check, upper bound check (Lessons 3, 5)",
+          "Deduplication on composite key (meter_id, date) (Lesson 7)",
+          "Writing a managed Delta table partitioned by region with saveAsTable (Lesson 8)",
+          "Output validation: row count, distinct regions, null count, duplicate count (Lesson 9)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This task mirrors the exact structure of NordGrid's production Silver notebook from Lesson 10. Each step tests a different F6 lesson, and the student must chain them correctly. A student who understands any single concept in isolation cannot complete this task — they must compose all 5 concepts into a working pipeline. The 10 independent assertions provide fine-grained partial credit so students who get the early steps right still earn credit even if the validation step at the end has a bug. The final row count (16) is the arithmetic result of every transformation applied correctly: 25 raw → 20 filtered → 16 deduplicated. Getting 16 proves the student applied every rule correctly and in a valid order."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Not applied. F6 is Essential Operations phase. This practice set uses the maximum 7 tasks (§2.2) and the maximum 5 write_the_code tasks (§4.2). Every task uses the pre-configured spark pattern established in F5. The synthesis task combines 5 distinct F6 concepts and produces a pipeline matching NordGrid's production Silver notebook structure.",
+    "theoryPracticeBoundary": "The theory teaches each transformation concept (schema, filter, null handling, cast, dedup, partition, validate) through incremental NordGrid examples across Lessons 2-9, then synthesizes them in Lesson 10. The practice tests application: Tasks 1-4 and 6 each focus on one concept applied to NordGrid data that the theory does not walk through line-by-line — the specific 25-row dataset, the specific invalid values, and the specific duplicate patterns are unique to the practice. Task 5 (output prediction) uses a 10-row sample the student has not seen before, forcing them to trace transformations on unfamiliar data. Task 7 builds the complete pipeline on the same 25-row dataset used in individual tasks — the synthesis is in chaining the concepts, not in facing new data.",
+    "crossModuleNotes": "This practice set assumes F5 knowledge: the pre-configured spark variable, spark.read.csv, df.write.saveAsTable, managed tables in Hive-support mode. It does not require F7+ knowledge (pipeline orchestration, scheduling) or F9 knowledge (T-SQL on the SQL endpoint). The schema enforcement pattern from Lesson 2 uses StructType from pyspark.sql.types — this is the first practice set in the Fabric track where the student defines types explicitly, but the pattern is within junior PySpark scope.",
+    "datasetNotes": "Two CSV datasets. F6_data_readings.csv (25 rows) has every data quality issue the module teaches — 2 nulls, 2 negatives, 1 extreme, 4 duplicates — so that applying all transformations produces exactly 16 clean rows. The arithmetic is deliberate: 25 - 2 (null) - 2 (neg) - 1 (extreme) - 4 (dup) = 16. F6_data_readings_typed.csv (20 rows) has daily_kw as a string column with 5 'N/A' values that fail cast, for Task 3's type casting test. The synthesis task uses the main dataset exclusively — the typed dataset is isolated to Task 3 so that casting is tested without complicating the full pipeline."
+  }
+}

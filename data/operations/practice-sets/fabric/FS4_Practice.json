@@ -1,0 +1,448 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FS4 — Design Joins for the Cross-Country Enrichment Pipeline",
+  "description": "Choose a join strategy for GridUnion's 5-hop cross-country enrichment pipeline, review an architectural skew pattern that mid-level salting cannot fix, coordinate bucketing across 8 country fact tables, design the Bloom filter configuration, and synthesize the join architecture decision framework. Senior-level practice in evaluating join topologies, materialization boundaries, and cross-team coordination at 500-pipeline scale.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / Spark 3.5+",
+  "metadata": {
+    "moduleId": "module-FS4",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 90,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "GridUnion Continental",
+    "scenarioScale": "5M meters, 30 regions, 4 countries (DE/FR/NL/LU), 12 teams, 80 engineers, 500+ pipelines, 15TB historical archive",
+    "modulePhase": "extensibility",
+    "taskTypeMix": {
+      "tradeoffAnalysis": 2,
+      "designReview": 1,
+      "rootCauseAnalysis": 0,
+      "designArtifact": 1,
+      "architecturalSynthesis": 1
+    },
+    "calibrationNotes": "Senior practice set in the extensibility phase. Two trade-off tasks (Task 1 join strategy + Task 3 bucket count) anchor the set with multiple defensible answers. Task 2 design review tests architectural skew handling at the source — a senior-level pattern that goes beyond mid-level salting. Task 4 design artifact builds a Bloom filter configuration that the platform team can deploy. The synthesis combines all four into a join architecture decision framework. Multi-defensible answers documented in acceptable_alternatives metadata."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-FS4-task-01",
+      "title": "Choose a Join Strategy for the 5-Hop Enrichment Pipeline",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's monthly cross-country billing pipeline (pl_billing_monthly_eu) chains 5 joins to enrich raw meter readings with progressively more reference data. The platform team is redesigning this pipeline because the current implementation runs in 47 minutes and the SLA target is 20 minutes.\n\n  CURRENT PIPELINE TOPOLOGY:\n\n    fact_readings_de (8 TB, 12 months)\n      |\n      JOIN 1: + dim_meters_de (2 GB, ~1.2M rows) on meter_id\n      |\n      JOIN 2: + dim_tariff_de (45 KB, ~1200 rows) on tariff_id\n      |\n      JOIN 3: + dim_regulatory_zone (8 KB, ~30 rows) on zone_code\n      |\n      JOIN 4: + dim_pricing_history (180 MB, ~500K rows, SCD2) on (tariff_id, valid_from <= reading_date < valid_to)\n      |\n      JOIN 5: + dim_currency_eur (2 KB, ~10 rows) on currency_code\n      |\n      Aggregate by (region, billing_period)\n\n  CURRENT BEHAVIOR:\n    - All 5 joins are chained in one Spark job with no materialization between hops\n    - Joins 1, 2, 3, 5 use BroadcastHashJoin (small enough)\n    - Join 4 uses SortMergeJoin with a range condition\n    - Total runtime: 47 minutes\n    - Spill volume on join 4: 12 GB (executors can't hold the join state)\n    - Whole-stage codegen breaks at join 4 because of the range condition\n\n  THREE OPTIONS UNDER CONSIDERATION:\n\n  OPTION A — CHAINED BROADCAST + INTERVAL JOIN (CURRENT, OPTIMIZED):\n    Keep the single-job topology, but force broadcast hints on joins 1, 2, 3, 5 and rewrite join 4 as a broadcast interval join (the dim_pricing_history is small enough at 180 MB to broadcast)\n    - Pros: simplest change, no intermediate storage, no orchestration changes\n    - Cons: 180 MB broadcast is at the upper edge of safe; whole-stage codegen still breaks at the range condition; no fault isolation between hops\n    - Estimated runtime: 22-28 minutes (still misses SLA)\n\n  OPTION B — BUCKETED THROUGHOUT:\n    Re-bucket fact_readings_de, dim_meters_de, and dim_pricing_history on meter_id (or a derived key) so joins 1 and 4 can be performed without shuffles\n    - Pros: eliminates the largest shuffle; deterministic plan; scales linearly with data growth\n    - Cons: requires re-writing 8 TB of fact data and 180 MB of pricing history with new bucket schemes; coordinating bucket counts across the German team's 6 downstream consumers; ~3 weeks of migration work; bucket count chosen now constrains the table for years\n    - Estimated runtime: 12-15 minutes (meets SLA)\n\n  OPTION C — MATERIALIZED INTERMEDIATE AT HOP 3:\n    Split the pipeline into two jobs: Job A runs joins 1-3 and writes an intermediate Silver+ table to OneLake. Job B runs joins 4-5 against the intermediate. The intermediate is also useful as a standalone Silver+ data product for other consumers (the analytics team and the ML team can read it directly)\n    - Pros: each job is simpler and faster individually; the intermediate is a reusable data product (avoids the analytics team duplicating joins 1-3); fault isolation between Job A and Job B; no bucketing migration needed\n    - Cons: introduces an intermediate write (~250 GB) consuming OneLake storage and write CUs; adds orchestration complexity (two pipelines + dependency); doubles the metadata footprint\n    - Estimated runtime: 8 minutes (Job A) + 6 minutes (Job B) = 14 minutes wall clock (Job A + Job B can partially overlap with downstream consumers, meets SLA)\n\n  GRIDUNION CONSTRAINTS:\n    - SLA target: 20 minutes (currently missed at 47)\n    - F128 production capacity, ~3000 CU-hours/day available, currently spending ~180 CU-hours on this single pipeline\n    - 8 TB fact table grows ~700 GB/month\n    - Analytics team has expressed interest in a 'meter-with-region-and-tariff' table as a reusable data product\n    - Bucketing migration would take 3 weeks of platform team time during a quarter when the team is already committed to the schema registry rollout (FS5)",
+        "task": "Evaluate the three options against the constraints and recommend ONE primary approach. Multiple defensible answers exist; the reasoning fields determine which is acceptable.",
+        "validationHint": "Both Option B (bucketed) and Option C (materialized intermediate) are defensible primary answers. Option B is the technically optimal long-term answer that gives the best runtime and scales linearly. Option C is the architecturally optimal answer that creates a reusable data product and avoids the coordination cost of bucketing. A staff engineer would defend either depending on whether the team has the bandwidth for the bucketing migration. Option A is NOT acceptable as primary because it still misses the SLA."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS4-01-F1",
+            "type": "single_select",
+            "label": "RECOMMENDATION: Which approach do you recommend as the primary join strategy?",
+            "options": [
+              "Option A (Chained Broadcast + Interval Join) — minimum change, fastest to deploy",
+              "Option B (Bucketed Throughout) — best runtime, scales linearly, but requires 3 weeks of migration work",
+              "Option C (Materialized Intermediate) — meets SLA, creates reusable data product, no bucketing migration needed",
+              "Hybrid: Option C now + Option B later when the team has bandwidth"
+            ],
+            "correctAnswer": "Option C (Materialized Intermediate) — meets SLA, creates reusable data product, no bucketing migration needed",
+            "secondaryCorrectAnswer": "Hybrid: Option C now + Option B later when the team has bandwidth",
+            "rationale": "PRIMARY answer is Option C because it meets the SLA, creates a reusable data product that benefits other teams, and does not require the 3-week bucketing migration during a quarter when the team is committed to FS5. SECONDARY answer (Hybrid) is also accepted because phased migration is a real production pattern: ship the materialization fix now, schedule the bucketing migration for a future quarter when capacity is available. Option B alone is rejected because it pulls the team off FS5 commitments. Option A is rejected because it does not meet the SLA. A staff engineer would defend either C or the Hybrid; some staff engineers would push back and argue Option B is worth the trade-off, which is also accepted with strong reasoning that explicitly addresses the FS5 collision.",
+            "acceptable_alternatives": "Either Option C (primary) or the Hybrid (secondary) is accepted. Option B may be accepted if the student's reasoning explicitly addresses the FS5 capacity collision and proposes a way to absorb both initiatives (e.g., 'delay FS5 by one quarter' or 'staff up the platform team')."
+          },
+          {
+            "id": "FS4-01-F2",
+            "type": "multi_select",
+            "label": "TRADE-OFF FACTORS: Which factors does your chosen approach prioritize? (Select all that apply)",
+            "options": [
+              "SLA compliance (meets the 20-minute target)",
+              "Reusability (the intermediate is valuable to other teams)",
+              "Operational simplicity (no bucketing coordination across consumers)",
+              "Team bandwidth (does not collide with the FS5 commitment)",
+              "Long-term scalability (linear scale with data growth)",
+              "Minimum CU consumption (lowest steady-state cost)"
+            ],
+            "correctAnswer": ["SLA compliance (meets the 20-minute target)", "Reusability (the intermediate is valuable to other teams)", "Operational simplicity (no bucketing coordination across consumers)", "Team bandwidth (does not collide with the FS5 commitment)"],
+            "rationale": "Option C prioritizes the 4 factors that match its design: meets SLA, creates reusable data product, avoids the coordination cost of bucketing, fits within team bandwidth. Option C does NOT optimize for long-term scalability the way Option B does (Option B's bucketed joins scale better with data growth) and does NOT minimize CU consumption (the intermediate write costs CUs that Option B avoids). The student's multi-select must match the prioritization implied by their F1 choice.",
+            "acceptable_alternatives": "If F1 = Option B, accept {SLA compliance, Long-term scalability, Minimum CU consumption}. If F1 = Hybrid, accept the union of Option C and Option B factors except Operational simplicity (the hybrid is operationally MORE complex)."
+          },
+          {
+            "id": "FS4-01-F3",
+            "type": "single_select",
+            "label": "EXPIRATION CONDITION: Under what conditions would your recommended approach stop being the right choice?",
+            "options": [
+              "When the intermediate's write cost exceeds the join cost it eliminates (e.g., if join 1-3 produces a 5 TB intermediate that is read once and discarded), the materialization stops paying off and the team should revisit Option B (bucketed) or Option A (single job)",
+              "When GridUnion adds a 5th country",
+              "Never — Option C is always correct",
+              "When the SLA target tightens to 5 minutes"
+            ],
+            "correctAnswer": "When the intermediate's write cost exceeds the join cost it eliminates (e.g., if join 1-3 produces a 5 TB intermediate that is read once and discarded), the materialization stops paying off and the team should revisit Option B (bucketed) or Option A (single job)",
+            "secondaryCorrectAnswer": "When the SLA target tightens to 5 minutes",
+            "rationale": "PRIMARY answer captures the cost-vs-benefit threshold for materialization: it pays off when the intermediate is reused (other teams read it) and the join savings exceed the write cost. If the intermediate becomes write-once-read-once, the materialization is pure overhead. SECONDARY answer (5-minute SLA) is also accepted because at very tight SLAs, the wall-clock cost of the intermediate write may exceed the SLA budget itself. Both reflect senior-level reasoning about WHEN this design stops being right."
+          },
+          {
+            "id": "FS4-01-F4",
+            "type": "single_select",
+            "label": "STRONGEST COUNTERARGUMENT: What is the strongest argument a peer reviewer might raise against your recommendation?",
+            "options": [
+              "The materialization commits the team to maintaining a new production data product (the intermediate Silver+ table) with its own SLA, monitoring, schema versioning, and consumer contracts — an organizational cost that is invisible at design time but accumulates over years",
+              "Materialization is always wrong",
+              "The intermediate is too small to matter",
+              "OneLake doesn't support intermediate tables"
+            ],
+            "correctAnswer": "The materialization commits the team to maintaining a new production data product (the intermediate Silver+ table) with its own SLA, monitoring, schema versioning, and consumer contracts — an organizational cost that is invisible at design time but accumulates over years",
+            "rationale": "The strongest counterargument is the organizational cost of creating a new data product. Every published intermediate becomes a contract the team must support. The student's defense is that the analytics team's expressed interest justifies the contract — the data product is needed regardless of the join optimization, so the materialization piggybacks on a commitment the team would have made anyway. If the analytics team did NOT want this data product, the counterargument would be much stronger and Option B might become the right answer. This is the senior pattern: every design choice has organizational consequences that persist long after the technical decision."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS4-task-02",
+      "title": "Review the Cross-Country Skew Pattern",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's unified monthly aggregation pipeline (pl_unified_monthly_aggregate) joins fact_readings_eu (the unified 4-country fact table, 15 TB) with dim_meters_eu on meter_id. The join shuffle exhibits severe skew — Spark UI shows 4 tasks taking 18+ minutes while the rest finish in under 90 seconds.\n\n  SKEW EVIDENCE:\n\n    SPARK UI — STAGE 7 (sort-merge join shuffle)\n    -------------------------------------------\n    Total tasks: 200\n    Task duration distribution:\n      median:  82 sec\n      p75:     94 sec\n      p95:    120 sec\n      max:    1080 sec  (18 minutes)\n      4 longest tasks: 920, 1010, 1050, 1080 sec\n\n    Skewed task partition stats:\n      Task 47: 4.2 GB shuffled, 28M records\n      Task 89: 4.5 GB shuffled, 31M records\n      Task 134: 4.8 GB shuffled, 33M records\n      Task 178: 5.1 GB shuffled, 35M records\n\n    Median task partition: 78 MB, 540K records\n\n    DATA DISTRIBUTION:\n      Country  Meters     % of total\n      DE       3,250,000  65%   <-- the 4 skewed tasks all fall here\n      FR       1,000,000  20%\n      NL         500,000  10%\n      LU         250,000   5%\n\n  PROPOSED FIX BY THE JUNIOR ENGINEER:\n    'Apply key salting: append a random integer 0-9 to meter_id on both sides of the join. This redistributes the German meters across 10x more partitions and eliminates the skew.'\n\n  CURRENT SKEW MITIGATION ALREADY IN PLACE:\n    - AQE skew join enabled (spark.sql.adaptive.skewJoin.enabled = true)\n    - Skew detection threshold: 5x median (5 * 78 MB = 390 MB)\n    - Skew partition factor: 10\n    - Despite AQE skew handling being on, the 4 skewed tasks still run for 18 minutes — AQE detected the skew but the splits were still too large\n\n  PIPELINE CONSTRAINTS:\n    - This pipeline runs 4x per day for the German billing team\n    - The unified table cannot be split per-country at the storage layer (regulatory requirement: cross-country aggregations must run against a single source)\n    - The German market is structurally 65% of meter volume due to grid topology (this won't change)\n    - The team has 1 sprint to deliver a fix",
+        "task": "Review the proposed fix and identify the architectural problem that key salting cannot solve. Propose a senior-level alternative that addresses the root cause.",
+        "validationHint": "The architectural problem is that 65% concentration in one country is a STRUCTURAL property of the data, not a random distribution accident. Salting redistributes uniformly random keys; it does NOT help when one logical group dominates because every salted variant of that group still goes to the same proportional set of partitions. The senior-level fix is composite key design: instead of joining on meter_id, redesign the join key to include something that breaks the country dominance — for example (region_code, meter_id) where Germany's 8 regions split the German meters across 8 logical groups."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS4-02-F1",
+            "type": "single_select",
+            "label": "ROOT CAUSE: Why is the skew NOT caused by hash collisions or random distribution issues?",
+            "options": [
+              "The skew is structural: 65% of meters are in Germany, and meter_id is uniformly distributed within each country, so any join on meter_id concentrates 65% of the work on the German meters regardless of how the keys hash. This is data-distribution skew, not key-collision skew",
+              "The hash function has a bug for German meter IDs",
+              "The Spark version has a known skew bug",
+              "The Parquet files are written in the wrong order"
+            ],
+            "correctAnswer": "The skew is structural: 65% of meters are in Germany, and meter_id is uniformly distributed within each country, so any join on meter_id concentrates 65% of the work on the German meters regardless of how the keys hash. This is data-distribution skew, not key-collision skew",
+            "rationale": "Distinguishing data-distribution skew from key-collision skew is the key senior-level insight. Key collisions happen when many rows share the same exact key (e.g., NULL or 'unknown'). Data-distribution skew happens when one logical group has more rows than others — the keys are distinct but they collectively dominate. Mid-level salting fixes key collisions; it does NOT fix data-distribution skew because every salted key STILL ends up in a partition that has 65% of the work."
+          },
+          {
+            "id": "FS4-02-F2",
+            "type": "single_select",
+            "label": "WHY SALTING FAILS: Why does the junior engineer's salting proposal fail to fix the skew?",
+            "options": [
+              "Salting redistributes uniformly random keys across more partitions. Adding a 0-9 salt to meter_id creates 10x more partitions on each side, but 65% of those new partitions still belong to German meters. The German subset just gets spread across 10x as many partitions, and the per-task work decreases proportionally — but each German partition still has more work than each French partition by the same 6.5x ratio",
+              "Salting always works for skew",
+              "The 0-9 range is too narrow",
+              "Salting requires AQE to be disabled"
+            ],
+            "correctAnswer": "Salting redistributes uniformly random keys across more partitions. Adding a 0-9 salt to meter_id creates 10x more partitions on each side, but 65% of those new partitions still belong to German meters. The German subset just gets spread across 10x as many partitions, and the per-task work decreases proportionally — but each German partition still has more work than each French partition by the same 6.5x ratio",
+            "rationale": "The math: with 10x salting, each task's data shrinks by 10x (good) but the German partitions still have 6.5x the work of the French/Dutch/Luxembourg partitions (the ratio is preserved). The 4 longest tasks become 40 longest tasks, each at 18 / 10 = ~108 sec — still much longer than the 82 sec median. Salting helps WHEN the bottleneck is per-partition memory pressure (the partition is too large to fit), but it does NOT help when the bottleneck is per-partition WORK distribution. This pipeline's bottleneck is the latter."
+          },
+          {
+            "id": "FS4-02-F3",
+            "type": "single_select",
+            "label": "ARCHITECTURAL FIX: What is the correct architectural fix?",
+            "options": [
+              "Redesign the join key to a composite key like (region_code, meter_id). Germany has 8 regions, so the German meters are split across 8 logical groups instead of being one monolithic group. This breaks the country-level concentration at the join key level, distributing the work more evenly across partitions. The fact_readings_eu and dim_meters_eu tables both already have region_code, so the join condition becomes ON (a.region_code = b.region_code AND a.meter_id = b.meter_id)",
+              "Use a different hash function",
+              "Disable AQE",
+              "Move the German data to a separate workspace"
+            ],
+            "correctAnswer": "Redesign the join key to a composite key like (region_code, meter_id). Germany has 8 regions, so the German meters are split across 8 logical groups instead of being one monolithic group. This breaks the country-level concentration at the join key level, distributing the work more evenly across partitions. The fact_readings_eu and dim_meters_eu tables both already have region_code, so the join condition becomes ON (a.region_code = b.region_code AND a.meter_id = b.meter_id)",
+            "secondaryCorrectAnswer": "Pre-aggregate the German subset before the join: compute a per-(region, meter_id) summary in a pre-pass that reduces the 65% German rows to a smaller per-meter aggregation, then join the smaller aggregated table",
+            "rationale": "PRIMARY answer is the composite key approach because it addresses the root cause (country concentration) directly and requires no precomputation. SECONDARY answer (pre-aggregation) is also accepted because it reduces the German subset's row count BEFORE the join, achieving the same goal through a different mechanism. Both are senior-level fixes that go beyond mid-level salting. The composite key is preferred because it is simpler and does not require an additional pipeline stage. Distractor B is silly. Distractor C disables the safety net. Distractor D violates the regulatory constraint that cross-country aggregations must run against a single source.",
+            "acceptable_alternatives": "Either composite key (primary) or pre-aggregation (secondary) is accepted with appropriate reasoning."
+          },
+          {
+            "id": "FS4-02-F4",
+            "type": "single_select",
+            "label": "VERIFICATION: After implementing the composite key fix, what would you expect to see in the Spark UI?",
+            "options": [
+              "Task duration distribution flattens: the 4 longest tasks no longer dominate, and the max task duration drops from 18 minutes to roughly 3-5 minutes (the German subset is split across 8 partitions instead of being concentrated in 4). The overall stage runtime drops proportionally",
+              "All tasks complete in under 1 second",
+              "The number of tasks doubles",
+              "The shuffle volume doubles"
+            ],
+            "correctAnswer": "Task duration distribution flattens: the 4 longest tasks no longer dominate, and the max task duration drops from 18 minutes to roughly 3-5 minutes (the German subset is split across 8 partitions instead of being concentrated in 4). The overall stage runtime drops proportionally",
+            "rationale": "The expected outcome of the composite key fix: task duration distribution becomes much flatter because the German concentration is split 8 ways. The max task drops from 1080 sec (the German concentration) to roughly 1080 / 2 = 540 sec for the largest of the 8 German splits, then to 540 / current parallelism within the splits, ending around 200-300 seconds. Distractors A-C are wrong: tasks don't complete instantly (the data still has to be processed), task count doesn't double (it stays at 200), and shuffle volume doesn't double (it stays at the same total, just better distributed)."
+          },
+          {
+            "id": "FS4-02-F5",
+            "type": "single_select",
+            "label": "REVIEWER VERDICT: What is your verdict on the junior engineer's salting proposal?",
+            "options": [
+              "Block — salting is the wrong tool for structural data-distribution skew. Approve only after the proposal is rewritten to use composite key redesign or pre-aggregation. Use this as a teaching moment for the junior engineer about the difference between key-collision skew and data-distribution skew",
+              "Approve — salting is a standard skew fix",
+              "Approve with comment — salting will help somewhat",
+              "Block and reassign the work to a senior engineer"
+            ],
+            "correctAnswer": "Block — salting is the wrong tool for structural data-distribution skew. Approve only after the proposal is rewritten to use composite key redesign or pre-aggregation. Use this as a teaching moment for the junior engineer about the difference between key-collision skew and data-distribution skew",
+            "rationale": "Senior code review includes both technical correction AND the teaching dimension: the junior engineer's misunderstanding is common (mid-level training emphasizes salting as 'the' skew fix) and the review should explain WHY salting fails here. Distractor B accepts a fix that won't work. Distractor C is the cop-out that lets bad code reach production. Distractor D denies the junior the learning opportunity and creates a bottleneck on senior engineer time. The right answer is to block, explain, and let the junior implement the correct fix with guidance."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS4-task-03",
+      "title": "Coordinate Bucketing Across 8 Country Tables",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's quarterly regulatory report joins 8 country-level fact tables (fact_readings_de, fact_readings_fr, fact_readings_nl, fact_readings_lu, plus the same 4 for the previous year) on meter_id and reading_date. The team is implementing bucketed joins to eliminate the shuffle that currently dominates the report's 90-minute runtime.\n\n  CURRENT TABLE STATS:\n    Table              Size      Row count    Daily writes    Notes\n    -----              ----      ---------    ------------    -----\n    fact_readings_de   8 TB      18B           5M rows         Largest, fastest growth\n    fact_readings_fr   2.5 TB    5.5B          1.5M rows\n    fact_readings_nl   1.2 TB    2.8B          750K rows\n    fact_readings_lu   600 GB    1.4B          350K rows       Smallest\n\n  THE BUCKET COUNT DECISION:\n    The team must choose ONE bucket count to apply across all 8 tables (the previous year's tables are static; the current year's tables grow). The bucket count affects:\n    - Per-bucket file size: total_size / bucket_count\n    - Join shuffle elimination: bucket counts must match across joined tables\n    - Future-proofing: the choice now constrains the table for years (changing bucket count requires a full table rewrite)\n    - File count: each bucket produces at least one file per partition; high bucket counts inflate file count and OneLake metadata overhead\n\n  FOUR OPTIONS UNDER CONSIDERATION:\n\n  OPTION A — BUCKETS = 64\n    - Per-bucket file size: 8 TB / 64 = 125 GB for fact_readings_de (way too large)\n    - File count: 64 buckets × ~50 partitions = ~3,200 files per table\n    - Pro: low file count, low metadata overhead\n    - Con: per-bucket files exceed Parquet's effective row group limits; reads of a single bucket are huge\n\n  OPTION B — BUCKETS = 256\n    - Per-bucket file size: 8 TB / 256 = 31 GB for fact_readings_de\n    - File count: 256 buckets × ~50 partitions = ~12,800 files per table\n    - Pro: closer to per-file size sweet spot (1-5 GB range works well in Parquet)\n    - Con: still large per-bucket; future growth may push past 50 GB per bucket\n\n  OPTION C — BUCKETS = 512\n    - Per-bucket file size: 8 TB / 512 = 16 GB for fact_readings_de\n    - File count: 512 buckets × ~50 partitions = ~25,600 files per table\n    - Pro: comfortable per-bucket size with growth headroom\n    - Con: file count starts to be significant for OneLake metadata\n\n  OPTION D — BUCKETS = 1024\n    - Per-bucket file size: 8 TB / 1024 = 8 GB for fact_readings_de\n    - File count: 1024 buckets × ~50 partitions = ~51,200 files per table\n    - Pro: smallest per-bucket size; best for memory pressure during join\n    - Con: highest file count (200,000+ files across all 8 tables); metadata overhead noticeable on OneLake\n\n  GROWTH PROJECTION:\n    fact_readings_de grows at ~700 GB/month. At current rates, it will be 16 TB in 12 months and 24 TB in 24 months. The bucket count chosen now will live with this growth.\n\n  GRIDUNION CONSTRAINTS:\n    - Bucket count is chosen ONCE and applied to all 8 tables (the join requires matching bucket counts)\n    - Re-bucketing later requires a full rewrite of the affected table (~3 days for fact_readings_de)\n    - Per-file target on OneLake: 1-5 GB sweet spot, 256MB-10GB acceptable",
+        "task": "Choose the bucket count that best balances current size, future growth, file count, and the join shuffle elimination goal. Multiple defensible answers exist within the 256-1024 range.",
+        "validationHint": "Both Option C (512) and Option D (1024) are defensible primary answers. Option C is the right choice if the team prioritizes lower file count and accepts that re-bucketing may be needed in 18-24 months when fact_readings_de grows past 24 TB. Option D is the right choice if the team prioritizes future-proofing and is willing to accept the higher file count cost. Option B (256) is borderline acceptable if the student argues that 18-month re-bucketing is fine. Option A (64) is rejected because per-bucket files at 125 GB are too large for any reasonable file format."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS4-03-F1",
+            "type": "numeric",
+            "label": "RECOMMENDATION: What bucket count do you recommend? (Acceptable range: 256-1024 with appropriate reasoning)",
+            "correctAnswer": 512,
+            "tolerance": 256,
+            "rationale": "Acceptable answers within tolerance: 256, 512, 1024. The senior-level grading accepts any value in this range when the reasoning fields support the choice. 512 is the primary recommendation because it sits in the sweet spot: per-bucket files at 16 GB (current) and 32 GB (projected 12 months) are within the OneLake-acceptable range, file count at 25,600 per table is high but manageable, and growth headroom exists for 18-24 months before re-bucketing becomes necessary. 1024 is acceptable for teams prioritizing future-proofing. 256 is borderline acceptable if the student commits to re-bucketing within a year."
+          },
+          {
+            "id": "FS4-03-F2",
+            "type": "single_select",
+            "label": "REASONING: What is the strongest argument for your chosen bucket count?",
+            "options": [
+              "The chosen count places per-bucket files in the OneLake sweet spot (1-5 GB to 10 GB range) for both current data and projected 12-month growth, while keeping file count manageable for OneLake metadata operations",
+              "More buckets are always better",
+              "Fewer buckets are always better",
+              "Bucket count doesn't matter as long as it's a power of 2"
+            ],
+            "correctAnswer": "The chosen count places per-bucket files in the OneLake sweet spot (1-5 GB to 10 GB range) for both current data and projected 12-month growth, while keeping file count manageable for OneLake metadata operations",
+            "rationale": "Senior-level reasoning balances multiple competing factors: per-bucket file size (drives memory pressure and read efficiency), file count (drives OneLake metadata overhead), and growth headroom (drives the lifetime of the choice). The right bucket count is the one where all three factors are acceptable simultaneously. Distractors B-D are oversimplifications that don't match the senior reasoning depth required."
+          },
+          {
+            "id": "FS4-03-F3",
+            "type": "single_select",
+            "label": "EXPIRATION CONDITION: At what point would your chosen bucket count need to be revisited?",
+            "options": [
+              "When fact_readings_de exceeds approximately 24 TB (projected ~18-24 months at current growth), per-bucket files would push past 50 GB and re-bucketing should be planned. The team should set a monitoring alert at 20 TB to trigger the re-bucketing project planning, which has a 3-day execution window and several weeks of testing",
+              "Never — bucket count is permanent",
+              "When the team grows to 100 engineers",
+              "Annually as a routine maintenance task"
+            ],
+            "correctAnswer": "When fact_readings_de exceeds approximately 24 TB (projected ~18-24 months at current growth), per-bucket files would push past 50 GB and re-bucketing should be planned. The team should set a monitoring alert at 20 TB to trigger the re-bucketing project planning, which has a 3-day execution window and several weeks of testing",
+            "rationale": "Every senior architectural choice has an expiration condition. The bucket count's expiration is when the per-bucket file size pushes past acceptable limits — for 512 buckets on fact_readings_de, that happens around 24 TB. The senior pattern is to set the trigger BEFORE the limit is hit (20 TB alert) so the team has time to plan and execute the migration before performance degrades."
+          },
+          {
+            "id": "FS4-03-F4",
+            "type": "single_select",
+            "label": "COORDINATION COST: Why must the bucket count be applied to ALL 8 tables (including fact_readings_lu at only 600 GB)?",
+            "options": [
+              "Bucketed joins require matching bucket counts on both sides. If fact_readings_de uses 512 buckets but fact_readings_lu uses 64 buckets (which would be more appropriate for its size), the join cannot be performed without a shuffle, defeating the purpose of bucketing entirely. Coordination across tables is the price of shuffle elimination",
+              "Microsoft Fabric requires uniform bucket counts",
+              "Different bucket counts are not allowed on the same workspace",
+              "It is just convention"
+            ],
+            "correctAnswer": "Bucketed joins require matching bucket counts on both sides. If fact_readings_de uses 512 buckets but fact_readings_lu uses 64 buckets (which would be more appropriate for its size), the join cannot be performed without a shuffle, defeating the purpose of bucketing entirely. Coordination across tables is the price of shuffle elimination",
+            "rationale": "This is the senior-level constraint that mid-level engineers don't internalize: bucketing is a JOINT optimization. The bucket count serves the largest table's needs; smaller tables in the join family pay the cost of carrying more buckets than they need (each fact_readings_lu bucket is only 1.2 GB, which is sub-optimal for that table in isolation but necessary for the join). This is the FS4 Lesson 2 'shared bucket registry' pattern: one team owns the bucket count decision for all related tables, even though multiple teams own the individual tables."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS4-task-04",
+      "title": "Design the Bloom Filter Configuration Plan",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's SCADA enrichment pipeline joins fact_turbine_telemetry (4 TB, 172M events/day across 4 countries) with dim_turbines (50 MB, ~20K rows). Even after bucketing and broadcast hints, the scan of fact_turbine_telemetry reads the entire 4 TB because most events do not have a matching turbine in dim_turbines (the dimension only contains ACTIVE turbines; the fact table also contains decommissioned ones).\n\nBloom filter pushdown (FS4 Lesson 5) can solve this: a Bloom filter built from dim_turbines.turbine_id is pushed to the fact_turbine_telemetry scan, allowing Parquet row group skipping for groups whose turbine_ids are not in the dimension. The expected scan reduction is 70-85%.\n\nThe platform team needs a Bloom filter configuration plan that the data engineering team can deploy. The plan must specify which tables get Bloom filters, which columns, false positive rates, and the integration with DPP.\n\n  GRIDUNION TABLES THAT WOULD BENEFIT:\n    - fact_turbine_telemetry: joined with dim_turbines on turbine_id (~30% match rate currently — Bloom helps a lot)\n    - fact_readings_eu: joined with dim_meters_eu on meter_id (~95% match rate — Bloom helps less because few rows are filtered out)\n    - fact_grid_events: joined with dim_grid_zones on zone_id (~60% match rate — Bloom helps moderately)\n    - fact_billing: joined with dim_customers on customer_id (~99% match rate — Bloom not worth the cost)\n\n  BLOOM FILTER CONFIGURATION KNOBS:\n    - false_positive_rate: probability that a non-member is reported as member. Typical: 0.01 (1%) to 0.1 (10%)\n    - expected_items: the cardinality of the join key. Used to size the Bloom filter\n    - filter_size_mb: derived from FPR and expected_items\n\nFor each table, the team needs: enabled (boolean), key_column, false_positive_rate, expected_items.",
+        "task": "Build a Python dict called bloom_filter_config with these top-level keys:\n  - tables: a dict mapping each of the 4 table names to a config dict with enabled, key_column, false_positive_rate, expected_items\n  - dpp_integration: a dict with enabled (True) and ordering ('bloom_then_dpp' meaning Bloom filter is applied BEFORE DPP)\n  - monitoring: a dict with metrics (a list containing 'rows_skipped_by_bloom', 'rows_skipped_by_dpp', 'false_positive_rate_actual') and alert_threshold_fpr_drift (0.05)\n\nFor the per-table configs, apply this rule: enable Bloom filter ONLY if the match rate is below 80% (i.e., disable for fact_billing). For enabled tables, use a 0.01 FPR for tables with fewer than 1M expected items and 0.05 FPR for larger ones. Expected items should match the dimension table cardinality: dim_turbines has 20,000 turbines, dim_meters_eu has 5,000,000 meters, dim_grid_zones has 30 zones.",
+        "validationHint": "fact_turbine_telemetry: enabled=True, key_column='turbine_id', fpr=0.01, expected_items=20000. fact_readings_eu: enabled=False (95% match rate exceeds the 80% threshold). fact_grid_events: enabled=True, key_column='zone_id', fpr=0.01, expected_items=30. fact_billing: enabled=False (99% match rate). The dpp_integration must specify 'bloom_then_dpp' ordering. The monitoring must include the 3 listed metrics."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS4 Lesson 5: Bloom filter pushdown configuration plan.\n# This dict is the spec the data engineering team will deploy via Spark configurations.\n\n# YOUR SOLUTION BELOW\n# Build bloom_filter_config with: tables (4 entries), dpp_integration, monitoring.\n# Apply the enablement rules: enable only if match rate < 80%.\n# Use 0.01 FPR for small dims (<1M items), 0.05 FPR for larger.\n\nbloom_filter_config = {\n    'tables': {\n        # 4 entries: fact_turbine_telemetry, fact_readings_eu, fact_grid_events, fact_billing\n    },\n    # dpp_integration\n    # monitoring\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(bloom_filter_config, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS4-04-A1",
+          "description": "bloom_filter_config has the 3 required top-level keys",
+          "check": "set(bloom_filter_config.keys()) >= {'tables', 'dpp_integration', 'monitoring'}"
+        },
+        {
+          "id": "FS4-04-A2",
+          "description": "tables has all 4 expected entries",
+          "check": "set(bloom_filter_config['tables'].keys()) == {'fact_turbine_telemetry', 'fact_readings_eu', 'fact_grid_events', 'fact_billing'}"
+        },
+        {
+          "id": "FS4-04-A3",
+          "description": "fact_turbine_telemetry is enabled with turbine_id, FPR=0.01, expected=20000",
+          "check": "bloom_filter_config['tables']['fact_turbine_telemetry']['enabled'] == True and bloom_filter_config['tables']['fact_turbine_telemetry']['key_column'] == 'turbine_id' and bloom_filter_config['tables']['fact_turbine_telemetry']['false_positive_rate'] == 0.01 and bloom_filter_config['tables']['fact_turbine_telemetry']['expected_items'] == 20000"
+        },
+        {
+          "id": "FS4-04-A4",
+          "description": "fact_readings_eu is disabled (95% match rate exceeds the 80% threshold)",
+          "check": "bloom_filter_config['tables']['fact_readings_eu']['enabled'] == False"
+        },
+        {
+          "id": "FS4-04-A5",
+          "description": "fact_grid_events is enabled with zone_id and expected=30",
+          "check": "bloom_filter_config['tables']['fact_grid_events']['enabled'] == True and bloom_filter_config['tables']['fact_grid_events']['key_column'] == 'zone_id' and bloom_filter_config['tables']['fact_grid_events']['expected_items'] == 30"
+        },
+        {
+          "id": "FS4-04-A6",
+          "description": "fact_billing is disabled (99% match rate)",
+          "check": "bloom_filter_config['tables']['fact_billing']['enabled'] == False"
+        },
+        {
+          "id": "FS4-04-A7",
+          "description": "dpp_integration is enabled with bloom_then_dpp ordering",
+          "check": "bloom_filter_config['dpp_integration']['enabled'] == True and bloom_filter_config['dpp_integration']['ordering'] == 'bloom_then_dpp'"
+        },
+        {
+          "id": "FS4-04-A8",
+          "description": "monitoring metrics list contains the 3 required metric names",
+          "check": "set(bloom_filter_config['monitoring']['metrics']) >= {'rows_skipped_by_bloom', 'rows_skipped_by_dpp', 'false_positive_rate_actual'}"
+        },
+        {
+          "id": "FS4-04-A9",
+          "description": "monitoring alert_threshold_fpr_drift equals 0.05",
+          "check": "bloom_filter_config['monitoring']['alert_threshold_fpr_drift'] == 0.05"
+        }
+      ],
+      "partialCredit": "9 independent assertions. Each passed assertion earns 1/9 credit. The keystones are A4 and A6 (disable on high-match-rate tables) — students who enable Bloom filters on every table demonstrate they did not understand the cost-benefit threshold."
+    },
+    {
+      "id": "module-FS4-task-05",
+      "title": "GridUnion's Join Architecture Decision Framework",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "This is the synthesis task. GridUnion's platform team needs a join architecture decision framework that the 12 data engineering teams can use whenever they design a new pipeline involving joins. The framework must integrate the lessons from this practice set:\n\n  - Multi-hop join optimization with materialization boundaries (Task 1)\n  - Architectural skew remediation through composite keys (Task 2)\n  - Bucket coordination across related tables (Task 3)\n  - Bloom filter configuration based on match rate (Task 4)\n\nYour job has two parts: (1) DIAGNOSIS — fill the 4-field template articulating the framework principles. (2) ARTIFACT — build the framework as a Python dict.",
+        "task": "Fill the diagnosis template AND build the framework dict.\n\nFor the ARTIFACT: Build a Python dict called join_framework with these keys:\n  - decision_tree: a list of EXACTLY 4 decision steps in order, each a dict with question and outcomes. The 4 questions are 'is_dimension_broadcast_safe', 'are_tables_already_bucketed', 'is_match_rate_low_enough_for_bloom', 'is_pipeline_too_long_for_single_job'\n  - skew_remediation: a dict with primary_strategy ('composite_key_redesign') and fallback_strategy ('pre_aggregation')\n  - bucket_coordination: a dict with shared_registry (True) and rebucket_threshold_growth_pct (50)\n  - bloom_threshold: a dict with enable_below_match_rate (0.80)\n  - review_required_for: a list containing 'multi_hop_pipelines', 'cross_country_joins', 'new_bucketed_tables'",
+        "validationHint": "The decision tree's 4 steps cover the choices a designer makes when planning a new join. The skew_remediation primary is composite key (from Task 2). The bucket_coordination encodes the FS4 Lesson 2 shared registry pattern. The 0.80 bloom threshold matches Task 4's enablement rule. The review list captures the cases that must go through architectural review."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS4-05-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does the framework include a 'shared bucket registry' rather than letting each team choose its own bucket counts?",
+            "options": [
+              "Bucketed joins require matching bucket counts on both sides. Without a shared registry, two teams might independently bucket their tables with different counts, and the join would silently fall back to a shuffled join — defeating the purpose of bucketing without any visible error. The shared registry forces explicit coordination at the moment of bucket count selection, before tables are written",
+              "Microsoft Fabric requires a registry",
+              "Registries are easier to audit",
+              "Each team prefers consistency"
+            ],
+            "correctAnswer": "Bucketed joins require matching bucket counts on both sides. Without a shared registry, two teams might independently bucket their tables with different counts, and the join would silently fall back to a shuffled join — defeating the purpose of bucketing without any visible error. The shared registry forces explicit coordination at the moment of bucket count selection, before tables are written",
+            "rationale": "The shared registry is a coordination mechanism that prevents the silent failure mode of mismatched bucket counts. The mid-level engineer might assume 'we both bucketed, we're good' and not realize the bucket counts have to match exactly. Senior platform design includes the coordination primitives that prevent this class of mistake."
+          },
+          {
+            "id": "FS4-05-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why is composite key redesign the PRIMARY skew remediation strategy instead of salting?",
+            "options": [
+              "Composite key redesign addresses the root cause (data-distribution skew driven by structural concentration like the 65% German market). Salting only helps key-collision skew. The framework codifies the senior-level distinction so junior engineers don't reach for the wrong tool, as in the Task 2 review",
+              "Salting is too expensive",
+              "Salting is not supported in Fabric",
+              "Composite keys are simpler to write"
+            ],
+            "correctAnswer": "Composite key redesign addresses the root cause (data-distribution skew driven by structural concentration like the 65% German market). Salting only helps key-collision skew. The framework codifies the senior-level distinction so junior engineers don't reach for the wrong tool, as in the Task 2 review",
+            "rationale": "The framework's job is to encode lessons that the team has already learned the hard way. Task 2 showed that salting fails for structural skew. The framework's PRIMARY strategy reflects that lesson directly, ensuring future engineers don't repeat the mistake. Pre-aggregation is the fallback for cases where composite keys are not feasible."
+          },
+          {
+            "id": "FS4-05-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why does the bloom_threshold disable Bloom filters above 80% match rate?",
+            "options": [
+              "Bloom filters have a non-zero CPU cost (hashing every key against the filter at scan time) and a non-zero memory cost (the filter itself in driver and executor memory). When the match rate is high, the filter saves few rows and the CPU+memory cost exceeds the I/O savings. The 80% threshold is a practical sweet spot — below it, Bloom helps significantly; above it, the cost outweighs the benefit",
+              "Bloom filters always help when enabled",
+              "80% is required by Fabric",
+              "Higher match rates are too rare to optimize"
+            ],
+            "correctAnswer": "Bloom filters have a non-zero CPU cost (hashing every key against the filter at scan time) and a non-zero memory cost (the filter itself in driver and executor memory). When the match rate is high, the filter saves few rows and the CPU+memory cost exceeds the I/O savings. The 80% threshold is a practical sweet spot — below it, Bloom helps significantly; above it, the cost outweighs the benefit",
+            "rationale": "Bloom filters are a cost-benefit trade-off, not a free win. The framework codifies the threshold so engineers don't naively enable Bloom filters everywhere (which would slow down high-match-rate joins like fact_billing). The 80% threshold is empirical — derived from measuring the break-even point on production workloads."
+          },
+          {
+            "id": "FS4-05-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why does the framework require architectural review specifically for multi-hop pipelines, cross-country joins, and new bucketed tables (instead of all joins)?",
+            "options": [
+              "These three categories have outsized impact on the platform: multi-hop pipelines produce intermediate tables that become reusable data products, cross-country joins touch regulatory boundaries, and new bucketed tables commit the team to bucket counts that constrain future evolution. Routine joins (single fact + single dim, broadcast-safe) do not need architectural review because the decision is local and reversible. Senior governance focuses review effort on irreversible decisions",
+              "The platform team has limited bandwidth",
+              "These categories are easier to review",
+              "The other categories are not important"
+            ],
+            "correctAnswer": "These three categories have outsized impact on the platform: multi-hop pipelines produce intermediate tables that become reusable data products, cross-country joins touch regulatory boundaries, and new bucketed tables commit the team to bucket counts that constrain future evolution. Routine joins (single fact + single dim, broadcast-safe) do not need architectural review because the decision is local and reversible. Senior governance focuses review effort on irreversible decisions",
+            "rationale": "Senior governance scales by being selective about what requires review. Reviewing every join would create a bottleneck on the platform team and produce review fatigue. Reviewing only the high-impact, irreversible categories preserves review quality where it matters. This is the same pattern as FI8 (per-notebook budgets only on production) and FI9 (certification only for downstream-consumed items): governance focuses on the decisions that have lasting consequences."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS4 SYNTHESIS: GridUnion's join architecture decision framework.\n\n# YOUR SOLUTION BELOW\n# Build join_framework with the structure from the task description.\n\njoin_framework = {\n    # Fill in: decision_tree, skew_remediation, bucket_coordination, bloom_threshold, review_required_for\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(join_framework, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS4-05-A1",
+          "description": "join_framework has all 5 required top-level keys",
+          "check": "set(join_framework.keys()) >= {'decision_tree', 'skew_remediation', 'bucket_coordination', 'bloom_threshold', 'review_required_for'}"
+        },
+        {
+          "id": "FS4-05-A2",
+          "description": "decision_tree is a list of exactly 4 entries",
+          "check": "isinstance(join_framework['decision_tree'], list) and len(join_framework['decision_tree']) == 4"
+        },
+        {
+          "id": "FS4-05-A3",
+          "description": "All 4 expected decision questions are present",
+          "check": "set(d['question'] for d in join_framework['decision_tree']) == {'is_dimension_broadcast_safe', 'are_tables_already_bucketed', 'is_match_rate_low_enough_for_bloom', 'is_pipeline_too_long_for_single_job'}"
+        },
+        {
+          "id": "FS4-05-A4",
+          "description": "Every decision step has both question and outcomes keys",
+          "check": "all(set(d.keys()) >= {'question', 'outcomes'} for d in join_framework['decision_tree'])"
+        },
+        {
+          "id": "FS4-05-A5",
+          "description": "skew_remediation primary is composite_key_redesign and fallback is pre_aggregation",
+          "check": "join_framework['skew_remediation']['primary_strategy'] == 'composite_key_redesign' and join_framework['skew_remediation']['fallback_strategy'] == 'pre_aggregation'"
+        },
+        {
+          "id": "FS4-05-A6",
+          "description": "bucket_coordination has shared_registry=True and rebucket threshold of 50%",
+          "check": "join_framework['bucket_coordination']['shared_registry'] == True and join_framework['bucket_coordination']['rebucket_threshold_growth_pct'] == 50"
+        },
+        {
+          "id": "FS4-05-A7",
+          "description": "bloom_threshold.enable_below_match_rate equals 0.80",
+          "check": "join_framework['bloom_threshold']['enable_below_match_rate'] == 0.80"
+        },
+        {
+          "id": "FS4-05-A8",
+          "description": "review_required_for contains all 3 expected categories",
+          "check": "set(join_framework['review_required_for']) >= {'multi_hop_pipelines', 'cross_country_joins', 'new_bucketed_tables'}"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (8 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/8). The 8 assertions verify that the framework integrates the lessons from the 4 prior tasks into a single decision framework.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Multi-hop join optimization and materialization boundaries (Task 1, Lesson 7)",
+          "Architectural skew remediation via composite keys (Task 2, Lesson 6)",
+          "Bucket coordination across related tables (Task 3, Lesson 2)",
+          "Bloom filter configuration with cost-benefit threshold (Task 4, Lesson 5)",
+          "Selective architectural review for high-impact decisions (Lesson 10)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines the four task lessons into a coherent decision framework. The keystones are A5 (composite key as primary skew strategy) and A7 (the 0.80 bloom threshold) — both encode senior-level lessons that mid-level engineers don't internalize. The 'review_required_for' list (A8) captures the senior governance principle of focusing review effort on irreversible decisions."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "tradeoffTasksHaveCompetingOptions": true,
+    "designReviewHasSubtleNotTextbookIssues": true,
+    "answerRangesDocumented": true,
+    "calibrationNotes": "Senior practice set in the extensibility phase. Two trade-off tasks anchor the set, both with multi-defensible answers documented in acceptable_alternatives metadata. The design review tests the senior-level distinction between key-collision skew (where salting helps) and data-distribution skew (where salting fails) — a topic that mid-level training does not cover. The bucket count trade-off (Task 3) uses the senior numeric tolerance pattern: any value in 256-1024 with appropriate reasoning is acceptable. Task type mix (2 trade-off + 1 design review + 1 design artifact + 1 synthesis) is within all section 6.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches join topology, bucketed joins, range joins, join elimination, Bloom filter pushdown, skew-resistant design, multi-hop optimization, cross-database joins, and join performance at scale. The practice tests application: Task 1 forces a defensible architectural choice with 3 genuinely competing options. Task 2 reviews the canonical wrong-tool error (salting for structural skew) that even competent mid-level engineers make. Task 3 forces the bucket count decision with senior-level tolerance for multiple defensible values. Task 4 builds the Bloom filter config with the cost-benefit threshold that distinguishes useful from wasteful Bloom filtering. Task 5 synthesizes the framework that prevents future repetitions of these decisions.",
+    "datasetNotes": "No datasets — every diagnostic task uses inline evidence (Spark UI metrics, table size tables, growth projections, match rate distributions). Senior practice de-emphasizes data execution in favor of architectural reasoning."
+  }
+}

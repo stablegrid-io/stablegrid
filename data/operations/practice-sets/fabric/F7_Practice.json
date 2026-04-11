@@ -1,0 +1,451 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set 7 — Data Pipelines: Orchestration in Fabric",
+  "description": "Orchestrate NordGrid's data flow with Fabric Data Factory pipelines: match each NordGrid task to the correct activity type, predict Copy activity configuration fields, write a parameterized notebook that uses pipeline parameters, predict pipeline run outcomes when activities succeed or fail, choose the right trigger schedule for each data flow, and design NordGrid's complete daily ingestion pipeline as a structured specification.",
+  "version": "authored 2026-04-06, targets Microsoft Fabric GA 2025+ / PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-F7",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 54,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "500K meters, 4 regions, single team, 3 medallion workspaces",
+    "modulePhase": "essential_operations",
+    "taskTypeMix": {
+      "writeTheCode": 1,
+      "outputPrediction": 2,
+      "conceptIdentification": 2,
+      "synthesisPipeline": 1
+    },
+    "foundationException": "Not applied. F7 is Essential Operations phase. Fabric pipelines are configured in the portal canvas (a UI-heavy experience), not through code, so most tasks in this practice set use templates to test understanding of activity types, dependency logic, scheduling, and Copy configuration. The one code task (F7-task-03) tests the notebook-side of pipeline integration: how a parameterized notebook consumes parameters passed by a pipeline's Notebook activity (Lesson 8). The synthesis task (F7-task-06) uses pure Python dictionary construction to specify the complete NordGrid daily pipeline structure — no Fabric runtime is required. Task type mix (2 concept_identification + 2 output_prediction + 1 write_the_code + 1 synthesis_pipeline) is within §4.2 per-type limits."
+  },
+  "datasets": [
+    {
+      "id": "F7_data_readings",
+      "file": "F7_data_readings.csv",
+      "description": "NordGrid meter readings spanning 3 days (2026-03-08, 2026-03-09, 2026-03-10) with 5 rows per day across 4 regions. 15 rows total. Used in Task 3 to test parameterized filtering — the student receives a processing_date and region_filter as simulated pipeline parameters and produces a filtered DataFrame.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-F7-task-03"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-F7-task-01",
+      "title": "Match NordGrid's Steps to the Correct Activity Type",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's platform team is designing the daily pipeline. Each step of the pipeline must use the correct activity type: Copy (for data movement), Notebook (for PySpark transformation logic), Dataflow (for low-code Power Query transformations), or a control activity (Web, Wait, If Condition, Send Email, etc.). The team lead wants every engineer to know which activity handles which responsibility.",
+        "task": "For each NordGrid pipeline step, select the correct activity type.",
+        "validationHint": "Copy activity = data movement from a source to a destination (no transformation). Notebook activity = run PySpark code in a Fabric notebook. Dataflow activity = run a Power Query Online (Dataflow Gen2) transformation. Web activity = call an external HTTP endpoint. Send Email activity = notify on success or failure."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F7-01-F1",
+            "type": "single_select",
+            "label": "Move today's meter reading CSV from NordGrid's external SFTP server into the Bronze Lakehouse's Files section. No transformation — just copy the file as-is.",
+            "options": [
+              "Copy activity",
+              "Notebook activity",
+              "Dataflow activity",
+              "Web activity"
+            ],
+            "correctAnswer": "Copy activity",
+            "distractorRationale": "Notebook activity runs code (overkill for a simple file copy, and requires writing PySpark). Dataflow activity is for low-code transformation (the scenario has no transformation). Web activity calls HTTP endpoints (wrong transport). Copy activity is purpose-built for moving files from sources like SFTP to destinations like Lakehouse Files."
+          },
+          {
+            "id": "F7-01-F2",
+            "type": "single_select",
+            "label": "Run NordGrid's Bronze-to-Silver transformation notebook, which performs schema enforcement, filtering, deduplication, and writes a partitioned Delta table.",
+            "options": [
+              "Copy activity",
+              "Notebook activity",
+              "Dataflow activity",
+              "Send Email activity"
+            ],
+            "correctAnswer": "Notebook activity",
+            "distractorRationale": "Copy activity cannot run PySpark code. Dataflow activity handles low-code Power Query, not PySpark transformations with schema enforcement and dedup. Send Email activity sends notifications. Notebook activity is the only one that runs a Fabric notebook with the PySpark code the scenario describes."
+          },
+          {
+            "id": "F7-01-F3",
+            "type": "single_select",
+            "label": "Refresh the 200-row substation reference table from an external SQL database: the flow must rename two columns, change one type, and write to a Lakehouse table. The data team prefers a low-code tool because the transformation is simple.",
+            "options": [
+              "Copy activity",
+              "Notebook activity",
+              "Dataflow activity",
+              "If Condition activity"
+            ],
+            "correctAnswer": "Dataflow activity",
+            "distractorRationale": "Copy activity cannot rename columns or change types. Notebook activity works but contradicts the stated low-code preference. If Condition activity is for branching, not data movement. Dataflow activity is purpose-built for low-code Power Query transformations on small reference tables — this is its canonical use case."
+          },
+          {
+            "id": "F7-01-F4",
+            "type": "single_select",
+            "label": "Send an email alert to the on-call engineer when any pipeline activity fails.",
+            "options": [
+              "Copy activity",
+              "Notebook activity",
+              "Send Email (Office 365 Outlook) activity",
+              "Dataflow activity"
+            ],
+            "correctAnswer": "Send Email (Office 365 Outlook) activity",
+            "distractorRationale": "Copy, Notebook, and Dataflow are data-movement and transformation activities — none of them send notifications. The Send Email (Office 365 Outlook) activity (or equivalent Outlook/Teams connector activity) is the correct tool for alerting."
+          },
+          {
+            "id": "F7-01-F5",
+            "type": "single_select",
+            "label": "Call NordGrid's internal REST API to notify a downstream billing system that today's Silver load has completed successfully.",
+            "options": [
+              "Copy activity",
+              "Web activity",
+              "Notebook activity",
+              "Dataflow activity"
+            ],
+            "correctAnswer": "Web activity",
+            "distractorRationale": "Copy activity is for file movement, not HTTP calls. Notebook activity could technically make an HTTP call from Python, but this is not its purpose and would be an anti-pattern for a simple notification. Dataflow activity is for transformation. Web activity is the dedicated tool for calling HTTP endpoints from a pipeline."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F7-task-02",
+      "title": "Predict the Copy Activity Configuration",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's daily pipeline starts with a Copy activity that pulls meter readings from an external SFTP server into the Bronze Lakehouse. The team needs to configure this Copy activity correctly on the first try — getting any field wrong means the pipeline either fails to connect, writes to the wrong destination, or corrupts the file format. The source file is called meters_YYYY-MM-DD.csv, and it lands in a subdirectory organized by date.",
+        "task": "Predict the values for 4 configuration fields of NordGrid's Copy activity.",
+        "validationHint": "The Copy activity has source-side config (connection type, format, path) and destination-side config (connection type, section, path, write behavior). Think about what each scenario detail implies for the correct config value."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F7-02-F1",
+            "type": "single_select",
+            "label": "What is the correct SOURCE connection type for NordGrid's daily Copy activity?",
+            "options": [
+              "Lakehouse — NordGrid always reads from a Lakehouse",
+              "SFTP — the source is an external SFTP server",
+              "Azure SQL Database — this is the default for raw data ingestion",
+              "HTTP — CSVs are transported over HTTP"
+            ],
+            "correctAnswer": "SFTP — the source is an external SFTP server",
+            "distractorRationale": "Option 1 confuses source and destination — the Lakehouse is the destination, not the source. Option 3 invents a default that does not exist; the source depends on where the data actually lives. Option 4 confuses HTTP with SFTP — they are different transports and require different connectors."
+          },
+          {
+            "id": "F7-02-F2",
+            "type": "single_select",
+            "label": "What is the correct SOURCE file format for the Copy activity?",
+            "options": [
+              "CSV — the source files are .csv with comma-separated rows",
+              "Delta — the source is always a Delta table in Fabric",
+              "Parquet — Parquet is the standard for analytical data",
+              "JSON — modern APIs use JSON"
+            ],
+            "correctAnswer": "CSV — the source files are .csv with comma-separated rows",
+            "distractorRationale": "Options 2 and 3 are destination formats (Parquet and Delta are the Silver/Gold targets), not the raw Bronze source format. Option 4 invents a format that does not match the scenario. The scenario explicitly describes meters_YYYY-MM-DD.csv files — CSV."
+          },
+          {
+            "id": "F7-02-F3",
+            "type": "single_select",
+            "label": "What is the correct DESTINATION for the raw copied file in the Bronze Lakehouse?",
+            "options": [
+              "The Tables section — so the SQL analytics endpoint can query it immediately",
+              "The Files section — raw CSV files belong in unmanaged storage, in a subdirectory like /meter_exports/2026/03/10/",
+              "A new Warehouse dedicated to raw data",
+              "The semantic model — Power BI will read the raw CSV directly"
+            ],
+            "correctAnswer": "The Files section — raw CSV files belong in unmanaged storage, in a subdirectory like /meter_exports/2026/03/10/",
+            "distractorRationale": "Option 1 is a common mistake — the SQL endpoint serves Delta tables in the Tables section, not raw CSVs in the Files section. CSVs must be promoted to Delta tables by a notebook before the endpoint can see them. Option 3 creates unnecessary infrastructure for raw ingestion. Option 4 misunderstands the semantic model — it sits on top of Tables, not raw files."
+          },
+          {
+            "id": "F7-02-F4",
+            "type": "single_select",
+            "label": "What DESTINATION file behavior should the Copy activity use, given that each daily file lands at a unique date-based path and previous days' files must be preserved?",
+            "options": [
+              "Overwrite the destination — replace the full Bronze Lakehouse contents each day",
+              "Write to the date-specific subdirectory — each day's file lands at a unique path (meter_exports/2026/03/10/), so no overwrite is needed and previous days are untouched",
+              "Append to a single file — all days' data concatenated into meter_exports/readings.csv",
+              "Merge with existing data — deduplicate at the Copy activity level"
+            ],
+            "correctAnswer": "Write to the date-specific subdirectory — each day's file lands at a unique path (meter_exports/2026/03/10/), so no overwrite is needed and previous days are untouched",
+            "distractorRationale": "Option 1 would destroy historical Bronze data on every run — catastrophic for the archive. Option 3 would break the downstream notebook which expects per-day files. Option 4 confuses Copy activity (which does not deduplicate) with Silver transformation logic. The date-based path pattern is the standard Bronze ingestion design NordGrid uses."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F7-task-03",
+      "title": "Write a Parameterized NordGrid Notebook",
+      "type": "write_the_code",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "NordGrid's Silver notebook is parameterized: the daily pipeline passes two parameters to it — processing_date (the date of the data to process) and region_filter (limiting processing to one region for incremental runs). In Fabric, a pipeline's Notebook activity injects these parameters into a special parameters cell at the top of the notebook. Your job is to write the code BELOW the parameters cell: code that reads the raw data, filters by the parameters, and produces the Silver DataFrame. The key rule: your code must REFERENCE the params dict, not hardcode the date or region values. That way, the same notebook works for any day and any region the pipeline passes in.",
+        "task": "Read F7_data_readings.csv into df_raw. Filter df_raw to rows where date equals params['processing_date'] AND region equals params['region_filter']. Store the filtered DataFrame in df_silver. Store the row count in silver_row_count. The scaffold pre-populates params with the simulated pipeline injection: {'processing_date': '2026-03-10', 'region_filter': 'EAST'}.",
+        "validationHint": "Use col('date') == params['processing_date'] and col('region') == params['region_filter']. For the specific test params (2026-03-10, EAST), there are exactly 2 matching rows (M-0013 and M-0014). Do not hardcode '2026-03-10' or 'EAST' in your filter — reference the params dict so the notebook is reusable."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F7 Lesson 8: parameterized notebooks. In Fabric, the pipeline's Notebook activity\n# injects parameters into a parameters cell at the top of the notebook. In this local\n# practice, the `params` dict below simulates that injection — pretend it was written\n# by the pipeline, not by you.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-parameterized-silver') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Simulated pipeline parameter injection (this cell would be auto-generated by Fabric):\nparams = {\n    'processing_date': '2026-03-10',\n    'region_filter': 'EAST'\n}\nprint(f\"Parameters injected by pipeline: {params}\")\n\ndf_raw = spark.read.csv('F7_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Raw rows loaded: {df_raw.count()}\")\n\n# YOUR SOLUTION BELOW\n# Filter df_raw to rows where:\n#   date equals params['processing_date']\n#   AND region equals params['region_filter']\n# Store the filtered DataFrame in df_silver.\n# Store the row count in silver_row_count.\n# IMPORTANT: your filter MUST reference params['processing_date'] and params['region_filter'] —\n# do not hardcode the literal values. This is what makes the notebook reusable across days.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Silver rows for {params['processing_date']} / {params['region_filter']}: {silver_row_count}\")\ndf_silver.show()"
+      },
+      "assertions": [
+        {
+          "id": "F7-03-A1",
+          "description": "df_silver is a DataFrame",
+          "check": "hasattr(df_silver, 'count') and hasattr(df_silver, 'columns')"
+        },
+        {
+          "id": "F7-03-A2",
+          "description": "silver_row_count equals 2 (M-0013 and M-0014 match 2026-03-10 + EAST)",
+          "check": "silver_row_count == 2"
+        },
+        {
+          "id": "F7-03-A3",
+          "description": "All rows in df_silver have date == 2026-03-10",
+          "check": "df_silver.filter(col('date') != '2026-03-10').count() == 0"
+        },
+        {
+          "id": "F7-03-A4",
+          "description": "All rows in df_silver have region == EAST",
+          "check": "df_silver.filter(col('region') != 'EAST').count() == 0"
+        },
+        {
+          "id": "F7-03-A5",
+          "description": "All 4 original columns preserved",
+          "check": "set(df_silver.columns) == {'meter_id', 'daily_kw', 'date', 'region'}"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-F7-task-04",
+      "title": "Predict Pipeline Run Outcomes",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's daily pipeline has 4 activities chained by dependencies:\n\n  Activity 1: copy_bronze (Copy activity) — pulls meter CSV from SFTP into Bronze\n  Activity 2: transform_silver (Notebook activity) — depends on SUCCESS of copy_bronze\n  Activity 3: transform_gold (Notebook activity) — depends on SUCCESS of transform_silver\n  Activity 4: notify_failure (Send Email activity) — depends on FAILURE of copy_bronze\n\nOn four different days, different failure scenarios occurred. For each scenario, predict which activities ran, which were skipped, and the overall pipeline status.",
+        "task": "Predict the outcome of each scenario.",
+        "validationHint": "Dependency types: SUCCESS means 'run only if the upstream activity succeeded.' FAILURE means 'run only if the upstream activity failed.' If an activity is skipped because its dependency was not met, the pipeline treats that activity as not-run (not failed). The overall pipeline status is 'Succeeded' if all activities that ran succeeded, or 'Failed' if any activity that ran failed."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F7-04-F1",
+            "type": "single_select",
+            "label": "Scenario 1: copy_bronze succeeds, transform_silver succeeds, transform_gold succeeds. What is the outcome?",
+            "options": [
+              "All 4 activities run; pipeline status: Succeeded",
+              "copy_bronze, transform_silver, transform_gold run (3 activities); notify_failure is skipped because its dependency (copy_bronze FAILURE) was not met; pipeline status: Succeeded",
+              "All 4 activities run and the pipeline status is Failed because notify_failure sent an unexpected email",
+              "Only copy_bronze runs; the other activities skip because of a dependency cycle"
+            ],
+            "correctAnswer": "copy_bronze, transform_silver, transform_gold run (3 activities); notify_failure is skipped because its dependency (copy_bronze FAILURE) was not met; pipeline status: Succeeded",
+            "distractorRationale": "Option 1 runs notify_failure, but notify_failure only runs when copy_bronze fails. Option 3 is nonsensical — skipped activities don't send emails. Option 4 invents a dependency cycle that doesn't exist. When upstream succeeds, the FAILURE-dependent activity is skipped (not failed), and the pipeline overall is Succeeded."
+          },
+          {
+            "id": "F7-04-F2",
+            "type": "single_select",
+            "label": "Scenario 2: copy_bronze FAILS (SFTP credential expired). What is the outcome?",
+            "options": [
+              "copy_bronze fails; transform_silver and transform_gold run anyway; pipeline status: Failed",
+              "copy_bronze fails; transform_silver is skipped (its SUCCESS dependency is not met); transform_gold is skipped (its upstream was skipped); notify_failure runs (its FAILURE dependency is met); pipeline status: Failed",
+              "copy_bronze fails; Fabric automatically retries it 3 times; the pipeline eventually succeeds",
+              "copy_bronze fails; all other activities run; pipeline status: Succeeded because notify_failure handled the error"
+            ],
+            "correctAnswer": "copy_bronze fails; transform_silver is skipped (its SUCCESS dependency is not met); transform_gold is skipped (its upstream was skipped); notify_failure runs (its FAILURE dependency is met); pipeline status: Failed",
+            "distractorRationale": "Option 1 runs activities whose dependencies are not met — skipped ≠ run. Option 3 invents automatic retry semantics (retries must be explicitly configured). Option 4 confuses 'handling a failure' with 'succeeding' — sending an alert email is acknowledgment, not recovery; the pipeline still has a failed activity."
+          },
+          {
+            "id": "F7-04-F3",
+            "type": "single_select",
+            "label": "Scenario 3: copy_bronze succeeds, transform_silver FAILS (bug in PySpark code), transform_gold has not started yet. What is the outcome?",
+            "options": [
+              "copy_bronze runs; transform_silver fails; transform_gold is skipped (its SUCCESS dependency not met); notify_failure is skipped (its dependency was on copy_bronze failure, not transform_silver failure); pipeline status: Failed",
+              "copy_bronze runs; transform_silver fails; transform_gold runs anyway because it is a separate activity; pipeline status: Failed",
+              "copy_bronze runs; transform_silver fails; notify_failure runs because any failure triggers it; pipeline status: Failed",
+              "copy_bronze runs; transform_silver fails; transform_gold and notify_failure both run; pipeline status: Succeeded"
+            ],
+            "correctAnswer": "copy_bronze runs; transform_silver fails; transform_gold is skipped (its SUCCESS dependency not met); notify_failure is skipped (its dependency was on copy_bronze failure, not transform_silver failure); pipeline status: Failed",
+            "distractorRationale": "Option 2 ignores the SUCCESS dependency between transform_silver and transform_gold. Option 3 assumes notify_failure triggers on ANY failure, but the scenario specifies its dependency is on copy_bronze failure specifically — so a transform_silver failure does not trigger it. Option 4 is inconsistent (multiple activities run but status is somehow Succeeded). The trap: notify_failure only catches copy_bronze failures — a separate alerting activity would be needed to catch transform_silver failures."
+          },
+          {
+            "id": "F7-04-F4",
+            "type": "single_select",
+            "label": "NordGrid's team wants transform_silver to run EVEN IF copy_bronze fails — for example, to reprocess yesterday's Bronze data when today's ingestion fails. What dependency type should they change?",
+            "options": [
+              "Change transform_silver's dependency from SUCCESS to COMPLETION — it runs whenever copy_bronze finishes, regardless of success or failure",
+              "Change transform_silver's dependency from SUCCESS to FAILURE — it runs only when copy_bronze fails",
+              "Remove transform_silver's dependency entirely — it runs in parallel with copy_bronze",
+              "Add a second copy_bronze activity as a retry, and depend transform_silver on the retry"
+            ],
+            "correctAnswer": "Change transform_silver's dependency from SUCCESS to COMPLETION — it runs whenever copy_bronze finishes, regardless of success or failure",
+            "distractorRationale": "Option 2 is overly restrictive — changing to FAILURE means transform_silver runs only on failure, not on success, which breaks the normal path. Option 3 creates a race condition where transform_silver might run before copy_bronze's file is ready. Option 4 adds complexity without using the COMPLETION dependency type designed for exactly this use case. COMPLETION is the dependency type that ignores success/failure distinction."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F7-task-05",
+      "title": "Choose the Right Trigger Schedule",
+      "type": "concept_identification",
+      "estimatedMinutes": 7,
+      "description": {
+        "context": "NordGrid operates multiple data flows with different cadences. Each needs its own pipeline trigger configured correctly. The trigger types taught in Module F7 are: scheduled triggers (hourly, daily, weekly, monthly with a specific time) and manual triggers (no schedule — the pipeline runs only when a human clicks Run).",
+        "task": "For each NordGrid data flow, select the correct trigger configuration.",
+        "validationHint": "Match the cadence of the data arrival to the trigger cadence. If source data arrives daily, the pipeline runs daily. If the pipeline is a one-off reprocessing job, it uses a manual trigger. If the source emits continuously, the pipeline runs hourly or on a streaming schedule."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F7-05-F1",
+            "type": "single_select",
+            "label": "NordGrid's external SFTP server publishes the daily meter CSV at 01:30 UTC every morning. The pipeline must run after the file arrives but before the 06:00 UTC analyst workday begins.",
+            "options": [
+              "Hourly trigger starting at 00:00 UTC",
+              "Daily trigger at 02:00 UTC",
+              "Weekly trigger on Monday at 02:00 UTC",
+              "Manual trigger — engineer runs it each morning"
+            ],
+            "correctAnswer": "Daily trigger at 02:00 UTC",
+            "distractorRationale": "Option 1 wastes capacity by running 23 unnecessary times per day — the source only updates once daily. Option 3 would miss Tuesday through Sunday's data. Option 4 is unsustainable for a daily production pipeline. Daily at 02:00 UTC is the canonical NordGrid cadence from Lesson 7 — runs 30 minutes after the 01:30 file arrival and finishes before the 06:00 analyst window."
+          },
+          {
+            "id": "F7-05-F2",
+            "type": "single_select",
+            "label": "NordGrid's SCADA telemetry from wind turbines arrives continuously as new files every 10 minutes. The pipeline must process the latest files frequently enough that the operations dashboard is never more than 1 hour stale.",
+            "options": [
+              "Hourly trigger",
+              "Daily trigger",
+              "Weekly trigger",
+              "Manual trigger"
+            ],
+            "correctAnswer": "Hourly trigger",
+            "distractorRationale": "Options 2, 3, and 4 all exceed the 1-hour staleness requirement. Only an hourly trigger keeps the dashboard fresh within the SLA. A more frequent trigger (every 15 minutes, for example) would also work but is overkill for a 1-hour SLA and consumes more capacity."
+          },
+          {
+            "id": "F7-05-F3",
+            "type": "single_select",
+            "label": "NordGrid's substation reference table (static metadata — 200 rows) needs to be refreshed from an upstream operations system, but the upstream system only updates the reference data on Mondays.",
+            "options": [
+              "Hourly trigger — refresh frequently to stay current",
+              "Daily trigger — refresh every morning",
+              "Weekly trigger on Monday evening (after the upstream update)",
+              "Manual trigger — refresh only when explicitly requested"
+            ],
+            "correctAnswer": "Weekly trigger on Monday evening (after the upstream update)",
+            "distractorRationale": "Options 1 and 2 run more frequently than the upstream source updates — wasting capacity on 6 of 7 days where the source is unchanged. Option 4 is operationally fragile (easy to forget). The upstream cadence is the correct rate — weekly on Monday evening, timed after the upstream system's weekly refresh."
+          },
+          {
+            "id": "F7-05-F4",
+            "type": "single_select",
+            "label": "NordGrid's team needs to reprocess 6 months of historical meter data after discovering a bug in last year's Silver transformation logic. The reprocessing is a one-time operation expected to run for 4 hours on a weekend.",
+            "options": [
+              "Daily trigger — schedule it to run tomorrow",
+              "Weekly trigger — schedule it for next Saturday",
+              "Manual trigger — engineer runs it once on Saturday morning and verifies completion",
+              "Hourly trigger — let it run multiple times in case it fails"
+            ],
+            "correctAnswer": "Manual trigger — engineer runs it once on Saturday morning and verifies completion",
+            "distractorRationale": "Options 1, 2, and 4 create scheduled triggers that would repeatedly run a one-time reprocessing job — causing data corruption on subsequent runs. Manual trigger is designed for exactly this case: a one-off operation that a human starts and verifies."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F7-task-06",
+      "title": "Design NordGrid's Complete Daily Pipeline",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "NordGrid's platform team is authoring the specification for the daily pipeline (pl_nordgrid_daily). The specification is a structured document that the platform team versions in Git: it lists the pipeline name, the parameters, the schedule, and every activity with its type, dependencies, and key configuration. New engineers read this specification to understand how the pipeline is assembled before opening it in the portal canvas.\n\nYou are writing this specification as a Python dictionary. No Fabric runtime is required — this is pure Python data structure construction that synthesizes every F7 concept: activity types (Lesson 3, 4, 5), dependencies (Lesson 6), scheduling (Lesson 7), and parameters (Lesson 8). The pipeline has 3 activities in sequence plus one failure-branch activity.",
+        "task": "Build a Python dictionary called nordgrid_daily_pipeline with these top-level keys:\n\n  - name: the pipeline name 'pl_nordgrid_daily'\n  - schedule: a nested dict with keys frequency ('daily'), time ('02:00'), timezone ('UTC')\n  - parameters: a nested dict with one parameter named 'processing_date' of type 'string'\n  - activities: a list of exactly 4 activity dicts, each with the keys name, type, depends_on\n\nThe 4 activities are:\n\n  (1) name='copy_bronze_meters', type='Copy', depends_on=[]\n  (2) name='transform_silver', type='Notebook', depends_on=[{'activity': 'copy_bronze_meters', 'condition': 'success'}]\n  (3) name='transform_gold', type='Notebook', depends_on=[{'activity': 'transform_silver', 'condition': 'success'}]\n  (4) name='notify_failure', type='SendEmail', depends_on=[{'activity': 'copy_bronze_meters', 'condition': 'failure'}]",
+        "validationHint": "Build the dict literally as shown. The order of activities in the list must match the sequence: copy first, then silver, then gold, then notify_failure. Dependencies are expressed as a list of {'activity': name, 'condition': condition} dicts so that a single activity can depend on multiple upstreams if needed. This is pure Python — no Spark, no Fabric runtime."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F7 synthesis: build NordGrid's daily pipeline specification as a Python dictionary.\n# No Spark, no Fabric runtime required. This dict is the authoritative specification\n# that the platform team versions in Git before opening the pipeline in the portal.\n\n# YOUR SOLUTION BELOW\n\nnordgrid_daily_pipeline = {\n    # Fill in the top-level keys: name, schedule, parameters, activities\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(nordgrid_daily_pipeline, indent=2))\nprint(f\"\\nActivity count: {len(nordgrid_daily_pipeline['activities'])}\")\nfor act in nordgrid_daily_pipeline['activities']:\n    deps = act.get('depends_on', [])\n    dep_summary = ', '.join(f\"{d['activity']}({d['condition']})\" for d in deps) if deps else 'none'\n    print(f\"  - {act['name']} [{act['type']}] depends on: {dep_summary}\")"
+      },
+      "assertions": [
+        {
+          "id": "F7-06-A1",
+          "description": "nordgrid_daily_pipeline has the 4 required top-level keys",
+          "check": "isinstance(nordgrid_daily_pipeline, dict) and set(nordgrid_daily_pipeline.keys()) >= {'name', 'schedule', 'parameters', 'activities'}"
+        },
+        {
+          "id": "F7-06-A2",
+          "description": "Pipeline name is 'pl_nordgrid_daily'",
+          "check": "nordgrid_daily_pipeline['name'] == 'pl_nordgrid_daily'"
+        },
+        {
+          "id": "F7-06-A3",
+          "description": "Schedule is daily at 02:00 UTC",
+          "check": "nordgrid_daily_pipeline['schedule']['frequency'] == 'daily' and nordgrid_daily_pipeline['schedule']['time'] == '02:00' and nordgrid_daily_pipeline['schedule']['timezone'] == 'UTC'"
+        },
+        {
+          "id": "F7-06-A4",
+          "description": "Parameters contains processing_date of type string",
+          "check": "'processing_date' in nordgrid_daily_pipeline['parameters'] and nordgrid_daily_pipeline['parameters']['processing_date']['type'] == 'string'"
+        },
+        {
+          "id": "F7-06-A5",
+          "description": "Activities list has exactly 4 entries",
+          "check": "len(nordgrid_daily_pipeline['activities']) == 4"
+        },
+        {
+          "id": "F7-06-A6",
+          "description": "First activity is copy_bronze_meters (Copy) with no dependencies",
+          "check": "nordgrid_daily_pipeline['activities'][0]['name'] == 'copy_bronze_meters' and nordgrid_daily_pipeline['activities'][0]['type'] == 'Copy' and nordgrid_daily_pipeline['activities'][0]['depends_on'] == []"
+        },
+        {
+          "id": "F7-06-A7",
+          "description": "transform_silver is a Notebook activity depending on copy_bronze_meters success",
+          "check": "any(a['name'] == 'transform_silver' and a['type'] == 'Notebook' and a['depends_on'] == [{'activity': 'copy_bronze_meters', 'condition': 'success'}] for a in nordgrid_daily_pipeline['activities'])"
+        },
+        {
+          "id": "F7-06-A8",
+          "description": "transform_gold is a Notebook activity depending on transform_silver success",
+          "check": "any(a['name'] == 'transform_gold' and a['type'] == 'Notebook' and a['depends_on'] == [{'activity': 'transform_silver', 'condition': 'success'}] for a in nordgrid_daily_pipeline['activities'])"
+        },
+        {
+          "id": "F7-06-A9",
+          "description": "notify_failure is a SendEmail activity depending on copy_bronze_meters failure",
+          "check": "any(a['name'] == 'notify_failure' and a['type'] == 'SendEmail' and a['depends_on'] == [{'activity': 'copy_bronze_meters', 'condition': 'failure'}] for a in nordgrid_daily_pipeline['activities'])"
+        }
+      ],
+      "partialCredit": "9 independent assertions. Each passed assertion earns 1/9 credit. A student who gets the top-level structure (name, schedule, parameters) right but misconfigures the activities earns at least 4/9.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Copy activity for SFTP-to-Lakehouse ingestion (Lesson 3)",
+          "Notebook activity for running PySpark transformations (Lesson 4)",
+          "Activity dependencies with success and failure conditions (Lesson 6)",
+          "Daily trigger schedule at 02:00 UTC (Lesson 7)",
+          "Pipeline parameters — processing_date (Lesson 8)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This task synthesizes every F7 concept into a single structured specification. Each activity tests a different lesson: copy_bronze_meters tests Copy activity understanding (Lesson 3), transform_silver and transform_gold test Notebook activity plus dependency chaining (Lessons 4, 6), notify_failure tests the FAILURE dependency condition (Lesson 6). The schedule tests Lesson 7, and the parameters section tests Lesson 8. A student who recalls individual lessons in isolation cannot complete this task — they must assemble them into a coherent pipeline. The 9 independent assertions provide fine-grained partial credit so students earn credit for the parts they got right even if they misconfigure one activity."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Not applied. F7 is Essential Operations phase. The practice set is template-heavy (5 of 6 tasks use templates or dict construction) because pipelines are a UI concept — most F7 knowledge is about which activity, which dependency, which schedule, rather than about writing code. The single code task tests the notebook-side of pipeline integration (parameterized notebooks). Task type mix (2 concept_identification + 2 output_prediction + 1 write_the_code + 1 synthesis_pipeline) is within §4.2 per-type limits.",
+    "theoryPracticeBoundary": "The theory walks through NordGrid's daily pipeline in Lessons 3, 4, 6, 7, 8, and 10 using consistent examples (pl_ingest_meters, the Bronze-to-Silver flow, the 02:00 UTC schedule). The practice tests application: Task 1 uses NordGrid steps the theory does not fully enumerate (the Send Email notification and Web API call are adaptations). Task 2 tests configuration-level decisions the theory explains conceptually but does not walk through as a fill-in-the-blanks exercise. Task 4 creates failure scenarios the theory describes briefly — the student must trace dependency logic through specific failure modes rather than recalling the nominal success path. Task 5 adds scenarios beyond the theory's daily example. Task 6 builds the specification the theory walks through, but as a structured Python data structure the student assembles from scratch.",
+    "crossModuleNotes": "This practice set builds on knowledge from earlier modules: F2's workspace and item naming (pl_ prefix for pipelines), F4's Lakehouse Files/Tables distinction (Task 2 field F3), F5's pre-configured spark and Lakehouse access (Task 3), and F6's transformation patterns (Task 3 applies a filter like the ones in F6). None of these are tested directly — they are context. F7 adds the orchestration layer on top: which activity runs what, when, and in what order. F8 (Dataflows Gen2) is referenced in Task 1 field F3 only at the level F7 Lesson 5 introduces (the Dataflow activity as a pipeline building block) — detailed Dataflow knowledge is not required and is covered in F8.",
+    "datasetNotes": "One small dataset (15 rows) used only by Task 3's parameterized filter. Tasks 1, 2, 4, 5, and 6 are entirely template-based or pure Python data structure construction and require no CSV files. The dataset is designed so the specific test params (2026-03-10 + EAST) match exactly 2 rows, giving a clean integer assertion target."
+  }
+}

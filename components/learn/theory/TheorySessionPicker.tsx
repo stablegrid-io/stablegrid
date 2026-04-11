@@ -131,7 +131,7 @@ export const TheorySessionPicker = ({
           >
             {/* Title */}
             <div className="mb-1">
-              <h2 className="font-headline text-2xl font-bold text-on-surface tracking-tight">Pick Your Learning Approach</h2>
+              <h2 className="text-2xl font-bold text-on-surface tracking-tight">Pick Your Learning Approach</h2>
               <p className="font-mono text-xs text-on-surface-variant mt-1">Structured sessions improve retention by up to 40% and sustain deeper focus.</p>
             </div>
 
@@ -186,12 +186,12 @@ export const TheorySessionPicker = ({
                       </div>
                       <div className="text-right">
                         <div className="font-mono text-[9px] uppercase mb-0.5" style={{ color: a.hex }}>{targetLabel}</div>
-                        <div className="font-headline text-2xl font-light text-on-surface">{timeLabel}</div>
+                        <div className="text-2xl font-light text-on-surface">{timeLabel}</div>
                       </div>
                     </div>
 
                     {/* Title + description */}
-                    <h2 className="font-headline text-lg font-black tracking-tight text-on-surface mb-1">
+                    <h2 className="text-lg font-black tracking-tight text-on-surface mb-1">
                       {METHOD_NEURAL_LABELS[methodId]}
                     </h2>
                     <p className="font-mono text-[11px] text-on-surface-variant leading-relaxed mb-3 min-h-[2.5rem]">
@@ -236,11 +236,11 @@ export const TheorySessionPicker = ({
                       <div className="grid grid-cols-2 gap-2">
                         <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
                           <div className="font-mono text-[8px] text-on-surface-variant uppercase">{stats[0]}</div>
-                          <div className="font-headline text-[11px] font-bold text-on-surface uppercase">{stats[1]}</div>
+                          <div className="text-[11px] font-bold text-on-surface uppercase">{stats[1]}</div>
                         </div>
                         <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
                           <div className="font-mono text-[8px] text-on-surface-variant uppercase">{stats[2]}</div>
-                          <div className="font-headline text-[11px] font-bold text-on-surface uppercase">{stats[3]}</div>
+                          <div className="text-[11px] font-bold text-on-surface uppercase">{stats[3]}</div>
                         </div>
                       </div>
 

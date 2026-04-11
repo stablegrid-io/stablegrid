@@ -1,0 +1,11 @@
+sub_id,sub_name,cap_mw,status
+SUB-01,Hammerfest Wind Hub,450.0,active
+SUB-02,Tromso Solar Array,320.0,active
+SUB-03,Bergen Coastal Plant,510.0,active
+SUB-04,Stavanger Grid Node,380.0,active
+SUB-05,Oslo Central Hub,620.0,active
+SUB-06,Trondheim Wind Farm,290.0,active
+SUB-07,Kristiansand Solar,410.0,decommissioned
+SUB-08,Bodo Coastal Node,355.0,active
+SUB-09,Alesund Old Plant,180.0,decommissioned
+SUB-10,Narvik Mountain Hub,475.0,active

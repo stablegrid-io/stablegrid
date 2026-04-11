@@ -1,0 +1,460 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FI3 — Advanced Pipeline Patterns",
+  "description": "Build production-grade Fabric pipelines: configure retry policies for transient failures, distinguish transient from permanent failures, design a 12-region ForEach loop with the right parallelism, diagnose a capacity throttling incident from a parallel ForEach run, refactor a hardcoded daily notebook into a parameterized backfill notebook, and design NordGrid's complete master daily pipeline as a multi-activity orchestration spec.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+",
+  "metadata": {
+    "moduleId": "module-FI3",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 70,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, F64 capacity, 9 workspaces",
+    "modulePhase": "performance_patterns",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 2,
+      "fixImplementation": 2,
+      "refactoring": 1,
+      "diagnosticWorkflow": 1
+    },
+    "calibrationNotes": "Third Fabric mid-level practice set. Establishes the pipeline configuration artifact pattern: Fabric pipelines are configured in the portal canvas (no PySpark API), so fix tasks construct Python dictionaries that specify the pipeline structure. Two tasks are pure templates (diagnostic), two are configuration artifacts (fix), one is notebook code refactoring (the only task with executable code), and one is the synthesis combining template + dict construction. Task type mix (2 diagnostic + 2 fix + 1 refactoring + 1 synthesis) is within section 5.2 limits."
+  },
+  "datasets": [
+    {
+      "id": "FI3_data_readings",
+      "file": "FI3_data_readings.csv",
+      "description": "NordGrid Silver readings spanning 5 dates (2026-04-06 through 2026-04-10) and 12 regions, with exactly 1 row per (date, region) combination = 60 rows total. The compact deterministic structure makes the parameterized backfill task verifiable: any (date, region) pair returns exactly 1 specific row. Used by the refactoring task (Task 5) to test the parameterized notebook against multiple input parameters.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FI3-task-05"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FI3-task-01",
+      "title": "Configure Retry for SFTP Ingestion",
+      "type": "fix_implementation",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's daily pipeline pulls meter CSVs from an external SFTP server every morning. The current Copy activity has no retry configuration. Over the past month, 6 of 30 daily runs failed due to transient SFTP timeouts (network blips, temporary credential refresh delays, brief SFTP server maintenance). Each failure pages the on-call engineer at 03:00 UTC for what would have been a self-recoverable problem. The fix is to add retry with exponential backoff so transient failures resolve themselves before alerting humans.\n\nNordGrid's retry policy from FI3 Lesson 2:\n- Retry count: 3 attempts (in addition to the initial attempt — so up to 4 tries total)\n- Initial interval: 30 seconds\n- Backoff multiplier: 2 (exponential — the gap doubles each retry, becoming 30, 60, 120 seconds)\n- Cumulative retry time: ~3.5 minutes maximum\n\nIf all 3 retries fail, the activity is marked as failed and downstream activities follow their failure dependencies.",
+        "task": "Build the retry configuration as a Python dict. The dict must have exactly these keys: retry_count (integer), interval_seconds (integer, the initial interval), backoff_multiplier (integer or float), and policy_name (the string 'exponential_backoff'). Store the dict in retry_config.",
+        "validationHint": "Apply the NordGrid retry policy values from the context: retry_count=3, interval_seconds=30, backoff_multiplier=2, policy_name='exponential_backoff'. The dict structure mirrors how Fabric's pipeline JSON represents retry settings on Copy and Notebook activities."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI3 Lesson 2: retry configuration for transient failures.\n# In Fabric portal, this is configured in the activity settings panel under 'Retry'.\n# Here we build the equivalent dictionary.\n\n# YOUR SOLUTION BELOW\n# Build retry_config with the 4 keys from the task description and NordGrid's policy values.\n\nretry_config = {\n    # Fill in the keys\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(retry_config, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI3-01-A1",
+          "description": "retry_config has all 4 required keys",
+          "check": "set(retry_config.keys()) == {'retry_count', 'interval_seconds', 'backoff_multiplier', 'policy_name'}"
+        },
+        {
+          "id": "FI3-01-A2",
+          "description": "retry_count equals 3",
+          "check": "retry_config['retry_count'] == 3"
+        },
+        {
+          "id": "FI3-01-A3",
+          "description": "interval_seconds equals 30",
+          "check": "retry_config['interval_seconds'] == 30"
+        },
+        {
+          "id": "FI3-01-A4",
+          "description": "backoff_multiplier equals 2",
+          "check": "retry_config['backoff_multiplier'] == 2"
+        },
+        {
+          "id": "FI3-01-A5",
+          "description": "policy_name equals 'exponential_backoff'",
+          "check": "retry_config['policy_name'] == 'exponential_backoff'"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-FI3-task-02",
+      "title": "Distinguish Transient vs Permanent Failures",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's on-call engineer is updating the failure response runbook. Different failure types require different responses: TRANSIENT failures should be retried automatically (the underlying problem usually resolves itself within minutes), while PERMANENT failures must alert a human immediately because retry will not help and waiting wastes the SLA window.\n\nFI3 Lesson 2's classification rules:\n- TRANSIENT: temporary network issues, capacity throttling, brief credential refresh, source system reload, transient HTTP 5xx errors\n- PERMANENT: missing source files, schema mismatches, expired credentials (not refreshed), authorization failures, malformed data\n\nThe distinction matters because retrying a permanent failure 3 times just delays the inevitable alert by 3 minutes — and worse, masks the problem during that window.",
+        "task": "For each of the 5 failure scenarios, classify it as TRANSIENT or PERMANENT and identify the correct response.",
+        "validationHint": "Three are TRANSIENT (network timeout, capacity throttling, transient HTTP 503) and two are PERMANENT (missing file, schema mismatch). The transient ones get automatic retry; the permanent ones get immediate alert + on-call investigation."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI3-02-F1",
+            "type": "single_select",
+            "label": "FAILURE 1: SFTP connection times out after 30 seconds. The pipeline retried automatically and succeeded on the first retry.",
+            "options": [
+              "TRANSIENT — network blip; retry with backoff is the correct response, no human action needed",
+              "PERMANENT — any timeout indicates infrastructure failure that must be investigated",
+              "Cannot tell — depends on whether the SFTP server logs show the same client IP",
+              "TRANSIENT but should still page the on-call engineer for awareness"
+            ],
+            "correctAnswer": "TRANSIENT — network blip; retry with backoff is the correct response, no human action needed",
+            "rationale": "SFTP timeouts that resolve on retry are textbook transient failures. The fact that retry succeeded is the strongest possible evidence of transience. Distractor D is a real anti-pattern at NordGrid: paging for self-recovered failures trains the on-call engineer to ignore alerts."
+          },
+          {
+            "id": "FI3-02-F2",
+            "type": "single_select",
+            "label": "FAILURE 2: The source CSV file expected at /sftp/exports/2026-04-08/meters.csv does not exist. The data engineer at the upstream system did not run their export job last night.",
+            "options": [
+              "TRANSIENT — the file might appear if we retry in 5 minutes",
+              "PERMANENT — the file genuinely is not there; retry will not create it. Alert the on-call engineer immediately so they can contact the upstream team",
+              "TRANSIENT — Fabric's retry will fetch the file from a backup location",
+              "PERMANENT — but only if the file is missing for 2 hours"
+            ],
+            "correctAnswer": "PERMANENT — the file genuinely is not there; retry will not create it. Alert the on-call engineer immediately so they can contact the upstream team",
+            "rationale": "Missing source data is a permanent failure because no amount of retry will manifest the file. The action required is human intervention (contact the upstream team). Distractor A wastes 3 minutes on retries that will all fail. Distractor C invents a backup mechanism that does not exist. Distractor D creates a problematic rule (waiting 2 hours wastes the SLA)."
+          },
+          {
+            "id": "FI3-02-F3",
+            "type": "single_select",
+            "label": "FAILURE 3: Notebook activity fails with 'CapacityThrottlingException: F64 capacity exceeded by 18%' during a parallel ForEach run.",
+            "options": [
+              "TRANSIENT — capacity pressure usually resolves in seconds to minutes as other workloads complete; retry with backoff is appropriate",
+              "PERMANENT — capacity overrun requires upgrading to F128",
+              "PERMANENT — kill all other workloads on the capacity",
+              "TRANSIENT — but disable retry to fail fast"
+            ],
+            "correctAnswer": "TRANSIENT — capacity pressure usually resolves in seconds to minutes as other workloads complete; retry with backoff is appropriate",
+            "rationale": "Capacity throttling is transient because Fabric capacity recovers as competing workloads finish. Retry with backoff often succeeds within minutes. Distractor B is the long-term answer for SUSTAINED throttling (FI8 Lesson 8) but not for an isolated incident. Distractor D inverts the correct response."
+          },
+          {
+            "id": "FI3-02-F4",
+            "type": "single_select",
+            "label": "FAILURE 4: Notebook activity fails with 'AnalysisException: cannot resolve column daily_kw_corrected; columns are [meter_id, daily_kw, date, region]'. The notebook expected a column that does not exist in the source table.",
+            "options": [
+              "TRANSIENT — the column might be added by the next ETL run",
+              "PERMANENT — schema mismatch is a code-vs-data version skew that requires fixing the notebook or rolling back the schema change. Retry will not help. Alert and investigate",
+              "TRANSIENT — Fabric's retry will pick up the schema change automatically",
+              "PERMANENT — but only if 3 retries all fail"
+            ],
+            "correctAnswer": "PERMANENT — schema mismatch is a code-vs-data version skew that requires fixing the notebook or rolling back the schema change. Retry will not help. Alert and investigate",
+            "rationale": "Schema mismatches indicate version drift between the code and the data. Retry cannot fix the drift. The fix is either a code change (update the notebook) or a schema rollback (restore the column). Both require human action. Distractor D wastes the retry window."
+          },
+          {
+            "id": "FI3-02-F5",
+            "type": "single_select",
+            "label": "FAILURE 5: HTTP 503 from the weather forecast API used by the Bronze ingest. The error message says 'Service temporarily unavailable, retry after 60 seconds'.",
+            "options": [
+              "TRANSIENT — the response message literally says retry; honor the upstream's retry-after hint and retry after 60 seconds",
+              "PERMANENT — 5xx errors always indicate the service is down for maintenance",
+              "Cannot tell — investigate the API's status page first",
+              "TRANSIENT — but ignore the retry-after hint and retry immediately"
+            ],
+            "correctAnswer": "TRANSIENT — the response message literally says retry; honor the upstream's retry-after hint and retry after 60 seconds",
+            "rationale": "HTTP 503 with a 'retry after' hint is the upstream service explicitly telling you 'I am temporarily unavailable, please come back in N seconds.' Honoring the hint is the cooperative thing to do. Distractor D is rude — ignoring the hint and hammering the API often makes the situation worse."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI3-task-03",
+      "title": "Design the Per-Region ForEach Loop",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid grew from 4 regions to 12 regions. The previous Silver pipeline ran a single notebook that processed all regions in one cell. At 1.2M meters, processing all 12 regions in one notebook now takes 25 minutes — too long. The platform team wants a per-region ForEach pattern: one Silver invocation per region, allowing isolation (a failure in NORTH-A does not stop SOUTH-A) and parallelism (multiple regions process simultaneously).\n\nFI3 Lesson 4's ForEach configuration:\n- Items: the list of values to iterate over (here, the 12 region codes)\n- Sequential vs Parallel: parallel runs activities concurrently across iterations; sequential processes one at a time\n- Batch count (when parallel): caps the number of concurrent iterations to avoid overwhelming downstream systems or capacity\n- Inner activity: what each iteration runs — typically an Invoke Pipeline or a Notebook with a parameter set to the current item",
+        "task": "Build a Python dict called foreach_config that specifies the per-region ForEach activity with these keys: name ('foreach_regions'), type ('ForEach'), items (a list of all 12 NordGrid region codes — see context), is_sequential (False, since we want parallelism), batch_count (4, to limit concurrent iterations to avoid capacity throttling), and inner_activity (a nested dict with name='invoke_silver_for_region', type='InvokePipeline', invoked_pipeline='pl_silver_transform', and a parameters dict mapping 'region' to the loop item expression '@item()').",
+        "validationHint": "The 12 region codes in NordGrid's mid-level scenario are: NORTH-A, NORTH-B, SOUTH-A, SOUTH-B, EAST-A, EAST-B, EAST-C, WEST-A, WEST-B, CENTRAL-A, CENTRAL-B, CENTRAL-C. Build them as a Python list. The batch_count of 4 was chosen to balance parallelism with capacity safety (3 concurrent regions per ~F64 quarter at any time)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI3 Lesson 4: per-region ForEach configuration.\n# In Fabric portal, this is the ForEach activity in the pipeline canvas.\n# Here we build the equivalent Python dict.\n\n# YOUR SOLUTION BELOW\n# Build foreach_config with the structure from the task description.\n# Remember: items is a list of all 12 region codes.\n\nforeach_config = {\n    # Fill in: name, type, items, is_sequential, batch_count, inner_activity\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(foreach_config, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI3-03-A1",
+          "description": "foreach_config has all 6 required top-level keys",
+          "check": "set(foreach_config.keys()) == {'name', 'type', 'items', 'is_sequential', 'batch_count', 'inner_activity'}"
+        },
+        {
+          "id": "FI3-03-A2",
+          "description": "name is 'foreach_regions' and type is 'ForEach'",
+          "check": "foreach_config['name'] == 'foreach_regions' and foreach_config['type'] == 'ForEach'"
+        },
+        {
+          "id": "FI3-03-A3",
+          "description": "items is a list with all 12 NordGrid region codes",
+          "check": "isinstance(foreach_config['items'], list) and set(foreach_config['items']) == {'NORTH-A','NORTH-B','SOUTH-A','SOUTH-B','EAST-A','EAST-B','EAST-C','WEST-A','WEST-B','CENTRAL-A','CENTRAL-B','CENTRAL-C'} and len(foreach_config['items']) == 12"
+        },
+        {
+          "id": "FI3-03-A4",
+          "description": "is_sequential is False (parallel execution)",
+          "check": "foreach_config['is_sequential'] == False"
+        },
+        {
+          "id": "FI3-03-A5",
+          "description": "batch_count is 4",
+          "check": "foreach_config['batch_count'] == 4"
+        },
+        {
+          "id": "FI3-03-A6",
+          "description": "inner_activity is a dict with the right keys",
+          "check": "isinstance(foreach_config['inner_activity'], dict) and set(foreach_config['inner_activity'].keys()) >= {'name', 'type', 'invoked_pipeline', 'parameters'}"
+        },
+        {
+          "id": "FI3-03-A7",
+          "description": "inner_activity invokes pl_silver_transform and passes region='@item()'",
+          "check": "foreach_config['inner_activity']['invoked_pipeline'] == 'pl_silver_transform' and foreach_config['inner_activity']['parameters']['region'] == '@item()'"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-FI3-task-04",
+      "title": "Diagnose a ForEach Throttling Incident",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's platform team deployed the per-region ForEach with batch_count=12 (all 12 regions running in parallel) for the first time on 2026-04-08. The pipeline run summary from the monitoring hub:\n\n  PIPELINE RUN — pl_master_daily / 2026-04-08 02:30 UTC\n  ----------------------------------------\n  ForEach activity: foreach_regions\n  Items: 12 (the 12 NordGrid regions)\n  is_sequential: false\n  batch_count: 12 (all parallel)\n\n  ITERATION RESULTS:\n  ----------------------------------------\n  NORTH-A    Succeeded (4 min 12 sec)\n  NORTH-B    Succeeded (4 min 18 sec)\n  SOUTH-A    Succeeded (4 min 09 sec)\n  SOUTH-B    Succeeded (4 min 22 sec)\n  EAST-A     Succeeded (4 min 31 sec)\n  EAST-B     Succeeded (4 min 17 sec)\n  EAST-C     Succeeded (4 min 19 sec)\n  WEST-A     Succeeded (4 min 24 sec)\n  WEST-B     FAILED  (CapacityThrottlingException at 02:35 UTC)\n  CENTRAL-A  FAILED  (CapacityThrottlingException at 02:35 UTC)\n  CENTRAL-B  FAILED  (CapacityThrottlingException at 02:36 UTC)\n  CENTRAL-C  FAILED  (CapacityThrottlingException at 02:36 UTC)\n\n  CAPACITY METRICS during the run:\n  ----------------------------------------\n  F64 utilization peak:  118%  (sustained for ~3 min)\n  Throttled CU minutes:  47\n  Concurrent notebooks:  12 at peak (matches the ForEach parallelism)\n\nAll 8 successful iterations finished in roughly the same time (4-4.5 minutes). The 4 failed iterations failed within 1 minute of each other, all with the same throttling error.",
+        "task": "Diagnose the throttling pattern and recommend a batch_count fix.",
+        "validationHint": "12 parallel iterations × per-iteration CU demand exceeded F64 capacity by 18%. The fix is to limit parallelism via batch_count: with 4 concurrent iterations, the peak CU stays within F64 limits and the 12 regions complete in 3 batches (each batch ~4 minutes), giving total runtime ~12 minutes — slightly slower than the 4-minute parallel ideal but well within SLA. The 4 failed regions are alphabetically the last 4 — they happened to start in the same scheduling window."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI3-04-F1",
+            "type": "single_select",
+            "label": "What is the root cause of the throttling pattern?",
+            "options": [
+              "Running 12 region iterations in parallel exceeded F64 capacity by 18%; throttling kicked in for the iterations that started after capacity was exhausted",
+              "The 4 failed regions have larger data than the 8 successful regions",
+              "Network connectivity issues during the run window",
+              "Fabric throttles ForEach loops with more than 8 items"
+            ],
+            "correctAnswer": "Running 12 region iterations in parallel exceeded F64 capacity by 18%; throttling kicked in for the iterations that started after capacity was exhausted",
+            "rationale": "The capacity metrics literally show 118% peak utilization with 12 concurrent notebooks. The 12 parallel iterations collectively demanded more CUs than F64 provides. Distractor B is plausible but the iteration runtimes for the successful 8 are nearly identical (4-4.5 min), which rules out asymmetric data sizes. Distractor D invents a fictitious limit."
+          },
+          {
+            "id": "FI3-04-F2",
+            "type": "numeric",
+            "label": "What batch_count should the team set to safely avoid throttling, given that 12 concurrent iterations exceeded capacity by 18% and the goal is to stay under F64 with margin? Choose a value that limits concurrent iterations to roughly 1/3 of the failing parallelism.",
+            "correctAnswer": 4,
+            "tolerance": 1,
+            "rationale": "12 / 3 = 4. With batch_count=4, only 4 iterations run concurrently, the peak utilization drops from 118% to ~40% (well within F64 limits), and the 12 regions complete in 3 sequential batches of 4 — total runtime ~12-15 minutes, still well within the morning SLA window. Acceptable answers within tolerance: 3-5."
+          },
+          {
+            "id": "FI3-04-F3",
+            "type": "single_select",
+            "label": "With batch_count=4 instead of 12, what is the expected total runtime for the 12-region ForEach (assuming each iteration takes ~4 minutes)?",
+            "options": [
+              "Approximately 12-15 minutes — 3 sequential batches of 4 regions each, with each batch taking ~4 minutes plus a small overhead between batches",
+              "Approximately 4 minutes — same as before",
+              "Approximately 48 minutes — sequential execution",
+              "Approximately 2 minutes — 4x speedup"
+            ],
+            "correctAnswer": "Approximately 12-15 minutes — 3 sequential batches of 4 regions each, with each batch taking ~4 minutes plus a small overhead between batches",
+            "rationale": "12 regions / 4 per batch = 3 batches. Each batch processes 4 regions in parallel, taking ~4 minutes for the slowest one. Total: 3 × 4 = 12 minutes plus a small batch transition overhead. This is slower than the 4-minute fully-parallel ideal (which failed) but much faster than the 48-minute fully-sequential alternative."
+          },
+          {
+            "id": "FI3-04-F4",
+            "type": "single_select",
+            "label": "After applying batch_count=4, what should be done about the 4 failed regions from the 2026-04-08 run?",
+            "options": [
+              "Trigger a backfill run for just the 4 failed regions, using a parameterized backfill mode of the master pipeline that accepts a region list as input",
+              "Wait for the next day's scheduled run — those regions will be reprocessed automatically",
+              "Manually copy the 8 successful regions' data into the failed regions",
+              "Re-run the entire pipeline for all 12 regions — the 8 successful ones will overwrite themselves harmlessly"
+            ],
+            "correctAnswer": "Trigger a backfill run for just the 4 failed regions, using a parameterized backfill mode of the master pipeline that accepts a region list as input",
+            "rationale": "Backfill is the correct recovery pattern: re-run only the missing work. Distractor B loses a day of data for the failed regions. Distractor C corrupts data. Distractor D works if the pipeline is idempotent (which it should be — see FI3 Lesson 7) but wastes capacity by re-running 8 successful regions. The backfill pattern is the production-grade response."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI3-task-05",
+      "title": "Refactor a Hardcoded Daily Notebook into a Parameterized Backfill Notebook",
+      "type": "refactoring",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's Silver transformation notebook was written for daily mode: it hardcodes today's date as 2026-04-08 and processes all regions in one cell. To support backfill (re-processing a specific historical date) and per-region ForEach (processing one region at a time), the notebook must be refactored to read TWO parameters from the pipeline: processing_date and region_filter.\n\nThe current (broken) notebook has this anti-pattern:\n  PROCESSING_DATE = '2026-04-08'  # hardcoded\n  REGION_FILTER = None  # processes all regions\n  df_filtered = df.filter(col('date') == PROCESSING_DATE)\n  if REGION_FILTER:\n    df_filtered = df_filtered.filter(col('region') == REGION_FILTER)\n\nThe pipeline cannot inject parameters into hardcoded variables. The refactored notebook must accept a params dict (which the Fabric Notebook activity injects at the top of the notebook) and use it for both filters.",
+        "task": "Refactor the notebook to read processing_date and region_filter from the pre-populated params dict in the scaffold. Build df_filtered by reading the CSV, filtering to params['processing_date'], filtering to params['region_filter'], and storing the result. Store the row count in filtered_count. The scaffold runs the refactored code with TWO different parameter sets to verify the same notebook works for any (date, region) input — this is the test that proves the refactor enables both backfill and ForEach modes.",
+        "validationHint": "Use col('date') == params['processing_date'] AND col('region') == params['region_filter']. Do not hardcode '2026-04-08' or any region name in your filter — the params dict provides them. The scaffold runs your code twice: once with (2026-04-06, NORTH-A) which should return the row for M-001, and once with (2026-04-08, EAST-B) which should return the row for M-030. Both runs should produce a single-row DataFrame."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI3 Lesson 5: parameterized notebook for backfill + ForEach.\n# In Fabric, the pipeline's Notebook activity injects parameters into a top cell.\n# Here we simulate by pre-populating the params dict.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-parameterized-notebook') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('FI3_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Loaded {df_readings.count()} rows.\")\n\ndef run_with_params(params):\n    \"\"\"\n    Refactored notebook body. Reads `params` from the pipeline and produces the\n    filtered DataFrame. Must reference params['processing_date'] and\n    params['region_filter'] — DO NOT hardcode any date or region literal.\n    \"\"\"\n    # YOUR SOLUTION BELOW\n    # Build df_filtered by filtering df_readings on:\n    #   - date == params['processing_date']\n    #   - region == params['region_filter']\n    # Store the filtered DataFrame in df_filtered.\n    # Store the row count in filtered_count.\n    # Return both as a tuple: (df_filtered, filtered_count)\n\n\n\n\n    # YOUR SOLUTION ABOVE\n    return df_filtered, filtered_count\n\n# Test 1: backfill mode for an old date + a region\nparams_backfill = {'processing_date': '2026-04-06', 'region_filter': 'NORTH-A'}\nprint(f\"\\nTest 1 params: {params_backfill}\")\ndf_test1, count_test1 = run_with_params(params_backfill)\ndf_test1.show()\nprint(f\"Test 1 row count: {count_test1}\")\n\n# Test 2: today's date + a different region (simulates ForEach iteration)\nparams_today = {'processing_date': '2026-04-08', 'region_filter': 'EAST-B'}\nprint(f\"\\nTest 2 params: {params_today}\")\ndf_test2, count_test2 = run_with_params(params_today)\ndf_test2.show()\nprint(f\"Test 2 row count: {count_test2}\")"
+      },
+      "assertions": [
+        {
+          "id": "FI3-05-A1",
+          "description": "Test 1 (2026-04-06, NORTH-A) returns exactly 1 row",
+          "check": "count_test1 == 1"
+        },
+        {
+          "id": "FI3-05-A2",
+          "description": "Test 1 returns the M-001 row (the one at 2026-04-06 NORTH-A)",
+          "check": "df_test1.first()['meter_id'] == 'M-001'"
+        },
+        {
+          "id": "FI3-05-A3",
+          "description": "Test 2 (2026-04-08, EAST-B) returns exactly 1 row",
+          "check": "count_test2 == 1"
+        },
+        {
+          "id": "FI3-05-A4",
+          "description": "Test 2 returns the M-030 row (the one at 2026-04-08 EAST-B)",
+          "check": "df_test2.first()['meter_id'] == 'M-030'"
+        },
+        {
+          "id": "FI3-05-A5",
+          "description": "Both test rows have the correct date matching the input parameter (proves the date filter is parameterized, not hardcoded)",
+          "check": "df_test1.first()['date'] == '2026-04-06' and df_test2.first()['date'] == '2026-04-08'"
+        },
+        {
+          "id": "FI3-05-A6",
+          "description": "Both test rows have the correct region matching the input parameter (proves the region filter is parameterized)",
+          "check": "df_test1.first()['region'] == 'NORTH-A' and df_test2.first()['region'] == 'EAST-B'"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit. The 6 assertions are designed so that hardcoded literals (e.g., 'NORTH-A' instead of params['region_filter']) fail Test 2 even if Test 1 passes."
+    },
+    {
+      "id": "module-FI3-task-06",
+      "title": "Design NordGrid's Master Daily Pipeline",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "This is the synthesis task. NordGrid's platform team is designing the master daily pipeline (pl_master_daily) that will run every morning at 02:30 UTC. Requirements:\n\n  1. Process 12 regions per day, with isolation: a failure in one region must not stop the others\n  2. Apply the batch_count=4 fix from Task 4 to avoid throttling\n  3. Run gold aggregation only after ALL 12 regions have completed Silver successfully\n  4. Send a failure notification (Send Email activity) if any region fails\n  5. Accept a processing_date parameter so the same pipeline supports daily mode AND backfill mode\n\nYour job: (1) DIAGNOSIS — fill the 4-field template confirming the design decisions. (2) FIX — build the master pipeline as a Python dict. Both are graded independently and combined 50/50.",
+        "task": "Fill the diagnosis template AND build the master pipeline dict.\n\nFor the FIX: Build a Python dict called master_pipeline with these keys:\n  - name: 'pl_master_daily'\n  - parameters: a nested dict with 'processing_date' as a key mapping to the type 'string'\n  - activities: a list of exactly 3 activity dicts:\n    (1) name='foreach_regions', type='ForEach', items (the 12 region list), is_sequential=False, batch_count=4, invoked_pipeline='pl_silver_transform'\n    (2) name='invoke_gold', type='InvokePipeline', invoked_pipeline='pl_gold_aggregate', depends_on=[{'activity': 'foreach_regions', 'condition': 'success'}]\n    (3) name='notify_failure', type='SendEmail', depends_on=[{'activity': 'foreach_regions', 'condition': 'failure'}]",
+        "validationHint": "The dependency model from F7 + FI3 applies: gold runs only on success of foreach (so it gets all 12 regions), notification runs only on failure of foreach (so any region failure triggers it). The 12-region list and batch_count=4 come from Tasks 3 and 4."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI3-06-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why is the per-region ForEach the right pattern instead of running all 12 regions in a single notebook?",
+            "options": [
+              "Isolation: a failure in one region does not stop the others; each region succeeds or fails independently, and only failed regions need to be retried — the 11 successful regions keep their work",
+              "Performance: ForEach is always faster than a single notebook",
+              "Cost: ForEach uses fewer CUs than a single notebook",
+              "Compliance: regulators require per-region pipeline isolation"
+            ],
+            "correctAnswer": "Isolation: a failure in one region does not stop the others; each region succeeds or fails independently, and only failed regions need to be retried — the 11 successful regions keep their work",
+            "rationale": "The primary justification for the per-region pattern is failure isolation, not raw performance. A single notebook that processes all 12 regions in one Spark job rolls back ALL 12 if any one of them errors out. The ForEach pattern preserves the 11 succesful regions and only requires the 1 failed region to be retried. Distractors B-D are not the primary motivation."
+          },
+          {
+            "id": "FI3-06-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why must invoke_gold depend on foreach_regions with a SUCCESS condition (not COMPLETION)?",
+            "options": [
+              "Gold aggregation reads from all 12 region Silver tables; if any region failed and produced no Silver data, the Gold aggregate would be incomplete (missing a region) without raising an error. SUCCESS dependency forces Gold to wait for all 12 successes",
+              "COMPLETION would cause Gold to never run",
+              "SUCCESS is faster than COMPLETION",
+              "Fabric does not support COMPLETION dependencies"
+            ],
+            "correctAnswer": "Gold aggregation reads from all 12 region Silver tables; if any region failed and produced no Silver data, the Gold aggregate would be incomplete (missing a region) without raising an error. SUCCESS dependency forces Gold to wait for all 12 successes",
+            "rationale": "The danger of COMPLETION is silent incompleteness. If 11 regions succeed and 1 fails, COMPLETION would let Gold run anyway — and the gold table would be missing one region's data, possibly without anyone noticing until a downstream report shows wrong totals. SUCCESS is the conservative choice: no Gold without all Silver."
+          },
+          {
+            "id": "FI3-06-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: With batch_count=4 and 12 regions, the foreach_regions activity processes the regions in how many batches?",
+            "options": [
+              "3 batches of 4 regions each (12 / 4 = 3)",
+              "4 batches of 3 regions each",
+              "12 batches of 1 region each (one batch per region)",
+              "1 batch of 12 regions"
+            ],
+            "correctAnswer": "3 batches of 4 regions each (12 / 4 = 3)",
+            "rationale": "ForEach with batch_count=4 means 'no more than 4 iterations run concurrently.' With 12 items, Fabric processes them as 3 sequential batches: regions 1-4 in parallel, then regions 5-8 in parallel, then regions 9-12 in parallel. This is the math from Task 4."
+          },
+          {
+            "id": "FI3-06-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: How does the processing_date parameter enable backfill mode?",
+            "options": [
+              "The same pipeline can be triggered manually with a historical date (e.g., processing_date='2026-04-01') instead of today's date; the parameter flows through to the inner notebooks, which use it to filter the source data and write to the correct date partition",
+              "Backfill requires a separate pipeline that does not use parameters",
+              "The parameter is ignored unless backfill mode is explicitly enabled",
+              "Backfill is not supported in Fabric pipelines"
+            ],
+            "correctAnswer": "The same pipeline can be triggered manually with a historical date (e.g., processing_date='2026-04-01') instead of today's date; the parameter flows through to the inner notebooks, which use it to filter the source data and write to the correct date partition",
+            "rationale": "The whole point of parameterizing the date is that ONE pipeline supports both daily and backfill modes. Daily runs trigger with today's date (via @utcnow() or a tumbling window trigger). Backfill runs trigger with a historical date manually. The pipeline structure is identical in both cases — parameters do all the work. This is FI3 Lesson 7's idempotency requirement: re-running with the same date produces the same result."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI3 SYNTHESIS: build NordGrid's complete master daily pipeline as a dict.\n# Pure Python — no Spark needed.\n\n# YOUR SOLUTION BELOW\n# Build master_pipeline with the structure from the task description.\n# Use the values from Tasks 3 and 4: 12 regions, batch_count=4, parallel.\n\nmaster_pipeline = {\n    # Fill in: name, parameters, activities (list of 3)\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(master_pipeline, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI3-06-A1",
+          "description": "master_pipeline has the 3 required top-level keys",
+          "check": "set(master_pipeline.keys()) >= {'name', 'parameters', 'activities'}"
+        },
+        {
+          "id": "FI3-06-A2",
+          "description": "name is 'pl_master_daily' and processing_date is a string parameter",
+          "check": "master_pipeline['name'] == 'pl_master_daily' and master_pipeline['parameters']['processing_date'] == 'string'"
+        },
+        {
+          "id": "FI3-06-A3",
+          "description": "activities is a list of exactly 3 entries",
+          "check": "len(master_pipeline['activities']) == 3"
+        },
+        {
+          "id": "FI3-06-A4",
+          "description": "First activity is foreach_regions (ForEach) with all 12 regions, batch_count=4, parallel",
+          "check": "master_pipeline['activities'][0]['name'] == 'foreach_regions' and master_pipeline['activities'][0]['type'] == 'ForEach' and len(master_pipeline['activities'][0]['items']) == 12 and master_pipeline['activities'][0]['batch_count'] == 4 and master_pipeline['activities'][0]['is_sequential'] == False"
+        },
+        {
+          "id": "FI3-06-A5",
+          "description": "foreach_regions invokes pl_silver_transform",
+          "check": "master_pipeline['activities'][0]['invoked_pipeline'] == 'pl_silver_transform'"
+        },
+        {
+          "id": "FI3-06-A6",
+          "description": "invoke_gold is in the activities list as an InvokePipeline targeting pl_gold_aggregate, depending on foreach_regions success",
+          "check": "any(a['name'] == 'invoke_gold' and a['type'] == 'InvokePipeline' and a['invoked_pipeline'] == 'pl_gold_aggregate' and a['depends_on'] == [{'activity': 'foreach_regions', 'condition': 'success'}] for a in master_pipeline['activities'])"
+        },
+        {
+          "id": "FI3-06-A7",
+          "description": "notify_failure is in the activities list as a SendEmail activity, depending on foreach_regions failure",
+          "check": "any(a['name'] == 'notify_failure' and a['type'] == 'SendEmail' and a['depends_on'] == [{'activity': 'foreach_regions', 'condition': 'failure'}] for a in master_pipeline['activities'])"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (7 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/7).",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Per-region ForEach for failure isolation (Lesson 4)",
+          "Batch count tuning to avoid capacity throttling (Lesson 4 + FI8 preview)",
+          "SUCCESS vs COMPLETION dependency semantics (Lesson 6)",
+          "Parent-child orchestration with Invoke Pipeline (Lesson 6)",
+          "Pipeline parameterization for backfill mode (Lessons 5, 7)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines the ForEach pattern (Task 3), the throttling fix (Task 4), and the broader orchestration model into a single coherent pipeline spec. The diagnosis template tests whether students understand WHY each design decision was made — isolation, dependency strictness, batch sizing, parameterization. The dict assertions verify they can encode those decisions correctly. The keystone is assertion A6: depends_on with success condition — students who use COMPLETION or omit the dependency will fail it, demonstrating they did not internalize the diagnosis F2 lesson."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "calibrationNotes": "Third Fabric mid-level practice set. Establishes the configuration artifact pattern for pipeline design tasks: Python dict construction stands in for portal canvas configuration. The refactoring task (Task 5) is the only code-execution task and follows the F7 junior parameterized notebook pattern with two test invocations to verify the parameters are actually used (not hardcoded). Task type mix (2 diagnostic + 2 fix + 1 refactoring + 1 synthesis) is within section 5.2 limits and uses the maximum allowed refactoring count (1, well under the cap of 2).",
+    "theoryPracticeBoundary": "The theory teaches retry logic, failure classification, ForEach, parameterization, parent-child orchestration, and backfill in Lessons 2-7. The practice tests application: Task 1 builds a retry config from the policy values. Task 2 classifies 5 specific failure scenarios that test the transient/permanent rule. Task 3 builds the ForEach configuration with 12 regions, parallel mode, and the batch_count tuning that becomes the input to Task 4's diagnosis. Task 4 reproduces a specific incident with concrete metrics (118% utilization, 4 failed iterations) and asks for the structural fix. Task 5 refactors a notebook so the same code works for both daily and backfill modes — verified by running with TWO different parameter sets. Task 6 synthesizes all of this into the master pipeline dict.",
+    "datasetNotes": "One dataset (60 rows) used only by the refactoring task. The 5 dates × 12 regions × 1 row structure ensures every (date, region) parameter combination returns exactly 1 deterministic row. The refactor test runs the student's code with TWO different parameter sets so a hardcoded literal (e.g., 'NORTH-A' baked into the filter) passes Test 1 but fails Test 2 — catching the most common refactoring shortcut."
+  }
+}

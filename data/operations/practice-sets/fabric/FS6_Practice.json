@@ -1,0 +1,486 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FS6 — Diagnose Execution-Level Performance at Enterprise Scale",
+  "description": "Diagnose a notebook that runs slow despite an optimal plan (root cause: GC pauses from a large broadcast variable on the old-generation heap), trace runtime spill that consumes 60% of pipeline runtime, choose a speculative execution policy across three workload profiles, review GridUnion's memory allocation settings for subtle imbalances, and synthesize the execution-level diagnostic playbook. Senior-level practice in tracing problems that execution plans cannot explain through Fabric's managed Spark engine internals.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / Spark 3.5+",
+  "metadata": {
+    "moduleId": "module-FS6",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 95,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "GridUnion Continental",
+    "scenarioScale": "5M meters, 30 regions, 4 countries (DE/FR/NL/LU), 12 teams, 80 engineers, 500+ pipelines, F128 production capacity, 4 capacities total",
+    "modulePhase": "deep_internals",
+    "taskTypeMix": {
+      "tradeoffAnalysis": 1,
+      "designReview": 1,
+      "rootCauseAnalysis": 2,
+      "designArtifact": 0,
+      "architecturalSynthesis": 1
+    },
+    "calibrationNotes": "Senior practice set in the deep internals phase. Two root cause tasks anchor the set with engine-level evidence (Spark UI executor tab snapshots, GC traces, spill metrics, task duration distributions) — pure senior territory because mid-level engineers stop at the explain output and don't know how to diagnose problems that the plan looks fine for. The trade-off task uses the per-workload-profile pattern: students recommend a different speculation policy for each of three workload types. The design review tests subtle memory allocation imbalances. The synthesis is the diagnostic decision tree + runbook dict. Multi-defensible answers documented in acceptable_alternatives metadata."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-FS6-task-01",
+      "title": "Notebook Slow but Plan Looks Optimal",
+      "type": "root_cause_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's quarterly cross-country regulatory pipeline (pl_regulatory_quarterly_eu) historically completes in 22 minutes. After the FS5 schema registry rollout 2 weeks ago, the same pipeline takes 68 minutes — a 3x slowdown. The pipeline's owner pulled the physical plan and verified it is optimal (correct broadcast joins, full pushdown, no skew). The plan has not changed shape between fast and slow runs. The data volume is the same.\n\nThe owner pulled the Spark UI evidence:\n\n  EXECUTOR TAB — STAGE 6 (the dominant stage in both fast and slow runs)\n  ============================================================\n  Total executors: 32\n  Cores per executor: 8\n  Memory per executor: 28 GB (16 GB execution + 12 GB storage in unified memory)\n  Active tasks: 256 (8 per executor)\n  Failed tasks: 0\n\n  EXECUTOR METRICS — FAST RUN (22 minutes total)\n    Aggregate task time: 5,140 sec\n    Aggregate GC time:     180 sec   (3.5% of task time)\n    Shuffle read:           420 GB\n    Shuffle write:          420 GB\n    Spill (memory):          0 GB\n    Spill (disk):            0 GB\n    Peak execution memory: 12.4 GB per executor\n    Peak storage memory:    2.1 GB per executor\n\n  EXECUTOR METRICS — SLOW RUN (68 minutes total)\n    Aggregate task time: 14,800 sec\n    Aggregate GC time:    9,200 sec  (62% of task time)  <-- the smoking gun\n    Shuffle read:           420 GB\n    Shuffle write:          420 GB\n    Spill (memory):          0 GB\n    Spill (disk):            0 GB\n    Peak execution memory: 12.6 GB per executor\n    Peak storage memory:   13.8 GB per executor          <-- much higher\n\n  GC LOG SAMPLE (slow run, executor 17, last 10 minutes)\n    [GC (Allocation Failure)] PSYoungGen: 3145728K->524288K(3670016K)\n    [Full GC (Ergonomics)] PSYoungGen: 524288K->0K(3670016K), ParOldGen: 11534336K->11876352K(13631488K)  -- 1.4 sec\n    [Full GC (Ergonomics)] PSYoungGen: 0K->0K(3670016K), ParOldGen: 11876352K->12058624K(13631488K)  -- 1.6 sec\n    [Full GC (Ergonomics)] PSYoungGen: 0K->0K(3670016K), ParOldGen: 12058624K->12150784K(13631488K)  -- 1.7 sec\n    [Full GC (Ergonomics)] PSYoungGen: 0K->0K(3670016K), ParOldGen: 12150784K->12200576K(13631488K)  -- 1.8 sec\n    [Full GC (Ergonomics)] PSYoungGen: 0K->0K(3670016K), ParOldGen: 12200576K->12239872K(13631488K)  -- 1.9 sec\n    -- Old generation is 89% full and not shrinking; full GCs taking longer each time --\n\n  RECENT CHANGES (per the FS5 rollout):\n    The pipeline now broadcasts a schema_registry_lookup table during initialization\n    so that every task can validate column types against the registered schema. The\n    lookup is roughly 180 MB serialized — well under the 1 GB broadcast threshold.\n    The broadcast is held as a static field on the executor for the duration of the job.",
+        "task": "Trace the root cause of the slowdown through Spark's memory management to identify why a 180 MB broadcast variable produces a 62% GC time on a job that previously had 3.5% GC time.",
+        "validationHint": "The smoking gun is the Spark UI metric 'Peak storage memory: 13.8 GB' (slow run) vs '2.1 GB' (fast run) — an 11.7 GB increase. The 180 MB serialized broadcast deserializes to a much larger in-memory representation (typically 5-15x for nested objects with object headers and references). At 32 executors, each executor holds the deserialized broadcast on the JVM heap. The broadcast object lives in the OLD generation (it persists for the entire job, longer than any young-generation GC cycle, so it gets promoted). With the old generation 89% full (12.2 GB out of 13.6 GB old gen), the JVM enters constant full-GC pressure trying to reclaim space — but the broadcast variable cannot be reclaimed because it's still referenced. Result: full GCs run constantly, producing the 62% GC time and 3x slowdown."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS6-01-F1",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — SYMPTOM: What is the specific Spark UI metric that identifies the problem?",
+            "options": [
+              "Aggregate GC time: 9,200 sec on the slow run vs 180 sec on the fast run — GC time jumped from 3.5% to 62% of total task time. The plan, shuffle volume, and execution memory are unchanged; the difference is entirely in GC and storage memory",
+              "Shuffle read volume increased",
+              "Active task count changed",
+              "Failed task count is non-zero"
+            ],
+            "correctAnswer": "Aggregate GC time: 9,200 sec on the slow run vs 180 sec on the fast run — GC time jumped from 3.5% to 62% of total task time. The plan, shuffle volume, and execution memory are unchanged; the difference is entirely in GC and storage memory",
+            "rationale": "The first step in any execution-level root cause is to localize the problem to a specific metric. Comparing fast vs slow runs across the executor tab, the GC time is the only large delta. The plan-level metrics (shuffle, partition count, task count) are identical, which is exactly why this kind of problem can't be diagnosed from the explain output alone — the plan looks fine because the plan IS fine. The problem is in the JVM memory model below the plan."
+          },
+          {
+            "id": "FS6-01-F2",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — COMPONENT: Which Spark/JVM component is responsible for the problem?",
+            "options": [
+              "The JVM heap memory model: specifically the old generation, which holds long-lived objects. The broadcast variable persists for the entire job, gets promoted to the old generation, and pressures the JVM into constant full GC cycles when the old generation cannot be reclaimed",
+              "The DAGScheduler",
+              "The shuffle service",
+              "The Catalyst optimizer"
+            ],
+            "correctAnswer": "The JVM heap memory model: specifically the old generation, which holds long-lived objects. The broadcast variable persists for the entire job, gets promoted to the old generation, and pressures the JVM into constant full GC cycles when the old generation cannot be reclaimed",
+            "rationale": "Senior-level Spark knowledge includes the JVM heap generations: young gen (Eden + Survivor) holds short-lived objects, old gen holds long-lived ones. Broadcast variables that live for the entire job get promoted to old gen quickly. The DAGScheduler, shuffle, and Catalyst are all unrelated to this problem — the plan and stage structure are unchanged. Localizing the component to JVM heap (specifically old gen) is the diagnostic step that mid-level training does not cover."
+          },
+          {
+            "id": "FS6-01-F3",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — MECHANISM: Why does a 180 MB serialized broadcast fill the 13.6 GB old generation?",
+            "options": [
+              "Serialized size and in-memory deserialized size are very different. A 180 MB serialized broadcast typically expands to 1.5-3 GB in memory once deserialized into Java objects (object headers, references, padding, nested struct overhead). On 32 executors holding the same broadcast, plus the rest of the executor's working set, the old generation pressure builds quickly. The Spark UI confirms this: peak storage memory jumped from 2.1 GB (fast run) to 13.8 GB (slow run) — an 11.7 GB increase per executor",
+              "Spark broadcasts every task individually",
+              "The serialized size is misreported",
+              "Old generation cannot hold broadcast variables"
+            ],
+            "correctAnswer": "Serialized size and in-memory deserialized size are very different. A 180 MB serialized broadcast typically expands to 1.5-3 GB in memory once deserialized into Java objects (object headers, references, padding, nested struct overhead). On 32 executors holding the same broadcast, plus the rest of the executor's working set, the old generation pressure builds quickly. The Spark UI confirms this: peak storage memory jumped from 2.1 GB (fast run) to 13.8 GB (slow run) — an 11.7 GB increase per executor",
+            "rationale": "The deserialized-vs-serialized size gap is the senior-level insight. Mid-level engineers see '180 MB broadcast' and assume that's the memory cost; in reality, the in-memory cost can be 5-15x higher depending on the object structure. The 11.7 GB jump in peak storage memory is the empirical evidence of the expansion. Once the broadcast pushes the old gen toward 90% full, full GCs cannot reclaim space (the broadcast is still referenced) and the JVM enters a death spiral of constant full GCs."
+          },
+          {
+            "id": "FS6-01-F4",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — FIX: What is the most appropriate fix?",
+            "options": [
+              "Replace the broadcast variable with a per-task lookup against a small Delta table: the schema registry data is small enough to be read directly from OneLake by every task without needing to be broadcast. This eliminates the in-memory expansion entirely. The downside is per-task I/O which is acceptable for a 180 MB lookup with strong caching",
+              "Increase executor memory from 28 GB to 56 GB to give the broadcast more room",
+              "Disable broadcast joins entirely",
+              "Roll back the FS5 schema registry rollout"
+            ],
+            "correctAnswer": "Replace the broadcast variable with a per-task lookup against a small Delta table: the schema registry data is small enough to be read directly from OneLake by every task without needing to be broadcast. This eliminates the in-memory expansion entirely. The downside is per-task I/O which is acceptable for a 180 MB lookup with strong caching",
+            "secondaryCorrectAnswer": "Increase executor memory from 28 GB to 56 GB to give the broadcast more room",
+            "rationale": "PRIMARY answer is to eliminate the broadcast because it addresses the root cause: a long-lived large object on the JVM heap pressures the old generation regardless of any other tuning. SECONDARY answer (more memory) is also accepted because it works in practice: doubling executor memory gives the old generation enough headroom to absorb the broadcast without entering GC pressure. The downside of doubling memory is doubling the capacity cost (in Fabric, larger executors come from larger SKUs). Eliminating the broadcast is preferred because it scales with future broadcast additions; adding memory only buys time. Distractors C-D are over-corrections (disabling broadcasts breaks every other join; rolling back FS5 is excessive).",
+            "acceptable_alternatives": "Either eliminating the broadcast (primary) or increasing executor memory (secondary) is accepted. The primary is preferred because it addresses the root cause, but the secondary is a real production workaround that works."
+          },
+          {
+            "id": "FS6-01-F5",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — LESSON: What is the senior-level lesson about broadcast variable sizing?",
+            "options": [
+              "The serialized size limit (1 GB default) is a NECESSARY but not SUFFICIENT check for broadcast safety. The actual constraint is the deserialized in-memory size relative to the executor's old generation, which can be 5-15x larger. For broadcasts above ~50 MB serialized, measure peak storage memory after the broadcast is loaded, not just the serialized size",
+              "Broadcasts under 1 GB are always safe",
+              "Never use broadcast variables",
+              "Broadcasts only matter for joins"
+            ],
+            "correctAnswer": "The serialized size limit (1 GB default) is a NECESSARY but not SUFFICIENT check for broadcast safety. The actual constraint is the deserialized in-memory size relative to the executor's old generation, which can be 5-15x larger. For broadcasts above ~50 MB serialized, measure peak storage memory after the broadcast is loaded, not just the serialized size",
+            "rationale": "The mid-level rule 'broadcasts under 1 GB are safe' becomes the senior-level nuance 'measure deserialized memory, not serialized size'. The 1 GB threshold protects against immediate OOM at broadcast time, but does not protect against gradual heap pressure from in-memory expansion. Senior engineers know to look at peak storage memory after the broadcast is loaded as the actual safety check. For broadcasts under ~50 MB serialized, the expansion is usually within tolerance; above that, it requires explicit measurement."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS6-task-02",
+      "title": "Spill Eating 60% of Pipeline Runtime",
+      "type": "root_cause_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's daily Silver consolidation pipeline (pl_silver_consolidate_daily) is missing its SLA. The Silver job historically completed in 25 minutes; for the past 3 weeks it has consistently taken 47 minutes. The plan is unchanged. Data volume has grown about 8% in those 3 weeks (typical seasonal growth, not a step change).\n\n  STAGE METRICS — STAGE 4 (the consolidation join, dominant stage)\n  ============================================================\n  Tasks:                  200\n  Median task duration:   38 sec\n  Max task duration:      890 sec\n  P95 task duration:      720 sec\n\n  AGGREGATE SHUFFLE METRICS:\n    Shuffle read:                  62 GB\n    Shuffle write:                 62 GB\n    Records read:                  680M\n\n  SPILL METRICS (across all tasks in stage 4):\n    Spill (memory):                48 GB    <-- non-zero\n    Spill (disk):                  12 GB    <-- non-zero, written to executor local disk\n    Tasks with non-zero spill:     154 of 200\n    Tasks where spill > 100 MB:    87 of 200\n\n  PER-PARTITION DATA SIZE DISTRIBUTION (post-shuffle):\n    p50:    310 MB\n    p75:    340 MB\n    p95:    410 MB\n    max:    480 MB\n\n  EXECUTOR CONFIGURATION:\n    Executor count:        16\n    Cores per executor:     8\n    Memory per executor:   24 GB total (14 GB execution + 8 GB storage in unified memory)\n    Per-task execution memory budget: 14 GB / 8 cores = 1.75 GB\n\n  HISTORICAL COMPARISON (3 weeks ago, when pipeline was 25 min):\n    Spill (memory): 0 GB\n    Spill (disk):   0 GB\n    Records read:   620M (8% less)\n    Per-partition p50: 280 MB",
+        "task": "Diagnose why the pipeline has crossed a spill threshold despite only an 8% data growth, and recommend the right mitigation.",
+        "validationHint": "The smoking gun: per-task execution memory budget is 1.75 GB, but per-partition median size is 310 MB. The join state (hash table) needs to hold the partition's worth of records, and at the histogram's high end (p95 = 410 MB, max = 480 MB), the join state approaches the per-task budget after accounting for the join overhead. The 8% growth pushed the larger partitions just past the threshold where they fit in memory, triggering spill. Spill is 10-100x slower than in-memory operations — once spill starts, runtime grows much faster than data growth. The fix is to increase partition count to shrink each partition's data, not to increase executor memory (which doubles capacity cost)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS6-02-F1",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — SYMPTOM: Which metric most clearly indicates spill is the root cause of the slowdown?",
+            "options": [
+              "Spill (memory) of 48 GB and Spill (disk) of 12 GB, with 154 of 200 tasks experiencing spill — historically this metric was 0 GB. Spill is 10-100x slower than in-memory operations, so the 60 GB of spilled data fully accounts for the 22-minute increase in runtime",
+              "Max task duration is 890 sec",
+              "Shuffle read is 62 GB",
+              "Records read grew by 8%"
+            ],
+            "correctAnswer": "Spill (memory) of 48 GB and Spill (disk) of 12 GB, with 154 of 200 tasks experiencing spill — historically this metric was 0 GB. Spill is 10-100x slower than in-memory operations, so the 60 GB of spilled data fully accounts for the 22-minute increase in runtime",
+            "rationale": "Spill from 0 GB to 60 GB is the largest delta in the metrics. The historical comparison is the key — 3 weeks ago there was zero spill, and now there's 60 GB across 154 tasks. This is the 'crossed a threshold' pattern: a small data growth pushed the workload past a memory boundary, and the system fell off a cliff. Mid-level diagnosis would stop at 'data grew by 8%, runtime grew 88%' and not recognize that the disproportionate scaling is a signature of crossing a threshold."
+          },
+          {
+            "id": "FS6-02-F2",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — COMPONENT: Which Spark execution component handles the spill behavior?",
+            "options": [
+              "The unified memory manager: when a task's join state or sort buffer exceeds the per-task execution memory budget (here: 14 GB execution memory / 8 cores = 1.75 GB per task), the manager spills the excess to disk. Spilling preserves correctness at the cost of severe slowdown",
+              "The DAGScheduler",
+              "The shuffle service",
+              "The TaskScheduler"
+            ],
+            "correctAnswer": "The unified memory manager: when a task's join state or sort buffer exceeds the per-task execution memory budget (here: 14 GB execution memory / 8 cores = 1.75 GB per task), the manager spills the excess to disk. Spilling preserves correctness at the cost of severe slowdown",
+            "rationale": "Spill is a unified memory manager behavior. When a task needs more memory than its budget allows, the memory manager triggers spill to disk to avoid OOM. The per-task budget is calculated as execution memory divided by core count, not as the full executor memory. Distractors B-D are unrelated."
+          },
+          {
+            "id": "FS6-02-F3",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — MECHANISM: Why did an 8% data growth produce such a dramatic spill increase?",
+            "options": [
+              "Spill is a threshold effect, not a linear effect. When per-partition data is below the per-task budget, there is zero spill. When per-partition data exceeds the budget, even by 10%, EVERY task that crosses the threshold spills. The histogram shows partitions at p95 = 410 MB and max = 480 MB; the per-task budget plus join overhead is roughly in the 350-450 MB range. The 8% growth pushed partitions across the threshold for 77% of tasks (154 of 200)",
+              "Hash collisions doubled",
+              "The shuffle service throttled",
+              "GC time increased"
+            ],
+            "correctAnswer": "Spill is a threshold effect, not a linear effect. When per-partition data is below the per-task budget, there is zero spill. When per-partition data exceeds the budget, even by 10%, EVERY task that crosses the threshold spills. The histogram shows partitions at p95 = 410 MB and max = 480 MB; the per-task budget plus join overhead is roughly in the 350-450 MB range. The 8% growth pushed partitions across the threshold for 77% of tasks (154 of 200)",
+            "rationale": "The threshold-effect framing is the senior insight. Spill is binary at the per-partition level — a partition either fits in memory or it doesn't. Once a partition spills, the spill cost is roughly proportional to how much spilled (not how much exceeded the budget). At 154 tasks spilling, the aggregate spill cost is ~60 GB and the runtime nearly doubles. Mid-level intuition (8% data growth = 8% slower) misses the threshold effect entirely."
+          },
+          {
+            "id": "FS6-02-F4",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — FIX: What is the most appropriate fix?",
+            "options": [
+              "Increase partition count from 200 to 400 (or 300-500 depending on the next-quarter growth projection). This halves per-partition data from ~310 MB to ~155 MB, dropping every partition well below the per-task memory budget. No capacity increase required",
+              "Double executor memory from 24 GB to 48 GB",
+              "Disable shuffle entirely",
+              "Add more executors"
+            ],
+            "correctAnswer": "Increase partition count from 200 to 400 (or 300-500 depending on the next-quarter growth projection). This halves per-partition data from ~310 MB to ~155 MB, dropping every partition well below the per-task memory budget. No capacity increase required",
+            "secondaryCorrectAnswer": "Double executor memory from 24 GB to 48 GB",
+            "rationale": "PRIMARY answer is to increase partition count because it solves the problem at zero capacity cost. Halving partition size drops everything below the spill threshold and gives growth headroom. SECONDARY answer (double memory) is also accepted because it works, but it doubles the capacity cost — in Fabric, larger executors require a larger SKU, which permanently increases the CU consumption baseline. The primary fix is preferred because it scales with future growth and is reversible. Distractor C is nonsensical (you cannot disable shuffle). Distractor D adds capacity without addressing the per-task memory pressure.",
+            "acceptable_alternatives": "Either repartitioning (primary) or doubling executor memory (secondary) is accepted with appropriate reasoning."
+          },
+          {
+            "id": "FS6-02-F5",
+            "type": "single_select",
+            "label": "PROCESS: What monitoring would have caught this BEFORE it became an SLA breach?",
+            "options": [
+              "Track per-task execution memory utilization as a percentage of the budget (e.g., 'how close are we to spilling?'). Alert when p95 utilization exceeds 80% — this gives the team weeks of warning before spill begins. Spill itself is too late as an alerting metric because once spill starts, the SLA is already breached",
+              "Daily manual review of the Spark UI",
+              "Wait for users to report slowness",
+              "Check spill metrics after every job"
+            ],
+            "correctAnswer": "Track per-task execution memory utilization as a percentage of the budget (e.g., 'how close are we to spilling?'). Alert when p95 utilization exceeds 80% — this gives the team weeks of warning before spill begins. Spill itself is too late as an alerting metric because once spill starts, the SLA is already breached",
+            "rationale": "The threshold-effect lesson translates directly to the monitoring strategy: monitor the leading indicator (memory utilization approaching budget), not the lagging indicator (actual spill). By the time spill is non-zero, the SLA is already broken. By the time p95 utilization is at 80%, the team has weeks to plan a mitigation. This is the senior pattern of alerting on leading indicators that the FI8 capacity governance also follows."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS6-task-03",
+      "title": "Speculative Execution On vs Off Across Workload Profiles",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's platform team is reviewing speculative execution policy for the platform's three primary workload profiles. Speculative execution (per FS6 Lesson 8) re-launches a task on another executor when its peer tasks have already finished, taking the result from whichever finishes first. The trade-off is wasted CUs (the duplicate task always wastes CU) vs faster wall-clock time (the duplicate may finish before the straggler).\n\n  WORKLOAD PROFILE A — STREAMING SCADA INGESTION (es_scada_eu)\n    - Continuous Eventstream ingestion, 172M events/day\n    - Latency-sensitive: each batch must complete in under 60 seconds\n    - Data is uniform (no skew) because turbines emit at regular intervals\n    - Task duration distribution: very tight (median 8 sec, max 12 sec)\n    - Stragglers are extremely rare; when they happen, they are usually genuine executor failures\n    - CU cost is steady-state; sustained over 24 hours\n\n  WORKLOAD PROFILE B — DAILY SILVER CONSOLIDATION (pl_silver_daily_eu)\n    - Daily batch, runs 4x per day after Bronze ingestion\n    - SLA: complete within 30 minutes\n    - Data has occasional moderate skew (e.g., German market days with high volume)\n    - Task duration distribution: median 38 sec, p95 90 sec, max 240 sec (occasional stragglers)\n    - Stragglers are usually skew-driven, occasionally executor pressure\n    - CU cost per run is ~80 CU-hours\n\n  WORKLOAD PROFILE C — QUARTERLY REGULATORY PIPELINE (pl_regulatory_quarterly_eu)\n    - Runs once per quarter for the regulatory submission\n    - SLA: complete within 90 minutes (the regulator's submission window)\n    - Joins 8 country-level fact tables across 3 years of history\n    - Task duration distribution: median 45 sec, max 1800 sec (single straggler can block a 40-minute stage)\n    - Stragglers are rare but catastrophic when they happen — a single straggler in a critical stage blocks the entire pipeline\n    - CU cost per run is ~600 CU-hours; runs 4 times per year\n\nFor each workload profile, the team needs a speculation policy: enabled, disabled, or 'enabled with conservative threshold'. Speculation has a configurable threshold (spark.speculation.multiplier) that determines when a task is considered 'slow enough' to speculate. The default is 1.5x the median; conservative is 3-4x the median.",
+        "task": "Recommend a speculation policy for each of the three workload profiles. The right answer differs for each profile based on the trade-off between wasted CUs and straggler protection.",
+        "validationHint": "Profile A (streaming): DISABLED. Stragglers are rare and tight task distribution means speculation produces almost no benefit, while duplicating tasks wastes CUs sustained 24/7. Profile B (daily silver): CONSERVATIVE (enabled with 3-4x multiplier). Skew is occasional, so speculation helps when it happens, but the 3-4x multiplier prevents the system from speculating on normal task variance. Profile C (quarterly regulatory): ENABLED at default (1.5x). Even though speculation wastes CUs, the cost of ONE straggler blocking the regulatory pipeline is much higher than the wasted CU cost of speculating aggressively across the entire pipeline. The pipeline runs only 4x/year, so the absolute CU waste is bounded."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS6-03-F1",
+            "type": "single_select",
+            "label": "PROFILE A (Streaming SCADA): What speculation policy do you recommend?",
+            "options": [
+              "DISABLED — task distribution is tight (max 12 sec vs median 8 sec), stragglers are rare and usually genuine executor failures, and the streaming workload runs 24/7 so any speculation overhead compounds continuously. The wasted CUs would dominate the negligible straggler protection benefit",
+              "ENABLED at default (1.5x) — straggler protection is always worth it",
+              "CONSERVATIVE (3x multiplier) — moderate protection",
+              "Enable then disable based on time of day"
+            ],
+            "correctAnswer": "DISABLED — task distribution is tight (max 12 sec vs median 8 sec), stragglers are rare and usually genuine executor failures, and the streaming workload runs 24/7 so any speculation overhead compounds continuously. The wasted CUs would dominate the negligible straggler protection benefit",
+            "rationale": "Streaming workloads with tight task distributions get almost no benefit from speculation because stragglers are rare. The 24/7 nature compounds even small overheads. When stragglers do occur in streaming, they're usually from genuine executor failures that speculation can't fix faster than Spark's normal task retry mechanism."
+          },
+          {
+            "id": "FS6-03-F2",
+            "type": "single_select",
+            "label": "PROFILE B (Daily Silver Consolidation): What speculation policy do you recommend?",
+            "options": [
+              "CONSERVATIVE (enabled with 3-4x multiplier) — skew is occasional but real, so speculation helps when it happens; the higher multiplier prevents speculating on normal task variance and limits CU waste to genuine outlier cases",
+              "DISABLED — never useful for batch",
+              "ENABLED at default (1.5x) — maximum straggler protection",
+              "Cannot tell without more data"
+            ],
+            "correctAnswer": "CONSERVATIVE (enabled with 3-4x multiplier) — skew is occasional but real, so speculation helps when it happens; the higher multiplier prevents speculating on normal task variance and limits CU waste to genuine outlier cases",
+            "secondaryCorrectAnswer": "ENABLED at default (1.5x) — maximum straggler protection",
+            "rationale": "PRIMARY answer is the conservative 3-4x multiplier because Profile B's task distribution shows genuine variance (median 38 sec, p95 90 sec) that would trigger excessive speculation at the 1.5x default. SECONDARY answer (default 1.5x) is also defensible if the team prioritizes maximum SLA protection over CU efficiency. A staff engineer would defend either depending on the relative value the team places on the 30-minute SLA vs the CU waste from over-speculation.",
+            "acceptable_alternatives": "Either CONSERVATIVE (primary) or default (secondary) is accepted with appropriate reasoning about the SLA-vs-cost trade-off."
+          },
+          {
+            "id": "FS6-03-F3",
+            "type": "single_select",
+            "label": "PROFILE C (Quarterly Regulatory): What speculation policy do you recommend?",
+            "options": [
+              "ENABLED at default (1.5x) — the cost of ONE straggler blocking the regulatory pipeline is much higher than the wasted CU cost of aggressive speculation. The pipeline runs only 4x/year, so total CU waste is bounded (~50-100 CU-hours per year max), while the cost of missing the regulator's submission window is significant",
+              "DISABLED — quarterly pipelines don't need speculation",
+              "CONSERVATIVE — splits the difference",
+              "Run the pipeline twice in parallel"
+            ],
+            "correctAnswer": "ENABLED at default (1.5x) — the cost of ONE straggler blocking the regulatory pipeline is much higher than the wasted CU cost of aggressive speculation. The pipeline runs only 4x/year, so total CU waste is bounded (~50-100 CU-hours per year max), while the cost of missing the regulator's submission window is significant",
+            "rationale": "Profile C is the inverse of Profile A: rare runs + high stakes per run + catastrophic straggler cost = speculation is almost free in absolute terms and prevents disaster. The math: 4 runs/year x ~600 CU-hours/run x maybe 5% speculation overhead = 120 CU-hours/year wasted, vs the regulatory cost of one missed submission window which could be measured in fines or reputation damage. Distractor D (run twice in parallel) is 100% overhead — doubling the entire pipeline is much more wasteful than per-task speculation."
+          },
+          {
+            "id": "FS6-03-F4",
+            "type": "single_select",
+            "label": "PRINCIPLE: What is the unifying principle behind these three different recommendations?",
+            "options": [
+              "Speculation policy should be set per-workload based on the cost of stragglers vs the cost of wasted CUs. Frequent + low-stake workloads don't justify speculation overhead; rare + high-stake workloads do. The mid-level rule 'always enable speculation' or 'always disable speculation' is wrong because it ignores the cost asymmetry",
+              "Enable speculation for everything",
+              "Disable speculation for everything",
+              "Speculation is only for streaming"
+            ],
+            "correctAnswer": "Speculation policy should be set per-workload based on the cost of stragglers vs the cost of wasted CUs. Frequent + low-stake workloads don't justify speculation overhead; rare + high-stake workloads do. The mid-level rule 'always enable speculation' or 'always disable speculation' is wrong because it ignores the cost asymmetry",
+            "rationale": "The senior insight is that speculation is a per-workload cost-asymmetry decision, not a global on/off switch. The cost of a straggler in a 24/7 streaming workload is small (the next batch handles the affected events). The cost of a straggler in a quarterly regulatory pipeline can be measured in regulatory penalties. The policy must reflect the asymmetry. Mid-level rules of thumb fail because they don't account for the workload context."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS6-task-04",
+      "title": "Review GridUnion's Memory Allocation",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's platform team is reviewing the current memory allocation settings for the engineering capacity. The settings were chosen 18 months ago and have not been revisited despite the GridUnion-scale growth.\n\n  CURRENT SPARK MEMORY CONFIGURATION (cap_engineering, F128 SKU)\n  ============================================================\n  spark.executor.memory                    = 14 GB\n  spark.executor.memoryOverhead             = 2 GB\n  spark.driver.memory                       = 8 GB\n  spark.executor.cores                      = 8\n  spark.memory.fraction                     = 0.6     # default\n  spark.memory.storageFraction              = 0.5     # default\n  spark.sql.shuffle.partitions              = 200     # default\n  spark.sql.adaptive.enabled                = true\n  spark.sql.adaptive.advisoryPartitionSizeInBytes = 64 MB\n\n  WORKLOAD CHARACTERISTICS:\n    - 3 tier-1 production pipelines (Silver consolidation, Gold aggregation, regulatory submission)\n    - 8 tier-2 pipelines from 4 country teams\n    - Median executor count at runtime: 32 executors\n    - Daily Silver consolidation now spills (per Task 2)\n    - Quarterly regulatory pipeline now experiences GC pauses (per Task 1)\n    - Notebooks routinely use cache().count() to materialize intermediate results\n\n  SPARK UI METRICS (averaged over the past month)\n    Aggregate executor memory utilization: 78% peak\n    Storage memory utilization: 18% peak (cached DataFrames are small relative to executor memory)\n    Execution memory utilization: 92% peak (joins and aggregations are pressuring this)\n    GC time as % of task time: 8.4% (above the 5% healthy threshold)\n    Spill (any) frequency: 23% of tier-1 jobs",
+        "task": "Review the memory configuration for subtle issues that could explain or exacerbate the symptoms in Tasks 1 and 2. Identify at least 3 issues and propose adjustments. Focus on settings that interact with the unified memory model, not surface-level tuning.",
+        "validationHint": "Issue 1: spark.memory.fraction = 0.6 is the default but the executor utilization shows execution memory is at 92% peak while storage is only at 18% — the unified memory split is wasted on unused storage. Increasing memory.fraction to 0.7 or 0.75 would give more room to execution (which is the constrained resource). Issue 2: spark.memory.storageFraction = 0.5 reserves half of the unified memory for storage, but storage is only used at 18% peak — the 50% reservation is wasteful. Lowering to 0.3 frees more for execution. Issue 3: spark.sql.shuffle.partitions = 200 is the default, but at GridUnion scale (the Task 2 spill diagnosis showed 200 was too low for the current data volume). Increasing to 400-512 helps reduce per-task data size. Issue 4 (bonus): spark.executor.memoryOverhead at 2 GB is on the low end for a 14 GB executor; the recommended ratio is 10-15% of executor memory, so 2 GB is barely at the floor."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS6-04-F1",
+            "type": "single_select",
+            "label": "ISSUE 1: What is the most impactful imbalance in the unified memory split?",
+            "options": [
+              "spark.memory.fraction = 0.6 leaves 40% of executor memory outside the unified pool. With execution memory at 92% peak utilization and storage at 18%, the unified pool is being squeezed on the execution side. Raising spark.memory.fraction to 0.7-0.75 gives 16-21% more memory to the unified pool, alleviating execution pressure",
+              "spark.executor.memory is too low",
+              "spark.driver.memory is too low",
+              "spark.executor.cores is too high"
+            ],
+            "correctAnswer": "spark.memory.fraction = 0.6 leaves 40% of executor memory outside the unified pool. With execution memory at 92% peak utilization and storage at 18%, the unified pool is being squeezed on the execution side. Raising spark.memory.fraction to 0.7-0.75 gives 16-21% more memory to the unified pool, alleviating execution pressure",
+            "rationale": "The 0.6 default is conservative — it reserves 40% of the executor for non-Spark JVM overhead. At 14 GB executors with healthy heap behavior, 0.7-0.75 is safer. Raising the fraction is the highest-leverage tuning because it directly addresses the 92% execution memory pressure that produces both spill (Task 2) and GC pressure (Task 1)."
+          },
+          {
+            "id": "FS6-04-F2",
+            "type": "single_select",
+            "label": "ISSUE 2: What is the imbalance within the unified memory pool itself?",
+            "options": [
+              "spark.memory.storageFraction = 0.5 reserves 50% of the unified pool for storage memory, but storage utilization peaks at only 18%. This reserved-but-unused storage memory CAN be borrowed by execution under pressure, but the borrowing is opportunistic and the reservation creates friction. Lowering storageFraction to 0.3 reduces the reservation and gives execution a larger native pool",
+              "Storage memory should always be 50% of unified",
+              "The unified memory model doesn't have sub-pools",
+              "Storage memory is hardcoded"
+            ],
+            "correctAnswer": "spark.memory.storageFraction = 0.5 reserves 50% of the unified pool for storage memory, but storage utilization peaks at only 18%. This reserved-but-unused storage memory CAN be borrowed by execution under pressure, but the borrowing is opportunistic and the reservation creates friction. Lowering storageFraction to 0.3 reduces the reservation and gives execution a larger native pool",
+            "rationale": "The unified memory model lets execution borrow from storage and vice versa, but borrowing has restrictions (cached blocks can be evicted to make room for execution, but only if they were marked replaceable). Lowering the storageFraction gives execution more native space without depending on borrowing dynamics. With 18% peak storage usage, the 50% reservation is excessive."
+          },
+          {
+            "id": "FS6-04-F3",
+            "type": "single_select",
+            "label": "ISSUE 3: What is wrong with spark.sql.shuffle.partitions = 200 at GridUnion's current scale?",
+            "options": [
+              "At GridUnion's current data volume, 200 partitions produces per-partition data sizes that exceed the per-task memory budget — exactly the spill threshold problem from Task 2. Increasing to 400-512 halves the per-partition size and drops the workload below the spill threshold. This setting was reasonable at 18-month-old data volumes but is now stale",
+              "200 partitions is always wrong",
+              "Spark requires 1024 partitions",
+              "The setting has no effect"
+            ],
+            "correctAnswer": "At GridUnion's current data volume, 200 partitions produces per-partition data sizes that exceed the per-task memory budget — exactly the spill threshold problem from Task 2. Increasing to 400-512 halves the per-partition size and drops the workload below the spill threshold. This setting was reasonable at 18-month-old data volumes but is now stale",
+            "rationale": "spark.sql.shuffle.partitions = 200 is the historical default that was set when datasets were smaller. At GridUnion's current 15TB scale, this default is underconfigured. The Task 2 spill diagnosis already identified this as the root fix; the design review confirms it's a configuration issue, not a per-pipeline tuning issue. Settings configured 18 months ago need re-evaluation as the platform scales."
+          },
+          {
+            "id": "FS6-04-F4",
+            "type": "single_select",
+            "label": "ISSUE 4: What is wrong with spark.executor.memoryOverhead = 2 GB on a 14 GB executor?",
+            "options": [
+              "memoryOverhead is for JVM-non-heap memory: native libraries, off-heap allocations, Python worker memory, network buffers. The recommended ratio is 10-15% of executor memory; 2 GB on a 14 GB executor is 14%, at the low end of the recommendation. Under high broadcast or off-heap memory pressure (like the Task 1 incident), the 2 GB overhead may be insufficient and the executor risks being killed by YARN/Fabric for exceeding its container limit",
+              "2 GB is always too low",
+              "memoryOverhead should equal executor memory",
+              "memoryOverhead has no effect"
+            ],
+            "correctAnswer": "memoryOverhead is for JVM-non-heap memory: native libraries, off-heap allocations, Python worker memory, network buffers. The recommended ratio is 10-15% of executor memory; 2 GB on a 14 GB executor is 14%, at the low end of the recommendation. Under high broadcast or off-heap memory pressure (like the Task 1 incident), the 2 GB overhead may be insufficient and the executor risks being killed by YARN/Fabric for exceeding its container limit",
+            "rationale": "memoryOverhead is the often-overlooked setting that determines whether the executor's container has room for non-heap JVM memory. At 14% of executor memory, 2 GB is technically within the recommendation but at the floor — there's no headroom for variability. Recommending 2.5-3 GB (18-20%) gives more safety margin, especially for workloads using Python UDFs or large broadcasts."
+          },
+          {
+            "id": "FS6-04-F5",
+            "type": "single_select",
+            "label": "REVIEWER VERDICT: What do you recommend the platform team do?",
+            "options": [
+              "Tune all 4 settings together in a coordinated change: raise spark.memory.fraction to 0.7, lower storageFraction to 0.3, raise spark.sql.shuffle.partitions to 400, and raise memoryOverhead to 2.5 GB. Test the changes in staging on a representative sample of pipelines before rolling to production. The settings interact, so changing them together is more reliable than one at a time",
+              "Change one setting at a time over months",
+              "Roll back to the 18-month-old defaults",
+              "Wait for Microsoft to update the defaults"
+            ],
+            "correctAnswer": "Tune all 4 settings together in a coordinated change: raise spark.memory.fraction to 0.7, lower storageFraction to 0.3, raise spark.sql.shuffle.partitions to 400, and raise memoryOverhead to 2.5 GB. Test the changes in staging on a representative sample of pipelines before rolling to production. The settings interact, so changing them together is more reliable than one at a time",
+            "rationale": "Memory settings interact: raising memory.fraction without lowering storageFraction would not help execution as much (storage would just claim more); raising shuffle.partitions without the memory changes would help spill but not GC. The right approach is a coordinated tuning change tested in staging. Distractor B (one at a time) is the cautious approach but produces partial fixes that don't address the interaction. The senior-level approach is to understand the full interaction and tune coherently."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS6-task-05",
+      "title": "Execution-Level Diagnostic Playbook",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 23,
+      "description": {
+        "context": "This is the synthesis task. GridUnion's platform team needs an execution-level diagnostic playbook that on-call engineers can use when a pipeline is slow despite the explain plan looking optimal. The playbook integrates the lessons from this entire practice set:\n\n  - GC pressure from long-lived large broadcasts on the JVM old generation (Task 1)\n  - Spill threshold effects from per-partition data exceeding per-task memory budgets (Task 2)\n  - Speculation policy as a per-workload cost-asymmetry decision (Task 3)\n  - Memory configuration tuning with setting interactions (Task 4)\n  - The principle that execution-level problems require execution-level diagnosis (cannot be diagnosed from explain plans)\n\nYour job has two parts: (1) DIAGNOSIS — fill the 4-field template articulating the playbook principles. (2) ARTIFACT — build the playbook spec as a Python dict.",
+        "task": "Fill the diagnosis template AND build the playbook dict.\n\nFor the ARTIFACT: Build a Python dict called execution_diagnostic_playbook with these top-level keys:\n  - decision_tree: a list of EXACTLY 6 ordered diagnostic steps. Each step is a dict with order, check, and on_failure. The 6 checks in order: 'plan_optimal', 'spill_present', 'gc_time_high', 'memory_utilization_balanced', 'task_distribution_uniform', 'executor_failure_present'\n  - speculation_policy: a dict mapping workload profile to setting. Keys: 'streaming' (value: 'disabled'), 'daily_batch' (value: 'conservative_3x'), 'rare_high_stakes' (value: 'enabled_default')\n  - leading_indicators: a list of EXACTLY 4 monitoring metrics with alert thresholds. Each entry is a dict with metric and threshold. The 4 metrics: 'execution_memory_utilization_p95' (threshold: 80), 'gc_time_pct' (threshold: 5), 'spill_frequency_pct' (threshold: 10), 'broadcast_in_memory_size_mb' (threshold: 500)\n  - tuning_principles: a list containing 'tune_settings_together_not_individually', 'measure_deserialized_broadcast_size_not_serialized', 'monitor_leading_indicators_not_lagging'",
+        "validationHint": "The 6 decision tree steps walk through the diagnostic from cheapest (verify the plan is actually optimal) to most expensive (check executor failures). The speculation policy dict encodes the Task 3 decisions. The 4 leading indicators capture the monitoring approach from Task 2 F5 and Task 1's broadcast measurement principle."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS6-05-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does the playbook start with 'verify the plan is optimal' as the first check?",
+            "options": [
+              "Most performance problems ARE plan problems (missing pushdown, wrong join strategy, missing broadcasts). Execution-level diagnosis is much more expensive and time-consuming than plan analysis, so the playbook should rule out the cheap explanations first. Only after the plan is verified optimal should the on-call engineer descend into JVM heap, GC, spill, and memory model territory",
+              "The plan check is required by Microsoft Fabric",
+              "Plan analysis is the only useful diagnostic",
+              "Execution-level diagnosis is always wrong"
+            ],
+            "correctAnswer": "Most performance problems ARE plan problems (missing pushdown, wrong join strategy, missing broadcasts). Execution-level diagnosis is much more expensive and time-consuming than plan analysis, so the playbook should rule out the cheap explanations first. Only after the plan is verified optimal should the on-call engineer descend into JVM heap, GC, spill, and memory model territory",
+            "rationale": "Senior diagnostic playbooks are ordered from cheap checks to expensive ones. The plan-level checks (covered by FS2) are cheap because the explain output is one command away. The execution-level checks (covered by FS6) require Spark UI inspection, GC log analysis, and memory profiling — all much more time-consuming. A good playbook doesn't make the on-call engineer skip ahead to the expensive checks if the cheap ones haven't been ruled out."
+          },
+          {
+            "id": "FS6-05-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why is 'monitor leading indicators not lagging' a top-level tuning principle?",
+            "options": [
+              "Lagging indicators (actual spill, actual SLA breach) tell you the problem AFTER it has caused damage. Leading indicators (memory utilization at 80% of budget, GC time approaching 5%) give the team weeks of warning to plan a mitigation. The Task 2 spill incident is a perfect example: spill went from 0 GB to 60 GB in 3 weeks of 8% data growth — by the time spill was visible, the SLA was already broken. Monitoring memory utilization would have flagged the trajectory weeks earlier",
+              "Leading indicators are easier to compute",
+              "Microsoft Fabric only supports leading indicators",
+              "Lagging indicators are deprecated"
+            ],
+            "correctAnswer": "Lagging indicators (actual spill, actual SLA breach) tell you the problem AFTER it has caused damage. Leading indicators (memory utilization at 80% of budget, GC time approaching 5%) give the team weeks of warning to plan a mitigation. The Task 2 spill incident is a perfect example: spill went from 0 GB to 60 GB in 3 weeks of 8% data growth — by the time spill was visible, the SLA was already broken. Monitoring memory utilization would have flagged the trajectory weeks earlier",
+            "rationale": "The leading-vs-lagging indicator distinction is a recurring senior pattern. The mid-level engineer monitors what matters (SLA breach, spill, errors); the senior engineer monitors what predicts what matters (utilization trends, threshold proximity). Leading indicators give the team time to act before the threshold is crossed."
+          },
+          {
+            "id": "FS6-05-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why is 'tune memory settings together not individually' a tuning principle?",
+            "options": [
+              "Memory settings interact. Raising spark.memory.fraction without lowering storageFraction doesn't help execution as much because storage will claim the new space. Raising shuffle.partitions without raising memory.fraction may not help spill if the per-task budget is still too small. The settings are mutually dependent and must be tuned coherently — the Task 4 review showed exactly this pattern with 4 interacting settings",
+              "It is faster to tune all settings at once",
+              "Microsoft Fabric requires coordinated tuning",
+              "Individual tuning is forbidden"
+            ],
+            "correctAnswer": "Memory settings interact. Raising spark.memory.fraction without lowering storageFraction doesn't help execution as much because storage will claim the new space. Raising shuffle.partitions without raising memory.fraction may not help spill if the per-task budget is still too small. The settings are mutually dependent and must be tuned coherently — the Task 4 review showed exactly this pattern with 4 interacting settings",
+            "rationale": "The senior insight is that memory settings are coupled. Treating each setting as independent produces partial fixes that don't address the interaction. The mid-level approach of 'change one thing, measure, change next' is cautious but slow and produces unstable intermediate states. The senior approach is to understand the interactions and tune coherently in staging, then deploy as a coordinated change."
+          },
+          {
+            "id": "FS6-05-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why is 'measure deserialized broadcast size not serialized' a top-level tuning principle?",
+            "options": [
+              "The serialized size (what Spark reports for broadcasts) and the in-memory deserialized size can differ by 5-15x for nested objects with many references. The Task 1 incident showed exactly this: a 180 MB serialized broadcast pressured the old generation enough to cause a 3x slowdown. The 1 GB serialized threshold protects against immediate OOM at broadcast time but does not protect against gradual heap pressure. Measuring the deserialized size after loading is the actual safety check",
+              "Broadcasts always have the same serialized and deserialized size",
+              "Spark only measures serialized size",
+              "Deserialized size is irrelevant"
+            ],
+            "correctAnswer": "The serialized size (what Spark reports for broadcasts) and the in-memory deserialized size can differ by 5-15x for nested objects with many references. The Task 1 incident showed exactly this: a 180 MB serialized broadcast pressured the old generation enough to cause a 3x slowdown. The 1 GB serialized threshold protects against immediate OOM at broadcast time but does not protect against gradual heap pressure. Measuring the deserialized size after loading is the actual safety check",
+            "rationale": "The broadcast size principle is the senior nuance on top of the mid-level rule 'broadcasts under 1 GB are safe'. Mid-level engineers trust the serialized size; senior engineers measure the deserialized size after the broadcast is loaded. This is the lesson the Task 1 incident teaches and the playbook codifies."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS6 SYNTHESIS: GridUnion's execution-level diagnostic playbook.\n\n# YOUR SOLUTION BELOW\n# Build execution_diagnostic_playbook with the 4 top-level keys from the task description.\n# decision_tree has exactly 6 ordered steps.\n# leading_indicators has exactly 4 monitoring metrics.\n\nexecution_diagnostic_playbook = {\n    # Fill in: decision_tree, speculation_policy, leading_indicators, tuning_principles\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(execution_diagnostic_playbook, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS6-05-A1",
+          "description": "execution_diagnostic_playbook has all 4 required top-level keys",
+          "check": "set(execution_diagnostic_playbook.keys()) >= {'decision_tree', 'speculation_policy', 'leading_indicators', 'tuning_principles'}"
+        },
+        {
+          "id": "FS6-05-A2",
+          "description": "decision_tree is a list of exactly 6 ordered steps",
+          "check": "isinstance(execution_diagnostic_playbook['decision_tree'], list) and len(execution_diagnostic_playbook['decision_tree']) == 6"
+        },
+        {
+          "id": "FS6-05-A3",
+          "description": "Every decision step has order, check, on_failure keys",
+          "check": "all(set(s.keys()) >= {'order', 'check', 'on_failure'} for s in execution_diagnostic_playbook['decision_tree'])"
+        },
+        {
+          "id": "FS6-05-A4",
+          "description": "decision_tree order values are 1-6 in sequence",
+          "check": "[s['order'] for s in execution_diagnostic_playbook['decision_tree']] == [1, 2, 3, 4, 5, 6]"
+        },
+        {
+          "id": "FS6-05-A5",
+          "description": "All 6 expected check names are present",
+          "check": "set(s['check'] for s in execution_diagnostic_playbook['decision_tree']) == {'plan_optimal', 'spill_present', 'gc_time_high', 'memory_utilization_balanced', 'task_distribution_uniform', 'executor_failure_present'}"
+        },
+        {
+          "id": "FS6-05-A6",
+          "description": "speculation_policy maps the 3 workload profiles correctly",
+          "check": "execution_diagnostic_playbook['speculation_policy']['streaming'] == 'disabled' and execution_diagnostic_playbook['speculation_policy']['daily_batch'] == 'conservative_3x' and execution_diagnostic_playbook['speculation_policy']['rare_high_stakes'] == 'enabled_default'"
+        },
+        {
+          "id": "FS6-05-A7",
+          "description": "leading_indicators is a list of exactly 4 metrics",
+          "check": "isinstance(execution_diagnostic_playbook['leading_indicators'], list) and len(execution_diagnostic_playbook['leading_indicators']) == 4"
+        },
+        {
+          "id": "FS6-05-A8",
+          "description": "All 4 expected leading indicator metrics are present with correct thresholds",
+          "check": "{(m['metric'], m['threshold']) for m in execution_diagnostic_playbook['leading_indicators']} >= {('execution_memory_utilization_p95', 80), ('gc_time_pct', 5), ('spill_frequency_pct', 10), ('broadcast_in_memory_size_mb', 500)}"
+        },
+        {
+          "id": "FS6-05-A9",
+          "description": "tuning_principles contains all 3 expected principle strings",
+          "check": "set(execution_diagnostic_playbook['tuning_principles']) >= {'tune_settings_together_not_individually', 'measure_deserialized_broadcast_size_not_serialized', 'monitor_leading_indicators_not_lagging'}"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (9 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/9). The 9 assertions verify both the structural completeness (decision tree, leading indicators) and the specific values that encode the lessons from Tasks 1-4.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "JVM heap memory model and old-generation pressure (Task 1, Lesson 5)",
+          "Spill threshold effects and partition sizing (Task 2, Lesson 6)",
+          "Speculation as per-workload cost-asymmetry decision (Task 3, Lesson 8)",
+          "Memory setting interactions and coordinated tuning (Task 4, Lesson 5)",
+          "Leading vs lagging indicators (carryover from FI8 capacity governance pattern)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines GC pressure diagnosis, spill diagnosis, speculation policy, and memory tuning into a single diagnostic playbook. The keystones are A4 (the 6 ordered decision tree steps) and A8 (the 4 leading indicator thresholds) — both encode the senior diagnostic discipline of ordered investigation and proactive monitoring."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "tradeoffTasksHaveCompetingOptions": true,
+    "designReviewHasSubtleNotTextbookIssues": true,
+    "answerRangesDocumented": true,
+    "calibrationNotes": "Senior practice set in the deep internals phase. Two root cause tasks (the section 6.2 max for the type) anchor the set with engine-level evidence. The trade-off task uses the per-workload-profile pattern with 3 different recommendations. The design review tests subtle memory configuration imbalances that mid-level engineers don't recognize. The synthesis is a structured diagnostic playbook with decision tree + leading indicators + tuning principles. Multi-defensible answers documented in acceptable_alternatives metadata for fields F1-04-F4 and F2-04-F4 and F3-02-F2.",
+    "theoryPracticeBoundary": "The theory teaches DAGScheduler stage boundaries, task scheduling, shuffle deep dive, memory management, spill mechanics, Tungsten codegen, speculative execution, and execution-level diagnosis across 10 lessons. The practice tests application: Task 1 reproduces a real GC pressure incident with Spark UI evidence and GC logs that mid-level engineers cannot interpret. Task 2 traces a spill threshold crossing with the 'small data growth + big runtime growth' signature. Task 3 forces three different speculation recommendations for three workload profiles. Task 4 reviews subtle memory configuration imbalances. Task 5 synthesizes a structured playbook the on-call team can use.",
+    "datasetNotes": "No datasets — every diagnostic task uses inline evidence (Spark UI executor tab snapshots, GC logs, spill metrics, task duration distributions, executor configuration tables). The deep internals phase is dominated by inline metrics evidence, not data execution."
+  }
+}

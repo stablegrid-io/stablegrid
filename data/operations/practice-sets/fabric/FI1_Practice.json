@@ -1,0 +1,477 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FI1 — Spark Performance in Fabric Notebooks",
+  "description": "Diagnose and fix Spark performance problems in Fabric notebooks. Read execution plans to identify scan strategies, verify predicate pushdown and column pruning, tune partition counts from Spark UI metrics, diagnose slow notebooks from monitoring hub data, and refactor a broken NordGrid Silver enrichment pipeline that exhibits multiple anti-patterns at once.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FI1",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 70,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, F64 capacity, 3 teams, 9 workspaces (3 medallion x 3 environments)",
+    "modulePhase": "performance_patterns",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 4,
+      "fixImplementation": 1,
+      "refactoring": 0,
+      "diagnosticWorkflow": 1
+    },
+    "calibrationNotes": "First Fabric mid-level practice set. Establishes the evidence + template + fix code pattern: every diagnostic task includes Fabric-realistic evidence (explain output or Spark UI metrics) inline in the task description. Templates use single-select and numeric fields with plausible distractors. The fix task and the synthesis task verify code by comparing output DataFrames to a baseline computed in the scaffold. The synthesis task uses combined grading per Practice Set Creation Rules section 5.2: a 4-field diagnosis template (50% weight) plus 5 code assertions (50% weight), graded independently."
+  },
+  "datasets": [
+    {
+      "id": "FI1_data_readings_silver",
+      "file": "FI1_data_readings_silver.csv",
+      "description": "NordGrid Silver readings sample. 60 rows representing the 1.2M production scale at reduced volume. 12 regions. NORTH-A has 6 rows, all of which join successfully against the meters reference. The compact 4-column schema makes the dataset easy to inspect; in production this table has 1.2M rows with the same shape.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FI1-task-03", "module-FI1-task-06"]
+    },
+    {
+      "id": "FI1_data_meters_reference",
+      "file": "FI1_data_meters_reference.csv",
+      "description": "NordGrid meter reference table. 40 rows with 7 columns (meter_id, customer_type, install_date, substation_id, phase, billing_class, grid_zone). Deliberately wide so column pruning has visible impact: a join that reads all 7 columns wastes 5 columns of I/O when only customer_type is needed. 40 of the 60 readings have a matching meter; all 6 NORTH-A readings have matching meters.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "customer_type", "type": "string", "nullable": false},
+          {"name": "install_date", "type": "string", "nullable": false},
+          {"name": "substation_id", "type": "string", "nullable": false},
+          {"name": "phase", "type": "string", "nullable": false},
+          {"name": "billing_class", "type": "string", "nullable": false},
+          {"name": "grid_zone", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FI1-task-03", "module-FI1-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FI1-task-01",
+      "title": "Read NordGrid's Silver Pipeline Plan",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's Silver enrichment notebook joins meter readings with the meters reference table, filters to one region, and selects three columns. The data engineer ran df.explain(True) and pasted the physical plan below. Before tuning anything, she needs to confirm she can read the plan and identify the operators that determine performance.\n\nPHYSICAL PLAN:\n\n  == Physical Plan ==\n  *(2) Project [meter_id#10, daily_kw#11, customer_type#23]\n  +- *(2) BroadcastHashJoin [meter_id#10], [meter_id#21], Inner, BuildRight, false\n     :- *(2) Filter (isnotnull(meter_id#10) AND (region#13 = NORTH-A))\n     :  +- *(2) ColumnarToRow\n     :     +- FileScan parquet default.readings_silver[meter_id#10,daily_kw#11,date#12,region#13]\n     :        Batched: true,\n     :        DataFilters: [isnotnull(meter_id#10), (region#13 = NORTH-A)],\n     :        Format: Parquet,\n     :        PartitionFilters: [],\n     :        PushedFilters: [IsNotNull(meter_id), EqualTo(region,NORTH-A)],\n     :        ReadSchema: struct<meter_id:string,daily_kw:double,date:string,region:string>\n     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]),false), [plan_id=42]\n        +- *(1) Filter isnotnull(meter_id#21)\n           +- *(1) ColumnarToRow\n              +- FileScan parquet default.meters_reference[meter_id#21,customer_type#23]\n                 Batched: true,\n                 DataFilters: [isnotnull(meter_id#21)],\n                 Format: Parquet,\n                 PartitionFilters: [],\n                 PushedFilters: [IsNotNull(meter_id)],\n                 ReadSchema: struct<meter_id:string,customer_type:string>",
+        "task": "Read the physical plan and answer 4 questions about its operators and behavior.",
+        "validationHint": "Look at the operator names (BroadcastHashJoin, FileScan, BroadcastExchange), the PushedFilters lists, and the ReadSchema fields. The plan has both pushdown AND column pruning working — the meters_reference scan only reads 2 columns instead of all 7."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI1-01-F1",
+            "type": "single_select",
+            "label": "What join strategy did Spark choose for this query?",
+            "options": [
+              "BroadcastHashJoin — the smaller table (meters_reference) is broadcast to all executors",
+              "SortMergeJoin — both tables are sorted and merged",
+              "ShuffleHashJoin — both tables are shuffled by the join key",
+              "BroadcastNestedLoopJoin — Spark falls back to nested loops for small tables"
+            ],
+            "correctAnswer": "BroadcastHashJoin — the smaller table (meters_reference) is broadcast to all executors",
+            "rationale": "The plan literally contains 'BroadcastHashJoin' as the join operator. Distractors are real Spark join strategies that the optimizer chooses under different conditions, but the plan output names the strategy explicitly."
+          },
+          {
+            "id": "FI1-01-F2",
+            "type": "single_select",
+            "label": "Was the region = 'NORTH-A' filter pushed down to the file scanner?",
+            "options": [
+              "Yes — it appears in the readings_silver scan's PushedFilters list as EqualTo(region,NORTH-A)",
+              "No — Spark filters region after reading the full table",
+              "No — region is a non-partition column so it cannot be pushed down",
+              "Partially — only the IsNotNull check is pushed, not the equality"
+            ],
+            "correctAnswer": "Yes — it appears in the readings_silver scan's PushedFilters list as EqualTo(region,NORTH-A)",
+            "rationale": "The PushedFilters line for the readings_silver FileScan contains both IsNotNull(meter_id) and EqualTo(region,NORTH-A). Parquet predicate pushdown supports equality on non-partition columns, which catches the partition-filter confusion in option 3."
+          },
+          {
+            "id": "FI1-01-F3",
+            "type": "numeric",
+            "label": "How many columns does the meters_reference FileScan read from disk? (Look at the ReadSchema for that scan, NOT the original 7-column schema.)",
+            "correctAnswer": 2,
+            "tolerance": 0,
+            "rationale": "The meters_reference FileScan's ReadSchema is struct<meter_id:string,customer_type:string> — only 2 columns. Spark's column pruning reduced the read from 7 columns (the table's full schema) to 2 columns (what the query needs)."
+          },
+          {
+            "id": "FI1-01-F4",
+            "type": "single_select",
+            "label": "Where in the plan does the data movement (shuffle or broadcast) happen?",
+            "options": [
+              "BroadcastExchange node above the meters_reference scan — broadcasts the small dimension table to all executors holding the readings partitions",
+              "Exchange node above the readings_silver scan — shuffles the large fact table by meter_id",
+              "There is no data movement — both tables are already co-located",
+              "The Filter node performs an implicit shuffle"
+            ],
+            "correctAnswer": "BroadcastExchange node above the meters_reference scan — broadcasts the small dimension table to all executors holding the readings partitions",
+            "rationale": "BroadcastExchange is the data movement operator for broadcast joins. It appears above the meters_reference scan (the smaller, broadcast side). The readings_silver side has no Exchange because BroadcastHashJoin avoids shuffling the large fact table — that is the point of broadcasting the dimension."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI1-task-02",
+      "title": "Verify Predicate Pushdown for the 12-Region Filter",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's analyst added a Python UDF to normalize region codes (e.g., strip whitespace and uppercase). The query uses the UDF inside the WHERE clause: WHERE normalize_region(region) = 'NORTH-A'. After deployment, query times jumped from 4 seconds to 38 seconds. The data engineer captured TWO physical plans — one before the UDF was added, one after.\n\nPLAN A (BEFORE the UDF — 4 second runtime):\n\n  == Physical Plan ==\n  *(1) Project [meter_id#10, daily_kw#11, region#13]\n  +- *(1) Filter (isnotnull(region#13) AND (region#13 = NORTH-A))\n     +- *(1) ColumnarToRow\n        +- FileScan parquet default.readings_silver[meter_id#10,daily_kw#11,date#12,region#13]\n           DataFilters: [isnotnull(region#13), (region#13 = NORTH-A)],\n           PushedFilters: [IsNotNull(region), EqualTo(region,NORTH-A)],\n           ReadSchema: struct<meter_id:string,daily_kw:double,date:string,region:string>\n\nPLAN B (AFTER adding the UDF — 38 second runtime):\n\n  == Physical Plan ==\n  *(2) Project [meter_id#10, daily_kw#11, region#13]\n  +- *(2) Filter (normalize_region(region#13) = NORTH-A)\n     +- *(2) ColumnarToRow\n        +- FileScan parquet default.readings_silver[meter_id#10,daily_kw#11,date#12,region#13]\n           DataFilters: [],\n           PushedFilters: [],\n           ReadSchema: struct<meter_id:string,daily_kw:double,date:string,region:string>",
+        "task": "Compare the two plans and identify what the UDF did to predicate pushdown.",
+        "validationHint": "The PushedFilters list is the key indicator. Plan A has the filter pushed; Plan B does not. The UDF is opaque to the Catalyst optimizer."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI1-02-F1",
+            "type": "single_select",
+            "label": "Which plan has predicate pushdown working?",
+            "options": [
+              "Plan A only — its PushedFilters list contains IsNotNull(region) and EqualTo(region,NORTH-A)",
+              "Plan B only — the UDF helps Spark identify the filter",
+              "Both plans — the filter happens at the same place in each",
+              "Neither plan — pushdown is disabled in Fabric"
+            ],
+            "correctAnswer": "Plan A only — its PushedFilters list contains IsNotNull(region) and EqualTo(region,NORTH-A)",
+            "rationale": "Plan A's FileScan has a populated PushedFilters list. Plan B's PushedFilters is empty ([]) — the textbook signature of a filter the optimizer could not push into the file reader."
+          },
+          {
+            "id": "FI1-02-F2",
+            "type": "single_select",
+            "label": "Where does the filter execute in Plan B, and what does that imply about I/O?",
+            "options": [
+              "The filter executes after the FileScan reads every row, so all 1.2M rows are read from disk before being filtered down to ~100K NORTH-A rows",
+              "The filter executes inside the Parquet reader, so only ~100K rows are read from disk",
+              "The filter is skipped because the UDF is too complex",
+              "The filter executes on the broadcast side of the join"
+            ],
+            "correctAnswer": "The filter executes after the FileScan reads every row, so all 1.2M rows are read from disk before being filtered down to ~100K NORTH-A rows",
+            "rationale": "When PushedFilters is empty, the Filter operator runs above the FileScan, meaning the scan reads everything and the filter reduces the row set after the read completes. This is the I/O cost difference between the two plans."
+          },
+          {
+            "id": "FI1-02-F3",
+            "type": "single_select",
+            "label": "Why does the Python UDF block predicate pushdown?",
+            "options": [
+              "The Catalyst optimizer cannot inspect the UDF's body or reason about what normalize_region produces, so it cannot rewrite the filter into a form the Parquet reader understands",
+              "Python UDFs always run on the driver, never on executors",
+              "Fabric explicitly disables pushdown when any UDF is present in the query",
+              "UDFs run on a different Spark version that does not support pushdown"
+            ],
+            "correctAnswer": "The Catalyst optimizer cannot inspect the UDF's body or reason about what normalize_region produces, so it cannot rewrite the filter into a form the Parquet reader understands",
+            "rationale": "Catalyst can reason about its own SQL functions and a fixed set of expressions. A user-defined Python function is opaque — Catalyst sees a black box, so it conservatively keeps the filter at the Spark level instead of pushing an unknown function call into the Parquet reader."
+          },
+          {
+            "id": "FI1-02-F4",
+            "type": "single_select",
+            "label": "What is the recommended fix for NordGrid's analyst, given that the goal is to filter by normalized region?",
+            "options": [
+              "Replace the UDF with native Spark SQL functions: WHERE upper(trim(region)) = 'NORTH-A' — Catalyst can reason about expressions built from native functions",
+              "Disable predicate pushdown globally so the query runtime is consistent",
+              "Pre-compute normalize_region as a new column in the Bronze layer so the Silver query can filter on the column directly",
+              "Both A and C are valid; A is the immediate fix, C is the structural fix that prevents the problem at the source"
+            ],
+            "correctAnswer": "Both A and C are valid; A is the immediate fix, C is the structural fix that prevents the problem at the source",
+            "rationale": "Native Spark SQL functions like upper, trim, lower, regexp_replace are known to Catalyst. The structural fix — materializing the normalized value once at ingestion — is the production-grade approach because it eliminates the cost on every read."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI1-task-03",
+      "title": "Fix Broken Column Pruning",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's enrichment notebook joins readings with the meters reference (a 7-column wide table) to add customer_type, then filters to NORTH-A, then selects 3 columns. The current code applies select() AT THE END, after the join — so Spark reads all 7 columns of the meters reference even though only 2 are needed (the join key and customer_type). At 1.2M rows × 7 string columns, this wastes ~5x the I/O it should.\n\nRewrite the pipeline so column pruning happens BEFORE the join.",
+        "task": "Read both CSV files. Build df_pruned_readings (3 columns: meter_id, daily_kw, region — region is needed for the filter even though it is not in the final output) and df_pruned_meters (2 columns: meter_id, customer_type). Join them with a left join on meter_id. Filter to region = 'NORTH-A'. Drop region from the final result so df_result has exactly 3 columns: meter_id, daily_kw, customer_type. Store the row count in result_count.",
+        "validationHint": "The trick: keep enough columns in the pruned intermediates to enable the filter, then drop the filter column after. Pattern: df_pruned_readings keeps meter_id+daily_kw+region (3 cols, not 4). df_pruned_meters keeps meter_id+customer_type (2 cols, not 7). Join. Filter. Drop region. Expected result_count: 6."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI1 Lesson 4: column pruning verification. The original notebook joined first and\n# pruned at the end. Your fix must prune BEFORE the join so Spark reads only the\n# columns it actually needs.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-column-pruning-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('FI1_data_readings_silver.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('FI1_data_meters_reference.csv', header=True, inferSchema=True)\nprint(f\"Readings: {df_readings.count()} rows, {len(df_readings.columns)} cols\")\nprint(f\"Meters: {df_meters.count()} rows, {len(df_meters.columns)} cols\")\n\n# REFERENCE: this is the broken pipeline (join wide, prune late). Used for comparison.\ndf_baseline = (df_readings\n               .join(df_meters, 'meter_id', 'left')\n               .filter(col('region') == 'NORTH-A')\n               .select('meter_id', 'daily_kw', 'customer_type'))\nbaseline_count = df_baseline.count()\nprint(f\"Baseline (broken pipeline) result: {baseline_count} rows\")\n\n# YOUR SOLUTION BELOW\n# Build the FIXED pipeline that prunes columns BEFORE the join.\n#   1. df_pruned_readings: select only meter_id, daily_kw, region (region needed for filter)\n#   2. df_pruned_meters: select only meter_id and customer_type (drop the other 5 columns)\n#   3. Join the two pruned DataFrames on meter_id (left join)\n#   4. Filter to region == 'NORTH-A'\n#   5. Drop the region column to produce df_result with exactly 3 columns\n#   6. Store the row count in result_count\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Fixed pipeline result: {result_count} rows\")\nprint(f\"Fixed result columns: {df_result.columns}\")\nprint(f\"Pruned readings columns: {df_pruned_readings.columns}\")\nprint(f\"Pruned meters columns: {df_pruned_meters.columns}\")\ndf_result.show()"
+      },
+      "assertions": [
+        {
+          "id": "FI1-03-A1",
+          "description": "df_pruned_readings has exactly 3 columns (meter_id, daily_kw, region)",
+          "check": "set(df_pruned_readings.columns) == {'meter_id', 'daily_kw', 'region'}"
+        },
+        {
+          "id": "FI1-03-A2",
+          "description": "df_pruned_meters has exactly 2 columns (meter_id, customer_type) — proves the wide meters table was pruned from 7 to 2 BEFORE the join",
+          "check": "set(df_pruned_meters.columns) == {'meter_id', 'customer_type'}"
+        },
+        {
+          "id": "FI1-03-A3",
+          "description": "df_result has exactly 3 columns (meter_id, daily_kw, customer_type)",
+          "check": "set(df_result.columns) == {'meter_id', 'daily_kw', 'customer_type'}"
+        },
+        {
+          "id": "FI1-03-A4",
+          "description": "result_count equals 6 (the 6 NORTH-A readings)",
+          "check": "result_count == 6"
+        },
+        {
+          "id": "FI1-03-A5",
+          "description": "df_result row count equals the baseline — proves the fix preserved correctness",
+          "check": "df_result.count() == baseline_count"
+        },
+        {
+          "id": "FI1-03-A6",
+          "description": "Every row in df_result has a non-null customer_type (all 6 NORTH-A meters have a match)",
+          "check": "df_result.filter(col('customer_type').isNull()).count() == 0"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit."
+    },
+    {
+      "id": "module-FI1-task-04",
+      "title": "Tune Partition Count for the 8 GB Daily Batch",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's daily Silver notebook processes 8 GB of meter data. The data engineer pulled the Stages tab from the Spark UI for the slowest stage:\n\n  STAGE 4 — SHUFFLE WRITE\n  ----------------------------------------\n  Stage runtime:        540 seconds (9 min)\n  Total tasks:          200\n  Avg task runtime:     2.7 sec\n  Min task runtime:     1.8 sec\n  Max task runtime:     3.5 sec\n  Shuffle write total:  8.1 GB\n  Avg shuffle per task: 41 MB\n  GC time (per task):   1.2 sec avg (44% of task time)\n\nThe NordGrid performance standard from FI1 Lesson 5 is 128–256 MB per partition: large enough that task setup is amortized, small enough to fit in executor memory without spilling.",
+        "task": "Compute the right partition count for this workload and answer 4 questions about the diagnosis.",
+        "validationHint": "Total data: ~8 GB = 8192 MB. Target: 192 MB per partition (midpoint of 128-256). New partition count: 8192 / 192 = ~43. Current count: 200. Reduction: 200 → 43 = ~5x fewer partitions."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI1-04-F1",
+            "type": "numeric",
+            "label": "What is the average partition size in MB at the current configuration?",
+            "correctAnswer": 41,
+            "tolerance": 2,
+            "rationale": "The Spark UI literally reports 'Avg shuffle per task: 41 MB' — this is the per-partition output size, since each task processes one partition."
+          },
+          {
+            "id": "FI1-04-F2",
+            "type": "numeric",
+            "label": "Using a 192 MB target per partition (midpoint of NordGrid's 128-256 MB range), what is the recommended new partition count for 8 GB of data? Round to the nearest integer.",
+            "correctAnswer": 43,
+            "tolerance": 5,
+            "rationale": "8 GB = 8192 MB. 8192 / 192 = 42.67, round to 43. Acceptable answers within tolerance: 38-48. Some students will pick 50 (round up for safety), some 42 (round down). All within tolerance."
+          },
+          {
+            "id": "FI1-04-F3",
+            "type": "single_select",
+            "label": "What is the most likely root cause of the 9-minute stage runtime, given the metrics above?",
+            "options": [
+              "Over-partitioning: 200 partitions of 41 MB each means task setup overhead and GC cost dominate the actual work; reducing to ~43 partitions of ~190 MB each will shrink the per-task overhead and lower GC time",
+              "Data skew: one partition is much larger than the others",
+              "Network bottleneck on the shuffle exchange",
+              "The cluster does not have enough memory for the shuffle"
+            ],
+            "correctAnswer": "Over-partitioning: 200 partitions of 41 MB each means task setup overhead and GC cost dominate the actual work; reducing to ~43 partitions of ~190 MB each will shrink the per-task overhead and lower GC time",
+            "rationale": "The min/max/avg task runtimes are nearly identical (1.8 / 3.5 / 2.7 sec), which rules out skew. The GC time being 44% of task time is the smoking gun for too many small partitions: each task allocates JVM objects for a tiny amount of data, runs GC, and tears down."
+          },
+          {
+            "id": "FI1-04-F4",
+            "type": "single_select",
+            "label": "What is the correct way to apply the new partition count in a Fabric notebook?",
+            "options": [
+              "spark.conf.set('spark.sql.shuffle.partitions', '43') — sets the shuffle partition count for subsequent queries in this Spark session",
+              "spark.sparkContext.parallelize(43) — creates an RDD with 43 partitions",
+              "df.coalesce(43) — directly reduces the partition count on the DataFrame",
+              "Both A and C are valid in different cases: A controls SHUFFLE partition count (the right tool when the slow stage is a shuffle), C controls a specific DataFrame's partition count (the right tool when no shuffle is happening)"
+            ],
+            "correctAnswer": "Both A and C are valid in different cases: A controls SHUFFLE partition count (the right tool when the slow stage is a shuffle), C controls a specific DataFrame's partition count (the right tool when no shuffle is happening)",
+            "rationale": "The trap is picking just A. Setting spark.sql.shuffle.partitions affects shuffles but does not reduce the partition count of a DataFrame that was read with a specific input layout. coalesce()/repartition() act on the DataFrame directly. Mid-level engineers need to know both."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI1-task-05",
+      "title": "Diagnose the 13-Minute Silver Notebook",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's on-call engineer is investigating a Silver notebook that has gradually slowed from 6 minutes to 13 minutes over the past two weeks. Run summary from the Fabric monitoring hub:\n\n  NOTEBOOK RUN SUMMARY — pl_silver_meters_daily / 2026-04-08\n  ----------------------------------------\n  Total runtime:           13 min 4 sec  (784 sec)\n  Cold start (session):    45 sec\n  Cell 1 (read CSVs):       8 sec\n  Cell 2 (schema enforce):  6 sec\n  Cell 3 (filter + clean):  12 sec\n  Cell 4 (JOIN + dedup):   540 sec  <-- slowest cell\n  Cell 5 (write delta):    173 sec\n\n  STAGE BREAKDOWN FOR CELL 4 (the bottleneck)\n  ----------------------------------------\n  Stage 4a (build shuffle): 60 sec, 200 tasks\n  Stage 4b (sort-merge):   480 sec, 200 tasks\n  Shuffle write:           7.8 GB\n  Spilled to disk:         3.2 GB  <-- significant spill",
+        "task": "Use the metrics to localize the bottleneck and identify the most likely class of fix.",
+        "validationHint": "540 / 784 = 69% of total runtime is in cell 4. Cell 4 is a join + dedup with sort-merge join + significant disk spill. The 45-second cold start is normal for Fabric — not the bottleneck."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI1-05-F1",
+            "type": "numeric",
+            "label": "What percentage of the total notebook runtime is spent in cell 4? (Round to the nearest whole percent.)",
+            "correctAnswer": 69,
+            "tolerance": 2,
+            "rationale": "540 sec / 784 sec = 0.689 = 69%. Cell 4 is the dominant cost — fixing anything else has negligible impact on overall runtime."
+          },
+          {
+            "id": "FI1-05-F2",
+            "type": "single_select",
+            "label": "Is the 45-second cold start the bottleneck?",
+            "options": [
+              "No — 45 seconds is normal Fabric session startup, only 5.7% of the total runtime",
+              "Yes — eliminating cold start would save 45 seconds, the largest single optimization",
+              "Yes — but only on the first run of the day",
+              "Cannot tell from the metrics shown"
+            ],
+            "correctAnswer": "No — 45 seconds is normal Fabric session startup, only 5.7% of the total runtime",
+            "rationale": "Fabric notebook sessions typically take 30-60 seconds to start. 45 seconds is well within the expected range. At 5.7% of total runtime, even eliminating it entirely barely moves the needle. The bottleneck is cell 4, which is 12x larger."
+          },
+          {
+            "id": "FI1-05-F3",
+            "type": "single_select",
+            "label": "Cell 4 stage 4b shows a sort-merge join taking 480 seconds with 3.2 GB spilled to disk. What does the spill tell you?",
+            "options": [
+              "The join's working set exceeds available executor memory — the data being sorted does not fit in memory, so Spark spills sorted runs to disk and merges them; this is one of the slowest patterns in Spark",
+              "The output is being written to disk — that is what the cell is supposed to do",
+              "Spark is checkpointing the result for fault tolerance",
+              "There is a network partition between executors"
+            ],
+            "correctAnswer": "The join's working set exceeds available executor memory — the data being sorted does not fit in memory, so Spark spills sorted runs to disk and merges them; this is one of the slowest patterns in Spark",
+            "rationale": "Spill is a specific Spark concept: when sort-merge join cannot hold its sort buffers in memory, it writes intermediate sorted runs to local disk and merges them in passes. Disk I/O is orders of magnitude slower than memory operations."
+          },
+          {
+            "id": "FI1-05-F4",
+            "type": "single_select",
+            "label": "What is the most likely fix class for this notebook, given the diagnosis?",
+            "options": [
+              "Force a broadcast join for the dimension table side of the join — if the dimension fits in memory (typical for NordGrid's reference tables under 100 MB), broadcast eliminates the shuffle entirely and removes the spill",
+              "Increase the cluster size — buy more memory",
+              "Disable cell 5 to skip the write step",
+              "Switch from PySpark to Pandas for cell 4"
+            ],
+            "correctAnswer": "Force a broadcast join for the dimension table side of the join — if the dimension fits in memory (typical for NordGrid's reference tables under 100 MB), broadcast eliminates the shuffle entirely and removes the spill",
+            "rationale": "Sort-merge join with spill is a classic 'should have been a broadcast join' situation. broadcast(df_dim) replaces the entire shuffle + sort + merge with a small broadcast. Alternative fixes either cost money (B), break correctness (C), or do not apply at this scale (D)."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI1-task-06",
+      "title": "Diagnose and Fix NordGrid's Slow Enrichment",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "This is the synthesis task. NordGrid's Silver enrichment notebook joins readings with the meters reference, filters to NORTH-A, and projects 3 columns. Three things are wrong with the current implementation, all of which you have seen in the previous tasks.\n\n  EVIDENCE — physical plan of the current notebook:\n\n  == Physical Plan ==\n  *(3) Project [meter_id#10, daily_kw#11, customer_type#23]\n  +- *(3) Filter (region#13 = NORTH-A)\n     +- *(3) SortMergeJoin [meter_id#10], [meter_id#21], LeftOuter\n        :- *(1) Sort [meter_id#10 ASC NULLS FIRST], false, 0\n        :  +- Exchange hashpartitioning(meter_id#10, 200)\n        :     +- *(1) ColumnarToRow\n        :        +- FileScan parquet readings_silver[meter_id#10,daily_kw#11,date#12,region#13]\n        :           ReadSchema: struct<meter_id,daily_kw,date,region>\n        +- *(2) Sort [meter_id#21 ASC NULLS FIRST], false, 0\n           +- Exchange hashpartitioning(meter_id#21, 200)\n              +- *(2) ColumnarToRow\n                 +- FileScan parquet meters_reference[meter_id#21,customer_type#23,install_date#24,substation_id#25,phase#26,billing_class#27,grid_zone#28]\n                    ReadSchema: struct<meter_id,customer_type,install_date,substation_id,phase,billing_class,grid_zone>\n\n  EVIDENCE — Spark UI summary: total runtime 720 sec, Stage 3 (SortMergeJoin) = 580 sec with 2.1 GB spill\n\nYour job has two parts: (1) DIAGNOSIS — fill the 4-field template identifying the 3 anti-patterns. (2) FIX — write the corrected notebook code. Both are graded independently and the final score combines them 50/50.",
+        "task": "Fill the diagnosis template AND write the fix code.\n\nFor the FIX: Build df_fixed that produces exactly 3 columns (meter_id, daily_kw, customer_type) for NORTH-A only. The fix must (a) prune meters_reference to only meter_id and customer_type BEFORE joining, (b) filter readings to NORTH-A BEFORE joining, (c) use broadcast() to force a broadcast join. Store the row count in fixed_count.",
+        "validationHint": "Diagnosis: 3 anti-patterns are column read width (7 cols on the meters side), join strategy (SortMergeJoin instead of broadcast), and filter timing (filter above join means the join processes everything before filtering). Fix: filter readings early, prune meters early, broadcast meters in the join. Expected fixed_count: 6."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI1-06-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: How many columns does the meters_reference FileScan currently read, and how many should it read?",
+            "options": [
+              "Currently reads 7 columns (full schema), should read 2 (meter_id and customer_type only)",
+              "Currently reads 2 columns, should read 7",
+              "Currently reads 7, should read 7 — the join needs all of them",
+              "Currently reads 0 columns because the filter eliminates all rows"
+            ],
+            "correctAnswer": "Currently reads 7 columns (full schema), should read 2 (meter_id and customer_type only)",
+            "rationale": "The ReadSchema for the meters_reference scan lists all 7 columns. The query only needs meter_id (join key) and customer_type (projected). The other 5 are pure waste — column pruning failing because the original select() came AFTER the join."
+          },
+          {
+            "id": "FI1-06-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: What join strategy is the current plan using, and what should it use?",
+            "options": [
+              "Currently SortMergeJoin (with spill), should be BroadcastHashJoin — the meters reference is small enough to broadcast",
+              "Currently BroadcastHashJoin, should be SortMergeJoin",
+              "Currently ShuffleHashJoin, should be CartesianProduct",
+              "The current plan has no join at all"
+            ],
+            "correctAnswer": "Currently SortMergeJoin (with spill), should be BroadcastHashJoin — the meters reference is small enough to broadcast",
+            "rationale": "The plan operator is literally SortMergeJoin, and the Spark UI confirms 580 seconds with 2.1 GB spill. With a small dimension table, broadcasting eliminates the entire sort + shuffle + spill cost."
+          },
+          {
+            "id": "FI1-06-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Where in the plan is the region = NORTH-A filter, and what is the I/O consequence?",
+            "options": [
+              "The filter is at the TOP of the plan (above the join), so the readings_silver scan reads ALL 1.2M rows; the filter then reduces to ~100K NORTH-A rows AFTER the join. Pushing the filter down would let the scan read only ~100K rows from the start.",
+              "The filter is at the BOTTOM of the plan, so it works correctly",
+              "The filter is missing from the plan entirely",
+              "The filter is on the meters side, not the readings side"
+            ],
+            "correctAnswer": "The filter is at the TOP of the plan (above the join), so the readings_silver scan reads ALL 1.2M rows; the filter then reduces to ~100K NORTH-A rows AFTER the join. Pushing the filter down would let the scan read only ~100K rows from the start.",
+            "rationale": "Reading the plan top-down: Project → Filter → SortMergeJoin → (two scans). The Filter runs AFTER the join completes. Filtering BEFORE the join would reduce the join input by ~12x on the readings side."
+          },
+          {
+            "id": "FI1-06-F4",
+            "type": "single_select",
+            "label": "If you applied ALL THREE fixes (pruned meters columns + filter readings early + broadcast join), what is the expected runtime improvement?",
+            "options": [
+              "Order-of-magnitude improvement (10x or more): no shuffle, no spill, no wasted I/O on unused columns, and the readings scan reads only NORTH-A partitions",
+              "Marginal improvement (10-20%): the fixes mostly cancel each other out",
+              "No improvement: the fixes are stylistic, not functional",
+              "Negative improvement: the fixes will make the query slower"
+            ],
+            "correctAnswer": "Order-of-magnitude improvement (10x or more): no shuffle, no spill, no wasted I/O on unused columns, and the readings scan reads only NORTH-A partitions",
+            "rationale": "Each individual fix saves a significant fraction of the cost. Together they compound: pruning cuts meters I/O by 5/7, broadcast eliminates the 580-second SortMergeJoin entirely, predicate pushdown cuts readings I/O by ~12x. Combined effect is typically 10-50x faster on real workloads."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI1 SYNTHESIS: diagnose and fix NordGrid's slow enrichment.\n# Apply ALL THREE fixes from the diagnosis: column pruning + early filter + broadcast join.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, broadcast\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-enrichment-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('FI1_data_readings_silver.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('FI1_data_meters_reference.csv', header=True, inferSchema=True)\nprint(f\"Readings: {df_readings.count()} rows, {len(df_readings.columns)} cols\")\nprint(f\"Meters: {df_meters.count()} rows, {len(df_meters.columns)} cols\")\n\n# YOUR SOLUTION BELOW\n# Build the FIXED enrichment that applies all 3 optimizations:\n#   FIX 1 (column pruning): select only meter_id, customer_type from df_meters BEFORE joining\n#   FIX 2 (early filter):   filter df_readings to region = 'NORTH-A' BEFORE joining\n#   FIX 3 (broadcast):      use broadcast() on the small pruned meters table in the join\n#\n# Final df_fixed must have exactly 3 columns: meter_id, daily_kw, customer_type\n# Store the row count in fixed_count.\n#\n# Hint: broadcast is already imported. Use:\n#   df_filtered_readings.join(broadcast(df_pruned_meters), 'meter_id', 'left')\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Fixed result: {fixed_count} rows\")\nprint(f\"Fixed columns: {df_fixed.columns}\")\ndf_fixed.show()"
+      },
+      "assertions": [
+        {
+          "id": "FI1-06-A1",
+          "description": "df_fixed has exactly 3 columns: meter_id, daily_kw, customer_type",
+          "check": "set(df_fixed.columns) == {'meter_id', 'daily_kw', 'customer_type'}"
+        },
+        {
+          "id": "FI1-06-A2",
+          "description": "fixed_count equals 6 (the 6 NORTH-A readings)",
+          "check": "fixed_count == 6"
+        },
+        {
+          "id": "FI1-06-A3",
+          "description": "All rows in df_fixed have non-null customer_type",
+          "check": "df_fixed.filter(col('customer_type').isNull()).count() == 0"
+        },
+        {
+          "id": "FI1-06-A4",
+          "description": "df_fixed has 6 distinct meter_ids (no duplicates introduced by the join)",
+          "check": "df_fixed.select('meter_id').distinct().count() == 6"
+        },
+        {
+          "id": "FI1-06-A5",
+          "description": "The sum of daily_kw across df_fixed equals the sum of NORTH-A daily_kw in source — proves the fix preserved values, not just row count",
+          "check": "df_fixed.agg({'daily_kw': 'sum'}).collect()[0][0] == df_readings.filter(col('region') == 'NORTH-A').agg({'daily_kw': 'sum'}).collect()[0][0]"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (5 code checks, 50% weight). Each template field earns 1/4 of the template portion. Each assertion earns 1/5 of the code portion. Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/5).",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Reading physical plans to identify operators (Lesson 2)",
+          "Predicate pushdown verification — filter timing relative to scan (Lesson 3)",
+          "Column pruning verification — ReadSchema width vs needed columns (Lesson 4)",
+          "Broadcast vs SortMergeJoin strategy decision (Lesson 7)",
+          "Spark UI metrics interpretation — spill, runtime distribution (Lessons 6, 8)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines diagnostic evidence reading with code that fixes 3 distinct anti-patterns. A student who only memorized one technique cannot pass — the diagnosis template forces them to identify all 3 problems separately, and the code assertions only pass if all 3 fixes are applied. This is the calibration anchor for the entire Fabric mid-level practice track."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "calibrationNotes": "First Fabric mid-level practice set. Establishes patterns for the rest of the track: every diagnostic task includes inline Fabric-realistic evidence (physical plan output formatted as text, Spark UI metrics formatted as a table), the synthesis task uses combined grading with both a template and assertions, and fix code uses the same scaffold pattern as the F5/F6 junior sets. Task type mix (4 diagnostic_analysis + 1 fix_implementation + 1 diagnostic_workflow) is within section 5.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches plan reading, pushdown, column pruning, partition tuning, Spark UI, AQE, and the diagnostic workflow through NordGrid examples in Lessons 1-10. The practice tests application: Task 1 uses a plan exhibiting good behavior so the student learns to recognize correct plans. Task 2 contrasts working pushdown vs UDF-blocked pushdown using two plans. Task 3 fixes a code-level pruning failure on synthetic NordGrid data. Task 4 uses Spark UI metrics for a partition tuning calculation. Task 5 combines runtime breakdown and stage details for a localization exercise. Task 6 synthesizes all of these into a single broken pipeline that exhibits 3 simultaneous anti-patterns.",
+    "datasetNotes": "Two datasets totaling 100 rows. FI1_data_readings_silver.csv (60 rows) is the fact table with 4 narrow columns. FI1_data_meters_reference.csv (40 rows) is the deliberately wide dimension table with 7 columns to make column pruning impact visible. 6 of the 60 readings are NORTH-A and all 6 join successfully, giving the fix tasks a clean integer expected count."
+  }
+}

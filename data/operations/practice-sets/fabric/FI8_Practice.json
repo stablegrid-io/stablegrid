@@ -1,0 +1,461 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FI8 — Capacity Management and Cost Optimization",
+  "description": "Manage Fabric capacity at production scale: diagnose the runaway Spark job that throttled analyst queries, read the capacity metrics dashboard to localize CU consumption, build workload isolation by assigning Spark and SQL to separate capacities, diagnose a sustained throttling incident from per-minute metrics, build per-notebook CU budgets with alert thresholds, and design NordGrid's complete capacity governance combining isolation + budgets + monitoring + scaling decisions.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+",
+  "metadata": {
+    "moduleId": "module-FI8",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 75,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "F64 production capacity, 3 teams (data engineering, analytics, regulatory), 9 workspaces",
+    "modulePhase": "engineering_discipline",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 3,
+      "fixImplementation": 2,
+      "refactoring": 0,
+      "diagnosticWorkflow": 1
+    },
+    "calibrationNotes": "Eighth Fabric mid-level practice set. No datasets — capacity is monitored through metrics dashboards, not transformed through Spark code. Diagnostic tasks use inline CU metrics tables (per-workload breakdowns, time-series throttling events) as evidence. Fix tasks build configuration artifacts (workspace-to-capacity mappings, per-notebook CU budgets). The synthesis combines isolation, budgets, and scaling decisions into a governance spec. Task type mix (3 diagnostic + 2 fix + 1 synthesis) is within all section 5.2 limits."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-FI8-task-01",
+      "title": "Diagnose the Runaway Spark Job Incident",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "The capacity crisis from FI8 Lesson 1, captured in NordGrid's post-incident report:\n\n  CAPACITY INCIDENT — 2026-03-04 09:00–11:30 UTC\n  ============================================================\n  CAPACITY: F64 (production), single capacity shared across 3 teams\n\n  TIMELINE:\n    08:55  Data engineer launches an ad-hoc Spark notebook to backfill 90 days\n           of historical readings (intended to run during off-hours that night)\n    09:05  Analyst team starts the morning query window\n    09:10  Analyst SQL queries begin returning slowly (10s -> 90s)\n    09:15  Analyst team Power BI dashboard refreshes start failing\n    09:20  Capacity metrics show 80% CU consumed by a single Spark notebook\n    09:30  Analyst tickets start arriving: 'queries are timing out'\n    11:30  On-call engineer identifies the runaway notebook and stops it\n\n  CU CONSUMPTION DURING INCIDENT:\n    Spark notebooks:    80% (the runaway backfill)\n    SQL endpoint:       12% (analyst queries, throttled)\n    Power BI:            5% (dashboard refreshes, throttled)\n    Pipelines:           3%\n    Total:             100% (sustained for 2.5 hours)\n\n  IMPACT:\n    - 2.5 hours of degraded analyst experience\n    - 12 Power BI dashboards showed stale data during the morning review\n    - 3 analyst teams escalated to the platform team\n\n  RUNAWAY NOTEBOOK CHARACTERISTICS:\n    - Read 90 days of Bronze data (~108M rows)\n    - No partition filter, no incremental processing\n    - Default Spark pool size (medium)\n    - Estimated CU cost: 4,200 CU-hours\n    - Estimated runtime if uninterrupted: 14 hours",
+        "task": "Diagnose the structural cause of the incident and identify the controls that would have prevented it.",
+        "validationHint": "The proximate cause is a runaway notebook running during business hours. The structural cause is that a single F64 capacity is shared across all 3 teams without isolation — any team can starve the others. The controls: workload isolation (separate capacities for Spark vs SQL), notebook scheduling restrictions (heavy work runs off-hours), per-notebook CU budgets that auto-throttle when exceeded."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI8-01-F1",
+            "type": "single_select",
+            "label": "What is the most fundamental structural cause of this incident?",
+            "options": [
+              "All 3 teams share a single F64 capacity with no workload isolation, so a single Spark notebook can consume 80% of total CUs and starve the SQL and Power BI workloads. This is a tenancy failure, not a code failure",
+              "The data engineer was careless about timing the backfill",
+              "F64 is too small for NordGrid's workload",
+              "The Spark pool was configured incorrectly"
+            ],
+            "correctAnswer": "All 3 teams share a single F64 capacity with no workload isolation, so a single Spark notebook can consume 80% of total CUs and starve the SQL and Power BI workloads. This is a tenancy failure, not a code failure",
+            "rationale": "The incident report explicitly says one capacity is shared across 3 teams. Even with perfect notebook hygiene, the SHARED capacity means any single workload can dominate. The right fix is workload isolation — separate capacities for Spark-heavy and SQL-heavy workloads — not asking engineers to time their work better. This is the same lesson as FI7 Task 1: structural fixes beat behavioral fixes."
+          },
+          {
+            "id": "FI8-01-F2",
+            "type": "single_select",
+            "label": "Why does 80% CU consumed by Spark cause analyst queries to slow from 10s to 90s rather than just 10s + small overhead?",
+            "options": [
+              "Fabric capacity is a shared resource: when most CUs are consumed, the remaining workloads compete for the leftover 20% AND queue behind the dominant consumer. SQL queries that would normally get 100% of needed CUs now get a fraction, slowing them roughly proportionally to the contention",
+              "SQL queries always slow down by 9x when other workloads are running",
+              "The 90s number is reported incorrectly",
+              "Spark and SQL share a single execution thread"
+            ],
+            "correctAnswer": "Fabric capacity is a shared resource: when most CUs are consumed, the remaining workloads compete for the leftover 20% AND queue behind the dominant consumer. SQL queries that would normally get 100% of needed CUs now get a fraction, slowing them roughly proportionally to the contention",
+            "rationale": "Capacity contention is non-linear because workloads queue. Once the capacity is saturated, new requests wait for in-flight work to complete before they can run. The 9x slowdown is roughly consistent with 5x reduced throughput plus queuing latency. This is why 'capacity is fine on average' is a misleading metric — peak contention matters more than mean utilization."
+          },
+          {
+            "id": "FI8-01-F3",
+            "type": "single_select",
+            "label": "What control would have prevented the runaway from affecting analysts, even if the engineer had still launched the backfill at 09:00?",
+            "options": [
+              "Workload isolation: assign the data engineering team's Spark workspace to a separate capacity (or capacity reservation) from the analytics team's SQL/Power BI workspace. The Spark backfill would still have run, but it would have consumed the engineering team's capacity, not affected the analytics team",
+              "Asking the engineer to restart the notebook every 30 minutes",
+              "Adding more print statements to the notebook for visibility",
+              "Increasing the analyst team's session timeout"
+            ],
+            "correctAnswer": "Workload isolation: assign the data engineering team's Spark workspace to a separate capacity (or capacity reservation) from the analytics team's SQL/Power BI workspace. The Spark backfill would still have run, but it would have consumed the engineering team's capacity, not affected the analytics team",
+            "rationale": "The right control isolates the workloads from each other. With separate capacities, a runaway in one capacity cannot affect the other. The engineer's backfill still has a problem (it runs during business hours and uses team budget), but the SCOPE of damage is contained to one team. This is FI8 Lesson 3's NordGrid pattern."
+          },
+          {
+            "id": "FI8-01-F4",
+            "type": "single_select",
+            "label": "What additional control would have stopped the runaway notebook itself before it consumed 4,200 CU-hours?",
+            "options": [
+              "Per-notebook CU budgets with auto-throttle: when the notebook exceeds its budget (e.g., 200 CU-hours for a single ad-hoc notebook), it is automatically paused and the engineer is alerted. The runaway would have stopped at 200 CU-hours instead of running for 2.5 hours toward 4,200",
+              "Adding a captcha to the Run button",
+              "Requiring senior engineer approval for every notebook execution",
+              "Disabling Spark notebooks during business hours entirely"
+            ],
+            "correctAnswer": "Per-notebook CU budgets with auto-throttle: when the notebook exceeds its budget (e.g., 200 CU-hours for a single ad-hoc notebook), it is automatically paused and the engineer is alerted. The runaway would have stopped at 200 CU-hours instead of running for 2.5 hours toward 4,200",
+            "rationale": "Per-notebook budgets are the granular control that stops individual workloads from running away regardless of which team launched them. NordGrid's standard from FI8 Lesson 4 is exactly this: every production notebook has a profiled CU budget, and any notebook that runs over alerts the platform team. Distractor D is heavy-handed — it blocks legitimate use to prevent rare incidents."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI8-task-02",
+      "title": "Read the Capacity Metrics Dashboard",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's platform team runs a weekly capacity review using the Fabric capacity metrics app. The dashboard for last week shows:\n\n  CAPACITY METRICS — F64 production / week of 2026-04-01 to 2026-04-07\n  ============================================================\n  Average CU utilization:        58%\n  Peak CU utilization:           94% (2026-04-05 02:30 UTC, overnight Silver run)\n  Throttling events:             3 (all between 02:30-03:00 UTC)\n  Total CU-hours consumed:       6,720\n\n  PER-WORKLOAD BREAKDOWN (CU-hours):\n  ----------------------------------------\n  Spark notebooks:    2,940 CU-hours  (44%)\n     - Silver pipeline:        1,800 (60% of Spark)\n     - Gold aggregations:        720 (24% of Spark)\n     - Ad-hoc analysis:          280 (10% of Spark)\n     - ML training:              140 (5% of Spark)\n  SQL endpoint:       1,680 CU-hours  (25%)\n     - Analyst queries:        1,200 (71% of SQL)\n     - Power BI Direct Query:    480 (29% of SQL)\n  Pipelines:          1,344 CU-hours  (20%)\n  Power BI Import:      672 CU-hours  (10%)\n  Other:                 84 CU-hours  (1%)\n\n  TOP 5 NOTEBOOK CONSUMERS:\n  ----------------------------------------\n  1. nb_silver_transform        1,200 CU-hours\n  2. nb_silver_dedup              600 CU-hours\n  3. nb_gold_billing_aggregate    480 CU-hours\n  4. nb_gold_regional_summary     240 CU-hours\n  5. nb_ml_load_forecast          140 CU-hours\n\nThe peak utilization at 94% and the 3 throttling events are concerning — the team is one bad day away from a capacity incident.",
+        "task": "Read the dashboard and answer 4 questions about consumption patterns and prioritization.",
+        "validationHint": "Spark is the dominant workload (44%). Within Spark, the silver pipeline (1,800 CU-hours) is the largest single consumer. Optimizing the silver pipeline gives the biggest leverage — even a 20% reduction would save 360 CU-hours/week and drop peak utilization from 94% to ~88%."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI8-02-F1",
+            "type": "single_select",
+            "label": "Which workload type consumes the most CU-hours overall?",
+            "options": [
+              "Spark notebooks at 2,940 CU-hours (44% of total) — by a wide margin the largest consumer; optimization here has the highest leverage",
+              "SQL endpoint at 1,680 CU-hours",
+              "Pipelines at 1,344 CU-hours",
+              "Power BI Import at 672 CU-hours"
+            ],
+            "correctAnswer": "Spark notebooks at 2,940 CU-hours (44% of total) — by a wide margin the largest consumer; optimization here has the highest leverage",
+            "rationale": "The dashboard's per-workload breakdown sorts by CU-hours. Spark at 44% is nearly double the next largest workload. Optimization effort should target the largest consumer first — a 10% reduction on Spark saves 294 CU-hours/week, while a 10% reduction on Power BI Import saves only 67."
+          },
+          {
+            "id": "FI8-02-F2",
+            "type": "single_select",
+            "label": "Within the Spark workload, which notebook is the highest-leverage optimization target?",
+            "options": [
+              "nb_silver_transform at 1,200 CU-hours — the single largest consumer in the entire system; even a 20% reduction (240 CU-hours saved per week) would have noticeable peak-utilization impact",
+              "nb_ml_load_forecast at 140 CU-hours — ML workloads are always the priority",
+              "nb_gold_regional_summary at 240 CU-hours — gold tier is more important than silver",
+              "All notebooks should be optimized equally"
+            ],
+            "correctAnswer": "nb_silver_transform at 1,200 CU-hours — the single largest consumer in the entire system; even a 20% reduction (240 CU-hours saved per week) would have noticeable peak-utilization impact",
+            "rationale": "Optimization effort should follow the consumption — fix the biggest consumer first. nb_silver_transform at 1,200 CU-hours is 8.6x the smallest top-5 entry. A modest 20% improvement there (240 saved) is larger than the entire ML notebook (140). Distractor D ignores the principle that effort should be proportional to impact."
+          },
+          {
+            "id": "FI8-02-F3",
+            "type": "numeric",
+            "label": "If nb_silver_transform's CU consumption is reduced by 20% (saving 240 CU-hours per week), what is the new peak utilization estimated as a percentage? (Assume the peak comes proportionally from this notebook.)",
+            "correctAnswer": 88,
+            "tolerance": 2,
+            "rationale": "Current peak is 94%. nb_silver_transform contributes its proportional share to peak (the silver pipeline runs at 02:30, which is when the peak occurs). A 20% reduction in nb_silver_transform translates to roughly a 6% drop in peak (94% × 0.20 × 0.32 share-of-peak ≈ 6%). 94 - 6 = 88. The exact math depends on assumptions but the answer should land near 88%."
+          },
+          {
+            "id": "FI8-02-F4",
+            "type": "single_select",
+            "label": "Is upgrading from F64 to F128 the right answer for this capacity profile?",
+            "options": [
+              "Not yet — average utilization is 58% which means F64 has plenty of headroom on average. The 94% peak suggests an optimization opportunity (not enough to justify doubling cost). Optimize first; if peaks remain above 85% after optimization, then upgrade",
+              "Yes — any peak above 90% requires immediate upgrade",
+              "Yes — F64 is too small for any production workload",
+              "No — capacity upgrades are never the right answer"
+            ],
+            "correctAnswer": "Not yet — average utilization is 58% which means F64 has plenty of headroom on average. The 94% peak suggests an optimization opportunity (not enough to justify doubling cost). Optimize first; if peaks remain above 85% after optimization, then upgrade",
+            "rationale": "Capacity upgrade decisions follow FI8 Lesson 8's threshold analysis: optimize first because F64-to-F128 doubles the bill. The 58% average suggests F64 is the right SKU for steady-state load. The 94% peak is a peak-shaving problem, not a sizing problem. If peak optimization runs out of room (still > 85% after work), THEN F128 is the right call."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI8-task-03",
+      "title": "Build the Workload Isolation Configuration",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid is implementing the workload isolation pattern from FI8 Lesson 3. Instead of one F64 capacity shared across teams, the platform team is splitting into 2 capacities:\n  - cap_engineering: F32, hosts the data engineering team's Spark notebooks and pipelines\n  - cap_analytics: F32, hosts the analytics team's SQL endpoint, Power BI workspaces, and ad-hoc query workspace\n\nWorkspace assignments:\n  - ws_silver_transform   → cap_engineering (Spark Silver pipeline)\n  - ws_gold_aggregate     → cap_engineering (Spark Gold aggregation)\n  - ws_warehouse          → cap_analytics (Warehouse + SQL endpoint)\n  - ws_powerbi_reports    → cap_analytics (Power BI semantic models and reports)\n  - ws_adhoc_sql          → cap_analytics (analyst ad-hoc queries)\n\nThis split prevents the Lesson 1 incident: a runaway Spark notebook now consumes only the engineering team's CUs and cannot starve the analyst SQL workload.",
+        "task": "Build a Python dict called isolation_config with these keys:\n  - capacities: a dict mapping capacity name to its SKU. cap_engineering -> 'F32', cap_analytics -> 'F32'.\n  - workspace_assignments: a dict mapping each of the 5 workspace names to its assigned capacity name. ws_silver_transform and ws_gold_aggregate go to cap_engineering. ws_warehouse, ws_powerbi_reports, and ws_adhoc_sql go to cap_analytics.\n  - rationale: a short string explaining why two capacities are used.",
+        "validationHint": "Build the dict literally as described. The keystone check is that all 3 analytics workspaces (warehouse, powerbi_reports, adhoc_sql) are assigned to cap_analytics, and both engineering workspaces (silver_transform, gold_aggregate) are assigned to cap_engineering. Total of 5 workspace assignments."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI8 Lesson 3: workload isolation by splitting one capacity into two.\n\n# YOUR SOLUTION BELOW\n# Build isolation_config with: capacities, workspace_assignments, rationale.\n\nisolation_config = {\n    # Fill in the 3 keys\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(isolation_config, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI8-03-A1",
+          "description": "isolation_config has the 3 required keys",
+          "check": "set(isolation_config.keys()) >= {'capacities', 'workspace_assignments', 'rationale'}"
+        },
+        {
+          "id": "FI8-03-A2",
+          "description": "capacities has both cap_engineering and cap_analytics, both as F32",
+          "check": "isolation_config['capacities']['cap_engineering'] == 'F32' and isolation_config['capacities']['cap_analytics'] == 'F32'"
+        },
+        {
+          "id": "FI8-03-A3",
+          "description": "workspace_assignments has all 5 expected workspaces",
+          "check": "set(isolation_config['workspace_assignments'].keys()) == {'ws_silver_transform', 'ws_gold_aggregate', 'ws_warehouse', 'ws_powerbi_reports', 'ws_adhoc_sql'}"
+        },
+        {
+          "id": "FI8-03-A4",
+          "description": "Both engineering workspaces (silver_transform, gold_aggregate) are assigned to cap_engineering",
+          "check": "isolation_config['workspace_assignments']['ws_silver_transform'] == 'cap_engineering' and isolation_config['workspace_assignments']['ws_gold_aggregate'] == 'cap_engineering'"
+        },
+        {
+          "id": "FI8-03-A5",
+          "description": "All 3 analytics workspaces (warehouse, powerbi_reports, adhoc_sql) are assigned to cap_analytics",
+          "check": "isolation_config['workspace_assignments']['ws_warehouse'] == 'cap_analytics' and isolation_config['workspace_assignments']['ws_powerbi_reports'] == 'cap_analytics' and isolation_config['workspace_assignments']['ws_adhoc_sql'] == 'cap_analytics'"
+        },
+        {
+          "id": "FI8-03-A6",
+          "description": "rationale is a non-empty string",
+          "check": "isinstance(isolation_config['rationale'], str) and len(isolation_config['rationale']) > 0"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit."
+    },
+    {
+      "id": "module-FI8-task-04",
+      "title": "Diagnose a Sustained Throttling Incident",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "On 2026-04-08 between 14:00 and 14:30 UTC, NordGrid experienced sustained throttling on the production capacity. The platform team pulled the per-minute capacity metrics:\n\n  PER-MINUTE CAPACITY METRICS — 2026-04-08 13:55 to 14:35 UTC\n  ============================================================\n  Time    CU%   Throttled?  Top consumer\n  13:55    52%      no      nb_silver_dedup (24%)\n  13:56    54%      no      nb_silver_dedup (25%)\n  13:57    55%      no      nb_silver_dedup (25%)\n  13:58    56%      no      nb_silver_dedup (26%)\n  13:59    58%      no      nb_silver_dedup (27%)\n  14:00    91%      no      nb_ml_train_forecast (NEW, 50%)  <-- ML notebook started\n  14:01   105%     YES      nb_ml_train_forecast (62%)\n  14:02   108%     YES      nb_ml_train_forecast (65%)\n  14:03   110%     YES      nb_ml_train_forecast (68%)\n  14:05   112%     YES      nb_ml_train_forecast (70%)\n  14:10   114%     YES      nb_ml_train_forecast (72%)\n  14:15   115%     YES      nb_ml_train_forecast (73%)\n  14:20   115%     YES      nb_ml_train_forecast (73%)\n  14:25   115%     YES      nb_ml_train_forecast (73%)\n  14:28   115%     YES      nb_ml_train_forecast (73%)  <-- Eng kills the notebook\n  14:29    63%      no      nb_silver_dedup (28%)\n  14:30    58%      no      nb_silver_dedup (27%)\n\n  THROTTLED OPERATIONS DURING INCIDENT:\n    SQL queries delayed:    340\n    Power BI refreshes:     12\n    Pipeline activities:     8\n\n  ML NOTEBOOK CHARACTERISTICS:\n    Notebook:        nb_ml_train_forecast\n    Spark pool:      Large (32 CU)\n    Total runtime:   28 minutes (until killed)\n    Type:            Ad-hoc model retrain — not a scheduled production job",
+        "task": "Diagnose the trigger of the throttling and identify the right response.",
+        "validationHint": "The transition is sharp: at 13:59 the capacity was at 58% with the silver pipeline. At 14:00 the ML notebook started and pushed it to 91%. The next minute hit 105% — over capacity, throttling kicked in. The ML notebook is the trigger because the silver pipeline was running steady-state before AND after with no change in its consumption."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI8-04-F1",
+            "type": "single_select",
+            "label": "What workload triggered the throttling?",
+            "options": [
+              "nb_ml_train_forecast — it started at 14:00 and immediately consumed 50% of the capacity, pushing total utilization from 58% to 91%, then to 105% the next minute. Before it started, the capacity was at 58%; after it was killed, the capacity returned to 58%",
+              "nb_silver_dedup — it ramps up over the 5 minutes before 14:00",
+              "Both notebooks contributed equally",
+              "Cannot tell from the data"
+            ],
+            "correctAnswer": "nb_ml_train_forecast — it started at 14:00 and immediately consumed 50% of the capacity, pushing total utilization from 58% to 91%, then to 105% the next minute. Before it started, the capacity was at 58%; after it was killed, the capacity returned to 58%",
+            "rationale": "The before-and-after comparison is the diagnostic key: 58% before the ML notebook, 105-115% during, 58% after. nb_silver_dedup's consumption was steady at ~25-28% throughout — it did not change. The ML notebook is the only variable that explains the change."
+          },
+          {
+            "id": "FI8-04-F2",
+            "type": "single_select",
+            "label": "Why did the throttling persist for 28 minutes instead of resolving automatically?",
+            "options": [
+              "The ML notebook continued running and continued consuming CUs at the same rate; nothing in the system would have stopped it without manual intervention. Throttling persists as long as the cause persists",
+              "Capacity throttling has a 30-minute minimum duration",
+              "Fabric was waiting for the next capacity smoothing window",
+              "The notebook crashed but the capacity took time to release"
+            ],
+            "correctAnswer": "The ML notebook continued running and continued consuming CUs at the same rate; nothing in the system would have stopped it without manual intervention. Throttling persists as long as the cause persists",
+            "rationale": "Throttling is a symptom, not a self-resolving event. The cause (a workload demanding more CUs than available) persists until either the workload finishes naturally, an engineer kills it, or some auto-throttle policy stops it. NordGrid currently has no auto-throttle policy — that's the gap this incident exposes."
+          },
+          {
+            "id": "FI8-04-F3",
+            "type": "single_select",
+            "label": "What is the right response to this specific incident?",
+            "options": [
+              "Kill the ML notebook immediately to restore capacity for the production workloads (which is what happened at 14:28); then investigate whether the ML notebook was launched in the wrong workspace (it should have been on the dedicated engineering capacity from Task 3, not on the shared production capacity)",
+              "Wait for the ML notebook to finish naturally",
+              "Increase capacity to F128 immediately",
+              "Disable the ML notebook permanently"
+            ],
+            "correctAnswer": "Kill the ML notebook immediately to restore capacity for the production workloads (which is what happened at 14:28); then investigate whether the ML notebook was launched in the wrong workspace (it should have been on the dedicated engineering capacity from Task 3, not on the shared production capacity)",
+            "rationale": "Immediate action: stop the bleeding by killing the offending workload. Follow-up: determine whether the workload was misplaced (running on the wrong capacity) or whether the engineering capacity itself needs additional isolation. Distractor B leaves analysts throttled for the full 28 minutes. Distractor C is expensive over-correction. Distractor D is heavy-handed."
+          },
+          {
+            "id": "FI8-04-F4",
+            "type": "single_select",
+            "label": "What structural fix from FI8 Lesson 4 would have prevented the 28-minute throttling window?",
+            "options": [
+              "Per-notebook CU budget with auto-pause: when nb_ml_train_forecast exceeds its budget (e.g., 50 CU-hours for an ad-hoc ML notebook), it is automatically paused. The throttling window would have ended at the budget threshold (~minute 1-2), not at minute 28 when an engineer noticed",
+              "Slower notebook pool sizes",
+              "Removing all ML notebooks from production",
+              "Adding more print statements"
+            ],
+            "correctAnswer": "Per-notebook CU budget with auto-pause: when nb_ml_train_forecast exceeds its budget (e.g., 50 CU-hours for an ad-hoc ML notebook), it is automatically paused. The throttling window would have ended at the budget threshold (~minute 1-2), not at minute 28 when an engineer noticed",
+            "rationale": "Per-notebook budgets are the granular control that auto-stops runaways. With a 50 CU-hour budget on the ML notebook, it would have hit the budget within 1-2 minutes (Large pool = 32 CU consumed per minute) and auto-paused. The throttling would have lasted 1-2 minutes instead of 28. This is Task 5's pattern in action."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI8-task-05",
+      "title": "Build the Per-Notebook CU Budget",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's platform team is implementing per-notebook CU budgets per FI8 Lesson 4. Each production notebook has a profiled budget based on its measured consumption from the previous month, plus a 25% buffer. Notebooks that exceed their budget trigger an alert; notebooks that exceed 150% of their budget are auto-paused.\n\nNordGrid's notebook budget table (from the Task 2 metrics):\n  nb_silver_transform        budget=1500 CU-hours, alert_at=1500 (100%), pause_at=2250 (150%)\n  nb_silver_dedup            budget=750 CU-hours, alert_at=750, pause_at=1125\n  nb_gold_billing_aggregate  budget=600 CU-hours, alert_at=600, pause_at=900\n  nb_gold_regional_summary   budget=300 CU-hours, alert_at=300, pause_at=450\n  nb_ml_train_forecast       budget=200 CU-hours, alert_at=200, pause_at=300",
+        "task": "Build a Python dict called notebook_budgets mapping each of the 5 notebook names to a nested dict with these keys: budget_cu_hours (the 100% budget), alert_threshold (equal to budget_cu_hours), pause_threshold (1.5x the budget). All values are integers.",
+        "validationHint": "Build the dict literally with the 5 notebooks. The pause_threshold for each is exactly 1.5x the budget — integer math: nb_silver_transform pause = 2250, nb_silver_dedup pause = 1125, nb_gold_billing_aggregate pause = 900, nb_gold_regional_summary pause = 450, nb_ml_train_forecast pause = 300."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI8 Lesson 4: per-notebook CU budgets with alert and pause thresholds.\n\n# YOUR SOLUTION BELOW\n# Build notebook_budgets mapping 5 notebook names to {budget_cu_hours, alert_threshold, pause_threshold}.\n\nnotebook_budgets = {\n    # Fill in 5 notebook entries\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(notebook_budgets, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI8-05-A1",
+          "description": "notebook_budgets has all 5 expected notebooks",
+          "check": "set(notebook_budgets.keys()) == {'nb_silver_transform', 'nb_silver_dedup', 'nb_gold_billing_aggregate', 'nb_gold_regional_summary', 'nb_ml_train_forecast'}"
+        },
+        {
+          "id": "FI8-05-A2",
+          "description": "Every entry has the 3 required keys",
+          "check": "all(set(v.keys()) >= {'budget_cu_hours', 'alert_threshold', 'pause_threshold'} for v in notebook_budgets.values())"
+        },
+        {
+          "id": "FI8-05-A3",
+          "description": "nb_silver_transform has budget=1500, alert=1500, pause=2250",
+          "check": "notebook_budgets['nb_silver_transform']['budget_cu_hours'] == 1500 and notebook_budgets['nb_silver_transform']['alert_threshold'] == 1500 and notebook_budgets['nb_silver_transform']['pause_threshold'] == 2250"
+        },
+        {
+          "id": "FI8-05-A4",
+          "description": "nb_silver_dedup has budget=750 and pause=1125",
+          "check": "notebook_budgets['nb_silver_dedup']['budget_cu_hours'] == 750 and notebook_budgets['nb_silver_dedup']['pause_threshold'] == 1125"
+        },
+        {
+          "id": "FI8-05-A5",
+          "description": "nb_gold_billing_aggregate has budget=600 and pause=900",
+          "check": "notebook_budgets['nb_gold_billing_aggregate']['budget_cu_hours'] == 600 and notebook_budgets['nb_gold_billing_aggregate']['pause_threshold'] == 900"
+        },
+        {
+          "id": "FI8-05-A6",
+          "description": "nb_gold_regional_summary has budget=300 and pause=450",
+          "check": "notebook_budgets['nb_gold_regional_summary']['budget_cu_hours'] == 300 and notebook_budgets['nb_gold_regional_summary']['pause_threshold'] == 450"
+        },
+        {
+          "id": "FI8-05-A7",
+          "description": "nb_ml_train_forecast has budget=200 and pause=300",
+          "check": "notebook_budgets['nb_ml_train_forecast']['budget_cu_hours'] == 200 and notebook_budgets['nb_ml_train_forecast']['pause_threshold'] == 300"
+        },
+        {
+          "id": "FI8-05-A8",
+          "description": "Every pause_threshold equals exactly 1.5x its budget — proves the student applied the rule, not transcribed individual values",
+          "check": "all(v['pause_threshold'] == int(v['budget_cu_hours'] * 1.5) for v in notebook_budgets.values())"
+        }
+      ],
+      "partialCredit": "8 independent assertions. Each passed assertion earns 1/8 credit. A8 is the keystone — it tests that the student applied the 1.5x rule consistently rather than copying values."
+    },
+    {
+      "id": "module-FI8-task-06",
+      "title": "Design NordGrid's Capacity Governance",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "This is the synthesis task. NordGrid's platform team is finalizing the complete capacity governance specification combining:\n  - Workload isolation: 2 capacities (engineering + analytics), from Task 3\n  - Per-notebook CU budgets with alert and auto-pause thresholds, from Task 5\n  - Weekly capacity review using the metrics from Task 2\n  - Capacity scaling threshold: when sustained peak utilization exceeds 85% even after optimization, escalate to F128 review\n  - Incident escalation path: workload contention → on-call alert → kill runaway → post-incident review\n\nYour job: (1) DIAGNOSIS — fill the 4-field template confirming the governance design. (2) FIX — build the complete capacity governance dict.",
+        "task": "Fill the diagnosis template AND build the capacity_governance dict.\n\nFor the FIX: Build a Python dict called capacity_governance with these keys:\n  - workload_isolation: a dict containing capacities (a list of capacity names) and the rationale string\n  - notebook_budgets_enabled: True\n  - review_cadence: 'weekly'\n  - upgrade_threshold_peak_pct: 85 (the integer threshold from FI8 Lesson 8)\n  - incident_escalation: a list of step strings in order: ['detect', 'alert_oncall', 'kill_runaway', 'postmortem']",
+        "validationHint": "Combine outputs from Tasks 3 and 5 into a single governance spec. The upgrade threshold (85%) is the value from FI8 Lesson 8 — capacities should be scaled up when sustained peaks exceed this even after optimization."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI8-06-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does the capacity governance combine BOTH workload isolation AND per-notebook budgets, instead of just one?",
+            "options": [
+              "Workload isolation prevents cross-team interference (one team's workload cannot affect another team's capacity), and per-notebook budgets prevent within-team runaways (one notebook in the engineering team cannot consume the entire engineering capacity). The two controls operate at different scopes and are both necessary",
+              "Workload isolation is enough; budgets are redundant",
+              "Budgets are enough; isolation is redundant",
+              "They are alternatives — pick one"
+            ],
+            "correctAnswer": "Workload isolation prevents cross-team interference (one team's workload cannot affect another team's capacity), and per-notebook budgets prevent within-team runaways (one notebook in the engineering team cannot consume the entire engineering capacity). The two controls operate at different scopes and are both necessary",
+            "rationale": "Defense in depth: isolation handles cross-team contention, budgets handle within-team contention. Either alone has gaps. With only isolation, a runaway in engineering still starves other engineering workloads. With only budgets, one team's accumulated budget can still affect another team if they share a capacity. Both together provide complete coverage."
+          },
+          {
+            "id": "FI8-06-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why is the capacity scaling threshold set at 85% peak utilization instead of 100% or 50%?",
+            "options": [
+              "85% leaves a 15% buffer for unexpected spikes while signaling that optimization has reached diminishing returns. 100% means the capacity is constantly throttling (too late). 50% means upgrading prematurely while there is still optimization headroom (too early). 85% is the operational sweet spot from FI8 Lesson 8",
+              "85% is required by Microsoft Fabric",
+              "85% is arbitrary",
+              "85% is the maximum supported utilization"
+            ],
+            "correctAnswer": "85% leaves a 15% buffer for unexpected spikes while signaling that optimization has reached diminishing returns. 100% means the capacity is constantly throttling (too late). 50% means upgrading prematurely while there is still optimization headroom (too early). 85% is the operational sweet spot from FI8 Lesson 8",
+            "rationale": "The 85% threshold is a balance. Below 85%: there is still room to optimize, and the cost-effective path is to fix the workloads. Above 85%: optimization is hitting diminishing returns and a larger SKU becomes the better ROI. The 15% buffer accommodates burst demand without immediate throttling."
+          },
+          {
+            "id": "FI8-06-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why is the incident escalation path 'detect → alert → kill → postmortem' rather than 'investigate → discuss → decide → act'?",
+            "options": [
+              "Capacity incidents have an immediate cost (throttled workloads). The right response is to STOP the bleeding first (kill the runaway) and investigate later (postmortem). Discussing before acting wastes the throttled minutes and damages SLA. The pattern matches the rollback playbook from FI7 — fast containment, slow analysis",
+              "Investigation is more important than action",
+              "The escalation is bureaucratic — pick whatever order",
+              "Discussion always precedes action in production"
+            ],
+            "correctAnswer": "Capacity incidents have an immediate cost (throttled workloads). The right response is to STOP the bleeding first (kill the runaway) and investigate later (postmortem). Discussing before acting wastes the throttled minutes and damages SLA. The pattern matches the rollback playbook from FI7 — fast containment, slow analysis",
+            "rationale": "Incident response prioritizes containment over understanding. The runaway is killed because every minute it runs throttles legitimate workloads. The postmortem follows because understanding matters too — but it cannot come at the cost of extended damage. This is the same fast-action-then-investigate pattern as FI7 Task 4's rollback response."
+          },
+          {
+            "id": "FI8-06-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why is the review cadence weekly rather than daily or monthly?",
+            "options": [
+              "Daily would be noise (capacity patterns fluctuate day to day; daily review wastes platform team time). Monthly would let drift accumulate (a cost overrun spotted monthly is already a month old). Weekly catches trends within their first week and lets the team plan corrective action before incidents occur",
+              "Weekly is the fastest cadence Fabric supports",
+              "Daily is too expensive in platform team hours",
+              "Monthly is the standard for all governance reviews"
+            ],
+            "correctAnswer": "Daily would be noise (capacity patterns fluctuate day to day; daily review wastes platform team time). Monthly would let drift accumulate (a cost overrun spotted monthly is already a month old). Weekly catches trends within their first week and lets the team plan corrective action before incidents occur",
+            "rationale": "Review cadence matches the rate at which problems develop. Capacity issues develop over days to weeks (slow growth in consumption, gradual peak utilization climb), so weekly catches them while they are still actionable. Daily catches noise; monthly catches problems too late. NordGrid's standard from FI8 Lesson 10 is weekly."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI8 SYNTHESIS: NordGrid's complete capacity governance specification.\n\n# YOUR SOLUTION BELOW\n# Build capacity_governance with the structure from the task description.\n\ncapacity_governance = {\n    # Fill in: workload_isolation, notebook_budgets_enabled, review_cadence,\n    #          upgrade_threshold_peak_pct, incident_escalation\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(capacity_governance, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI8-06-A1",
+          "description": "capacity_governance has all 5 required top-level keys",
+          "check": "set(capacity_governance.keys()) >= {'workload_isolation', 'notebook_budgets_enabled', 'review_cadence', 'upgrade_threshold_peak_pct', 'incident_escalation'}"
+        },
+        {
+          "id": "FI8-06-A2",
+          "description": "workload_isolation has a capacities list including both cap_engineering and cap_analytics",
+          "check": "'capacities' in capacity_governance['workload_isolation'] and set(capacity_governance['workload_isolation']['capacities']) >= {'cap_engineering', 'cap_analytics'}"
+        },
+        {
+          "id": "FI8-06-A3",
+          "description": "notebook_budgets_enabled is True",
+          "check": "capacity_governance['notebook_budgets_enabled'] == True"
+        },
+        {
+          "id": "FI8-06-A4",
+          "description": "review_cadence is 'weekly'",
+          "check": "capacity_governance['review_cadence'] == 'weekly'"
+        },
+        {
+          "id": "FI8-06-A5",
+          "description": "upgrade_threshold_peak_pct is 85",
+          "check": "capacity_governance['upgrade_threshold_peak_pct'] == 85"
+        },
+        {
+          "id": "FI8-06-A6",
+          "description": "incident_escalation is a list of exactly 4 ordered step strings",
+          "check": "isinstance(capacity_governance['incident_escalation'], list) and len(capacity_governance['incident_escalation']) == 4"
+        },
+        {
+          "id": "FI8-06-A7",
+          "description": "incident_escalation has the expected order: detect, alert_oncall, kill_runaway, postmortem",
+          "check": "capacity_governance['incident_escalation'] == ['detect', 'alert_oncall', 'kill_runaway', 'postmortem']"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (7 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/7).",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Workload isolation across capacities (Lesson 3)",
+          "Per-notebook CU budgets (Lesson 4)",
+          "Capacity metrics review cadence (Lesson 2, 10)",
+          "Capacity scaling threshold for upgrade decisions (Lesson 8)",
+          "Incident escalation path for capacity events (Lesson 1, 10)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis integrates the 5 layers of capacity governance into a single specification. The keystone is the COMBINATION of workload isolation AND per-notebook budgets — diagnosis F1 forces students to articulate why both controls are necessary at different scopes. A7 verifies the incident escalation order matches the fast-containment pattern, ensuring students internalized the FI8 Lesson 1 incident lesson."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "calibrationNotes": "Eighth Fabric mid-level practice set. No datasets — capacity is observed through metrics dashboards and managed through configuration. All 3 diagnostic tasks use detailed inline CU metrics (per-workload breakdowns, time-series throttling events) so students practice reading real Fabric metrics formats. Task type mix (3 diagnostic + 2 fix + 1 synthesis) is within all section 5.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches the capacity model, metrics, isolation, optimization, scaling, and incident response in Lessons 1-10. The practice tests application: Task 1 reproduces the canonical Lesson 1 incident with detailed CU breakdown. Task 2 forces students to read a realistic capacity dashboard and identify the highest-leverage optimization target. Task 3 builds the isolation config that the Lesson 3 example describes. Task 4 reproduces a sustained throttling event with per-minute time-series evidence so students see the before-and-after pattern. Task 5 builds the per-notebook budget table that Lesson 4 introduces. Task 6 synthesizes everything into a governance spec.",
+    "datasetNotes": "No datasets — every diagnostic task uses inline CU metrics tables as evidence and every fix task is dict construction. This is the same shape as FI7 with the addition of richer inline evidence."
+  }
+}

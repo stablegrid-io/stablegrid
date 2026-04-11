@@ -124,7 +124,7 @@ export function UnifiedMiniPlayer() {
       {/* Theory session card */}
       {showTheory && theory && (
         <div
-          className="relative rounded-2xl border px-4 py-3 min-w-[220px]"
+          className="relative rounded-[22px] border px-4 py-3 min-w-[220px]"
           style={{
             background: 'rgba(10,12,14,0.92)',
             backdropFilter: 'blur(24px) saturate(1.4)',
@@ -153,7 +153,7 @@ export function UnifiedMiniPlayer() {
           </div>
           <Link
             href={theory.route}
-            className="flex items-center justify-between rounded-lg py-1.5 px-2.5 text-[10px] font-semibold transition-all hover:scale-[1.02]"
+            className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold transition-all hover:scale-[1.02]"
             style={{
               background: `rgba(${theory.color},0.08)`,
               border: `1px solid rgba(${theory.color},0.15)`,
@@ -171,7 +171,7 @@ export function UnifiedMiniPlayer() {
         const accent = '245,158,11';
         return (
           <div
-            className="relative rounded-2xl border px-4 py-3 min-w-[220px]"
+            className="relative rounded-[22px] border px-4 py-3 min-w-[220px]"
             style={{
               background: 'rgba(10,12,14,0.92)',
               backdropFilter: 'blur(24px) saturate(1.4)',
@@ -200,7 +200,7 @@ export function UnifiedMiniPlayer() {
             </div>
             <Link
               href={practice.route}
-              className="flex items-center justify-between rounded-lg py-1.5 px-2.5 text-[10px] font-semibold transition-all hover:scale-[1.02]"
+              className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold transition-all hover:scale-[1.02]"
               style={{
                 background: `rgba(${accent},0.08)`,
                 border: `1px solid rgba(${accent},0.15)`,

@@ -164,7 +164,7 @@ export function DangerZoneTab({ onToast }: DangerZoneTabProps) {
               {REASONS.map((option) => (
                 <label
                   key={option}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-light-border px-3 py-2 text-sm dark:border-dark-border"
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/[0.06] px-3 py-2 text-sm"
                 >
                   <input
                     type="radio"
@@ -199,7 +199,7 @@ export function DangerZoneTab({ onToast }: DangerZoneTabProps) {
             </h3>
             <p className="mt-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
               Type{' '}
-              <code className="rounded bg-light-bg px-1.5 py-0.5 text-xs dark:bg-dark-bg">
+              <code className="rounded bg-[#0c0e10] px-1.5 py-0.5 text-xs">
                 delete my account
               </code>{' '}
               to permanently delete your account.

@@ -1,0 +1,556 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FS10 — Design GridUnion's Enterprise Governance Framework",
+  "description": "The senior capstone. Trace a cascading failure across 4 countries through the lineage graph, build the multi-capacity forecast plan, choose a DR strategy for Platinum data, review GridUnion's current team structure for scaling issues, evaluate centralized vs data mesh vs hybrid organizational models, and synthesize the complete enterprise governance framework integrating contributions from all 10 senior modules. The most ambitious task in the entire senior track.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+",
+  "metadata": {
+    "moduleId": "module-FS10",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 110,
+    "maximumDurationMinutes": 120,
+    "taskCount": 6,
+    "scenarioCompany": "GridUnion Continental",
+    "scenarioScale": "5M meters, 30 regions, 4 countries (DE/FR/NL/LU), 12 teams, 80 engineers, 500+ pipelines, 80+ workspaces, 4 capacities, 200+ tables",
+    "modulePhase": "capstone",
+    "taskTypeMix": {
+      "tradeoffAnalysis": 2,
+      "designReview": 1,
+      "rootCauseAnalysis": 1,
+      "designArtifact": 1,
+      "architecturalSynthesis": 1
+    },
+    "calibrationNotes": "Capstone set, the most ambitious in the senior track. 6 tasks at 110 minutes — just under the 120 hard ceiling. The synthesis at 20 minutes pulls from all 10 modules (FS1-FS10). single_module_scope is intentionally False because the capstone is the documented exception. Multiple defensible answers documented in acceptable_alternatives metadata."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-FS10-task-01",
+      "title": "Trace a Cascading Failure Across 4 Countries",
+      "type": "root_cause_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "On 2026-04-08 at 10:45 UTC, a single PR merged to a German Silver pipeline triggered a cascading failure that affected 11 downstream items spanning 3 countries within 4 hours. The platform team's incident response captured the lineage trace:\n\n  ROOT CHANGE — 2026-04-08 10:45 UTC\n    PR #614 merged to silver_meter_readings_de\n    Author: data_engineering_de\n    Description: 'Add tariff_zone_code column for BNetzA compliance (FS5 Task 2 follow-up)'\n    Schema change: add new column tariff_zone_code (nullable string)\n    Author classification: 'additive change, low risk'\n    Notice given: posted in #data-eng-de Slack 2 days ago (note: contractual additive notice is 14 days per FS5 Task 2)\n\n  CASCADE TIMELINE:\n    10:45  PR merged. silver_meter_readings_de schema migrates to v8 (adds tariff_zone_code)\n    10:50  Downstream pipeline pl_silver_consolidate_eu fails: schema_diff_detection automated gate\n           detects the new column and BLOCKS the consolidation because it's not in the registered schema\n    11:00  Without the consolidation, silver_meter_readings_eu becomes stale. The 6 downstream\n           consumers begin showing stale data warnings\n    11:15  Cross-country billing pipeline pl_billing_monthly_eu fails: it joins on silver_meter_readings_eu\n           which is now stale beyond its freshness SLA (6 hours per FS5 contract)\n    11:30  ML feature pipeline pl_ml_features_daily fails: depends on silver_meter_readings_eu\n    12:00  3 Power BI dashboards in the German analytics team show 'data unavailable' errors\n    12:15  3 Power BI dashboards in the French analytics team show 'data unavailable' errors\n    12:30  Compliance team's automated audit run fails: it queries silver_meter_readings_eu for\n           the daily compliance check\n    13:30  French regulatory pipeline pl_regulatory_quarterly_eu fails its preflight check that\n           verifies all required tables are fresh\n    14:30  An on-call platform engineer identifies the chain and rolls back PR #614\n    14:45  Schema reverts to v7. Consolidation resumes. Most pipelines recover within 30 minutes\n\n  AFFECTED COMPONENTS (11 total):\n    1. silver_meter_readings_eu (stale)\n    2. pl_silver_consolidate_eu (blocked by automated gate)\n    3. pl_billing_monthly_eu (failed on stale data)\n    4. pl_ml_features_daily (failed on stale data)\n    5. 3 German Power BI dashboards (data unavailable)\n    6. 3 French Power BI dashboards (data unavailable)\n    7. compliance daily audit (failed)\n    8. pl_regulatory_quarterly_eu preflight (failed)\n\n  WHAT WENT RIGHT:\n    - The schema_diff_detection automated gate (from the FS5 governance system) DID catch the unregistered schema and blocked the consolidation. Without this gate, the new column would have silently propagated and broken downstream consumers in different ways for days before being detected\n\n  WHAT WENT WRONG:\n    - The author classified the schema change as 'additive, low risk' and gave only 2 days of notice instead of the contractual 14 days\n    - The PR review did not catch the notice timing violation\n    - The author did not run lineage analysis BEFORE the change to see who consumed silver_meter_readings_de\n    - The change advisory board (FS10 Lesson 7) was not consulted because the author did not flag the change as needing review",
+        "task": "Diagnose the root cause of the cascade through the change management process (not just the technical chain) and identify the controls that would have prevented it.",
+        "validationHint": "The technical chain is clear: schema change → automated gate blocks consolidation → 11 downstream items affected. The PROCESS root cause is what's interesting at senior level. Multiple controls failed in sequence. The fix is to make the controls structurally enforced (CI gates, mandatory lineage check, automatic CAB routing) rather than relying on author and reviewer discipline."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS10-01-F1",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — TECHNICAL CHAIN: What is the technical sequence that propagated the failure?",
+            "options": [
+              "PR #614 added a column to silver_meter_readings_de → schema diff detection blocked pl_silver_consolidate_eu → silver_meter_readings_eu became stale → 6 downstream consumers (billing, ML, 6 dashboards, compliance, regulatory) failed because of the stale data dependency",
+              "The German pipeline crashed and corrupted multiple tables",
+              "An attacker compromised the platform",
+              "Network issues caused intermittent failures"
+            ],
+            "correctAnswer": "PR #614 added a column to silver_meter_readings_de → schema diff detection blocked pl_silver_consolidate_eu → silver_meter_readings_eu became stale → 6 downstream consumers (billing, ML, 6 dashboards, compliance, regulatory) failed because of the stale data dependency",
+            "rationale": "The technical chain is the surface story: one schema change cascades through downstream consumers via the automated gate that BLOCKED the consolidation. Mid-level diagnosis would stop here. Senior diagnosis recognizes that the technical chain is the symptom, not the root cause."
+          },
+          {
+            "id": "FS10-01-F2",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — PROCESS ROOT CAUSE: What is the senior-level root cause beyond the technical chain?",
+            "options": [
+              "Multiple control failures in sequence: (1) the author misclassified the change as 'low risk' despite touching a high-fanout table, (2) the author bypassed the 14-day notice requirement, (3) the PR reviewer did not catch the notice timing violation, (4) lineage analysis was never run before the change, (5) the change advisory board never saw the change. Any single control could have caught it; the cascade required ALL of them to fail",
+              "The schema_diff_detection gate is too aggressive",
+              "The downstream consumers are too coupled",
+              "Microsoft Fabric has a bug"
+            ],
+            "correctAnswer": "Multiple control failures in sequence: (1) the author misclassified the change as 'low risk' despite touching a high-fanout table, (2) the author bypassed the 14-day notice requirement, (3) the PR reviewer did not catch the notice timing violation, (4) lineage analysis was never run before the change, (5) the change advisory board never saw the change. Any single control could have caught it; the cascade required ALL of them to fail",
+            "rationale": "The senior insight is that incidents at scale come from multiple control failures, not single bugs. This is the Swiss cheese model of incident analysis: each control has holes, but normally the holes don't line up. When they do line up, the failure propagates through. The platform engineering job is to make the holes smaller AND less correlated."
+          },
+          {
+            "id": "FS10-01-F3",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — POSITIVE: What aspect of the system worked correctly during the incident?",
+            "options": [
+              "The automated schema_diff_detection gate DID catch the unregistered schema and blocked the consolidation, preventing the new column from silently propagating through downstream consumers in different ways. Without this gate, the failure mode would have been worse: corrupted data flowing through pipelines for days before being detected",
+              "Nothing worked correctly",
+              "The on-call engineer responded quickly",
+              "Power BI showed clear error messages"
+            ],
+            "correctAnswer": "The automated schema_diff_detection gate DID catch the unregistered schema and blocked the consolidation, preventing the new column from silently propagating through downstream consumers in different ways. Without this gate, the failure mode would have been worse: corrupted data flowing through pipelines for days before being detected",
+            "rationale": "The senior incident review acknowledges what worked, not just what failed. The 4-hour outage was bad, but it was BOUNDED. A silent corruption would have been UNBOUNDED. The gate did its job; the gap is in the controls UPSTREAM of the gate."
+          },
+          {
+            "id": "FS10-01-F4",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — STRUCTURAL FIX: What is the right structural fix?",
+            "options": [
+              "Make the change-management controls STRUCTURALLY ENFORCED instead of relying on author and reviewer discipline: (1) automated lineage analysis runs on every PR that touches a Silver table, surfacing the consumer count in the PR template; (2) any PR touching a high-fanout table is automatically routed to the change advisory board, regardless of the author's classification; (3) the PR cannot merge until the contractual notice period has elapsed for the affected consumers. The author's classification becomes input, not gospel",
+              "Train the author to be more careful",
+              "Add more meetings to the change process",
+              "Remove the automated schema_diff_detection gate"
+            ],
+            "correctAnswer": "Make the change-management controls STRUCTURALLY ENFORCED instead of relying on author and reviewer discipline: (1) automated lineage analysis runs on every PR that touches a Silver table, surfacing the consumer count in the PR template; (2) any PR touching a high-fanout table is automatically routed to the change advisory board, regardless of the author's classification; (3) the PR cannot merge until the contractual notice period has elapsed for the affected consumers. The author's classification becomes input, not gospel",
+            "rationale": "The same structural-vs-behavioral enforcement principle from every other senior set: replace human discipline with automation. Training authors to be more careful is unreliable. Automated lineage analysis surfaces the impact at PR time. Automatic CAB routing prevents the author from skipping review. Structural enforcement makes the failure modes impossible, not just discouraged."
+          },
+          {
+            "id": "FS10-01-F5",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — LESSON: What is the senior-level lesson about high-fanout tables?",
+            "options": [
+              "High-fanout tables (those consumed by many downstream items) require SPECIAL change management treatment regardless of whether the change itself is technically additive or breaking. A 'small additive change' to a table with 11 consumers has the same blast radius as a 'breaking change' to a table with 1 consumer. The classification system should consider blast radius, not just the change type",
+              "High-fanout tables should never be changed",
+              "All tables have the same risk profile",
+              "Fanout doesn't affect change management"
+            ],
+            "correctAnswer": "High-fanout tables (those consumed by many downstream items) require SPECIAL change management treatment regardless of whether the change itself is technically additive or breaking. A 'small additive change' to a table with 11 consumers has the same blast radius as a 'breaking change' to a table with 1 consumer. The classification system should consider blast radius, not just the change type",
+            "rationale": "The senior insight is that change classification must include blast radius, not just change type. The mid-level rule 'additive changes are safe' is correct in isolation but wrong in context: an additive change to a high-fanout table can break things if the consumers' tooling or schema gates haven't been updated."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS10-task-02",
+      "title": "Build a Multi-Capacity Forecast Plan",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's annual capacity planning cycle requires a 12-month forecast for each of the 4 capacities. The platform team is building the forecast plan that will feed into the 2027 budget request.\n\n  CURRENT CAPACITY ALLOCATION (2026-04-09):\n\n    cap_engineering_1   F128   utilization avg 68% peak 91%   used by data engineering teams\n    cap_engineering_2   F64    utilization avg 52% peak 78%   used by ML and platform teams\n    cap_analytics       F128   utilization avg 60% peak 85%   used by analytics teams + Power BI\n    cap_streaming       F64    utilization avg 75% peak 88%   used by Eventstream + KQL\n\n  GROWTH ASSUMPTIONS (12 months out):\n    - Data volume grows ~25% per year\n    - Pipeline count grows ~15% per year\n    - Team count grows by 2 teams (12 → 14, including one new team for the Belgium-pending acquisition)\n    - Streaming volume grows ~30% per year\n    - Cross-country query volume grows ~40% per year\n\n  GRIDUNION CONSTRAINTS:\n    - Capacity upgrades must be planned 6 months in advance (procurement + budget approval lead time)\n    - The 85% peak utilization threshold is the trigger for upgrade evaluation\n    - Belgium acquisition is announced for Q3 2026 (will add ~25% more analytics workload)",
+        "task": "Build a Python dict called capacity_forecast_2027 with these top-level keys:\n  - capacities: a dict mapping each capacity name to a forecast dict with current_sku, recommended_action, upgrade_target_quarter\n  - growth_drivers: a list containing 'data_volume_25pct', 'pipeline_count_15pct', 'team_count_2_new', 'streaming_volume_30pct', 'cross_country_query_40pct'\n  - upgrade_threshold_pct: 85\n  - planning_horizon_months: 12\n  - belgium_acquisition_buffer: a dict with enabled (True)\n\nFor the per-capacity recommendations:\n  - cap_engineering_1: current F128, action 'upgrade_to_F256', target '2026_Q4'\n  - cap_engineering_2: current F64, action 'upgrade_to_F128', target '2027_Q1'\n  - cap_analytics: current F128, action 'upgrade_to_F256', target '2026_Q3' (before Belgium)\n  - cap_streaming: current F64, action 'upgrade_to_F128', target '2026_Q3' (most urgent)",
+        "validationHint": "Build the dict literally as described. cap_streaming has the highest urgency (highest current peak + 30% growth), and cap_analytics is upgraded before the Belgium acquisition adds 25% load."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS10 Lesson 3: multi-capacity 12-month forecast plan for the 2027 budget.\n\n# YOUR SOLUTION BELOW\n# Build capacity_forecast_2027 with the 5 top-level keys.\n# capacities has 4 entries.\n\ncapacity_forecast_2027 = {\n    # Fill in: capacities, growth_drivers, upgrade_threshold_pct,\n    #          planning_horizon_months, belgium_acquisition_buffer\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(capacity_forecast_2027, indent=2, default=str))"
+      },
+      "assertions": [
+        {
+          "id": "FS10-02-A1",
+          "description": "capacity_forecast_2027 has all 5 required top-level keys",
+          "check": "set(capacity_forecast_2027.keys()) >= {'capacities', 'growth_drivers', 'upgrade_threshold_pct', 'planning_horizon_months', 'belgium_acquisition_buffer'}"
+        },
+        {
+          "id": "FS10-02-A2",
+          "description": "capacities has all 4 expected capacity entries",
+          "check": "set(capacity_forecast_2027['capacities'].keys()) == {'cap_engineering_1', 'cap_engineering_2', 'cap_analytics', 'cap_streaming'}"
+        },
+        {
+          "id": "FS10-02-A3",
+          "description": "Every capacity has the 3 required forecast keys",
+          "check": "all(set(c.keys()) >= {'current_sku', 'recommended_action', 'upgrade_target_quarter'} for c in capacity_forecast_2027['capacities'].values())"
+        },
+        {
+          "id": "FS10-02-A4",
+          "description": "cap_engineering_1 is being upgraded from F128 to F256",
+          "check": "capacity_forecast_2027['capacities']['cap_engineering_1']['current_sku'] == 'F128' and capacity_forecast_2027['capacities']['cap_engineering_1']['recommended_action'] == 'upgrade_to_F256'"
+        },
+        {
+          "id": "FS10-02-A5",
+          "description": "cap_streaming is being upgraded from F64 to F128 in 2026_Q3 (most urgent)",
+          "check": "capacity_forecast_2027['capacities']['cap_streaming']['current_sku'] == 'F64' and capacity_forecast_2027['capacities']['cap_streaming']['recommended_action'] == 'upgrade_to_F128' and capacity_forecast_2027['capacities']['cap_streaming']['upgrade_target_quarter'] == '2026_Q3'"
+        },
+        {
+          "id": "FS10-02-A6",
+          "description": "cap_analytics is upgraded in 2026_Q3 (before Belgium acquisition adds load)",
+          "check": "capacity_forecast_2027['capacities']['cap_analytics']['recommended_action'] == 'upgrade_to_F256' and capacity_forecast_2027['capacities']['cap_analytics']['upgrade_target_quarter'] == '2026_Q3'"
+        },
+        {
+          "id": "FS10-02-A7",
+          "description": "growth_drivers contains all 5 expected drivers",
+          "check": "set(capacity_forecast_2027['growth_drivers']) >= {'data_volume_25pct', 'pipeline_count_15pct', 'team_count_2_new', 'streaming_volume_30pct', 'cross_country_query_40pct'}"
+        },
+        {
+          "id": "FS10-02-A8",
+          "description": "upgrade_threshold_pct is 85 and planning_horizon_months is 12",
+          "check": "capacity_forecast_2027['upgrade_threshold_pct'] == 85 and capacity_forecast_2027['planning_horizon_months'] == 12"
+        },
+        {
+          "id": "FS10-02-A9",
+          "description": "belgium_acquisition_buffer is enabled",
+          "check": "capacity_forecast_2027['belgium_acquisition_buffer']['enabled'] == True"
+        }
+      ],
+      "partialCredit": "9 independent assertions. The keystones are A5 and A6 (cap_streaming and cap_analytics both upgrade in 2026_Q3) — these encode the senior insight that upgrade timing must account for both current trajectory AND known future events."
+    },
+    {
+      "id": "module-FS10-task-03",
+      "title": "DR Strategy for Platinum Data",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's platform team is finalizing the DR strategy for the Platinum tier — the cross-domain curated data products. Loss of Platinum data has direct business consequences: regulatory submissions miss deadlines, billing is delayed, ML predictions degrade.\n\n  THREE DR APPROACHES UNDER CONSIDERATION:\n\n  OPTION A — ONELAKE CROSS-REGION REPLICATION (FABRIC-NATIVE):\n    Mirror Platinum tables from EU North to EU West. The replicated copy lags by 5-15 minutes typically.\n    - RPO: 5-15 minutes\n    - RTO: 30-60 minutes (manual failover)\n    - Cost: ~15% capacity overhead\n    - Risk: both copies are within Microsoft Azure (correlated failure mode)\n\n  OPTION B — CROSS-CLOUD BACKUP (AZURE → AWS S3):\n    Daily export of Platinum tables to AWS S3 Glacier.\n    - RPO: 24 hours\n    - RTO: 12-24 hours\n    - Cost: ~3% baseline + egress fees on restore\n    - Pro: cross-cloud independence\n\n  OPTION C — OFFLINE TAPE BACKUP:\n    Weekly tape backup to a physical offsite vault.\n    - RPO: 7 days\n    - RTO: 3-7 days\n    - Cost: ~1% but high operational overhead\n\n  GRIDUNION CONSTRAINTS:\n    - 4 regulators expect timely submissions; an outage longer than 24 hours triggers regulatory notification requirements\n    - Platinum data is the source for monthly billing (5M meters)\n    - The platform team is 4 engineers\n    - Past Azure regional outage (3 years ago) lasted 4 hours; no longer-duration regional outage in Azure history\n    - GridUnion's parent organization has a 'cloud-first' policy that disfavors but does not prohibit on-premise solutions",
+        "task": "Evaluate the three DR approaches and recommend ONE primary approach. Multiple defensible answers exist; the reasoning fields determine which is acceptable.",
+        "validationHint": "Both Option A (OneLake cross-region) and a Hybrid (Option A + Option B as deeper backup) are defensible primary answers. Option A meets the 24-hour outage threshold. The Hybrid adds Option B as protection against the rare correlated-Azure-failure scenario. Option B alone is rejected because the 12-24 hour RTO breaches the regulatory threshold. Option C is rejected for both RTO and the cloud-first policy."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS10-03-F1",
+            "type": "single_select",
+            "label": "RECOMMENDATION: Which DR approach do you recommend as the primary strategy for Platinum data?",
+            "options": [
+              "Option A (OneLake cross-region replication) — Fabric-native, meets RPO/RTO targets, simplest tooling",
+              "Option B (Cross-cloud backup to AWS S3) — independence from Azure",
+              "Option C (Offline tape backup) — maximum independence, cheapest storage",
+              "Hybrid: Option A as primary + Option B as deep backup against correlated Azure failure"
+            ],
+            "correctAnswer": "Option A (OneLake cross-region replication) — Fabric-native, meets RPO/RTO targets, simplest tooling",
+            "secondaryCorrectAnswer": "Hybrid: Option A as primary + Option B as deep backup against correlated Azure failure",
+            "rationale": "PRIMARY answer is Option A because it meets the operational requirements (5-15 min RPO, 30-60 min RTO, all within the 24-hour regulatory threshold) with the simplest tooling. SECONDARY answer is the Hybrid because the past Azure regional outage history is short and the correlated-Azure-failure scenario is real. A staff engineer would defend either depending on the team's risk tolerance for the rare correlated failure scenario. Option B alone is rejected because 12-24 hour RTO breaches the regulatory notification threshold. Option C is rejected for both RTO and the cloud-first policy.",
+            "acceptable_alternatives": "Either Option A (primary) or the Hybrid (secondary) is accepted. Option B may be accepted only if the student explicitly addresses how to satisfy the 24-hour regulatory threshold."
+          },
+          {
+            "id": "FS10-03-F2",
+            "type": "multi_select",
+            "label": "TRADE-OFF FACTORS: Which factors does your chosen approach prioritize? (Select all that apply)",
+            "options": [
+              "RPO/RTO meets regulatory threshold",
+              "Tool simplicity (Fabric-native, no cross-cloud complexity)",
+              "Capacity cost minimization",
+              "Cross-cloud independence",
+              "Maximum air-gap independence",
+              "Operational team bandwidth (no extra DR tooling burden)"
+            ],
+            "correctAnswer": ["RPO/RTO meets regulatory threshold", "Tool simplicity (Fabric-native, no cross-cloud complexity)", "Operational team bandwidth (no extra DR tooling burden)"],
+            "rationale": "Option A prioritizes meeting regulatory thresholds, tool simplicity, and team bandwidth. It does NOT optimize for cross-cloud independence (Option B does that) or capacity cost minimization (Option C is cheaper). The student's multi-select must match the prioritization implied by their F1 choice.",
+            "acceptable_alternatives": "If F1 = Hybrid, accept the union: {RPO/RTO meets regulatory threshold, Tool simplicity, Cross-cloud independence}. If F1 = Option B, accept {Cross-cloud independence, Capacity cost minimization}."
+          },
+          {
+            "id": "FS10-03-F3",
+            "type": "single_select",
+            "label": "EXPIRATION CONDITION: Under what conditions would your recommended approach stop being the right choice?",
+            "options": [
+              "When Microsoft Azure suffers an extended multi-region outage that affects both EU North and EU West simultaneously, Option A's correlated-Azure-failure assumption becomes a real exposure. The trigger is observing Azure regional outages that affect multiple EU regions — at that point, the team should accelerate to the Hybrid",
+              "Never — Option A is always correct",
+              "When GridUnion adds a 5th country",
+              "When the team grows to 200 engineers"
+            ],
+            "correctAnswer": "When Microsoft Azure suffers an extended multi-region outage that affects both EU North and EU West simultaneously, Option A's correlated-Azure-failure assumption becomes a real exposure. The trigger is observing Azure regional outages that affect multiple EU regions — at that point, the team should accelerate to the Hybrid",
+            "rationale": "Every architectural choice has expiration conditions. Option A is right NOW because the Azure regional outage history is short. If history changes, the assumption that 'cross-region within Azure is enough' breaks and the team should add the deeper backup."
+          },
+          {
+            "id": "FS10-03-F4",
+            "type": "single_select",
+            "label": "STRONGEST COUNTERARGUMENT: What is the strongest argument against your chosen approach?",
+            "options": [
+              "Option A has a correlated-failure mode: both copies of the data are within Microsoft Azure, so an Azure-wide problem (rare but possible) takes down both at once. The 4-hour outage 3 years ago was contained to a single region, but a future Azure-wide event could be longer and more damaging. A truly independent backup (Option B or C) would have eliminated this single-vendor risk",
+              "Option A is too expensive",
+              "Option A is not supported in Fabric",
+              "There is no argument against Option A"
+            ],
+            "correctAnswer": "Option A has a correlated-failure mode: both copies of the data are within Microsoft Azure, so an Azure-wide problem (rare but possible) takes down both at once. The 4-hour outage 3 years ago was contained to a single region, but a future Azure-wide event could be longer and more damaging. A truly independent backup (Option B or C) would have eliminated this single-vendor risk",
+            "rationale": "The strongest counterargument is the single-vendor risk. The student's defense is that the cost of mitigating it is high enough that the team accepts the small probability of an Azure-wide failure. The senior reasoning is to acknowledge the trade-off and DEFEND the choice based on probability vs cost."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS10-task-04",
+      "title": "Review GridUnion's Current Team Structure",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's current team structure was carried over from the pre-acquisition NordGrid model and has not been redesigned for the 80-engineer scale.\n\n  CURRENT STRUCTURE:\n\n    PLATFORM TEAM (centralized, 4 engineers)\n      - Owns: workspace setup, capacity management, governance, security policies, schema registry, CI/CD\n      - Responsible for: 80+ workspaces, 4 capacities, 200+ tables, 500+ pipelines, governance for 12 teams\n\n    COUNTRY DATA ENGINEERING TEAMS (4 teams, 6 engineers each = 24 engineers)\n      - Owns: country-specific Silver pipelines, country dimension tables\n      - ~125 pipelines per country\n\n    ANALYTICS TEAMS (4 teams, 5 engineers each = 20 engineers)\n      - Owns: country-specific Power BI dashboards, ad-hoc queries\n\n    ML TEAM (centralized, 4 engineers)\n      - Owns: ML feature pipelines, model training, model serving\n\n    COMPLIANCE TEAM (centralized, 2 engineers)\n      - Owns: regulatory submissions, Purview policies, audit reports\n      - Reports to: Head of Compliance (separate org from the platform team)\n\n  OBSERVED PAIN POINTS:\n    - The platform team is the bottleneck for any cross-team request: every new workspace, every capacity allocation routes through 4 engineers serving 80\n    - Country teams escalate to the platform team for issues that the platform team doesn't have country context for\n    - The compliance team operates in isolation from engineering, leading to compliance findings being delivered as audit results rather than embedded in development\n    - The 4 country DE teams duplicate work: each maintains its own version of common patterns\n    - The ML team has no clear ownership of cross-country features when those features evolve",
+        "task": "Review the team structure for issues. Identify at least 4 problems and severity-rank them. Focus on bottlenecks, ownership ambiguity, escalation friction, and the recurring senior governance pattern.",
+        "validationHint": "Issue 1 (HIGH bottleneck): the 4-engineer platform team serving 80 engineers is structurally undersized (1:20 vs the 1:10-1:15 industry rule of thumb). Issue 2 (HIGH ownership ambiguity): country-specific issues escalate to a context-free platform team. Issue 3 (HIGH cross-team coordination): the compliance team operates in isolation from engineering. Issue 4 (HIGH duplication): the 4 country DE teams duplicate common patterns. Issue 5 (HIGH ownership): cross-country features lack clear ownership."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS10-04-F1",
+            "type": "single_select",
+            "label": "ISSUE 1 SEVERITY: 4-engineer platform team serves 80 engineers (1:20 ratio). Severity?",
+            "options": [
+              "HIGH bottleneck — the platform team is structurally undersized for the workload. Industry rule of thumb is 1:10 to 1:15 platform-to-developer ratio for data platforms; GridUnion is at 1:20 and the team is the bottleneck for every cross-team request. The fix is either to grow the platform team to 6-8 engineers OR to push platform responsibilities down to embedded platform engineers in each team",
+              "LOW — the team is fine",
+              "BLOCKING — every team needs more engineers",
+              "Not a problem"
+            ],
+            "correctAnswer": "HIGH bottleneck — the platform team is structurally undersized for the workload. Industry rule of thumb is 1:10 to 1:15 platform-to-developer ratio for data platforms; GridUnion is at 1:20 and the team is the bottleneck for every cross-team request. The fix is either to grow the platform team to 6-8 engineers OR to push platform responsibilities down to embedded platform engineers in each team",
+            "rationale": "The platform team's bottleneck status is the dominant pain point. The fix has two paths: more centralized engineers OR distributed embedded engineers. Both are valid; the choice depends on the next task's organizational model decision."
+          },
+          {
+            "id": "FS10-04-F2",
+            "type": "single_select",
+            "label": "ISSUE 2 SEVERITY: Country teams escalate country-specific issues to the platform team that lacks country context. Severity?",
+            "options": [
+              "HIGH ownership ambiguity — the country teams should be resolving their own country-specific issues but lack autonomy or tooling. Escalating to a context-free platform team produces wrong fixes and frustration. The fix is to give country teams the autonomy and tooling to handle country-specific issues directly",
+              "LOW — escalations are fine",
+              "BLOCKING — country teams should never escalate",
+              "Not a problem"
+            ],
+            "correctAnswer": "HIGH ownership ambiguity — the country teams should be resolving their own country-specific issues but lack autonomy or tooling. Escalating to a context-free platform team produces wrong fixes and frustration. The fix is to give country teams the autonomy and tooling to handle country-specific issues directly",
+            "rationale": "The escalation pattern is a symptom of the wrong ownership boundary: country-specific issues belong to country teams, not to the platform team. Mixing the two creates the bottleneck and the wrong-fix problem."
+          },
+          {
+            "id": "FS10-04-F3",
+            "type": "single_select",
+            "label": "ISSUE 3 SEVERITY: Compliance team operates in isolation from engineering. Severity?",
+            "options": [
+              "HIGH coordination — compliance findings are delivered as audit results rather than embedded in development, so engineers learn about compliance gaps after they've been built into production code. The fix is to embed compliance liaisons in the engineering teams (or at least to give compliance team members 'shift-left' visibility into PRs)",
+              "LOW — separation is fine",
+              "BLOCKING — compliance must own all engineering decisions",
+              "Not a problem"
+            ],
+            "correctAnswer": "HIGH coordination — compliance findings are delivered as audit results rather than embedded in development, so engineers learn about compliance gaps after they've been built into production code. The fix is to embed compliance liaisons in the engineering teams (or at least to give compliance team members 'shift-left' visibility into PRs)",
+            "rationale": "The shift-left compliance pattern: compliance is most valuable when embedded in engineering decisions, not when delivered as findings after the fact."
+          },
+          {
+            "id": "FS10-04-F4",
+            "type": "single_select",
+            "label": "ISSUE 4 SEVERITY: 4 country DE teams duplicate common patterns. Severity?",
+            "options": [
+              "HIGH duplication — each country team maintains its own version of common patterns. This wastes effort, creates inconsistency, and means improvements made by one team don't benefit the others. The fix is a shared library or platform team component that consolidates the common patterns",
+              "LOW — duplication is fine",
+              "BLOCKING — duplication must be eliminated immediately",
+              "Not a problem"
+            ],
+            "correctAnswer": "HIGH duplication — each country team maintains its own version of common patterns. This wastes effort, creates inconsistency, and means improvements made by one team don't benefit the others. The fix is a shared library or platform team component that consolidates the common patterns",
+            "rationale": "Duplication across teams is a senior coordination issue: when 4 teams independently solve the same problem, the platform misses the leverage of solving it once."
+          },
+          {
+            "id": "FS10-04-F5",
+            "type": "single_select",
+            "label": "REVIEWER VERDICT: What do you recommend?",
+            "options": [
+              "Recommend a phased reorganization toward a hybrid model: (1) grow the platform team to 6-7 engineers AND embed 1 platform engineer in each country team to absorb country-specific platform work locally. (2) Establish a shared library owned by the platform team for the duplicated patterns. (3) Embed compliance liaisons in the engineering teams. (4) Establish clear ownership for cross-country features. The reorganization is the bridge to whichever organizational model the team chooses in the next task",
+              "Approve as-is",
+              "Block all production work until reorganization",
+              "Hire more engineers without reorganizing"
+            ],
+            "correctAnswer": "Recommend a phased reorganization toward a hybrid model: (1) grow the platform team to 6-7 engineers AND embed 1 platform engineer in each country team to absorb country-specific platform work locally. (2) Establish a shared library owned by the platform team for the duplicated patterns. (3) Embed compliance liaisons in the engineering teams. (4) Establish clear ownership for cross-country features. The reorganization is the bridge to whichever organizational model the team chooses in the next task",
+            "rationale": "The senior reviewer verdict is a phased reorganization. The hybrid model is the bridge between the current structure and the data mesh discussion in Task 5."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS10-task-05",
+      "title": "Centralized vs Data Mesh vs Hybrid",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "Building on the Task 4 review, GridUnion's platform team must choose an organizational model for the next phase of growth.\n\n  MODEL A — CENTRALIZED PLATFORM TEAM (CURRENT, EXPANDED):\n    Single platform team (grown to 8-10 engineers) owns all platform infrastructure.\n    - Pros: consistent governance and security; clear platform team ownership\n    - Cons: bottleneck at scale; platform team needs to scale linearly with data team growth\n\n  MODEL B — DATA MESH (FULLY DECENTRALIZED):\n    Each domain (country team) owns its data products end-to-end. The platform team becomes a 'platform of platforms'.\n    - Pros: scales horizontally; domain expertise is co-located with platform decisions\n    - Cons: governance consistency is hard; cross-domain coordination requires negotiation; requires mature domain teams that can self-govern\n\n  MODEL C — HYBRID (CENTRALIZED PLATFORM + EMBEDDED ENGINEERS):\n    Centralized platform team (6-7 engineers) owns infrastructure. Each domain team has 1 embedded platform engineer.\n    - Pros: balances central consistency with local autonomy; reduces the bottleneck without fully decentralizing\n    - Cons: dual reporting structure for embedded engineers; requires clear ownership boundaries\n\n  GRIDUNION CONSTRAINTS:\n    - 4 regulators expect clear governance ownership (BNetzA in particular)\n    - Platform team has been the bottleneck for 9 months\n    - The 4 country DE teams have varying maturity levels (DE and FR are mature, NL and LU are still building team capability)\n    - GridUnion's parent organization values consistent governance",
+        "task": "Evaluate the three organizational models and recommend ONE primary approach. Multiple defensible answers exist; the reasoning fields determine which is acceptable.",
+        "validationHint": "Both Model C (Hybrid) and Model A (Centralized expanded) are defensible primary answers. Model C is the balanced choice. Model A is the conservative choice. Model B is rejected because the NL and LU teams are not yet mature enough to self-govern."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS10-05-F1",
+            "type": "single_select",
+            "label": "RECOMMENDATION: Which organizational model do you recommend?",
+            "options": [
+              "Model A (Centralized Expanded) — 8-10 engineer platform team, preserves central governance",
+              "Model B (Data Mesh) — fully decentralized, each domain self-governs",
+              "Model C (Hybrid) — centralized platform team + embedded engineers in each domain",
+              "Model D (none of the above)"
+            ],
+            "correctAnswer": "Model C (Hybrid) — centralized platform team + embedded engineers in each domain",
+            "secondaryCorrectAnswer": "Model A (Centralized Expanded) — 8-10 engineer platform team, preserves central governance",
+            "rationale": "PRIMARY answer is Model C (Hybrid) because it addresses the Task 4 bottleneck while preserving the central governance that the regulators and the parent organization value. SECONDARY answer is Model A (Centralized Expanded). Model B is rejected because the NL/LU teams are not yet mature enough to self-govern AND the parent org values consistent governance.",
+            "acceptable_alternatives": "Either Model C (primary) or Model A (secondary) is accepted with appropriate reasoning. Model B may be accepted only if the student explicitly addresses the NL/LU maturity problem (e.g., 'phase the data mesh transition: DE and FR move to mesh first, NL and LU remain centralized')."
+          },
+          {
+            "id": "FS10-05-F2",
+            "type": "multi_select",
+            "label": "TRADE-OFF FACTORS: Which factors does your chosen approach prioritize? (Select all that apply)",
+            "options": [
+              "Central governance consistency",
+              "Local domain autonomy and context",
+              "Platform team bottleneck reduction",
+              "Regulatory clarity (single point of accountability per country)",
+              "Transition effort minimization",
+              "Horizontal scalability with team growth"
+            ],
+            "correctAnswer": ["Central governance consistency", "Local domain autonomy and context", "Platform team bottleneck reduction", "Regulatory clarity (single point of accountability per country)"],
+            "rationale": "Model C prioritizes central governance, local context, bottleneck reduction, and regulatory clarity. It does NOT optimize for transition effort minimization (Model A is faster) or maximum horizontal scalability (Model B scales further).",
+            "acceptable_alternatives": "If F1 = Model A, accept {Central governance consistency, Regulatory clarity, Transition effort minimization}. If F1 = Model B, accept {Local domain autonomy, Platform team bottleneck reduction, Horizontal scalability}."
+          },
+          {
+            "id": "FS10-05-F3",
+            "type": "single_select",
+            "label": "EXPIRATION CONDITION: Under what conditions would your recommended model stop being the right choice?",
+            "options": [
+              "When the country teams (especially NL and LU) reach the maturity to self-govern AND the cross-team coordination overhead in the Hybrid model becomes the dominant cost, the team should evaluate Model B (Data Mesh)",
+              "Never — Model C is always correct",
+              "When GridUnion adds a 5th country",
+              "When the team grows to 200 engineers"
+            ],
+            "correctAnswer": "When the country teams (especially NL and LU) reach the maturity to self-govern AND the cross-team coordination overhead in the Hybrid model becomes the dominant cost, the team should evaluate Model B (Data Mesh)",
+            "rationale": "The Hybrid is right NOW because the maturity gap is real. As the NL/LU teams grow, the embedded-engineer model becomes a stepping stone to a true data mesh."
+          },
+          {
+            "id": "FS10-05-F4",
+            "type": "single_select",
+            "label": "STRONGEST COUNTERARGUMENT: What is the strongest argument against your chosen model?",
+            "options": [
+              "The Hybrid creates a dual reporting structure for embedded engineers: they belong to the platform team but work day-to-day with a domain team. This can create loyalty conflicts, performance review confusion, and 'whose work is this?' ambiguity",
+              "The Hybrid is computationally expensive",
+              "The Hybrid is not supported in Microsoft Fabric",
+              "There is no argument against the Hybrid"
+            ],
+            "correctAnswer": "The Hybrid creates a dual reporting structure for embedded engineers: they belong to the platform team but work day-to-day with a domain team. This can create loyalty conflicts, performance review confusion, and 'whose work is this?' ambiguity",
+            "rationale": "The dual-reporting problem has caused embedded-engineer programs to fail at other companies. The student's defense is that explicit ownership boundaries can mitigate the problem."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS10-task-06",
+      "title": "GridUnion's Complete Enterprise Governance Framework",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "This is the CAPSTONE synthesis. The most ambitious task in the entire senior track. The framework integrates contributions from EVERY senior module:\n\n  - FS1 platform architecture\n  - FS2 optimizer expertise\n  - FS3 partition strategy\n  - FS4 join architecture\n  - FS5 schema governance\n  - FS6 execution engine\n  - FS7 storage architecture\n  - FS8 security posture\n  - FS9 streaming platform\n  - FS10 enterprise governance\n\nYour job has two parts: (1) DIAGNOSIS — fill the 4-field template articulating the senior-level mindset that the entire track has been building toward. (2) ARTIFACT — build the enterprise governance framework dict integrating contributions from all 10 senior modules.",
+        "task": "Fill the diagnosis template AND build the enterprise_governance_framework dict.\n\nFor the ARTIFACT: Build a Python dict with these top-level keys (one per senior module's contribution plus the overarching mindset):\n  - platform_architecture: a dict with workspace_pattern ('three_tier_namespace'), four_layer_lakehouse (True), data_product_model ('producer_consumer_contracts')\n  - optimizer_governance: a dict with statistics_refresh ('scheduled_nightly'), plan_regression_detection_enabled (True)\n  - partition_governance: a dict with partition_review_required (True), live_repartition_supported (True)\n  - join_framework: a dict with skew_strategy ('composite_key_redesign_then_pre_aggregation'), bucket_shared_registry (True)\n  - schema_governance: a dict with automated_gates_count (4), notice_periods_days ({'breaking': 90, 'additive': 14})\n  - execution_diagnostic_playbook: a dict with leading_indicators_count (4), tuning_principles_count (3)\n  - storage_architecture: a dict with file_size_enforced_at_write (True), v_order_per_workload (True), cross_region_strategy ('per_country_gold_with_thin_aggregation_layer')\n  - security_posture: a dict with country_isolation ('hybrid_per_country_raw_unified_aggregated'), rls_default_action ('deny'), sp_rotation_days (90)\n  - streaming_platform: a dict with topology ('hybrid_4_country_ingestion_plus_1_routing'), exactly_once ('both_layers_kql_and_delta')\n  - enterprise_governance: a dict with lineage_required_for_high_fanout_changes (True), capacity_planning_horizon_months (12), dr_strategy ('onelake_cross_region_replication'), org_model ('hybrid_centralized_with_embedded_engineers')\n  - mindset: 'platform_architect_not_pipeline_operator'",
+        "validationHint": "The 11 top-level keys represent each senior module plus the overarching mindset. Most values are direct lookups from earlier synthesis tasks (FS2 Task 5 through FS9 Task 5). The keystone is the mindset value: 'platform_architect_not_pipeline_operator' captures the senior-level transition that the entire track culminates in."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS10-06-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: What is the most important shift that distinguishes a senior Fabric platform architect from a mid-level engineer?",
+            "options": [
+              "The senior architect designs the systems that OTHER engineers build on, makes architectural decisions that affect 80 engineers across 12 teams, and reasons about trade-offs that depend on organizational context. Mid-level builds and operates production pipelines for one team; senior designs the platform that makes pipelines easy, reliable, and governable for many teams across years",
+              "Senior engineers know more PySpark functions",
+              "Senior engineers manage larger datasets",
+              "Senior engineers have higher salaries"
+            ],
+            "correctAnswer": "The senior architect designs the systems that OTHER engineers build on, makes architectural decisions that affect 80 engineers across 12 teams, and reasons about trade-offs that depend on organizational context. Mid-level builds and operates production pipelines for one team; senior designs the platform that makes pipelines easy, reliable, and governable for many teams across years",
+            "rationale": "FS10 Lesson 1 captures this exactly: the senior shift is from operating production systems to designing platforms. The 10 senior modules each address a different way that platforms can fail at scale. The senior engineer integrates all of them into a coherent architectural practice that other engineers can build on."
+          },
+          {
+            "id": "FS10-06-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why does the framework include EVERY module's contribution rather than just the most important ones?",
+            "options": [
+              "Each module addresses a distinct platform failure mode at enterprise scale. Optimizer regressions (FS2) cannot be fixed by security policies (FS8); security gaps cannot be fixed by optimizer tuning. The platform must defend against all 10 failure modes simultaneously. Skipping any module leaves a gap that will eventually be exploited at GridUnion's scale",
+              "More keys make the framework look impressive",
+              "Microsoft Fabric requires all modules",
+              "It is arbitrary"
+            ],
+            "correctAnswer": "Each module addresses a distinct platform failure mode at enterprise scale. Optimizer regressions (FS2) cannot be fixed by security policies (FS8); security gaps cannot be fixed by optimizer tuning. The platform must defend against all 10 failure modes simultaneously. Skipping any module leaves a gap that will eventually be exploited at GridUnion's scale",
+            "rationale": "Defense in depth at the platform level: 10 categories of failure require 10 categories of control. Each module is necessary but not sufficient; the integration is the point."
+          },
+          {
+            "id": "FS10-06-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: What is the unifying principle that recurs across every senior module?",
+            "options": [
+              "Replace human discipline with structural enforcement at every layer. FS2 (automated plan regression detection), FS4 (join framework codified), FS5 (automated schema gates), FS6 (memory tuning principles + leading indicators), FS7 (file size enforced at write time), FS8 (Azure Key Vault rotation, RLS deny by default), FS9 (defense-in-depth dedup), FS10 (lineage analysis on every PR). Every senior module's deepest fix has the same shape: make the failure mode structurally impossible, not just discouraged",
+              "Documentation is the most important thing",
+              "Hire more engineers",
+              "Use the latest Fabric features"
+            ],
+            "correctAnswer": "Replace human discipline with structural enforcement at every layer. FS2 (automated plan regression detection), FS4 (join framework codified), FS5 (automated schema gates), FS6 (memory tuning principles + leading indicators), FS7 (file size enforced at write time), FS8 (Azure Key Vault rotation, RLS deny by default), FS9 (defense-in-depth dedup), FS10 (lineage analysis on every PR). Every senior module's deepest fix has the same shape: make the failure mode structurally impossible, not just discouraged",
+            "rationale": "The structural-vs-behavioral enforcement principle is the unifying theme of the entire senior track. The same pattern recurs across every module: humans drift, automation holds. Senior platform engineering is largely the practice of converting behavioral controls into structural ones at every layer of the stack."
+          },
+          {
+            "id": "FS10-06-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: What is the SECOND unifying principle that recurs across the senior track?",
+            "options": [
+              "Selective architectural review focused on the decisions with lasting consequences. FS4 reviews multi-hop pipelines and bucketed tables; FS5 reviews breaking changes and cross-country evolutions; FS7 reviews cross-region shortcuts and unified warehouses; FS8 reviews cross-workspace grants and RLS predicate changes; FS9 reviews new Eventstream topologies; FS10 reviews high-fanout changes. The platform team trusts engineers with reversible local decisions and reviews only the decisions that have platform-wide or long-term consequences",
+              "Review every change",
+              "Review nothing",
+              "Random review"
+            ],
+            "correctAnswer": "Selective architectural review focused on the decisions with lasting consequences. FS4 reviews multi-hop pipelines and bucketed tables; FS5 reviews breaking changes and cross-country evolutions; FS7 reviews cross-region shortcuts and unified warehouses; FS8 reviews cross-workspace grants and RLS predicate changes; FS9 reviews new Eventstream topologies; FS10 reviews high-fanout changes. The platform team trusts engineers with reversible local decisions and reviews only the decisions that have platform-wide or long-term consequences",
+            "rationale": "Selective architectural review is the recurring senior governance pattern across the entire track. The platform team cannot review every change at 80-engineer scale, so review focuses on the irreversible and high-blast-radius decisions. Every senior set has its own selective_review_required_for list."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS10 CAPSTONE SYNTHESIS: GridUnion's complete enterprise governance framework.\n# Combines every senior module's contribution into a single specification.\n\n# YOUR SOLUTION BELOW\n# Build enterprise_governance_framework with 11 top-level keys: one per senior module\n# (FS1 platform_architecture through FS10 enterprise_governance) plus the overarching mindset.\n# Reference Task 5 from each previous senior practice set for the values.\n\nenterprise_governance_framework = {\n    # Fill in 11 keys integrating modules FS1-FS10 plus the senior mindset\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(enterprise_governance_framework, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS10-06-A1",
+          "description": "enterprise_governance_framework has all 11 required top-level keys",
+          "check": "set(enterprise_governance_framework.keys()) >= {'platform_architecture', 'optimizer_governance', 'partition_governance', 'join_framework', 'schema_governance', 'execution_diagnostic_playbook', 'storage_architecture', 'security_posture', 'streaming_platform', 'enterprise_governance', 'mindset'}"
+        },
+        {
+          "id": "FS10-06-A2",
+          "description": "schema_governance has automated_gates_count=4 and the correct notice periods (matches FS5)",
+          "check": "enterprise_governance_framework['schema_governance']['automated_gates_count'] == 4 and enterprise_governance_framework['schema_governance']['notice_periods_days']['breaking'] == 90 and enterprise_governance_framework['schema_governance']['notice_periods_days']['additive'] == 14"
+        },
+        {
+          "id": "FS10-06-A3",
+          "description": "join_framework has composite key skew strategy and shared bucket registry (matches FS4)",
+          "check": "enterprise_governance_framework['join_framework']['skew_strategy'] == 'composite_key_redesign_then_pre_aggregation' and enterprise_governance_framework['join_framework']['bucket_shared_registry'] == True"
+        },
+        {
+          "id": "FS10-06-A4",
+          "description": "execution_diagnostic_playbook has 4 leading indicators and 3 tuning principles (matches FS6)",
+          "check": "enterprise_governance_framework['execution_diagnostic_playbook']['leading_indicators_count'] == 4 and enterprise_governance_framework['execution_diagnostic_playbook']['tuning_principles_count'] == 3"
+        },
+        {
+          "id": "FS10-06-A5",
+          "description": "storage_architecture has write-time file size enforcement and per-country gold strategy (matches FS7)",
+          "check": "enterprise_governance_framework['storage_architecture']['file_size_enforced_at_write'] == True and enterprise_governance_framework['storage_architecture']['v_order_per_workload'] == True and enterprise_governance_framework['storage_architecture']['cross_region_strategy'] == 'per_country_gold_with_thin_aggregation_layer'"
+        },
+        {
+          "id": "FS10-06-A6",
+          "description": "security_posture has hybrid country isolation, deny by default, and 90-day SP rotation (matches FS8)",
+          "check": "enterprise_governance_framework['security_posture']['country_isolation'] == 'hybrid_per_country_raw_unified_aggregated' and enterprise_governance_framework['security_posture']['rls_default_action'] == 'deny' and enterprise_governance_framework['security_posture']['sp_rotation_days'] == 90"
+        },
+        {
+          "id": "FS10-06-A7",
+          "description": "streaming_platform has hybrid topology and defense-in-depth dedup (matches FS9)",
+          "check": "enterprise_governance_framework['streaming_platform']['topology'] == 'hybrid_4_country_ingestion_plus_1_routing' and enterprise_governance_framework['streaming_platform']['exactly_once'] == 'both_layers_kql_and_delta'"
+        },
+        {
+          "id": "FS10-06-A8",
+          "description": "enterprise_governance has 12-month capacity horizon, OneLake DR, and hybrid org model",
+          "check": "enterprise_governance_framework['enterprise_governance']['capacity_planning_horizon_months'] == 12 and enterprise_governance_framework['enterprise_governance']['dr_strategy'] == 'onelake_cross_region_replication' and enterprise_governance_framework['enterprise_governance']['org_model'] == 'hybrid_centralized_with_embedded_engineers'"
+        },
+        {
+          "id": "FS10-06-A9",
+          "description": "enterprise_governance has lineage_required_for_high_fanout_changes=True (the FS10 Task 1 lesson)",
+          "check": "enterprise_governance_framework['enterprise_governance']['lineage_required_for_high_fanout_changes'] == True"
+        },
+        {
+          "id": "FS10-06-A10",
+          "description": "platform_architecture has the three-tier namespace, four-layer lakehouse, and data product model",
+          "check": "enterprise_governance_framework['platform_architecture']['workspace_pattern'] == 'three_tier_namespace' and enterprise_governance_framework['platform_architecture']['four_layer_lakehouse'] == True and enterprise_governance_framework['platform_architecture']['data_product_model'] == 'producer_consumer_contracts'"
+        },
+        {
+          "id": "FS10-06-A11",
+          "description": "MINDSET KEYSTONE: mindset is 'platform_architect_not_pipeline_operator' — the senior-level promise that the entire track culminates in",
+          "check": "enterprise_governance_framework['mindset'] == 'platform_architect_not_pipeline_operator'"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (11 code checks, 50% weight). The 11 assertions span all 10 senior modules' contributions plus the mindset key. The keystone is A11 (mindset value) — students who fill the technical fields correctly but skip the mindset key have not internalized that the technical practices flow from a deeper change in how the engineer thinks about systems.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "FS1 — Platform architecture with three-tier namespace, four-layer lakehouse, and data product model",
+          "FS2 — Catalyst optimizer expertise with plan regression detection",
+          "FS3 — Partition strategy with live repartitioning capability",
+          "FS4 — Join framework with composite key skew strategy and shared bucket registry",
+          "FS5 — Schema governance with 4 automated gates and asymmetric notice periods",
+          "FS6 — Execution diagnostic playbook with leading indicators and tuning principles",
+          "FS7 — Storage architecture with write-time enforcement and per-country residency",
+          "FS8 — Security posture with hybrid country isolation and Azure Key Vault rotation",
+          "FS9 — Streaming platform with hybrid topology and defense-in-depth dedup",
+          "FS10 — Enterprise governance with capacity planning, DR, and the hybrid org model",
+          "The senior mindset that integrates all 10 modules"
+        ],
+        "minimumConceptCount": 11,
+        "rationale": "This is the most ambitious synthesis in the entire senior track. It integrates 11 concepts (all 10 senior modules plus the overarching mindset) into a single framework. The keystone is A11 (mindset value) — students who fill the technical fields correctly but skip the mindset key have not internalized that the technical practices flow from a deeper change in how the engineer thinks about systems. The entire senior track culminates in this one synthesis."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": false,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 11,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "tradeoffTasksHaveCompetingOptions": true,
+    "designReviewHasSubtleNotTextbookIssues": true,
+    "answerRangesDocumented": true,
+    "calibrationNotes": "Capstone set, the most ambitious in the senior track. 6 tasks at 110 minutes — just under the 120 hard ceiling. The synthesis at 20 minutes pulls from all 10 modules. single_module_scope is intentionally False because the capstone is the documented exception per the concept plan.",
+    "theoryPracticeBoundary": "The theory teaches data lineage, impact analysis, multi-capacity planning, platform SLA governance, incident management, data quality at scale, deprecation, team structures, DR, and the enterprise governance synthesis. The practice tests application: Task 1 traces a real cascading failure through the change management process. Task 2 builds a multi-capacity forecast plan. Task 3 chooses a DR strategy. Task 4 reviews the team structure. Task 5 chooses an organizational model. Task 6 synthesizes contributions from all 10 senior modules.",
+    "datasetNotes": "No datasets — pure governance design. Same as the FI10 capstone in mid-level."
+  }
+}

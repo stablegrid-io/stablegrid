@@ -23,7 +23,7 @@ export function SolidButton({
 }: SolidButtonProps) {
   return (
     <button
-      className={`font-headline font-black text-xs py-4 px-6 tracking-widest uppercase active:scale-[0.98] transition-all ${colorStyles[color]} ${fullWidth ? 'w-full' : ''} ${className}`}
+      className={`font-black text-xs py-4 px-6 tracking-widest uppercase active:scale-[0.98] transition-all ${colorStyles[color]} ${fullWidth ? 'w-full' : ''} ${className}`}
       {...props}
     >
       {children}

@@ -1,0 +1,17 @@
+meter_id,customer_type,substation_id
+M-0001,residential,SUB-01
+M-0002,commercial,SUB-01
+M-0003,residential,SUB-02
+M-0007,residential,SUB-03
+M-0008,commercial,SUB-03
+M-0009,residential,SUB-04
+M-0013,residential,SUB-05
+M-0014,industrial,SUB-05
+M-0015,residential,SUB-06
+M-0019,commercial,SUB-07
+M-0020,residential,SUB-07
+M-0021,residential,SUB-08
+M-0005,residential,SUB-02
+M-0011,residential,SUB-04
+M-0017,residential,SUB-06
+M-0023,industrial,SUB-08

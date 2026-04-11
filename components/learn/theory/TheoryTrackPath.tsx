@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, Lock, Zap, MapPin, Cpu, Calendar, FlaskConical, ArrowRight, Layers, Clock } from 'lucide-react';
+import { ArrowLeft, Check, Lock, Zap, BookOpen, FlaskConical, Layers, Clock } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { getTrackConceptMeta } from '@/data/learn/theory/trackConceptMeta';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
@@ -20,19 +20,21 @@ import type {
   ServerTheoryModuleProgressSnapshot
 } from '@/lib/learn/serverTheoryProgress';
 
+/* ── Types ──────────────────────────────────────────────────────────────────── */
+
 interface TheoryTrackPathProps {
   doc: TheoryDoc;
   track: TheoryTrackSummary;
   completedChapterIds: string[];
   chapterProgressById?: Record<string, ServerTheoryChapterProgressSnapshot>;
   moduleProgressById?: Record<string, ServerTheoryModuleProgressSnapshot>;
-  /** Practice sets to show after theory nodes in the same tree */
   practiceSets?: PracticeSet[];
-  /** Base path for practice set links (e.g. /operations/practice/pyspark/junior) */
   practiceBasePath?: string;
 }
 
 type ModuleStatus = 'completed' | 'active' | 'available' | 'locked';
+
+/* ── Helpers ────────────────────────────────────────────────────────────────── */
 
 const parseRouteQuery = (route: string) => {
   const [path, query = ''] = route.split('?');
@@ -40,555 +42,374 @@ const parseRouteQuery = (route: string) => {
 };
 
 const buildModuleHref = ({
-  topic,
-  trackSlug,
-  chapterId,
-  currentLessonId,
-  lastVisitedRoute
+  topic, trackSlug, chapterId, currentLessonId, lastVisitedRoute
 }: {
-  topic: string;
-  trackSlug: string;
-  chapterId: string;
-  currentLessonId: string | null;
-  lastVisitedRoute: string | null;
+  topic: string; trackSlug: string; chapterId: string;
+  currentLessonId: string | null; lastVisitedRoute: string | null;
 }) => {
-  const fallbackParams = new URLSearchParams();
-  fallbackParams.set('chapter', chapterId);
-  if (currentLessonId) {
-    fallbackParams.set('lesson', currentLessonId);
-  }
-
-  const fallbackHref = `/learn/${topic}/theory/${trackSlug}?${fallbackParams.toString()}`;
-  if (typeof lastVisitedRoute !== 'string') {
-    return fallbackHref;
-  }
-
-  const theoryPrefix = `/learn/${topic}/theory/`;
-  if (!lastVisitedRoute.startsWith(theoryPrefix)) {
-    return fallbackHref;
-  }
-
+  const fp = new URLSearchParams();
+  fp.set('chapter', chapterId);
+  if (currentLessonId) fp.set('lesson', currentLessonId);
+  const fallback = `/learn/${topic}/theory/${trackSlug}?${fp.toString()}`;
+  if (typeof lastVisitedRoute !== 'string') return fallback;
+  const prefix = `/learn/${topic}/theory/`;
+  if (!lastVisitedRoute.startsWith(prefix)) return fallback;
   const { path, params } = parseRouteQuery(lastVisitedRoute);
-  if (params.get('chapter') !== chapterId) {
-    return fallbackHref;
-  }
-
-  const lessonFromRoute = params.get('lesson');
-  if (!lessonFromRoute && currentLessonId) {
-    params.set('lesson', currentLessonId);
-  }
-
-  const query = params.toString();
-  return query ? `${path}?${query}` : path;
+  if (params.get('chapter') !== chapterId) return fallback;
+  if (!params.get('lesson') && currentLessonId) params.set('lesson', currentLessonId);
+  const q = params.toString();
+  return q ? `${path}?${q}` : path;
 };
 
 const stripModulePrefix = (title: string) =>
   title.replace(/^module\s*\d+\s*:\s*/i, '').trim();
 
+/* ── Track accent colours ───────────────────────────────────────────────────── */
+
 const TRACK_LEVEL_ACCENT: Record<string, { color: string; rgb: string }> = {
-  junior: { color: '#99f7ff', rgb: '153,247,255' },
-  mid: { color: '#ffc965', rgb: '255,201,101' },
+  junior: { color: '#f0f0f3', rgb: '240,240,243' },
+  mid:    { color: '#ffc965', rgb: '255,201,101' },
   senior: { color: '#ff716c', rgb: '255,113,108' },
 };
 
 const getTrackAccent = (slug: string) =>
   TRACK_LEVEL_ACCENT[slug] ?? TRACK_LEVEL_ACCENT.junior;
 
+/* ── Category eyebrows for theory nodes ─────────────────────────────────────── */
+
+const THEORY_EYEBROWS = ['Architecture', 'Processing', 'Optimization', 'Integration', 'Analysis', 'Streaming', 'Governance', 'Deployment', 'Orchestration', 'Migration'];
+const PRACTICE_EYEBROWS = ['Operations', 'Response', 'Simulation', 'Diagnostics', 'Drill', 'Lab', 'Challenge', 'Scenario', 'Assessment', 'Validation'];
+
+/* ── Component ──────────────────────────────────────────────────────────────── */
+
 export const TheoryTrackPath = ({
-  doc,
-  track,
-  completedChapterIds,
-  chapterProgressById = {},
-  moduleProgressById = {},
-  practiceSets = [],
-  practiceBasePath = '',
+  doc, track, completedChapterIds,
+  chapterProgressById = {}, moduleProgressById = {},
+  practiceSets = [], practiceBasePath = '',
 }: TheoryTrackPathProps) => {
   const {
     completedChapterIds: liveCompletedChapterIds,
-    moduleProgressById: liveModuleProgressById
+    moduleProgressById: liveModuleProgressById,
   } = useTheoryModuleProgressSnapshots({
     topic: doc.topic,
     initialCompletedChapterIds: completedChapterIds,
-    initialModuleProgressById: moduleProgressById
+    initialModuleProgressById: moduleProgressById,
   });
+
   const modules = sortModulesByOrder(track.chapters);
-  const topicStyle = getTheoryTopicStyle(doc.topic);
   const ta = getTrackAccent(track.slug);
-  const accentVars = {
-    '--theory-accent': ta.rgb,
-    '--ta-color': ta.color,
-    '--ta-rgb': ta.rgb,
-  } as CSSProperties;
+  const vars = { '--ta-rgb': ta.rgb, '--ta-color': ta.color, '--theory-accent': ta.rgb } as CSSProperties;
   const completedSet = new Set(liveCompletedChapterIds);
   const trackProgress = summarizeTrackLessonProgress({
-    chapters: modules,
-    completedChapterIds: liveCompletedChapterIds,
-    chapterProgressById
-  });
-  const hasAuthoritativeModuleProgress = Object.keys(liveModuleProgressById).length > 0;
-  const hasPersistedProgress =
-    liveCompletedChapterIds.length > 0 ||
-    Object.keys(chapterProgressById).length > 0 ||
-    Object.keys(liveModuleProgressById).length > 0;
-
-  // All modules are unlocked (locking disabled)
-  const unlockedModuleIds = hasAuthoritativeModuleProgress
-    ? new Set<string>(modules.map((m) => m.id))
-    : new Set(modules.map((module) => module.id));
-
-  const baseCards = modules.map((module) => {
-    const moduleProgress = liveModuleProgressById[module.id];
-    const chapterProgress = chapterProgressById[module.id];
-    const isCompleted = moduleProgress
-      ? moduleProgress.isCompleted
-      : completedSet.has(module.id);
-    const lessonsDone = clampLessonProgress(
-      chapterProgress,
-      module.sections.length,
-      isCompleted
-    );
-    const hasAnyProgress = Boolean(
-      lessonsDone > 0 ||
-        moduleProgress?.currentLessonId ||
-        moduleProgress?.lastVisitedRoute ||
-        chapterProgress?.currentLessonId ||
-        chapterProgress?.lastVisitedRoute
-    );
-    const lastActiveAt = moduleProgress?.updatedAt ?? chapterProgress?.lastActiveAt ?? null;
-    const currentLessonId = moduleProgress?.currentLessonId ?? chapterProgress?.currentLessonId ?? null;
-    const lastVisitedRoute =
-      moduleProgress?.lastVisitedRoute ?? chapterProgress?.lastVisitedRoute ?? null;
-
-    return {
-      module,
-      lessonsDone,
-      lessonsTotal: module.sections.length,
-      isCompleted,
-      checkpointMeta: getModuleCheckpointMeta({
-        topic: doc.topic,
-        chapter: module,
-        lessonsRead: lessonsDone,
-        lessonsTotal: module.sections.length,
-        isCompleted
-      }),
-      isUnlocked: unlockedModuleIds.has(module.id),
-      hasAnyProgress,
-      lastActiveAt,
-      href: buildModuleHref({
-        topic: doc.topic,
-        trackSlug: track.slug,
-        chapterId: module.id,
-        currentLessonId,
-        lastVisitedRoute
-      })
-    };
+    chapters: modules, completedChapterIds: liveCompletedChapterIds, chapterProgressById,
   });
 
-  const activeModuleId =
-    [...baseCards]
-      .filter((card) => card.isUnlocked && !card.isCompleted && card.hasAnyProgress)
-      .sort(
-        (left, right) =>
-          new Date(right.lastActiveAt ?? 0).getTime() -
-          new Date(left.lastActiveAt ?? 0).getTime()
-      )[0]?.module.id ??
-    baseCards.find((card) => card.isUnlocked && !card.isCompleted)?.module.id ??
-    baseCards.find((card) => card.isUnlocked)?.module.id ??
-    null;
-
-  const moduleCards = baseCards.map((card) => {
-    const status: ModuleStatus = card.isCompleted
-      ? 'completed'
-      : card.module.id === activeModuleId
-        ? 'active'
-        : !card.isUnlocked
-          ? 'locked'
-          : 'available';
-
-    const progressPct =
-      card.lessonsTotal > 0
-        ? Math.round((card.lessonsDone / card.lessonsTotal) * 100)
-        : 0;
-
-    return {
-      ...card,
-      progressPct,
-      status
-    };
+  /* Build module cards */
+  const moduleCards = modules.map((module) => {
+    const mp = liveModuleProgressById[module.id];
+    const cp = chapterProgressById[module.id];
+    const isCompleted = mp ? mp.isCompleted : completedSet.has(module.id);
+    const lessonsDone = clampLessonProgress(cp, module.sections.length, isCompleted);
+    const hasAny = Boolean(lessonsDone > 0 || mp?.currentLessonId || mp?.lastVisitedRoute || cp?.currentLessonId || cp?.lastVisitedRoute);
+    const href = buildModuleHref({
+      topic: doc.topic, trackSlug: track.slug, chapterId: module.id,
+      currentLessonId: mp?.currentLessonId ?? cp?.currentLessonId ?? null,
+      lastVisitedRoute: mp?.lastVisitedRoute ?? cp?.lastVisitedRoute ?? null,
+    });
+    return { module, lessonsDone, lessonsTotal: module.sections.length, isCompleted, hasAny, href };
   });
 
-  const { totalLessons, completedLessons, completedModules, progressPct: overallProgressPct } =
-    trackProgress;
-  const topicLabel = doc.title.replace(/\s+Modules?$/i, '').trim() || doc.title;
+  const activeId =
+    [...moduleCards].filter((c) => !c.isCompleted && c.hasAny).sort((a, b) =>
+      new Date((liveModuleProgressById[b.module.id]?.updatedAt ?? chapterProgressById[b.module.id]?.lastActiveAt) ?? 0).getTime() -
+      new Date((liveModuleProgressById[a.module.id]?.updatedAt ?? chapterProgressById[a.module.id]?.lastActiveAt) ?? 0).getTime()
+    )[0]?.module.id
+    ?? moduleCards.find((c) => !c.isCompleted)?.module.id
+    ?? null;
+
+  const cards = moduleCards.map((c) => ({
+    ...c,
+    status: (c.isCompleted ? 'completed' : c.module.id === activeId ? 'active' : 'available') as ModuleStatus,
+    progressPct: c.lessonsTotal > 0 ? Math.round((c.lessonsDone / c.lessonsTotal) * 100) : 0,
+  }));
+
+  // Build paired rows: each row has a theory card (left) + optional practice card (right)
+  // Match positionally (1st theory ↔ 1st practice, 2nd ↔ 2nd, etc.) since
+  // moduleIds don't always match across theory/practice (e.g. PSI1 vs PM1).
+  type RowItem = {
+    theory: typeof cards[number];
+    theoryIdx: number;
+    practice: PracticeSet | null;
+    practiceIdx: number;
+  };
+
+  const rows: RowItem[] = cards.map((card, i) => ({
+    theory: card,
+    theoryIdx: i,
+    practice: practiceSets[i] ?? null,
+    practiceIdx: i,
+  }));
+
+  // Any extra practice sets beyond the theory count go as standalone rows
+  const standalonePs = practiceSets.slice(cards.length).map((ps, i) => ({ ps, idx: cards.length + i }));
+
+  const { completedModules, progressPct: overallPct } = trackProgress;
 
   return (
-    <div className="min-h-screen pb-24 lg:pb-8">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mx-auto max-w-6xl" style={accentVars}>
-          <Link
-            href={`/learn/${doc.topic}/theory`}
-            className="mb-8 inline-flex items-center gap-2 font-mono text-[10px] text-on-surface-variant transition-colors hover:text-primary uppercase tracking-widest"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Track Gallery
-          </Link>
+    <div className="min-h-screen pb-24 lg:pb-8" style={vars}>
+      <div className="mx-auto max-w-5xl px-4 py-8">
 
-          {/* Header banner */}
-          {(() => {
-            const conceptMeta = getTrackConceptMeta(doc.topic, track.slug);
-            const filledBars = Math.round((overallProgressPct / 100) * 12);
+        <Link
+          href={`/learn/${doc.topic}/theory`}
+          className="mb-8 inline-flex items-center gap-2 font-mono text-[11px] text-on-surface-variant/50 hover:text-on-surface-variant transition-colors uppercase tracking-widest"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Track Selection
+        </Link>
+
+        {/* ── Title ── */}
+        <div className="text-center mb-16" style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards' }}>
+          <div
+            className="inline-block w-10 h-1.5 mb-6 rounded-full"
+            style={{ backgroundColor: ta.color, boxShadow: `0 0 12px rgba(${ta.rgb},0.5)` }}
+          />
+          <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-on-surface">
+            Learning Path
+          </h1>
+          <p className="mt-3 font-mono text-[12px] tracking-widest text-on-surface-variant/35 uppercase">
+            Master each node to unlock the next stage
+          </p>
+        </div>
+
+        {/* ── Zigzag tree map ── */}
+        <div className="relative">
+          {/* Center vertical connector line */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px hidden md:block"
+            style={{ background: `linear-gradient(to bottom, rgba(${ta.rgb},0.25), rgba(${ta.rgb},0.05))` }}
+          />
+
+          {cards.map((card, i) => {
+            const isLeft = i % 2 === 0;
+            const stagger = i * 70 + 100;
+            const isCompleted = card.status === 'completed';
+            const isActive = card.status === 'active';
+
             return (
-              <header
-                className="relative overflow-hidden rounded-2xl border backdrop-blur-2xl"
-                style={{
-                  animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-                  background: '#050507',
-                  borderColor: `rgba(${ta.rgb},0.15)`,
-                }}
+              <div
+                key={card.module.id}
+                className="relative flex items-center mb-16 md:mb-20"
+                style={{ opacity: 0, animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${stagger}ms forwards` }}
               >
-                {/* Top accent gradient */}
-                <div className="absolute top-0 inset-x-0 h-[2px]" style={{
-                  background: `linear-gradient(90deg, transparent 5%, rgba(${ta.rgb},0.8), transparent 95%)`,
-                }} />
-
-                {/* Ambient glow */}
-                <div className="absolute inset-0 pointer-events-none" style={{
-                  background: `radial-gradient(ellipse at top left, rgba(${ta.rgb},0.1), transparent 50%)`,
-                }} />
-
-                <div className="relative p-8 lg:p-10">
-                  {/* Eyebrow */}
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="h-6 w-6 rounded-lg flex items-center justify-center" style={{ background: `rgba(${ta.rgb},0.2)`, boxShadow: `0 0 12px rgba(${ta.rgb},0.15)` }}>
-                      <Zap className="h-3 w-3" style={{ color: ta.color }} />
-                    </div>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: ta.color }}>
-                      {track.eyebrow ?? 'Theory Track'}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
-                    {/* Left: Title + meta */}
-                    <div className="flex-1 space-y-5">
-                      <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-on-surface">
-                        {track.title || track.label}
-                      </h1>
-
-                      {conceptMeta && (
-                        <p className="max-w-xl text-[13px] leading-relaxed text-on-surface-variant/60">
-                          {conceptMeta.tagline}
-                        </p>
-                      )}
-
-                      {/* Stats row */}
-                      <div className="flex flex-wrap gap-3">
-                        <div className="flex items-center gap-2 rounded-xl px-3 py-1.5" style={{ border: `1px solid rgba(${ta.rgb},0.12)`, background: `rgba(${ta.rgb},0.05)` }}>
-                          <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgba(${ta.rgb},0.5)` }}>Modules</span>
-                          <span className="text-[13px] font-bold text-white">{track.chapterCount}</span>
-                        </div>
-                        <div className="flex items-center gap-2 rounded-xl px-3 py-1.5" style={{ border: `1px solid rgba(${ta.rgb},0.12)`, background: `rgba(${ta.rgb},0.05)` }}>
-                          <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgba(${ta.rgb},0.5)` }}>Duration</span>
-                          <span className="text-[13px] font-bold text-white">
-                            {conceptMeta?.estimatedDuration ?? `${Math.round(track.totalMinutes / 60)}h`}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 rounded-xl px-3 py-1.5" style={{ border: `1px solid rgba(${ta.rgb},0.12)`, background: `rgba(${ta.rgb},0.05)` }}>
-                          <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgba(${ta.rgb},0.5)` }}>Format</span>
-                          <span className="text-[13px] font-bold text-white">Pure Theory</span>
-                        </div>
-                      </div>
-
-                      {/* Concept meta pills */}
-                      {conceptMeta && (
-                        <div className="flex flex-wrap gap-x-5 gap-y-2">
-                          <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant/50">
-                            <MapPin className="h-3 w-3 shrink-0" style={{ color: `rgba(${ta.rgb},0.7)` }} />
-                            <span>{conceptMeta.scenario}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant/50">
-                            <Cpu className="h-3 w-3 shrink-0" style={{ color: `rgba(${ta.rgb},0.7)` }} />
-                            <span>{conceptMeta.targetTechnology}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Right: Progress */}
-                    <div className="w-full lg:w-72 shrink-0 space-y-3">
-                      <div className="rounded-xl p-4" style={{ border: `1px solid rgba(${ta.rgb},0.15)`, background: `rgba(${ta.rgb},0.04)` }}>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgba(${ta.rgb},0.6)` }}>Progress</span>
-                          <span className="text-xl font-bold" style={{ color: ta.color }}>
-                            {overallProgressPct}<span className="text-[11px] font-normal text-on-surface-variant/30">%</span>
-                          </span>
-                        </div>
-
-                        {/* Segmented progress bar */}
-                        <div className="flex gap-[3px]">
-                          {Array.from({ length: 12 }, (_, i) => (
-                            <div
-                              key={i}
-                              className="flex-1 h-2 rounded-[2px] transition-all duration-500"
-                              style={{
-                                backgroundColor: i < filledBars
-                                  ? `rgba(${ta.rgb},${0.5 + (i / 12) * 0.4})`
-                                  : `rgba(${ta.rgb},0.06)`,
-                                boxShadow: i === filledBars - 1 && filledBars > 0
-                                  ? `0 0 6px rgba(${ta.rgb},0.4)`
-                                  : 'none',
-                                transitionDelay: `${i * 40}ms`,
-                              }}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="mt-3 flex justify-between text-[10px] text-on-surface-variant/40">
-                          <span>{completedModules} completed</span>
-                          <span>{track.chapterCount - completedModules} remaining</span>
-                        </div>
-                      </div>
-
-                      {conceptMeta && (
-                        <p className="text-[10px] text-on-surface-variant/20 text-right">
-                          {conceptMeta.version}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </header>
-            );
-          })()}
-
-          {/* ── Dual Tree Maps ─────────────────────────────────────── */}
-          <section className="mt-10">
-            <div className={`mx-auto max-w-6xl ${practiceSets.length > 0 ? 'grid grid-cols-1 lg:grid-cols-2 gap-8' : ''}`}>
-
-              {/* ── Theory Tree ──────────────────────────────────────── */}
-              <div className="relative flex flex-col items-center">
-                {/* Section label */}
-                <div className="flex items-center gap-2 mb-8">
-                  <Zap className="h-4 w-4" style={{ color: ta.color }} />
-                  <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ta.color }}>
-                    Theory
-                  </span>
-                  <span className="font-mono text-[11px] text-on-surface-variant/30">
-                    {modules.length} modules
-                  </span>
-                </div>
-
-                {/* Conduit line */}
-                <div
-                  className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-12 bottom-0 w-px z-0"
-                  aria-hidden="true"
-                  style={{ background: `linear-gradient(to bottom, rgb(var(--theory-accent)), rgba(var(--theory-accent),0.4), transparent)` }}
-                />
-
-                <div className="space-y-0 w-full">
-                  {moduleCards.map((card, index) => {
-                  const isLeft = index % 2 !== 0;
-                  const title = stripModulePrefix(card.module.title) || card.module.title;
-                  const isCompleted = card.status === 'completed';
-                  const isLocked = card.status === 'locked';
-                  const nodeNumber = String(index + 1).padStart(2, '0');
-
-                  const cardContent = (
-                    <div className={isLeft ? 'text-right' : ''}>
-                      <div className="font-mono text-[10px] mb-2" style={{ color: ta.color }}>
-                        [SKILL_NODE_{nodeNumber}]
-                      </div>
-                      <h3 className="font-headline text-lg font-bold mb-4 tracking-tight">
-                        {title}
-                      </h3>
-                      <div className={`flex items-center font-mono text-[11px] text-on-surface-variant gap-4 ${
-                        isLeft ? 'justify-end flex-row-reverse' : ''
-                      }`}>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[14px]">&#128214;</span>
-                          {card.lessonsDone}/{card.lessonsTotal} LESSONS
-                        </div>
-                        {card.module.totalMinutes > 0 && (
-                          <div className="flex items-center gap-1">
-                            <span className="text-[14px]">&#9201;</span>
-                            {card.module.totalMinutes} MIN
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-
-                  return (
-                    <div key={card.module.id} className="relative w-full mb-16 flex justify-center">
-                      {/* Center node */}
-                      <div
-                        className="absolute left-1/2 -translate-x-1/2 top-10 w-8 h-8 bg-[#0c0e10] border-2 z-10 flex items-center justify-center"
-                        style={{
-                          borderColor: isCompleted ? ta.color : isLocked ? undefined : `rgba(${ta.rgb},0.5)`,
-                          boxShadow: isCompleted ? `0 0 15px rgba(${ta.rgb},0.5)` : undefined
-                        }}
-                      >
-                        {isCompleted ? (
-                          <div className="w-3 h-3" style={{ backgroundColor: ta.color }} />
-                        ) : isLocked ? (
-                          <Lock className="h-3 w-3 text-outline-variant" />
-                        ) : (
-                          <div className="w-2 h-2" style={{ backgroundColor: `rgba(${ta.rgb},0.6)` }} />
-                        )}
-                      </div>
-
-                      {/* Module card */}
-                      {isLocked ? (
-                        <div
-                          className={`relative w-full md:w-[260px] glass-panel border border-outline-variant/30 p-5 opacity-50 ${
-                            isLeft ? 'md:mr-[300px]' : 'md:ml-[300px]'
-                          }`}
-                        >
-                          {isLeft ? (
-                            <div className="hidden md:block absolute -right-3 top-8 w-3 h-px bg-outline-variant/40" />
-                          ) : (
-                            <div className="hidden md:block absolute -left-3 top-8 w-3 h-px bg-outline-variant/40" />
-                          )}
-                          {cardContent}
-                        </div>
-                      ) : (
-                        <Link
-                          href={card.href}
-                          className={`group relative w-full md:w-[260px] glass-panel border p-5 transition-all ${
-                            isCompleted ? '' : 'border-outline-variant/30'
-                          } ${isLeft ? 'md:mr-[300px]' : 'md:ml-[300px]'}`}
-                          style={{
-                            borderColor: isCompleted ? `rgba(${ta.rgb},0.3)` : undefined,
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = ta.color; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = isCompleted ? `rgba(${ta.rgb},0.3)` : ''; }}
-                        >
-                          {isLeft ? (
-                            <div className="hidden md:block absolute -right-3 top-8 w-3 h-px" style={{ backgroundColor: `rgba(${ta.rgb},0.4)` }} />
-                          ) : (
-                            <div className="hidden md:block absolute -left-3 top-8 w-3 h-px" style={{ backgroundColor: `rgba(${ta.rgb},0.4)` }} />
-                          )}
-                          {cardContent}
-                        </Link>
-                      )}
-                    </div>
-                  );
-                })}
-                </div>
-
-                {/* Theory mastery node */}
-                <div className="relative w-full flex flex-col items-center mt-8 mb-4">
+                {/* Center connector dot */}
+                <div className="absolute left-1/2 -translate-x-1/2 z-20 hidden md:flex items-center justify-center">
                   <div
-                    className="w-12 h-12 border-3 flex items-center justify-center bg-[#0c0e10] z-10"
+                    className="w-4 h-4 rounded-full"
                     style={{
-                      borderColor: overallProgressPct >= 100 ? ta.color : undefined,
-                      boxShadow: overallProgressPct >= 100 ? `0 0 20px rgba(${ta.rgb},0.3)` : undefined
+                      backgroundColor: isCompleted ? ta.color : '#0c0e10',
+                      border: `2px solid ${isCompleted ? ta.color : isActive ? ta.color : 'rgba(255,255,255,0.12)'}`,
+                      boxShadow: isCompleted ? `0 0 12px rgba(${ta.rgb},0.6)` : isActive ? `0 0 8px rgba(${ta.rgb},0.3)` : 'none',
                     }}
-                  >
-                    <Check className="h-6 w-6" style={{ color: overallProgressPct >= 100 ? ta.color : undefined }} />
-                  </div>
-                  <p className="mt-3 font-mono text-[10px] text-on-surface-variant/40 uppercase tracking-widest">
-                    {overallProgressPct >= 100 ? 'Theory Complete' : `${overallProgressPct}% Complete`}
-                  </p>
+                  />
+                </div>
+
+                {/* Card — alternating left/right */}
+                <div className={`w-full md:w-[calc(50%-32px)] ${isLeft ? 'md:mr-auto' : 'md:ml-auto'}`}>
+                  <TheoryNode card={card} idx={i} ta={ta} topic={doc.topic} />
                 </div>
               </div>
+            );
+          })}
 
-              {/* ── Practice Tree ─────────────────────────────────────── */}
-              {practiceSets.length > 0 && (
-                <div className="relative flex flex-col items-center">
-                  {/* Section label */}
-                  <div className="flex items-center gap-2 mb-8">
-                    <FlaskConical className="h-4 w-4" style={{ color: ta.color }} />
-                    <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ta.color }}>
-                      Practice
-                    </span>
-                    <span className="font-mono text-[11px] text-on-surface-variant/30">
-                      {practiceSets.length} sets
-                    </span>
-                  </div>
-
-                  {/* Conduit line */}
-                  <div
-                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-12 bottom-0 w-px z-0"
-                    aria-hidden="true"
-                    style={{ background: `linear-gradient(to bottom, rgb(var(--theory-accent)), rgba(var(--theory-accent),0.4), transparent)` }}
-                  />
-
-                  <div className="space-y-0 w-full">
-                    {practiceSets.map((ps, psIdx) => {
-                      const isLeft = psIdx % 2 !== 0;
-                      const modulePrefix = ps.metadata?.moduleId?.replace('module-', '') ?? '';
-                      const taskCount = ps.tasks?.length ?? 0;
-                      const duration = ps.tasks?.reduce((s: number, t: { estimatedMinutes?: number }) => s + (t.estimatedMinutes ?? 0), 0) ?? 0;
-                      const nodeNumber = String(psIdx + 1).padStart(2, '0');
-
-                      return (
-                        <div key={ps.metadata.moduleId} className="relative w-full mb-16 flex justify-center">
-                          {/* Center node */}
-                          <div
-                            className="absolute left-1/2 -translate-x-1/2 top-10 w-8 h-8 bg-[#0c0e10] border-2 z-10 flex items-center justify-center"
-                            style={{ borderColor: `rgba(${ta.rgb},0.5)` }}
-                          >
-                            <FlaskConical className="h-3 w-3" style={{ color: `rgba(${ta.rgb},0.6)` }} />
-                          </div>
-
-                          {/* Practice set card */}
-                          <Link
-                            href={`${practiceBasePath}?practice=${ps.metadata?.moduleId ?? ''}`}
-                            className={`group relative w-full md:w-[260px] glass-panel border border-outline-variant/30 p-5 transition-all ${
-                              isLeft ? 'md:mr-[300px]' : 'md:ml-[300px]'
-                            }`}
-                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = ta.color; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = ''; }}
-                          >
-                            {isLeft ? (
-                              <div className="hidden md:block absolute -right-3 top-8 w-3 h-px" style={{ backgroundColor: `rgba(${ta.rgb},0.4)` }} />
-                            ) : (
-                              <div className="hidden md:block absolute -left-3 top-8 w-3 h-px" style={{ backgroundColor: `rgba(${ta.rgb},0.4)` }} />
-                            )}
-                            <div className={isLeft ? 'text-right' : ''}>
-                              <div className="font-mono text-[10px] mb-2" style={{ color: ta.color }}>
-                                [PRACTICE_{nodeNumber}]
-                              </div>
-                              <h3 className="font-headline text-lg font-bold mb-3 tracking-tight">
-                                {ps.title.replace(/^Practice Set \d+\s*—?\s*/i, '')}
-                              </h3>
-                              <p className="text-[12px] leading-relaxed text-on-surface-variant/45 mb-4 line-clamp-2">
-                                {ps.description}
-                              </p>
-                              <div className={`flex items-center font-mono text-[11px] text-on-surface-variant gap-4 ${
-                                isLeft ? 'justify-end flex-row-reverse' : ''
-                              }`}>
-                                <div className="flex items-center gap-1">
-                                  <Layers className="h-3 w-3" />
-                                  {taskCount} TASKS
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {duration} MIN
-                                </div>
-                              </div>
-                            </div>
-                          </Link>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Practice mastery node */}
-                  <div className="relative w-full flex flex-col items-center mt-8 mb-4">
-                    <div className="w-12 h-12 border-3 flex items-center justify-center bg-[#0c0e10] z-10 border-outline-variant/20">
-                      <FlaskConical className="h-6 w-6 text-outline-variant" />
-                    </div>
-                    <p className="mt-3 font-mono text-[10px] text-on-surface-variant/40 uppercase tracking-widest">
-                      {practiceSets.length} Sets Available
-                    </p>
-                  </div>
-                </div>
-              )}
+          {/* ── Mastery node ── */}
+          <div
+            className="relative flex justify-center py-12"
+            style={{ opacity: 0, animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${cards.length * 70 + 200}ms forwards` }}
+          >
+            <div
+              className="w-14 h-14 flex items-center justify-center z-10"
+              style={{
+                background: overallPct >= 100 ? `rgba(${ta.rgb},0.15)` : '#0c0e10',
+                border: `3px solid ${overallPct >= 100 ? ta.color : 'rgba(255,255,255,0.06)'}`,
+                boxShadow: overallPct >= 100 ? `0 0 24px rgba(${ta.rgb},0.5), 0 0 8px rgba(${ta.rgb},0.3)` : 'none',
+                borderRadius: '50%',
+              }}
+            >
+              <Check className="h-6 w-6" style={{ color: overallPct >= 100 ? ta.color : 'rgba(255,255,255,0.1)' }} />
             </div>
-          </section>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+/* ── Theory Node Card ───────────────────────────────────────────────────────── */
+
+function TheoryNode({ card, idx, ta, topic }: {
+  card: { module: any; lessonsDone: number; lessonsTotal: number; isCompleted: boolean; status: ModuleStatus; progressPct: number; href: string };
+  idx: number;
+  ta: { color: string; rgb: string }; topic: string;
+}) {
+  const title = stripModulePrefix(card.module.title) || card.module.title;
+  const desc = card.module.description || '';
+  const isCompleted = card.status === 'completed';
+  const isActive = card.status === 'active';
+  const eyebrow = THEORY_EYEBROWS[idx % THEORY_EYEBROWS.length];
+
+  const ctaLabel = isCompleted ? 'Review Theory' : isActive ? 'Resume Theory' : 'Begin Theory';
+
+  return (
+    <Link href={card.href} className="group block h-full">
+          <div
+            className="relative p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
+            style={{
+              background: '#111416',
+              border: `1px solid ${isCompleted ? `rgba(${ta.rgb},0.25)` : 'rgba(255,255,255,0.06)'}`,
+              boxShadow: isCompleted ? `0 0 30px rgba(${ta.rgb},0.08)` : 'none',
+              borderRadius: '22px',
+            }}
+          >
+            {/* Top row: eyebrow + icon */}
+            <div className="flex items-start justify-between mb-4">
+              <span
+                className="font-mono text-[10px] font-bold tracking-widest uppercase"
+                style={{ color: ta.color }}
+              >
+                {eyebrow}
+              </span>
+              <BookOpen className="h-5 w-5" style={{ color: isCompleted ? ta.color : 'rgba(255,255,255,0.12)' }} />
+            </div>
+
+            {/* Title */}
+            <h3 className="text-xl font-bold tracking-tight text-on-surface mb-4">
+              {title}
+            </h3>
+
+            {/* Description */}
+            {desc && (
+              <p className="text-[12px] leading-relaxed text-on-surface-variant/40 mb-5 line-clamp-2">{desc}</p>
+            )}
+
+            {/* Progress bar */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-mono text-[10px] text-on-surface-variant/35 tracking-wide">Module Progress</span>
+                <span className="font-mono text-[13px] font-bold" style={{ color: ta.color }}>{card.progressPct}%</span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${card.progressPct}%`,
+                    backgroundColor: ta.color,
+                    boxShadow: card.progressPct > 0 ? `0 0 8px rgba(${ta.rgb},0.5)` : 'none',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* CTA button */}
+            {isActive ? (
+              <div
+                className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
+                style={{
+                  backgroundColor: ta.color,
+                  color: '#0c0e10',
+                  borderRadius: '14px',
+                  boxShadow: `0 0 20px rgba(${ta.rgb},0.3), 0 0 50px rgba(${ta.rgb},0.12)`,
+                }}
+              >
+                {ctaLabel}
+              </div>
+            ) : (
+              <div
+                className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
+                style={{
+                  border: `1px solid ${isCompleted ? `rgba(${ta.rgb},0.2)` : 'rgba(255,255,255,0.06)'}`,
+                  color: isCompleted ? ta.color : 'rgba(255,255,255,0.3)',
+                  borderRadius: '14px',
+                  backgroundColor: isCompleted ? `rgba(${ta.rgb},0.04)` : 'transparent',
+                }}
+              >
+                {ctaLabel}
+              </div>
+            )}
+          </div>
+    </Link>
+  );
+}
+
+/* ── Practice Node Card ─────────────────────────────────────────────────────── */
+
+function PracticeNode({ ps, idx, ta, practiceBasePath }: {
+  ps: PracticeSet; idx: number;
+  ta: { color: string; rgb: string }; practiceBasePath: string;
+}) {
+  const taskCount = ps.tasks?.length ?? 0;
+  const duration = ps.tasks?.reduce((s: number, t: { estimatedMinutes?: number }) => s + (t.estimatedMinutes ?? 0), 0) ?? 0;
+  const practiceTitle = ps.title.replace(/^Practice Set \d+\s*—?\s*/i, '');
+  const eyebrow = PRACTICE_EYEBROWS[idx % PRACTICE_EYEBROWS.length];
+
+  return (
+    <Link
+      href={`${practiceBasePath}?practice=${ps.metadata?.moduleId ?? ''}`}
+      className="group block h-full"
+    >
+          <div
+            className="relative p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
+            style={{
+              background: '#111416',
+              border: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '22px',
+            }}
+          >
+            {/* Top row: eyebrow + icon */}
+            <div className="flex items-start justify-between mb-4">
+              <span
+                className="font-mono text-[10px] font-bold tracking-widest uppercase"
+                style={{ color: ta.color }}
+              >
+                {eyebrow}
+              </span>
+              <FlaskConical className="h-5 w-5" style={{ color: 'rgba(255,255,255,0.12)' }} />
+            </div>
+
+            {/* Title */}
+            <h3 className="text-xl font-bold tracking-tight text-on-surface mb-3">
+              {practiceTitle}
+            </h3>
+
+            {/* Stats row */}
+            <div className="flex gap-3 mb-5">
+              <div className="flex-1 p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '14px' }}>
+                <span className="block font-mono text-[9px] text-on-surface-variant/30 uppercase tracking-widest mb-1">Tasks</span>
+                <span className="text-lg font-bold text-on-surface">{taskCount}</span>
+              </div>
+              <div className="flex-1 p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '14px' }}>
+                <span className="block font-mono text-[9px] text-on-surface-variant/30 uppercase tracking-widest mb-1">Duration</span>
+                <span className="text-lg font-bold text-on-surface">{duration} min</span>
+              </div>
+            </div>
+
+            {/* Description */}
+            <p className="text-[12px] leading-relaxed text-on-surface-variant/35 mb-5 line-clamp-2">
+              {ps.description}
+            </p>
+
+            {/* CTA */}
+            <div
+              className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
+              style={{
+                border: `1px solid rgba(${ta.rgb},0.2)`,
+                color: ta.color,
+                borderRadius: '14px',
+                backgroundColor: `rgba(${ta.rgb},0.04)`,
+              }}
+            >
+              Engage Lab
+            </div>
+          </div>
+    </Link>
+  );
+}

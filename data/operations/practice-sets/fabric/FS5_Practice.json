@@ -1,0 +1,466 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FS5 — Build GridUnion's Schema Governance System",
+  "description": "Design the schema registry table for 400+ production schemas, write the data contract for the Silver meter table, choose a cross-country schema evolution strategy when the German regulator requires a column other countries don't need, review a producer's proposed breaking change, and synthesize the complete schema governance system. Senior-level practice in cross-team schema governance, contract design, and regulatory schema evolution at 12-team scale.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+",
+  "metadata": {
+    "moduleId": "module-FS5",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 90,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "GridUnion Continental",
+    "scenarioScale": "5M meters, 30 regions, 4 countries (DE/FR/NL/LU), 12 teams, 80 engineers, 500+ pipelines, 400+ registered schemas, 4 regulatory regimes",
+    "modulePhase": "extensibility",
+    "taskTypeMix": {
+      "tradeoffAnalysis": 1,
+      "designReview": 1,
+      "rootCauseAnalysis": 0,
+      "designArtifact": 2,
+      "architecturalSynthesis": 1
+    },
+    "calibrationNotes": "Senior practice set, the most design-artifact-heavy in the senior track. Two design artifact tasks (the section 6.2 max) plus one synthesis with combined grading. The trade-off task (Task 3) addresses the cross-country regulatory tension where one country's regulator requires a column that fragments the unified schema. The design review task (Task 4) tests the senior-level breaking change review skill: identifying contract violations beyond the syntactic schema diff. Multiple defensible answers documented in acceptable_alternatives metadata."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-FS5-task-01",
+      "title": "Design the Schema Registry Table",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's platform team is building a centralized schema registry as a Delta table in the platform workspace. Every production Lakehouse table and Warehouse table has at least one entry in the registry; tables that have evolved over time have multiple version rows. The registry is the source of truth for 'what schema does this table have right now' AND 'what schema did this table have last quarter' for audit purposes.\n\nFI9 Lesson 7 (mid-level) introduced certification metadata. FS5 extends this to a full schema versioning system at GridUnion's 400+ schema scale.\n\n  REQUIRED CAPABILITIES:\n  - Look up the current registered schema for any production table by table name + workspace\n  - Reconstruct the schema as it was on any historical date (audit trail)\n  - Identify the owner team for any schema (cross-team contact for changes)\n  - Track the version number that monotonically increases per table\n  - Track whether the schema is currently ACTIVE, DEPRECATED, or RETIRED\n  - Store the schema definition itself as JSON for full reconstructibility\n  - Track when each schema was registered and by whom\n  - Link to the data contract document (Task 2 will produce one)\n\n  CONSTRAINTS:\n  - The registry itself must follow GridUnion's own conventions (it's a production Delta table)\n  - Primary key must enforce uniqueness of (table_workspace, table_name, version)\n  - Status must be a constrained set of values: ACTIVE, DEPRECATED, RETIRED\n  - Schema JSON should be queryable via Spark SQL JSON functions for impact analysis queries",
+        "task": "Build a Python dict called registry_table_design with these top-level keys:\n  - table_name: 'platform_schema_registry'\n  - columns: a list of EXACTLY 10 column dicts, each with name, type, nullable. The 10 columns: registry_id (string, not null), table_workspace (string, not null), table_name (string, not null), version (integer, not null), schema_json (string, not null), owner_team (string, not null), status (string, not null), registered_at (timestamp, not null), registered_by (string, not null), contract_url (string, nullable)\n  - primary_key: a list containing 'table_workspace', 'table_name', 'version'\n  - status_allowed_values: a list containing 'ACTIVE', 'DEPRECATED', 'RETIRED'\n  - retention_policy: a dict with mode ('keep_all_versions') and minimum_versions_per_table (3)",
+        "validationHint": "Build the dict literally as described. The 10 columns must all be present. The primary key is a 3-column composite that enforces unique versions per table. The retention policy keeps all historical versions (the registry IS the audit trail) with a minimum of 3 versions per table to protect against accidental deletion. contract_url is the only nullable column."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS5 Lesson 2: schema registry table design.\n# This is the source-of-truth Delta table that stores every production schema.\n\n# YOUR SOLUTION BELOW\n# Build registry_table_design with the 5 top-level keys from the task description.\n# The columns list must contain exactly 10 column dicts.\n\nregistry_table_design = {\n    # Fill in: table_name, columns, primary_key, status_allowed_values, retention_policy\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(registry_table_design, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS5-01-A1",
+          "description": "registry_table_design has all 5 required top-level keys",
+          "check": "set(registry_table_design.keys()) >= {'table_name', 'columns', 'primary_key', 'status_allowed_values', 'retention_policy'}"
+        },
+        {
+          "id": "FS5-01-A2",
+          "description": "table_name is 'platform_schema_registry'",
+          "check": "registry_table_design['table_name'] == 'platform_schema_registry'"
+        },
+        {
+          "id": "FS5-01-A3",
+          "description": "columns is a list of exactly 10 entries",
+          "check": "isinstance(registry_table_design['columns'], list) and len(registry_table_design['columns']) == 10"
+        },
+        {
+          "id": "FS5-01-A4",
+          "description": "Every column has the 3 required keys (name, type, nullable)",
+          "check": "all(set(c.keys()) >= {'name', 'type', 'nullable'} for c in registry_table_design['columns'])"
+        },
+        {
+          "id": "FS5-01-A5",
+          "description": "All 10 expected column names are present",
+          "check": "set(c['name'] for c in registry_table_design['columns']) == {'registry_id', 'table_workspace', 'table_name', 'version', 'schema_json', 'owner_team', 'status', 'registered_at', 'registered_by', 'contract_url'}"
+        },
+        {
+          "id": "FS5-01-A6",
+          "description": "version column is integer type",
+          "check": "next(c for c in registry_table_design['columns'] if c['name'] == 'version')['type'] == 'integer'"
+        },
+        {
+          "id": "FS5-01-A7",
+          "description": "registered_at column is timestamp type",
+          "check": "next(c for c in registry_table_design['columns'] if c['name'] == 'registered_at')['type'] == 'timestamp'"
+        },
+        {
+          "id": "FS5-01-A8",
+          "description": "contract_url is the ONLY nullable column",
+          "check": "[c['name'] for c in registry_table_design['columns'] if c['nullable']] == ['contract_url']"
+        },
+        {
+          "id": "FS5-01-A9",
+          "description": "primary_key is the 3-column composite (table_workspace, table_name, version)",
+          "check": "set(registry_table_design['primary_key']) == {'table_workspace', 'table_name', 'version'} and len(registry_table_design['primary_key']) == 3"
+        },
+        {
+          "id": "FS5-01-A10",
+          "description": "status_allowed_values contains exactly the 3 expected status strings",
+          "check": "set(registry_table_design['status_allowed_values']) == {'ACTIVE', 'DEPRECATED', 'RETIRED'}"
+        },
+        {
+          "id": "FS5-01-A11",
+          "description": "retention_policy keeps all versions with at least 3 minimum per table",
+          "check": "registry_table_design['retention_policy']['mode'] == 'keep_all_versions' and registry_table_design['retention_policy']['minimum_versions_per_table'] == 3"
+        }
+      ],
+      "partialCredit": "11 independent assertions. Each passed assertion earns 1/11 credit. The keystones are A8 (only contract_url nullable) and A11 (keep_all_versions retention) — both encode the senior-level audit-trail principle that the registry is a non-deletable historical record."
+    },
+    {
+      "id": "module-FS5-task-02",
+      "title": "Write a Data Contract for the Silver Meter Table",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's German engineering team owns silver_meter_readings_de — the German Silver-layer fact table that 7 downstream consumers depend on (3 analytics teams, 2 ML pipelines, 1 regulatory submission, 1 cross-country aggregation). The platform team has asked the German team to publish a data contract using the GridUnion contract template.\n\nFS5 Lesson 3 establishes the contract format. A data contract has 5 sections:\n  1. METADATA: table identity, owner, contact\n  2. SCHEMA: column definitions with stability classification (immutable / stable / evolving)\n  3. SLA: freshness, availability, retention\n  4. QUALITY: quality rules and failure thresholds\n  5. CHANGE POLICY: notification commitments and deprecation timelines\n\n  THE TABLE FACTS:\n  - silver_meter_readings_de: 8 TB, 1.25M meters x ~365 days/year x ~3 years history\n  - Columns: meter_id (string, immutable), reading_date (date, immutable), country_code (string, always 'DE'), region_code (string), daily_kw (double), tariff_id (string)\n  - Refresh cadence: every 4 hours, with the silver job typically completing within 35 minutes of the upstream Bronze write\n  - SLA target: data must be available within 6 hours of the Bronze write at the 99th percentile\n  - Retention: 36 months (3 years) for regulatory audit, then archived to cold storage\n  - Quality rules: meter_id IS NOT NULL, daily_kw between 0 and 50000, no duplicate (meter_id, reading_date) pairs, all rows have country_code='DE'\n  - Change policy: 90-day deprecation notice for breaking changes, 14-day notice for additive changes\n  - Owner: data_engineering_de team\n  - Slack channel: #data-eng-de",
+        "task": "Build a Python dict called silver_meter_contract with the 5 sections. Each section has specific required keys:\n\n  metadata: {table_name, owner_team, slack_channel, contract_version}\n  schema: {columns: list of {name, type, stability}, primary_key: list of column names}\n  sla: {freshness_hours_p99, refresh_cadence_hours, retention_months}\n  quality: {rules: list of rule strings, failure_action ('block_consumers')}\n  change_policy: {breaking_change_notice_days, additive_change_notice_days}\n\nFor the contract_version, use '1.0'. For the schema columns, use the 6 columns listed in the context with stability='immutable' for meter_id and reading_date, and stability='stable' for the others. Primary key is ['meter_id', 'reading_date']. For quality rules, list at least the 4 rules from the context (meter_id not null, daily_kw range, no duplicates, country code DE). All numeric values come from the context: freshness_hours_p99=6, refresh_cadence_hours=4, retention_months=36, breaking_change_notice_days=90, additive_change_notice_days=14.",
+        "validationHint": "Build the dict with all 5 sections. The 6 columns are meter_id, reading_date, country_code, region_code, daily_kw, tariff_id. meter_id and reading_date are stability='immutable' (they form the primary key); the rest are 'stable'. The freshness SLA (6 hours p99) is more lenient than the refresh cadence (4 hours) because it accounts for occasional pipeline delays. The 36-month retention matches German regulatory audit requirements."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS5 Lesson 3: data contract for silver_meter_readings_de.\n# This contract is the formal agreement between the German engineering team\n# (producer) and the 7 downstream consumers.\n\n# YOUR SOLUTION BELOW\n# Build silver_meter_contract with the 5 sections from the task description.\n\nsilver_meter_contract = {\n    # Fill in: metadata, schema, sla, quality, change_policy\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(silver_meter_contract, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS5-02-A1",
+          "description": "silver_meter_contract has all 5 required sections",
+          "check": "set(silver_meter_contract.keys()) >= {'metadata', 'schema', 'sla', 'quality', 'change_policy'}"
+        },
+        {
+          "id": "FS5-02-A2",
+          "description": "metadata has table_name, owner_team, slack_channel, contract_version",
+          "check": "set(silver_meter_contract['metadata'].keys()) >= {'table_name', 'owner_team', 'slack_channel', 'contract_version'} and silver_meter_contract['metadata']['table_name'] == 'silver_meter_readings_de' and silver_meter_contract['metadata']['owner_team'] == 'data_engineering_de'"
+        },
+        {
+          "id": "FS5-02-A3",
+          "description": "schema.columns is a list of exactly 6 column entries",
+          "check": "isinstance(silver_meter_contract['schema']['columns'], list) and len(silver_meter_contract['schema']['columns']) == 6"
+        },
+        {
+          "id": "FS5-02-A4",
+          "description": "All 6 expected column names are present in schema.columns",
+          "check": "set(c['name'] for c in silver_meter_contract['schema']['columns']) == {'meter_id', 'reading_date', 'country_code', 'region_code', 'daily_kw', 'tariff_id'}"
+        },
+        {
+          "id": "FS5-02-A5",
+          "description": "meter_id and reading_date are marked as stability='immutable' (they form the primary key)",
+          "check": "next(c for c in silver_meter_contract['schema']['columns'] if c['name'] == 'meter_id')['stability'] == 'immutable' and next(c for c in silver_meter_contract['schema']['columns'] if c['name'] == 'reading_date')['stability'] == 'immutable'"
+        },
+        {
+          "id": "FS5-02-A6",
+          "description": "schema.primary_key is the 2-element list [meter_id, reading_date]",
+          "check": "set(silver_meter_contract['schema']['primary_key']) == {'meter_id', 'reading_date'} and len(silver_meter_contract['schema']['primary_key']) == 2"
+        },
+        {
+          "id": "FS5-02-A7",
+          "description": "sla has freshness_hours_p99=6, refresh_cadence_hours=4, retention_months=36",
+          "check": "silver_meter_contract['sla']['freshness_hours_p99'] == 6 and silver_meter_contract['sla']['refresh_cadence_hours'] == 4 and silver_meter_contract['sla']['retention_months'] == 36"
+        },
+        {
+          "id": "FS5-02-A8",
+          "description": "quality.rules contains at least 4 rule strings",
+          "check": "isinstance(silver_meter_contract['quality']['rules'], list) and len(silver_meter_contract['quality']['rules']) >= 4"
+        },
+        {
+          "id": "FS5-02-A9",
+          "description": "quality.failure_action is 'block_consumers'",
+          "check": "silver_meter_contract['quality']['failure_action'] == 'block_consumers'"
+        },
+        {
+          "id": "FS5-02-A10",
+          "description": "change_policy has breaking_change_notice_days=90 and additive_change_notice_days=14",
+          "check": "silver_meter_contract['change_policy']['breaking_change_notice_days'] == 90 and silver_meter_contract['change_policy']['additive_change_notice_days'] == 14"
+        }
+      ],
+      "partialCredit": "10 independent assertions. Each passed assertion earns 1/10 credit. The keystones are A5 (immutable stability classification on PK columns) and A10 (different notice periods for breaking vs additive changes) — both encode senior-level contract design principles."
+    },
+    {
+      "id": "module-FS5-task-03",
+      "title": "Choose a Cross-Country Schema Evolution Strategy",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "The German regulator (BNetzA) has issued a new requirement: every meter reading record must include a tariff_zone_code identifying the regulatory pricing zone. The other 3 countries (FR, NL, LU) do not need this column — their regulators have different requirements that GridUnion already satisfies.\n\nThe affected table is silver_meter_readings_eu, the unified 4-country fact table that's joined with country-specific dimension tables for cross-country analytics. silver_meter_readings_eu has 7 downstream consumers across all 4 countries. The German team needs the tariff_zone_code column populated for German rows; the French/Dutch/Luxembourg teams have no use for it.\n\n  THREE OPTIONS UNDER CONSIDERATION:\n\n  OPTION A — UNIFIED TABLE WITH NEW COLUMN FOR ALL COUNTRIES:\n    Add tariff_zone_code as a new nullable column to silver_meter_readings_eu. German rows populate it; French/Dutch/Luxembourg rows leave it null.\n    - Pros: schema stays unified, downstream consumers continue reading the same table, no orchestration changes\n    - Cons: 75% of rows have null in this column (storage waste); the schema starts to look like a country-specific schema with optional columns; the 'mostly null' pattern repeats for every future regulatory requirement; adds a column to a 15TB table (significant rewrite cost during the schema evolution)\n    - Estimated effort: 1 week\n\n  OPTION B — COUNTRY-SPECIFIC SILVER TABLES:\n    Split silver_meter_readings_eu into 4 country-specific tables (silver_meter_readings_de, silver_meter_readings_fr, silver_meter_readings_nl, silver_meter_readings_lu) with each country's specific columns. Cross-country aggregations now read 4 tables and union them.\n    - Pros: each country's schema is exactly what that country needs; no waste; future country-specific regulatory changes are isolated\n    - Cons: every cross-country analytical query must change to read 4 tables and union them; 7 downstream consumers must update their code; the German engineering team becomes the de-facto owner of cross-country query examples; ongoing risk of country tables drifting out of sync\n    - Estimated effort: 6 weeks (including consumer migration support)\n\n  OPTION C — UNIFIED TABLE WITH OPTIONAL COLUMNS BLOCK:\n    Add a single column country_extras (struct) to silver_meter_readings_eu. The struct holds country-specific optional fields including tariff_zone_code (for DE), grid_classification (for FR if needed in future), and so on. Downstream queries that need country-specific fields project from the struct.\n    - Pros: schema stays unified; new country-specific fields don't add new top-level columns; downstream consumers that don't need the extras can ignore the struct entirely\n    - Cons: nested struct projection is more complex than top-level column access; some Spark optimizations don't push down through nested fields; the struct schema itself needs governance (which fields are German-only? French-only?)\n    - Estimated effort: 2 weeks\n\n  GRIDUNION CONSTRAINTS:\n    - 7 downstream consumers (all 4 countries' analytics teams plus 2 ML pipelines plus 1 regulatory pipeline)\n    - The German regulatory deadline for tariff_zone_code is 90 days away\n    - The platform team has 2 engineers available for this work in the next quarter\n    - Cross-country analytical queries are common (~40% of all queries against the unified table)\n    - The tariff_zone_code is the 3rd country-specific column requested in the past year (the trend is toward more country-specific requirements)",
+        "task": "Evaluate the three options against the constraints and recommend ONE primary approach. Multiple defensible answers exist; the reasoning fields determine which is acceptable.",
+        "validationHint": "Both Option A (unified with nullable column) and Option C (struct of optional fields) are defensible primary answers. Option A is the conservative choice that minimizes consumer impact at the cost of schema cleanliness and storage efficiency. Option C is the architecturally cleaner choice that handles the increasing trend of country-specific requirements without fragmenting consumers. Option B is rejected for primary because the 6-week effort and the consumer migration burden are too heavy for the 90-day deadline AND the trend toward more country-specific requirements means future iterations would multiply the fragmentation cost."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS5-03-F1",
+            "type": "single_select",
+            "label": "RECOMMENDATION: Which approach do you recommend as the primary schema evolution strategy?",
+            "options": [
+              "Option A (Unified Table With New Nullable Column) — minimal consumer impact, fits the 90-day deadline",
+              "Option B (Country-Specific Silver Tables) — clean schemas, isolates future country-specific changes",
+              "Option C (Unified Table With Optional Columns Struct) — clean schema evolution path, fits the trend toward more country-specific requirements",
+              "Hybrid: Option A now to meet the 90-day deadline + plan migration to Option C in the next quarter"
+            ],
+            "correctAnswer": "Option C (Unified Table With Optional Columns Struct) — clean schema evolution path, fits the trend toward more country-specific requirements",
+            "secondaryCorrectAnswer": "Hybrid: Option A now to meet the 90-day deadline + plan migration to Option C in the next quarter",
+            "rationale": "PRIMARY answer is Option C because the trend toward more country-specific requirements is the dominant constraint — adding nullable top-level columns one at a time creates a schema that grows messy over years, while a struct of country-specific optional fields scales cleanly. SECONDARY answer (Hybrid) is also accepted because it's a real production pattern: ship Option A immediately to meet the regulatory deadline, then migrate to Option C in the next quarter when the team has bandwidth. Option A alone is rejected as primary because it commits to the messy pattern long-term. Option B alone is rejected because the 6-week effort exceeds the 90-day window when consumer migration is included. A staff engineer would defend either C or the Hybrid. Option A may be accepted with strong reasoning about the 'increased visibility of top-level columns' argument.",
+            "acceptable_alternatives": "Either Option C (primary) or the Hybrid (secondary) is accepted with appropriate reasoning. Option A may be accepted if the student's reasoning explicitly addresses the long-term fragmentation cost and proposes a re-evaluation trigger (e.g., 'revisit when the table has 5 country-specific columns')."
+          },
+          {
+            "id": "FS5-03-F2",
+            "type": "multi_select",
+            "label": "TRADE-OFF FACTORS: Which factors does your chosen approach prioritize? (Select all that apply)",
+            "options": [
+              "Schema cleanliness (avoid mostly-null columns and column proliferation)",
+              "Future-proofing for more country-specific requirements",
+              "Minimal consumer impact (existing queries continue to work)",
+              "Storage efficiency (avoid storing nulls for 75% of rows)",
+              "Implementation effort (fits within 90 days with 2 engineers)",
+              "Cross-country query simplicity (one table to read, not 4)"
+            ],
+            "correctAnswer": ["Schema cleanliness (avoid mostly-null columns and column proliferation)", "Future-proofing for more country-specific requirements", "Cross-country query simplicity (one table to read, not 4)"],
+            "rationale": "Option C prioritizes schema cleanliness, future-proofing, and cross-country query simplicity. It does NOT optimize for minimum implementation effort (Option A is faster) or minimum consumer impact (downstream queries that need the new struct field need to update their projection). The student's multi-select must match the prioritization implied by their F1 choice.",
+            "acceptable_alternatives": "If F1 = Option A, accept {Minimal consumer impact, Implementation effort, Cross-country query simplicity}. If F1 = Hybrid, accept the union: {Schema cleanliness, Future-proofing, Implementation effort, Cross-country query simplicity}."
+          },
+          {
+            "id": "FS5-03-F3",
+            "type": "single_select",
+            "label": "EXPIRATION CONDITION: Under what conditions would your recommended approach stop being the right choice?",
+            "options": [
+              "When the country_extras struct grows past ~10 fields, the struct becomes hard to govern and the team should evaluate Option B (country-specific tables) seriously. The struct is a compromise that works for moderate country-specific complexity but fragments badly at high complexity",
+              "Never — Option C is always correct",
+              "When GridUnion adds a 5th country",
+              "When the team grows to 20 engineers"
+            ],
+            "correctAnswer": "When the country_extras struct grows past ~10 fields, the struct becomes hard to govern and the team should evaluate Option B (country-specific tables) seriously. The struct is a compromise that works for moderate country-specific complexity but fragments badly at high complexity",
+            "rationale": "Every senior architectural choice has an expiration condition. Option C is right NOW because it handles 1-3 country-specific fields cleanly. When the struct grows past ~10 fields, the per-country governance burden inside the struct becomes equivalent to managing separate country tables — and at that point, Option B's true isolation becomes worth the migration cost. The senior pattern is to set the trigger BEFORE the limit is hit (alert at ~7 fields) so the team has time to plan."
+          },
+          {
+            "id": "FS5-03-F4",
+            "type": "single_select",
+            "label": "STRONGEST COUNTERARGUMENT: What is the strongest argument against your chosen approach?",
+            "options": [
+              "Nested struct projection is harder for non-expert users to write correctly than top-level column access; some downstream analysts may not realize the struct exists or may write queries that miss the country-specific fields entirely. The schema cleanliness comes at the cost of discoverability",
+              "Structs are deprecated in Spark",
+              "Fabric does not support nested types",
+              "There is no argument against Option C"
+            ],
+            "correctAnswer": "Nested struct projection is harder for non-expert users to write correctly than top-level column access; some downstream analysts may not realize the struct exists or may write queries that miss the country-specific fields entirely. The schema cleanliness comes at the cost of discoverability",
+            "rationale": "The strongest counterargument is the discoverability problem: non-expert analysts who use SELECT * will see country_extras as a struct column they have to inspect to understand. A top-level column is more visible. The student's defense is that the data product catalog (FS1 Lesson 4) and the schema registry documentation make the struct's contents discoverable. If the team has weak documentation discipline, the discoverability problem becomes a real cost that may justify Option A. Distractors B-D are wrong (structs are well-supported and not deprecated)."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS5-task-04",
+      "title": "Review a Producer's Proposed Breaking Change",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "The German engineering team has submitted PR #487 to modify silver_meter_readings_de. The PR description summarizes the change:\n\n  PR #487 — silver_meter_readings_de schema cleanup\n\n  CHANGES:\n  - Renamed column 'tariff_id' to 'tariff_code' (consistency with new dim_tariff naming convention)\n  - Changed 'daily_kw' from DOUBLE to FLOAT (storage savings)\n  - Removed unused column 'legacy_meter_serial' (deprecated since 2024-Q2)\n  - Added 'meter_class' column (new field, nullable)\n\n  AUTHOR'S CLASSIFICATION: 'mostly cleanup, low risk, ready for review'\n\n  THE CONSUMERS OF silver_meter_readings_de (from the contract in Task 2):\n  - 3 analytics team Power BI dashboards (read all columns via SELECT *)\n  - 1 ML pipeline that uses tariff_id as a feature column\n  - 1 cross-country aggregation pipeline that joins on (meter_id, reading_date)\n  - 1 German regulatory submission that explicitly references daily_kw\n  - 1 cross-team data product (gold_billing_eu) that reads tariff_id and daily_kw\n\n  CURRENT CONTRACT (the Task 2 contract that the German team published):\n  - tariff_id is marked stability='stable' (not 'immutable', so renames are allowed but require notice)\n  - daily_kw is marked stability='stable'\n  - daily_kw is documented as DOUBLE in the contract; ML feature stores have already encoded daily_kw as 64-bit\n  - Breaking change notice period: 90 days\n  - Additive change notice period: 14 days\n\n  AUTHOR'S NOTIFICATION:\n  - Posted in #data-eng-de Slack 5 days ago\n  - No individual notification to the 7 consumer teams\n  - Deployment planned for next Tuesday\n\nYour job is to review this PR. The author's 'mostly cleanup, low risk' classification is wrong. There are multiple breaking changes embedded in this PR that violate the published contract. Your review must identify each violation and assess severity.",
+        "task": "Identify the contract violations in PR #487 and classify each by severity. The PR contains 4 schema changes; not all are violations, but at least 3 are. Severity levels: BLOCKING (breaks downstream consumers, must reject), HIGH (requires consumer coordination but fixable), LOW (notification timing issue only).",
+        "validationHint": "Change 1 (rename tariff_id to tariff_code): BLOCKING — this is a breaking change that requires 90-day notice per the contract; the author posted 5 days ago in Slack only, far short of the requirement. The ML pipeline and gold_billing_eu both reference tariff_id by name and will fail. Change 2 (DOUBLE to FLOAT): BLOCKING — narrowing a numeric type is breaking (FI2 Lesson 4 / mid-level rule), and the regulatory pipeline explicitly references daily_kw with the documented DOUBLE precision. ML feature stores encoded as 64-bit will have type mismatches. Change 3 (remove legacy_meter_serial): LOW or HIGH — depends on whether any consumer still references it; the audit log should be checked. The contract allows removal of unused columns with notice, but the notice was insufficient (14 days for additive, presumably similar for removal). Change 4 (add meter_class nullable): LOW — additive change requiring 14-day notice; the 5-day notice is short but the impact is low because nullable adds don't break SELECT * queries."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS5-04-F1",
+            "type": "single_select",
+            "label": "CHANGE 1 (rename tariff_id to tariff_code): Severity?",
+            "options": [
+              "BLOCKING — column renames are breaking changes per FI2 Lesson 4 + the contract requires 90-day notice; the ML pipeline and gold_billing_eu both reference tariff_id by name and will fail on deployment",
+              "LOW — renames are mostly cosmetic",
+              "HIGH but fixable in a follow-up PR",
+              "Not a violation"
+            ],
+            "correctAnswer": "BLOCKING — column renames are breaking changes per FI2 Lesson 4 + the contract requires 90-day notice; the ML pipeline and gold_billing_eu both reference tariff_id by name and will fail on deployment",
+            "rationale": "Column renames are the canonical breaking change. Every consumer that references tariff_id by name fails. The contract explicitly requires 90 days of notice for breaking changes; 5 days in a Slack channel is not the contractually required notice. This is the same lesson as FI2 Task 3 (mid-level schema classification) escalated to senior-level contract violation."
+          },
+          {
+            "id": "FS5-04-F2",
+            "type": "single_select",
+            "label": "CHANGE 2 (DOUBLE to FLOAT): Severity?",
+            "options": [
+              "BLOCKING — narrowing a numeric type is breaking (precision loss may corrupt existing values + ML feature stores encoded as 64-bit have type mismatch + the contract documents daily_kw as DOUBLE)",
+              "LOW — it's just a type change",
+              "Not a violation",
+              "HIGH if any consumer uses daily_kw"
+            ],
+            "correctAnswer": "BLOCKING — narrowing a numeric type is breaking (precision loss may corrupt existing values + ML feature stores encoded as 64-bit have type mismatch + the contract documents daily_kw as DOUBLE)",
+            "rationale": "Narrowing DOUBLE to FLOAT is a textbook breaking change per FI2 Lesson 4: existing values may not fit (precision loss), the contract explicitly documents the type, and downstream ML feature stores have already encoded the 64-bit precision. The 'storage savings' justification is weak — DOUBLE vs FLOAT on a billion-row table saves perhaps 4 GB, while the breakage cost is much higher."
+          },
+          {
+            "id": "FS5-04-F3",
+            "type": "single_select",
+            "label": "CHANGE 3 (remove legacy_meter_serial): Severity?",
+            "options": [
+              "HIGH — removing a column is breaking even if the column is 'unused' according to the producer; the producer must verify with audit logs that no consumer is reading the column AND must give the contractually required notice",
+              "BLOCKING under all circumstances",
+              "Not a violation",
+              "LOW — the column is deprecated"
+            ],
+            "correctAnswer": "HIGH — removing a column is breaking even if the column is 'unused' according to the producer; the producer must verify with audit logs that no consumer is reading the column AND must give the contractually required notice",
+            "rationale": "Column removal requires verification (the producer cannot know with certainty which consumers reference the column without checking audit logs) AND notice. The 'deprecated since 2024-Q2' framing is the producer's view; consumers may still be reading the column. The right process is: query audit logs for the past 6 months, contact any consumer that accessed the column, give 90-day notice, then remove. Distractor B (always BLOCKING) is too rigid — if audit logs show zero access, HIGH downgrades to LOW."
+          },
+          {
+            "id": "FS5-04-F4",
+            "type": "single_select",
+            "label": "CHANGE 4 (add meter_class nullable): Severity?",
+            "options": [
+              "LOW — nullable additive change; SELECT * queries continue to work; the only violation is the 5-day Slack notice vs the contractual 14-day additive change notice",
+              "BLOCKING — any new column is breaking",
+              "HIGH",
+              "Not a violation"
+            ],
+            "correctAnswer": "LOW — nullable additive change; SELECT * queries continue to work; the only violation is the 5-day Slack notice vs the contractual 14-day additive change notice",
+            "rationale": "Adding a nullable column is the textbook safe additive change per FI2 Lesson 4. SELECT * queries see an extra column they did not expect (which is fine) and existing INSERT statements that don't reference the column work because the new column defaults to null. The only contract issue is the notice timing: 5 days is short of the contractual 14 days. This is a process violation, not a technical one — the change itself is safe."
+          },
+          {
+            "id": "FS5-04-F5",
+            "type": "single_select",
+            "label": "REVIEWER VERDICT: What is your verdict on PR #487?",
+            "options": [
+              "BLOCK — Changes 1 and 2 are BLOCKING contract violations and the notice for Changes 3 and 4 is also non-compliant. Send the PR back with a checklist: post the rename to consumers individually with a 90-day deprecation notice, drop the type narrowing (storage savings don't justify breakage), verify audit logs before removing legacy_meter_serial, post 14-day notice for the additive change. Consider this a teaching moment for the German team about the gap between their internal Slack notification and the contractual notice requirements",
+              "Approve with comment — the changes are mostly minor",
+              "Approve as-is — the author is the table owner and has authority",
+              "Block and reassign to a senior engineer"
+            ],
+            "correctAnswer": "BLOCK — Changes 1 and 2 are BLOCKING contract violations and the notice for Changes 3 and 4 is also non-compliant. Send the PR back with a checklist: post the rename to consumers individually with a 90-day deprecation notice, drop the type narrowing (storage savings don't justify breakage), verify audit logs before removing legacy_meter_serial, post 14-day notice for the additive change. Consider this a teaching moment for the German team about the gap between their internal Slack notification and the contractual notice requirements",
+            "rationale": "Senior-level review on contract violations must be firm. The PR's 'mostly cleanup, low risk' framing is symptomatic of a producer who has not internalized that contract publication creates obligations. Distractor B (approve with comment) lets a contract violation reach production. Distractor C (defer to author authority) misunderstands the role of the contract: the producer's authority is bounded by the contract they published. Distractor D (reassign) is unnecessary — the issue is process compliance, not technical complexity."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS5-task-05",
+      "title": "GridUnion's Schema Governance System",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "This is the synthesis task. GridUnion's platform team is finalizing the complete schema governance system that will be deployed across all 12 teams. The system must integrate the lessons from this entire practice set:\n\n  - Schema registry as the source of truth (Task 1)\n  - Data contracts with stability classifications (Task 2)\n  - Cross-country evolution strategies (Task 3)\n  - Contract violation detection in PR review (Task 4)\n  - Automated governance gates that enforce contracts without manual review burden\n\nYour job has two parts: (1) DIAGNOSIS — fill the 4-field template articulating the governance principles. (2) ARTIFACT — build the governance system spec as a Python dict.",
+        "task": "Fill the diagnosis template AND build the governance dict.\n\nFor the ARTIFACT: Build a Python dict called schema_governance_system with these top-level keys:\n  - registry_table: 'platform_schema_registry' (the table from Task 1)\n  - contract_template_version: '1.0'\n  - automated_gates: a list of EXACTLY 4 gate dicts, each with name, trigger, action. The 4 gate names: 'schema_diff_detection', 'breaking_change_notice_check', 'consumer_audit_log_check', 'contract_test_execution'\n  - notice_periods: a dict with breaking_change_days (90) and additive_change_days (14)\n  - cross_country_strategy: 'unified_table_with_optional_struct' (the Task 3 primary recommendation)\n  - review_required_for: a list containing 'breaking_changes', 'cross_country_evolutions', 'new_data_products'\n  - enforcement: a dict with mode ('block_on_violation') and exception_approval_required_from ('platform_team_lead')",
+        "validationHint": "The 4 automated gates encode the lessons from Tasks 1-4: schema_diff_detection catches changes between PR and registry, breaking_change_notice_check enforces the 90-day rule, consumer_audit_log_check verifies who reads a column before removal, and contract_test_execution runs the contract tests on every PR. The cross_country_strategy reflects the Task 3 primary recommendation. The review_required_for list captures the senior governance principle of selective architectural review."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS5-05-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does the governance system include AUTOMATED gates rather than relying on human PR review?",
+            "options": [
+              "PR review depends on the reviewer remembering every contract clause and noticing every violation. Automated gates encode the rules once and check them on every PR with zero human effort. The Task 4 review caught 3 violations — but only because the reviewer knew to look. Automated gates catch them every time, including when the reviewer is rushed or unfamiliar with the contract",
+              "Automated gates are faster",
+              "Reviewers cost too much",
+              "Microsoft Fabric requires automation"
+            ],
+            "correctAnswer": "PR review depends on the reviewer remembering every contract clause and noticing every violation. Automated gates encode the rules once and check them on every PR with zero human effort. The Task 4 review caught 3 violations — but only because the reviewer knew to look. Automated gates catch them every time, including when the reviewer is rushed or unfamiliar with the contract",
+            "rationale": "The same lesson as the entire mid-level engineering discipline phase applied to senior tooling: replace human discipline with structural enforcement. PR review is necessary but insufficient — automated gates are the load-bearing mechanism. The Task 4 PR exists because the German team's internal process did not include automated checks; the reviewer caught it manually, but only because they were paying attention."
+          },
+          {
+            "id": "FS5-05-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why does the governance system require consumer_audit_log_check before column removal, instead of trusting the producer's 'unused' classification?",
+            "options": [
+              "Producers see their tables from the inside (their own pipelines, their own usage); they cannot know what 12 teams across 4 countries are doing with the table. The audit log is the only authoritative source for 'who is actually reading this column right now'. The Task 4 example showed exactly this gap: legacy_meter_serial was 'deprecated since 2024-Q2' from the producer's view but the producer never verified that no consumer was still reading it",
+              "Audit logs are required by GDPR",
+              "Consumers always lie",
+              "Producers are not allowed to make decisions"
+            ],
+            "correctAnswer": "Producers see their tables from the inside (their own pipelines, their own usage); they cannot know what 12 teams across 4 countries are doing with the table. The audit log is the only authoritative source for 'who is actually reading this column right now'. The Task 4 example showed exactly this gap: legacy_meter_serial was 'deprecated since 2024-Q2' from the producer's view but the producer never verified that no consumer was still reading it",
+            "rationale": "The producer-vs-consumer information asymmetry is the senior insight. Producers can deprecate from their own perspective but cannot guarantee consumers have stopped using a column. The audit log is the source of truth that bridges the asymmetry. This is the same pattern as data lineage tools (FS10): the producer's view is incomplete, the platform must fill the gap."
+          },
+          {
+            "id": "FS5-05-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why is the enforcement mode 'block_on_violation' instead of 'warn_on_violation'?",
+            "options": [
+              "Warnings are routinely ignored under deadline pressure; the Task 4 PR explicitly classified breaking changes as 'mostly cleanup, low risk', indicating that the producer would have shipped the violations with only a warning. Block enforcement makes the violation impossible to ignore. The exception_approval_required_from gives a controlled escape valve when the team has a defensible reason to override the gate",
+              "Warnings are deprecated",
+              "Blocking is faster",
+              "GridUnion has a no-warnings policy"
+            ],
+            "correctAnswer": "Warnings are routinely ignored under deadline pressure; the Task 4 PR explicitly classified breaking changes as 'mostly cleanup, low risk', indicating that the producer would have shipped the violations with only a warning. Block enforcement makes the violation impossible to ignore. The exception_approval_required_from gives a controlled escape valve when the team has a defensible reason to override the gate",
+            "rationale": "Warnings get banner-blindness; blocks force a conversation. The exception approval mechanism is the safety valve that prevents block enforcement from being too rigid: when the team genuinely needs to override (e.g., the regulator requires an immediate change with no notice possible), the platform team lead can grant an exception, but the override is logged and rare. Distractors B-D are wrong (warnings are not deprecated, blocking is not 'faster' in any meaningful sense)."
+          },
+          {
+            "id": "FS5-05-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why does the governance system codify the cross_country_strategy at the platform level instead of letting each producer decide?",
+            "options": [
+              "Cross-country schema decisions affect every team that joins across countries (the analytics team's cross-country dashboards, the regulatory submission pipeline, the ML feature stores). If different producers chose different strategies, the unified table architecture would fragment in inconsistent ways. Codifying the strategy at the platform level ensures every team's schema evolution converges on the same pattern, even when they're not coordinating directly",
+              "Producers cannot be trusted to make decisions",
+              "The platform team has more authority",
+              "Every team prefers consistency"
+            ],
+            "correctAnswer": "Cross-country schema decisions affect every team that joins across countries (the analytics team's cross-country dashboards, the regulatory submission pipeline, the ML feature stores). If different producers chose different strategies, the unified table architecture would fragment in inconsistent ways. Codifying the strategy at the platform level ensures every team's schema evolution converges on the same pattern, even when they're not coordinating directly",
+            "rationale": "The cross_country_strategy is a platform-level decision because the cost of inconsistency is borne by EVERY consumer of cross-country data, not just by the producer making the change. If the German team uses Option C (struct) and the French team uses Option A (nullable column), every cross-country query has to handle both patterns. Centralizing the decision at the platform level prevents this. Distractors are wrong: producers CAN be trusted with decisions WITHIN their own scope; this is a CROSS-team scope decision."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS5 SYNTHESIS: GridUnion's complete schema governance system specification.\n\n# YOUR SOLUTION BELOW\n# Build schema_governance_system with the 7 top-level keys from the task description.\n# The 4 gate names are fixed: schema_diff_detection, breaking_change_notice_check,\n# consumer_audit_log_check, contract_test_execution.\n\nschema_governance_system = {\n    # Fill in: registry_table, contract_template_version, automated_gates,\n    #          notice_periods, cross_country_strategy, review_required_for, enforcement\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(schema_governance_system, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS5-05-A1",
+          "description": "schema_governance_system has all 7 required top-level keys",
+          "check": "set(schema_governance_system.keys()) >= {'registry_table', 'contract_template_version', 'automated_gates', 'notice_periods', 'cross_country_strategy', 'review_required_for', 'enforcement'}"
+        },
+        {
+          "id": "FS5-05-A2",
+          "description": "registry_table is 'platform_schema_registry' (matches Task 1)",
+          "check": "schema_governance_system['registry_table'] == 'platform_schema_registry'"
+        },
+        {
+          "id": "FS5-05-A3",
+          "description": "automated_gates is a list of exactly 4 entries",
+          "check": "isinstance(schema_governance_system['automated_gates'], list) and len(schema_governance_system['automated_gates']) == 4"
+        },
+        {
+          "id": "FS5-05-A4",
+          "description": "Every automated gate has the 3 required keys (name, trigger, action)",
+          "check": "all(set(g.keys()) >= {'name', 'trigger', 'action'} for g in schema_governance_system['automated_gates'])"
+        },
+        {
+          "id": "FS5-05-A5",
+          "description": "All 4 expected gate names are present",
+          "check": "set(g['name'] for g in schema_governance_system['automated_gates']) == {'schema_diff_detection', 'breaking_change_notice_check', 'consumer_audit_log_check', 'contract_test_execution'}"
+        },
+        {
+          "id": "FS5-05-A6",
+          "description": "notice_periods has breaking_change_days=90 and additive_change_days=14",
+          "check": "schema_governance_system['notice_periods']['breaking_change_days'] == 90 and schema_governance_system['notice_periods']['additive_change_days'] == 14"
+        },
+        {
+          "id": "FS5-05-A7",
+          "description": "cross_country_strategy is 'unified_table_with_optional_struct' (matches Task 3 primary recommendation)",
+          "check": "schema_governance_system['cross_country_strategy'] == 'unified_table_with_optional_struct'"
+        },
+        {
+          "id": "FS5-05-A8",
+          "description": "review_required_for contains all 3 expected categories",
+          "check": "set(schema_governance_system['review_required_for']) >= {'breaking_changes', 'cross_country_evolutions', 'new_data_products'}"
+        },
+        {
+          "id": "FS5-05-A9",
+          "description": "enforcement mode is 'block_on_violation' with platform_team_lead as exception approver",
+          "check": "schema_governance_system['enforcement']['mode'] == 'block_on_violation' and schema_governance_system['enforcement']['exception_approval_required_from'] == 'platform_team_lead'"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (9 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/9). The 9 assertions verify that the governance system integrates the registry (Task 1), contract format (Task 2), cross-country strategy (Task 3), and PR review enforcement (Task 4) into a single platform-level specification.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Schema registry as source of truth (Task 1, Lesson 2)",
+          "Data contracts with stability classifications (Task 2, Lesson 3)",
+          "Cross-country schema evolution strategy (Task 3, Lesson 6)",
+          "Contract violation detection and notice enforcement (Task 4, Lesson 5)",
+          "Selective architectural review for high-impact decisions (carryover from FI8/FI9 governance pattern)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines the registry, contracts, cross-country strategy, breaking change process, and automated enforcement gates into a single governance specification. The keystones are A5 (all 4 automated gates) and A9 (block_on_violation enforcement) — both encode the senior-level principle that governance must be enforced structurally, not by reviewer discipline."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "tradeoffTasksHaveCompetingOptions": true,
+    "designReviewHasSubtleNotTextbookIssues": true,
+    "answerRangesDocumented": true,
+    "calibrationNotes": "Senior practice set in the extensibility phase, the most design-artifact-heavy in the senior track. Two design artifact tasks (the section 6.2 max for this type) plus the synthesis with combined grading. Task 1 (registry table design) and Task 2 (data contract) build the foundational artifacts. Task 3 (cross-country evolution) is a trade-off with multi-defensible answers. Task 4 (PR review) tests senior contract enforcement skill. Task 5 synthesizes everything into a governance system. Task type mix (1 trade-off + 1 design review + 2 design artifacts + 1 synthesis) is within all section 6.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches the schema governance problem, schema registries, data contracts, contract testing, breaking change management, cross-country evolution, semantic layer governance, schema lineage, and governance automation. The practice tests application: Task 1 builds the registry table at the structural level. Task 2 writes a data contract using the GridUnion template. Task 3 forces an architectural choice with 3 genuinely competing options for cross-country evolution. Task 4 reviews a real-looking PR with embedded contract violations the producer did not notice. Task 5 synthesizes the system that prevents future producer-side mistakes through automated gates.",
+    "datasetNotes": "No datasets — every task is design artifact construction or structured review of a proposed change. This matches the FS5 module's nature as a governance design module where the artifacts ARE the deliverables."
+  }
+}

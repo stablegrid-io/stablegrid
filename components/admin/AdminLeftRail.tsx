@@ -68,7 +68,7 @@ export function AdminLeftRail({ activeSection }: { activeSection: AdminNavSectio
         <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-primary">
           ADMIN_CONSOLE
         </p>
-        <p className="mt-2 font-headline text-lg font-bold tracking-tight text-on-surface">
+        <p className="mt-2 text-lg font-bold tracking-tight text-on-surface">
           System Control
         </p>
 

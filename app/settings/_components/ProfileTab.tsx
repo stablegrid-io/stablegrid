@@ -239,7 +239,7 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
         icon={<User className="h-4 w-4" />}
       >
         <div className="space-y-5">
-          <div className="flex items-center gap-4 rounded-xl border border-light-border bg-light-bg p-4 dark:border-dark-border dark:bg-dark-bg">
+          <div className="flex items-center gap-4 rounded-[22px] border border-white/[0.06] bg-[#0c0e10] p-4">
             <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-brand-500/15 text-lg font-semibold text-brand-500">
               {avatarUrl ? (
                 <NextImage
@@ -270,7 +270,7 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading || avatarProcessing}
-                className="inline-flex items-center gap-2 border border-primary/20 bg-primary/5 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10 hover:border-primary/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-[14px] border border-primary/20 bg-primary/5 px-4 py-2 text-xs font-bold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10 hover:border-primary/40 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ImagePlus className="h-4 w-4" />
                 {avatarProcessing ? 'Processing...' : 'Upload PNG'}
@@ -280,7 +280,7 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
                   type="button"
                   onClick={() => setAvatarUrl(null)}
                   disabled={loading || avatarProcessing}
-                  className="inline-flex items-center gap-2 border border-error/20 px-4 py-2 font-mono text-xs uppercase tracking-widest text-error/70 transition-colors hover:bg-error/10 hover:border-error/40 hover:text-error disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-[14px] border border-error/20 px-4 py-2 text-xs uppercase tracking-widest text-error/70 transition-colors hover:bg-error/10 hover:border-error/40 hover:text-error disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Trash2 className="h-4 w-4" />
                   Remove
@@ -325,7 +325,7 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
               type="button"
               onClick={handleSave}
               disabled={!hasChanges || loading || avatarProcessing}
-              className="btn btn-primary"
+              className="rounded-[14px] bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition-all hover:shadow-[0_0_16px_rgba(153,247,255,0.3)] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? 'Saving...' : 'Save changes'}
             </button>
@@ -350,7 +350,7 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
 
 function SummaryCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-light-border bg-light-bg px-3 py-2 dark:border-dark-border dark:bg-dark-bg">
+    <div className="rounded-[14px] border border-white/[0.06] bg-[#0c0e10] px-3 py-2">
       <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-light-tertiary dark:text-text-dark-tertiary">
         {label}
       </p>

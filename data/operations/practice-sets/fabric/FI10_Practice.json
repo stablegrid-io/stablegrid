@@ -1,0 +1,492 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FI10 — The Production Fabric Platform",
+  "description": "Capstone set: operate the complete NordGrid Fabric platform. Diagnose a multi-layer production incident integrating Spark + Delta + capacity + governance failures, write the data freshness check query and configure SLAs for the 4 production tables, build the comprehensive monitoring dashboard spec, diagnose a cascading failure where one pipeline's failure took down 3 dependent systems, build the operational runbook for a capacity throttling response, and design NordGrid's complete production platform architecture integrating every concept from modules FI1 through FI9.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+",
+  "metadata": {
+    "moduleId": "module-FI10",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 100,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, F64, 9 workspaces, 3 teams, 15 people",
+    "modulePhase": "capstone",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 2,
+      "fixImplementation": 3,
+      "refactoring": 0,
+      "diagnosticWorkflow": 1
+    },
+    "calibrationNotes": "Tenth and final mid-level practice set. Capstone at the maximum 100-minute duration. The synthesis task in particular pulls from EVERY previous mid-level module — FI1 performance, FI2 Delta, FI3 pipelines, FI4 warehouse, FI5 real-time, FI6 testing, FI7 CI/CD, FI8 capacity, FI9 governance — to produce a single platform specification. Task 2 is the only code execution task, restoring the data dimension after FI7-FI9 ran governance-only. Task type mix (2 diagnostic + 3 fix + 1 synthesis) is within all section 5.2 limits."
+  },
+  "datasets": [
+    {
+      "id": "FI10_data_readings",
+      "file": "FI10_data_readings.csv",
+      "description": "NordGrid readings sample for the freshness check task. 60 rows = 12 regions × 5 dates (2026-04-04 through 2026-04-08). The latest date present in every region is 2026-04-08, so a freshness check expecting 'today's date is 2026-04-08' will pass for all regions. If the check expected 2026-04-09, every region would fail.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FI10-task-02"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FI10-task-01",
+      "title": "Diagnose a Multi-Layer Production Incident",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "On 2026-04-08 between 02:30 and 09:00 UTC, NordGrid suffered a complex incident that affected the morning analyst window. The on-call engineer assembled the post-incident timeline:\n\n  INCIDENT TIMELINE — 2026-04-08\n  ============================================================\n  02:30  Silver pipeline starts (scheduled)\n  02:34  Silver MERGE on readings_silver runs slow — 480 sec (normal: 90 sec)\n         Cause: stale statistics on the table after PR #284 added a new index 3 days ago\n         Capacity utilization spikes to 87%\n  02:42  Silver completes (5x slower than normal but successful)\n  02:43  Gold aggregation pipeline triggers based on Silver completion\n  02:48  Gold writes to wh_gold_billing (Warehouse)\n  03:15  Power BI semantic model auto-refresh triggers and times out\n         Cause: Warehouse query plan still using old statistics, queries 8x slower\n         3 dashboards show stale data\n  04:00  Real-time anomaly query starts firing false positives\n         Cause: gold reference table lagging caused threshold computation to use\n         pre-2026-04-08 baselines, flagging normal readings as anomalies\n  06:00  ML team's daily training pipeline starts and queries Gold\n         Pipeline takes 3x longer than normal due to slow Warehouse queries\n  08:00  Analyst team starts morning queries on the SQL endpoint\n         Queries return slowly; 12 tickets opened in the first hour\n  09:00  On-call engineer identifies the root cause and runs UPDATE STATISTICS\n  09:05  Subsequent queries return to normal performance\n  09:30  Backfill Gold and re-run anomaly queries with corrected baselines\n  11:00  All systems back to baseline\n\n  AFFECTED COMPONENTS:\n    Silver pipeline:  5x slowdown\n    Gold pipeline:    triggered late, slower writes\n    Warehouse:        8x query slowdown\n    Power BI:         3 dashboard refresh failures\n    Real-time:        false positive anomaly alerts\n    ML training:      3x slowdown\n    Analyst SQL:      12 tickets in first hour\n\n  ROOT CAUSE:\n    PR #284 added a new index to readings_silver but did NOT trigger a statistics\n    refresh, leaving the optimizer with stale row count estimates. Every downstream\n    workload that touched readings_silver inherited the slowdown.",
+        "task": "Diagnose the cascading failure pattern and identify the most important learnings.",
+        "validationHint": "The single root cause (stale statistics from PR #284) cascaded through 6 distinct subsystems. The lessons: (1) schema/index changes must trigger statistics refresh, (2) cross-layer dependencies amplify any single failure, (3) the right question is not 'which system failed' but 'which control would have caught the change BEFORE it cascaded' — the change advisory board (FI10 Lesson 7) should have flagged the need for stats refresh during PR #284's review."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI10-01-F1",
+            "type": "single_select",
+            "label": "What is the SINGLE root cause that explains all 6 affected components?",
+            "options": [
+              "Stale statistics on readings_silver after PR #284 added a new index — every workload that queried this table inherited the slow plan, cascading into Gold, Warehouse, Power BI, real-time, ML, and analyst queries",
+              "F64 capacity is too small for NordGrid's workload",
+              "Multiple unrelated bugs happened to occur on the same day",
+              "Network instability between Spark and the Warehouse"
+            ],
+            "correctAnswer": "Stale statistics on readings_silver after PR #284 added a new index — every workload that queried this table inherited the slow plan, cascading into Gold, Warehouse, Power BI, real-time, ML, and analyst queries",
+            "rationale": "The post-incident analysis literally identifies stale statistics as the root cause. The pattern matches FI4 Task 2's stale-statistics incident at small scale: one data structure change with a missed maintenance step caused a 1000x estimate gap that the optimizer used to choose terrible plans across every workload that touched the table."
+          },
+          {
+            "id": "FI10-01-F2",
+            "type": "single_select",
+            "label": "Why did a single root cause produce 6 distinct symptoms across 6 different subsystems?",
+            "options": [
+              "Cross-layer dependencies: every downstream system queries readings_silver (directly or transitively through Gold). When the bottom of the dependency chain slows down, every layer above it inherits the slowdown. This is the cascading-failure pattern that the FI10 mindset explicitly addresses",
+              "Coincidence — 6 separate things happened to fail at once",
+              "The Spark cluster crashed and corrupted multiple workloads",
+              "An attacker compromised the production capacity"
+            ],
+            "correctAnswer": "Cross-layer dependencies: every downstream system queries readings_silver (directly or transitively through Gold). When the bottom of the dependency chain slows down, every layer above it inherits the slowdown. This is the cascading-failure pattern that the FI10 mindset explicitly addresses",
+            "rationale": "Production platforms have many consumers of any given data store. A single performance regression on a high-fanout table cascades to every consumer in proportion to how much they touch that table. This is why the production mindset (FI10 Lesson 1) treats any change to a high-fanout table as high-risk: the blast radius is the union of all consumers."
+          },
+          {
+            "id": "FI10-01-F3",
+            "type": "single_select",
+            "label": "Which control would have caught this change BEFORE it caused the cascading failure?",
+            "options": [
+              "Change advisory board review of PR #284 (FI10 Lesson 7): high-impact changes (schema changes, index changes, capacity changes) require review that explicitly checks for downstream maintenance impact, including the need for statistics refresh after index changes",
+              "More frequent statistics refresh (every hour instead of nightly)",
+              "A faster on-call response time",
+              "Disabling all schema changes in production"
+            ],
+            "correctAnswer": "Change advisory board review of PR #284 (FI10 Lesson 7): high-impact changes (schema changes, index changes, capacity changes) require review that explicitly checks for downstream maintenance impact, including the need for statistics refresh after index changes",
+            "rationale": "The right control catches the problem at change-review time, before deployment. A change advisory board reviews high-impact PRs and asks: 'does this change require any downstream operations?' For an index addition, the answer is yes (refresh stats). For a schema change, the answer is yes (notify consumers). The board's checklist would have caught PR #284. Distractor B treats the symptom; B is also wasteful (hourly stats refreshes most days when nothing changed)."
+          },
+          {
+            "id": "FI10-01-F4",
+            "type": "single_select",
+            "label": "What is the difference between the engineering response (build it correctly) and the operational response (keep it running) to this incident?",
+            "options": [
+              "Engineering response: ensure PR #284 is amended to include the statistics refresh step before merging. Operational response: improve the runbook so the on-call engineer can identify stale-stats symptoms in under 10 minutes (instead of the 6+ hours it took today). Both responses are needed — engineering prevents recurrence, operations mitigates impact when prevention fails",
+              "Engineering response is the only one that matters",
+              "Operational response is the only one that matters",
+              "The two responses are the same thing"
+            ],
+            "correctAnswer": "Engineering response: ensure PR #284 is amended to include the statistics refresh step before merging. Operational response: improve the runbook so the on-call engineer can identify stale-stats symptoms in under 10 minutes (instead of the 6+ hours it took today). Both responses are needed — engineering prevents recurrence, operations mitigates impact when prevention fails",
+            "rationale": "The production mindset (FI10 Lesson 1) holds that prevention and mitigation are complementary, not alternatives. Engineering work prevents the next instance of THIS specific bug. Operational work makes the team faster when something else inevitably goes wrong. A team that only invests in prevention leaves itself exposed to new failure modes; a team that only invests in operations stops fixing bugs at the source."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI10-task-02",
+      "title": "Write the Data Freshness Check Query",
+      "type": "fix_implementation",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "NordGrid's data freshness SLA from FI10 Lesson 5: every production table has a defined freshness target. The freshness check query computes the latest date present in the table and compares it to the expected target. Tables that are stale (latest date older than expected) breach the SLA and trigger an alert.\n\nFor the readings_silver table, the freshness target is 'the latest date should be today (or yesterday if today's pipeline has not yet run)'. For this exercise, the expected target is 2026-04-08 — every region must have at least one row with date = 2026-04-08 to pass the freshness check.",
+        "task": "Read FI10_data_readings.csv as a temp view called readings_silver. Write a Spark SQL query that returns the maximum date per region. Store the result in df_freshness. Then compute the global maximum date (across all regions) and store it in global_max_date as a string. Then build a per-region freshness dict called per_region_fresh mapping each region to True if its max date equals '2026-04-08', else False. Finally store all_regions_fresh = True if every region's max date equals '2026-04-08'.",
+        "validationHint": "The query: SELECT region, MAX(date) AS latest_date FROM readings_silver GROUP BY region. Expected: 12 rows, all with latest_date = '2026-04-08'. global_max_date = '2026-04-08'. all_regions_fresh = True. Build per_region_fresh by iterating df_freshness.collect(). The dataset is constructed so all 12 regions are fresh — bugs in the query (missing GROUP BY, wrong MAX target) will fail the per-region assertion."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI10 Lesson 5: data freshness check.\n# In production, this query runs every hour and alerts if any region is stale.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-freshness-check') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('FI10_data_readings.csv', header=True, inferSchema=True)\ndf_readings.createOrReplaceTempView('readings_silver')\nprint(f\"readings_silver: {df_readings.count()} rows\")\n\nFRESHNESS_TARGET = '2026-04-08'\n\n# YOUR SOLUTION BELOW\n# Step 1: Write a Spark SQL query selecting region and MAX(date) AS latest_date,\n#         grouped by region. Store the result in df_freshness.\n\n\n\n# Step 2: Compute the global maximum date (across all regions).\n#         Hint: SELECT MAX(date) FROM readings_silver, then collect()[0][0]\n\n\n\n# Step 3: Build per_region_fresh dict from df_freshness.collect().\n#         For each row, map row['region'] to (row['latest_date'] == FRESHNESS_TARGET).\n\n\n\n# Step 4: Compute all_regions_fresh = all values in per_region_fresh are True.\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Global max date: {global_max_date}\")\nprint(f\"All regions fresh: {all_regions_fresh}\")\nprint(f\"Per-region freshness:\")\nfor region, fresh in per_region_fresh.items():\n    print(f\"  {region}: {fresh}\")"
+      },
+      "assertions": [
+        {
+          "id": "FI10-02-A1",
+          "description": "df_freshness has 12 rows (one per region)",
+          "check": "df_freshness.count() == 12"
+        },
+        {
+          "id": "FI10-02-A2",
+          "description": "df_freshness has the 2 expected columns: region and latest_date",
+          "check": "set(df_freshness.columns) == {'region', 'latest_date'}"
+        },
+        {
+          "id": "FI10-02-A3",
+          "description": "global_max_date equals '2026-04-08'",
+          "check": "str(global_max_date) == '2026-04-08'"
+        },
+        {
+          "id": "FI10-02-A4",
+          "description": "per_region_fresh has all 12 expected regions",
+          "check": "set(per_region_fresh.keys()) == {'NORTH-A','NORTH-B','SOUTH-A','SOUTH-B','EAST-A','EAST-B','EAST-C','WEST-A','WEST-B','CENTRAL-A','CENTRAL-B','CENTRAL-C'}"
+        },
+        {
+          "id": "FI10-02-A5",
+          "description": "Every region in per_region_fresh is True",
+          "check": "all(v == True for v in per_region_fresh.values())"
+        },
+        {
+          "id": "FI10-02-A6",
+          "description": "all_regions_fresh equals True",
+          "check": "all_regions_fresh == True"
+        },
+        {
+          "id": "FI10-02-A7",
+          "description": "Every row in df_freshness has latest_date equal to '2026-04-08' (proves the dataset's freshness target is met)",
+          "check": "df_freshness.filter(\"latest_date != '2026-04-08'\").count() == 0"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-FI10-task-03",
+      "title": "Build the Production Monitoring Dashboard Spec",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's on-call engineer reviews the production monitoring dashboard every morning. The dashboard from FI10 Lesson 2 surfaces 5 widget categories: pipeline success rates, notebook durations, capacity utilization, data freshness, and active alerts. Each widget has a refresh cadence and an alert threshold appropriate for its metric.",
+        "task": "Build a Python dict called monitoring_dashboard with one key: widgets, mapping to a list of EXACTLY 5 widget dicts. Each widget dict must have: name, metric_type, refresh_minutes, and alert_threshold. The 5 widgets are:\n  1. name='pipeline_success_rate', metric_type='success_rate', refresh_minutes=15, alert_threshold=95 (alert if rate falls below 95%)\n  2. name='notebook_duration', metric_type='duration_p95_seconds', refresh_minutes=15, alert_threshold=600 (alert if p95 above 600 seconds)\n  3. name='capacity_utilization', metric_type='cu_percent', refresh_minutes=5, alert_threshold=85 (alert if utilization above 85%)\n  4. name='data_freshness', metric_type='hours_since_last_update', refresh_minutes=30, alert_threshold=2 (alert if freshness above 2 hours)\n  5. name='active_alerts', metric_type='alert_count', refresh_minutes=1, alert_threshold=1 (alert if any active alert)",
+        "validationHint": "Build the dict literally with the 5 widgets. Refresh cadences vary by metric volatility — capacity changes fastest (5 min) and freshness changes slowest (30 min)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI10 Lesson 2: production monitoring dashboard configuration.\n\n# YOUR SOLUTION BELOW\n# Build monitoring_dashboard = {'widgets': [<5 widget dicts>]}.\n\nmonitoring_dashboard = {\n    'widgets': [\n        # Fill in 5 widget dicts\n    ]\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(monitoring_dashboard, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI10-03-A1",
+          "description": "monitoring_dashboard has the widgets key as a list of exactly 5 entries",
+          "check": "'widgets' in monitoring_dashboard and isinstance(monitoring_dashboard['widgets'], list) and len(monitoring_dashboard['widgets']) == 5"
+        },
+        {
+          "id": "FI10-03-A2",
+          "description": "Every widget has the 4 required keys (name, metric_type, refresh_minutes, alert_threshold)",
+          "check": "all(set(w.keys()) >= {'name', 'metric_type', 'refresh_minutes', 'alert_threshold'} for w in monitoring_dashboard['widgets'])"
+        },
+        {
+          "id": "FI10-03-A3",
+          "description": "All 5 expected widget names are present",
+          "check": "set(w['name'] for w in monitoring_dashboard['widgets']) == {'pipeline_success_rate', 'notebook_duration', 'capacity_utilization', 'data_freshness', 'active_alerts'}"
+        },
+        {
+          "id": "FI10-03-A4",
+          "description": "pipeline_success_rate has refresh=15 and threshold=95",
+          "check": "next(w for w in monitoring_dashboard['widgets'] if w['name'] == 'pipeline_success_rate')['refresh_minutes'] == 15 and next(w for w in monitoring_dashboard['widgets'] if w['name'] == 'pipeline_success_rate')['alert_threshold'] == 95"
+        },
+        {
+          "id": "FI10-03-A5",
+          "description": "capacity_utilization has refresh=5 and threshold=85 (the most frequently refreshed widget)",
+          "check": "next(w for w in monitoring_dashboard['widgets'] if w['name'] == 'capacity_utilization')['refresh_minutes'] == 5 and next(w for w in monitoring_dashboard['widgets'] if w['name'] == 'capacity_utilization')['alert_threshold'] == 85"
+        },
+        {
+          "id": "FI10-03-A6",
+          "description": "data_freshness has refresh=30 and threshold=2 hours",
+          "check": "next(w for w in monitoring_dashboard['widgets'] if w['name'] == 'data_freshness')['refresh_minutes'] == 30 and next(w for w in monitoring_dashboard['widgets'] if w['name'] == 'data_freshness')['alert_threshold'] == 2"
+        },
+        {
+          "id": "FI10-03-A7",
+          "description": "active_alerts has the most aggressive refresh (1 minute) — alerts must surface fastest",
+          "check": "next(w for w in monitoring_dashboard['widgets'] if w['name'] == 'active_alerts')['refresh_minutes'] == 1"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-FI10-task-04",
+      "title": "Diagnose a Cascading Failure",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "On 2026-04-07 at 14:00 UTC, NordGrid suffered a cascading failure originating from a single change. The platform team's lineage view shows the propagation:\n\n  CHANGE: 2026-04-07 13:55 UTC\n    PR #298 deployed: renamed column 'region' to 'region_code' in fact_readings\n    Sensitivity label was updated, schema migration ran successfully on production\n    Author marked the PR as 'small refactor — column rename for consistency'\n\n  CASCADE TIMELINE:\n  ============================================================\n  14:00  Power BI semantic model 'sm_billing_dashboard' fails to refresh\n         Error: column 'region' not found in fact_readings\n  14:01  4 Power BI reports built on sm_billing_dashboard show 'data unavailable'\n         Affected: 12 analyst dashboards across 3 teams\n  14:05  Stored procedure sp_monthly_summary fails when invoked from a Power BI\n         scheduled refresh\n         Error: Invalid column name 'region'\n  14:10  ML feature pipeline 'pl_ml_features_daily' fails on its 14:00 run\n         Error: Cannot resolve column 'region' in fact_readings\n  14:15  Data quality test for fact_readings (FI6 framework) fails because the\n         schema validation expects column 'region' which no longer exists\n  14:30  Engineer realizes the renamed column is the cause; reverts PR #298\n  15:00  All systems recover\n\n  AFFECTED COMPONENTS: 5\n    1. Semantic model sm_billing_dashboard (no longer refreshes)\n    2. 4 Power BI reports (show data unavailable)\n    3. Stored procedure sp_monthly_summary (invalid column reference)\n    4. ML feature pipeline pl_ml_features_daily (cannot resolve column)\n    5. Data quality test suite (schema validation fails)\n\n  WHAT WENT WRONG:\n    The author classified PR #298 as a 'small refactor' and bypassed the change\n    advisory board review. The reviewer approved it as a quick rename. NEITHER\n    person ran the lineage analysis to see who consumed fact_readings.region.",
+        "task": "Diagnose the failure pattern and identify the controls that would have caught it.",
+        "validationHint": "Column rename is a BREAKING change (per FI2 Lesson 4) — every consumer of the renamed column fails until updated. The author's 'small refactor' classification is wrong; the size of the diff is unrelated to the impact. The right controls: lineage analysis BEFORE merge to identify all consumers, change advisory board review for any schema change, automated impact analysis as part of CI."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI10-04-F1",
+            "type": "single_select",
+            "label": "Why did a 'small refactor' (column rename) cause 5 production failures?",
+            "options": [
+              "Column renames are BREAKING schema changes regardless of how small the diff looks. Every downstream consumer that references the old column name fails until it is updated. The size of the code change is unrelated to the size of the impact — small changes to high-fanout schemas have huge blast radius",
+              "Renames are usually safe; this was a freak coincidence",
+              "The deployment pipeline corrupted the rename",
+              "Power BI cannot handle column renames at all"
+            ],
+            "correctAnswer": "Column renames are BREAKING schema changes regardless of how small the diff looks. Every downstream consumer that references the old column name fails until it is updated. The size of the code change is unrelated to the size of the impact — small changes to high-fanout schemas have huge blast radius",
+            "rationale": "This is the same lesson as FI2 Task 3's schema classification: renames are breaking changes. The 'small refactor' framing is a cognitive trap — engineers focus on the diff size and forget the consumer count. A 1-character rename to a column with 50 consumers breaks 50 things. The correct mental model is impact-based, not diff-based."
+          },
+          {
+            "id": "FI10-04-F2",
+            "type": "single_select",
+            "label": "What is the SINGLE most important control that would have caught this before merge?",
+            "options": [
+              "Lineage analysis: a tool that shows every downstream item (semantic models, stored procedures, notebooks, tests) that references a column when that column is modified. The author would have seen the 5 affected components in the PR review and either updated them all in the same PR or escalated the change to the CAB",
+              "Adding a 24-hour cooling-off period before merge",
+              "Requiring two approvers instead of one",
+              "Banning column renames entirely"
+            ],
+            "correctAnswer": "Lineage analysis: a tool that shows every downstream item (semantic models, stored procedures, notebooks, tests) that references a column when that column is modified. The author would have seen the 5 affected components in the PR review and either updated them all in the same PR or escalated the change to the CAB",
+            "rationale": "Lineage tools surface impact at the moment of decision (in the PR). Without lineage, the author has to manually trace consumers — and 'small refactor' mindset means they don't bother. With lineage, the impact is visible and the conversation shifts from 'this is small' to 'this affects 5 items, what's our migration plan?' This is FI10 Lesson 7's change management at scale principle."
+          },
+          {
+            "id": "FI10-04-F3",
+            "type": "single_select",
+            "label": "What additional process change would prevent the misclassification of breaking changes as 'small refactors'?",
+            "options": [
+              "Mandatory schema-change classification in PR templates: any PR that modifies a column (rename, add, drop, type change) must be tagged with the FI2 Lesson 4 classification (safe vs breaking) by the AUTHOR, and the reviewer must verify the classification. The 'small refactor' label is not allowed for schema changes",
+              "Eliminating PRs entirely",
+              "Adding more print statements",
+              "Requiring schema changes only on weekends"
+            ],
+            "correctAnswer": "Mandatory schema-change classification in PR templates: any PR that modifies a column (rename, add, drop, type change) must be tagged with the FI2 Lesson 4 classification (safe vs breaking) by the AUTHOR, and the reviewer must verify the classification. The 'small refactor' label is not allowed for schema changes",
+            "rationale": "Process forcing functions catch human classification errors. By requiring the author to explicitly tag a schema change as breaking-or-safe, the author has to think about it before submitting. The reviewer then has a specific item to verify. This converts an implicit assumption ('this is small') into an explicit decision ('this is safe' or 'this is breaking') that has to be defended in the review."
+          },
+          {
+            "id": "FI10-04-F4",
+            "type": "single_select",
+            "label": "Should the 5 downstream items have caught the bad rename via their own tests instead of failing in production?",
+            "options": [
+              "Yes, in principle: the data quality test in item 5 DID detect the schema mismatch, but only at run time (14:15), after the user-facing dashboards had already failed (14:00). Pre-merge tests on the PR could have caught this in CI before deployment, so the tests would have failed in CI not in production",
+              "No, downstream items should not test schema",
+              "No, the producer is solely responsible",
+              "Yes, but tests are too expensive to run for every change"
+            ],
+            "correctAnswer": "Yes, in principle: the data quality test in item 5 DID detect the schema mismatch, but only at run time (14:15), after the user-facing dashboards had already failed (14:00). Pre-merge tests on the PR could have caught this in CI before deployment, so the tests would have failed in CI not in production",
+            "rationale": "Tests have to run BEFORE the change reaches production to be useful. Test 5 detected the failure but only after impact. The right pattern is to run downstream-consumer tests against the proposed change in CI: when PR #298 is opened, the CI runs all tests including the consumer tests that reference the affected column. Failures show in the PR before merge, not in production after deployment. This is FI6 Lesson 9's automation principle."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI10-task-05",
+      "title": "Build the Capacity Throttling Response Runbook",
+      "type": "fix_implementation",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "NordGrid's runbook library from FI10 Lesson 4 has one runbook per common operational scenario. The on-call engineer follows the runbook step-by-step during incidents. Each runbook is captured as structured configuration so the steps can be reviewed, updated, and audited.\n\nNordGrid's capacity throttling response runbook (combining the lessons from FI8 Tasks 1, 4, and Task 6 of this set):\n  STEP 1 — Identify the dominant consumer in the capacity metrics dashboard (per FI8 Task 2)\n  STEP 2 — Determine if the dominant consumer is a scheduled production workload or an ad-hoc workload\n  STEP 3 — If ad-hoc: kill the ad-hoc workload (per FI8 Task 4)\n  STEP 4 — If scheduled production: defer the workload to a backfill window AND alert the workload owner\n  STEP 5 — Verify capacity returns to baseline within 5 minutes\n  STEP 6 — Notify affected consumers in #data-platform that throttling is resolved\n  STEP 7 — File a post-incident report within 24 hours including the dominant consumer's CU profile",
+        "task": "Build a Python dict called throttling_runbook with keys: name ('capacity_throttling_response'), trigger ('capacity_utilization > 100% sustained for 2+ minutes'), severity ('high'), and steps (a list of EXACTLY 7 step dicts, each with order, action, description). The action labels for steps 1-7 are: 'identify_dominant_consumer', 'classify_workload', 'kill_adhoc', 'defer_scheduled', 'verify_recovery', 'notify_consumers', 'postmortem'.",
+        "validationHint": "The 7 step actions in order: identify_dominant_consumer, classify_workload, kill_adhoc, defer_scheduled, verify_recovery, notify_consumers, postmortem. Each has order (1-7), action, and description. The trigger is the capacity threshold from FI8 Task 4."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI10 Lesson 4: operational runbook for capacity throttling response.\n\n# YOUR SOLUTION BELOW\n# Build throttling_runbook with: name, trigger, severity, and steps (7 step dicts).\n\nthrottling_runbook = {\n    # Fill in name, trigger, severity, steps\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(throttling_runbook, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI10-05-A1",
+          "description": "throttling_runbook has all 4 required top-level keys",
+          "check": "set(throttling_runbook.keys()) >= {'name', 'trigger', 'severity', 'steps'}"
+        },
+        {
+          "id": "FI10-05-A2",
+          "description": "name is 'capacity_throttling_response' and severity is 'high'",
+          "check": "throttling_runbook['name'] == 'capacity_throttling_response' and throttling_runbook['severity'] == 'high'"
+        },
+        {
+          "id": "FI10-05-A3",
+          "description": "steps is a list of exactly 7 entries",
+          "check": "isinstance(throttling_runbook['steps'], list) and len(throttling_runbook['steps']) == 7"
+        },
+        {
+          "id": "FI10-05-A4",
+          "description": "Every step has order, action, description keys",
+          "check": "all(set(s.keys()) >= {'order', 'action', 'description'} for s in throttling_runbook['steps'])"
+        },
+        {
+          "id": "FI10-05-A5",
+          "description": "Step order values are 1-7 in sequence",
+          "check": "[s['order'] for s in throttling_runbook['steps']] == [1, 2, 3, 4, 5, 6, 7]"
+        },
+        {
+          "id": "FI10-05-A6",
+          "description": "The 7 action labels are correct in order",
+          "check": "[s['action'] for s in throttling_runbook['steps']] == ['identify_dominant_consumer', 'classify_workload', 'kill_adhoc', 'defer_scheduled', 'verify_recovery', 'notify_consumers', 'postmortem']"
+        },
+        {
+          "id": "FI10-05-A7",
+          "description": "trigger references the capacity threshold (contains '100' for the 100% threshold)",
+          "check": "'100' in throttling_runbook['trigger']"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-FI10-task-06",
+      "title": "Design NordGrid's Production Platform Architecture",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 28,
+      "description": {
+        "context": "This is the CAPSTONE synthesis task. NordGrid's platform team is documenting the complete production platform architecture as a single specification that integrates every concept from the mid-level track:\n  - FI1 Spark performance: notebook tuning, partition sizes, broadcast joins\n  - FI2 Delta: maintenance schedule (OPTIMIZE weekly, VACUUM 90-day retention)\n  - FI3 Pipelines: master daily pipeline with per-region ForEach\n  - FI4 Warehouse: distribution strategies, materialized views, RLS\n  - FI5 Real-time: Eventstream + KQL + dashboard\n  - FI6 Testing: complete test suite with unit + schema + DQ + regression\n  - FI7 CI/CD: 3 environments, branch protection, drift detection, no direct prod edits\n  - FI8 Capacity: workload isolation, per-notebook budgets, weekly review\n  - FI9 Governance: workspace hierarchy, CLS, automated sensitivity labels, certification\n\nYour job: (1) DIAGNOSIS — fill the 4-field template confirming the platform-level decisions. (2) FIX — build the production_platform dict integrating all 9 modules. Both are graded independently and combined 50/50. This is the most complex synthesis task in the entire mid-level track.",
+        "task": "Fill the diagnosis template AND build the production_platform dict.\n\nFor the FIX: Build a Python dict called production_platform with these keys (one per module's contribution):\n  - performance: a dict with target_partition_mb=192 (from FI1 Task 4) and broadcast_join_enforced=True\n  - delta_maintenance: a dict with optimize_cadence='weekly' and vacuum_retention_hours=2160 (from FI2 Task 6)\n  - pipeline_orchestration: a dict with master_pipeline='pl_master_daily' and foreach_batch_count=4 (from FI3 Task 6)\n  - warehouse: a dict with distribution_strategy='hybrid_hash_replicate' and materialized_views_enabled=True (from FI4 Task 6)\n  - real_time: a dict with eventstream='es_nordgrid_scada' and kql_retention_days=30 (from FI5 Task 5)\n  - testing: a dict with test_layers (a list containing 'unit', 'schema', 'dq', 'regression') (from FI6 Task 6)\n  - cicd: a dict with environments=['dev','staging','production'] and direct_production_edits_allowed=False (from FI7 Task 6)\n  - capacity_governance: a dict with isolation_enabled=True and per_notebook_budgets_enabled=True (from FI8 Task 6)\n  - governance: a dict with workspace_pattern='hybrid_layer_and_team' and sensitivity_label_enforcement='automated' (from FI9 Task 6)\n  - mindset: 'platform_engineering_not_pipeline_building' (the FI10 Lesson 1 principle)",
+        "validationHint": "The synthesis is the union of every previous synthesis task. Most values are direct lookups from earlier tasks. The keystone is the 'mindset' value — 'platform_engineering_not_pipeline_building' captures the FI10 Lesson 1 transition that the entire mid-level track culminates in."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI10-06-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: What is the most important shift that distinguishes a mid-level Fabric engineer from a junior?",
+            "options": [
+              "The mid-level engineer thinks about how systems FAIL and how to keep them running, not just how to make them work the first time. Junior makes the pipeline produce the right output; mid-level makes sure the pipeline produces the right output every day for years across team turnover, schema changes, capacity pressure, and incidents",
+              "Mid-level engineers use more advanced PySpark functions",
+              "Mid-level engineers manage larger datasets",
+              "Mid-level engineers have higher salaries"
+            ],
+            "correctAnswer": "The mid-level engineer thinks about how systems FAIL and how to keep them running, not just how to make them work the first time. Junior makes the pipeline produce the right output; mid-level makes sure the pipeline produces the right output every day for years across team turnover, schema changes, capacity pressure, and incidents",
+            "rationale": "FI10 Lesson 1's production mindset captures this exactly: development is 'make it work', operations is 'keep it working'. The mid-level track teaches operational thinking on top of the junior development skills. The 9 previous modules each address a different way that production systems can fail or degrade — performance, Delta drift, pipeline failures, query slowdowns, streaming gaps, untested code, deployment errors, capacity contention, governance sprawl. The mid-level engineer integrates all of these into a coherent production practice."
+          },
+          {
+            "id": "FI10-06-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why does the production platform spec include EVERY module's contribution rather than just the most important ones?",
+            "options": [
+              "Each module addresses a distinct failure mode. Performance failures (FI1) cannot be fixed by governance (FI9); governance failures cannot be fixed by performance work. The platform must defend against all 9 failure modes simultaneously. Skipping any module leaves a gap that will eventually be exploited",
+              "More keys make the spec look more impressive",
+              "Microsoft Fabric requires all modules",
+              "It is arbitrary; pick whichever modules the team prefers"
+            ],
+            "correctAnswer": "Each module addresses a distinct failure mode. Performance failures (FI1) cannot be fixed by governance (FI9); governance failures cannot be fixed by performance work. The platform must defend against all 9 failure modes simultaneously. Skipping any module leaves a gap that will eventually be exploited",
+            "rationale": "Production reliability is the conjunction of many controls, not the sum. Skipping any single module leaves an unprotected failure mode. The 9-module structure of the mid-level track maps to the 9 categories of production failure that NordGrid has experienced (or that other platforms experience). The integration is the point — any individual technique is necessary but not sufficient."
+          },
+          {
+            "id": "FI10-06-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Which module's contribution is the most often skipped by teams that 'just want to ship'?",
+            "options": [
+              "FI6 testing and FI7 CI/CD are the two that teams under delivery pressure most often defer — both feel like overhead during development but become critical the first time something breaks. The mid-level engineer's job includes defending these investments against pressure to ship faster",
+              "FI1 performance — it is too technical",
+              "FI2 Delta — it is too obscure",
+              "FI4 Warehouse — it is too complex"
+            ],
+            "correctAnswer": "FI6 testing and FI7 CI/CD are the two that teams under delivery pressure most often defer — both feel like overhead during development but become critical the first time something breaks. The mid-level engineer's job includes defending these investments against pressure to ship faster",
+            "rationale": "Testing and CI/CD pay for themselves only over time, so teams under short-term delivery pressure often defer them. Performance and Warehouse work are more visible (the slow query is obvious) and Delta/governance are mandated by external constraints. Testing and CI/CD are uniquely vulnerable to deferral — and uniquely costly when deferred. Defending them is part of the mid-level engineer's role."
+          },
+          {
+            "id": "FI10-06-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: What single principle, if applied consistently, would address most of the failure modes in modules FI1-FI9?",
+            "options": [
+              "Make failure modes structurally impossible rather than asking humans to remember to prevent them. Direct production edits become impossible (FI7), runaway notebooks auto-pause (FI8), schema labels are auto-applied (FI9), drift is auto-detected (FI7), tests run automatically (FI6). Every module's deepest fix is the same shape: replace human discipline with a structural constraint",
+              "Documentation is the most important thing",
+              "Hire more senior engineers",
+              "Use the latest Fabric features"
+            ],
+            "correctAnswer": "Make failure modes structurally impossible rather than asking humans to remember to prevent them. Direct production edits become impossible (FI7), runaway notebooks auto-pause (FI8), schema labels are auto-applied (FI9), drift is auto-detected (FI7), tests run automatically (FI6). Every module's deepest fix is the same shape: replace human discipline with a structural constraint",
+            "rationale": "This is the unifying principle of the entire mid-level track. Across FI7 (no direct production edits), FI8 (per-notebook budgets), FI9 (automated label enforcement), FI6 (automated test execution), and FI10 itself (this lesson) — the same pattern recurs: behavioral controls (try harder, remember to do X) drift over time; structural controls (the system makes the failure mode impossible) hold. Mid-level engineering is largely the practice of converting behavioral controls into structural ones."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI10 CAPSTONE SYNTHESIS: NordGrid's complete production platform architecture.\n# Combines every module's contribution into a single specification.\n\n# YOUR SOLUTION BELOW\n# Build production_platform with 10 keys: performance, delta_maintenance,\n# pipeline_orchestration, warehouse, real_time, testing, cicd, capacity_governance,\n# governance, mindset.\n# Reference Tasks 6 from each previous practice set for the values.\n\nproduction_platform = {\n    # Fill in 10 keys integrating modules FI1-FI9 plus the FI10 mindset\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(production_platform, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI10-06-A1",
+          "description": "production_platform has all 10 required top-level keys",
+          "check": "set(production_platform.keys()) >= {'performance', 'delta_maintenance', 'pipeline_orchestration', 'warehouse', 'real_time', 'testing', 'cicd', 'capacity_governance', 'governance', 'mindset'}"
+        },
+        {
+          "id": "FI10-06-A2",
+          "description": "performance has target_partition_mb=192 and broadcast_join_enforced=True",
+          "check": "production_platform['performance']['target_partition_mb'] == 192 and production_platform['performance']['broadcast_join_enforced'] == True"
+        },
+        {
+          "id": "FI10-06-A3",
+          "description": "delta_maintenance has optimize_cadence='weekly' and vacuum_retention_hours=2160",
+          "check": "production_platform['delta_maintenance']['optimize_cadence'] == 'weekly' and production_platform['delta_maintenance']['vacuum_retention_hours'] == 2160"
+        },
+        {
+          "id": "FI10-06-A4",
+          "description": "pipeline_orchestration has master_pipeline='pl_master_daily' and foreach_batch_count=4",
+          "check": "production_platform['pipeline_orchestration']['master_pipeline'] == 'pl_master_daily' and production_platform['pipeline_orchestration']['foreach_batch_count'] == 4"
+        },
+        {
+          "id": "FI10-06-A5",
+          "description": "warehouse has materialized_views_enabled=True and distribution_strategy='hybrid_hash_replicate'",
+          "check": "production_platform['warehouse']['distribution_strategy'] == 'hybrid_hash_replicate' and production_platform['warehouse']['materialized_views_enabled'] == True"
+        },
+        {
+          "id": "FI10-06-A6",
+          "description": "real_time has eventstream='es_nordgrid_scada' and kql_retention_days=30",
+          "check": "production_platform['real_time']['eventstream'] == 'es_nordgrid_scada' and production_platform['real_time']['kql_retention_days'] == 30"
+        },
+        {
+          "id": "FI10-06-A7",
+          "description": "testing.test_layers includes all 4 layers (unit, schema, dq, regression)",
+          "check": "set(production_platform['testing']['test_layers']) >= {'unit', 'schema', 'dq', 'regression'}"
+        },
+        {
+          "id": "FI10-06-A8",
+          "description": "cicd has direct_production_edits_allowed=False (the load-bearing constraint)",
+          "check": "production_platform['cicd']['direct_production_edits_allowed'] == False and set(production_platform['cicd']['environments']) == {'dev','staging','production'}"
+        },
+        {
+          "id": "FI10-06-A9",
+          "description": "capacity_governance has both isolation_enabled and per_notebook_budgets_enabled True",
+          "check": "production_platform['capacity_governance']['isolation_enabled'] == True and production_platform['capacity_governance']['per_notebook_budgets_enabled'] == True"
+        },
+        {
+          "id": "FI10-06-A10",
+          "description": "governance has automated sensitivity label enforcement and the hybrid workspace pattern",
+          "check": "production_platform['governance']['workspace_pattern'] == 'hybrid_layer_and_team' and production_platform['governance']['sensitivity_label_enforcement'] == 'automated'"
+        },
+        {
+          "id": "FI10-06-A11",
+          "description": "mindset is 'platform_engineering_not_pipeline_building' — the FI10 Lesson 1 principle that the entire mid-level track culminates in",
+          "check": "production_platform['mindset'] == 'platform_engineering_not_pipeline_building'"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (11 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/11). The 11 assertions span 9 modules' contributions plus the structure check plus the mindset key — comprehensive coverage of the entire mid-level track.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "FI1 — Spark performance tuning and broadcast joins",
+          "FI2 — Delta maintenance schedule (OPTIMIZE, VACUUM)",
+          "FI3 — Pipeline orchestration with ForEach + batch_count",
+          "FI4 — Warehouse distribution and materialized views",
+          "FI5 — Real-time architecture with Eventstream + KQL",
+          "FI6 — Test pyramid: unit + schema + DQ + regression",
+          "FI7 — CI/CD with environments + direct edit prevention",
+          "FI8 — Capacity governance with isolation and budgets",
+          "FI9 — Governance with workspace hierarchy and automated labels",
+          "FI10 — The platform engineering mindset that integrates them all"
+        ],
+        "minimumConceptCount": 10,
+        "rationale": "This is the most ambitious synthesis in the entire mid-level track. It pulls from 10 modules (every prior module plus FI10 itself) and produces a single specification that defends against all 9 categories of production failure. The keystone is A11 (mindset value) — students who fill the technical fields correctly but skip the mindset key have not internalized that the technical practices flow from a deeper change in how the engineer thinks about systems. The entire mid-level track culminates in this one synthesis."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": false,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 10,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "calibrationNotes": "Tenth and final mid-level practice set. Capstone at the maximum 100-minute duration. The single_module_scope check is intentionally False because the capstone synthesis pulls from every previous module. The synthesis is the most complex in the entire track (11 assertions + 4 template fields, integrating 10 modules' contributions). Task type mix (2 diagnostic + 3 fix + 1 synthesis) is within all section 5.2 limits.",
+    "theoryPracticeBoundary": "FI10 theory establishes the production mindset (Lesson 1) and operationalizes it through monitoring, incident management, runbooks, freshness SLAs, change management, and platform evolution. The practice tests application of these themes through realistic scenarios: Task 1 reproduces the canonical multi-layer cascading failure that the production mindset is designed to prevent. Task 2 implements the freshness check pattern from Lesson 5. Task 3 builds the monitoring dashboard from Lesson 2. Task 4 reproduces a column-rename cascading failure that exposes the change management gap from Lesson 7. Task 5 captures the capacity throttling runbook from Lesson 4. Task 6 synthesizes everything from FI1-FI10 into a single platform specification.",
+    "datasetNotes": "One small dataset (60 rows) used by Task 2's freshness check. Brings back the data execution dimension after FI7-FI9 ran governance-only, ensuring the capstone has at least one code task that exercises Spark SQL skills."
+  }
+}

@@ -1,0 +1,396 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 5 — Adding and Transforming Columns",
+  "description": "Apply column transformation techniques: type casting with silent null detection, string cleaning, date extraction, arithmetic, conditional logic with when/otherwise, boolean flags, and a complete enrichment pipeline.",
+  "version": "authored 2026-03-30, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PS5",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 59,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "core_mechanics",
+    "taskTypeMix": {
+      "writeTheCode": 3,
+      "outputPrediction": 1,
+      "conceptIdentification": 1,
+      "synthesisPipeline": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PS5_data_readings_raw",
+      "file": "PS5_data_readings_raw.csv",
+      "description": "NordGrid raw Bronze meter readings with messy string data. 100 rows. All columns are strings — daily_kw and date need casting. Region values have mixed case and whitespace.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false, "description": "Unique meter identifier (M-0001 through M-0100)"},
+          {"name": "daily_kw", "type": "string", "nullable": true, "description": "Daily energy as a raw string — includes numbers, empty strings, and unparseable values like 'N/A' and 'ERR'"},
+          {"name": "date", "type": "string", "nullable": false, "description": "Reading date as ISO string (YYYY-MM-DD)"},
+          {"name": "region", "type": "string", "nullable": false, "description": "Region code with inconsistent casing ('NORTH', 'north', 'North') and whitespace ('  NORTH', 'EAST  ')"}
+        ],
+        "characteristics": {
+          "unparseableValues": "4 rows have daily_kw values that cannot be cast to double: 'N/A', 'ERR', '--', 'null'",
+          "emptyStrings": "4 rows have empty daily_kw strings",
+          "negatives": "3 rows have negative daily_kw values (as strings)",
+          "zeros": "2 rows have daily_kw of '0.0'",
+          "totalNullsAfterCast": "8 rows will have null daily_kw after casting (4 empty + 4 unparseable)",
+          "messyRegions": "14 distinct raw values including 'NORTH', 'north', 'North', '  NORTH', 'NORTH  ', etc.",
+          "dateRange": "2026-03-09 to 2026-03-18 (10 unique dates)"
+        }
+      },
+      "usedByTasks": ["module-PS5-task-01", "module-PS5-task-02", "module-PS5-task-04", "module-PS5-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PS5-task-01",
+      "title": "Cast NordGrid's Raw Readings to Proper Types",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's Bronze meter CSV stores every column as a string. The Silver pipeline must cast daily_kw to DoubleType and date to DateType before any calculations or date operations can work. However, some daily_kw values are not valid numbers — they contain strings like 'N/A' and 'ERR' from the source system. Spark will silently convert these to null during the cast.",
+        "task": "Read PS5_data_readings_raw.csv (header=True, no inferSchema — let all columns remain as strings). Then: (1) count how many nulls exist in daily_kw before casting and store in null_before; (2) cast daily_kw to double using withColumn and cast(); (3) cast date to date type using withColumn and cast(); (4) count how many nulls exist in daily_kw after casting and store in null_after. Store the casted DataFrame in a variable called df_typed.",
+        "validationHint": "Before casting, there are 4 empty-string rows that read as null. After casting, 4 additional unparseable values ('N/A', 'ERR', '--', 'null') also become null — total 8."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-type-casting') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Read as raw strings — no inferSchema\ndf = spark.read.csv('PS5_data_readings_raw.csv', header=True)\nprint(f\"All columns are strings: {[f.dataType.simpleString() for f in df.schema.fields]}\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Nulls before cast: {null_before}\")\nprint(f\"Nulls after cast:  {null_after}\")\nprint(f\"Silent nulls introduced: {null_after - null_before}\")\ndf_typed.printSchema()\ndf_typed.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS5-01-A1",
+          "description": "df_typed exists and is a DataFrame",
+          "check": "isinstance(df_typed, DataFrame)"
+        },
+        {
+          "id": "PS5-01-A2",
+          "description": "daily_kw is now DoubleType",
+          "check": "str(df_typed.schema['daily_kw'].dataType) == 'DoubleType()'"
+        },
+        {
+          "id": "PS5-01-A3",
+          "description": "date is now DateType",
+          "check": "str(df_typed.schema['date'].dataType) == 'DateType()'"
+        },
+        {
+          "id": "PS5-01-A4",
+          "description": "null_before is 4 (empty strings read as null)",
+          "check": "null_before == 4"
+        },
+        {
+          "id": "PS5-01-A5",
+          "description": "null_after is 8 (4 original + 4 silent nulls from unparseable values)",
+          "check": "null_after == 8"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS5-task-02",
+      "title": "Standardize NordGrid's Region Codes",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's source CSV exports region codes with inconsistent formatting. The same region appears as 'NORTH', 'north', 'North', '  NORTH', and 'NORTH  ' across different batch files. Downstream joins with the substation reference table fail silently because ' NORTH' does not match 'NORTH'. The Silver pipeline must standardize all region values to uppercase with no leading or trailing whitespace.",
+        "task": "Read PS5_data_readings_raw.csv (header=True, inferSchema=True). Apply trim() and upper() to the region column using withColumn() to standardize all values. Store the result in a variable called df_clean. Then count the distinct region values and store the count in a variable called region_count.",
+        "validationHint": "Before cleaning, there are 14 distinct region values. After cleaning, there should be exactly 4: NORTH, SOUTH, EAST, WEST."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, upper, trim\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-region-cleanup') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS5_data_readings_raw.csv', header=True, inferSchema=True)\nprint(f\"Distinct raw regions: {df.select('region').distinct().count()}\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Distinct clean regions: {region_count}\")\ndf_clean.select('region').distinct().show()"
+      },
+      "assertions": [
+        {
+          "id": "PS5-02-A1",
+          "description": "df_clean is a DataFrame",
+          "check": "isinstance(df_clean, DataFrame)"
+        },
+        {
+          "id": "PS5-02-A2",
+          "description": "Exactly 4 distinct region values after cleaning",
+          "check": "region_count == 4"
+        },
+        {
+          "id": "PS5-02-A3",
+          "description": "All region values are uppercase",
+          "check": "df_clean.filter(col('region') != upper(col('region'))).count() == 0"
+        },
+        {
+          "id": "PS5-02-A4",
+          "description": "No region values have leading or trailing whitespace",
+          "check": "df_clean.filter(col('region') != trim(col('region'))).count() == 0"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS5-task-03",
+      "title": "Predict Consumption Tier Assignments",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid classifies meter readings into consumption tiers using a when().otherwise() chain. A junior engineer writes the tier logic but is unsure how edge values and null readings are handled.",
+        "task": "Read the tier assignment code below and predict which tier each sample reading receives. Pay attention to the order of conditions and what happens when daily_kw is null.",
+        "validationHint": "The when() chain evaluates from top to bottom and returns the first matching condition. If no condition matches and otherwise() is present, the otherwise value is used. If daily_kw is null, all comparisons evaluate to null (not true), so no when() condition matches."
+      },
+      "evidence": {
+        "type": "code_block",
+        "language": "python",
+        "content": "from pyspark.sql.functions import col, when\n\ndf = df.withColumn('tier',\n    when(col('daily_kw') < 500, 'low')\n    .when(col('daily_kw') < 2000, 'medium')\n    .when(col('daily_kw') < 4000, 'high')\n    .otherwise('critical')\n)\n\n# Sample readings to classify:\n# A: daily_kw = 499.9\n# B: daily_kw = 500.0\n# C: daily_kw = 2000.0\n# D: daily_kw = 0.0\n# E: daily_kw = null\n# F: daily_kw = -50.0"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS5-03-F1",
+            "type": "single_select",
+            "label": "Reading A (daily_kw = 499.9): which tier?",
+            "options": ["low", "medium", "high", "critical"],
+            "correctAnswer": "low",
+            "rationale": "499.9 < 500 → true → returns 'low'."
+          },
+          {
+            "id": "PS5-03-F2",
+            "type": "single_select",
+            "label": "Reading B (daily_kw = 500.0): which tier?",
+            "options": ["low", "medium", "high", "critical"],
+            "correctAnswer": "medium",
+            "rationale": "500.0 < 500 → false. 500.0 < 2000 → true → returns 'medium'. The boundary value 500 falls into the next tier because the first condition uses strict less-than.",
+            "distractorRationale": "Students might pick 'low' thinking the boundary is inclusive."
+          },
+          {
+            "id": "PS5-03-F3",
+            "type": "single_select",
+            "label": "Reading C (daily_kw = 2000.0): which tier?",
+            "options": ["low", "medium", "high", "critical"],
+            "correctAnswer": "high",
+            "rationale": "2000.0 < 500 → false. 2000.0 < 2000 → false. 2000.0 < 4000 → true → returns 'high'.",
+            "distractorRationale": "Students might pick 'medium' thinking < 2000 includes 2000."
+          },
+          {
+            "id": "PS5-03-F4",
+            "type": "single_select",
+            "label": "Reading E (daily_kw = null): which tier?",
+            "options": ["low", "medium", "high", "critical", "null"],
+            "correctAnswer": "critical",
+            "rationale": "null < 500 → null (not true). null < 2000 → null (not true). null < 4000 → null (not true). No condition matched → otherwise('critical'). The trap: null falls through all conditions to otherwise. If the engineer expected nulls to be excluded, they need to handle null explicitly before the when() chain or add a when(col('daily_kw').isNull(), 'unknown') as the first condition.",
+            "distractorRationale": "Students might pick 'null' expecting the tier itself to be null, but otherwise() catches everything that didn't match — including null rows."
+          },
+          {
+            "id": "PS5-03-F5",
+            "type": "single_select",
+            "label": "Reading F (daily_kw = -50.0): which tier?",
+            "options": ["low", "medium", "high", "critical"],
+            "correctAnswer": "low",
+            "rationale": "-50.0 < 500 → true → returns 'low'. Negative values satisfy the first condition. The engineer's code does not handle negative readings — they get classified as 'low' alongside legitimate low-usage meters.",
+            "distractorRationale": "Students might expect an error or 'critical' for negative values, but the when chain has no explicit check for negatives."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS5-task-04",
+      "title": "Enrich NordGrid Readings with Temporal Fields",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's Silver layer requires temporal fields derived from the reading date: year, month, and quarter for partitioning and reporting. The operations team also needs a daily_mw column (daily_kw divided by 1,000) for capacity reports that use megawatts instead of kilowatts. All values should be rounded to 3 decimal places.",
+        "task": "Read PS5_data_readings_raw.csv (header=True, inferSchema=True). Cast the date column to DateType. Then add four new columns using withColumn(): (1) year extracted from date, (2) month extracted from date, (3) quarter extracted from date, and (4) daily_mw computed as daily_kw / 1000, rounded to 3 decimal places. Store the result in a variable called df_enriched.",
+        "validationHint": "All dates are in March 2026, so year should be 2026, month should be 3, and quarter should be 1 for every row. daily_mw should be roughly 0.080 to 4.500 for valid readings."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, year, month, quarter, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-temporal-enrichment') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS5_data_readings_raw.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\ndf_enriched.printSchema()\ndf_enriched.select('date', 'year', 'month', 'quarter', 'daily_kw', 'daily_mw').show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS5-04-A1",
+          "description": "df_enriched is a DataFrame",
+          "check": "isinstance(df_enriched, DataFrame)"
+        },
+        {
+          "id": "PS5-04-A2",
+          "description": "date column is DateType",
+          "check": "str(df_enriched.schema['date'].dataType) == 'DateType()'"
+        },
+        {
+          "id": "PS5-04-A3",
+          "description": "year column exists and all values are 2026",
+          "check": "'year' in df_enriched.columns and df_enriched.filter(col('year') != 2026).filter(col('year').isNotNull()).count() == 0"
+        },
+        {
+          "id": "PS5-04-A4",
+          "description": "month column exists and all values are 3",
+          "check": "'month' in df_enriched.columns and df_enriched.filter(col('month') != 3).filter(col('month').isNotNull()).count() == 0"
+        },
+        {
+          "id": "PS5-04-A5",
+          "description": "quarter column exists and all values are 1",
+          "check": "'quarter' in df_enriched.columns and df_enriched.filter(col('quarter') != 1).filter(col('quarter').isNotNull()).count() == 0"
+        },
+        {
+          "id": "PS5-04-A6",
+          "description": "daily_mw column exists and equals daily_kw / 1000 rounded to 3 places",
+          "check": "'daily_mw' in df_enriched.columns"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit."
+    },
+    {
+      "id": "module-PS5-task-05",
+      "title": "Identify Column Transformation Behaviors",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "A NordGrid engineer is reviewing transformation code from a colleague and encounters several patterns. The engineer needs to determine which statements are correct about how PySpark handles constants, failed casts, and boolean flags.",
+        "task": "For each code snippet or statement, determine the correct outcome. Each question tests a specific transformation behavior from Module 5.",
+        "validationHint": "Pay attention to what lit() does, what happens when cast fails, and how boolean columns interact with null values."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS5-05-F1",
+            "type": "single_select",
+            "label": "Code: df.withColumn('source', 'bronze_meters') — what happens?",
+            "options": [
+              "A column named 'source' is added with the value 'bronze_meters' in every row",
+              "A TypeError is raised because the second argument must be a Column expression — use lit('bronze_meters') instead",
+              "The column 'source' is created with null values because strings are not valid Column types",
+              "The string 'bronze_meters' is interpreted as a column name and Spark looks for a column by that name"
+            ],
+            "correctAnswer": "A TypeError is raised because the second argument must be a Column expression — use lit('bronze_meters') instead",
+            "distractorRationale": "Option 1 is what the engineer intended but not what happens. Option 3 invents a silent failure. Option 4 is actually what happens with col('bronze_meters') not a bare string in withColumn."
+          },
+          {
+            "id": "PS5-05-F2",
+            "type": "single_select",
+            "label": "A daily_kw column contains the string 'N/A'. After df.withColumn('daily_kw', col('daily_kw').cast('double')), what value does that row's daily_kw contain?",
+            "options": [
+              "The string 'N/A' — cast fails silently and keeps the original value",
+              "0.0 — Spark treats non-numeric strings as zero",
+              "null — Spark produces null when a cast cannot parse the value",
+              "An error — Spark raises a NumberFormatException"
+            ],
+            "correctAnswer": "null — Spark produces null when a cast cannot parse the value",
+            "distractorRationale": "Option 1 is wrong because cast replaces the column. Option 2 is a common assumption. Option 4 would be true in Java/Python but Spark intentionally avoids errors and produces null instead."
+          },
+          {
+            "id": "PS5-05-F3",
+            "type": "single_select",
+            "label": "An is_valid boolean column is defined as: col('daily_kw').isNotNull() & (col('daily_kw') > 0). For a row where daily_kw is null, what is the value of is_valid?",
+            "options": [
+              "false — because isNotNull() returns false and false & anything is false",
+              "null — because daily_kw > 0 evaluates to null and false & null is null",
+              "true — because the NOT in isNotNull catches the null",
+              "An error — you cannot combine isNotNull with > on a null value"
+            ],
+            "correctAnswer": "false — because isNotNull() returns false and false & anything is false",
+            "distractorRationale": "Option 2 is a subtle trap — in SQL three-valued logic, false AND null is false (not null), because the result cannot be true regardless of the null. This is actually correct behavior that benefits the engineer. Option 3 misreads the logic. Option 4 is incorrect — PySpark handles this cleanly."
+          },
+          {
+            "id": "PS5-05-F4",
+            "type": "single_select",
+            "label": "withColumn('daily_kw', spark_round(col('daily_kw'), 2)) is called on a DataFrame where daily_kw already exists. What happens?",
+            "options": [
+              "A second daily_kw column is added alongside the original",
+              "An error — you cannot use withColumn with an existing column name",
+              "The existing daily_kw column is replaced with the rounded values in a new DataFrame",
+              "The original DataFrame is modified in place with rounded values"
+            ],
+            "correctAnswer": "The existing daily_kw column is replaced with the rounded values in a new DataFrame",
+            "distractorRationale": "Option 1 would create ambiguity. Option 2 is wrong — withColumn is designed for both add and replace. Option 4 contradicts immutability."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS5-task-06",
+      "title": "Build NordGrid's Complete Meter Enrichment Pipeline",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's data engineering team needs a complete enrichment pipeline that transforms raw Bronze meter readings into a fully typed, cleaned, and enriched Silver dataset. The pipeline must handle every data quality issue in the raw CSV: string columns that need casting, inconsistent region formatting, unparseable values that become silent nulls, and the addition of derived fields for downstream consumers.",
+        "task": "Write a pipeline that: (1) reads PS5_data_readings_raw.csv as raw strings (header=True, no inferSchema); (2) casts daily_kw to double; (3) casts date to date type; (4) standardizes region with trim() and upper(); (5) adds a year column from the date; (6) adds a consumption_tier column using when/otherwise: 'low' for < 500, 'medium' for < 2000, 'high' for < 4000, 'critical' otherwise; (7) adds an is_valid boolean flag: true when daily_kw is not null AND daily_kw > 0 AND daily_kw < 10000; (8) adds a pipeline_version column with the constant integer 2 using lit(); (9) selects the final output: meter_id, daily_kw, date, region, year, consumption_tier, is_valid, pipeline_version. Store the result in a variable called silver.",
+        "validationHint": "The output should have 100 rows and 8 columns. The is_valid flag should be false for null, negative, zero, and extreme (>= 10000) readings. Null readings should get consumption_tier = 'critical' (they fall through all when conditions to otherwise)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, upper, trim, year, when, lit\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-enrichment-pipeline') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\nreadings_path = 'PS5_data_readings_raw.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nsilver.printSchema()\nprint(f\"Row count: {silver.count()}\")\nprint(f\"Columns: {silver.columns}\")\nprint(f\"Valid readings: {silver.filter(col('is_valid')).count()}\")\nprint(f\"Invalid readings: {silver.filter(~col('is_valid')).count()}\")\nsilver.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS5-06-A1",
+          "description": "silver is a DataFrame",
+          "check": "isinstance(silver, DataFrame)"
+        },
+        {
+          "id": "PS5-06-A2",
+          "description": "Exactly 8 columns in the correct order",
+          "check": "silver.columns == ['meter_id', 'daily_kw', 'date', 'region', 'year', 'consumption_tier', 'is_valid', 'pipeline_version']"
+        },
+        {
+          "id": "PS5-06-A3",
+          "description": "daily_kw is DoubleType",
+          "check": "str(silver.schema['daily_kw'].dataType) == 'DoubleType()'"
+        },
+        {
+          "id": "PS5-06-A4",
+          "description": "date is DateType",
+          "check": "str(silver.schema['date'].dataType) == 'DateType()'"
+        },
+        {
+          "id": "PS5-06-A5",
+          "description": "All region values are standardized to exactly 4 distinct values",
+          "check": "silver.select('region').distinct().count() == 4"
+        },
+        {
+          "id": "PS5-06-A6",
+          "description": "consumption_tier has no null values (otherwise catches everything)",
+          "check": "silver.filter(col('consumption_tier').isNull()).count() == 0"
+        },
+        {
+          "id": "PS5-06-A7",
+          "description": "is_valid is false for null daily_kw rows",
+          "check": "silver.filter(col('daily_kw').isNull() & col('is_valid')).count() == 0"
+        },
+        {
+          "id": "PS5-06-A8",
+          "description": "pipeline_version is 2 for all rows (constant via lit())",
+          "check": "silver.filter(col('pipeline_version') != 2).count() == 0"
+        },
+        {
+          "id": "PS5-06-A9",
+          "description": "Row count is 100 (no rows filtered — enrichment only)",
+          "check": "silver.count() == 100"
+        }
+      ],
+      "partialCredit": "9 independent assertions. Each passed assertion earns 1/9 credit.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "withColumn for adding/replacing columns (Lesson 1)",
+          "Type casting with cast() and silent null detection (Lesson 3)",
+          "String cleaning with upper() and trim() (Lesson 4)",
+          "Date extraction with year() (Lesson 5)",
+          "Conditional logic with when().otherwise() (Lesson 7)",
+          "Boolean flag columns for data quality (Lesson 8)",
+          "Constant columns with lit() (Lesson 1)",
+          "Final select for output schema contract (Lesson 10)"
+        ],
+        "minimumConceptCount": 7,
+        "rationale": "This task mirrors NordGrid's complete Bronze-to-Silver enrichment pipeline from Lesson 10. The student must combine every major technique from the module into a single pipeline. Key edge cases: (1) null daily_kw values fall through when() to 'critical' tier, (2) is_valid correctly handles nulls because isNotNull is checked first, (3) lit() is required for the constant pipeline_version column. No rows are filtered — this is a pure enrichment pipeline."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 7,
+    "foundationModuleException": "Not applicable — Module 5 is Core Mechanics phase.",
+    "theoryPracticeBoundary": "Theory examples use pre-typed Silver data. The practice dataset is raw Bronze strings requiring casting — students must apply cast() themselves rather than starting from pre-typed data. The when/otherwise tier thresholds match the theory (500/2000/4000), but Task 3 tests edge values and null behavior that the theory describes but does not make students calculate. The region cleaning task uses messier data (14 variants vs 4 in the theory) to test transfer of upper()+trim().",
+    "datasetNotes": "PS5_data_readings_raw.csv has 100 rows with intentionally messy data: all columns are strings, daily_kw has 4 unparseable values that become silent nulls on cast, and region has 14 raw variants that standardize to 4. This forces students to apply every cleaning technique from the module."
+  }
+}

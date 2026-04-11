@@ -1,0 +1,504 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 2 — Shuffle Mechanics and Optimization",
+  "description": "Diagnose shuffle performance problems by reading stage metrics, identifying over-partitioned and under-partitioned shuffles, tuning spark.sql.shuffle.partitions, choosing between coalesce and repartition, detecting shuffle spill, and reducing shuffle volume through pre-filtering.",
+  "version": "authored 2026-04-05, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PM2",
+    "trackLevel": "mid-level",
+    "estimatedDurationMinutes": 75,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, multi-team",
+    "modulePhase": "performance_patterns",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 3,
+      "fixImplementation": 1,
+      "refactoring": 1,
+      "diagnosticWorkflow": 1
+    },
+    "evidenceNote": "Stage metrics and task distributions are modeled on realistic Spark 3.5+ behavior. Should be validated against actual Spark execution before publication."
+  },
+  "datasets": [
+    {
+      "id": "PM2_data_readings_silver",
+      "file": "PM2_data_readings_silver.csv",
+      "description": "NordGrid Silver-layer readings with heavy NORTH_COAST skew. 800 rows, 12 regions. NORTH_COAST holds 41% of rows — designed to expose partition skew in shuffle-based operations.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": true},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false},
+          {"name": "customer_type", "type": "string", "nullable": false},
+          {"name": "substation_id", "type": "string", "nullable": false},
+          {"name": "is_valid", "type": "string", "nullable": false},
+          {"name": "tier", "type": "string", "nullable": false}
+        ],
+        "characteristics": {
+          "heavySkew": "NORTH_COAST: 331 rows (41%) — all other regions combined: 469 rows (59%)",
+          "regions": 12,
+          "totalRows": 800,
+          "dateRange": "2026-03-10 to 2026-03-23"
+        }
+      },
+      "usedByTasks": ["module-PM2-task-02", "module-PM2-task-03", "module-PM2-task-05", "module-PM2-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PM2-task-01",
+      "title": "Read Shuffle Metrics from NordGrid's Stage Table",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 10,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's daily Silver-to-Gold aggregation pipeline groups 1.2M meter readings by region and computes summary statistics. The pipeline ran successfully but the team lead noticed it took 8 minutes instead of the usual 2 minutes. The Spark UI's Stages tab shows the following metrics for the pipeline's four stages.",
+        "task": "Examine the stage metrics below. Identify which stage is the bottleneck, what the shuffle volume tells you about data movement, and whether the partition count is appropriate for the data size.",
+        "validationHint": "The bottleneck stage has the longest duration. Compare shuffle write vs shuffle read to trace where data moves. Compare the number of tasks to the number of groups to check for over-partitioning."
+      },
+      "evidence": {
+        "type": "stage_metrics",
+        "label": "Spark UI — Stages tab for the Gold aggregation pipeline",
+        "content": "Stage | Description                    | Duration | Input    | Output  | Shuffle Write | Shuffle Read | Tasks | Median Task | Max Task\n------|-------------------------------|----------|----------|---------|---------------|-------------|-------|-------------|----------\n  0   | FileScan + Filter (is_valid)   | 18s      | 3.2 GB   | —       | 2.8 GB        | —           | 24    | 0.7s        | 1.1s\n  1   | partial_HashAggregate          | —        | —        | —       | (included in stage 0 shuffle write) | — | —  | —           | —\n  2   | Exchange + HashAggregate       | 7.2 min  | —        | 12 rows | —             | 2.8 GB      | 200   | 0.3s        | 3.8 min\n  3   | Write Parquet                  | 0.4s     | 12 rows  | 48 KB   | —             | —           | 200   | 0.002s      | 0.01s"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM2-01-F1",
+            "type": "single_select",
+            "label": "Which stage is the bottleneck?",
+            "options": [
+              "Stage 0 — the file scan and filter take 18 seconds",
+              "Stage 2 — the shuffle read and final aggregation take 7.2 minutes",
+              "Stage 3 — the Parquet write has 200 tasks for only 12 rows",
+              "All stages are equally slow"
+            ],
+            "correctAnswer": "Stage 2 — the shuffle read and final aggregation take 7.2 minutes",
+            "distractorRationale": "Stage 0 (18s) and Stage 3 (0.4s) are fast. Stage 2's 7.2-minute duration dominates the 8-minute total. The 200 tasks in Stage 3 is wasteful but completes in 0.4s — it's a resource waste, not a time bottleneck."
+          },
+          {
+            "id": "PM2-01-F2",
+            "type": "single_select",
+            "label": "What does the max task duration of 3.8 minutes in Stage 2 (vs median of 0.3s) indicate?",
+            "options": [
+              "Normal variation — task durations always differ by 10x or more",
+              "Data skew — one partition has dramatically more data than the others, causing one task to take 760x longer than the median",
+              "Hardware failure — one executor is running on a slow machine",
+              "Garbage collection — one task triggered a long GC pause"
+            ],
+            "correctAnswer": "Data skew — one partition has dramatically more data than the others, causing one task to take 760x longer than the median",
+            "distractorRationale": "A 760x ratio (3.8 min / 0.3s) is a textbook skew signal. Hardware issues typically produce 2-5x variation, and GC pauses produce spikes across multiple tasks on the same executor, not a single straggler."
+          },
+          {
+            "id": "PM2-01-F3",
+            "type": "single_select",
+            "label": "Stage 2 has 200 tasks but only 12 groups (regions). Stage 3 writes 12 rows across 200 tasks. What is the problem?",
+            "options": [
+              "Nothing — 200 tasks is Spark's default and works well for all data sizes",
+              "Over-partitioned — spark.sql.shuffle.partitions is set to the default 200, creating 188 empty partitions for a 12-group aggregation",
+              "Under-partitioned — 200 tasks is too few for 2.8 GB of shuffle data",
+              "The 200 tasks in Stage 3 indicate a repartition that should be removed"
+            ],
+            "correctAnswer": "Over-partitioned — spark.sql.shuffle.partitions is set to the default 200, creating 188 empty partitions for a 12-group aggregation",
+            "distractorRationale": "With 12 groups, only 12 partitions can contain data. The remaining 188 partitions are empty — each one incurs scheduling overhead in Stage 2 and creates empty files in Stage 3."
+          },
+          {
+            "id": "PM2-01-F4",
+            "type": "numeric",
+            "label": "What value should spark.sql.shuffle.partitions be set to for this 12-region aggregation, assuming 2-4 partitions per group is reasonable?",
+            "correctAnswer": 24,
+            "tolerance": 8,
+            "rationale": "With 12 groups and 2.8 GB of data, 16-32 partitions (1.3-2.7 per group) keeps all partitions non-empty and each partition at 87-175 MB — within the ideal range. The exact value is less important than being in the right ballpark. 200 is far too high; 4 is too low."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM2-task-02",
+      "title": "Diagnose Over-Partitioned Output Files",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's Gold summary pipeline writes a 12-row regional summary table to Parquet. The downstream analytics team reports that reading this table takes 15 seconds instead of the expected 0.5 seconds. The data engineering team checks the output directory and finds 200 Parquet files, most of which are empty (0 bytes) or contain a single row.",
+        "task": "Examine the directory listing and pipeline code below. Diagnose why 200 files were created for 12 rows, explain the performance impact on readers, and determine the correct fix.",
+        "validationHint": "The number of output files equals the number of DataFrame partitions at write time. The partition count after a groupBy is controlled by spark.sql.shuffle.partitions."
+      },
+      "evidence": {
+        "type": "combined",
+        "directoryListing": {
+          "label": "Output directory: gold/regional_summary/",
+          "content": "total 200 files\npart-00000-*.parquet     1.2 KB   (1 row: EAST)\npart-00001-*.parquet     0 bytes  (empty)\npart-00002-*.parquet     0 bytes  (empty)\n...  (186 empty files omitted)\npart-00189-*.parquet     1.2 KB   (1 row: NORTH)\npart-00190-*.parquet     0 bytes  (empty)\n...\npart-00199-*.parquet     1.2 KB   (1 row: WEST_INLAND)\n\nTotal: 12 files with data (1 row each), 188 empty files (0 bytes each)"
+        },
+        "codeBlock": {
+          "label": "Pipeline code that produced this output",
+          "content": "spark.conf.set('spark.sql.shuffle.partitions', '200')  # default\n\ndf = spark.read.parquet('silver/readings/')\n\ngold = (df\n    .filter(col('is_valid') == 'true')\n    .groupBy('region')\n    .agg(\n        spark_sum('daily_kw').alias('total_kw'),\n        spark_avg('daily_kw').alias('avg_kw'),\n        count('meter_id').alias('reading_count'),\n    )\n)\n\ngold.write.mode('overwrite').parquet('gold/regional_summary/')"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM2-02-F1",
+            "type": "single_select",
+            "label": "Why did the pipeline create 200 files for 12 rows?",
+            "options": [
+              "Because Parquet always creates 200 files regardless of data size",
+              "Because spark.sql.shuffle.partitions is set to 200, and groupBy uses this value for the post-shuffle partition count — 12 partitions get data, 188 are empty",
+              "Because write.parquet() defaults to 200 output files",
+              "Because the input data has 200 partitions from the read, and groupBy preserves the input partition count"
+            ],
+            "correctAnswer": "Because spark.sql.shuffle.partitions is set to 200, and groupBy uses this value for the post-shuffle partition count — 12 partitions get data, 188 are empty",
+            "distractorRationale": "Option 3 confuses write behavior (writes one file per partition) with a write-level setting. Option 4 confuses input partitions with post-shuffle partitions — groupBy always uses shuffle.partitions, not the input count."
+          },
+          {
+            "id": "PM2-02-F2",
+            "type": "single_select",
+            "label": "Why does reading 200 files take 15 seconds instead of 0.5 seconds?",
+            "options": [
+              "Because Parquet files are slow to decompress",
+              "Because each file requires opening, reading the Parquet footer, checking statistics, and closing — 200 files × this overhead dominates the 12 actual rows of data",
+              "Because the empty files contain corrupt metadata that Spark must repair",
+              "Because Spark reads all 200 files in sequence, not in parallel"
+            ],
+            "correctAnswer": "Because each file requires opening, reading the Parquet footer, checking statistics, and closing — 200 files × this overhead dominates the 12 actual rows of data",
+            "distractorRationale": "The small-files problem: per-file metadata overhead exceeds the actual data read time. Spark does read in parallel (option 4 is wrong) but the overhead is still 200 × file-open cost."
+          },
+          {
+            "id": "PM2-02-F3",
+            "type": "single_select",
+            "label": "What is the correct fix?",
+            "options": [
+              "Set spark.sql.shuffle.partitions to 1 for all pipelines",
+              "Add .coalesce(1) before .write to merge all partitions into a single file without a shuffle",
+              "Add .repartition(1) before .write to redistribute into a single file",
+              "Either .coalesce(1) before write OR lower spark.sql.shuffle.partitions to 12-24 — both eliminate the small-files problem"
+            ],
+            "correctAnswer": "Either .coalesce(1) before write OR lower spark.sql.shuffle.partitions to 12-24 — both eliminate the small-files problem",
+            "distractorRationale": "Option 1 is dangerous — setting shuffle partitions to 1 globally affects ALL operations, not just this write. Option 2 works but is only one valid approach. Option 3 works but adds an unnecessary shuffle. Option 4 acknowledges both valid fixes."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM2-task-03",
+      "title": "Fix NordGrid's Shuffle Partition Count",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 35, "code": 65},
+      "description": {
+        "context": "NordGrid's Gold pipeline groups 800 readings by region (12 groups) and by customer_type (3 groups), producing a 36-row summary. The current pipeline uses the default spark.sql.shuffle.partitions of 200, creating 164 empty partitions and 200 output files. The team needs the partition count tuned and the output files compacted.",
+        "task": "First, determine the appropriate shuffle partition count for a 36-group aggregation. Then fix the pipeline code: set spark.sql.shuffle.partitions to a reasonable value, perform the aggregation, coalesce the result before writing, and store the output DataFrame in a variable called gold.",
+        "validationHint": "For 36 groups, 36–48 shuffle partitions is reasonable (1–1.3 per group). The coalesced output should produce 1–4 files, not 200."
+      },
+      "evidence": {
+        "type": "code_block",
+        "label": "Current pipeline (over-partitioned)",
+        "content": "# Problem: default 200 shuffle partitions for 36-group aggregation\ndf = spark.read.csv('PM2_data_readings_silver.csv', header=True, inferSchema=True)\n\ngold = (df\n    .filter(col('is_valid') == 'true')\n    .groupBy('region', 'customer_type')\n    .agg(\n        spark_sum('daily_kw').alias('total_kw'),\n        spark_round(spark_avg('daily_kw'), 1).alias('avg_kw'),\n        count('meter_id').alias('reading_count'),\n    )\n)\n\n# Writes 200 files for 36 rows\ngold.write.mode('overwrite').parquet('output/gold_summary/')"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM2-03-F1",
+            "type": "numeric",
+            "label": "What value should spark.sql.shuffle.partitions be set to for this 36-group aggregation?",
+            "correctAnswer": 36,
+            "tolerance": 12,
+            "rationale": "36 groups → 24-48 shuffle partitions is reasonable. Lower than 24 risks under-utilization of cores; higher than 48 creates empty partitions. The exact value matters less than being in the right range."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, avg as spark_avg, count, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-shuffle-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM2_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# 1. Set spark.sql.shuffle.partitions to an appropriate value\n# 2. Perform the groupBy/agg aggregation\n# 3. Coalesce before writing\n# Store the result in 'gold'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Gold rows: {gold.count()}\")\nprint(f\"Gold partitions: {gold.rdd.getNumPartitions()}\")\nprint(f\"Shuffle partitions config: {spark.conf.get('spark.sql.shuffle.partitions')}\")\ngold.orderBy('region', 'customer_type').show(10)"
+      },
+      "assertions": [
+        {
+          "id": "PM2-03-A1",
+          "description": "gold has 36 rows (12 regions × 3 customer types)",
+          "check": "gold.count() == 36"
+        },
+        {
+          "id": "PM2-03-A2",
+          "description": "Has required aggregation columns",
+          "check": "all(c in gold.columns for c in ['region', 'customer_type', 'total_kw', 'avg_kw', 'reading_count'])"
+        },
+        {
+          "id": "PM2-03-A3",
+          "description": "shuffle.partitions is set below 100 (not the default 200)",
+          "check": "int(spark.conf.get('spark.sql.shuffle.partitions')) <= 100"
+        },
+        {
+          "id": "PM2-03-A4",
+          "description": "Output is coalesced to few partitions (≤ 4)",
+          "check": "gold.rdd.getNumPartitions() <= 4"
+        }
+      ],
+      "partialCredit": "Template (35%): 1 field. Code (65%): 4 assertions graded independently."
+    },
+    {
+      "id": "module-PM2-task-04",
+      "title": "Choose Coalesce vs Repartition for NordGrid's Pipelines",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's platform team is reviewing four pipeline scenarios where engineers need to change the partition count before writing. Each scenario has different requirements: some need to reduce partitions, some need to redistribute evenly. The team needs to decide whether to use coalesce() or repartition() for each case.",
+        "task": "For each scenario, select the correct operation and justify why. Remember: coalesce(n) merges adjacent partitions without a shuffle (can only reduce, not increase). repartition(n) redistributes data evenly with a full shuffle (can increase or decrease).",
+        "validationHint": "Coalesce is preferred when reducing partitions because it avoids a shuffle. Repartition is required when you need even distribution or when increasing partition count."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM2-04-F1",
+            "type": "single_select",
+            "label": "Scenario A: A Gold summary has 12 rows across 200 partitions. The team wants 1 output file for the dashboard to read efficiently.",
+            "options": [
+              "coalesce(1) — reduce 200 to 1 without a shuffle. The data is tiny (12 rows), so uneven merging is irrelevant.",
+              "repartition(1) — redistribute evenly into 1 partition for balanced reads.",
+              "Neither — write directly and let Spark handle the file count.",
+              "Both produce the same result — the choice doesn't matter for 12 rows."
+            ],
+            "correctAnswer": "coalesce(1) — reduce 200 to 1 without a shuffle. The data is tiny (12 rows), so uneven merging is irrelevant.",
+            "distractorRationale": "repartition(1) works but adds an unnecessary shuffle for 12 rows. For tiny data, coalesce is always the right choice because the shuffle cost exceeds any benefit of redistribution."
+          },
+          {
+            "id": "PM2-04-F2",
+            "type": "single_select",
+            "label": "Scenario B: A Silver table has 8 partitions after reading. The downstream join requires 32 partitions for optimal parallelism across 32 executor cores.",
+            "options": [
+              "coalesce(32) — increase from 8 to 32 partitions.",
+              "repartition(32) — redistribute into 32 even partitions with a shuffle. Coalesce cannot increase partition count.",
+              "Neither — Spark automatically adjusts partitions during the join shuffle.",
+              "repartition(32, 'meter_id') — repartition by the join key for co-located matching."
+            ],
+            "correctAnswer": "repartition(32) — redistribute into 32 even partitions with a shuffle. Coalesce cannot increase partition count.",
+            "distractorRationale": "coalesce can only reduce, never increase — calling coalesce(32) on 8 partitions has no effect. Option 3 is partially true (the join shuffle will repartition) but the question asks about explicit pre-join partitioning. Option 4 is a valid advanced technique but not the standard answer."
+          },
+          {
+            "id": "PM2-04-F3",
+            "type": "single_select",
+            "label": "Scenario C: A pipeline reads 24 partitions from Parquet. After filtering, 90% of rows are removed, leaving ~50 rows spread across 24 partitions (most nearly empty). The team wants 4 output files.",
+            "options": [
+              "coalesce(4) — reduce from 24 to 4. Some partitions may be uneven but the data is small.",
+              "repartition(4) — redistribute evenly into 4 partitions for balanced file sizes.",
+              "coalesce(4) is preferred — it avoids the shuffle cost, and with only 50 rows the unevenness doesn't matter.",
+              "repartition(4) is preferred — the data is already unevenly distributed from the filter, so redistribution ensures balanced files."
+            ],
+            "correctAnswer": "coalesce(4) is preferred — it avoids the shuffle cost, and with only 50 rows the unevenness doesn't matter.",
+            "distractorRationale": "repartition(4) would produce perfectly even files but at the cost of a shuffle. For 50 rows, the shuffle overhead far exceeds any benefit of even distribution. Coalesce merges 6 adjacent partitions into each of 4 output partitions — some may have 15 rows and others 10, but that's irrelevant at this scale."
+          },
+          {
+            "id": "PM2-04-F4",
+            "type": "single_select",
+            "label": "Scenario D: A 2 GB Silver table is being written partitioned by region (12 regions). One region (NORTH_COAST) has 41% of the data. The team wants reasonably balanced files within each partition directory.",
+            "options": [
+              "coalesce(4) — reduce total partitions for fewer files.",
+              "repartition(12, 'region') — redistribute by region so each region's data is in one partition.",
+              "repartition('region') before partitionBy('region') is redundant — partitionBy already handles the redistribution during write.",
+              "repartition(48) — create enough partitions for even distribution across the 12 regions."
+            ],
+            "correctAnswer": "repartition('region') before partitionBy('region') is redundant — partitionBy already handles the redistribution during write.",
+            "distractorRationale": "partitionBy('region') in the write already reorganizes data by region. Adding a repartition('region') before it creates a redundant shuffle. The skewed distribution within NORTH_COAST affects file sizes within that partition directory but partitionBy handles the directory structure correctly."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM2-task-05",
+      "title": "Reduce Shuffle Volume with Pre-Filtering",
+      "type": "refactoring",
+      "estimatedMinutes": 14,
+      "gradingWeight": {"template": 30, "code": 70},
+      "description": {
+        "context": "NordGrid's billing pipeline computes monthly totals for commercial customers in the NORTH and NORTH_COAST regions only. The current code aggregates ALL 800 rows across all 12 regions and all customer types, then filters to commercial + NORTH/NORTH_COAST afterward. The Spark UI shows a 2.8 GB shuffle write for the groupBy, but only 3 of the 36 output rows are actually used.",
+        "task": "Diagnose why the shuffle volume is too high, then refactor the pipeline to filter before the groupBy. Compute the expected shuffle volume reduction. Store the refactored output in a variable called billing.",
+        "validationHint": "Pre-filtering to commercial + NORTH/NORTH_COAST should reduce the input rows from 800 to ~140, and the shuffle volume proportionally. The output should have 2 rows (NORTH + NORTH_COAST, commercial only)."
+      },
+      "evidence": {
+        "type": "combined",
+        "codeBlock": {
+          "label": "Current pipeline (filter AFTER groupBy)",
+          "content": "# Problem: aggregates everything, then discards 33 of 36 groups\ndf = spark.read.csv('PM2_data_readings_silver.csv', header=True, inferSchema=True)\n\nresult = (df\n    .groupBy('region', 'customer_type')\n    .agg(\n        spark_sum('daily_kw').alias('total_kw'),\n        count('meter_id').alias('reading_count'),\n    )\n    .filter(col('customer_type') == 'commercial')\n    .filter(col('region').isin('NORTH', 'NORTH_COAST'))\n)\n\nresult.show()"
+        },
+        "stageMetrics": {
+          "label": "Spark UI stage metrics (current run)",
+          "content": "Stage | Description              | Duration | Shuffle Write | Shuffle Read | Tasks\n------|-------------------------|----------|---------------|-------------|------\n  0   | FileScan + partial_agg   | 3.2s     | 2.8 GB        | —           | 8\n  1   | HashAggregate + Filter   | 4.1s     | —             | 2.8 GB      | 200"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM2-05-F1",
+            "type": "single_select",
+            "label": "Why is the shuffle volume unnecessarily high?",
+            "options": [
+              "Because the groupBy uses too many shuffle partitions",
+              "Because the filter is applied AFTER the groupBy — all 800 rows are shuffled, but only ~140 rows (commercial + NORTH/NORTH_COAST) are actually needed",
+              "Because the FileScan reads all columns instead of just the needed ones",
+              "Because Spark cannot optimize filters on aggregated columns"
+            ],
+            "correctAnswer": "Because the filter is applied AFTER the groupBy — all 800 rows are shuffled, but only ~140 rows (commercial + NORTH/NORTH_COAST) are actually needed"
+          },
+          {
+            "id": "PM2-05-F2",
+            "type": "single_select",
+            "label": "By approximately what factor should the shuffle volume decrease after pre-filtering?",
+            "options": [
+              "No change — Catalyst automatically moves filters before groupBy",
+              "~2x reduction — the filter removes about half the data",
+              "~5-6x reduction — commercial + NORTH/NORTH_COAST is roughly 17% of the data",
+              "~36x reduction — from 36 groups to 2 groups"
+            ],
+            "correctAnswer": "~5-6x reduction — commercial + NORTH/NORTH_COAST is roughly 17% of the data",
+            "distractorRationale": "NORTH_COAST has ~330 rows, NORTH has ~60 rows. Of those ~390, ~30% are commercial = ~117 rows. 117/800 = 14.6%, so ~5-6x reduction. Option 1 is wrong — Catalyst cannot always push filters through aggregation boundaries. Option 4 confuses row reduction with group reduction."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, count\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-prefilter-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM2_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Refactor: move filters BEFORE groupBy to reduce shuffle volume.\n# Output should contain only commercial customers in NORTH and NORTH_COAST.\n# Store result in 'billing'.\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Billing rows: {billing.count()}\")\nprint(f\"Regions: {[r.region for r in billing.select('region').distinct().collect()]}\")\nbilling.show()"
+      },
+      "assertions": [
+        {
+          "id": "PM2-05-A1",
+          "description": "billing has 2 rows (NORTH + NORTH_COAST, commercial only)",
+          "check": "billing.count() == 2"
+        },
+        {
+          "id": "PM2-05-A2",
+          "description": "Only NORTH and NORTH_COAST regions present",
+          "check": "set(billing.select('region').toPandas()['region']) == {'NORTH', 'NORTH_COAST'}"
+        },
+        {
+          "id": "PM2-05-A3",
+          "description": "Has total_kw and reading_count columns",
+          "check": "'total_kw' in billing.columns and 'reading_count' in billing.columns"
+        },
+        {
+          "id": "PM2-05-A4",
+          "description": "Only commercial customer_type (filter applied before groupBy)",
+          "check": "billing.filter(col('customer_type') != 'commercial').count() == 0"
+        }
+      ],
+      "partialCredit": "Template (30%): 2 fields graded independently. Code (70%): 4 assertions graded independently."
+    },
+    {
+      "id": "module-PM2-task-06",
+      "title": "Diagnose NordGrid's Spilling Aggregation Pipeline",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 15,
+      "gradingWeight": {"template": 55, "code": 45},
+      "description": {
+        "context": "NordGrid's per-meter monthly aggregation pipeline groups 1.2M daily readings by meter_id and month to compute monthly totals per meter. The pipeline produces 1.2M × 12 = 14.4M output rows. The Spark UI shows that Stage 2 is spilling 6.2 GB to disk despite the cluster having 64 GB of executor memory. The on-call engineer must diagnose the spill and fix the pipeline.",
+        "task": "Examine the stage metrics and executor metrics below. Identify the root cause of the disk spill, determine what configuration or code change would eliminate it, and implement the fix.",
+        "validationHint": "Spill to disk occurs when a shuffle partition's data exceeds the available executor memory for that operation. More shuffle partitions → smaller partitions → less memory pressure. But the real question is whether the pipeline needs all that data in the shuffle."
+      },
+      "evidence": {
+        "type": "combined",
+        "stageMetrics": {
+          "label": "Spark UI — Stages tab",
+          "content": "Stage | Description                         | Duration | Shuffle Write | Shuffle Read | Spill (Memory) | Spill (Disk) | Tasks\n------|----------------------------------------|----------|---------------|-------------|----------------|-------------|------\n  0   | FileScan + partial_HashAggregate        | 28s      | 4.8 GB        | —           | 0              | 0           | 24\n  1   | Exchange + HashAggregate (meter_id, month) | 6.5 min | —           | 4.8 GB      | 14.2 GB        | 6.2 GB      | 16\n  2   | Write Parquet                           | 45s      | —             | —           | 0              | 0           | 16"
+        },
+        "executorMetrics": {
+          "label": "Spark UI — Executors tab",
+          "content": "Executor | Cores | Memory  | Tasks Completed | Shuffle Read | Spill (Disk)\n---------|-------|---------|----------------|-------------|------------\n  1      | 4     | 16 GB   | 4              | 1.2 GB      | 1.6 GB\n  2      | 4     | 16 GB   | 4              | 1.2 GB      | 1.5 GB\n  3      | 4     | 16 GB   | 4              | 1.2 GB      | 1.6 GB\n  4      | 4     | 16 GB   | 4              | 1.2 GB      | 1.5 GB"
+        },
+        "codeBlock": {
+          "label": "Pipeline code",
+          "content": "spark.conf.set('spark.sql.shuffle.partitions', '16')  # tuned low\n\ndf = spark.read.parquet('silver/readings/')  # 1.2M rows, 3.2 GB\n\nmonthly = (df\n    .filter(col('is_valid') == 'true')\n    .groupBy('meter_id', 'month')\n    .agg(\n        spark_sum('daily_kw').alias('monthly_kw'),\n        count('*').alias('days_count'),\n    )\n)\n\nmonthly.write.mode('overwrite').parquet('gold/monthly_per_meter/')"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM2-06-F1",
+            "type": "single_select",
+            "label": "What is the root cause of the 6.2 GB disk spill in Stage 1?",
+            "options": [
+              "The input data is too large for the cluster's total memory",
+              "spark.sql.shuffle.partitions is set to 16, so each of the 16 tasks must process 300 MB of shuffle data — this exceeds the per-task memory budget and forces spill to disk",
+              "The groupBy key (meter_id, month) has too many distinct values for an in-memory hash table",
+              "The executors have insufficient cores to process the shuffle in parallel"
+            ],
+            "correctAnswer": "spark.sql.shuffle.partitions is set to 16, so each of the 16 tasks must process 300 MB of shuffle data — this exceeds the per-task memory budget and forces spill to disk",
+            "distractorRationale": "4.8 GB / 16 tasks = 300 MB per task. Each executor has 16 GB shared across 4 cores, giving ~4 GB per core for execution memory. The hash table for 14.4M output rows at 300 MB per partition exceeds the per-task budget. Option 3 is close but the cardinality alone doesn't cause spill — it's the combination of cardinality + partition size."
+          },
+          {
+            "id": "PM2-06-F2",
+            "type": "numeric",
+            "label": "The pipeline shuffles 4.8 GB across 16 partitions. What partition count would keep each partition under 128 MB (a safe target to avoid spill)?",
+            "correctAnswer": 48,
+            "tolerance": 16,
+            "rationale": "4800 MB / 128 MB per partition = 37.5, round up to 38. With some safety margin, 40-64 partitions (each holding 75-120 MB) avoids spill. The key insight: the engineer over-corrected from the default 200 down to 16, going from over-partitioned to under-partitioned."
+          },
+          {
+            "id": "PM2-06-F3",
+            "type": "single_select",
+            "label": "What is the key lesson about tuning spark.sql.shuffle.partitions?",
+            "options": [
+              "Always use the default of 200 — it works for all data sizes",
+              "Always set it as low as possible to minimize scheduling overhead",
+              "The optimal value depends on the shuffle data volume: too low causes spill and stragglers, too high creates empty partitions and overhead. Target 128-256 MB per partition.",
+              "Let AQE handle it automatically — manual tuning is never needed"
+            ],
+            "correctAnswer": "The optimal value depends on the shuffle data volume: too low causes spill and stragglers, too high creates empty partitions and overhead. Target 128-256 MB per partition.",
+            "distractorRationale": "Option 1 ignores that 200 is over-partitioned for small data and under-partitioned for large data. Option 2 is what caused this problem — the engineer set it to 16 and caused spill. Option 4 is partially true (AQE helps) but AQE is Module 8 content."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, count, month\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-spill-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM2_data_readings_silver.csv', header=True, inferSchema=True)\ndf = df.withColumn('month', month(col('date').cast('date')))\n\n# YOUR SOLUTION BELOW\n# Fix the shuffle partition count to avoid disk spill.\n# Then perform the groupBy('meter_id', 'month') aggregation.\n# Store the result in 'monthly'.\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Monthly rows: {monthly.count()}\")\nprint(f\"Shuffle partitions: {spark.conf.get('spark.sql.shuffle.partitions')}\")\nprint(f\"Columns: {monthly.columns}\")\nmonthly.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PM2-06-A1",
+          "description": "monthly is a DataFrame with aggregation results",
+          "check": "isinstance(monthly, DataFrame)"
+        },
+        {
+          "id": "PM2-06-A2",
+          "description": "Has required columns: meter_id, month, monthly_kw, days_count",
+          "check": "all(c in monthly.columns for c in ['meter_id', 'month'])"
+        },
+        {
+          "id": "PM2-06-A3",
+          "description": "Shuffle partitions set above 16 (the under-partitioned value that caused spill)",
+          "check": "int(spark.conf.get('spark.sql.shuffle.partitions')) > 16"
+        },
+        {
+          "id": "PM2-06-A4",
+          "description": "Shuffle partitions set below 200 (the over-partitioned default)",
+          "check": "int(spark.conf.get('spark.sql.shuffle.partitions')) < 200"
+        }
+      ],
+      "partialCredit": "Template (55%): 3 fields graded independently. Code (45%): 4 assertions graded independently.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Reading stage metrics — shuffle write/read volumes (Lesson 1-2)",
+          "Disk spill detection from Spark UI (Lesson 5)",
+          "Partition count tuning — 128-256 MB per partition target (Lesson 3)",
+          "Over-partitioning vs under-partitioning — both are problems (Lesson 3-4)",
+          "The relationship between shuffle.partitions, data volume, and per-task memory (Lesson 3, 6)"
+        ],
+        "minimumConceptCount": 4,
+        "rationale": "This diagnostic workflow presents the opposite problem from Task 1-2: the engineer over-corrected from 200 to 16 partitions, causing disk spill. The student must read spill metrics, compute the correct partition count from the shuffle volume, and understand that tuning is a balance between two failure modes. The combined evidence (stage metrics + executor metrics + code) requires the student to correlate information from three sources to reach the diagnosis."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 4,
+    "everyDiagnosticRequiresEvidence": true,
+    "distractorsPlausible": true,
+    "fixTasksTestModuleTechnique": true,
+    "evidenceRealistic": "Stage metrics, executor metrics, and directory listings are modeled on realistic Spark 3.5+ behavior. Spill ratios and task durations reflect real-world patterns. Should be validated against actual Spark execution before publication per §5.3.",
+    "theoryPracticeBoundary": "Theory teaches shuffle mechanics, partition count tuning, and coalesce vs repartition. Practice requires applying those concepts to diagnose real problems: over-partitioned Gold output (Task 1-2), under-partitioned spilling aggregation (Task 6), unnecessary shuffle from post-filtering (Task 5). The problems are not found verbatim in the theory — students must transfer the tuning principles to novel scenarios."
+  }
+}

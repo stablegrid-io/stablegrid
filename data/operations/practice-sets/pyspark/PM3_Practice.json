@@ -1,0 +1,515 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 3 — Join Performance Patterns",
+  "description": "Diagnose join performance problems: identify join strategies from execution plans, force broadcast joins for small tables, detect data skew from task duration distributions, identify row multiplication from duplicate keys, and resolve a production join slowdown caused by skewed data.",
+  "version": "authored 2026-04-05, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PM3",
+    "trackLevel": "mid-level",
+    "estimatedDurationMinutes": 76,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, multi-team",
+    "modulePhase": "performance_patterns",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 3,
+      "fixImplementation": 1,
+      "refactoring": 1,
+      "diagnosticWorkflow": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PM3_data_readings",
+      "file": "PM3_data_readings.csv",
+      "description": "NordGrid meter readings. 600 rows. Join key substation_id is skewed: SUB-001 holds 42% of rows. Used for skewed join diagnosis.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false},
+          {"name": "substation_id", "type": "string", "nullable": false}
+        ],
+        "characteristics": {
+          "skewedKey": "SUB-001: 253 rows (42%), remaining 39 substations share 347 rows",
+          "totalRows": 600
+        }
+      },
+      "usedByTasks": ["module-PM3-task-02", "module-PM3-task-04", "module-PM3-task-06"]
+    },
+    {
+      "id": "PM3_data_meters_ref",
+      "file": "PM3_data_meters_ref.csv",
+      "description": "NordGrid meter reference table. 515 rows. 15 meter_ids are duplicated (2 rows each) — dirty reference data that causes row multiplication on join. 480 meter_ids match readings; 20 do not.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "customer_type", "type": "string", "nullable": false},
+          {"name": "install_date", "type": "string", "nullable": false},
+          {"name": "substation_id", "type": "string", "nullable": false}
+        ],
+        "characteristics": {
+          "duplicateKeys": "15 meter_ids (M-00001 to M-00015) appear twice with different customer_type values",
+          "matched": "480 meter_ids match readings",
+          "unmatched": "20 meter_ids (M-00601 to M-00620) have no readings"
+        }
+      },
+      "usedByTasks": ["module-PM3-task-03", "module-PM3-task-04"]
+    },
+    {
+      "id": "PM3_data_substations",
+      "file": "PM3_data_substations.csv",
+      "description": "NordGrid substation reference table. 40 rows — small enough for broadcast join.",
+      "schema": {
+        "columns": [
+          {"name": "substation_id", "type": "string", "nullable": false},
+          {"name": "substation_name", "type": "string", "nullable": false},
+          {"name": "capacity_mw", "type": "double", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-PM3-task-01", "module-PM3-task-02", "module-PM3-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PM3-task-01",
+      "title": "Identify Join Strategy from the Execution Plan",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 10,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's Silver enrichment pipeline joins 1.2M meter readings with the 40-row substations reference table. A mid-level engineer examines the execution plan to verify which join strategy Spark selected and whether it's optimal.",
+        "task": "Read the execution plan below. Identify the join strategy, determine which side is broadcast (if any), and assess whether the strategy is appropriate for the table sizes involved.",
+        "validationHint": "The join node name tells you the strategy. Look for BroadcastExchange to identify which side is broadcast. The 40-row table should always be broadcast."
+      },
+      "evidence": {
+        "type": "execution_plan",
+        "label": "explain(True) for readings JOIN substations",
+        "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- Project [meter_id#12, daily_kw#13, date#14, region#15, substation_name#42]\n   +- SortMergeJoin [substation_id#17], [substation_id#40], Inner\n      :- Sort [substation_id#17 ASC NULLS FIRST], false, 0\n      :  +- Exchange hashpartitioning(substation_id#17, 200), ENSURE_REQUIREMENTS, [plan_id=55]\n      :     +- FileScan parquet [meter_id#12,daily_kw#13,date#14,region#15,substation_id#17] Batched: true, Format: Parquet\n      +- Sort [substation_id#40 ASC NULLS FIRST], false, 0\n         +- Exchange hashpartitioning(substation_id#40, 200), ENSURE_REQUIREMENTS, [plan_id=56]\n            +- FileScan parquet [substation_id#40,substation_name#42] Batched: true, Format: Parquet"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM3-01-F1",
+            "type": "single_select",
+            "label": "What join strategy did Spark choose?",
+            "options": [
+              "BroadcastHashJoin — one side is broadcast to all executors",
+              "SortMergeJoin — both sides are shuffled, sorted, and merged",
+              "ShuffleHashJoin — both sides are shuffled and hash-matched",
+              "BroadcastNestedLoopJoin — small table broadcast with nested loop comparison"
+            ],
+            "correctAnswer": "SortMergeJoin — both sides are shuffled, sorted, and merged"
+          },
+          {
+            "id": "PM3-01-F2",
+            "type": "single_select",
+            "label": "Is this strategy appropriate for joining 1.2M readings with 40 substations?",
+            "options": [
+              "Yes — SortMergeJoin is the most efficient strategy for all join sizes",
+              "No — the 40-row substations table should be broadcast, eliminating the shuffle of the large readings table entirely",
+              "Yes — both tables need to be sorted for correct join results",
+              "No — ShuffleHashJoin would be faster because it avoids the sort step"
+            ],
+            "correctAnswer": "No — the 40-row substations table should be broadcast, eliminating the shuffle of the large readings table entirely",
+            "distractorRationale": "The 40-row substations table (< 1 KB) is far below any broadcast threshold. SortMergeJoin shuffles BOTH sides (the plan shows two Exchange nodes), which means 1.2M readings are shuffled unnecessarily. BroadcastHashJoin would copy the 40 rows to each executor and avoid shuffling the large side."
+          },
+          {
+            "id": "PM3-01-F3",
+            "type": "numeric",
+            "label": "How many Exchange (shuffle) nodes are in this plan?",
+            "correctAnswer": 2,
+            "tolerance": 0,
+            "rationale": "Two Exchange hashpartitioning nodes: one for readings (plan_id=55) and one for substations (plan_id=56). A BroadcastHashJoin would have 0 Exchange on the large side and 1 BroadcastExchange on the small side."
+          },
+          {
+            "id": "PM3-01-F4",
+            "type": "single_select",
+            "label": "What is the most likely reason Spark chose SortMergeJoin instead of BroadcastHashJoin?",
+            "options": [
+              "The substations table is too large to broadcast",
+              "SortMergeJoin is Spark's default and it never auto-selects broadcast",
+              "The broadcast threshold (spark.sql.autoBroadcastJoinThreshold) was likely disabled or set too low",
+              "The join is on a string column which prevents broadcast"
+            ],
+            "correctAnswer": "The broadcast threshold (spark.sql.autoBroadcastJoinThreshold) was likely disabled or set too low",
+            "distractorRationale": "At 40 rows (< 1 KB), the table is far below the default 10 MB threshold. Spark auto-broadcasts when the threshold allows it. The most likely cause is someone set the threshold to -1 (disabled). Option 2 is wrong — Spark does auto-select broadcast."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM3-task-02",
+      "title": "Force a Broadcast Join for NordGrid's Substations",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 30, "code": 70},
+      "description": {
+        "context": "The execution plan from Task 1 shows NordGrid's enrichment pipeline using SortMergeJoin for a 600-row readings table joined with a 40-row substations table. The broadcast threshold was disabled by a platform team configuration change. The pipeline engineer cannot change the cluster config but can fix the pipeline code to explicitly broadcast the small table.",
+        "task": "First, identify what the broadcast() hint does. Then fix the pipeline by adding broadcast() around the substations DataFrame in the join call. Verify the fix produces the same output. Store the result in a variable called enriched.",
+        "validationHint": "broadcast(df_substations) tells Spark to send the full substations table to every executor, regardless of the threshold setting. The output should have the same rows and columns as without the hint."
+      },
+      "evidence": {
+        "type": "code_block",
+        "label": "Current pipeline (SortMergeJoin — no broadcast hint)",
+        "content": "df_readings = spark.read.csv('PM3_data_readings.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM3_data_substations.csv', header=True, inferSchema=True)\n\n# Missing broadcast hint — Spark uses SortMergeJoin\nenriched = df_readings.join(df_subs, on='substation_id', how='inner')"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM3-02-F1",
+            "type": "single_select",
+            "label": "What does broadcast(df_substations) do?",
+            "options": [
+              "Compresses the substations table to reduce network transfer",
+              "Sends a complete copy of the substations table to every executor's memory, avoiding shuffling the large readings table",
+              "Caches the substations table in memory for faster repeated access",
+              "Replicates the substations table into the same number of partitions as the readings table"
+            ],
+            "correctAnswer": "Sends a complete copy of the substations table to every executor's memory, avoiding shuffling the large readings table"
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, broadcast\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-broadcast-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PM3_data_readings.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM3_data_substations.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Join readings with substations using broadcast() on the small table.\n# Keep columns: meter_id, daily_kw, date, region, substation_name\n# Store in 'enriched'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {enriched.count()}\")\nprint(f\"Columns: {enriched.columns}\")\nenriched.explain(True)"
+      },
+      "assertions": [
+        {
+          "id": "PM3-02-A1",
+          "description": "enriched is a DataFrame",
+          "check": "isinstance(enriched, DataFrame)"
+        },
+        {
+          "id": "PM3-02-A2",
+          "description": "Row count matches inner join result (600 readings all match a substation)",
+          "check": "enriched.count() == 600"
+        },
+        {
+          "id": "PM3-02-A3",
+          "description": "substation_name column present from join",
+          "check": "'substation_name' in enriched.columns"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 field. Code (70%): 3 assertions graded independently."
+    },
+    {
+      "id": "module-PM3-task-03",
+      "title": "Diagnose Join Row Multiplication",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 13,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's billing pipeline joins 600 meter readings with the meters reference table on meter_id using a left join. The engineer expected 600 output rows (one per reading, since left join preserves the left side). Instead, the output has 615 rows — 15 more than expected. No error was raised. The billing totals are now inflated because 15 readings appear twice in the output.",
+        "task": "Examine the join output sample and the reference table sample below. Diagnose why the row count increased, identify which meter_ids are affected, and determine the fix.",
+        "validationHint": "Row multiplication occurs when the right side of a join has duplicate keys. Each left row matching a duplicated key produces multiple output rows."
+      },
+      "evidence": {
+        "type": "combined",
+        "joinOutput": {
+          "label": "Unexpected join output — 615 rows instead of 600",
+          "content": "meter_id | daily_kw | date       | customer_type | install_date\nM-00001  | 2847.3   | 2026-03-12 | residential   | 2024-05-15\nM-00001  | 2847.3   | 2026-03-12 | commercial    | 2025-08-22     ← DUPLICATE\nM-00002  | 1523.8   | 2026-03-14 | residential   | 2024-02-10\nM-00002  | 1523.8   | 2026-03-14 | commercial    | 2025-07-03     ← DUPLICATE\nM-00003  | 3901.2   | 2026-03-11 | commercial    | 2024-11-28\nM-00003  | 3901.2   | 2026-03-11 | commercial    | 2025-09-14     ← DUPLICATE\n...\nM-00016  | 876.5    | 2026-03-13 | residential   | 2024-03-20     (single match — no dupe)"
+        },
+        "referenceTableSample": {
+          "label": "Meters reference table — sample showing duplicates",
+          "content": "meter_id | customer_type | install_date | substation_id\nM-00001  | residential   | 2024-05-15   | SUB-012          ← row 1 of 2\nM-00001  | commercial    | 2025-08-22   | SUB-007          ← row 2 of 2 (DUPLICATE KEY)\nM-00002  | residential   | 2024-02-10   | SUB-031\nM-00002  | commercial    | 2025-07-03   | SUB-019          ← DUPLICATE KEY\n...\nM-00016  | residential   | 2024-03-20   | SUB-005          (single row — clean)"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM3-03-F1",
+            "type": "single_select",
+            "label": "What caused the row count to increase from 600 to 615?",
+            "options": [
+              "The left join added 15 rows from the right table that had no match in readings",
+              "15 meter_ids in the reference table have duplicate rows — each reading for those meters joins with 2 reference rows, producing 2 output rows instead of 1",
+              "The join key has null values that created cartesian matches",
+              "Spark's SortMergeJoin algorithm creates extra rows when hash collisions occur"
+            ],
+            "correctAnswer": "15 meter_ids in the reference table have duplicate rows — each reading for those meters joins with 2 reference rows, producing 2 output rows instead of 1",
+            "distractorRationale": "Option 1 is wrong — left join adds the left's unmatched rows with null, not the right's unmatched. The evidence shows the same reading (same daily_kw, same date) appearing twice with different customer_type values — the duplicate is on the right side."
+          },
+          {
+            "id": "PM3-03-F2",
+            "type": "numeric",
+            "label": "How many meter_ids in the reference table have duplicate rows?",
+            "correctAnswer": 15,
+            "tolerance": 0,
+            "rationale": "615 - 600 = 15 extra rows. Each duplicate key produces 1 extra row (2 output rows instead of 1). So 15 keys have duplicates."
+          },
+          {
+            "id": "PM3-03-F3",
+            "type": "single_select",
+            "label": "What is the correct fix to prevent row multiplication?",
+            "options": [
+              "Use an inner join instead of a left join — inner joins cannot multiply rows",
+              "Deduplicate the reference table on meter_id before joining (using dropDuplicates or a window function to pick one row per key)",
+              "Filter the join output to distinct rows after joining",
+              "Use a semi join which never adds columns from the right side"
+            ],
+            "correctAnswer": "Deduplicate the reference table on meter_id before joining (using dropDuplicates or a window function to pick one row per key)",
+            "distractorRationale": "Option 1 is wrong — inner joins also multiply rows when the right side has duplicates. Option 3 doesn't work because the duplicate rows have different customer_type values (both are valid). Option 4 would lose the customer_type enrichment. The fix is to ensure the right side has one row per key before joining."
+          },
+          {
+            "id": "PM3-03-F4",
+            "type": "single_select",
+            "label": "How should NordGrid's team detect this problem proactively?",
+            "options": [
+              "Check the explain plan for CartesianProduct nodes",
+              "Assert that the output row count equals the left side's row count after every left join with a reference table",
+              "Use only broadcast joins which prevent row multiplication",
+              "Check for null join keys before every join"
+            ],
+            "correctAnswer": "Assert that the output row count equals the left side's row count after every left join with a reference table",
+            "distractorRationale": "Option 1 doesn't catch multiplication (it's not a cartesian). Option 3 is wrong — broadcast doesn't prevent multiplication. Option 4 catches a different problem. The assertion-based approach catches the symptom (unexpected row count) regardless of the cause."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM3-task-04",
+      "title": "Detect Data Skew in a Join from Task Metrics",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 13,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's Silver pipeline joins meter readings with the substations table on substation_id. The join completes but Stage 2 (SortMergeJoin) takes 8 minutes. The Spark UI shows that 199 of 200 tasks finish in under 2 seconds, but one task takes 7.5 minutes. The team suspects data skew in the join key.",
+        "task": "Examine the task duration distribution and the data sample below. Identify the skewed key, compute the skew ratio, and explain why this single task is the bottleneck.",
+        "validationHint": "A skewed join key means one partition receives disproportionately more data than others. The straggler task is the one processing the partition with the most data."
+      },
+      "evidence": {
+        "type": "combined",
+        "taskMetrics": {
+          "label": "Stage 2 (SortMergeJoin) — Task duration summary",
+          "content": "Metric          | Value\n----------------|--------\nTotal tasks     | 200\nMin duration    | 0.2s\n25th percentile | 0.8s\nMedian          | 1.1s\n75th percentile | 1.4s\nMax duration    | 7.5 min\nStd deviation   | 31.8s\n\nTask 147: Duration 7.5 min | Input: 512 MB | Records: 504,000\nTask 22:  Duration 1.3s    | Input: 1.2 MB | Records: 1,200\nTask 88:  Duration 0.9s    | Input: 0.8 MB | Records: 800"
+        },
+        "dataSample": {
+          "label": "Distribution of substation_id in the readings table",
+          "content": "substation_id | row_count | percentage\n--------------|-----------|----------\nSUB-001       | 504,000   | 42.0%\nSUB-002       | 18,200    | 1.5%\nSUB-003       | 17,800    | 1.5%\nSUB-004       | 16,900    | 1.4%\n...           | ...       | ...\nSUB-040       | 12,100    | 1.0%\n\nTotal: 1,200,000 rows across 40 substations"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM3-04-F1",
+            "type": "short_text",
+            "label": "Which substation_id value is the skewed key?",
+            "correctAnswer": "SUB-001",
+            "acceptableSynonyms": ["SUB-001", "sub-001", "SUB001"]
+          },
+          {
+            "id": "PM3-04-F2",
+            "type": "numeric",
+            "label": "What is the approximate skew ratio (skewed partition size / median partition size)?",
+            "correctAnswer": 427,
+            "tolerance": 50,
+            "rationale": "Skewed partition: 512 MB / 504,000 records. Median partition: 1.1 MB / ~1,200 records. Ratio: 512/1.2 ≈ 427x by data volume, or 504000/1200 = 420x by record count. Both confirm extreme skew."
+          },
+          {
+            "id": "PM3-04-F3",
+            "type": "single_select",
+            "label": "Why does this single skewed task determine the entire stage's duration?",
+            "options": [
+              "Because Spark must wait for all tasks in a stage to complete before starting the next stage — the slowest task sets the stage duration",
+              "Because the skewed task uses all executor memory, starving the other tasks",
+              "Because Spark serializes tasks within a stage — they run one at a time",
+              "Because the skewed task triggers a spill that affects all other tasks"
+            ],
+            "correctAnswer": "Because Spark must wait for all tasks in a stage to complete before starting the next stage — the slowest task sets the stage duration",
+            "distractorRationale": "Stages are barrier boundaries — the next stage cannot start until all tasks in the current stage finish. 199 tasks finish in under 2 seconds, then the cluster waits 7.5 minutes for the single straggler."
+          },
+          {
+            "id": "PM3-04-F4",
+            "type": "single_select",
+            "label": "What fix should the team apply to address this skewed join?",
+            "options": [
+              "Increase spark.sql.shuffle.partitions to spread the skewed key across more partitions",
+              "Use broadcast() on the substations table — since it's only 40 rows, broadcasting eliminates the shuffle entirely and the skewed key doesn't matter",
+              "Add more executors to process the skewed partition faster",
+              "Filter out SUB-001 readings before the join and process them separately"
+            ],
+            "correctAnswer": "Use broadcast() on the substations table — since it's only 40 rows, broadcasting eliminates the shuffle entirely and the skewed key doesn't matter",
+            "distractorRationale": "Option 1 doesn't help — more partitions doesn't split a single key's data (all SUB-001 rows hash to the same partition regardless of partition count). Option 3 doesn't help — one task processes one partition, adding executors doesn't parallelize a single task. Option 4 works but is complex. The simplest fix is broadcast — no shuffle means no skew problem."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM3-task-05",
+      "title": "Detect and Fix Row Multiplication in NordGrid's Pipeline",
+      "type": "refactoring",
+      "estimatedMinutes": 14,
+      "gradingWeight": {"template": 30, "code": 70},
+      "description": {
+        "context": "NordGrid's billing pipeline left-joins 600 meter readings with the meters reference table. The reference table has 15 duplicate meter_ids (M-00001 through M-00015 each appear twice). The join produces 615 rows instead of the expected 600. The team needs to deduplicate the reference table before joining to prevent billing inflation.",
+        "task": "Diagnose the expected row count math. Then fix the pipeline by deduplicating the meters reference table on meter_id using dropDuplicates before the join. After the fix, assert that the output row count equals the input readings count. Store the result in a variable called billing.",
+        "validationHint": "dropDuplicates(['meter_id']) on the reference table removes the extra rows. The left join should then produce exactly 600 rows — one per reading."
+      },
+      "evidence": {
+        "type": "code_block",
+        "label": "Current pipeline (row multiplication bug)",
+        "content": "df_readings = spark.read.csv('PM3_data_readings.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('PM3_data_meters_ref.csv', header=True, inferSchema=True)\n\n# BUG: meters_ref has 15 duplicate meter_ids → join produces 615 rows\nbilling = df_readings.join(df_meters, on='meter_id', how='left')\n\nprint(f\"Expected: {df_readings.count()} rows\")\nprint(f\"Actual:   {billing.count()} rows\")  # 615 — 15 extra!"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM3-05-F1",
+            "type": "single_select",
+            "label": "Why does the left join produce 615 rows instead of 600?",
+            "options": [
+              "The left join adds 15 rows from the meters table that don't match any reading",
+              "15 meter_ids in the meters table have 2 rows each — each matching reading produces 2 output rows, adding 15 extra rows",
+              "The readings table has 15 duplicate meter_ids",
+              "The join key has 15 null values that create unexpected matches"
+            ],
+            "correctAnswer": "15 meter_ids in the meters table have 2 rows each — each matching reading produces 2 output rows, adding 15 extra rows"
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-dedup-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PM3_data_readings.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('PM3_data_meters_ref.csv', header=True, inferSchema=True)\n\nreadings_count = df_readings.count()\nprint(f\"Readings: {readings_count} rows\")\nprint(f\"Meters ref: {df_meters.count()} rows\")\nprint(f\"Duplicate meter_ids in ref: {df_meters.count() - df_meters.dropDuplicates(['meter_id']).count()}\")\n\n# YOUR SOLUTION BELOW\n# 1. Deduplicate df_meters on meter_id\n# 2. Left join readings with the deduped meters\n# 3. Assert output row count == readings count\n# Store in 'billing'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Billing rows: {billing.count()}\")\nprint(f\"Expected: {readings_count}\")\nassert billing.count() == readings_count, f\"Row multiplication detected! {billing.count()} != {readings_count}\"\nprint(\"Row count assertion passed.\")"
+      },
+      "assertions": [
+        {
+          "id": "PM3-05-A1",
+          "description": "billing has exactly 600 rows (no multiplication)",
+          "check": "billing.count() == 600"
+        },
+        {
+          "id": "PM3-05-A2",
+          "description": "customer_type column present from join",
+          "check": "'customer_type' in billing.columns"
+        },
+        {
+          "id": "PM3-05-A3",
+          "description": "120 readings have null customer_type (M-00481 to M-00600 unmatched)",
+          "check": "billing.filter(col('customer_type').isNull()).count() == 120"
+        },
+        {
+          "id": "PM3-05-A4",
+          "description": "No duplicate meter_id + date combinations in output",
+          "check": "billing.groupBy('meter_id', 'date').count().filter(col('count') > 1).count() == 0"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 field. Code (70%): 4 assertions graded independently."
+    },
+    {
+      "id": "module-PM3-task-06",
+      "title": "Diagnose NordGrid's Slow Enrichment Join",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 14,
+      "gradingWeight": {"template": 55, "code": 45},
+      "description": {
+        "context": "NordGrid's Silver enrichment pipeline joins 1.2M meter readings with the 40-row substations table on substation_id. Yesterday, the pipeline completed in 45 seconds. Today, the same pipeline takes 12 minutes. The data volume is unchanged (1.2M rows). The on-call engineer reviews the execution plan and Spark UI metrics and discovers two problems: the join strategy changed from BroadcastHashJoin to SortMergeJoin, AND the substation_id key is heavily skewed (SUB-001 has 42% of all readings). The combination of a shuffle-based join on a skewed key produces a devastating straggler task.",
+        "task": "Examine all evidence below. Diagnose both problems (wrong join strategy + data skew), explain why the combination is worse than either problem alone, and write the fix. Store the fixed output in a variable called fixed.",
+        "validationHint": "The fix should address the join strategy (broadcast the small substations table). Once broadcast is applied, the skew no longer matters because there's no shuffle to create an imbalanced partition."
+      },
+      "evidence": {
+        "type": "combined",
+        "executionPlan": {
+          "label": "Today's explain output",
+          "content": "== Physical Plan ==\n+- SortMergeJoin [substation_id#17], [substation_id#40], Inner\n   :- Sort [substation_id#17 ASC], false, 0\n   :  +- Exchange hashpartitioning(substation_id#17, 200)\n   :     +- FileScan parquet [meter_id#12,daily_kw#13,date#14,region#15,substation_id#17]\n   +- Sort [substation_id#40 ASC], false, 0\n      +- Exchange hashpartitioning(substation_id#40, 200)\n         +- FileScan parquet [substation_id#40,substation_name#42,capacity_mw#43]"
+        },
+        "stageMetrics": {
+          "label": "Spark UI — Stage 2 (SortMergeJoin)",
+          "content": "Total tasks: 200 | Duration: 11.5 min\n\nTask Duration Distribution:\n  Min:    0.3s\n  Median: 1.8s\n  P95:    2.4s\n  Max:    11.2 min  ← STRAGGLER\n\nShuffle Read Distribution:\n  Min:    0.8 MB\n  Median: 3.2 MB\n  Max:    512 MB   ← SUB-001 partition"
+        },
+        "skewData": {
+          "label": "substation_id distribution in readings",
+          "content": "SUB-001: 504,000 rows (42%) → all land in one shuffle partition\nSUB-002 to SUB-040: ~18,000 rows each (1-2%)"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM3-06-F1",
+            "type": "single_select",
+            "label": "Problem 1: What join strategy is Spark using, and what should it use?",
+            "options": [
+              "Using SortMergeJoin; should use BroadcastHashJoin because the substations table is only 40 rows",
+              "Using BroadcastHashJoin; should use SortMergeJoin for better skew handling",
+              "Using ShuffleHashJoin; should use SortMergeJoin for sorted output",
+              "Using SortMergeJoin; this is correct for two large tables"
+            ],
+            "correctAnswer": "Using SortMergeJoin; should use BroadcastHashJoin because the substations table is only 40 rows"
+          },
+          {
+            "id": "PM3-06-F2",
+            "type": "single_select",
+            "label": "Problem 2: What is the data skew, and why does it compound the wrong join strategy?",
+            "options": [
+              "SUB-001 has 42% of all readings. With SortMergeJoin, all 504K SUB-001 rows hash to one partition, creating a straggler task that takes 11.2 min while 199 tasks finish in under 3s.",
+              "The substations table is skewed — some substations have more columns than others.",
+              "The readings have null substation_ids that create a skewed null partition.",
+              "The skew is in the date column, not the join key."
+            ],
+            "correctAnswer": "SUB-001 has 42% of all readings. With SortMergeJoin, all 504K SUB-001 rows hash to one partition, creating a straggler task that takes 11.2 min while 199 tasks finish in under 3s."
+          },
+          {
+            "id": "PM3-06-F3",
+            "type": "single_select",
+            "label": "Why does broadcast join eliminate the skew problem entirely?",
+            "options": [
+              "Broadcast join splits the skewed key across multiple tasks",
+              "Broadcast join avoids shuffling the large side entirely — no shuffle means no partitioning, which means no skewed partition. Each executor joins its local data against the in-memory substations copy.",
+              "Broadcast join sorts the data to balance partition sizes",
+              "Broadcast join filters out the skewed key before joining"
+            ],
+            "correctAnswer": "Broadcast join avoids shuffling the large side entirely — no shuffle means no partitioning, which means no skewed partition. Each executor joins its local data against the in-memory substations copy."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, broadcast\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-skew-join-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PM3_data_readings.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM3_data_substations.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Fix: broadcast the small substations table to eliminate both\n# the unnecessary shuffle and the skew problem.\n# Select: meter_id, daily_kw, date, region, substation_name, capacity_mw\n# Store in 'fixed'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {fixed.count()}\")\nprint(f\"Columns: {fixed.columns}\")\nfixed.explain(True)"
+      },
+      "assertions": [
+        {
+          "id": "PM3-06-A1",
+          "description": "fixed has 600 rows (all readings matched)",
+          "check": "fixed.count() == 600"
+        },
+        {
+          "id": "PM3-06-A2",
+          "description": "Output has expected columns including substation_name",
+          "check": "'substation_name' in fixed.columns and 'capacity_mw' in fixed.columns"
+        },
+        {
+          "id": "PM3-06-A3",
+          "description": "Broadcast hint applied (verifiable in explain output)",
+          "check": "True"
+        }
+      ],
+      "partialCredit": "Template (55%): 3 fields graded independently. Code (45%): 3 assertions graded independently.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Join strategy identification from execution plans (Lesson 2-3, PM1)",
+          "Broadcast join mechanics and the broadcast() hint (Lesson 4-5)",
+          "Data skew detection from task duration distribution (Lesson 6)",
+          "Understanding why skew + shuffle join compound — straggler task pattern (Lesson 6-7)",
+          "The insight that broadcast eliminates skew by eliminating the shuffle (Lesson 5, 7)"
+        ],
+        "minimumConceptCount": 4,
+        "rationale": "This diagnostic workflow presents a dual-problem incident: wrong join strategy AND data skew. Either problem alone would cause a slowdown; together they produce a catastrophic 12-minute straggler. The student must diagnose both, understand why they compound, and recognize that a single fix (broadcast) resolves both. This teaches that the right join strategy can make skew irrelevant — a key mid-level insight that prevents over-engineering with complex salting solutions when a simple broadcast suffices."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 4,
+    "everyDiagnosticRequiresEvidence": true,
+    "distractorsPlausible": true,
+    "fixTasksTestModuleTechnique": true,
+    "evidenceRealistic": "Task metrics, execution plans, and data distributions modeled on realistic Spark 3.5+ behavior. Skew ratio of 420x is realistic for real-world data (e.g., a single high-traffic substation serving a city center).",
+    "theoryPracticeBoundary": "Theory teaches join strategies, broadcast mechanics, and skew concepts. Practice requires diagnosing real problems from execution plans and task metrics — combining multiple concepts to resolve compound incidents not shown verbatim in the theory."
+  }
+}

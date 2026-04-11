@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function SupportPage() {
   return (
-    <main className="min-h-screen bg-light-bg px-4 py-10 text-text-light-primary dark:bg-dark-bg dark:text-text-dark-primary">
+    <main className="min-h-screen bg-[#0c0e10] px-4 py-10 text-text-light-primary dark:text-text-dark-primary">
       <div className="mx-auto w-full max-w-3xl space-y-8">
         <header className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500">
@@ -20,7 +20,7 @@ export default function SupportPage() {
           </p>
         </header>
 
-        <section className="space-y-3 rounded-2xl border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface">
+        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Contact channel</h2>
           <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
             Email{' '}
@@ -37,7 +37,7 @@ export default function SupportPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-2xl border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface">
+        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Include in report</h2>
           <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
             Include route URL, timestamp, expected behavior, actual behavior, and screenshots.
@@ -45,13 +45,13 @@ export default function SupportPage() {
           </p>
           <Link
             href="/support/report-bug"
-            className="inline-flex items-center rounded-lg border border-brand-500/40 bg-brand-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 dark:border-brand-400/50 dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300"
+            className="inline-flex items-center rounded-[14px] border border-brand-500/40 bg-brand-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 dark:border-brand-400/50 dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300"
           >
             Report a bug
           </Link>
         </section>
 
-        <section className="space-y-3 rounded-2xl border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface">
+        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Data requests</h2>
           <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
             GDPR export and delete actions are available in Settings {'>'} Danger Zone after

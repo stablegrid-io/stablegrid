@@ -146,7 +146,7 @@ export function SecurityTab({ onToast }: SecurityTabProps) {
         description="Review sessions and revoke access from unrecognized devices."
         icon={<Laptop2 className="h-4 w-4" />}
       >
-        <div className="rounded-xl border border-brand-200 bg-brand-50/40 px-3 py-2 dark:border-brand-900/40 dark:bg-brand-900/10">
+        <div className="rounded-[14px] border border-brand-200 bg-brand-50/40 px-3 py-2 dark:border-brand-900/40 dark:bg-brand-900/10">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
               Current browser session

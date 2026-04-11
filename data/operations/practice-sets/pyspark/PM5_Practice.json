@@ -1,0 +1,491 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 5 — Delta Lake for Data Engineering",
+  "description": "Apply Delta Lake patterns to NordGrid's pipeline: convert Parquet to Delta, implement MERGE for incremental loading with corrections, use time travel to diagnose data issues, design OPTIMIZE and VACUUM strategies, and build an SCD Type 2 pipeline for tracking customer changes.",
+  "version": "authored 2026-04-05, targets PySpark 3.5+ / Delta Lake 3.x",
+  "metadata": {
+    "moduleId": "module-PM5",
+    "trackLevel": "mid-level",
+    "estimatedDurationMinutes": 74,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, multi-team",
+    "modulePhase": "architecture",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 3,
+      "fixImplementation": 2,
+      "diagnosticWorkflow": 1
+    },
+    "runtimeNote": "Delta Lake tasks require delta-spark package. Code scaffolds use DeltaTable API and MERGE SQL. Tasks are designed so diagnostic template portions can be graded without a Delta runtime; code portions require Delta Lake on the test cluster."
+  },
+  "datasets": [
+    {
+      "id": "PM5_data_readings_current",
+      "file": "PM5_data_readings_current.csv",
+      "description": "NordGrid Silver meter readings — existing Delta table state. 400 rows: 100 meters × 4 days (2026-03-10 to 2026-03-13). Represents version 2 of the Delta table.",
+      "usedByTasks": ["module-PM5-task-01", "module-PM5-task-02", "module-PM5-task-03"]
+    },
+    {
+      "id": "PM5_data_readings_incremental",
+      "file": "PM5_data_readings_incremental.csv",
+      "description": "Daily incremental batch for 2026-03-14. 60 rows: 40 new readings (existing meters, new date), 15 corrections (existing meter+date, updated daily_kw), 5 late arrivals (new meters). Designed for MERGE testing.",
+      "usedByTasks": ["module-PM5-task-02"]
+    },
+    {
+      "id": "PM5_data_customer_history",
+      "file": "PM5_data_customer_history.csv",
+      "description": "NordGrid customer reference with SCD Type 2 history. 120 rows: 80 meters with 1 row each (no changes), 20 meters with 2 rows each (customer_type changed from residential to commercial). Columns: meter_id, customer_type, effective_from, effective_to, is_current.",
+      "usedByTasks": ["module-PM5-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PM5-task-01",
+      "title": "Convert NordGrid's Parquet Pipeline to Delta",
+      "type": "fix_implementation",
+      "estimatedMinutes": 10,
+      "gradingWeight": {"template": 30, "code": 70},
+      "description": {
+        "context": "NordGrid's Silver pipeline currently writes meter readings as Parquet. The team wants to migrate to Delta Lake for ACID transactions, time travel, and MERGE support. The migration must preserve the existing data and switch the write format from Parquet to Delta.",
+        "task": "First, explain what Delta Lake adds on top of Parquet. Then convert the pipeline: read the current Parquet data, write it as a Delta table to 'output/silver_delta/', and read it back to verify. Store the read-back DataFrame in a variable called silver_delta.",
+        "validationHint": "Delta tables are written with .format('delta') or .saveAsTable(). Reading uses spark.read.format('delta').load(). The output should have the same rows and columns as the Parquet input."
+      },
+      "evidence": {
+        "type": "code_block",
+        "label": "Current Parquet pipeline",
+        "content": "# Current: writes as Parquet — no transactions, no versioning, no MERGE\ndf = spark.read.csv('PM5_data_readings_current.csv', header=True, inferSchema=True)\ndf.write.mode('overwrite').parquet('output/silver_parquet/')"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM5-01-F1",
+            "type": "multi_select",
+            "label": "What does Delta Lake add on top of Parquet? Select all that apply.",
+            "options": [
+              "ACID transactions — writes are atomic, consistent, isolated, and durable",
+              "Time travel — query any previous version of the table",
+              "MERGE (upsert) — update existing rows and insert new ones in a single operation",
+              "Schema enforcement — rejects writes that don't match the table schema",
+              "Faster columnar reads — Delta uses a more efficient encoding than Parquet"
+            ],
+            "correctAnswers": [
+              "ACID transactions — writes are atomic, consistent, isolated, and durable",
+              "Time travel — query any previous version of the table",
+              "MERGE (upsert) — update existing rows and insert new ones in a single operation",
+              "Schema enforcement — rejects writes that don't match the table schema"
+            ],
+            "distractorRationale": "Option 5 is wrong — Delta Lake stores data AS Parquet files plus a transaction log. The underlying data format is the same Parquet; Delta adds the _delta_log directory with JSON transaction records."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-delta-conversion') \\\n    .master('local[*]') \\\n    .config('spark.jars.packages', 'io.delta:delta-spark_2.12:3.1.0') \\\n    .config('spark.sql.extensions', 'io.delta.sql.DeltaSparkSessionExtension') \\\n    .config('spark.sql.catalog.spark_catalog', 'org.apache.spark.sql.delta.catalog.DeltaCatalog') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM5_data_readings_current.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# 1. Write df as a Delta table to 'output/silver_delta/'\n# 2. Read it back to verify\n# Store the read-back DataFrame in 'silver_delta'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Delta table rows: {silver_delta.count()}\")\nprint(f\"Columns: {silver_delta.columns}\")\nsilver_delta.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PM5-01-A1",
+          "description": "silver_delta has 400 rows (same as Parquet input)",
+          "check": "silver_delta.count() == 400"
+        },
+        {
+          "id": "PM5-01-A2",
+          "description": "Has all 6 original columns",
+          "check": "len(silver_delta.columns) == 6"
+        },
+        {
+          "id": "PM5-01-A3",
+          "description": "Data written as Delta format (verifiable by reading with format delta)",
+          "check": "True"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 multi-select field. Code (70%): 3 assertions."
+    },
+    {
+      "id": "module-PM5-task-02",
+      "title": "Implement MERGE for NordGrid's Daily Incremental Load",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "gradingWeight": {"template": 35, "code": 65},
+      "description": {
+        "context": "NordGrid's Silver pipeline receives a daily incremental batch containing three types of rows: new readings (insert), corrections to yesterday's readings (update), and late arrivals from new meters (insert). The current pipeline uses append mode, which creates duplicates when corrections arrive. The team needs a MERGE (upsert) that updates existing rows and inserts new ones based on the composite key (meter_id, date).",
+        "task": "First, determine the correct MERGE logic for NordGrid's composite key. Then write the MERGE: match on meter_id AND date. When matched (same meter + same date), update daily_kw. When not matched (new meter or new date), insert the entire row. After the MERGE, verify the result.",
+        "validationHint": "The existing table has 400 rows. The incremental batch has 60 rows: 15 match existing keys (updates), 45 are new keys (inserts). After MERGE: 400 - 0 + 45 = 445 rows, with 15 rows having updated daily_kw values."
+      },
+      "evidence": {
+        "type": "combined",
+        "incrementalBreakdown": {
+          "label": "Incremental batch composition (60 rows)",
+          "content": "Type          | Count | Key Match       | MERGE Action\nNew readings  | 40    | New date (03-14) | INSERT — meter exists but date is new\nCorrections   | 15    | Existing (03-13) | UPDATE — same meter_id + date, corrected daily_kw\nLate arrivals | 5     | New meter_id     | INSERT — meter not in existing table"
+        },
+        "currentPipeline": {
+          "label": "Current pipeline (append mode — creates duplicates for corrections)",
+          "content": "# BUG: corrections create duplicates instead of updating\ndf_incremental.write.mode('append').format('delta').save('silver_delta/')\n\n# After this, meter M-00001 on 2026-03-13 has TWO rows:\n# row 1: daily_kw = 1523.8 (original)\n# row 2: daily_kw = 2847.3 (correction)\n# Both exist — which one is correct?"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM5-02-F1",
+            "type": "single_select",
+            "label": "Why is append mode wrong for incremental loads with corrections?",
+            "options": [
+              "Append mode is slower than MERGE for large tables",
+              "Append mode cannot write to Delta tables",
+              "Append mode blindly adds rows — corrections create duplicates instead of replacing the original, making downstream aggregations wrong",
+              "Append mode does not support schema enforcement"
+            ],
+            "correctAnswer": "Append mode blindly adds rows — corrections create duplicates instead of replacing the original, making downstream aggregations wrong"
+          },
+          {
+            "id": "PM5-02-F2",
+            "type": "single_select",
+            "label": "What should the MERGE match condition be for NordGrid's readings?",
+            "options": [
+              "Match on meter_id only — each meter has one reading",
+              "Match on meter_id AND date — a reading is uniquely identified by which meter on which day",
+              "Match on all columns — update only if every value is different",
+              "Match on daily_kw — update rows with different consumption values"
+            ],
+            "correctAnswer": "Match on meter_id AND date — a reading is uniquely identified by which meter on which day"
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom delta.tables import DeltaTable\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-merge') \\\n    .master('local[*]') \\\n    .config('spark.jars.packages', 'io.delta:delta-spark_2.12:3.1.0') \\\n    .config('spark.sql.extensions', 'io.delta.sql.DeltaSparkSessionExtension') \\\n    .config('spark.sql.catalog.spark_catalog', 'org.apache.spark.sql.delta.catalog.DeltaCatalog') \\\n    .getOrCreate()\n\n# Create the existing Delta table\ndf_current = spark.read.csv('PM5_data_readings_current.csv', header=True, inferSchema=True)\ndf_current.write.format('delta').mode('overwrite').save('output/silver_delta/')\n\n# Load the incremental batch\ndf_incremental = spark.read.csv('PM5_data_readings_incremental.csv', header=True, inferSchema=True)\n\nprint(f\"Existing table: {df_current.count()} rows\")\nprint(f\"Incremental batch: {df_incremental.count()} rows\")\n\n# YOUR SOLUTION BELOW\n# Write a MERGE using DeltaTable API:\n# - Match on meter_id AND date\n# - When matched: update daily_kw (and other columns if needed)\n# - When not matched: insert all columns\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nresult = spark.read.format('delta').load('output/silver_delta/')\nprint(f\"After MERGE: {result.count()} rows\")\nprint(f\"Expected: 445 rows (400 original + 45 inserts, 15 updates)\")"
+      },
+      "assertions": [
+        {
+          "id": "PM5-02-A1",
+          "description": "Result has 445 rows (400 original + 45 new inserts, 15 updates don't change count)",
+          "check": "result.count() == 445"
+        },
+        {
+          "id": "PM5-02-A2",
+          "description": "No duplicate (meter_id, date) combinations — MERGE replaced, not appended",
+          "check": "result.groupBy('meter_id', 'date').count().filter('count > 1').count() == 0"
+        },
+        {
+          "id": "PM5-02-A3",
+          "description": "Late arrivals inserted (M-00101 through M-00105 exist in result)",
+          "check": "result.filter(\"meter_id LIKE 'M-001%'\").select('meter_id').distinct().count() >= 5"
+        }
+      ],
+      "partialCredit": "Template (35%): 2 fields. Code (65%): 3 assertions."
+    },
+    {
+      "id": "module-PM5-task-03",
+      "title": "Diagnose Missing Data Using Time Travel",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's billing team reports that yesterday's Gold summary shows 15% lower total consumption for the NORTH_COAST region compared to the day before. The data engineering team suspects that a pipeline bug corrupted the Silver Delta table during yesterday's MERGE. They need to compare the current version of the table with the version before yesterday's MERGE to identify what changed.",
+        "task": "Examine the Delta table history and the time travel query examples below. Determine how to use time travel to diagnose the issue, identify the correct version comparison, and explain what the comparison would reveal.",
+        "validationHint": "Delta Lake's time travel lets you query any historical version. The DESCRIBE HISTORY command shows all versions with timestamps and operations."
+      },
+      "evidence": {
+        "type": "combined",
+        "tableHistory": {
+          "label": "DESCRIBE HISTORY silver_delta (output)",
+          "content": "version | timestamp            | operation     | operationParameters                        | rows_affected\n--------|---------------------|---------------|--------------------------------------------|--------------\n  4     | 2026-03-20 06:15:00 | MERGE         | predicate: meter_id AND date               | 60\n  3     | 2026-03-19 06:12:00 | MERGE         | predicate: meter_id AND date               | 55\n  2     | 2026-03-18 06:10:00 | MERGE         | predicate: meter_id AND date               | 52\n  1     | 2026-03-17 14:30:00 | WRITE         | mode: Overwrite                            | 400\n  0     | 2026-03-17 14:00:00 | WRITE         | mode: Overwrite                            | 400"
+        },
+        "timeTravelSyntax": {
+          "label": "Time travel query syntax",
+          "content": "# By version number\ndf_v3 = spark.read.format('delta').option('versionAsOf', 3).load('silver_delta/')\n\n# By timestamp\ndf_before = spark.read.format('delta').option('timestampAsOf', '2026-03-19 06:00:00').load('silver_delta/')\n\n# In SQL\nSELECT * FROM delta.`silver_delta/` VERSION AS OF 3\nSELECT * FROM delta.`silver_delta/` TIMESTAMP AS OF '2026-03-19 06:00:00'"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM5-03-F1",
+            "type": "single_select",
+            "label": "The billing anomaly appeared after the 2026-03-20 run. Which two versions should you compare to isolate the problem?",
+            "options": [
+              "Version 0 (initial load) vs Version 4 (current) — compare the full history",
+              "Version 3 (before yesterday's MERGE) vs Version 4 (after yesterday's MERGE) — isolate the exact change",
+              "Version 1 vs Version 2 — compare the earliest MERGEs",
+              "Version 4 vs the incremental batch file — compare input vs output"
+            ],
+            "correctAnswer": "Version 3 (before yesterday's MERGE) vs Version 4 (after yesterday's MERGE) — isolate the exact change"
+          },
+          {
+            "id": "PM5-03-F2",
+            "type": "single_select",
+            "label": "How would you identify which specific rows changed between versions 3 and 4?",
+            "options": [
+              "Compare row counts — if v4 has fewer rows, some were deleted",
+              "Join v3 and v4 on the composite key (meter_id, date), then filter for rows where daily_kw differs or where a key exists in only one version",
+              "Use DESCRIBE HISTORY to see the exact rows that changed",
+              "Use RESTORE to revert to v3 and manually re-run the MERGE"
+            ],
+            "correctAnswer": "Join v3 and v4 on the composite key (meter_id, date), then filter for rows where daily_kw differs or where a key exists in only one version",
+            "distractorRationale": "DESCRIBE HISTORY (option 3) shows operations, not individual row changes. RESTORE (option 4) fixes the problem but doesn't diagnose it. The join approach explicitly surfaces which rows were updated, inserted, or deleted."
+          },
+          {
+            "id": "PM5-03-F3",
+            "type": "single_select",
+            "label": "After diagnosing the bug, how would you restore the table to its pre-bug state?",
+            "options": [
+              "Delete the _delta_log directory and re-create the table from scratch",
+              "Use RESTORE TABLE silver_delta TO VERSION AS OF 3 — this atomically reverts the table to version 3",
+              "Overwrite the table with a read of version 3: spark.read.option('versionAsOf', 3).load().write.mode('overwrite')",
+              "Both options 2 and 3 work, but RESTORE is preferred because it's atomic, preserves the version history, and can itself be undone"
+            ],
+            "correctAnswer": "Both options 2 and 3 work, but RESTORE is preferred because it's atomic, preserves the version history, and can itself be undone",
+            "distractorRationale": "Option 1 destroys all history and metadata. Option 2 is the correct Delta command. Option 3 works but creates a new version instead of a proper restore. Option 4 explains why RESTORE is the standard approach."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM5-task-04",
+      "title": "Design OPTIMIZE and Z-ORDER Strategy for NordGrid's Silver Table",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's Silver Delta table has accumulated 10,000 small files after 6 months of daily MERGE operations. Each MERGE adds new files without consolidating old ones. Read performance has degraded: the Gold pipeline that queries by region and date now takes 8 minutes instead of 45 seconds. The team needs an OPTIMIZE strategy to compact the small files and Z-ORDER the data for the most common query patterns.",
+        "task": "Examine the table statistics and query patterns below. Design the OPTIMIZE and Z-ORDER strategy: which columns to Z-ORDER, how often to run OPTIMIZE, and what VACUUM retention to set.",
+        "validationHint": "Z-ORDER columns should match the most common filter predicates. OPTIMIZE should run frequently enough to prevent small-file accumulation but not so often that it wastes compute."
+      },
+      "evidence": {
+        "type": "combined",
+        "tableStats": {
+          "label": "Silver Delta table statistics",
+          "content": "Total files:           10,247\nTotal size:            18.4 GB\nAvg file size:         1.8 MB (target: 128-256 MB)\nSmallest files:        4 KB (from small daily MERGEs)\nLargest files:         245 MB (from initial load)\nPartitions:            Not partitioned (flat Delta table)\nVersions:              187 (6 months of daily MERGEs)"
+        },
+        "queryPatterns": {
+          "label": "Top 5 query patterns on Silver table (from Spark audit log)",
+          "content": "Query Pattern                                          | Frequency | Filter Columns\nGold agg: GROUP BY region WHERE date = '...'           | Daily     | region, date\nBilling:  WHERE meter_id = '...' AND date BETWEEN ... | Hourly    | meter_id, date\nOps:      WHERE region = '...' AND tier = 'critical'   | Hourly    | region, tier\nCompliance: WHERE date BETWEEN ... AND region IN (...) | Weekly    | date, region\nForecasting: WHERE region = '...'                      | Daily     | region"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM5-04-F1",
+            "type": "single_select",
+            "label": "Which columns should be used for Z-ORDER? (Z-ORDER co-locates rows with similar values in the same files for faster filtering)",
+            "options": [
+              "Z-ORDER BY (meter_id) — the most granular column",
+              "Z-ORDER BY (region, date) — the two most common filter columns across all query patterns",
+              "Z-ORDER BY (region, date, meter_id, tier) — all filtered columns",
+              "Z-ORDER BY (tier) — the smallest cardinality column"
+            ],
+            "correctAnswer": "Z-ORDER BY (region, date) — the two most common filter columns across all query patterns",
+            "distractorRationale": "Option 1 uses a high-cardinality column (1.2M values) which provides poor co-location. Option 3 uses too many columns — Z-ORDER effectiveness decreases beyond 2-3 columns. Option 4 uses only one low-value column. Region + date appear in 4 of 5 query patterns."
+          },
+          {
+            "id": "PM5-04-F2",
+            "type": "single_select",
+            "label": "How often should OPTIMIZE run?",
+            "options": [
+              "After every MERGE — compact immediately to prevent any small-file accumulation",
+              "Daily — run after the daily MERGE to compact the new small files before the Gold pipeline reads",
+              "Weekly — batch the compaction to reduce overhead",
+              "Monthly — minimize the cost of compaction"
+            ],
+            "correctAnswer": "Daily — run after the daily MERGE to compact the new small files before the Gold pipeline reads",
+            "distractorRationale": "Option 1 is wasteful if MERGEs happen multiple times per day. Option 3 allows a week of small files to accumulate, degrading read performance. Option 4 is too infrequent — the Gold pipeline runs daily and needs compacted files."
+          },
+          {
+            "id": "PM5-04-F3",
+            "type": "single_select",
+            "label": "What VACUUM retention period should NordGrid use?",
+            "options": [
+              "0 hours — delete old files immediately to save storage",
+              "24 hours — keep yesterday's files in case of rollback",
+              "168 hours (7 days) — the default. Provides a week of time travel for incident diagnosis while managing storage",
+              "8760 hours (1 year) — keep all historical files for compliance"
+            ],
+            "correctAnswer": "168 hours (7 days) — the default. Provides a week of time travel for incident diagnosis while managing storage",
+            "distractorRationale": "Option 1 is dangerous — concurrent readers may fail if files are deleted while being read. Option 2 is risky — incidents often aren't discovered until days later. Option 4 defeats the purpose of VACUUM (storage management). 7 days balances time-travel diagnostics with storage cost."
+          },
+          {
+            "id": "PM5-04-F4",
+            "type": "numeric",
+            "label": "After OPTIMIZE, approximately how many files should the 18.4 GB table have? (Target file size: 128-256 MB)",
+            "correctAnswer": 96,
+            "tolerance": 48,
+            "rationale": "18,400 MB / 192 MB (midpoint of 128-256) ≈ 96 files. Range of 48-144 is acceptable depending on the target size chosen. The key insight: 10,247 files → ~100 files is a 100x reduction in file count."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM5-task-05",
+      "title": "Diagnose a VACUUM Failure",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's platform engineer runs VACUUM on the Silver Delta table with a 24-hour retention period. The operation fails with an error. A long-running analytics query from the forecasting team is reading an older version of the table, and VACUUM cannot delete files that are still needed by that query.",
+        "task": "Read the error message and the table state below. Diagnose the failure, determine the minimum safe retention period, and recommend the fix.",
+        "validationHint": "VACUUM fails when the retention period is shorter than the Delta table's minimum safety threshold. Concurrent readers hold references to old file versions."
+      },
+      "evidence": {
+        "type": "combined",
+        "errorLog": {
+          "label": "VACUUM error output",
+          "content": "IllegalArgumentException: requirement failed:\nYou are trying to vacuum files which are required by a version of the table that\nis still being read. The minimum retention threshold is 168 hours (7 days).\nYou are trying to set a retention of 24 hours.\n\nIf you are certain that there are no operations being performed on this table,\nsuch as streaming, concurrent batch reads, or concurrent writes, then you may\nturn off this check by setting:\n  spark.databricks.delta.retentionDurationCheck.enabled = false\n\nWARNING: Turning off this check can lead to data corruption if files are\ndeleted while they are being read by concurrent operations."
+        },
+        "concurrentReaders": {
+          "label": "Active queries on the Silver table",
+          "content": "Query ID  | User Team    | Started At          | Version Read | Status\nQ-4821    | Forecasting  | 2026-03-20 02:00:00 | Version 180  | Running (4 hours)\nQ-4835    | Billing      | 2026-03-20 05:30:00 | Version 186  | Running (30 min)\nQ-4840    | Gold Pipeline| 2026-03-20 06:00:00 | Version 187  | Running (5 min)"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM5-05-F1",
+            "type": "single_select",
+            "label": "Why did VACUUM fail with a 24-hour retention period?",
+            "options": [
+              "The table has too many files for VACUUM to process",
+              "Delta Lake's safety check prevents retention periods shorter than 168 hours (7 days) to protect concurrent readers who may be reading older versions",
+              "The forecasting query is locking the table, preventing any maintenance operations",
+              "VACUUM requires exclusive write access which conflicts with the running queries"
+            ],
+            "correctAnswer": "Delta Lake's safety check prevents retention periods shorter than 168 hours (7 days) to protect concurrent readers who may be reading older versions"
+          },
+          {
+            "id": "PM5-05-F2",
+            "type": "single_select",
+            "label": "The engineer considers setting retentionDurationCheck.enabled = false to bypass the check. Is this safe?",
+            "options": [
+              "Yes — the check is overly conservative and can be safely disabled",
+              "No — disabling the check would allow VACUUM to delete files that the forecasting query (reading version 180) is actively using, causing that query to fail with FileNotFoundException",
+              "Yes — the concurrent queries will automatically switch to reading from newer versions",
+              "No — but only because it would corrupt the transaction log, not because of concurrent readers"
+            ],
+            "correctAnswer": "No — disabling the check would allow VACUUM to delete files that the forecasting query (reading version 180) is actively using, causing that query to fail with FileNotFoundException",
+            "distractorRationale": "The forecasting query started 4 hours ago and reads version 180 (7 versions behind current). If VACUUM deletes files from version 180, that query crashes mid-execution. Delta's concurrent readers don't switch versions — they read the version snapshot they started with."
+          },
+          {
+            "id": "PM5-05-F3",
+            "type": "single_select",
+            "label": "What is the correct approach?",
+            "options": [
+              "Wait for the forecasting query to finish, then run VACUUM with 24-hour retention",
+              "Keep the default 168-hour retention — it protects long-running queries and provides adequate time travel for incident diagnosis",
+              "Kill the forecasting query, then run VACUUM",
+              "Partition the table so VACUUM can operate on individual partitions"
+            ],
+            "correctAnswer": "Keep the default 168-hour retention — it protects long-running queries and provides adequate time travel for incident diagnosis",
+            "distractorRationale": "Option 1 works for today but doesn't prevent the problem tomorrow. Option 3 disrupts a legitimate business query. Option 4 doesn't change VACUUM's retention behavior. The correct long-term fix is to accept the 7-day retention as the standard and factor the storage cost into the platform budget."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM5-task-06",
+      "title": "Design NordGrid's SCD Type 2 Customer Pipeline",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 14,
+      "gradingWeight": {"template": 50, "code": 50},
+      "description": {
+        "context": "NordGrid's customer reference table needs to track changes over time. When a meter's customer_type changes from 'residential' to 'commercial', the old row must be expired (effective_to set to yesterday, is_current set to false) and a new row must be inserted (effective_from set to today, effective_to set to 9999-12-31, is_current set to true). This is the Slowly Changing Dimension (SCD) Type 2 pattern. The team wants to implement this using Delta Lake's MERGE.",
+        "task": "First, explain the SCD Type 2 pattern and how MERGE implements it. Then write the pipeline logic: given a batch of customer updates (meter_ids with new customer_type values), use MERGE to expire old rows and insert new rows. Simulate this using DataFrame operations since we're working with CSV data. Store the result in a variable called scd_result.",
+        "validationHint": "SCD Type 2 MERGE has two WHEN MATCHED actions: (1) if the incoming customer_type differs from the current row, expire the old row; and (2) a WHEN NOT MATCHED to insert the new row. The tricky part: you also need to insert the new current row for changed records, which requires a second operation or a carefully designed MERGE."
+      },
+      "evidence": {
+        "type": "combined",
+        "currentState": {
+          "label": "Current customer table state (SCD Type 2 format)",
+          "content": "meter_id | customer_type | effective_from | effective_to | is_current\nM-00081  | residential   | 2024-01-01     | 2026-02-28   | false       ← expired\nM-00081  | commercial    | 2026-03-01     | 9999-12-31   | true        ← current\nM-00001  | residential   | 2024-01-01     | 9999-12-31   | true        ← unchanged"
+        },
+        "incomingUpdates": {
+          "label": "Today's update batch (5 meters changing customer_type)",
+          "content": "Meters M-00001 through M-00005 are changing from their current customer_type to 'industrial'.\nThis means:\n  - The current row (is_current=true) must be expired: set effective_to = '2026-03-20', is_current = 'false'\n  - A new row must be inserted: customer_type = 'industrial', effective_from = '2026-03-20', effective_to = '9999-12-31', is_current = 'true'"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM5-06-F1",
+            "type": "single_select",
+            "label": "Why does SCD Type 2 insert a new row instead of updating the existing one?",
+            "options": [
+              "Because Delta Lake doesn't support in-place updates",
+              "Because the goal is to preserve the complete history — both the old and new customer_type must be queryable with their respective date ranges",
+              "Because inserting is faster than updating in columnar storage",
+              "Because downstream consumers need to see both values simultaneously"
+            ],
+            "correctAnswer": "Because the goal is to preserve the complete history — both the old and new customer_type must be queryable with their respective date ranges"
+          },
+          {
+            "id": "PM5-06-F2",
+            "type": "single_select",
+            "label": "After processing the 5 updates on the 120-row customer table, how many rows should the result have?",
+            "options": [
+              "120 — same count, the existing rows are updated in place",
+              "125 — the 5 changed meters each get a new row, their old row is expired but kept",
+              "115 — the 5 old rows are deleted and replaced with new rows",
+              "130 — each changed meter gets two new rows (old + current)"
+            ],
+            "correctAnswer": "125 — the 5 changed meters each get a new row, their old row is expired but kept",
+            "distractorRationale": "SCD Type 2 never deletes rows. The old row is expired (effective_to set, is_current = false) and a new row is inserted. 120 existing + 5 new = 125."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit, when, current_date\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-scd2') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Load current SCD table\ndf_scd = spark.read.csv('PM5_data_customer_history.csv', header=True, inferSchema=True)\nprint(f\"Current SCD rows: {df_scd.count()}\")\n\n# Incoming updates: 5 meters changing to 'industrial'\nupdates_data = [(f'M-{i:05d}', 'industrial') for i in range(1, 6)]\ndf_updates = spark.createDataFrame(updates_data, ['meter_id', 'new_customer_type'])\nprint(f\"Updates: {df_updates.count()} meters changing\")\n\n# YOUR SOLUTION BELOW\n# Implement SCD Type 2 logic using DataFrame operations:\n# 1. Identify which current rows in df_scd match the updates (join on meter_id, filter is_current='true')\n# 2. Expire those rows: set effective_to = '2026-03-20', is_current = 'false'\n# 3. Create new current rows: customer_type from updates, effective_from = '2026-03-20',\n#    effective_to = '9999-12-31', is_current = 'true'\n# 4. Union: unchanged rows + expired rows + new rows\n# Store in 'scd_result'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"SCD result rows: {scd_result.count()}\")\nprint(f\"Current rows (is_current=true): {scd_result.filter(col('is_current') == 'true').count()}\")\nprint(f\"Expired rows (is_current=false): {scd_result.filter(col('is_current') == 'false').count()}\")\nscd_result.filter(col('meter_id') == 'M-00001').orderBy('effective_from').show()"
+      },
+      "assertions": [
+        {
+          "id": "PM5-06-A1",
+          "description": "scd_result has 125 rows (120 original + 5 new current rows)",
+          "check": "scd_result.count() == 125"
+        },
+        {
+          "id": "PM5-06-A2",
+          "description": "100 rows have is_current = 'true' (80 unchanged + 20 existing current + 5 new current - 5 expired)",
+          "check": "scd_result.filter(col('is_current') == 'true').count() == 100"
+        },
+        {
+          "id": "PM5-06-A3",
+          "description": "25 rows have is_current = 'false' (20 previously expired + 5 newly expired)",
+          "check": "scd_result.filter(col('is_current') == 'false').count() == 25"
+        },
+        {
+          "id": "PM5-06-A4",
+          "description": "M-00001 has 2 rows: one expired (residential) and one current (industrial)",
+          "check": "scd_result.filter(col('meter_id') == 'M-00001').count() == 2"
+        },
+        {
+          "id": "PM5-06-A5",
+          "description": "All 5 updated meters have industrial as their current customer_type",
+          "check": "scd_result.filter((col('meter_id').isin([f'M-{i:05d}' for i in range(1,6)])) & (col('is_current') == 'true') & (col('customer_type') == 'industrial')).count() == 5"
+        }
+      ],
+      "partialCredit": "Template (50%): 2 fields graded independently. Code (50%): 5 assertions graded independently.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Delta Lake MERGE semantics — match condition, whenMatched, whenNotMatched (Lessons 3-4)",
+          "SCD Type 2 pattern — expire + insert, never delete (Lesson 8-9)",
+          "Composite key design — which columns define a unique record (Lesson 3, PM4)",
+          "History preservation — effective_from/to date ranges for temporal queries (Lesson 9)",
+          "DataFrame operations for MERGE simulation — join, filter, withColumn, union (Junior Modules 4-7)"
+        ],
+        "minimumConceptCount": 4,
+        "rationale": "SCD Type 2 is the most complex Delta Lake pattern in the mid-level curriculum. It combines MERGE mechanics, temporal data modeling, and careful row lifecycle management. The student must handle three row categories: unchanged (pass through), expired (update metadata), and new (insert). The DataFrame-based implementation tests whether students understand the MERGE semantics deeply enough to express them without the MERGE API."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 4,
+    "everyDiagnosticRequiresEvidence": true,
+    "distractorsPlausible": true,
+    "fixTasksTestModuleTechnique": true,
+    "evidenceRealistic": "Delta Lake history output, VACUUM error messages, and table statistics are modeled on Delta Lake 3.x behavior. MERGE syntax follows the DeltaTable Python API.",
+    "theoryPracticeBoundary": "Theory teaches Delta Lake concepts: MERGE, time travel, OPTIMIZE, VACUUM, SCD. Practice applies these to NordGrid scenarios: incremental loads with corrections (not shown in theory), time travel for incident diagnosis (not a toy example), VACUUM failures from concurrent readers (realistic production scenario), and SCD Type 2 implementation with DataFrame operations (tests understanding of MERGE semantics without the API shortcut)."
+  }
+}

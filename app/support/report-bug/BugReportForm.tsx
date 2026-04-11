@@ -120,7 +120,7 @@ export function BugReportForm() {
             required
             value={category}
             onChange={(event) => setCategory(event.target.value)}
-            className="w-full rounded-xl border border-light-border bg-light-bg px-4 py-3 text-sm text-text-light-primary outline-none transition focus:border-brand-500 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary"
+            className="w-full rounded-[14px] border border-white/[0.06] bg-[#0c0e10] px-4 py-3 text-sm text-text-light-primary outline-none transition focus:border-brand-500 dark:text-text-dark-primary"
           >
             <option value="">Select category</option>
             {CATEGORY_OPTIONS.map((option) => (
@@ -144,7 +144,7 @@ export function BugReportForm() {
             required
             value={area}
             onChange={(event) => setArea(event.target.value)}
-            className="w-full rounded-xl border border-light-border bg-light-bg px-4 py-3 text-sm text-text-light-primary outline-none transition focus:border-brand-500 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary"
+            className="w-full rounded-[14px] border border-white/[0.06] bg-[#0c0e10] px-4 py-3 text-sm text-text-light-primary outline-none transition focus:border-brand-500 dark:text-text-dark-primary"
           >
             <option value="">Select affected area</option>
             {AREA_OPTIONS.map((option) => (
@@ -172,7 +172,7 @@ export function BugReportForm() {
           value={summary}
           onChange={(event) => setSummary(event.target.value)}
           placeholder="Short title for the bug"
-          className="w-full rounded-xl border border-light-border bg-light-bg px-4 py-3 text-sm text-text-light-primary outline-none transition focus:border-brand-500 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary"
+          className="w-full rounded-[14px] border border-white/[0.06] bg-[#0c0e10] px-4 py-3 text-sm text-text-light-primary outline-none transition focus:border-brand-500 dark:text-text-dark-primary"
         />
       </div>
 
@@ -193,18 +193,18 @@ export function BugReportForm() {
           onChange={(event) => setDetails(event.target.value)}
           placeholder="What happened, what you expected, and how to reproduce it."
           rows={7}
-          className="w-full resize-y rounded-xl border border-light-border bg-light-bg px-4 py-3 text-sm text-text-light-primary outline-none transition focus:border-brand-500 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary"
+          className="w-full resize-y rounded-[14px] border border-white/[0.06] bg-[#0c0e10] px-4 py-3 text-sm text-text-light-primary outline-none transition focus:border-brand-500 dark:text-text-dark-primary"
         />
       </div>
 
       {submitState === 'success' && (
-        <p className="rounded-lg border border-success-500/30 bg-success-500/10 px-3 py-2 text-sm text-success-700 dark:text-success-300">
+        <p className="rounded-[14px] border border-success-500/30 bg-success-500/10 px-3 py-2 text-sm text-success-700 dark:text-success-300">
           Bug report submitted successfully{reportId ? ` (ID: ${reportId})` : ''}. Valid reports are
           compensated in kWh after triage.
         </p>
       )}
       {submitState === 'error' && (
-        <p className="rounded-lg border border-error-500/30 bg-error-500/10 px-3 py-2 text-sm text-error-700 dark:text-error-300">
+        <p className="rounded-[14px] border border-error-500/30 bg-error-500/10 px-3 py-2 text-sm text-error-700 dark:text-error-300">
           {errorMessage}
         </p>
       )}
@@ -212,7 +212,7 @@ export function BugReportForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="inline-flex items-center justify-center rounded-xl border border-brand-500/40 bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-400/50 dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300"
+        className="inline-flex items-center justify-center rounded-[14px] border border-brand-500/40 bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-400/50 dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300"
       >
         {isSubmitting ? 'Submitting...' : 'Submit bug report'}
       </button>

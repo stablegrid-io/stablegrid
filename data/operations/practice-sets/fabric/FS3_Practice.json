@@ -1,0 +1,486 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FS3 — Repartition the 15TB Unified Meter Table",
+  "description": "Design partitioning for GridUnion's 15TB unified meter table with 40+ consumers, choose target file sizes from a multi-factor trade-off, review the proposed Z-ORDER strategy, plan the live migration from date-only to country/date partitioning under a 90-day regulatory deadline, and design GridUnion's complete partition governance framework. The flagship task in this set (Task 4) encodes the FS3 Lesson 8 live-table repartition migration that is the single most-detailed lesson in the senior partition module.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / Delta Lake 3.0+",
+  "metadata": {
+    "moduleId": "module-FS3",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 100,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "GridUnion Continental",
+    "scenarioScale": "5M meters, 30 regions, 4 countries (DE/FR/NL/LU), 12 teams, 80 engineers, 500+ pipelines, 4 capacities, 15TB historical archive, 5M new rows/day",
+    "modulePhase": "scaling_patterns",
+    "taskTypeMix": {
+      "tradeoffAnalysis": 2,
+      "designReview": 1,
+      "rootCauseAnalysis": 0,
+      "designArtifact": 1,
+      "architecturalSynthesis": 1
+    },
+    "calibrationNotes": "Senior practice set 3. Most complex set in the scaling phase because of Task 4 (the flagship live repartition migration plan). Two trade-off tasks anchor the partition column choice (Task 1) and file sizing decision (Task 2), one design review tests Z-ORDER strategy critique (Task 3), the design artifact task is the migration plan (Task 4), and the synthesis is governance framework (Task 5). One optional dataset (file distribution sample) supports Task 4's file count math. Multiple defensible answers documented per section 6.3 in F1, F2, and F4."
+  },
+  "datasets": [
+    {
+      "id": "FS3_data_file_distribution",
+      "file": "FS3_data_file_distribution.csv",
+      "description": "Sample of the current file distribution in GridUnion's date-only partitioned readings_silver table. 150 files representing 30 days × 5 files per day, totaling 53.6 GB at sample scale. Median file size 279 MB (target band: 256 MB - 1 GB). 23 small files (under 128 MB) suggest compaction lag. 20 oversized files (over 512 MB) suggest skewed writes. The sample mirrors the production 15TB table's distribution shape, scaled down ~280x. Used by Task 4 to inform the migration plan with realistic file count math: if the table is repartitioned to country/date without compaction, the file count multiplies by ~4 (one set per country) and the median drops to ~70 MB — well below the target band.",
+      "schema": {
+        "columns": [
+          {"name": "file_path", "type": "string", "nullable": false},
+          {"name": "partition_date", "type": "string", "nullable": false},
+          {"name": "file_size_mb", "type": "double", "nullable": false},
+          {"name": "row_count", "type": "integer", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FS3-task-04"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FS3-task-01",
+      "title": "Select Partition Columns for the Unified Meter Table",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "GridUnion's unified readings_silver table is 15TB with 40+ downstream consumers across 4 countries and 12 teams. The current partitioning is date-only (one partition per day). After the multi-country acquisition, the German regulator (BNetzA) introduced a requirement that all German meter data must be physically separable for audit, and the French regulatory team needs to filter the table by country in nearly every query. The platform team is choosing a new partition strategy.\n\n  CONSUMER QUERY PATTERN SURVEY (top 10 consumers by query frequency):\n\n    Consumer                  Filter pattern                 Daily query count\n    --------                  --------------                 -----------------\n    German billing pipeline   country='DE' AND date=...      24,000\n    French regulatory report  country='FR' AND date=...       18,000\n    Dutch operations          country='NL' AND date=...       15,000\n    Lux compliance            country='LU' AND date=...        8,000\n    Cross-country aggregate   date=...                         6,000\n    ML training (DE)          country='DE' AND date>=...       4,500\n    ML training (FR)          country='FR' AND date>=...       4,200\n    Audit query (BNetzA)      country='DE' AND date>=...       2,400\n    Audit query (CRE)         country='FR' AND date>=...       2,100\n    Power BI semantic model   date=...                         1,800\n\n  THREE OPTIONS UNDER CONSIDERATION:\n\n    OPTION A — DATE-ONLY (current): partition by date\n      - Preserves the cross-country aggregate query (date filter prunes correctly)\n      - 9 of 10 top consumers also need country filter; without country in the partition, they read all 4 countries' data and filter at runtime\n      - Daily partition count: 30 days × 1 = 30 active partitions (manageable)\n      - File count over 3 years: ~5,500 files (well under metadata threshold)\n      - Does not satisfy the BNetzA physical separability requirement\n\n    OPTION B — COUNTRY/DATE: partition by (country_code, date)\n      - 9 of 10 top consumers prune correctly to a single country\n      - Cross-country aggregate query reads all 4 country partitions for the date — slightly more work but acceptable at 6,000 daily queries\n      - Daily partition count: 30 days × 4 countries = 120 active partitions\n      - File count over 3 years: ~22,000 files (still under metadata threshold)\n      - Satisfies BNetzA physical separability\n\n    OPTION C — COUNTRY/REGION/DATE: partition by (country_code, region_code, date)\n      - All 30 regions prune independently — German regional billing queries are even faster\n      - Daily partition count: 30 days × 30 regions = 900 active partitions\n      - File count over 3 years: ~165,000 files (approaches OneLake metadata overhead concerns)\n      - Most regions have 1-2 files per day, leading to 'small files' warnings\n      - Satisfies BNetzA physical separability AND provides region-level isolation\n\n  GRIDUNION CONSTRAINTS:\n    - 40+ downstream consumers must continue to work after the migration\n    - 90-day regulatory deadline for BNetzA physical separability\n    - F128 production capacity\n    - Cross-country aggregate query is the only one that does NOT filter by country",
+        "task": "Evaluate the three partition strategies against GridUnion's constraints and recommend ONE primary approach. Multiple defensible answers exist; reasoning fields determine acceptance.",
+        "validationHint": "Option B (country/date) is the primary defensible answer because it: (1) satisfies the regulatory requirement, (2) accelerates 9 of 10 top consumers, (3) keeps file count manageable, (4) only marginally degrades the cross-country aggregate (one extra partition scan per query at 6K/day is acceptable). Option C is also defensible if the team values region-level isolation but the file count concern is real. Option A is rejected because it does not satisfy the BNetzA requirement and forces 9 of 10 consumers to read all countries' data. Acceptable target partition count range: 100-150 active daily partitions for Option B."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS3-01-F1",
+            "type": "single_select",
+            "label": "RECOMMENDATION: Which partition strategy do you recommend as primary?",
+            "options": [
+              "Option A (Date-only) — minimal change, file count is lowest",
+              "Option B (Country/Date) — satisfies BNetzA, accelerates 9 of 10 consumers, file count is manageable",
+              "Option C (Country/Region/Date) — maximum granularity, region-level isolation",
+              "Hybrid: country/date for 28 days of hot data, country only for older partitions"
+            ],
+            "correctAnswer": "Option B (Country/Date) — satisfies BNetzA, accelerates 9 of 10 consumers, file count is manageable",
+            "secondaryCorrectAnswer": "Option C (Country/Region/Date) — maximum granularity, region-level isolation",
+            "rationale": "PRIMARY answer is Option B because it satisfies the regulatory requirement, accelerates the dominant query pattern (9 of 10 top consumers filter by country), and keeps file count well under the OneLake metadata threshold. Option C is also defensible if the student values region-level isolation enough to accept the 165K file count and the small-files risk. A staff engineer would defend either, with Option B being the more conservative choice. Option A is rejected because it fails the BNetzA requirement (a hard constraint, not a preference). The Hybrid is rejected as primary because it adds operational complexity without meaningful benefit at the 30-day partition retention.",
+            "acceptable_alternatives": "Either Option B (primary) or Option C (secondary) is accepted with appropriate reasoning. Option A is NOT accepted under any reasoning because it fails the regulatory hard constraint."
+          },
+          {
+            "id": "FS3-01-F2",
+            "type": "numeric",
+            "label": "TARGET PARTITION COUNT: How many active daily partitions does your chosen strategy produce?",
+            "correctAnswer": 120,
+            "tolerance": 30,
+            "rationale": "For Option B (primary): 30 days × 4 countries = 120. For Option C (secondary): 30 days × 30 regions = 900. The wide tolerance accommodates both: a student who picked Option B answers ~120, a student who picked Option C answers ~900 (which is outside the ±30 tolerance and would normally fail). The grading platform must accept the value that matches the student's F1 selection: 90-150 for Option B, 800-1000 for Option C, 30 for Option A.",
+            "acceptable_alternatives": "Numeric ranges by F1 selection: Option A: 30 (±5). Option B: 90-150. Option C: 800-1000. Hybrid: 60-120."
+          },
+          {
+            "id": "FS3-01-F3",
+            "type": "multi_select",
+            "label": "TRADE-OFF FACTORS: Which factors does your chosen approach prioritize?",
+            "options": [
+              "Regulatory compliance with BNetzA physical separability",
+              "Query acceleration for the 9 country-filtered consumers",
+              "File count manageability",
+              "Region-level isolation (granularity)",
+              "Operational simplicity (fewest moving parts)",
+              "Minimum migration effort (smallest change from current)"
+            ],
+            "correctAnswer": ["Regulatory compliance with BNetzA physical separability", "Query acceleration for the 9 country-filtered consumers", "File count manageability"],
+            "rationale": "For Option B: regulatory compliance + query acceleration + file count manageability are the three priorities. For Option C: add 'region-level isolation' to that set. The grading platform must accept the multi-select that matches the student's F1 selection. A student who picked Option A would correctly choose 'operational simplicity' and 'minimum migration effort' but loses on regulatory compliance — and the F1 answer is wrong.",
+            "acceptable_alternatives": "If F1 = Option C, accept the union including 'Region-level isolation'. The factors must be consistent with the recommended option."
+          },
+          {
+            "id": "FS3-01-F4",
+            "type": "single_select",
+            "label": "EXPIRATION CONDITION: Under what future condition would your recommended strategy stop being right?",
+            "options": [
+              "If the cross-country aggregate query frequency grows from 6,000 to 60,000+ per day, or if a new use case requires frequent unfiltered scans across all countries, the country-first partitioning would become a bottleneck and a date-first or hybrid scheme would need consideration",
+              "Never — Option B is permanently correct",
+              "When a fifth country is added to GridUnion",
+              "When the table size exceeds 30 TB"
+            ],
+            "correctAnswer": "If the cross-country aggregate query frequency grows from 6,000 to 60,000+ per day, or if a new use case requires frequent unfiltered scans across all countries, the country-first partitioning would become a bottleneck and a date-first or hybrid scheme would need consideration",
+            "rationale": "Senior architectural choices have expiration conditions. Option B is right NOW because country-filtered queries dominate (66,500 country-filtered vs 7,800 country-unfiltered per day). If that ratio inverts, the right choice changes. The student must articulate the SPECIFIC condition that would trigger reconsideration, not just say 'when things change.'"
+          },
+          {
+            "id": "FS3-01-F5",
+            "type": "single_select",
+            "label": "STRONGEST COUNTERARGUMENT: What is the strongest argument AGAINST your chosen approach that a peer reviewer might raise?",
+            "options": [
+              "The cross-country aggregate query (6,000 daily) becomes slightly less efficient because it must scan 4 country partitions instead of 1 unified partition per date — a 4x increase in partition listing for that query path",
+              "Partitioning is unnecessary at 15 TB",
+              "The migration is too risky to attempt",
+              "There is no counterargument"
+            ],
+            "correctAnswer": "The cross-country aggregate query (6,000 daily) becomes slightly less efficient because it must scan 4 country partitions instead of 1 unified partition per date — a 4x increase in partition listing for that query path",
+            "rationale": "A senior engineer can articulate the strongest peer-review counterargument to their own choice. The cross-country aggregate query DOES get slower with country/date partitioning — that is the real cost of optimizing for the dominant query pattern. The student's defense is that 6,000 queries per day with a small partition listing overhead is acceptable when 66,500 queries per day get faster. Distractor D is wrong because senior engineering requires knowing the trade-off, not denying it exists."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS3-task-02",
+      "title": "Size Partitions at 15 TB",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "After choosing country/date partitioning in Task 1, GridUnion must choose a target file size for the new partitioning scheme. The team is evaluating three target sizes against the 15 TB table that grows 5M rows / 15 GB per day.\n\n  CURRENT STATE (date-only partitioning):\n    Total size:        15 TB\n    File count:        ~5,500 files\n    Median file size:  280 MB\n    Largest file:      1.4 GB\n    Smallest file:     38 MB\n    Daily growth:      15 GB / day across the 4 countries\n\n  AFTER COUNTRY/DATE MIGRATION (without compaction):\n    Total size:        15 TB (same data, different layout)\n    File count:        ~22,000 files (4x — one set per country per date)\n    Median file size:  ~70 MB (small files problem)\n\n  THREE TARGET FILE SIZE OPTIONS:\n\n    OPTION A — 256 MB target:\n      - Final file count after compaction: ~60,000 files (4 countries × 30 days × ~500 files per partition)\n      - Read efficiency: best for selective queries (single date, single region within country)\n      - Write efficiency: more files per write batch, more metadata operations\n      - OneLake metadata overhead: significant at 60K files\n\n    OPTION B — 512 MB target:\n      - Final file count after compaction: ~30,000 files\n      - Read efficiency: balanced — good for both selective and broad scans\n      - Write efficiency: fewer files per batch, less metadata churn\n      - OneLake metadata overhead: moderate\n\n    OPTION C — 1 GB target:\n      - Final file count after compaction: ~15,000 files\n      - Read efficiency: best for broad scans (entire month, full country)\n      - Write efficiency: highest (fewest files per batch)\n      - OneLake metadata overhead: minimal\n      - Risk: at 1 GB per file, a single Spark task processes one file end-to-end; if a query touches 5 files, only 5 tasks can run in parallel — limits parallelism for selective queries\n\n  GRIDUNION QUERY MIX:\n    Selective (single date, single region):  ~60% of queries\n    Date range (single country):              ~30% of queries  \n    Broad scans (entire country, multi-month): ~10% of queries (analyst exports, ML training, regulatory)",
+        "task": "Choose a target file size and document the reasoning. Multiple defensible answers exist within the 256 MB - 1 GB range.",
+        "validationHint": "Option B (512 MB) is the canonical balanced answer and matches the FS3 Lesson 2 recommendation for multi-tenant tables with mixed query patterns. Option A (256 MB) is also defensible if the student emphasizes selective query performance. Option C (1 GB) is defensible for write-optimized scenarios but the parallelism limit for selective queries (60% of the workload) is the strongest counterargument. The numeric tolerance accepts any value in the 256-1024 range with appropriate reasoning."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS3-02-F1",
+            "type": "single_select",
+            "label": "RECOMMENDATION: Which target file size do you recommend?",
+            "options": [
+              "Option A (256 MB) — optimizes for the 60% selective queries, more parallelism, smaller per-task work",
+              "Option B (512 MB) — balanced across query types, manageable file count, moderate metadata overhead",
+              "Option C (1 GB) — fewest files, lowest metadata overhead, optimizes for the 10% broad scans",
+              "Mixed: 256 MB for hot partitions (last 30 days), 512 MB for warm (30-180 days), 1 GB for cold (180+ days)"
+            ],
+            "correctAnswer": "Option B (512 MB) — balanced across query types, manageable file count, moderate metadata overhead",
+            "secondaryCorrectAnswer": "Option A (256 MB) — optimizes for the 60% selective queries, more parallelism, smaller per-task work",
+            "rationale": "PRIMARY answer is Option B because it balances all 3 query patterns and matches the FS3 Lesson 2 standard for mixed-workload tables. SECONDARY answer is Option A because the 60% selective query majority is a defensible reason to optimize for parallelism. Option C is rejected because it sacrifices selective query parallelism (60% of workload) for broad scan optimization (10% of workload). The Mixed approach is technically optimal but adds operational complexity that exceeds the benefit at GridUnion's scale.",
+            "acceptable_alternatives": "Either Option B (primary) or Option A (secondary) is accepted. Option C accepted only with explicit reasoning addressing the parallelism limit. Mixed accepted only with explicit reasoning addressing the operational complexity of tiered file sizes."
+          },
+          {
+            "id": "FS3-02-F2",
+            "type": "numeric",
+            "label": "TARGET SIZE IN MB: What target file size do you recommend? (Must match your F1 selection — answer in MB.)",
+            "correctAnswer": 512,
+            "tolerance": 256,
+            "rationale": "Tolerance ±256 MB accepts the range 256 MB - 768 MB, which covers Option A (256), Option B (512), and the lower bound of compromise answers. Option C (1024 MB) is outside this tolerance and the student would need to defend the choice in F1 with appropriate reasoning. The grading platform must accept the value that matches the student's F1 selection.",
+            "acceptable_alternatives": "Numeric ranges by F1 selection: Option A: 256 (±50). Option B: 512 (±100). Option C: 1024 (±100). Mixed: any value in 256-1024 with note."
+          },
+          {
+            "id": "FS3-02-F3",
+            "type": "single_select",
+            "label": "TRADE-OFF: What is the primary cost of your chosen file size?",
+            "options": [
+              "Option B's 30,000 file count is moderate metadata overhead — not as efficient as Option C's 15,000 but not as bad as Option A's 60,000",
+              "Option B is slower than Option A for selective queries because tasks process more data per file",
+              "Option B has no costs",
+              "Option B is more expensive than Option C in storage"
+            ],
+            "correctAnswer": "Option B's 30,000 file count is moderate metadata overhead — not as efficient as Option C's 15,000 but not as bad as Option A's 60,000",
+            "rationale": "Every architectural choice has costs. Option B's cost is the moderate metadata overhead (still better than Option A's 60K but worse than Option C's 15K). The student must KNOW the cost they accepted, not deny it exists. If the student picked Option A, the correct answer would emphasize the higher metadata overhead. The grading platform must accept the cost matching F1.",
+            "acceptable_alternatives": "If F1 = Option A, the cost is 'higher metadata overhead from 60K files'. If F1 = Option C, the cost is 'limited parallelism for the 60% selective queries because each task processes 1 GB end-to-end'."
+          },
+          {
+            "id": "FS3-02-F4",
+            "type": "single_select",
+            "label": "EXPIRATION CONDITION: Under what condition would your chosen file size stop being right?",
+            "options": [
+              "If the query mix shifts from 60% selective to 60% broad scans (e.g., NordGrid acquires a competitor and the analyst team's daily exports become the dominant workload), the file size should grow to optimize for the new dominant pattern",
+              "Never — file size is permanent",
+              "When a 5th country joins",
+              "When OneLake adds compression"
+            ],
+            "correctAnswer": "If the query mix shifts from 60% selective to 60% broad scans (e.g., NordGrid acquires a competitor and the analyst team's daily exports become the dominant workload), the file size should grow to optimize for the new dominant pattern",
+            "rationale": "The right file size depends on the query mix. The choice expires when the mix changes substantially. Senior reasoning includes the SPECIFIC condition (workload shift) and the expected response (re-tune file size to match the new dominant pattern)."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS3-task-03",
+      "title": "Review GridUnion's Z-ORDER Strategy",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's platform team proposed the following Z-ORDER strategy for the new country/date partitioned readings_silver table. A senior engineer is reviewing it before deployment.\n\n  PROPOSED Z-ORDER CONFIGURATION:\n\n    Table:        readings_silver\n    Partitioning: country_code, date  (from Task 1)\n    File size:    512 MB target  (from Task 2)\n\n    Z-ORDER columns: (country_code, region_code, customer_id, meter_id)\n    Refresh cadence: weekly (Sunday 02:00 UTC)\n    OPTIMIZE strategy: ZORDER BY (country_code, region_code, customer_id, meter_id)\n\n  DOWNSTREAM CONSUMER QUERY PATTERNS (from Task 1):\n\n    Most queries:           WHERE country_code = ? AND date = ?\n    Some queries:           WHERE country_code = ? AND date BETWEEN ? AND ?\n    Some queries:           WHERE country_code = ? AND region_code IN (?, ?)\n    Some queries:           WHERE meter_id = ? (point lookup, ~50/day)\n    Some queries:           WHERE customer_id = ? (point lookup, ~30/day)\n    Cross-country aggregate: WHERE date = ? (no country filter)\n\n  PROPOSED OPTIMIZE COMMAND:\n\n    OPTIMIZE readings_silver\n    WHERE date >= current_date() - INTERVAL 7 DAYS\n    ZORDER BY (country_code, region_code, customer_id, meter_id)\n\n  PLATFORM TEAM'S REASONING (from the proposal):\n    'We chose 4 Z-ORDER columns to cover all query patterns. The weekly cadence keeps maintenance cost low. The OPTIMIZE only touches the last 7 days of partitions to avoid expensive full-table operations.'",
+        "task": "Identify the 4 problems with this Z-ORDER strategy. Each problem should reflect a real anti-pattern that a senior reviewer would block on. Severity-rank each.",
+        "validationHint": "The 4 problems are: (1) country_code is in the Z-ORDER list AND is a partition column — Z-ORDER on a partition column wastes effort because partition pruning already isolates data by country. (2) Four Z-ORDER columns is too many — Z-ORDER's effectiveness drops sharply past 2-3 columns because the space-filling curve becomes diluted. (3) The OPTIMIZE only touches 7 days of partitions, but Z-ORDER must run on the partition being optimized — running ZORDER on already-Z-ORDERED partitions repeatedly is wasteful, while older partitions never get Z-ORDERED at all. (4) The point lookup queries by meter_id and customer_id are too rare (~80/day) to justify Z-ORDERing on those columns — the optimization cost outweighs the benefit for such low query frequency."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS3-03-F1",
+            "type": "single_select",
+            "label": "PROBLEM 1: Which is the most severe issue?",
+            "options": [
+              "country_code is BOTH a partition column AND a Z-ORDER column — Z-ORDER on a partition column is wasted effort because partition pruning already isolates data by country before Z-ORDER's row-group skipping can apply. country_code should be REMOVED from the Z-ORDER list",
+              "The weekly cadence is too infrequent",
+              "The OPTIMIZE WHERE clause is wrong",
+              "ZORDER syntax is incorrect"
+            ],
+            "correctAnswer": "country_code is BOTH a partition column AND a Z-ORDER column — Z-ORDER on a partition column is wasted effort because partition pruning already isolates data by country before Z-ORDER's row-group skipping can apply. country_code should be REMOVED from the Z-ORDER list",
+            "rationale": "This is the textbook Z-ORDER mistake at senior level: Z-ORDER complements partition pruning, it does not duplicate it. Including a partition column in Z-ORDER means the space-filling curve wastes a dimension on data that is already physically separated. The 4-column Z-ORDER becomes effectively a 3-column Z-ORDER with one wasted dimension, weakening the clustering for the remaining columns. Senior reviewers catch this consistently; mid-level engineers usually do not."
+          },
+          {
+            "id": "FS3-03-F2",
+            "type": "single_select",
+            "label": "PROBLEM 2: What is the next-most severe problem?",
+            "options": [
+              "Four Z-ORDER columns is too many — Z-ORDER's effectiveness drops sharply past 2-3 columns because the space-filling curve dimensions are diluted. The 4-column proposal should be reduced to 2 columns, optimally (region_code, date) since date is already a partition but region_code is the most-used filter after country",
+              "The weekly cadence is wrong",
+              "OPTIMIZE should run daily",
+              "Z-ORDER is not supported in Fabric"
+            ],
+            "correctAnswer": "Four Z-ORDER columns is too many — Z-ORDER's effectiveness drops sharply past 2-3 columns because the space-filling curve dimensions are diluted. The 4-column proposal should be reduced to 2 columns, optimally (region_code, date) since date is already a partition but region_code is the most-used filter after country",
+            "rationale": "Z-ORDER's underlying space-filling curve loses effectiveness past 2-3 dimensions because the bit interleaving distributes the clustering benefit across too many axes. Senior teams typically Z-ORDER on 1-2 columns max. The 4-column proposal is a common mid-level mistake of 'cover all query patterns' which actually weakens clustering for every individual pattern."
+          },
+          {
+            "id": "FS3-03-F3",
+            "type": "single_select",
+            "label": "PROBLEM 3: What is the third-most severe issue?",
+            "options": [
+              "The OPTIMIZE WHERE clause only Z-ORDERs the last 7 days of partitions, but: (a) those partitions are already Z-ORDERED from the previous week, so the operation is redundant on the older 6 days, AND (b) older partitions (8+ days) never get Z-ORDERED at all, so they degrade over time. The right pattern is OPTIMIZE on partitions whose Z-ORDER STATE is stale, not on partitions matching a date range",
+              "OPTIMIZE should run on the entire table",
+              "OPTIMIZE should be disabled",
+              "OPTIMIZE should run hourly"
+            ],
+            "correctAnswer": "The OPTIMIZE WHERE clause only Z-ORDERs the last 7 days of partitions, but: (a) those partitions are already Z-ORDERED from the previous week, so the operation is redundant on the older 6 days, AND (b) older partitions (8+ days) never get Z-ORDERED at all, so they degrade over time. The right pattern is OPTIMIZE on partitions whose Z-ORDER STATE is stale, not on partitions matching a date range",
+            "rationale": "Z-ORDER maintenance at scale requires tracking which partitions have been Z-ORDERED and which have changed since their last Z-ORDER. A blind 'last 7 days' filter is wasteful AND incomplete: wasteful because most of those partitions were already Z-ORDERED last week, incomplete because partitions that received late-arriving data after their initial Z-ORDER never get re-clustered. The senior pattern is to track Z-ORDER state in a metadata table and selectively re-optimize only partitions where the state is stale."
+          },
+          {
+            "id": "FS3-03-F4",
+            "type": "single_select",
+            "label": "PROBLEM 4: What is the fourth issue, and what makes it least severe?",
+            "options": [
+              "Including customer_id and meter_id in Z-ORDER for ~80 daily point-lookup queries does not justify the optimization cost — those columns could be removed without measurable query slowdown. Least severe because the existence of the columns in Z-ORDER mainly wastes effort during OPTIMIZE rather than degrading queries",
+              "The cadence should be hourly",
+              "The table should not be Z-ORDERED",
+              "OPTIMIZE should be disabled"
+            ],
+            "correctAnswer": "Including customer_id and meter_id in Z-ORDER for ~80 daily point-lookup queries does not justify the optimization cost — those columns could be removed without measurable query slowdown. Least severe because the existence of the columns in Z-ORDER mainly wastes effort during OPTIMIZE rather than degrading queries",
+            "rationale": "Z-ORDER optimization for low-frequency query patterns is a cost vs benefit miscalibration. 80 daily point lookups against a 15 TB table do not justify Z-ORDERing on customer_id and meter_id — the OPTIMIZE cost across 22,000 files exceeds the cumulative query speedup. This is the least severe of the 4 issues because it 'only' wastes maintenance CUs, where the other 3 actively degrade query performance or coverage."
+          },
+          {
+            "id": "FS3-03-F5",
+            "type": "single_select",
+            "label": "REVISED RECOMMENDATION: What Z-ORDER configuration should the reviewer recommend?",
+            "options": [
+              "ZORDER BY (region_code) only — region_code is the most-used filter after country (which is partitioned), single-column Z-ORDER preserves clustering effectiveness, and the 80 daily point lookups can use Bloom filters or be accepted as full scans within their already-pruned partition",
+              "ZORDER BY (country_code, region_code, date)",
+              "ZORDER BY all 4 original columns",
+              "Disable Z-ORDER entirely"
+            ],
+            "correctAnswer": "ZORDER BY (region_code) only — region_code is the most-used filter after country (which is partitioned), single-column Z-ORDER preserves clustering effectiveness, and the 80 daily point lookups can use Bloom filters or be accepted as full scans within their already-pruned partition",
+            "secondaryCorrectAnswer": "ZORDER BY (region_code, customer_id) — region_code as the primary cluster key, customer_id as a secondary because point-lookup queries appear in the survey",
+            "rationale": "PRIMARY answer is single-column Z-ORDER on region_code — the senior pattern for tables where one column dominates the non-partition filter pattern. SECONDARY answer (region_code + customer_id) is also defensible if the team values the point-lookup queries enough to justify a 2-column Z-ORDER. Both maintain the principle: never Z-ORDER on a partition column, never exceed 2-3 columns, justify each column with query frequency.",
+            "acceptable_alternatives": "Either single-column (region_code) or two-column (region_code + customer_id) Z-ORDER is accepted. Three-column or four-column proposals are rejected."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS3-task-04",
+      "title": "Plan the Live Repartition Migration",
+      "type": "design_artifact",
+      "estimatedMinutes": 24,
+      "description": {
+        "context": "This is the FLAGSHIP TASK of the FS3 module. GridUnion must migrate the readings_silver table from date-only partitioning to country/date partitioning under a 90-day BNetzA regulatory deadline. The table is 15 TB, has 40+ downstream consumers, and cannot have any downtime — the morning analyst window must continue every business day during the migration.\n\n  CURRENT STATE:\n    Table:           readings_silver\n    Size:            15 TB\n    Partitioning:    date (one partition per day)\n    File count:      ~5,500 files\n    Consumers:       40+ pipelines and reports across 4 countries\n    Daily writes:    15 GB / day from the Bronze layer\n    Daily reads:     ~80,000 queries/day across all consumers\n\n  TARGET STATE:\n    Same table (must be the SAME table from the consumers' perspective — no rename)\n    Partitioning:    (country_code, date)\n    Target file size: 512 MB\n    Z-ORDER:         (region_code) — from Task 3\n    File count:      ~30,000 files after compaction\n\n  CONSTRAINT:\n    Zero downtime: morning analyst window (07:00-12:00 UTC) must work every business day during the migration\n    Rollback ready: any phase must be reversible if it causes a regression\n    BNetzA deadline: 90 days from start\n\n  THREE MIGRATION APPROACHES (the FS3 Lesson 8 trade-off):\n\n    APPROACH 1 — DUAL-WRITE: Write to both old and new tables during a transition period; consumers gradually migrate; old table is dropped when no consumers remain\n      Pros: zero risk to existing consumers, gradual rollout, easy rollback\n      Cons: 2x storage during transition, complex pipeline modifications, requires schema discipline\n\n    APPROACH 2 — VIEW ABSTRACTION: Rename the existing table, create a new table with new partitioning, create a view that points consumers to the new table; old data is migrated in batches behind the view\n      Pros: consumers see no change, gradual data migration, view layer enables rollback\n      Cons: view performance overhead, complex view definition, potential for view to drift from underlying tables\n\n    APPROACH 3 — DELTA CRAS (Create Replace As Select): Use Delta's CREATE OR REPLACE TABLE to atomically rewrite the table with new partitioning in a single operation\n      Pros: atomic switch, no transition period, simplest mental model\n      Cons: requires processing all 15 TB in one operation (20+ hours of CU), no rollback once committed, blocks consumers during the operation",
+        "task": "Build a Python dict called migration_plan with these top-level keys:\n  - approach: one of 'dual_write', 'view_abstraction', or 'delta_cras'\n  - rationale: a non-empty string explaining why this approach was chosen\n  - phases: a list of phase dicts (4-7 phases). Each phase has order (int), name (string), description (string), duration_days (int), reversible (bool)\n  - rollback_plan: a string describing how to roll back if a regression is detected mid-migration\n  - file_count_before: the current file count (5500)\n  - file_count_after_target: the post-migration target file count (30000, from the Task 2 file size analysis)\n  - consumer_notification_days_before: integer days of notice given to consumers before any breaking change (typically 30+ for senior governance)\n  - regulatory_deadline_days: 90\n  - total_duration_days: integer total — must be less than 90",
+        "validationHint": "DUAL-WRITE is the senior canonical answer for this scenario because it satisfies the zero-downtime constraint AND the rollback constraint AND fits within 90 days. VIEW_ABSTRACTION is also defensible. DELTA_CRAS is rejected because it cannot satisfy zero downtime (the rewrite blocks consumers) and cannot be rolled back. The phases list typically includes: prepare new table, enable dual-write, verify new table, migrate consumers, decommission old table. Phases 1-4 should be reversible (the rollback constraint); phase 5 (decommission) is the irreversible one. consumer_notification_days_before should be at least 30 (NordGrid mid-level standard) and ideally 60+ for senior governance."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS3 Lesson 8: live table repartitioning migration plan.\n# This is the FLAGSHIP task — the most detailed migration design in the senior track.\n\n# YOUR SOLUTION BELOW\n# Build migration_plan with all 9 required keys from the task description.\n# The phases list should have 4-7 phase dicts in order.\n\nmigration_plan = {\n    # Fill in all 9 keys\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(migration_plan, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS3-04-A1",
+          "description": "migration_plan has all 9 required top-level keys",
+          "check": "set(migration_plan.keys()) >= {'approach', 'rationale', 'phases', 'rollback_plan', 'file_count_before', 'file_count_after_target', 'consumer_notification_days_before', 'regulatory_deadline_days', 'total_duration_days'}"
+        },
+        {
+          "id": "FS3-04-A2",
+          "description": "approach is one of the three documented options",
+          "check": "migration_plan['approach'] in ('dual_write', 'view_abstraction', 'delta_cras')"
+        },
+        {
+          "id": "FS3-04-A3",
+          "description": "approach is NOT delta_cras (rejected because it cannot satisfy zero-downtime AND no-rollback constraints)",
+          "check": "migration_plan['approach'] != 'delta_cras'"
+        },
+        {
+          "id": "FS3-04-A4",
+          "description": "rationale is a non-empty string",
+          "check": "isinstance(migration_plan['rationale'], str) and len(migration_plan['rationale']) > 20"
+        },
+        {
+          "id": "FS3-04-A5",
+          "description": "phases is a list of 4-7 entries",
+          "check": "isinstance(migration_plan['phases'], list) and 4 <= len(migration_plan['phases']) <= 7"
+        },
+        {
+          "id": "FS3-04-A6",
+          "description": "every phase has the 5 required keys",
+          "check": "all(set(p.keys()) >= {'order', 'name', 'description', 'duration_days', 'reversible'} for p in migration_plan['phases'])"
+        },
+        {
+          "id": "FS3-04-A7",
+          "description": "phase order values are sequential starting from 1",
+          "check": "[p['order'] for p in migration_plan['phases']] == list(range(1, len(migration_plan['phases']) + 1))"
+        },
+        {
+          "id": "FS3-04-A8",
+          "description": "at least 3 phases are marked reversible (the rollback constraint requires most phases to be undoable)",
+          "check": "sum(1 for p in migration_plan['phases'] if p['reversible']) >= 3"
+        },
+        {
+          "id": "FS3-04-A9",
+          "description": "file_count_before equals 5500 and file_count_after_target equals 30000 (from Tasks 1-2)",
+          "check": "migration_plan['file_count_before'] == 5500 and migration_plan['file_count_after_target'] == 30000"
+        },
+        {
+          "id": "FS3-04-A10",
+          "description": "consumer_notification_days_before is at least 30 days (NordGrid mid-level standard, often more at senior)",
+          "check": "migration_plan['consumer_notification_days_before'] >= 30"
+        },
+        {
+          "id": "FS3-04-A11",
+          "description": "total_duration_days is less than 90 (must fit within the regulatory deadline)",
+          "check": "migration_plan['total_duration_days'] < 90 and migration_plan['regulatory_deadline_days'] == 90"
+        },
+        {
+          "id": "FS3-04-A12",
+          "description": "rollback_plan is a non-empty string explaining how mid-migration rollback works",
+          "check": "isinstance(migration_plan['rollback_plan'], str) and len(migration_plan['rollback_plan']) > 30"
+        }
+      ],
+      "partialCredit": "12 independent assertions. Each passed assertion earns 1/12 credit. A3 is the keystone — it explicitly rejects delta_cras as a valid approach for this scenario, catching students who picked the operationally simplest option without considering the zero-downtime and rollback constraints."
+    },
+    {
+      "id": "module-FS3-task-05",
+      "title": "GridUnion's Partition Governance Framework",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "This is the synthesis task. GridUnion's platform team needs an ongoing partition governance framework to ensure that the Task 4 migration is not the last partition decision the team makes. New tables get created weekly across 12 teams, and without governance every team will make its own partition choices — leading to the same kind of regulatory and performance problems that drove the current migration.\n\nYour job has two parts: (1) DIAGNOSIS — fill the 4-field template articulating the governance principles. (2) ARTIFACT — build a Python dict specifying the framework's components, processes, and policies.",
+        "task": "Fill the diagnosis template AND build the partition_governance dict.\n\nFor the ARTIFACT: Build a Python dict called partition_governance with these keys:\n  - design_review_required_for: a list containing the table types that must go through partition design review. Must include 'fact_tables_above_100gb', 'multi_consumer_tables', 'regulatory_tables'\n  - review_committee: a dict with members (list of role names), meeting_cadence ('weekly'), escalation_path (string)\n  - monitoring_metrics: a list of EXACTLY 4 metric names: 'file_count_per_table', 'median_file_size', 'partition_count_per_table', 'small_files_percentage'\n  - alert_thresholds: a dict with file_count_warning (10000), file_count_critical (100000), small_files_pct_warning (15)\n  - quarterly_audit_enabled: True\n  - migration_playbook_documented: True\n  - approved_partition_patterns: a list containing at least 'date_only', 'country_date', 'country_region_date'",
+        "validationHint": "The synthesis combines partition column selection (Task 1), file sizing (Task 2), Z-ORDER strategy (Task 3), and migration planning (Task 4) into a governance framework that prevents future ad-hoc partition decisions. The 4 monitoring metrics are the same ones the platform team will track after the Task 4 migration completes."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS3-05-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does partition design need a formal review process at GridUnion's scale?",
+            "options": [
+              "Without governance, individual teams make partition choices that work for their immediate query patterns but conflict with cross-team consumers, regulatory requirements, or capacity costs. The Task 1 scenario (40+ consumers across 4 countries) shows that no single team has the full picture; only a cross-team review can balance the trade-offs",
+              "Microsoft Fabric requires partition reviews",
+              "Reviews are bureaucratic but mandatory",
+              "Individual engineers make better decisions than committees"
+            ],
+            "correctAnswer": "Without governance, individual teams make partition choices that work for their immediate query patterns but conflict with cross-team consumers, regulatory requirements, or capacity costs. The Task 1 scenario (40+ consumers across 4 countries) shows that no single team has the full picture; only a cross-team review can balance the trade-offs",
+            "rationale": "Senior governance exists where individual decisions have multi-team consequences. Partition strategy is a perfect example: the German billing team's 'best' partitioning differs from the French regulatory team's 'best' partitioning, and both differ from the cross-country aggregate's 'best'. Only a forum that includes all consumers can choose the right balance. This is the FS1 cross-team ownership contract pattern applied to partition decisions."
+          },
+          {
+            "id": "FS3-05-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why does the framework require monitoring metrics in addition to the design review?",
+            "options": [
+              "Design reviews catch problems at table creation, but partitioning degrades over time as data volumes grow, query patterns shift, and small files accumulate. Without ongoing monitoring, a table that was perfectly designed in 2025 becomes a performance problem in 2027 and nobody notices until consumers complain",
+              "Monitoring is required by regulation",
+              "Reviews are unreliable",
+              "Monitoring replaces reviews"
+            ],
+            "correctAnswer": "Design reviews catch problems at table creation, but partitioning degrades over time as data volumes grow, query patterns shift, and small files accumulate. Without ongoing monitoring, a table that was perfectly designed in 2025 becomes a performance problem in 2027 and nobody notices until consumers complain",
+            "rationale": "The same prevention-vs-detection duality from FI7 and FS2 applies here: review prevents bad initial decisions, monitoring detects when good initial decisions become bad over time. Both are necessary."
+          },
+          {
+            "id": "FS3-05-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why is the small_files_pct alert threshold set to 15% (warning) instead of 5% or 50%?",
+            "options": [
+              "15% is the inflection point where small files start to materially affect query performance: below 15% the impact is negligible, above 15% scan time increases noticeably as the optimizer juggles file metadata. 5% would alert constantly on healthy tables; 50% would only alert after performance was already degraded",
+              "15% is the Fabric default",
+              "15% is required by Delta Lake",
+              "It is arbitrary"
+            ],
+            "correctAnswer": "15% is the inflection point where small files start to materially affect query performance: below 15% the impact is negligible, above 15% scan time increases noticeably as the optimizer juggles file metadata. 5% would alert constantly on healthy tables; 50% would only alert after performance was already degraded",
+            "secondaryCorrectAnswer": "It is arbitrary",
+            "rationale": "PRIMARY answer reflects the senior knowledge that thresholds have rationale grounded in observed inflection points. SECONDARY answer (arbitrary) is honestly accepted because 10% or 20% would also be defensible — the value is somewhat arbitrary within reasonable bounds but the 15% choice is well-supported."
+          },
+          {
+            "id": "FS3-05-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why does the framework include 'approved_partition_patterns' as a list rather than allowing arbitrary patterns?",
+            "options": [
+              "Constraining partition patterns to a small approved set (date_only, country_date, country_region_date) prevents teams from inventing novel partitioning that the monitoring tools, migration runbooks, and Z-ORDER strategies don't know how to handle. Standardization at scale beats local optimization",
+              "Fabric only supports these patterns",
+              "Other patterns are illegal",
+              "Standardization is preferred but not required"
+            ],
+            "correctAnswer": "Constraining partition patterns to a small approved set (date_only, country_date, country_region_date) prevents teams from inventing novel partitioning that the monitoring tools, migration runbooks, and Z-ORDER strategies don't know how to handle. Standardization at scale beats local optimization",
+            "rationale": "Senior governance trades off some local optimization for platform-wide consistency. A team that invents a clever new partition scheme creates work for everyone else: the monitoring tools must learn to track it, the migration playbook must learn to repartition it, the Z-ORDER strategy must accommodate it. At 200+ tables and 12 teams, this overhead exceeds the local benefit. Standardize on 3-5 patterns that cover 95% of cases and require justification for anything else."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS3 SYNTHESIS: GridUnion's partition governance framework.\n\n# YOUR SOLUTION BELOW\n# Build partition_governance with the keys from the task description.\n\npartition_governance = {\n    # Fill in all required keys\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(partition_governance, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS3-05-A1",
+          "description": "partition_governance has all 7 required top-level keys",
+          "check": "set(partition_governance.keys()) >= {'design_review_required_for', 'review_committee', 'monitoring_metrics', 'alert_thresholds', 'quarterly_audit_enabled', 'migration_playbook_documented', 'approved_partition_patterns'}"
+        },
+        {
+          "id": "FS3-05-A2",
+          "description": "design_review_required_for includes all 3 expected table types",
+          "check": "set(partition_governance['design_review_required_for']) >= {'fact_tables_above_100gb', 'multi_consumer_tables', 'regulatory_tables'}"
+        },
+        {
+          "id": "FS3-05-A3",
+          "description": "review_committee has members list, meeting_cadence='weekly', and escalation_path",
+          "check": "'members' in partition_governance['review_committee'] and partition_governance['review_committee']['meeting_cadence'] == 'weekly' and 'escalation_path' in partition_governance['review_committee']"
+        },
+        {
+          "id": "FS3-05-A4",
+          "description": "monitoring_metrics is a list with all 4 required metrics",
+          "check": "set(partition_governance['monitoring_metrics']) >= {'file_count_per_table', 'median_file_size', 'partition_count_per_table', 'small_files_percentage'}"
+        },
+        {
+          "id": "FS3-05-A5",
+          "description": "alert_thresholds has file_count_warning=10000, file_count_critical=100000, small_files_pct_warning=15",
+          "check": "partition_governance['alert_thresholds']['file_count_warning'] == 10000 and partition_governance['alert_thresholds']['file_count_critical'] == 100000 and partition_governance['alert_thresholds']['small_files_pct_warning'] == 15"
+        },
+        {
+          "id": "FS3-05-A6",
+          "description": "quarterly_audit_enabled and migration_playbook_documented are both True",
+          "check": "partition_governance['quarterly_audit_enabled'] == True and partition_governance['migration_playbook_documented'] == True"
+        },
+        {
+          "id": "FS3-05-A7",
+          "description": "approved_partition_patterns includes the 3 patterns from this practice set",
+          "check": "set(partition_governance['approved_partition_patterns']) >= {'date_only', 'country_date', 'country_region_date'}"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (7 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/7).",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Partition column selection from consumer survey (Lesson 1, Task 1)",
+          "File sizing trade-off for mixed workloads (Lesson 2, Task 2)",
+          "Z-ORDER strategy with column count and partition-column constraints (Lesson 3, Task 3)",
+          "Live migration planning with phases and rollback (Lesson 8, Task 4)",
+          "Cross-team partition governance with monitoring and approval (Lessons 9-10)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines Tasks 1-4 into a governance framework that prevents future ad-hoc partition decisions. The keystone is the COMBINATION of design review (prevents bad initial decisions) and monitoring (detects degradation over time) — neither alone is sufficient. The approved_partition_patterns list (A7) is the standardization control that prevents team-by-team divergence."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "tradeoffTasksHaveCompetingOptions": true,
+    "designReviewHasSubtleNotTextbookIssues": true,
+    "answerRangesDocumented": true,
+    "calibrationNotes": "Senior practice set 3. Most complex set in the scaling phase. Two trade-off tasks (Tasks 1 and 2) within the section 6.2 max of 3. One design review (Task 3) with 4 subtle Z-ORDER anti-patterns including the senior-level mistake of Z-ORDERing on a partition column. The flagship design artifact (Task 4) is the live repartition migration plan with 12 assertions and an explicit reject of delta_cras as the wrong approach for the constraints. The synthesis (Task 5) builds the governance framework. Multi-defensible answers throughout: partition column choice (Option B or C), file size (Option A or B), Z-ORDER columns (1 or 2), migration approach (dual_write or view_abstraction). The optional dataset supports Task 4's file count math.",
+    "theoryPracticeBoundary": "The theory teaches partition design for multi-consumer tables (Lesson 1), partition sizing at terabyte scale (Lesson 2), Z-ORDER mechanics (Lesson 3), DPP internals (Lesson 4), small files management (Lesson 5), bucketing (Lesson 6), evolution strategies (Lesson 7), live repartitioning (Lesson 8 — the flagship), monitoring (Lesson 9), and governance (Lesson 10). The practice tests application: Task 1 forces a real cross-consumer trade-off with 40+ consumers and a regulatory hard constraint. Task 2 forces a file size choice with three competing query patterns. Task 3 reviews a Z-ORDER configuration with 4 subtle problems including the partition-column mistake from Lesson 3. Task 4 is the flagship migration plan from Lesson 8 with the 3 approaches and the rejection of delta_cras. Task 5 synthesizes everything into the Lesson 10 governance framework.",
+    "datasetNotes": "One optional dataset (150 rows of file distribution) supports Task 4's file count math. The dataset is realistic-shape: median 279 MB, 23 small files (under 128 MB), 20 oversized files (over 512 MB). Students can use it to compute the post-migration file count if compaction is included or omitted from the migration plan."
+  }
+}

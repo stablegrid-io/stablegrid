@@ -1,0 +1,515 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FS7 — Optimize OneLake Storage for the Multi-Country Platform",
+  "description": "Diagnose a slow scan with correct pushdown that's still slow because of file size outliers, choose a V-Order policy across three table profiles, review GridUnion's cross-region storage layout for residency violations and shortcut performance issues, build the I/O optimization plan for the unified Silver table, and synthesize the storage architecture specification. Senior-level practice in OneLake internals, Parquet format diagnostics, and cross-region storage architecture.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / Spark 3.5+",
+  "metadata": {
+    "moduleId": "module-FS7",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 90,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "GridUnion Continental",
+    "scenarioScale": "5M meters, 30 regions, 4 countries (DE/FR/NL/LU), 12 teams, 80 engineers, 500+ pipelines, 15TB historical archive across EU North and EU West regions",
+    "modulePhase": "deep_internals",
+    "taskTypeMix": {
+      "tradeoffAnalysis": 1,
+      "designReview": 1,
+      "rootCauseAnalysis": 1,
+      "designArtifact": 1,
+      "architecturalSynthesis": 1
+    },
+    "calibrationNotes": "Senior practice set in the deep internals phase. Pairs with FS6 (execution engine internals) — FS6 covers what happens in JVM heap, FS7 covers what happens at the storage and I/O layer. One root cause task uses an actual dataset (the only senior set with a data execution component besides the FS3 Lesson 8 flagship). Task 2 trade-off uses the per-table-profile pattern from FS6 Task 3. Task 3 design review tests cross-region storage subtleties (data residency, shortcut performance, cross-region read penalties). Task 4 design artifact builds the I/O optimization plan as a config dict. Task 5 synthesizes the storage architecture spec. Multi-defensible answers documented in acceptable_alternatives metadata."
+  },
+  "datasets": [
+    {
+      "id": "FS7_data_files",
+      "file": "FS7_data_files.csv",
+      "description": "File size distribution sample for fact_readings_de. 150 files across 8 partition dates. Median file size is ~260 MB, but 8 of 150 files (5%) are outliers in the 2200-2500 MB range — roughly 10x the median. The outliers are spread across multiple partitions, not concentrated in one. Total data volume: median files contribute ~37 GB; outlier files contribute ~18 GB (one-third of the data is in 5% of the files).",
+      "schema": {
+        "columns": [
+          {"name": "file_path", "type": "string", "nullable": false},
+          {"name": "partition", "type": "string", "nullable": false},
+          {"name": "file_size_mb", "type": "double", "nullable": false},
+          {"name": "row_count", "type": "long", "nullable": false},
+          {"name": "row_group_count", "type": "integer", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FS7-task-01"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FS7-task-01",
+      "title": "Slow Scan with Correct Pushdown",
+      "type": "root_cause_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's German billing pipeline reads fact_readings_de for the past 30 days. The query has correct predicate pushdown (verified in the explain plan) and correct partition pruning (verified in scan metrics). Scan time is still 8 minutes when historically it was 2 minutes for the same query.\n\n  EXPLAIN OUTPUT (relevant scan operator):\n    +- *(1) FileScan parquet fact_readings_de\n         PushedFilters: [GreaterThanOrEqual(date,2026-03-09), LessThanOrEqual(date,2026-04-08)]\n         PartitionFilters: [date >= 2026-03-09, date <= 2026-04-08]\n         ReadSchema: struct<meter_id:string,daily_kw:double,date:date>\n\n  SPARK UI SCAN METRICS:\n    Files scanned:           150\n    Files skipped:           1820 (partition pruning eliminated old partitions)\n    Bytes scanned:           ~55 GB\n    Time in scan stage:      8 min 12 sec\n    Median task duration:    1.2 sec\n    Max task duration:       4 min 38 sec   <-- 230x the median\n    P95 task duration:       3 min 50 sec\n\n  TASK DURATION DISTRIBUTION (200 tasks):\n    p50:    1.2 sec\n    p75:    1.5 sec\n    p90:    1.8 sec\n    p95:    2.4 sec  (so far so good)\n    p99:  238.0 sec  (huge spike at the top)\n    max:  278.0 sec\n\n  The pipeline owner cannot find any plan-level explanation. The plan is optimal, partition pruning works, predicates push down. But a few tasks take 200+ seconds while the median task takes 1.2 seconds.\n\nThe file size distribution sample (FS7_data_files.csv) is loaded as a Spark view called file_stats. It contains 150 files with their sizes, partitions, row counts, and row group counts. Your job is to inspect this distribution and identify the structural problem that causes the long-tail task durations.",
+        "task": "Read FS7_data_files.csv into a Spark DataFrame. Compute the file size distribution (median, p95, max) and count outliers. Then identify the root cause of the long-tail task durations and store your conclusions in 5 variables.\n\nVariables to compute and store:\n  - median_file_size_mb: the median file_size_mb (float)\n  - p95_file_size_mb: the 95th percentile file_size_mb (float)\n  - max_file_size_mb: the maximum file_size_mb (float)\n  - outlier_count: the number of files with file_size_mb > 1000 (int)\n  - outlier_data_pct: the percentage of total data volume held by the outlier files (float, 0-100, e.g., 32.5)",
+        "validationHint": "Use Spark SQL: SELECT percentile_approx(file_size_mb, 0.5) FROM file_stats etc. The dataset has median ~260 MB, p95 ~2200 MB, max ~2460 MB, 8 outliers (>1000 MB), and the outliers hold roughly 1/3 of the total data. The senior insight: scan parallelism is per-file (one task per file), so a file 10x larger than the median produces a task 10x longer. The outlier files are read by single tasks that take 200+ seconds while other tasks finish in 1-2 seconds. The fix is OPTIMIZE with target file size to compact and split — not at the partition level (partitions are fine) but at the file level."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS7 Lesson 8: I/O bottleneck diagnosis through file size distribution analysis.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('gridunion-file-distribution') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_files = spark.read.csv('FS7_data_files.csv', header=True, inferSchema=True)\ndf_files.createOrReplaceTempView('file_stats')\nprint(f'file_stats: {df_files.count()} files')\n\n# YOUR SOLUTION BELOW\n# Compute the 5 variables: median_file_size_mb, p95_file_size_mb, max_file_size_mb,\n# outlier_count, outlier_data_pct.\n# Use Spark SQL with percentile_approx for the percentiles.\n# Outliers are files with file_size_mb > 1000.\n# outlier_data_pct = sum of outlier sizes / sum of all sizes * 100.\n\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f'median_file_size_mb: {median_file_size_mb}')\nprint(f'p95_file_size_mb: {p95_file_size_mb}')\nprint(f'max_file_size_mb: {max_file_size_mb}')\nprint(f'outlier_count: {outlier_count}')\nprint(f'outlier_data_pct: {outlier_data_pct:.1f}%')"
+      },
+      "assertions": [
+        {
+          "id": "FS7-01-A1",
+          "description": "median_file_size_mb is approximately 260 MB (within 30 MB)",
+          "check": "abs(float(median_file_size_mb) - 260) <= 30"
+        },
+        {
+          "id": "FS7-01-A2",
+          "description": "p95_file_size_mb is in the outlier range (>1500 MB) — proves the percentile correctly captures the long tail",
+          "check": "float(p95_file_size_mb) > 1500"
+        },
+        {
+          "id": "FS7-01-A3",
+          "description": "max_file_size_mb is greater than 2000 MB",
+          "check": "float(max_file_size_mb) > 2000"
+        },
+        {
+          "id": "FS7-01-A4",
+          "description": "outlier_count equals 8 (the planted outliers)",
+          "check": "int(outlier_count) == 8"
+        },
+        {
+          "id": "FS7-01-A5",
+          "description": "outlier_data_pct is between 25% and 45% — the 8 outliers hold roughly one-third of total data",
+          "check": "25 <= float(outlier_data_pct) <= 45"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit. The keystone is A5 — students who compute outlier count correctly (A4) but miss that the outliers hold ~1/3 of total data have not internalized the senior insight that 5% of files can dominate I/O time.",
+      "template": {
+        "fields": [
+          {
+            "id": "FS7-01-F1",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — SYMPTOM: Why does the task duration distribution show p95 at 2.4 sec but p99 at 238 sec?",
+            "options": [
+              "The bimodal distribution indicates structural file-level skew: most files are roughly the same size and produce sub-2-second tasks, but a small minority of files are dramatically larger and produce tasks 100x+ slower. The p95-to-p99 gap is the signature of file size outliers, not data skew",
+              "AQE skew handling failed",
+              "The query has join skew",
+              "GC pauses on slow executors"
+            ],
+            "correctAnswer": "The bimodal distribution indicates structural file-level skew: most files are roughly the same size and produce sub-2-second tasks, but a small minority of files are dramatically larger and produce tasks 100x+ slower. The p95-to-p99 gap is the signature of file size outliers, not data skew",
+            "rationale": "The p95-to-p99 gap is the diagnostic signature. A normal distribution has p99 maybe 2x p95 (4-5 sec for this workload). A 100x gap (2.4 sec to 238 sec) means a small number of files are dramatically larger than the median. This is structural file-level skew that the FS7 Lesson 8 diagnostic addresses. Distractor B (AQE skew) handles partition skew on shuffle, not file skew on scan. Distractor C is wrong (no joins in the scan stage). Distractor D would show as GC time, not as scan time."
+          },
+          {
+            "id": "FS7-01-F2",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — COMPONENT: Which Spark/OneLake component produces the file-level scan parallelism?",
+            "options": [
+              "The FileScan operator: it produces one task per Parquet file (or per file split for very large files), so the per-task work is proportional to the per-file size. Files with similar sizes produce similar task durations; files with dramatic size differences produce dramatic task duration differences",
+              "The DAGScheduler",
+              "The TaskScheduler's locality logic",
+              "The shuffle service"
+            ],
+            "correctAnswer": "The FileScan operator: it produces one task per Parquet file (or per file split for very large files), so the per-task work is proportional to the per-file size. Files with similar sizes produce similar task durations; files with dramatic size differences produce dramatic task duration differences",
+            "rationale": "Senior-level Spark knowledge includes that scan parallelism is at the file level. Mid-level engineers think 'more data = more tasks' but don't realize that a single 2.5 GB file produces ONE task that reads the entire file sequentially, while 10 files of 250 MB each produce 10 tasks that read in parallel. The fix is at the file level (compact and split), not at the partition level."
+          },
+          {
+            "id": "FS7-01-F3",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — MECHANISM: Based on the dataset analysis, why do 5% of the files dominate scan time?",
+            "options": [
+              "The 8 outlier files (~5% of files) hold roughly 33% of the total data (the outlier_data_pct from the analysis). Since scan parallelism is per-file, these 8 files become 8 long-running tasks while the other 142 tasks finish in seconds. The aggregate scan time is dominated by the 8 longest tasks because they all run in parallel up to executor capacity, then become the critical path",
+              "The outlier files have corrupt metadata",
+              "OneLake throttles large file reads",
+              "The outlier files are stored in a different region"
+            ],
+            "correctAnswer": "The 8 outlier files (~5% of files) hold roughly 33% of the total data (the outlier_data_pct from the analysis). Since scan parallelism is per-file, these 8 files become 8 long-running tasks while the other 142 tasks finish in seconds. The aggregate scan time is dominated by the 8 longest tasks because they all run in parallel up to executor capacity, then become the critical path",
+            "rationale": "The 5% files / 33% data math is the core insight. The aggregate scan completion is bounded by the slowest task (the largest file's task), not by the average task. With 8 outlier files at ~2.5 GB each and median tasks finishing in 1.2 seconds, the outlier tasks dominate the wall-clock time. The other 142 tasks finish quickly and the executors then sit idle waiting for the 8 outliers."
+          },
+          {
+            "id": "FS7-01-F4",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — FIX: What is the right fix?",
+            "options": [
+              "Run OPTIMIZE on fact_readings_de with a target file size of 256-512 MB. OPTIMIZE bin-packs files to the target size, splitting the 2.5 GB outliers into ~10 smaller files each. After OPTIMIZE, the file size distribution is uniform and scan parallelism is balanced. This is the FS7 Lesson 7 file size optimization pattern",
+              "Increase executor count",
+              "Change the partition column",
+              "Disable predicate pushdown"
+            ],
+            "correctAnswer": "Run OPTIMIZE on fact_readings_de with a target file size of 256-512 MB. OPTIMIZE bin-packs files to the target size, splitting the 2.5 GB outliers into ~10 smaller files each. After OPTIMIZE, the file size distribution is uniform and scan parallelism is balanced. This is the FS7 Lesson 7 file size optimization pattern",
+            "rationale": "OPTIMIZE with target file size is the right tool. The current outliers exist because the writer pipeline produced them (perhaps a backfill or a bulk load that didn't enforce file size targets). OPTIMIZE rewrites the files into uniform sizes, eliminating the long-tail problem. Distractor A (more executors) doesn't help — the bottleneck is per-task work, not parallelism. Distractor B (partition column) is unrelated. Distractor C (disable pushdown) makes things worse."
+          },
+          {
+            "id": "FS7-01-F5",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — PROCESS: What process change would prevent the outliers from accumulating in the first place?",
+            "options": [
+              "Configure the writer pipeline to enforce a maximum file size at write time (using spark.sql.files.maxPartitionBytes or Delta's write options). The outliers exist because the writer never enforced a size cap. Setting an enforced maximum at write time prevents the outliers from being created, eliminating the need for periodic OPTIMIZE rewrites",
+              "Run OPTIMIZE every night",
+              "Manually monitor file sizes weekly",
+              "Disable writes entirely"
+            ],
+            "correctAnswer": "Configure the writer pipeline to enforce a maximum file size at write time (using spark.sql.files.maxPartitionBytes or Delta's write options). The outliers exist because the writer never enforced a size cap. Setting an enforced maximum at write time prevents the outliers from being created, eliminating the need for periodic OPTIMIZE rewrites",
+            "secondaryCorrectAnswer": "Run OPTIMIZE every night",
+            "rationale": "PRIMARY answer is enforcement at write time (prevention). SECONDARY answer is scheduled OPTIMIZE (detection + correction). Both work; the primary is preferred because it prevents the outliers from existing rather than fixing them after they accumulate. Enforcement at write time has zero ongoing cost; scheduled OPTIMIZE costs CUs every night even when no outliers were created. The senior pattern is to make failure modes structurally impossible at the source.",
+            "acceptable_alternatives": "Either write-time enforcement (primary) or scheduled OPTIMIZE (secondary) is accepted with appropriate reasoning."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS7-task-02",
+      "title": "V-Order Across Three Table Profiles",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's platform team is reviewing V-Order policy for the platform's three primary table profiles. V-Order (per FS7 Lesson 5) is a Fabric-specific Parquet optimization that sorts data within each file at write time, improving compression (typically 15-30% smaller files) and read performance for sequential scans. The cost is increased write CU consumption (V-Order adds a sort to every write) and the benefit depends on the table's query patterns.\n\n  TABLE PROFILE A — silver_meter_readings_eu (UNIFIED FACT TABLE, SEQUENTIAL SCAN PATTERN)\n    - 15 TB across 4 countries, grows ~5M rows/day\n    - Query patterns: 90% are date-range scans (give me the last 30 days), 5% are full table scans for monthly aggregations, 5% are point lookups by meter_id\n    - Write pattern: append-only, daily writes from the Silver consolidation pipeline\n    - Read frequency: 200+ daily queries from analytics + 4 daily aggregation pipelines\n    - Read CU cost (current, no V-Order): ~85 CU-minutes per typical query\n    - Estimated read CU cost with V-Order: ~52 CU-minutes per typical query (V-Order improves the data locality within row groups for the date-sorted access pattern)\n    - Write CU cost (current): ~40 CU-minutes per daily write\n    - Estimated write CU cost with V-Order: ~58 CU-minutes per daily write (45% increase)\n\n  TABLE PROFILE B — dim_meter_lookup_de (REFERENCE TABLE, RANDOM ACCESS PATTERN)\n    - 80 GB, 1.25M meter records with full attribute history\n    - Query patterns: 100% point lookups by meter_id (single row joins from billing pipelines)\n    - Write pattern: nightly full refresh from the customer system of record\n    - Read frequency: ~50K point lookups per day (each billing query reads 1 row)\n    - Read CU cost (current, no V-Order): ~3 CU-minutes per 1000 lookups\n    - Estimated read CU cost with V-Order: ~3 CU-minutes per 1000 lookups (no change — V-Order doesn't help random access)\n    - Write CU cost (current): ~25 CU-minutes per nightly refresh\n    - Estimated write CU cost with V-Order: ~38 CU-minutes per nightly refresh (52% increase)\n\n  TABLE PROFILE C — bronze_telemetry_stream (STREAMING SCADA INGESTION, APPEND-ONLY)\n    - Bronze layer for the SCADA Eventstream, ~172M events/day\n    - Query patterns: 95% sequential scans (the Silver consolidation pipeline reads the past 24 hours), 5% point lookups for incident debugging\n    - Write pattern: continuous streaming append from Eventstream, micro-batches every 5 minutes\n    - Read frequency: ~24 daily reads (the consolidation pipeline + ad-hoc debugging)\n    - Write CU cost (current): minimal per micro-batch but compounds 24/7\n    - V-Order on streaming writes: would add sort to every micro-batch, increasing per-batch latency and write CU continuously",
+        "task": "Recommend a V-Order policy for each of the three table profiles. The right answer differs for each based on the read-vs-write CU asymmetry.",
+        "validationHint": "Profile A: V-ORDER ENABLED. Read frequency dominates (200+ daily reads vs 1 write); the per-query savings (85 -> 52 CU-min) far exceeds the per-write cost increase (40 -> 58 CU-min). Net daily savings: ~33 CU-min × 200 reads - 18 CU-min × 1 write = ~6582 CU-min/day saved. Profile B: V-ORDER DISABLED. Random access pattern means V-Order provides zero read benefit; the only effect is the write cost increase. Profile C: V-ORDER DISABLED for streaming writes. Sort overhead on every micro-batch adds continuous latency and CU cost; if sequential scans need optimization, run OPTIMIZE with V-Order on the Silver consolidation output (Profile A path) instead of on the streaming Bronze. The senior pattern is V-Order at the right layer, not at the streaming ingestion layer."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS7-02-F1",
+            "type": "single_select",
+            "label": "PROFILE A (Unified Sequential Scan): What V-Order policy do you recommend?",
+            "options": [
+              "ENABLED — read frequency dominates write frequency (~200 daily reads vs 1 daily write); the per-query savings (85 CU-min -> 52 CU-min, ~33 CU-min saved per query) far exceeds the per-write cost increase (~18 CU-min). Net daily savings on the order of thousands of CU-minutes",
+              "DISABLED — V-Order is too expensive",
+              "Conditional — enable only on weekends",
+              "Cannot tell without measuring"
+            ],
+            "correctAnswer": "ENABLED — read frequency dominates write frequency (~200 daily reads vs 1 daily write); the per-query savings (85 CU-min -> 52 CU-min, ~33 CU-min saved per query) far exceeds the per-write cost increase (~18 CU-min). Net daily savings on the order of thousands of CU-minutes",
+            "rationale": "Profile A is the textbook V-Order win: read-heavy workload + sequential scan pattern + low write frequency. The math: 33 CU-min saved per read × 200 reads/day = 6600 CU-min/day savings. 18 CU-min cost per write × 1 write/day = 18 CU-min/day cost. Net: ~6582 CU-min/day saved, plus the 15-30% compression benefit on storage costs. V-Order pays for itself many times over on this profile."
+          },
+          {
+            "id": "FS7-02-F2",
+            "type": "single_select",
+            "label": "PROFILE B (Random Access Reference): What V-Order policy do you recommend?",
+            "options": [
+              "DISABLED — V-Order optimizes data locality within row groups for sequential scans, but random access by meter_id reads single rows from arbitrary locations. V-Order provides zero read benefit for random access patterns, while the 52% write cost increase is pure overhead",
+              "ENABLED — V-Order helps all tables",
+              "Conditional based on time of day",
+              "Cannot tell without measuring"
+            ],
+            "correctAnswer": "DISABLED — V-Order optimizes data locality within row groups for sequential scans, but random access by meter_id reads single rows from arbitrary locations. V-Order provides zero read benefit for random access patterns, while the 52% write cost increase is pure overhead",
+            "rationale": "V-Order's mechanism is to sort data so that sequentially-accessed rows are physically adjacent within row groups. Random point lookups don't benefit from physical adjacency — the engine reads the row group header to find the requested row regardless of order. Enabling V-Order on a random-access table is pure cost without benefit. This is the FS7 Lesson 5 principle: V-Order helps when access is sequential, hurts when access is random."
+          },
+          {
+            "id": "FS7-02-F3",
+            "type": "single_select",
+            "label": "PROFILE C (Streaming Bronze): What V-Order policy do you recommend?",
+            "options": [
+              "DISABLED on the streaming Bronze writes — V-Order on micro-batch writes adds sort overhead to every batch, increasing per-batch latency and continuous write CU cost. Instead, enable V-Order on the downstream Silver consolidation output (Profile A) where the write frequency is daily and the sort cost is amortized over many reads",
+              "ENABLED on the streaming Bronze writes — sequential scans benefit from V-Order regardless of write pattern",
+              "Conditional — enable during off-peak hours",
+              "Cannot tell without measuring"
+            ],
+            "correctAnswer": "DISABLED on the streaming Bronze writes — V-Order on micro-batch writes adds sort overhead to every batch, increasing per-batch latency and continuous write CU cost. Instead, enable V-Order on the downstream Silver consolidation output (Profile A) where the write frequency is daily and the sort cost is amortized over many reads",
+            "secondaryCorrectAnswer": "ENABLED on the streaming Bronze writes — sequential scans benefit from V-Order regardless of write pattern",
+            "rationale": "PRIMARY answer is the layered approach: V-Order at the right layer, not the wrong layer. Streaming ingestion writes are continuous (~288 micro-batches/day at 5-min intervals), and adding sort overhead to each micro-batch compounds into a meaningful continuous CU cost. The right place to apply V-Order is the downstream Silver consolidation that runs once per day — same read benefit, much lower amortized write cost. SECONDARY answer (enable on Bronze) is defensible if the team prioritizes the per-read benefit and accepts the ingestion latency cost; some teams would defend this if Bronze is also queried frequently for debugging.",
+            "acceptable_alternatives": "Either DISABLED on Bronze (primary) or ENABLED on Bronze (secondary) is accepted. The primary is preferred because it applies V-Order at the right layer."
+          },
+          {
+            "id": "FS7-02-F4",
+            "type": "single_select",
+            "label": "PRINCIPLE: What is the unifying principle behind these three different recommendations?",
+            "options": [
+              "V-Order policy should be set per-table based on the read-vs-write CU asymmetry AND the access pattern. Sequential scans + read-heavy = enable. Random access OR write-heavy streaming = disable. The mid-level rule 'enable V-Order on all Fabric tables' is wrong because it ignores the workload context",
+              "Always enable V-Order",
+              "Always disable V-Order",
+              "V-Order is only for streaming tables"
+            ],
+            "correctAnswer": "V-Order policy should be set per-table based on the read-vs-write CU asymmetry AND the access pattern. Sequential scans + read-heavy = enable. Random access OR write-heavy streaming = disable. The mid-level rule 'enable V-Order on all Fabric tables' is wrong because it ignores the workload context",
+            "rationale": "The senior insight is that V-Order is a per-table, workload-dependent decision. Mid-level training often presents V-Order as 'enable for performance' which is correct as a default but wrong as a universal rule. Random access tables and streaming ingestion tables are the exceptions where V-Order hurts. Same pattern as FS6 Task 3's speculation policy: per-workload decisions, not global settings."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS7-task-03",
+      "title": "Review GridUnion's Cross-Region Storage Layout",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion operates Fabric workspaces across two Azure regions: EU North (hosts the German and Dutch data) and EU West (hosts the French and Luxembourg data). The current OneLake storage layout was designed 12 months ago by a junior architect and has not been reviewed since. The platform team is now auditing it for cross-region performance and regulatory compliance issues.\n\n  CURRENT STORAGE LAYOUT:\n\n    REGION: EU NORTH\n      ws_silver_de        (workspace, EU North capacity)\n        - lh_silver_meter_readings_de (Lakehouse, 8 TB)\n        - lh_silver_billing_de        (Lakehouse, 1.2 TB)\n      ws_silver_nl        (workspace, EU North capacity)\n        - lh_silver_meter_readings_nl (Lakehouse, 1.2 TB)\n      ws_gold_eu          (workspace, EU North capacity)\n        - wh_gold_billing_eu          (Warehouse, 800 GB — UNIFIED across all 4 countries)\n          ↑ reads via OneLake shortcuts from:\n            shortcut: lh_silver_meter_readings_de  (same region, EU North)\n            shortcut: lh_silver_meter_readings_nl  (same region, EU North)\n            shortcut: lh_silver_meter_readings_fr  (CROSS-REGION, EU West)\n            shortcut: lh_silver_meter_readings_lu  (CROSS-REGION, EU West)\n\n    REGION: EU WEST\n      ws_silver_fr        (workspace, EU West capacity)\n        - lh_silver_meter_readings_fr (Lakehouse, 2.5 TB)\n        - lh_silver_billing_fr        (Lakehouse, 600 GB)\n      ws_silver_lu        (workspace, EU West capacity)\n        - lh_silver_meter_readings_lu (Lakehouse, 600 GB)\n      ws_regulatory_fr    (workspace, EU West capacity)\n        - wh_regulatory_fr            (Warehouse, 200 GB — for CRE submissions)\n          ↑ reads via OneLake shortcuts from:\n            shortcut: lh_silver_meter_readings_fr  (same region, EU West)\n            shortcut: lh_silver_meter_readings_de  (CROSS-REGION, EU North) <-- French regulator wants German meter readings included in border-effect analysis\n\n  OBSERVED PERFORMANCE:\n    Gold billing aggregation pipeline (wh_gold_billing_eu): 38 minutes (target: 15 minutes)\n    French regulatory pipeline: 22 minutes (target: 15 minutes)\n    Cross-region read latency from EU North reading EU West (or vice versa): ~140 ms per OneLake shortcut request, plus per-MB transfer time\n\n  REGULATORY CONSTRAINTS:\n    - French data (CRE regulation): must NOT physically leave the EU West region (data residency requirement)\n    - German data (BNetzA regulation): must remain in the EU (any EU region acceptable)\n    - Dutch and Luxembourg: same as German\n    - Cross-border ANALYTICAL queries are permitted with proper logging; physical replication of French data outside EU West is NOT permitted",
+        "task": "Review the storage layout for issues. Identify at least 3 problems and severity-rank them. Focus on cross-region performance, regulatory compliance, and shortcut architecture.",
+        "validationHint": "Issue 1 (BLOCKING regulatory): The wh_gold_billing_eu Warehouse is in EU North and reads French data via cross-region shortcuts. Whether this violates French data residency depends on whether the shortcut READ counts as 'leaving the region' — under most regulatory interpretations, reading French data into EU North processing is borderline at best, and the resulting Warehouse rows that mix French data are physically in EU North. This needs legal review and likely needs to be redesigned. Issue 2 (HIGH performance): The cross-region shortcut reads (EU North → EU West) add 140ms latency per request × thousands of requests during the aggregation. The Gold pipeline is 38 minutes vs 15 minutes target — the cross-region latency accounts for much of the gap. Issue 3 (HIGH performance): The French regulatory pipeline reads German data cross-region (EU West → EU North), incurring the same latency penalty. Issue 4 (DESIGN): The unified Gold Warehouse approach forces cross-region reads inherently. A federated Gold approach (per-country Gold Warehouses with a thin aggregation layer) would localize most reads."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS7-03-F1",
+            "type": "single_select",
+            "label": "ISSUE 1 SEVERITY: The wh_gold_billing_eu Warehouse in EU North reads French data via cross-region shortcuts. Severity?",
+            "options": [
+              "BLOCKING regulatory — French data residency under CRE regulation likely prohibits processing French data outside EU West, even via shortcut. The resulting Warehouse rows physically reside in EU North after the read. This requires immediate legal review and likely a re-architecture (per-country Gold or Gold-in-EU-West with cross-region read for German data instead)",
+              "LOW — shortcuts don't physically move data",
+              "HIGH — performance issue only",
+              "Not a problem"
+            ],
+            "correctAnswer": "BLOCKING regulatory — French data residency under CRE regulation likely prohibits processing French data outside EU West, even via shortcut. The resulting Warehouse rows physically reside in EU North after the read. This requires immediate legal review and likely a re-architecture (per-country Gold or Gold-in-EU-West with cross-region read for German data instead)",
+            "rationale": "Data residency regulations typically govern where data can be PROCESSED and STORED, not just where the source files live. Reading French data into EU North processing creates derived data (the Gold Warehouse rows) that physically reside in EU North. This is a regulatory question that requires legal interpretation, but the senior platform engineer must FLAG it as blocking pending that interpretation. The cost of being wrong is much higher than the cost of pausing the architecture for review. Distractor B is the dangerous misunderstanding — shortcuts don't replicate the source data, but they DO produce derived data that resides where the consumer is."
+          },
+          {
+            "id": "FS7-03-F2",
+            "type": "single_select",
+            "label": "ISSUE 2 SEVERITY: The Gold pipeline takes 38 minutes vs 15 minutes target. How much of the gap is explained by cross-region read latency?",
+            "options": [
+              "Most of the gap. 140ms latency per shortcut request, multiplied by the thousands of metadata operations (file listing, row group reads) for the 4 TB of cross-region data, accumulates into 15-25 minutes of additional wall-clock time. The pipeline's same-region reads (German + Dutch data) complete in roughly the 15-minute target; the cross-region French + Luxembourg reads add the rest",
+              "None — cross-region reads have zero latency",
+              "A small fraction (<10%)",
+              "Cannot estimate"
+            ],
+            "correctAnswer": "Most of the gap. 140ms latency per shortcut request, multiplied by the thousands of metadata operations (file listing, row group reads) for the 4 TB of cross-region data, accumulates into 15-25 minutes of additional wall-clock time. The pipeline's same-region reads (German + Dutch data) complete in roughly the 15-minute target; the cross-region French + Luxembourg reads add the rest",
+            "rationale": "Cross-region OneLake reads pay both the per-request latency (140ms) AND the per-MB transfer time. For thousands of small metadata operations (Parquet footer reads, file listings, row group statistics), the per-request latency dominates. At 140ms × ~10,000 operations, the cross-region latency alone is ~23 minutes. This is the FS7 Lesson 9 cross-region storage pattern: shortcuts work cleanly within a region but become a major performance cost across regions."
+          },
+          {
+            "id": "FS7-03-F3",
+            "type": "single_select",
+            "label": "ARCHITECTURAL FIX: What is the right structural fix for the Gold Warehouse?",
+            "options": [
+              "Restructure as per-country Gold Warehouses with a thin aggregation layer: wh_gold_billing_de in EU North, wh_gold_billing_fr in EU West, wh_gold_billing_nl in EU North, wh_gold_billing_lu in EU West. A separate cross-country aggregation layer reads the per-country Gold tables (some cross-region but for much smaller aggregated data, not raw silver). This eliminates the regulatory problem AND the performance problem in one change",
+              "Add more capacity to EU North",
+              "Use Power BI semantic models instead of Warehouses",
+              "Migrate everything to a single region"
+            ],
+            "correctAnswer": "Restructure as per-country Gold Warehouses with a thin aggregation layer: wh_gold_billing_de in EU North, wh_gold_billing_fr in EU West, wh_gold_billing_nl in EU North, wh_gold_billing_lu in EU West. A separate cross-country aggregation layer reads the per-country Gold tables (some cross-region but for much smaller aggregated data, not raw silver). This eliminates the regulatory problem AND the performance problem in one change",
+            "rationale": "The right architectural fix solves both the regulatory and the performance problems simultaneously. Per-country Gold tables stay in their home region (regulatory compliance) and are read locally by the per-country consumers (performance). The cross-country aggregation reads pre-aggregated data, which is much smaller than raw Silver and can tolerate the cross-region latency for the few summary queries that need it. Distractor B (more capacity) doesn't fix latency. Distractor C is an unrelated architectural change. Distractor D ignores the regulatory requirement."
+          },
+          {
+            "id": "FS7-03-F4",
+            "type": "single_select",
+            "label": "ISSUE 3 SEVERITY: The French regulatory pipeline reads German data cross-region (EU West → EU North). Severity?",
+            "options": [
+              "HIGH performance — the French pipeline pays the same 140ms-per-request latency as the Gold pipeline, accounting for most of the 7-minute SLA gap (22 vs 15 min target). NOT a regulatory issue (German data may legally be read into EU West for the cross-border analysis the French regulator requires). The fix is either to pre-aggregate German data and read the smaller summary, or to accept the latency for this specific use case",
+              "BLOCKING regulatory",
+              "LOW — minor inconvenience",
+              "Not a problem"
+            ],
+            "correctAnswer": "HIGH performance — the French pipeline pays the same 140ms-per-request latency as the Gold pipeline, accounting for most of the 7-minute SLA gap (22 vs 15 min target). NOT a regulatory issue (German data may legally be read into EU West for the cross-border analysis the French regulator requires). The fix is either to pre-aggregate German data and read the smaller summary, or to accept the latency for this specific use case",
+            "rationale": "The asymmetry between Issue 1 and Issue 3 is the senior insight: French data has stricter residency than German data (CRE is more restrictive than BNetzA on cross-region processing), so French → EU North is blocking but German → EU West is just slow. The French regulator explicitly wants German border-effect data, which makes the cross-region read legally required. The fix is performance optimization (pre-aggregation), not regulatory."
+          },
+          {
+            "id": "FS7-03-F5",
+            "type": "single_select",
+            "label": "REVIEWER VERDICT: What do you recommend the platform team do?",
+            "options": [
+              "BLOCK the current architecture from new commits. Phase 1: legal review of the French data residency interpretation (immediate). Phase 2: redesign the Gold Warehouse as per-country tables (4-6 weeks). Phase 3: optimize the French regulatory pipeline through pre-aggregation (2 weeks). The current layout is operational but on borrowed time; new commits should not deepen the dependency on the cross-region pattern",
+              "Approve as-is — the layout works",
+              "Approve with comment — fix in next quarter",
+              "Block and reassign to legal team only"
+            ],
+            "correctAnswer": "BLOCK the current architecture from new commits. Phase 1: legal review of the French data residency interpretation (immediate). Phase 2: redesign the Gold Warehouse as per-country tables (4-6 weeks). Phase 3: optimize the French regulatory pipeline through pre-aggregation (2 weeks). The current layout is operational but on borrowed time; new commits should not deepen the dependency on the cross-region pattern",
+            "rationale": "Senior architectural review on regulatory + performance issues requires phased remediation. The current layout works (data flows correctly) but has both a legal exposure (French data residency) and a performance exposure (cross-region latency). The phased approach addresses the immediate legal risk first, then the structural performance problem, then the secondary optimization. Blocking new commits prevents the team from deepening the dependency on a layout that needs to change."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS7-task-04",
+      "title": "I/O Optimization Plan for the Unified Silver Table",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's platform team is producing the I/O optimization plan for silver_meter_readings_eu (the unified Silver table from FS5 Task 3, post-restructuring). The plan must specify file size targets, row group sizes, column ordering, V-Order policy, and the OPTIMIZE schedule. The plan will be deployed via Spark configurations and a scheduled OPTIMIZE notebook.\n\n  TABLE FACTS:\n  - 15 TB across 4 countries\n  - Append-only writes (no updates or deletes after Silver)\n  - Daily writes from the Silver consolidation pipeline (one write per day per country)\n  - Read patterns: 90% sequential date-range scans, 5% full table scans, 5% point lookups\n  - Current file size distribution: median 260 MB, p95 2200 MB (the Task 1 outliers)\n\n  PLAN PARAMETERS NEEDED:\n  - target_file_size_mb: the target file size for OPTIMIZE bin-packing. Sweet spot is 256 MB - 1 GB on OneLake\n  - row_group_size_mb: the target Parquet row group size within each file. Typically 128 MB for sequential scans\n  - column_ordering: the order in which columns are written (Parquet stores columns left-to-right; high-cardinality columns first improves compression)\n  - v_order_enabled: True for sequential-scan tables (per Task 2 Profile A reasoning)\n  - optimize_schedule: when OPTIMIZE runs. Options: 'after_each_write', 'daily_off_peak', 'weekly_weekend'\n  - z_order_columns: optional Z-ORDER columns for data skipping (per FS3 Lesson 3)\n  - vacuum_retention_hours: how long to keep deleted files before VACUUM removes them",
+        "task": "Build a Python dict called io_optimization_plan with these top-level keys:\n  - table_name: 'silver_meter_readings_eu'\n  - target_file_size_mb: 512 (within the 256-1024 sweet spot for sequential scans)\n  - row_group_size_mb: 128\n  - column_ordering: a list of EXACTLY 5 column names in order: ['meter_id', 'reading_date', 'country_code', 'region_code', 'daily_kw'] (high-cardinality first)\n  - v_order_enabled: True\n  - optimize_schedule: 'daily_off_peak'\n  - z_order_columns: a list containing 'reading_date' and 'country_code'\n  - vacuum_retention_hours: 168 (7 days, to allow for time-travel queries within the past week)\n  - monitoring: a dict with file_size_outlier_alert_mb (1500) and small_file_alert_count (100)",
+        "validationHint": "Build the dict literally as described. The 512 MB file size target is in the sweet spot. The 5-column ordering follows the high-cardinality-first principle (meter_id has 5M distinct values, then reading_date, then the lower-cardinality columns). The Z-ORDER columns enable data skipping on the most common filter columns. The 7-day vacuum retention balances time-travel needs against storage cost. The monitoring thresholds catch the Task 1 outlier pattern (>1500 MB single file = alert, >100 small files = alert)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS7 Lesson 7: I/O optimization plan for silver_meter_readings_eu.\n# This is the spec the data engineering team will deploy via Spark + Delta configurations.\n\n# YOUR SOLUTION BELOW\n# Build io_optimization_plan with the 9 top-level keys from the task description.\n# column_ordering must be exactly 5 entries in the order: meter_id, reading_date,\n# country_code, region_code, daily_kw.\n\nio_optimization_plan = {\n    # Fill in: table_name, target_file_size_mb, row_group_size_mb, column_ordering,\n    #          v_order_enabled, optimize_schedule, z_order_columns,\n    #          vacuum_retention_hours, monitoring\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(io_optimization_plan, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS7-04-A1",
+          "description": "io_optimization_plan has all 9 required top-level keys",
+          "check": "set(io_optimization_plan.keys()) >= {'table_name', 'target_file_size_mb', 'row_group_size_mb', 'column_ordering', 'v_order_enabled', 'optimize_schedule', 'z_order_columns', 'vacuum_retention_hours', 'monitoring'}"
+        },
+        {
+          "id": "FS7-04-A2",
+          "description": "table_name is 'silver_meter_readings_eu'",
+          "check": "io_optimization_plan['table_name'] == 'silver_meter_readings_eu'"
+        },
+        {
+          "id": "FS7-04-A3",
+          "description": "target_file_size_mb is 512 (in the 256-1024 sweet spot)",
+          "check": "io_optimization_plan['target_file_size_mb'] == 512"
+        },
+        {
+          "id": "FS7-04-A4",
+          "description": "row_group_size_mb is 128",
+          "check": "io_optimization_plan['row_group_size_mb'] == 128"
+        },
+        {
+          "id": "FS7-04-A5",
+          "description": "column_ordering is a list of exactly 5 entries in the expected order",
+          "check": "io_optimization_plan['column_ordering'] == ['meter_id', 'reading_date', 'country_code', 'region_code', 'daily_kw']"
+        },
+        {
+          "id": "FS7-04-A6",
+          "description": "v_order_enabled is True (sequential scan profile from Task 2)",
+          "check": "io_optimization_plan['v_order_enabled'] == True"
+        },
+        {
+          "id": "FS7-04-A7",
+          "description": "optimize_schedule is 'daily_off_peak'",
+          "check": "io_optimization_plan['optimize_schedule'] == 'daily_off_peak'"
+        },
+        {
+          "id": "FS7-04-A8",
+          "description": "z_order_columns contains both reading_date and country_code",
+          "check": "set(io_optimization_plan['z_order_columns']) >= {'reading_date', 'country_code'}"
+        },
+        {
+          "id": "FS7-04-A9",
+          "description": "vacuum_retention_hours is 168 (7 days)",
+          "check": "io_optimization_plan['vacuum_retention_hours'] == 168"
+        },
+        {
+          "id": "FS7-04-A10",
+          "description": "monitoring has file_size_outlier_alert_mb=1500 and small_file_alert_count=100",
+          "check": "io_optimization_plan['monitoring']['file_size_outlier_alert_mb'] == 1500 and io_optimization_plan['monitoring']['small_file_alert_count'] == 100"
+        }
+      ],
+      "partialCredit": "10 independent assertions. Each passed assertion earns 1/10 credit. The keystones are A5 (column ordering follows high-cardinality-first) and A10 (monitoring thresholds catch the Task 1 outlier pattern) — both encode senior-level Parquet and operational discipline."
+    },
+    {
+      "id": "module-FS7-task-05",
+      "title": "GridUnion Storage Architecture Specification",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "This is the synthesis task. GridUnion's platform team is finalizing the complete storage architecture specification that integrates the lessons from this entire practice set:\n\n  - File size targets and outlier prevention (Task 1)\n  - V-Order policy per workload profile (Task 2)\n  - Cross-region storage layout with regulatory compliance (Task 3)\n  - I/O optimization parameters (Task 4)\n  - Monitoring and operational discipline\n\nYour job has two parts: (1) DIAGNOSIS — fill the 4-field template articulating the storage principles. (2) ARTIFACT — build the storage architecture spec as a Python dict.",
+        "task": "Fill the diagnosis template AND build the architecture dict.\n\nFor the ARTIFACT: Build a Python dict called storage_architecture with these top-level keys:\n  - file_size_policy: a dict with target_mb (512), max_mb (1024), min_mb (128), enforced_at_write (True)\n  - v_order_policy: a dict mapping table type to setting. Keys: 'sequential_scan_tables' (value: 'enabled'), 'random_access_tables' (value: 'disabled'), 'streaming_bronze_tables' (value: 'disabled')\n  - cross_region_strategy: 'per_country_gold_with_thin_aggregation_layer' (the Task 3 architectural fix)\n  - data_residency: a dict mapping country to allowed_region. Keys: 'DE' (value: 'EU_North_or_EU_West'), 'NL' (value: 'EU_North_or_EU_West'), 'FR' (value: 'EU_West_only'), 'LU' (value: 'EU_West_only')\n  - optimize_cadence: 'daily_off_peak'\n  - monitoring_metrics: a list containing 'file_size_p95_per_table', 'cross_region_read_latency_ms', 'small_file_count_per_partition', 'v_order_compression_ratio'\n  - review_required_for: a list containing 'new_cross_region_shortcuts', 'new_unified_warehouses', 'data_residency_changes'",
+        "validationHint": "The 7 top-level keys integrate all 4 tasks. The file_size_policy enforces at write time (Task 1's prevention principle). The v_order_policy has 3 different settings for the 3 profiles from Task 2. The cross_region_strategy is the architectural fix from Task 3. The data_residency dict encodes the regulatory constraints. The review_required_for list captures the senior governance principle of selective review."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS7-05-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does the file_size_policy enforce at write time instead of relying on scheduled OPTIMIZE?",
+            "options": [
+              "Enforcing at write time prevents outliers from existing in the first place; scheduled OPTIMIZE detects and corrects after the fact. Prevention has zero ongoing cost; correction costs CUs every night even when no outliers were created. The Task 1 incident showed exactly the pattern: outliers accumulated because nothing enforced the limit at write time, then a scheduled OPTIMIZE would have been the only way to catch them — but only after the slow scans had already broken SLAs",
+              "Scheduled OPTIMIZE is too expensive",
+              "Write-time enforcement is required by Microsoft Fabric",
+              "OPTIMIZE doesn't work on outliers"
+            ],
+            "correctAnswer": "Enforcing at write time prevents outliers from existing in the first place; scheduled OPTIMIZE detects and corrects after the fact. Prevention has zero ongoing cost; correction costs CUs every night even when no outliers were created. The Task 1 incident showed exactly the pattern: outliers accumulated because nothing enforced the limit at write time, then a scheduled OPTIMIZE would have been the only way to catch them — but only after the slow scans had already broken SLAs",
+            "rationale": "The same prevention-vs-correction principle from FI7 (CI/CD), FI8 (per-notebook budgets), and FI9 (automated label enforcement). Write-time enforcement is structural; scheduled OPTIMIZE is reactive. Both have value (you still want OPTIMIZE for legacy outliers), but enforcement is the load-bearing mechanism."
+          },
+          {
+            "id": "FS7-05-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why does the v_order_policy specify per-table-type settings instead of a global enable/disable?",
+            "options": [
+              "V-Order's benefit depends on the access pattern and the read-vs-write CU asymmetry. Sequential-scan tables benefit; random-access and streaming Bronze tables do not. A global enable wastes CUs on tables that don't benefit; a global disable misses the benefit on tables that do. The per-table-type specification encodes the Task 2 reasoning so platform teams don't have to re-derive it for each table",
+              "V-Order configuration is per-table only",
+              "Microsoft Fabric requires per-table-type settings",
+              "It is arbitrary"
+            ],
+            "correctAnswer": "V-Order's benefit depends on the access pattern and the read-vs-write CU asymmetry. Sequential-scan tables benefit; random-access and streaming Bronze tables do not. A global enable wastes CUs on tables that don't benefit; a global disable misses the benefit on tables that do. The per-table-type specification encodes the Task 2 reasoning so platform teams don't have to re-derive it for each table",
+            "rationale": "The senior insight from Task 2 is that V-Order is a per-workload decision. The architecture specification codifies the decision once at the platform level so individual table owners don't have to evaluate the trade-off independently. This is the same coordination principle as the FS5 schema governance and FS4 join framework: codify the lesson, don't re-derive it per table."
+          },
+          {
+            "id": "FS7-05-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why does the data_residency dict allow DE and NL to use either region while restricting FR and LU to EU West?",
+            "options": [
+              "BNetzA (German) and the equivalent Dutch regulator are less restrictive on cross-region processing than CRE (French) and ILR (Luxembourg). The data_residency settings reflect the actual regulatory boundaries: where data can legally be processed, not where it happens to be stored. Encoding the rules in the architecture spec prevents engineers from accidentally violating residency by configuring a cross-region shortcut that creates derived data in the wrong region",
+              "EU West has more capacity",
+              "EU North is preferred for German data",
+              "The four countries have identical regulations"
+            ],
+            "correctAnswer": "BNetzA (German) and the equivalent Dutch regulator are less restrictive on cross-region processing than CRE (French) and ILR (Luxembourg). The data_residency settings reflect the actual regulatory boundaries: where data can legally be processed, not where it happens to be stored. Encoding the rules in the architecture spec prevents engineers from accidentally violating residency by configuring a cross-region shortcut that creates derived data in the wrong region",
+            "rationale": "The asymmetric regulatory framework is the senior insight from Task 3. Different national regulators have different restrictions, and the platform must encode them as constraints rather than relying on engineers to remember each country's rules. The data_residency dict makes the constraints discoverable and enforceable by automated checks (any shortcut that violates residency would be blocked at PR time)."
+          },
+          {
+            "id": "FS7-05-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why does review_required_for include 'new_cross_region_shortcuts' but not 'new_same_region_shortcuts'?",
+            "options": [
+              "Same-region shortcuts are operationally and regulatorily safe — they have low latency, no cross-region transfer cost, and no residency implications. Cross-region shortcuts have all three concerns: latency is ~140ms per request, transfer costs accumulate, and they can violate data residency depending on the source country. Selective review focuses platform team attention on the decisions that have lasting consequences",
+              "Cross-region shortcuts are easier to review",
+              "Same-region shortcuts are not allowed",
+              "Cross-region shortcuts are deprecated"
+            ],
+            "correctAnswer": "Same-region shortcuts are operationally and regulatorily safe — they have low latency, no cross-region transfer cost, and no residency implications. Cross-region shortcuts have all three concerns: latency is ~140ms per request, transfer costs accumulate, and they can violate data residency depending on the source country. Selective review focuses platform team attention on the decisions that have lasting consequences",
+            "rationale": "Selective architectural review is the recurring senior governance pattern (FI8, FI9, FS4, FS5). The platform team reviews the decisions that have lasting consequences (cross-region shortcuts, unified warehouses, residency changes) and trusts engineers with the routine decisions (same-region shortcuts, single-team warehouses, intra-region writes). This scales platform governance without creating bottlenecks."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS7 SYNTHESIS: GridUnion's complete storage architecture specification.\n\n# YOUR SOLUTION BELOW\n# Build storage_architecture with the 7 top-level keys from the task description.\n\nstorage_architecture = {\n    # Fill in: file_size_policy, v_order_policy, cross_region_strategy,\n    #          data_residency, optimize_cadence, monitoring_metrics, review_required_for\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(storage_architecture, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS7-05-A1",
+          "description": "storage_architecture has all 7 required top-level keys",
+          "check": "set(storage_architecture.keys()) >= {'file_size_policy', 'v_order_policy', 'cross_region_strategy', 'data_residency', 'optimize_cadence', 'monitoring_metrics', 'review_required_for'}"
+        },
+        {
+          "id": "FS7-05-A2",
+          "description": "file_size_policy has target_mb=512, max_mb=1024, min_mb=128, enforced_at_write=True",
+          "check": "storage_architecture['file_size_policy']['target_mb'] == 512 and storage_architecture['file_size_policy']['max_mb'] == 1024 and storage_architecture['file_size_policy']['min_mb'] == 128 and storage_architecture['file_size_policy']['enforced_at_write'] == True"
+        },
+        {
+          "id": "FS7-05-A3",
+          "description": "v_order_policy has the 3 expected workload settings",
+          "check": "storage_architecture['v_order_policy']['sequential_scan_tables'] == 'enabled' and storage_architecture['v_order_policy']['random_access_tables'] == 'disabled' and storage_architecture['v_order_policy']['streaming_bronze_tables'] == 'disabled'"
+        },
+        {
+          "id": "FS7-05-A4",
+          "description": "cross_region_strategy is 'per_country_gold_with_thin_aggregation_layer'",
+          "check": "storage_architecture['cross_region_strategy'] == 'per_country_gold_with_thin_aggregation_layer'"
+        },
+        {
+          "id": "FS7-05-A5",
+          "description": "data_residency has all 4 countries with their region constraints",
+          "check": "storage_architecture['data_residency']['DE'] == 'EU_North_or_EU_West' and storage_architecture['data_residency']['NL'] == 'EU_North_or_EU_West' and storage_architecture['data_residency']['FR'] == 'EU_West_only' and storage_architecture['data_residency']['LU'] == 'EU_West_only'"
+        },
+        {
+          "id": "FS7-05-A6",
+          "description": "optimize_cadence is 'daily_off_peak'",
+          "check": "storage_architecture['optimize_cadence'] == 'daily_off_peak'"
+        },
+        {
+          "id": "FS7-05-A7",
+          "description": "monitoring_metrics contains all 4 expected metric names",
+          "check": "set(storage_architecture['monitoring_metrics']) >= {'file_size_p95_per_table', 'cross_region_read_latency_ms', 'small_file_count_per_partition', 'v_order_compression_ratio'}"
+        },
+        {
+          "id": "FS7-05-A8",
+          "description": "review_required_for contains all 3 expected categories",
+          "check": "set(storage_architecture['review_required_for']) >= {'new_cross_region_shortcuts', 'new_unified_warehouses', 'data_residency_changes'}"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (8 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/8). The 8 assertions verify that the architecture integrates the file size policy (Task 1), V-Order policy (Task 2), cross-region strategy (Task 3), and I/O optimization (Task 4) into a single platform-level specification.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "File size targets and write-time enforcement (Task 1, Lesson 7)",
+          "V-Order per workload profile (Task 2, Lesson 5)",
+          "Cross-region storage with regulatory compliance (Task 3, Lesson 9)",
+          "I/O optimization parameters with monitoring (Task 4, Lesson 7)",
+          "Selective architectural review for high-impact decisions (carryover from FS4/FS5 governance pattern)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines file size policy, V-Order, cross-region architecture, and I/O optimization into a unified storage specification. The keystones are A2 (enforced_at_write=True for prevention) and A5 (per-country residency constraints) — both encode senior-level lessons that mid-level engineers don't internalize."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "tradeoffTasksHaveCompetingOptions": true,
+    "designReviewHasSubtleNotTextbookIssues": true,
+    "answerRangesDocumented": true,
+    "calibrationNotes": "Senior practice set in the deep internals phase, paired with FS6 (execution engine internals). Task 1 uses the only dataset in the senior track besides the FS3 Lesson 8 flagship — 150 files with the canonical file size outlier pattern (5% of files holding ~33% of data). Task 2 follows the FS6 Task 3 per-profile pattern with 3 different V-Order recommendations. Task 3 design review tests cross-region storage subtleties including regulatory compliance and shortcut performance. Task 4 design artifact builds the I/O optimization plan. Task 5 synthesizes everything. Task type mix (1 root cause + 1 trade-off + 1 design review + 1 design artifact + 1 synthesis) is within all section 6.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches OneLake architecture, Parquet internals, encoding strategies, Delta transaction log internals, V-Order mechanics, table format comparison, I/O optimization patterns, I/O bottleneck diagnosis, and cross-region storage. The practice tests application: Task 1 reproduces the canonical file size outlier diagnostic with actual data analysis (the only data execution task in the senior set). Task 2 forces three V-Order decisions across three table profiles. Task 3 reviews a cross-region layout for regulatory + performance issues. Task 4 builds the I/O optimization plan as a deployable spec. Task 5 synthesizes the storage architecture specification.",
+    "datasetNotes": "One dataset (150 files, file size distribution sample) used by Task 1's root cause analysis. The dataset is the only data execution component in the senior set besides FS3. The dataset was constructed to exhibit the canonical 5%/33% pattern (5% of files hold ~33% of data) with realistic file size distributions."
+  }
+}

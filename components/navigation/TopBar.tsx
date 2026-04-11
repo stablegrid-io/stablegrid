@@ -24,7 +24,7 @@ export const TopBar = () => {
         <Link href="/home" className="flex items-center">
           <StableGridBrand className="text-xl" />
         </Link>
-        <span className="hidden lg:block text-[11px] font-medium tracking-wide text-white/20">
+        <span className="hidden lg:block text-[11px] font-medium tracking-wide text-white/70">
           The engineers who understand always win.
         </span>
       </div>

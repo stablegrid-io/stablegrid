@@ -1,0 +1,384 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 8 — Reading and Writing Data",
+  "description": "Master the complete I/O layer: reading CSV with explicit schemas and options, handling malformed records, choosing write modes, writing partitioned Parquet, understanding format trade-offs, and building a full Bronze-Silver-Gold pipeline with proper file I/O.",
+  "version": "authored 2026-03-30, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PS8",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 60,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "essential_operations",
+    "taskTypeMix": {
+      "writeTheCode": 3,
+      "outputPrediction": 1,
+      "conceptIdentification": 1,
+      "synthesisPipeline": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PS8_data_readings_bronze",
+      "file": "PS8_data_readings_bronze.csv",
+      "description": "NordGrid raw Bronze meter readings CSV. 100 well-formed rows plus 3 malformed rows (wrong column count). Uses 'NA' as null representation for 5 rows. 5 rows have empty daily_kw.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": true},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ],
+        "characteristics": {
+          "wellFormedRows": 100,
+          "malformedRows": "3 rows with wrong column count (missing column, extra columns, corrupt line)",
+          "naValues": "5 rows have 'NA' as daily_kw (needs nullValue='NA' option)",
+          "emptyValues": "5 rows have empty daily_kw",
+          "totalNullsAfterProperRead": "10 (5 NA + 5 empty)"
+        }
+      },
+      "usedByTasks": ["module-PS8-task-01", "module-PS8-task-03", "module-PS8-task-06"]
+    },
+    {
+      "id": "PS8_data_weather",
+      "file": "PS8_data_weather.json",
+      "description": "NordGrid weather station data in line-delimited JSON format. 28 records across 4 stations and 7 days. Contains nested 'temperature' object with celsius and fahrenheit fields.",
+      "schema": {
+        "columns": [
+          {"name": "station_id", "type": "string"},
+          {"name": "date", "type": "string"},
+          {"name": "temperature", "type": "struct", "fields": ["celsius (double)", "fahrenheit (double)"]},
+          {"name": "wind_speed_kmh", "type": "double"},
+          {"name": "conditions", "type": "string"}
+        ]
+      },
+      "usedByTasks": ["module-PS8-task-03"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PS8-task-01",
+      "title": "Read NordGrid's Messy Bronze CSV Correctly",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's source system exports meter readings as CSV with several issues: the file contains 3 malformed rows (wrong column counts and corrupt data), and the value 'NA' represents null readings instead of an empty string. The Silver pipeline must read this file with the correct options to handle both issues: drop malformed records silently and treat 'NA' as null.",
+        "task": "Read PS8_data_readings_bronze.csv with an explicit StructType schema (meter_id: StringType non-nullable, daily_kw: DoubleType nullable, date: StringType non-nullable, region: StringType non-nullable). Set three critical options: header=True, nullValue='NA', and mode='DROPMALFORMED' to silently discard the 3 malformed rows. Store the result in a variable called bronze. Then count nulls in daily_kw and store in null_count.",
+        "validationHint": "With DROPMALFORMED, the 3 malformed rows are silently dropped. The result should have exactly 100 rows. null_count should be 10 (5 'NA' rows treated as null + 5 empty rows that become null)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-bronze-read') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {bronze.count()}\")\nprint(f\"Null daily_kw: {null_count}\")\nbronze.printSchema()\nbronze.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS8-01-A1",
+          "description": "bronze is a DataFrame",
+          "check": "isinstance(bronze, DataFrame)"
+        },
+        {
+          "id": "PS8-01-A2",
+          "description": "Exactly 100 rows (3 malformed dropped by DROPMALFORMED)",
+          "check": "bronze.count() == 100"
+        },
+        {
+          "id": "PS8-01-A3",
+          "description": "daily_kw is DoubleType (explicit schema applied)",
+          "check": "str(bronze.schema['daily_kw'].dataType) == 'DoubleType()'"
+        },
+        {
+          "id": "PS8-01-A4",
+          "description": "10 null values in daily_kw (5 NA + 5 empty)",
+          "check": "null_count == 10"
+        },
+        {
+          "id": "PS8-01-A5",
+          "description": "Schema has exactly 4 columns",
+          "check": "len(bronze.columns) == 4"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS8-task-02",
+      "title": "Predict Write Mode Outcomes",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's Silver pipeline writes daily Parquet output to the directory silver/meters/. The pipeline runs at 06:00 every morning. On March 20th, the pipeline runs successfully and writes output. Due to a transient data issue, the operations team re-runs the pipeline at 10:00 the same morning. The engineer needs to understand what happens under each write mode.",
+        "task": "For each write mode, predict what happens on the second run when the output directory already contains the 06:00 run's data.",
+        "validationHint": "Think about what each mode does when the target path already exists."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS8-02-F1",
+            "type": "single_select",
+            "label": "Mode: 'error' (the default). What happens on the 10:00 re-run?",
+            "options": [
+              "The 06:00 data is replaced with the 10:00 data",
+              "The 10:00 data is added alongside the 06:00 data",
+              "The pipeline crashes with an error because the output path already exists",
+              "The pipeline skips the write silently and the 06:00 data remains"
+            ],
+            "correctAnswer": "The pipeline crashes with an error because the output path already exists"
+          },
+          {
+            "id": "PS8-02-F2",
+            "type": "single_select",
+            "label": "Mode: 'overwrite'. What happens on the 10:00 re-run?",
+            "options": [
+              "The 06:00 data is deleted and replaced with the 10:00 data",
+              "The 10:00 data is merged with the 06:00 data, deduplicating on key",
+              "The pipeline crashes because overwrite requires an empty directory",
+              "Both the 06:00 and 10:00 data exist side by side"
+            ],
+            "correctAnswer": "The 06:00 data is deleted and replaced with the 10:00 data"
+          },
+          {
+            "id": "PS8-02-F3",
+            "type": "single_select",
+            "label": "Mode: 'append'. What happens on the 10:00 re-run?",
+            "options": [
+              "The 06:00 data is replaced with the 10:00 data",
+              "The 10:00 data is added alongside the 06:00 data — the directory now contains both runs' files, creating duplicates",
+              "Spark detects the duplicate and only appends new rows",
+              "The pipeline crashes because append only works on empty directories"
+            ],
+            "correctAnswer": "The 10:00 data is added alongside the 06:00 data — the directory now contains both runs' files, creating duplicates",
+            "distractorRationale": "Option 3 is the most dangerous misconception — Spark's append mode has no deduplication logic. It blindly adds files. This is the append duplication problem from Lesson 6."
+          },
+          {
+            "id": "PS8-02-F4",
+            "type": "single_select",
+            "label": "Mode: 'ignore'. What happens on the 10:00 re-run?",
+            "options": [
+              "The pipeline crashes with an error",
+              "The 06:00 data is replaced with the 10:00 data",
+              "The pipeline completes without error but does nothing — the 06:00 data remains unchanged",
+              "The 10:00 data is appended to the existing data"
+            ],
+            "correctAnswer": "The pipeline completes without error but does nothing — the 06:00 data remains unchanged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS8-task-03",
+      "title": "Write Partitioned Parquet Output",
+      "type": "write_the_code",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "NordGrid's Silver pipeline writes meter readings as Parquet partitioned by region so that downstream queries for a single region can skip the other three regions' data entirely (partition pruning). The team standard requires snappy compression and overwrite mode. Before writing, the data should be coalesced to reduce the number of output files per partition.",
+        "task": "Read PS8_data_readings_bronze.csv (header=True, inferSchema=True). Filter to non-null daily_kw only. Coalesce to 4 partitions. Write the result as Parquet to the path 'output/silver_meters/' with mode='overwrite', partitioned by 'region', using snappy compression. Store the read-back DataFrame in a variable called silver_written.",
+        "validationHint": "After writing partitioned by region, the output directory should contain subdirectories named region=NORTH, region=SOUTH, etc. Reading the directory back should produce the same data. The 'region' column is removed from the Parquet files and encoded in the directory structure."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-partitioned-write') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS8_data_readings_bronze.csv', header=True, inferSchema=True)\ndf = df.filter(col('daily_kw').isNotNull())\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nsilver_written = spark.read.parquet('output/silver_meters/')\nprint(f\"Row count: {silver_written.count()}\")\nprint(f\"Columns: {silver_written.columns}\")\nprint(f\"Distinct regions: {silver_written.select('region').distinct().count()}\")"
+      },
+      "assertions": [
+        {
+          "id": "PS8-03-A1",
+          "description": "Parquet files written to output/silver_meters/",
+          "check": "silver_written is not None and isinstance(silver_written, DataFrame)"
+        },
+        {
+          "id": "PS8-03-A2",
+          "description": "Region column exists (restored from partition structure on read)",
+          "check": "'region' in silver_written.columns"
+        },
+        {
+          "id": "PS8-03-A3",
+          "description": "Data preserved — non-null rows from Bronze present",
+          "check": "silver_written.count() > 80"
+        },
+        {
+          "id": "PS8-03-A4",
+          "description": "4 distinct regions in the partitioned output",
+          "check": "silver_written.select('region').distinct().count() == 4"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS8-task-04",
+      "title": "Evaluate File Format and I/O Decisions",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's data platform team is standardizing the file format and I/O options for each pipeline stage. They need to make decisions about format choice, partition column selection, schema management, and compression.",
+        "task": "For each scenario, select the correct decision based on Module 8's teachings about file formats, partitioning, and I/O patterns.",
+        "validationHint": "Think about the characteristics of each format (row vs column oriented, schema support, compression) and which pipeline stage each question refers to."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS8-04-F1",
+            "type": "single_select",
+            "label": "NordGrid's Bronze layer stores raw data exactly as received from source systems. The source sends CSV. What format should Bronze use?",
+            "options": [
+              "Convert to Parquet immediately for better read performance",
+              "Store as CSV — Bronze preserves the raw source format without transformation",
+              "Store as JSON because it supports nested structures",
+              "Store as Delta Lake for ACID transaction support"
+            ],
+            "correctAnswer": "Store as CSV — Bronze preserves the raw source format without transformation",
+            "distractorRationale": "Option 1 is tempting for performance but contradicts Bronze's purpose: preserving raw data exactly as received. Converting formats at Bronze loses the original evidence."
+          },
+          {
+            "id": "PS8-04-F2",
+            "type": "single_select",
+            "label": "The team wants to partition the Silver meter table for fast querying. They consider two options: partitionBy('meter_id') (500,000 unique values) or partitionBy('region') (4 unique values). Which is correct?",
+            "options": [
+              "partitionBy('meter_id') — it allows per-meter queries to skip all other meters",
+              "partitionBy('region') — low cardinality avoids the small files problem",
+              "Both are equally valid — the choice depends on query patterns",
+              "Neither — Silver tables should not be partitioned"
+            ],
+            "correctAnswer": "partitionBy('region') — low cardinality avoids the small files problem",
+            "distractorRationale": "Option 1 would create 500,000 directories (catastrophic small files problem). Option 3 ignores the cardinality rule. Option 4 is wrong — partitioning Silver is a standard NordGrid practice."
+          },
+          {
+            "id": "PS8-04-F3",
+            "type": "single_select",
+            "label": "A production Silver pipeline uses inferSchema=True to read a CSV. One morning, the source system adds a decimal to a previously integer column, and the pipeline writes wrong types to Silver. What is the fix?",
+            "options": [
+              "Add a type validation step after the read to catch type changes",
+              "Replace inferSchema=True with an explicit StructType schema defined in code",
+              "Set inferSchema=False and let all columns stay as strings",
+              "Switch from CSV to JSON which has built-in type safety"
+            ],
+            "correctAnswer": "Replace inferSchema=True with an explicit StructType schema defined in code",
+            "distractorRationale": "Option 1 adds complexity without solving the root cause. Option 3 pushes the type problem downstream. Option 4 is wrong because JSON inference has similar risks. Explicit schemas make the pipeline deterministic."
+          },
+          {
+            "id": "PS8-04-F4",
+            "type": "single_select",
+            "label": "A Silver pipeline reads a Parquet file and chains .select('meter_id', 'daily_kw').filter(col('daily_kw') > 2000). What optimizations does Spark apply automatically?",
+            "options": [
+              "None — Spark reads the full file and applies select and filter afterward",
+              "Column pruning only — Spark reads only meter_id and daily_kw columns from disk",
+              "Column pruning + predicate pushdown — Spark reads only 2 columns and skips row groups where daily_kw <= 2000",
+              "Predicate pushdown only — Spark skips row groups but reads all columns"
+            ],
+            "correctAnswer": "Column pruning + predicate pushdown — Spark reads only 2 columns and skips row groups where daily_kw <= 2000",
+            "distractorRationale": "Option 1 ignores Catalyst's automatic optimization. Options 2 and 4 each apply only one optimization. Parquet + lazy evaluation enables both simultaneously."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS8-task-05",
+      "title": "Read JSON and Flatten Nested Fields",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's weather API delivers station data as line-delimited JSON with nested temperature objects. The Bronze layer stores this JSON as-is. The Silver pipeline must read the JSON and flatten the nested temperature.celsius field into a top-level column for downstream joins with meter readings.",
+        "task": "Read PS8_data_weather.json using spark.read.json(). The file contains a nested 'temperature' struct with 'celsius' and 'fahrenheit' fields. Flatten the data by selecting station_id, date, temperature.celsius aliased as temp_celsius, wind_speed_kmh, and conditions. Store the result in a variable called weather_flat.",
+        "validationHint": "The result should have 28 rows (4 stations × 7 days) and 5 flat columns. Use col('temperature.celsius') to access the nested field."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-weather-flatten') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nweather_flat.printSchema()\nprint(f\"Row count: {weather_flat.count()}\")\nprint(f\"Columns: {weather_flat.columns}\")\nweather_flat.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS8-05-A1",
+          "description": "weather_flat is a DataFrame",
+          "check": "isinstance(weather_flat, DataFrame)"
+        },
+        {
+          "id": "PS8-05-A2",
+          "description": "28 rows (4 stations × 7 days)",
+          "check": "weather_flat.count() == 28"
+        },
+        {
+          "id": "PS8-05-A3",
+          "description": "5 flat columns with no nested structs",
+          "check": "weather_flat.columns == ['station_id', 'date', 'temp_celsius', 'wind_speed_kmh', 'conditions']"
+        },
+        {
+          "id": "PS8-05-A4",
+          "description": "temp_celsius contains numeric values (properly extracted from nested struct)",
+          "check": "weather_flat.filter(col('temp_celsius').isNotNull()).count() == 28"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS8-task-06",
+      "title": "Build NordGrid's Complete Bronze-to-Gold Pipeline",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 13,
+      "description": {
+        "context": "NordGrid's daily pipeline reads raw meter CSV from Bronze, transforms it into clean Silver Parquet, then aggregates Silver into a Gold-layer regional summary. The pipeline must use proper I/O patterns at each stage: explicit schema for Bronze reads, overwrite mode for Silver and Gold writes, partitioned output for Silver, and coalesced output for Gold.",
+        "task": "Write a complete pipeline: (1) Read PS8_data_readings_bronze.csv with explicit schema (meter_id: StringType, daily_kw: DoubleType, date: StringType, region: StringType), nullValue='NA', mode='DROPMALFORMED'; (2) Filter out null daily_kw; (3) Filter out daily_kw <= 0; (4) Write Silver Parquet to 'output/silver/' with mode='overwrite' and partitionBy('region'); (5) Read Silver back from 'output/silver/'; (6) Group by region, compute total_kw (sum) and avg_kw (avg, rounded to 1); (7) Coalesce to 1 partition and write Gold Parquet to 'output/gold/' with mode='overwrite'. Store the Gold DataFrame in a variable called gold.",
+        "validationHint": "Bronze has ~100 rows (after DROPMALFORMED). Silver should have ~90 rows (after null and non-positive filters). Gold should have exactly 4 rows (one per region)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, avg as spark_avg, round as spark_round\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-full-pipeline') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\nreadings_path = 'PS8_data_readings_bronze.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\ngold = spark.read.parquet('output/gold/')\nprint(f\"Gold row count: {gold.count()}\")\nprint(f\"Gold columns: {gold.columns}\")\ngold.orderBy('region').show()"
+      },
+      "assertions": [
+        {
+          "id": "PS8-06-A1",
+          "description": "Silver Parquet written to output/silver/",
+          "check": "spark.read.parquet('output/silver/').count() > 80"
+        },
+        {
+          "id": "PS8-06-A2",
+          "description": "Silver is partitioned by region (4 distinct regions)",
+          "check": "spark.read.parquet('output/silver/').select('region').distinct().count() == 4"
+        },
+        {
+          "id": "PS8-06-A3",
+          "description": "Silver has no null daily_kw values",
+          "check": "spark.read.parquet('output/silver/').filter(col('daily_kw').isNull()).count() == 0"
+        },
+        {
+          "id": "PS8-06-A4",
+          "description": "Silver has no non-positive daily_kw values",
+          "check": "spark.read.parquet('output/silver/').filter(col('daily_kw') <= 0).count() == 0"
+        },
+        {
+          "id": "PS8-06-A5",
+          "description": "Gold Parquet written to output/gold/",
+          "check": "gold.count() == 4"
+        },
+        {
+          "id": "PS8-06-A6",
+          "description": "Gold has correct columns",
+          "check": "set(gold.columns) >= {'region', 'total_kw', 'avg_kw'}"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "CSV read with explicit schema + nullValue + DROPMALFORMED (Lessons 1-2, 5)",
+          "Data quality filtering (Module 4)",
+          "Partitioned Parquet write with overwrite mode (Lessons 6-8)",
+          "Read-back from partitioned Parquet (Lesson 4)",
+          "Aggregation with groupBy + agg (Module 6)",
+          "Coalesced Gold write (Lesson 7)",
+          "Complete Bronze→Silver→Gold I/O pattern (Lesson 10)"
+        ],
+        "minimumConceptCount": 6,
+        "rationale": "This task is the Module 10 capstone pipeline with all I/O patterns: explicit schema CSV read, DROPMALFORMED for bad rows, partitioned Silver write, read-back from partitioned storage, aggregation, and coalesced Gold write. Every Module 8 concept contributes to the I/O layer, and the transformations draw from Modules 4-6."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 6,
+    "foundationModuleException": "Not applicable — Module 8 is Essential Operations phase.",
+    "theoryPracticeBoundary": "Theory examples use clean reads with standard options. The Bronze CSV has 3 malformed rows and 'NA' as null representation — students must apply DROPMALFORMED and nullValue options that the theory teaches but doesn't combine in the same example. The JSON flattening task uses weather data (different entity than the theory's examples). The synthesis task requires a write-then-read-back pattern that the theory shows in Lesson 10.",
+    "crossModuleNotes": "Task 6 combines Module 4 filtering, Module 6 aggregation, and Module 8 I/O. The JSON task (Task 5) combines Module 4 select/alias with Module 8 JSON reading. These cross-module combinations follow the Essential Operations §2.4 guidance.",
+    "datasetNotes": "Two datasets: PS8_data_readings_bronze.csv has 100 well-formed rows + 3 malformed rows appended, with 'NA' as null marker. PS8_data_weather.json has 28 records with nested temperature struct to test JSON flattening."
+  }
+}

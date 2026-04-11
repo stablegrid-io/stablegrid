@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { User } from '@supabase/supabase-js';
-import { ArrowRight, Zap, Clock, Clock3, Brain, BookOpen } from 'lucide-react';
+import { ArrowRight, Zap, Flame } from 'lucide-react';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import { HOME_TOPIC_ORDER, getHomeTopicMeta } from '@/components/home/home/topicMeta';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
-import { OrbitalMap } from '@/components/home/OrbitalMap';
-import { buildOrbitalTopics } from '@/components/home/orbitalMapData';
 import type { TrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
+import { useProgressStore } from '@/lib/stores/useProgressStore';
 
 /* ── Types ── */
 interface HomeDashboardProps {
@@ -28,383 +28,305 @@ interface HomeDashboardProps {
   readingSignals: ReadingSignal[];
   trackMetaByTopic: TrackMetaByTopic;
   stats: { totalXp: number; currentStreak: number; questionsCompleted: number; overallAccuracy: number };
+  resumeContext?: { chapterTitle: string; lessonTitle: string } | null;
 }
 
-interface TopicSnapshot {
-  topicId: Topic;
-  label: string;
-  theoryPct: number;
-  theoryCompleted: number;
-  theoryTotal: number;
-  accentRgb: string;
-}
-
-/* ── Animation hooks ── */
-const useCountUp = (target: number, duration = 1200, delay = 0) => {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const start = performance.now();
-      const animate = (now: number) => {
-        const elapsed = now - start;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        setValue(Math.round(target * eased));
-        if (progress < 1) requestAnimationFrame(animate);
-      };
-      requestAnimationFrame(animate);
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [target, duration, delay]);
-  return value;
+/* ── Topic icon map ── */
+const TOPIC_ICON: Record<string, string> = {
+  pyspark: '/brand/pyspark-track-star.svg',
+  fabric: '/brand/microsoft-fabric-track.svg',
+  airflow: '/brand/apache-airflow-logo.svg',
+  sql: '/brand/sql-logo.svg',
+  'python-de': '/brand/python-logo.svg',
+  kafka: '/brand/apache-kafka-logo.svg',
+  docker: '/brand/docker-logo.svg',
+  dbt: '/brand/dbt-logo.svg',
+  databricks: '/brand/databricks-logo.svg',
+  'cloud-infra': '/brand/cloud-infra-logo.svg',
+  flink: '/brand/apache-flink-logo.svg',
+  iceberg: '/brand/apache-iceberg-logo.svg',
+  terraform: '/brand/terraform-logo.svg',
+  snowflake: '/brand/snowflake-logo.svg',
+  'data-modeling': '/brand/data-modeling-logo.svg',
+  'data-quality': '/brand/data-quality-logo.svg',
+  governance: '/brand/governance-logo.svg',
+  'git-cicd': '/brand/git-logo.svg',
+  'spark-streaming': '/brand/spark-streaming-logo.svg',
 };
 
-const useFillAnimation = (targetPct: number, delay = 0) => {
-  const [fill, setFill] = useState(0);
-  useEffect(() => {
-    const timer = setTimeout(() => setFill(targetPct), 80 + delay);
-    return () => clearTimeout(timer);
-  }, [targetPct, delay]);
-  return fill;
-};
-
-const useStaggeredReveal = (count: number, staggerMs = 60) => {
-  const [revealed, setRevealed] = useState(0);
-  useEffect(() => {
-    if (revealed >= count) return;
-    const timer = setTimeout(() => setRevealed((r) => r + 1), staggerMs);
-    return () => clearTimeout(timer);
-  }, [revealed, count, staggerMs]);
-  return revealed;
-};
-
-/* ── Weekly velocity ── */
-const computeWeeklyVelocity = (signals: ReadingSignal[]): number[] => {
-  const weeks: number[] = [0, 0, 0, 0, 0, 0, 0, 0];
-  const now = Date.now();
-  for (const signal of signals) {
-    const ts = Date.parse(signal.lastActiveAt);
-    if (!Number.isFinite(ts)) continue;
-    const weeksAgo = Math.floor((now - ts) / (7 * 24 * 60 * 60 * 1000));
-    if (weeksAgo >= 0 && weeksAgo < 8) weeks[7 - weeksAgo]++;
-  }
-  return weeks;
-};
-
-/* ── Interactive Sparkline ── */
-const VelocitySparkline = ({ data, accentRgb }: { data: number[]; accentRgb: string }) => {
-  const max = Math.max(...data, 1);
-  const w = 200; const h = 48;
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const revealed = useFillAnimation(100, 200);
-  const points = data.map((v, i) => ({ x: (i / (data.length - 1)) * w, y: h - (v / max) * (h - 8) - 4, value: v }));
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  const areaD = `${pathD} L ${w} ${h} L 0 ${h} Z`;
-
+/* ── Segmented progress bar (10 segments) ── */
+const SegmentedBar = ({ pct, accentRgb }: { pct: number; accentRgb: string }) => {
+  const filledCount = Math.round((pct / 100) * 10);
   return (
-    <div className="relative">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-12" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="vel-grad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={`rgba(${accentRgb},0.2)`} />
-            <stop offset="100%" stopColor={`rgba(${accentRgb},0)`} />
-          </linearGradient>
-          <clipPath id="vel-reveal"><rect x="0" y="0" width={`${revealed}%`} height={h} /></clipPath>
-        </defs>
-        <g clipPath="url(#vel-reveal)">
-          <path d={areaD} fill="url(#vel-grad)" />
-          <path d={pathD} fill="none" stroke={`rgb(${accentRgb})`} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </g>
-        {points.map((p, i) => (
-          <rect key={i} x={p.x - w / data.length / 2} y={0} width={w / data.length} height={h} fill="transparent"
-            onMouseEnter={() => setHoverIndex(i)} onMouseLeave={() => setHoverIndex(null)} />
-        ))}
-        {hoverIndex !== null && (
-          <>
-            <line x1={points[hoverIndex].x} y1={0} x2={points[hoverIndex].x} y2={h} stroke={`rgba(${accentRgb},0.15)`} strokeWidth="1" />
-            <circle cx={points[hoverIndex].x} cy={points[hoverIndex].y} r="4" fill={`rgb(${accentRgb})`} style={{ filter: `drop-shadow(0 0 6px rgba(${accentRgb},0.5))` }} />
-          </>
-        )}
-        {hoverIndex === null && points.length > 0 && (
-          <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="3" fill={`rgb(${accentRgb})`} />
-        )}
-      </svg>
-      {hoverIndex !== null && (
-        <div className="pointer-events-none absolute -top-10 -translate-x-1/2 rounded-xl border border-white/[0.08] bg-[#1a1d20]/95 px-3 py-1.5 text-[11px] font-medium text-on-surface shadow-[0_12px_24px_-10px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
-          style={{ left: `${(hoverIndex / (data.length - 1)) * 100}%` }}>
-          <span style={{ color: `rgb(${accentRgb})` }}>{points[hoverIndex].value}</span>
-          <span className="text-on-surface-variant/40 ml-1">sessions</span>
-        </div>
-      )}
+    <div className="flex gap-[3px]">
+      {Array.from({ length: 10 }).map((_, i) => {
+        const isFilled = i < filledCount;
+        const opacity = isFilled ? 0.4 + (i / 10) * 0.6 : 1;
+        return (
+          <div
+            key={i}
+            className="h-[7px] flex-1 rounded-[1px] transition-all duration-700"
+            style={{
+              backgroundColor: isFilled ? `rgba(${accentRgb},${opacity})` : 'rgba(255,255,255,0.06)',
+            }}
+          />
+        );
+      })}
     </div>
   );
 };
-
-/* ── Animated stat card ── */
-const StatCard = ({ icon: Icon, label, value, suffix = '', delay = 0, accentRgb }: {
-  icon: typeof Clock; label: string; value: number; suffix?: string; delay?: number; accentRgb?: string;
-}) => {
-  const animated = useCountUp(value, 1000, delay);
-  return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.1] hover:bg-white/[0.04]">
-      <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-        style={{ background: accentRgb ? `radial-gradient(ellipse at center, rgba(${accentRgb},0.04), transparent 70%)` : undefined }} />
-      <div className="relative">
-        <Icon className="h-4 w-4 text-on-surface-variant/20 mb-2 transition-colors group-hover:text-on-surface-variant/40" />
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30">{label}</p>
-        <p className="mt-1 text-2xl font-bold tracking-tight text-on-surface">{animated}{suffix}</p>
-      </div>
-    </div>
-  );
-};
-
-const TRACK_LEVEL_COLORS: Record<string, string> = { junior: '153,247,255', mid: '255,201,101', senior: '255,113,108' };
-
-/* ── Track level battery ── */
-const TrackLevelBattery = ({ label, completed, total, color, delay }: {
-  label: string; completed: number; total: number; color: string; delay: number;
-}) => {
-  const animatedCompleted = useCountUp(completed, 800, delay);
-  const fillPct = total > 0 ? (completed / total) * 100 : 0;
-  const animatedFill = useFillAnimation(fillPct, delay + 200);
-
-  return (
-    <div className="group relative flex-1 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.1]">
-      {/* Fill from bottom */}
-      <div
-        className="absolute inset-x-0 bottom-0 transition-all duration-[1.4s]"
-        style={{
-          height: `${animatedFill}%`,
-          background: `linear-gradient(to top, rgba(${color},0.15), rgba(${color},0.04))`,
-          transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-      />
-      {/* Glow edge */}
-      {animatedFill > 0 && animatedFill < 100 && (
-        <div
-          className="absolute inset-x-0 h-px transition-all duration-[1.4s]"
-          style={{
-            bottom: `${animatedFill}%`,
-            background: `rgba(${color},0.4)`,
-            boxShadow: `0 0 10px rgba(${color},0.25)`,
-            transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-          }}
-        />
-      )}
-      {/* Top accent line */}
-      <div
-        className="absolute top-0 left-0 h-[2px] transition-all duration-[1.4s]"
-        style={{
-          width: `${animatedFill}%`,
-          background: `rgb(${color})`,
-          boxShadow: `0 0 8px rgba(${color},0.4)`,
-          transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-      />
-
-      <div className="relative p-4 flex flex-col items-center text-center min-h-[120px] justify-center">
-        <div className="h-2 w-2 rounded-full mb-2" style={{ backgroundColor: `rgb(${color})`, boxShadow: `0 0 8px rgba(${color},0.4)` }} />
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/40">{label}</p>
-        <p className="text-2xl font-bold mt-1 tracking-tight" style={{ color: `rgb(${color})` }}>
-          {animatedCompleted}
-        </p>
-        <p className="text-[10px] text-on-surface-variant/25 mt-0.5">of {total} modules</p>
-      </div>
-    </div>
-  );
-};
-
-/* ── Session mode cell ── */
-const SessionModeCell = ({ label, Icon, color, count, totalSeconds, delay }: {
-  label: string; Icon: typeof Zap; color: string; count: number; totalSeconds: number; delay: number;
-}) => {
-  const animatedCount = useCountUp(count, 800, delay);
-  const hours = Math.floor(totalSeconds / 3600);
-  const mins = Math.round((totalSeconds % 3600) / 60);
-  const timeLabel = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-
-  return (
-    <div
-      className="group relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02]"
-      style={{
-        background: count > 0 ? `rgba(${color},0.04)` : 'rgba(255,255,255,0.02)',
-        border: `1px solid rgba(${color},${count > 0 ? 0.15 : 0.06})`,
-      }}
-    >
-      <div className="relative px-3 py-3 flex items-center gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-          style={{
-            background: `rgba(${color},${count > 0 ? 0.15 : 0.06})`,
-            boxShadow: count > 0 ? `0 0 10px rgba(${color},0.15)` : 'none',
-          }}>
-          <Icon className="h-3.5 w-3.5" style={{ color: `rgb(${color})` }} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgba(${color},${count > 0 ? 0.8 : 0.4})` }}>{label}</p>
-        </div>
-        <div className="text-right shrink-0">
-          <span className="text-[15px] font-bold tabular-nums" style={{ color: count > 0 ? `rgb(${color})` : 'rgba(255,255,255,0.15)' }}>
-            {count > 0 ? timeLabel : '--'}
-          </span>
-          <p className="text-[9px] text-white/20 tabular-nums">{animatedCount} sessions</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* ── Session mode batteries ── */
-const SessionModeBatteries = ({ sprintCount, pomodoroCount, deepFocusCount, freeReadCount, totalHours, sprintSeconds, pomodoroSeconds, deepFocusSeconds, freeReadSeconds }: {
-  sprintCount: number; pomodoroCount: number; deepFocusCount: number; freeReadCount: number; totalHours: number;
-  sprintSeconds: number; pomodoroSeconds: number; deepFocusSeconds: number; freeReadSeconds: number;
-}) => (
-  <div className="space-y-2 animate-[fadeIn_1s_ease]">
-    <div className="flex items-baseline justify-between px-1 mb-1">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/40">Sessions</p>
-      <div className="flex items-baseline gap-1">
-        <span className="font-mono text-2xl font-bold tabular-nums text-white/90">
-          {String(Math.floor(totalHours / 24)).padStart(2, '0')}:{String(Math.floor(totalHours % 24)).padStart(2, '0')}:{String(Math.round((totalHours % 1) * 60)).padStart(2, '0')}
-        </span>
-        <span className="text-[10px] text-on-surface-variant/30 font-mono">DD:HH:MM</span>
-      </div>
-    </div>
-    <div className="space-y-2">
-      <SessionModeCell label="Sprint" Icon={Zap} color="153,247,255" count={sprintCount} totalSeconds={sprintSeconds} delay={600} />
-      <SessionModeCell label="Pomodoro" Icon={Clock3} color="255,113,108" count={pomodoroCount} totalSeconds={pomodoroSeconds} delay={750} />
-      <SessionModeCell label="Deep Focus" Icon={Brain} color="191,129,255" count={deepFocusCount} totalSeconds={deepFocusSeconds} delay={900} />
-      <SessionModeCell label="Free Read" Icon={BookOpen} color="255,201,101" count={freeReadCount} totalSeconds={freeReadSeconds} delay={1050} />
-    </div>
-  </div>
-);
 
 /* ── Main Dashboard ── */
 export const HomeDashboard = ({
   user, topicProgress, recentSessions, completedSessions, latestTheorySession,
   lastClockedInAt: _lastClockedInAt, latestTaskAction: _latestTaskAction,
-  readingSignals, trackMetaByTopic, stats: _stats
+  readingSignals: _readingSignals, trackMetaByTopic: _trackMetaByTopic, stats,
+  resumeContext,
 }: HomeDashboardProps) => {
-  const topicSnapshots = useMemo<TopicSnapshot[]>(() => {
-    const progressMap = new Map(topicProgress.map((item) => [item.topic, item]));
+
+  /* ── User name ── */
+  const userDisplayName =
+    (user.user_metadata?.full_name as string | undefined) ??
+    (user.user_metadata?.name as string | undefined) ??
+    user.email?.split('@')[0] ?? 'Operator';
+  const firstName = userDisplayName.split(' ')[0];
+
+  /* ── Topic snapshots ── */
+  const topicSnapshots = useMemo(() => {
     return HOME_TOPIC_ORDER.map((topicId) => {
-      const progress = progressMap.get(topicId);
-      const meta = getHomeTopicMeta(topicId);
+      const progress = topicProgress.find((p) => p.topic === topicId);
+      const meta = getHomeTopicMeta(topicId as Topic);
       const style = getTheoryTopicStyle(topicId);
-      const theoryTotal = progress?.theoryChaptersTotal && progress.theoryChaptersTotal > 0 ? progress.theoryChaptersTotal : meta.fallbackChapters;
+      const theoryTotal = progress?.theoryChaptersTotal ?? 0;
       const theoryCompleted = progress?.theoryChaptersCompleted ?? 0;
       const theoryPct = theoryTotal > 0 ? Math.round((theoryCompleted / theoryTotal) * 100) : 0;
-      return { topicId, label: meta.label, theoryPct, theoryCompleted, theoryTotal, accentRgb: style.accentRgb };
-    });
+      return { topicId, label: meta?.label ?? topicId, theoryPct, theoryCompleted, theoryTotal, accentRgb: style.accentRgb };
+    }).filter((s) => s.theoryTotal > 0);
   }, [topicProgress]);
 
-  const activeTopics = topicSnapshots.filter((t) => t.theoryTotal > 0);
-  const orbitalTopics = useMemo(() => buildOrbitalTopics(topicProgress, trackMetaByTopic), [topicProgress, trackMetaByTopic]);
-
-  const overallProgress = useMemo(() => {
-    const total = topicSnapshots.reduce((sum, s) => sum + s.theoryTotal, 0);
-    const completed = topicSnapshots.reduce((sum, s) => sum + s.theoryCompleted, 0);
-    return total > 0 ? Math.round((completed / total) * 100) : 0;
-  }, [topicSnapshots]);
-
+  /* ── Current topic derivation ── */
   const latestSession = latestTheorySession ?? recentSessions[0] ?? null;
   const currentTopic = latestSession
     ? topicSnapshots.find((s) => s.topicId === latestSession.topic) ?? topicSnapshots[0]
     : topicSnapshots.find((s) => s.theoryPct > 0 && s.theoryPct < 100) ?? topicSnapshots[0];
 
-  const weeklyVelocity = useMemo(() => computeWeeklyVelocity(readingSignals), [readingSignals]);
-  const progressFill = useFillAnimation(currentTopic?.theoryPct ?? 0, 400);
-
-  const userDisplayName =
-    (user.user_metadata?.full_name as string | undefined) ??
-    (user.user_metadata?.name as string | undefined) ??
-    user.email?.split('@')[0] ?? 'Operator';
-
+  /* ── Resume href — deep link to exact lesson ── */
   const resumeHref = useMemo(() => {
-    if (!latestSession) {
-      return currentTopic ? `/learn/${currentTopic.topicId}/theory` : '/theory';
-    }
-    // Determine track from chapter ID pattern: mid chapters end with I+number, senior with S+number
-    const chId = latestSession.chapterId ?? '';
-    const prefix = chId.replace(/\d+$/, ''); // e.g. "module-AFI" or "module-AFS" or "module-AF"
+    const ls = latestTheorySession ?? recentSessions[0] ?? null;
+    if (!ls) return currentTopic ? `/learn/${currentTopic.topicId}/theory` : '/learn';
+    const chId = ls.chapterId ?? '';
+    const prefix = chId.replace(/\d+$/, '');
     const track = prefix.endsWith('S') ? 'senior' : prefix.endsWith('I') ? 'mid' : 'junior';
-    return `/learn/${latestSession.topic}/theory/${track}`;
-  }, [latestSession, currentTopic]);
+    const params = new URLSearchParams();
+    params.set('chapter', chId);
+    // Use the last read section as the current lesson
+    const lastLesson = ls.sectionsIdsRead?.[ls.sectionsIdsRead.length - 1];
+    if (lastLesson) params.set('lesson', lastLesson);
+    return `/learn/${ls.topic}/theory/${track}?${params.toString()}`;
+  }, [latestTheorySession, recentSessions, currentTopic]);
 
-  const skillTags = topicSnapshots
-    .filter((s) => s.theoryCompleted > 0)
-    .flatMap((s) => {
-      const tags: string[] = [];
-      if (s.theoryCompleted >= 3) tags.push(s.label.toUpperCase());
-      if (s.theoryPct >= 50) tags.push(`${s.label.toUpperCase()}_ADV`);
-      if (s.theoryPct >= 100) tags.push(`${s.label.toUpperCase()}_MASTERY`);
-      return tags;
-    }).slice(0, 6);
+  /* ── Overall completion level ── */
+  const overallPct = useMemo(() => {
+    const total = topicSnapshots.reduce((s, t) => s + t.theoryTotal, 0);
+    const done = topicSnapshots.reduce((s, t) => s + t.theoryCompleted, 0);
+    return total > 0 ? Math.round((done / total) * 100) : 0;
+  }, [topicSnapshots]);
+
+  /* ── Resume card topic ── */
+  const resumeTopic = currentTopic ?? topicSnapshots[0];
 
   return (
-    <div className="min-h-screen pb-24 lg:pb-8">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+    <div className="min-h-screen pb-24 lg:pb-10">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12 space-y-8">
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] items-start">
+        {/* ── 1. Header with mascot slot ── */}
+        <div
+          className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6"
+          style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 0ms forwards' }}
+        >
+          {/* Left: Mascot + greeting */}
+          <div className="flex items-center gap-5">
+            {/* Mascot slot */}
+            <div
+              className="relative w-20 h-20 shrink-0 rounded-full flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, rgba(153,247,255,0.08), rgba(191,129,255,0.08))',
+                border: '2px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              {/* Placeholder — replace with actual mascot image */}
+              <div className="w-14 h-14 rounded-full bg-white/[0.04] flex items-center justify-center">
+                <span className="text-2xl font-black text-on-surface/20">
+                  {firstName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              {/* Level badge */}
+              <div
+                className="absolute -bottom-1 -right-1 flex items-center justify-center w-7 h-7 rounded-full font-mono text-[10px] font-bold"
+                style={{
+                  background: '#111416',
+                  border: '2px solid rgba(153,247,255,0.3)',
+                  color: 'rgba(153,247,255,0.85)',
+                }}
+              >
+                {Math.max(1, Math.floor(overallPct / 10))}
+              </div>
+            </div>
 
-          {/* Left: Orbital Constellation */}
-          <div className="flex flex-col">
-            <div className="mb-6">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/40 animate-[fadeIn_0.6s_ease]">
-                Status: {overallProgress > 0 ? 'Deep dive active' : 'Awaiting initialization'}
-              </p>
-              <h1 className="mt-2 text-4xl font-bold tracking-tight text-on-surface lg:text-5xl animate-[fadeIn_0.8s_ease]" style={{ fontFamily: 'var(--font-headline)' }}>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-on-surface">
                 {userDisplayName}
               </h1>
-            </div>
-
-            <div className="w-full">
-              <OrbitalMap topics={orbitalTopics} overallPct={overallProgress} />
-            </div>
-
-            <Link href={resumeHref}
-              className="mt-4 group flex items-center justify-between rounded-2xl border border-primary/30 bg-primary/10 px-6 py-4 transition-all duration-300 hover:bg-primary/18 hover:border-primary/40 hover:shadow-[0_0_30px_rgba(153,247,255,0.12)] animate-[fadeIn_1.4s_ease]">
-              <div className="flex items-center gap-3">
-                <Zap className="h-5 w-5 text-primary" />
-                <div>
-                  <span className="text-[14px] font-semibold text-on-surface">Resume session</span>
-                  <p className="text-[11px] text-primary/60 mt-0.5">Continue where you left off</p>
+              {/* Title based on progress */}
+              <p className="font-mono text-[11px] tracking-widest uppercase mt-1" style={{ color: 'rgba(153,247,255,0.5)' }}>
+                {overallPct >= 80 ? 'Senior Engineer' : overallPct >= 40 ? 'Mid Engineer' : overallPct > 0 ? 'Junior Engineer' : 'Recruit'}
+              </p>
+              {/* XP progress bar */}
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-32 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${overallPct}%`,
+                      background: 'linear-gradient(90deg, rgb(153,247,255), rgb(191,129,255))',
+                      boxShadow: overallPct > 0 ? '0 0 6px rgba(153,247,255,0.4)' : 'none',
+                    }}
+                  />
                 </div>
+                <span className="font-mono text-[9px] text-on-surface-variant/30">{overallPct}%</span>
               </div>
-              <ArrowRight className="h-5 w-5 text-primary transition-transform group-hover:translate-x-1" />
-            </Link>
-
+            </div>
           </div>
 
-          {/* Right: Stats Panel — top padding matches left column header height */}
-          <div className="space-y-4 lg:pt-[72px]">
-
-            {/* Session modes */}
-            <SessionModeBatteries
-              sprintCount={completedSessions.filter((s) => s.activeSeconds > 0 && s.activeSeconds <= 900).length}
-              pomodoroCount={completedSessions.filter((s) => s.activeSeconds > 900 && s.activeSeconds <= 2700).length}
-              deepFocusCount={completedSessions.filter((s) => s.activeSeconds > 2700).length}
-              freeReadCount={completedSessions.length}
-              sprintSeconds={completedSessions.filter((s) => s.activeSeconds > 0 && s.activeSeconds <= 900).reduce((sum, s) => sum + s.activeSeconds, 0)}
-              pomodoroSeconds={completedSessions.filter((s) => s.activeSeconds > 900 && s.activeSeconds <= 2700).reduce((sum, s) => sum + s.activeSeconds, 0)}
-              deepFocusSeconds={completedSessions.filter((s) => s.activeSeconds > 2700).reduce((sum, s) => sum + s.activeSeconds, 0)}
-              freeReadSeconds={completedSessions.reduce((sum, s) => sum + s.activeSeconds, 0)}
-              totalHours={completedSessions.reduce((sum, s) => sum + s.activeSeconds, 0) / 3600}
-            />
-
-            {skillTags.length > 0 && (
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-2xl animate-[fadeIn_1.2s_ease]">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30 mb-3">Skills unlocked</p>
-                <div className="flex flex-wrap gap-2">
-                  {skillTags.map((tag) => (
-                    <span key={tag} className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-on-surface-variant/50 transition-colors hover:bg-white/[0.07] hover:text-on-surface-variant/70">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+          {/* Right: Stat pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* XP pill */}
+            <div
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5"
+              style={{ backgroundColor: 'rgba(255,201,101,0.1)', border: '1px solid rgba(255,201,101,0.2)' }}
+            >
+              <Zap size={13} style={{ color: 'rgb(255,201,101)' }} />
+              <span className="font-mono text-[11px] font-semibold" style={{ color: 'rgba(255,201,101,0.85)' }}>
+                {stats.totalXp.toLocaleString()}
+              </span>
+            </div>
+            {/* Streak pill */}
+            <div
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5"
+              style={{ backgroundColor: 'rgba(255,113,108,0.1)', border: '1px solid rgba(255,113,108,0.2)' }}
+            >
+              <Flame size={13} style={{ color: 'rgb(255,113,108)' }} />
+              <span className="font-mono text-[11px] font-semibold" style={{ color: 'rgba(255,113,108,0.85)' }}>
+                {stats.currentStreak} days
+              </span>
+            </div>
           </div>
         </div>
+
+        {/* ── 2. Resume card ── */}
+        <div style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 100ms forwards' }}>
+          {resumeTopic ? (
+            <Link href={resumeHref} className="group block">
+              <div
+                className="relative p-7 flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
+                style={{
+                  background: '#111416',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '22px',
+                }}
+              >
+                {/* Eyebrow + icon */}
+                <div className="flex items-start justify-between mb-4">
+                  <span className="font-mono text-[10px] font-bold tracking-widest uppercase" style={{ color: '#99f7ff' }}>
+                    {latestSession && resumeContext ? 'Continue' : 'Start'}
+                  </span>
+                  <Image
+                    src={TOPIC_ICON[resumeTopic.topicId] ?? '/brand/pyspark-track-star.svg'}
+                    alt={resumeTopic.label}
+                    width={20}
+                    height={20}
+                    className="opacity-40"
+                  />
+                </div>
+
+                {/* Title */}
+                <h3 className="text-xl font-bold tracking-tight text-on-surface mb-2">
+                  {latestSession && resumeContext ? resumeContext.chapterTitle : resumeTopic.label}
+                </h3>
+
+                {/* Description */}
+                <p className="text-[12px] leading-relaxed text-on-surface-variant/40 mb-5 line-clamp-2">
+                  {latestSession && resumeContext && resumeContext.lessonTitle
+                    ? `${resumeTopic.label} · ${resumeContext.lessonTitle} · Lesson ${latestSession.sectionsRead}/${latestSession.sectionsTotal}`
+                    : `Begin your ${resumeTopic.label} journey — ${resumeTopic.theoryTotal} modules available`
+                  }
+                </p>
+
+                {/* Progress bar */}
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono text-[10px] text-on-surface-variant/35 tracking-wide">Module Progress</span>
+                    <span className="font-mono text-[13px] font-bold" style={{ color: '#99f7ff' }}>{resumeTopic.theoryPct}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${resumeTopic.theoryPct}%`,
+                        backgroundColor: '#99f7ff',
+                        boxShadow: resumeTopic.theoryPct > 0 ? '0 0 8px rgba(153,247,255,0.5)' : 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div
+                  className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
+                  style={{
+                    backgroundColor: '#99f7ff',
+                    color: '#0c0e10',
+                    borderRadius: '14px',
+                    boxShadow: '0 0 20px rgba(153,247,255,0.3), 0 0 50px rgba(153,247,255,0.12)',
+                  }}
+                >
+                  {latestSession && resumeContext ? 'Resume Theory' : 'Begin Theory'}
+                </div>
+              </div>
+            </Link>
+          ) : (
+            <Link
+              href="/learn"
+              className="group block rounded-[22px] bg-[#111416] border border-white/[0.06] p-8 text-center transition-all duration-300 hover:border-white/[0.12]"
+            >
+              <p className="font-mono text-[10px] tracking-widest uppercase text-on-surface-variant/35">No active sessions</p>
+              <p className="mt-2 text-xl font-semibold text-on-surface/90">Start your first track</p>
+              <div className="mt-5 inline-flex items-center justify-center gap-2 rounded-[14px] px-6 py-2.5 font-mono text-[12px] font-semibold uppercase tracking-wider transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(240,240,243,0.15)]"
+                style={{ backgroundColor: '#f0f0f3', color: '#0a0c0e' }}
+              >
+                Browse tracks
+                <ArrowRight size={14} strokeWidth={2.5} />
+              </div>
+            </Link>
+          )}
+        </div>
+
+
       </div>
+
+      {/* ── Global keyframes ── */}
+      <style jsx global>{`
+        @keyframes fadeSlideUp {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 };

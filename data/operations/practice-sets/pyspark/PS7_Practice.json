@@ -1,0 +1,388 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 7 — Joins: Combining DataFrames",
+  "description": "Apply every join type to NordGrid's data: inner joins with row-loss awareness, left joins to preserve readings, anti joins to find missing meters, column ambiguity resolution, and a multi-hop enrichment pipeline.",
+  "version": "authored 2026-03-30, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PS7",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 60,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "essential_operations",
+    "taskTypeMix": {
+      "writeTheCode": 3,
+      "outputPrediction": 1,
+      "conceptIdentification": 1,
+      "synthesisPipeline": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PS7_data_readings",
+      "file": "PS7_data_readings.csv",
+      "description": "NordGrid meter readings. 120 rows. Meter IDs M-0001 through M-0120. Meters M-0101 to M-0120 have no match in the meters reference table.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-PS7-task-01", "module-PS7-task-02", "module-PS7-task-03", "module-PS7-task-04", "module-PS7-task-06"]
+    },
+    {
+      "id": "PS7_data_meters_ref",
+      "file": "PS7_data_meters_ref.csv",
+      "description": "NordGrid meter reference table. 110 rows. Meter IDs M-0001 to M-0100 (matched) plus M-0121 to M-0130 (unreported). Has a 'region' column that overlaps with the readings table (ambiguity source).",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "customer_type", "type": "string", "nullable": false, "description": "residential, commercial, or industrial"},
+          {"name": "substation_id", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false, "description": "Same column name as readings — creates ambiguity on join"}
+        ]
+      },
+      "usedByTasks": ["module-PS7-task-01", "module-PS7-task-02", "module-PS7-task-03", "module-PS7-task-04", "module-PS7-task-06"]
+    },
+    {
+      "id": "PS7_data_substations",
+      "file": "PS7_data_substations.csv",
+      "description": "NordGrid substation reference table. 8 rows. Linked to meters via substation_id.",
+      "schema": {
+        "columns": [
+          {"name": "substation_id", "type": "string", "nullable": false},
+          {"name": "substation_name", "type": "string", "nullable": false},
+          {"name": "capacity_mw", "type": "double", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-PS7-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PS7-task-01",
+      "title": "Enrich NordGrid Readings with Meter Metadata",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's Silver pipeline needs to enrich daily meter readings with customer_type and substation_id from the meter reference table. The readings table has 120 meters, but the reference table only has metadata for 100 of them. The remaining 20 meters were recently installed and their metadata has not yet been entered.",
+        "task": "Read both CSV files (header=True, inferSchema=True). Join the readings with the meters reference table on meter_id using an inner join. Store the result in a variable called enriched. Then count how many readings were lost due to missing metadata and store that number in rows_lost.",
+        "validationHint": "The inner join silently drops readings where meter_id has no match in the reference table. Your enriched DataFrame should have 100 rows, not 120. The 20 recently installed meters are excluded."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-meter-enrichment') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PS7_data_readings.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('PS7_data_meters_ref.csv', header=True, inferSchema=True)\n\nprint(f\"Readings: {df_readings.count()} rows\")\nprint(f\"Meters ref: {df_meters.count()} rows\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Enriched rows: {enriched.count()}\")\nprint(f\"Rows lost: {rows_lost}\")\nprint(f\"Enriched columns: {enriched.columns}\")"
+      },
+      "assertions": [
+        {
+          "id": "PS7-01-A1",
+          "description": "enriched is a DataFrame",
+          "check": "isinstance(enriched, DataFrame)"
+        },
+        {
+          "id": "PS7-01-A2",
+          "description": "Inner join keeps only matched rows — 100 rows",
+          "check": "enriched.count() == 100"
+        },
+        {
+          "id": "PS7-01-A3",
+          "description": "rows_lost is 20 (120 original - 100 matched)",
+          "check": "rows_lost == 20"
+        },
+        {
+          "id": "PS7-01-A4",
+          "description": "customer_type column present from meters reference",
+          "check": "'customer_type' in enriched.columns"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS7-task-02",
+      "title": "Preserve All Readings with a Left Join",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "The inner join from the previous scenario dropped 20 readings from recently installed meters. NordGrid's data quality team requires that no readings are ever silently lost — all 120 readings must appear in the Silver output, even if metadata is not yet available. The team will flag missing-metadata readings for follow-up rather than discarding them.",
+        "task": "Join readings with the meters reference table using a left join on meter_id to preserve all readings. For the 20 meters without metadata, the customer_type and substation_id columns will be null. After the join, both tables have a 'region' column — resolve the ambiguity by dropping the meters table's region column. Store the result in a variable called all_readings. Also count how many readings have null customer_type and store in missing_metadata_count.",
+        "validationHint": "A left join preserves all 120 readings. 20 readings will have null customer_type. The region ambiguity must be resolved or subsequent operations will fail."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-left-join') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PS7_data_readings.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('PS7_data_meters_ref.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"All readings count: {all_readings.count()}\")\nprint(f\"Missing metadata: {missing_metadata_count}\")\nprint(f\"Columns: {all_readings.columns}\")\nall_readings.filter(col('customer_type').isNull()).show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS7-02-A1",
+          "description": "all_readings is a DataFrame",
+          "check": "isinstance(all_readings, DataFrame)"
+        },
+        {
+          "id": "PS7-02-A2",
+          "description": "Left join preserves all 120 readings",
+          "check": "all_readings.count() == 120"
+        },
+        {
+          "id": "PS7-02-A3",
+          "description": "20 readings have null customer_type (no metadata match)",
+          "check": "missing_metadata_count == 20"
+        },
+        {
+          "id": "PS7-02-A4",
+          "description": "Region ambiguity resolved — only one 'region' column exists",
+          "check": "all_readings.columns.count('region') == 1"
+        },
+        {
+          "id": "PS7-02-A5",
+          "description": "customer_type and substation_id columns present",
+          "check": "'customer_type' in all_readings.columns and 'substation_id' in all_readings.columns"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS7-task-03",
+      "title": "Predict Row Counts for Different Join Types",
+      "type": "output_prediction",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's data engineering team tests the same two tables — readings (120 rows, meter IDs M-0001 to M-0120) and meters reference (110 rows, meter IDs M-0001 to M-0100 plus M-0121 to M-0130) — with different join types. The overlap is 100 meter IDs (M-0001 to M-0100). 20 readings have no metadata match. 10 meters have no readings match.",
+        "task": "Predict the row count produced by each join type. No duplicate keys exist in either table.",
+        "validationHint": "Draw a Venn diagram: 100 in the overlap, 20 readings-only, 10 meters-only. Each join type selects a different part of this diagram."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS7-03-F1",
+            "type": "numeric",
+            "label": "Inner join (how='inner'): how many rows?",
+            "correctAnswer": 100,
+            "tolerance": 0,
+            "rationale": "Inner keeps only the 100 matching meter IDs. 20 readings-only and 10 meters-only are both dropped."
+          },
+          {
+            "id": "PS7-03-F2",
+            "type": "numeric",
+            "label": "Left join (how='left'): how many rows?",
+            "correctAnswer": 120,
+            "tolerance": 0,
+            "rationale": "Left preserves all 120 readings. The 100 matched rows get metadata. The 20 unmatched readings get nulls for metadata columns. The 10 meters-only are not included."
+          },
+          {
+            "id": "PS7-03-F3",
+            "type": "numeric",
+            "label": "Full outer join (how='full'): how many rows?",
+            "correctAnswer": 130,
+            "tolerance": 0,
+            "rationale": "Full outer keeps everything: 100 matched + 20 readings-only + 10 meters-only = 130."
+          },
+          {
+            "id": "PS7-03-F4",
+            "type": "numeric",
+            "label": "Anti join — readings NOT in meters (how='anti'): how many rows?",
+            "correctAnswer": 20,
+            "tolerance": 0,
+            "rationale": "Anti join keeps readings whose meter_id has NO match in meters. M-0101 to M-0120 = 20 readings."
+          },
+          {
+            "id": "PS7-03-F5",
+            "type": "single_select",
+            "label": "A semi join of readings against meters (how='semi') returns how many columns?",
+            "options": [
+              "The combined columns from both tables (7 columns)",
+              "Only the readings columns (4 columns) — the meters table is used for matching only",
+              "Only the meters columns (4 columns) — the readings table is used for matching only",
+              "Only the join key column (1 column)"
+            ],
+            "correctAnswer": "Only the readings columns (4 columns) — the meters table is used for matching only",
+            "distractorRationale": "Semi and anti joins are filtering operations — they use the right table for matching but do not add its columns. The result schema matches the left table exactly."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS7-task-04",
+      "title": "Find NordGrid's Unreported Meters",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's operations team needs to find meters that are registered in the reference table but did not submit readings this period. These unreported meters may indicate communication failures or decommissioned equipment that was not removed from the reference list. The team wants a list of meter IDs and their customer types — they do not want any reading columns added to the output.",
+        "task": "Use an anti join to find meters in the meters reference table that have no corresponding reading in the readings table. Store the result in a variable called unreported. The result should contain only columns from the meters reference table.",
+        "validationHint": "The anti join uses the meters table as the left side and readings as the right side. 10 meters (M-0121 to M-0130) have no readings. The result should have 10 rows with meters-table columns only."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-missing-meters') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PS7_data_readings.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('PS7_data_meters_ref.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Unreported meters: {unreported.count()}\")\nprint(f\"Columns: {unreported.columns}\")\nunreported.show()"
+      },
+      "assertions": [
+        {
+          "id": "PS7-04-A1",
+          "description": "unreported is a DataFrame",
+          "check": "isinstance(unreported, DataFrame)"
+        },
+        {
+          "id": "PS7-04-A2",
+          "description": "Exactly 10 unreported meters",
+          "check": "unreported.count() == 10"
+        },
+        {
+          "id": "PS7-04-A3",
+          "description": "Contains only meters-table columns (no readings columns like daily_kw)",
+          "check": "'daily_kw' not in unreported.columns"
+        },
+        {
+          "id": "PS7-04-A4",
+          "description": "All meter IDs are in the M-0121 to M-0130 range",
+          "check": "unreported.filter(col('meter_id') < 'M-0121').count() == 0"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS7-task-05",
+      "title": "Identify Join Behaviors and Strategies",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's senior engineer is reviewing join patterns in the team's codebase. They need to verify that the junior engineers understand column ambiguity, join strategies, and the difference between filtering joins (semi/anti) and enrichment joins (inner/left).",
+        "task": "For each statement, determine whether it is correct or incorrect.",
+        "validationHint": "Think about what happens to the column list after each join type, and when Spark broadcasts vs shuffles."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS7-05-F1",
+            "type": "single_select",
+            "label": "Both readings and meters have a 'region' column. After df_readings.join(df_meters, on='meter_id', how='inner'), how many 'region' columns exist in the result?",
+            "options": [
+              "One — the string form of 'on' merges all shared column names",
+              "Two — the string form merges the key column (meter_id) but non-key shared columns (region) are duplicated",
+              "Zero — Spark drops ambiguous columns automatically",
+              "One — Spark keeps only the left table's version of any duplicate column"
+            ],
+            "correctAnswer": "Two — the string form merges the key column (meter_id) but non-key shared columns (region) are duplicated",
+            "distractorRationale": "Option 1 is the most common misconception — students think on='meter_id' handles all shared columns. In reality, only the key column is merged; other shared names remain duplicated."
+          },
+          {
+            "id": "PS7-05-F2",
+            "type": "single_select",
+            "label": "NordGrid joins 120 rows of readings (120 MB) with 8 rows of substations (1 KB). Which join strategy does Spark use?",
+            "options": [
+              "Shuffle join — both sides are shuffled by the join key",
+              "Broadcast join — the tiny substations table is copied to every executor, no shuffle of readings",
+              "Sort-merge join — both sides are sorted before matching",
+              "Nested loop join — Spark compares every pair of rows"
+            ],
+            "correctAnswer": "Broadcast join — the tiny substations table is copied to every executor, no shuffle of readings",
+            "distractorRationale": "Substations (1 KB) is far below Spark's default broadcast threshold (10 MB). Spark automatically broadcasts it. Shuffle would be wasteful for such a small table."
+          },
+          {
+            "id": "PS7-05-F3",
+            "type": "single_select",
+            "label": "An engineer wants to filter readings to only those from active meters. The active meter list is a separate DataFrame. Which join type should they use?",
+            "options": [
+              "Inner join — it keeps only matching rows",
+              "Left join — it preserves all readings",
+              "Semi join — it filters readings by match without adding columns from the active list",
+              "Anti join — it finds readings not in the active list"
+            ],
+            "correctAnswer": "Semi join — it filters readings by match without adding columns from the active list",
+            "distractorRationale": "Inner join would work but adds unwanted columns from the active meter table. Left join preserves everything (wrong filtering direction). Anti join finds the opposite set. Semi join is the correct filtering-only tool."
+          },
+          {
+            "id": "PS7-05-F4",
+            "type": "single_select",
+            "label": "After a left join, the engineer finds 120 rows but expected only 100. What is the most likely cause?",
+            "options": [
+              "The left join added 20 extra rows from the right table",
+              "The left join preserved 20 readings that have no match in the right table — their metadata columns are null",
+              "The right table has duplicate keys, causing row multiplication",
+              "The join condition was wrong and produced a partial Cartesian product"
+            ],
+            "correctAnswer": "The left join preserved 20 readings that have no match in the right table — their metadata columns are null",
+            "distractorRationale": "Option 1 misunderstands left join — it never adds right-only rows. Option 3 is a real danger but doesn't apply here (no duplicates in the reference table). Option 4 is plausible but unlikely with a simple equi-join."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS7-task-06",
+      "title": "Build NordGrid's Two-Hop Enrichment Pipeline",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's Silver enrichment pipeline must join three tables: readings → meters → substations. Readings connect to meters via meter_id. Meters connect to substations via substation_id. The final output must include the reading data, customer_type from meters, and substation_name from substations. All readings must be preserved (use left joins). Both the readings and meters tables have a 'region' column that creates ambiguity after the first join.",
+        "task": "Write a pipeline that: (1) reads all three CSVs; (2) left-joins readings with meters on meter_id; (3) resolves the region ambiguity by dropping the meters table's region column; (4) left-joins the result with substations on substation_id; (5) selects the final columns: meter_id, daily_kw, date, region, customer_type, substation_name; (6) stores the result in a variable called enriched.",
+        "validationHint": "All 120 readings must be preserved. 20 readings will have null customer_type and null substation_name (no meter metadata → no substation link). The final output has 6 columns."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-two-hop-enrichment') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PS7_data_readings.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('PS7_data_meters_ref.csv', header=True, inferSchema=True)\ndf_substations = spark.read.csv('PS7_data_substations.csv', header=True, inferSchema=True)\n\nprint(f\"Readings: {df_readings.count()} rows, columns: {df_readings.columns}\")\nprint(f\"Meters: {df_meters.count()} rows, columns: {df_meters.columns}\")\nprint(f\"Substations: {df_substations.count()} rows, columns: {df_substations.columns}\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"\\nEnriched rows: {enriched.count()}\")\nprint(f\"Enriched columns: {enriched.columns}\")\nprint(f\"Null customer_type: {enriched.filter(col('customer_type').isNull()).count()}\")\nprint(f\"Null substation_name: {enriched.filter(col('substation_name').isNull()).count()}\")\nenriched.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS7-06-A1",
+          "description": "enriched is a DataFrame",
+          "check": "isinstance(enriched, DataFrame)"
+        },
+        {
+          "id": "PS7-06-A2",
+          "description": "All 120 readings preserved (left joins)",
+          "check": "enriched.count() == 120"
+        },
+        {
+          "id": "PS7-06-A3",
+          "description": "Exactly 6 output columns",
+          "check": "enriched.columns == ['meter_id', 'daily_kw', 'date', 'region', 'customer_type', 'substation_name']"
+        },
+        {
+          "id": "PS7-06-A4",
+          "description": "20 readings have null customer_type (no meter metadata)",
+          "check": "enriched.filter(col('customer_type').isNull()).count() == 20"
+        },
+        {
+          "id": "PS7-06-A5",
+          "description": "20 readings have null substation_name (no substation link because no meter link)",
+          "check": "enriched.filter(col('substation_name').isNull()).count() == 20"
+        },
+        {
+          "id": "PS7-06-A6",
+          "description": "No duplicate region columns (ambiguity resolved)",
+          "check": "enriched.columns.count('region') == 1"
+        },
+        {
+          "id": "PS7-06-A7",
+          "description": "100 readings have non-null substation_name (matched through meters)",
+          "check": "enriched.filter(col('substation_name').isNotNull()).count() == 100"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Left join to preserve all readings (Lesson 3)",
+          "Two-hop join chain: readings → meters → substations (Lesson 9)",
+          "Column ambiguity resolution for shared 'region' column (Lesson 7)",
+          "select() for final schema contract (Module 4)",
+          "Null propagation through join chain — null substation_id from first join → null substation_name from second join (Lesson 3)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This is NordGrid's production enrichment pattern: chain two left joins through intermediate reference tables, handle ambiguity, and produce a clean output schema. The null propagation through the join chain is the key insight — 20 readings have no meter match, so their substation_id is null, which means the second join also produces null substation_name. Students must understand that null join keys produce null results in subsequent joins."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Not applicable — Module 7 is Essential Operations phase.",
+    "theoryPracticeBoundary": "Theory examples join readings with meters on meter_id using standard NordGrid data. Practice tasks use the same join pattern but with intentionally designed mismatches: 20 readings with no metadata and 10 meters with no readings. These mismatches force students to see the practical consequences of each join type rather than joining clean, fully-matched data. Task 4 reverses the join direction (meters anti-joined against readings) compared to the theory's example (readings anti-joined against active fleet).",
+    "crossModuleNotes": "Task 2 requires resolving column ambiguity with drop() (Module 4 skill). Task 6 uses select() for the output schema contract (Module 4) and null handling awareness (Module 4, Lesson 6). The Essential Operations phase expects these cross-module combinations per §2.4.",
+    "datasetNotes": "Three related tables with intentional key mismatches. Readings (120 rows) and meters (110 rows) share 100 meter IDs, with 20 readings-only and 10 meters-only. Both have a 'region' column to force ambiguity handling. Substations (8 rows) link through meters.substation_id for the two-hop join."
+  }
+}

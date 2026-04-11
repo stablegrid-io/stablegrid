@@ -1,0 +1,365 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set 5 — Notebooks: Writing Code in Fabric",
+  "description": "Write PySpark code the way you would in a Fabric notebook: read a Delta table from a Lakehouse's Tables section, read a CSV from the Files section, write a filtered DataFrame back as a Delta table, predict Spark session lifecycle behavior, run SQL queries against a DataFrame, and build a complete Files-to-Tables notebook workflow.",
+  "version": "authored 2026-04-06, targets Microsoft Fabric GA 2025+ / PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-F5",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 55,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "500K meters, 4 regions, single team, 3 medallion workspaces",
+    "modulePhase": "core_mechanics",
+    "taskTypeMix": {
+      "writeTheCode": 4,
+      "outputPrediction": 1,
+      "conceptIdentification": 0,
+      "synthesisPipeline": 1
+    },
+    "foundationException": "Not applied. F5 is Core Mechanics phase and is the first code-heavy module in the Fabric junior track. Every code task in this practice set follows the Fabric notebook pattern: the pre-configured `spark` variable is provided in the scaffold (above the YOUR SOLUTION marker) to mirror Fabric's automatic session. Students write the same code they would write in a real Fabric notebook — spark.read.table(), spark.read.csv(), df.write.mode().saveAsTable(), spark.sql(). Task type mix (4 write_the_code + 1 output_prediction + 1 synthesis_pipeline) is within §4.2 per-type limits (max 5 write_the_code, max 2 output_prediction, max 1 synthesis_pipeline)."
+  },
+  "datasets": [
+    {
+      "id": "F5_data_readings",
+      "file": "F5_data_readings.csv",
+      "description": "NordGrid meter readings for a single day (2026-03-10). 20 rows: 4 regions (NORTH, SOUTH, EAST, WEST) with 5 meters each. 17 rows have valid daily_kw values (range 950.2–2500.1). 3 rows have negative daily_kw values (M-0003, M-0007, M-0014) that simulate invalid readings.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-F5-task-01", "module-F5-task-03", "module-F5-task-05", "module-F5-task-06"]
+    },
+    {
+      "id": "F5_data_meters",
+      "file": "F5_data_meters.csv",
+      "description": "NordGrid meter reference table. 12 rows. Columns: meter_id, customer_type (residential/commercial/industrial), substation_id (SUB-01 through SUB-08), region (NORTH/SOUTH/EAST/WEST).",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "customer_type", "type": "string", "nullable": false},
+          {"name": "substation_id", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-F5-task-02", "module-F5-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-F5-task-01",
+      "title": "Read NordGrid's Silver Readings Table",
+      "type": "write_the_code",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's Silver Lakehouse (lh_meter_readings) contains a managed Delta table called readings_silver with 20 meter readings for 2026-03-10. In a Fabric notebook, the Silver Lakehouse has been attached, so the readings_silver table is accessible directly by name. Your task is to read the table and inspect its contents — this is the first step of nearly every NordGrid transformation notebook.",
+        "task": "Read the readings_silver table using the pre-configured spark variable. Store the DataFrame in a variable called df_readings. Then extract three pieces of metadata: store the row count in row_count, store the list of column names in column_names, and store the distinct regions (as a sorted list of strings) in distinct_regions.",
+        "validationHint": "In Fabric you would use spark.read.table('readings_silver') or spark.table('readings_silver') — either works. The table has 4 columns (meter_id, daily_kw, date, region), 20 rows, and 4 distinct regions. Sort distinct_regions alphabetically so the result is deterministic."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# In Fabric, the `spark` variable is pre-configured when the notebook session starts.\n# In this local practice environment, the same variable is pre-configured for you below.\n# The readings_silver table has also been pre-registered to simulate the attached Silver Lakehouse.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-read-silver') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\n# Simulate the attached Silver Lakehouse: register readings_silver as a managed table.\n_setup_df = spark.read.csv('F5_data_readings.csv', header=True, inferSchema=True)\n_setup_df.write.mode('overwrite').saveAsTable('readings_silver')\n\nprint('Attached Silver Lakehouse simulated. Table readings_silver is ready.')\n\n# YOUR SOLUTION BELOW\n# 1. Read the readings_silver table (use the spark variable)\n# 2. Store the DataFrame in df_readings\n# 3. Compute and store: row_count (int), column_names (list of strings), distinct_regions (sorted list of strings)\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {row_count}\")\nprint(f\"Columns: {column_names}\")\nprint(f\"Distinct regions: {distinct_regions}\")\ndf_readings.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "F5-01-A1",
+          "description": "df_readings is a DataFrame",
+          "check": "hasattr(df_readings, 'count') and hasattr(df_readings, 'columns')"
+        },
+        {
+          "id": "F5-01-A2",
+          "description": "row_count equals 20",
+          "check": "row_count == 20"
+        },
+        {
+          "id": "F5-01-A3",
+          "description": "column_names contains exactly the 4 expected columns",
+          "check": "set(column_names) == {'meter_id', 'daily_kw', 'date', 'region'}"
+        },
+        {
+          "id": "F5-01-A4",
+          "description": "distinct_regions is a sorted list of the 4 NordGrid regions",
+          "check": "distinct_regions == ['EAST', 'NORTH', 'SOUTH', 'WEST']"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-F5-task-02",
+      "title": "Read the Meter Reference from the Files Section",
+      "type": "write_the_code",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's Bronze Lakehouse holds raw reference data in its Files section. Today, the platform team dropped a new meter reference CSV (meters.csv) into Files/reference/ — 12 rows covering the current meter fleet. Unlike the previous task's managed table, this file has not been registered as a table; it must be read directly from its file path as a CSV. In a Fabric notebook, you would use a path like 'Files/reference/meters.csv'. In this local practice, the file is at the working directory path F5_data_meters.csv.",
+        "task": "Read the CSV file using spark.read.csv() with header=True and inferSchema=True. Store the DataFrame in a variable called df_meters. Then: count the rows and store in meters_count, count the distinct customer types and store in customer_type_count, and extract the list of column names into meters_columns.",
+        "validationHint": "This task tests reading from the Files section, which uses a file-based read (spark.read.csv) rather than a table-based read (spark.read.table). The file has 12 rows and 3 distinct customer types (residential, commercial, industrial)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# In Fabric, the `spark` variable is pre-configured. Reading from the Files section\n# uses a path like 'Files/reference/meters.csv'. In this local practice, the path is\n# simply 'F5_data_meters.csv'.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-read-files') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\nprint('Spark session ready. Read F5_data_meters.csv as if it were in Files/reference/.')\n\n# YOUR SOLUTION BELOW\n# 1. Read F5_data_meters.csv with header=True and inferSchema=True\n# 2. Store the DataFrame in df_meters\n# 3. Compute: meters_count (int), customer_type_count (int), meters_columns (list of strings)\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Meters count: {meters_count}\")\nprint(f\"Distinct customer types: {customer_type_count}\")\nprint(f\"Columns: {meters_columns}\")\ndf_meters.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "F5-02-A1",
+          "description": "df_meters is a DataFrame",
+          "check": "hasattr(df_meters, 'count') and hasattr(df_meters, 'columns')"
+        },
+        {
+          "id": "F5-02-A2",
+          "description": "meters_count equals 12",
+          "check": "meters_count == 12"
+        },
+        {
+          "id": "F5-02-A3",
+          "description": "customer_type_count equals 3 (residential, commercial, industrial)",
+          "check": "customer_type_count == 3"
+        },
+        {
+          "id": "F5-02-A4",
+          "description": "meters_columns contains the 4 expected columns",
+          "check": "set(meters_columns) == {'meter_id', 'customer_type', 'substation_id', 'region'}"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-F5-task-03",
+      "title": "Write Filtered Readings as a Managed Delta Table",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's data quality team requires that only positive daily_kw readings reach the Silver Tables section. The raw CSV in the Bronze Files section contains 20 meter readings for 2026-03-10, but 3 of them have negative daily_kw values (M-0003, M-0007, M-0014) from sensor malfunctions. Your task is to read the raw readings, filter out the invalid rows, and write the result as a managed Delta table so the analytics team can query it through the SQL endpoint.",
+        "task": "Read F5_data_readings.csv into a DataFrame. Filter to rows where daily_kw is strictly greater than 0. Write the filtered DataFrame as a managed table called readings_valid using overwrite mode and saveAsTable(). After writing, read the table back into a variable called df_valid and store its row count in valid_count.",
+        "validationHint": "Use df.write.mode('overwrite').saveAsTable('readings_valid') — this is the Fabric pattern for creating a managed Delta table. After the write, read the table back with spark.read.table('readings_valid') or spark.table('readings_valid'). Expect 17 rows (20 original minus 3 invalid)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# In Fabric, df.write.mode('overwrite').saveAsTable('readings_valid') creates a managed\n# Delta table in the attached Lakehouse's Tables section. In this local practice, the\n# managed table is stored in the local warehouse — the student-facing code is identical.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-write-silver') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\n# Read the raw readings from the Files section (simulated by a local CSV)\ndf_raw = spark.read.csv('F5_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Raw readings: {df_raw.count()} rows\")\n\n# YOUR SOLUTION BELOW\n# 1. Filter df_raw to rows where daily_kw > 0\n# 2. Write the filtered DataFrame as a managed table called 'readings_valid' with mode='overwrite'\n# 3. Read the table back into df_valid\n# 4. Store the row count in valid_count\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Valid readings written and read back: {valid_count}\")\ndf_valid.show(5)\nprint(f\"Min daily_kw in valid table: {df_valid.agg({'daily_kw': 'min'}).collect()[0][0]}\")"
+      },
+      "assertions": [
+        {
+          "id": "F5-03-A1",
+          "description": "df_valid is a DataFrame",
+          "check": "hasattr(df_valid, 'count') and hasattr(df_valid, 'columns')"
+        },
+        {
+          "id": "F5-03-A2",
+          "description": "valid_count equals 17 (20 original minus 3 negative readings)",
+          "check": "valid_count == 17"
+        },
+        {
+          "id": "F5-03-A3",
+          "description": "The readings_valid table was registered (readable via spark.table)",
+          "check": "spark.table('readings_valid').count() == 17"
+        },
+        {
+          "id": "F5-03-A4",
+          "description": "All rows in the table have positive daily_kw",
+          "check": "spark.table('readings_valid').filter(col('daily_kw') <= 0).count() == 0"
+        },
+        {
+          "id": "F5-03-A5",
+          "description": "All 4 original columns preserved",
+          "check": "set(df_valid.columns) == {'meter_id', 'daily_kw', 'date', 'region'}"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-F5-task-04",
+      "title": "Predict Fabric's Spark Session Behavior",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's junior engineer, Anya, is learning how Fabric manages Spark sessions for notebooks. She has read Lesson 3 of Module 5 but wants to confirm her understanding of session startup times, session lifecycle, and session sharing. She runs four experiments to test her mental model.",
+        "task": "For each scenario, predict what Anya will observe.",
+        "validationHint": "Fabric pre-configures a Spark session per notebook. The first cell run after creating a notebook (or after a long idle period) takes 30–60 seconds because the session must start. Subsequent cell runs within the same warm session are nearly instant. Sessions are per-capacity and can be shared across notebooks under certain conditions."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F5-04-F1",
+            "type": "single_select",
+            "label": "Anya creates a brand new notebook, types a single print statement in the first cell, and runs it. How long until she sees the output?",
+            "options": [
+              "Instant — Fabric notebooks do not require a session for simple print statements",
+              "Approximately 30–60 seconds — the Spark session must start before the first cell can execute",
+              "Exactly 2 seconds — Fabric caches notebook sessions globally",
+              "5 minutes — every notebook provisions a dedicated cluster"
+            ],
+            "correctAnswer": "Approximately 30–60 seconds — the Spark session must start before the first cell can execute",
+            "distractorRationale": "Option 1 misunderstands notebooks — every cell runs in the Spark session, including print statements. Option 3 overstates caching speed. Option 4 describes the old IaaS provisioning model that Fabric's SaaS session management replaces."
+          },
+          {
+            "id": "F5-04-F2",
+            "type": "single_select",
+            "label": "Anya's first cell completed (after the 30–60s startup). She immediately runs a second cell that reads a Delta table. How long does the second cell take to start executing?",
+            "options": [
+              "Another 30–60 seconds — each cell starts a new session",
+              "Nearly instant — the session is already warm from the first cell",
+              "Approximately 15 seconds — Fabric refreshes the session between cells",
+              "Depends on the workspace's capacity allocation"
+            ],
+            "correctAnswer": "Nearly instant — the session is already warm from the first cell",
+            "distractorRationale": "Option 1 misunderstands session lifecycle — the session persists across cells within the same notebook. Option 3 invents a refresh interval. Option 4 invents a capacity-gated startup cost. Once the session is warm, cell-to-cell execution is fast."
+          },
+          {
+            "id": "F5-04-F3",
+            "type": "single_select",
+            "label": "Anya walks away for lunch. When she returns 90 minutes later and runs another cell in the same notebook, what does she observe?",
+            "options": [
+              "Instant execution — sessions persist indefinitely",
+              "A 30–60 second delay because Fabric shut down the idle session to free capacity; the session must start again",
+              "An error — notebooks must be reopened after 30 minutes of inactivity",
+              "A warning prompt asking whether to restart the session"
+            ],
+            "correctAnswer": "A 30–60 second delay because Fabric shut down the idle session to free capacity; the session must start again",
+            "distractorRationale": "Option 1 would waste capacity — Fabric reclaims idle sessions. Option 3 invents a session timeout that locks the notebook. Option 4 invents a confirmation dialog. Idle sessions are reclaimed transparently, and the next cell run triggers a warm start."
+          },
+          {
+            "id": "F5-04-F4",
+            "type": "single_select",
+            "label": "In Fabric, does Anya need to write `SparkSession.builder.appName('...').getOrCreate()` at the start of her notebook?",
+            "options": [
+              "Yes — every PySpark program requires an explicit SparkSession",
+              "No — Fabric provides a pre-configured `spark` variable automatically in every notebook; creating a session manually is unnecessary and is not the Fabric pattern",
+              "Only for the first cell; subsequent cells inherit the session",
+              "Only if the notebook reads from more than one Lakehouse"
+            ],
+            "correctAnswer": "No — Fabric provides a pre-configured `spark` variable automatically in every notebook; creating a session manually is unnecessary and is not the Fabric pattern",
+            "distractorRationale": "Option 1 is the standalone PySpark pattern, which Fabric replaces with the pre-configured variable. Options 3 and 4 invent cell-specific or Lakehouse-specific session requirements. The distinguishing feature of Fabric notebooks is that the spark variable is always ready."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F5-task-05",
+      "title": "Query NordGrid's Readings with Spark SQL",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's data engineering team standardizes on PySpark for transformations but uses Spark SQL for ad-hoc queries. Module F5 Lesson 4 teaches two ways to run SQL in a Fabric notebook: %%sql cell magic and spark.sql() from a Python cell. For programmatic use where the result feeds into further PySpark code, spark.sql() is the preferred approach. Your task is to query the readings DataFrame using SQL and return the result as a DataFrame.",
+        "task": "Read F5_data_readings.csv into df_readings. Register it as a temporary view called readings_view. Then use spark.sql() to select all columns from the view where region equals 'NORTH'. Store the resulting DataFrame in df_north and store the row count in north_count.",
+        "validationHint": "Use df_readings.createOrReplaceTempView('readings_view') to register the view. Then run spark.sql(\"SELECT * FROM readings_view WHERE region = 'NORTH'\") — this returns a DataFrame. There are 5 NORTH readings in the dataset (including the one with negative daily_kw, since this is a region filter not a validity filter)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# In Fabric, spark.sql() runs T-SQL-compatible queries against DataFrames registered as\n# temporary views or against managed tables in the attached Lakehouse. This task uses a\n# temporary view so you can see the PySpark -> SQL -> PySpark bridge in action.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-spark-sql') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('F5_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Loaded {df_readings.count()} readings from the CSV.\")\n\n# YOUR SOLUTION BELOW\n# 1. Register df_readings as a temporary view called 'readings_view'\n# 2. Use spark.sql() to query: SELECT * FROM readings_view WHERE region = 'NORTH'\n# 3. Store the resulting DataFrame in df_north\n# 4. Store the row count in north_count\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"NORTH readings: {north_count}\")\ndf_north.show()"
+      },
+      "assertions": [
+        {
+          "id": "F5-05-A1",
+          "description": "df_north is a DataFrame",
+          "check": "hasattr(df_north, 'count') and hasattr(df_north, 'columns')"
+        },
+        {
+          "id": "F5-05-A2",
+          "description": "north_count equals 5 (all NORTH readings including the invalid one)",
+          "check": "north_count == 5"
+        },
+        {
+          "id": "F5-05-A3",
+          "description": "All rows in df_north have region == 'NORTH'",
+          "check": "df_north.filter(\"region != 'NORTH'\").count() == 0"
+        },
+        {
+          "id": "F5-05-A4",
+          "description": "All 4 original columns preserved (SELECT *)",
+          "check": "set(df_north.columns) == {'meter_id', 'daily_kw', 'date', 'region'}"
+        },
+        {
+          "id": "F5-05-A5",
+          "description": "The temp view readings_view was registered",
+          "check": "'readings_view' in [t.name for t in spark.catalog.listTables()]"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-F5-task-06",
+      "title": "Build NordGrid's Notebook Data Pipeline",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's Silver transformation notebook runs every morning after the Bronze ingestion pipeline completes. The notebook has one job: read the raw CSVs from the Bronze Files section, validate them, produce two clean managed tables in the Silver Tables section, and verify the row counts before returning. Your task is to build the complete notebook workflow. This synthesizes every F5 concept: the pre-configured spark variable, Files section reads, filtering, the saveAsTable write pattern, verification reads, and SQL for the final summary.\n\nThe pipeline has 5 steps, and each step uses a concept introduced in a specific F5 lesson.",
+        "task": "Build the full pipeline: (1) read F5_data_readings.csv from the Files section into df_readings_raw; (2) filter to rows with daily_kw > 0 and write the result as a managed table called silver_readings using overwrite mode; (3) read F5_data_meters.csv from the Files section into df_meters_raw and write it unfiltered as a managed table called silver_meters using overwrite mode; (4) read both tables back using spark.table() into df_silver_readings and df_silver_meters; (5) use spark.sql() to register df_silver_readings as a temp view called silver_readings_view and run a query computing the COUNT per region, ordered by region; store the result in df_regional_counts and also store the total row count across all regions in total_silver_rows (this should equal the row count of df_silver_readings).",
+        "validationHint": "Step 1 uses spark.read.csv. Step 2 uses filter + write.mode('overwrite').saveAsTable(). Step 3 uses spark.read.csv + saveAsTable. Step 4 uses spark.table() or spark.read.table(). Step 5 uses createOrReplaceTempView + spark.sql with GROUP BY region ORDER BY region. Expected values: silver_readings should have 17 rows (20 - 3 invalid), silver_meters should have 12 rows, df_regional_counts should have 4 rows (one per region), and total_silver_rows should be 17."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# Complete NordGrid notebook workflow: Bronze Files -> Silver Tables -> SQL summary.\n# In Fabric, this is exactly how a production Silver notebook is structured.\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-silver-notebook') \\\n    .master('local[*]') \\\n    .enableHiveSupport() \\\n    .getOrCreate()\n\nprint('Spark session ready. Running NordGrid Silver notebook workflow.')\n\n# YOUR SOLUTION BELOW\n\n# Step 1: Read F5_data_readings.csv into df_readings_raw (header=True, inferSchema=True)\n\n\n# Step 2: Filter df_readings_raw to daily_kw > 0, then write the result as a managed table\n#         called 'silver_readings' with mode='overwrite' using saveAsTable\n\n\n# Step 3: Read F5_data_meters.csv into df_meters_raw, then write it unfiltered as a managed\n#         table called 'silver_meters' with mode='overwrite' using saveAsTable\n\n\n# Step 4: Read both tables back into df_silver_readings and df_silver_meters using spark.table()\n\n\n# Step 5: Register df_silver_readings as a temp view called 'silver_readings_view'.\n#         Use spark.sql() to compute: SELECT region, COUNT(*) as reading_count\n#         FROM silver_readings_view GROUP BY region ORDER BY region\n#         Store the result in df_regional_counts.\n#         Also store the sum of all reading_count values (across all regions) in total_silver_rows.\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"silver_readings row count: {df_silver_readings.count()}\")\nprint(f\"silver_meters row count: {df_silver_meters.count()}\")\nprint(f\"Regional counts ({df_regional_counts.count()} rows):\")\ndf_regional_counts.show()\nprint(f\"Total silver rows: {total_silver_rows}\")"
+      },
+      "assertions": [
+        {
+          "id": "F5-06-A1",
+          "description": "df_readings_raw loaded with 20 rows",
+          "check": "df_readings_raw.count() == 20"
+        },
+        {
+          "id": "F5-06-A2",
+          "description": "silver_readings table has exactly 17 rows (invalid rows filtered out)",
+          "check": "spark.table('silver_readings').count() == 17"
+        },
+        {
+          "id": "F5-06-A3",
+          "description": "silver_readings contains no rows with daily_kw <= 0",
+          "check": "spark.table('silver_readings').filter(col('daily_kw') <= 0).count() == 0"
+        },
+        {
+          "id": "F5-06-A4",
+          "description": "silver_meters table has exactly 12 rows",
+          "check": "spark.table('silver_meters').count() == 12"
+        },
+        {
+          "id": "F5-06-A5",
+          "description": "df_silver_readings matches silver_readings table",
+          "check": "df_silver_readings.count() == 17 and set(df_silver_readings.columns) == {'meter_id', 'daily_kw', 'date', 'region'}"
+        },
+        {
+          "id": "F5-06-A6",
+          "description": "df_silver_meters matches silver_meters table",
+          "check": "df_silver_meters.count() == 12"
+        },
+        {
+          "id": "F5-06-A7",
+          "description": "df_regional_counts has 4 rows (one per region) and includes region + reading_count columns",
+          "check": "df_regional_counts.count() == 4 and 'region' in df_regional_counts.columns and 'reading_count' in df_regional_counts.columns"
+        },
+        {
+          "id": "F5-06-A8",
+          "description": "total_silver_rows equals 17",
+          "check": "total_silver_rows == 17"
+        }
+      ],
+      "partialCredit": "8 independent assertions. Each passed assertion earns 1/8 credit. A student who completes steps 1-3 earns at least 4/8 credit even if steps 4-5 fail.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Reading from the Files section with spark.read.csv (Lesson 5)",
+          "Writing to the Tables section with df.write.mode().saveAsTable() — the Fabric managed Delta table pattern (Lesson 6)",
+          "Reading back a managed table with spark.table() for verification (Lesson 5, 10)",
+          "Registering a temp view and running spark.sql() with GROUP BY — the PySpark-SQL bridge (Lesson 4)",
+          "The complete Files-to-Tables-to-SQL workflow that every NordGrid Silver notebook follows (Lesson 10)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This task synthesizes the module by requiring the student to apply every F5 concept in sequence. Step 1 tests Files section reads (Lesson 5). Step 2 tests filtering + Tables section writes (Lesson 6). Step 3 tests writing without filtering — different pattern, same mechanism. Step 4 tests managed table reads (closing the write-then-read loop). Step 5 tests the PySpark -> SQL bridge with aggregation. A student who can complete any single step but not the full chain would score partial credit through the 8 independent assertions, matching §3.2's partial credit model. The task mirrors the exact structure of a production Silver notebook at NordGrid, which is the learning objective of Lesson 10."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Not applied. F5 is Core Mechanics phase. This is the first code-heavy practice set in the Fabric junior track — 4 of 6 tasks are write-the-code, within the §4.2 max of 5. The scaffold pattern (pre-create SparkSession above the YOUR SOLUTION marker) simulates Fabric's pre-configured `spark` variable so the student writes the same code they would write in a real Fabric notebook.",
+    "theoryPracticeBoundary": "The theory teaches Fabric's notebook patterns through NordGrid's Bronze-to-Silver workflow in Lessons 5, 6, and 10. The practice tests application with a slightly different structure: Task 1 reads a pre-existing managed table (theory focuses on creation), Task 2 reads from the Files section with a different subpath than the theory's meter_exports example, Task 3 filters before writing (theory shows unfiltered writes and filtered writes in separate lessons), Task 5 uses spark.sql() with a temp view rather than a managed table (theory covers both but emphasizes the managed table case in Lesson 4), and Task 6 combines all patterns into a workflow that closely mirrors Lesson 10's end-of-module NordGrid example.",
+    "crossModuleNotes": "This practice set builds on F4's Lakehouse conceptual model (Files vs Tables sections, the SQL analytics endpoint) but tests F5's notebook code directly. The student does not need to know F6+ transformation patterns (schema enforcement with explicit StructType, deduplication, null handling) — Task 3's filter is a simple WHERE clause, not a multi-step data cleaning pipeline. F7 concepts (pipeline orchestration, scheduling) are not required — every task runs as standalone notebook code, not as part of a scheduled pipeline. F9 T-SQL concepts are not required beyond the basic SELECT + GROUP BY that F5 Lesson 4 introduces via spark.sql().",
+    "datasetNotes": "Two CSV datasets. F5_data_readings.csv has 20 rows with 3 intentionally invalid readings (negative daily_kw) to force the student to filter in Tasks 3 and 6. F5_data_meters.csv has 12 clean rows for the Files-section read in Task 2 and for the second table write in Task 6. Both datasets use the 4-region NordGrid junior scale and match the schemas from the PySpark Junior Track data contract. The managed tables created by Task 3 (readings_valid) and Task 6 (silver_readings, silver_meters) are stored in the local Spark warehouse and persist within a single grading run."
+  }
+}

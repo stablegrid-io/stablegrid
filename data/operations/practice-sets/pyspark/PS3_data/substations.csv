@@ -1,0 +1,9 @@
+substation_id,name,capacity_mw,region
+SUB-001,Hammerfest Wind Hub,450.0,NORTH
+SUB-002,Tromsø Solar Array,320.0,NORTH
+SUB-003,Bergen Coastal Plant,510.0,SOUTH
+SUB-004,Stavanger Grid Node,380.0,SOUTH
+SUB-005,Oslo Distribution,620.0,EAST
+SUB-006,Kristiansand Relay,290.0,EAST
+SUB-007,Trondheim Wind Park,440.0,WEST
+SUB-008,Bodø Offshore Link,350.0,WEST

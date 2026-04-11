@@ -2,6 +2,7 @@
 
 import {
   type LucideIcon,
+  BarChart3,
   BookOpen,
   Home
 } from 'lucide-react';
@@ -21,7 +22,13 @@ export const navItems: NavItem[] = [
     icon: BookOpen,
     label: 'Learn',
     matchPrefixes: ['/theory', '/learn']
-  }
+  },
+  {
+    href: '/progress',
+    icon: BarChart3,
+    label: 'Progress',
+    matchPrefixes: ['/progress']
+  },
 ];
 
 export const shouldHideNav = (pathname?: string | null, _isAuthenticated?: boolean) => {

@@ -58,7 +58,7 @@ export function PracticeSessionMiniPlayer() {
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-50 rounded-2xl border px-5 py-4 min-w-[240px]"
+      className="fixed bottom-6 right-6 z-50 rounded-[22px] border px-5 py-4 min-w-[240px]"
       style={{
         background: 'rgba(10,12,14,0.92)',
         backdropFilter: 'blur(24px) saturate(1.4)',
@@ -109,7 +109,7 @@ export function PracticeSessionMiniPlayer() {
 
       <Link
         href={session.route}
-        className="flex items-center justify-between rounded-lg py-2 px-3 text-[11px] font-semibold transition-all hover:scale-[1.02]"
+        className="flex items-center justify-between rounded-[14px] py-2 px-3 text-[11px] font-semibold transition-all hover:scale-[1.02]"
         style={{
           background: `rgba(${ACCENT},0.1)`,
           border: `1px solid rgba(${ACCENT},0.2)`,

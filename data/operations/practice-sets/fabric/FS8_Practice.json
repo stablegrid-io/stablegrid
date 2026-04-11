@@ -1,0 +1,517 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FS8 — Design Multi-Country Security Architecture",
+  "description": "Choose a country isolation approach for GridUnion's 4-country platform, build the country-boundary RLS configuration, review the identity governance setup for sprawl and over-privilege, diagnose an anomalous service principal access pattern from the audit log, and synthesize the complete security posture. Senior-level practice in multi-tenant security, regulatory data isolation, identity governance at 80-engineer scale, and audit-driven incident response.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / Microsoft Purview",
+  "metadata": {
+    "moduleId": "module-FS8",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 95,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "GridUnion Continental",
+    "scenarioScale": "5M meters, 30 regions, 4 countries (DE/FR/NL/LU), 12 teams, 80 engineers, 4 regulatory regimes (BNetzA/CRE/ACM/ILR)",
+    "modulePhase": "enterprise_operations",
+    "taskTypeMix": {
+      "tradeoffAnalysis": 1,
+      "designReview": 1,
+      "rootCauseAnalysis": 1,
+      "designArtifact": 1,
+      "architecturalSynthesis": 1
+    },
+    "calibrationNotes": "Senior practice set in the enterprise operations phase. One of each task type plus the synthesis. The trade-off task addresses the country isolation architecture decision (the central question for any multi-country Fabric platform). The design artifact builds the country-boundary RLS configuration with PII safety assertions. The design review tests subtle identity governance issues at 80-engineer scale. The root cause task uses an audit log dataset to diagnose anomalous access — the only senior-level task that combines audit log analysis with identity model reasoning. The synthesis combines all four into the security posture. Multi-defensible answers documented in acceptable_alternatives metadata."
+  },
+  "datasets": [
+    {
+      "id": "FS8_data_audit_log",
+      "file": "FS8_data_audit_log.csv",
+      "description": "Audit log sample for Task 4. 122 rows of access events across 5 service principals over April 1-8, 2026. Includes a planted anomaly: sp_billing_pipeline (which should only access German billing tables) starts accessing French tables on April 5 at 14:00 UTC. The 12 anomalous events span 96 minutes and show the same SP accessing fact_billing_fr, fact_readings_fr, and dim_meters_fr in ws_silver_fr. All access is marked allowed=True (the SP has overly broad permissions — it was granted cross-workspace access during a past investigation and the grant was never revoked).",
+      "schema": {
+        "columns": [
+          {"name": "timestamp", "type": "string", "nullable": false},
+          {"name": "principal", "type": "string", "nullable": false},
+          {"name": "action", "type": "string", "nullable": false},
+          {"name": "item", "type": "string", "nullable": false},
+          {"name": "workspace", "type": "string", "nullable": false},
+          {"name": "allowed", "type": "boolean", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FS8-task-04"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FS8-task-01",
+      "title": "Choose a Country Isolation Approach",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's platform team must decide on the country isolation architecture for the post-acquisition multi-country platform. Each country has its own regulator with specific data handling requirements (BNetzA for Germany, CRE for France, ACM for Netherlands, ILR for Luxembourg), and cross-country analytics is a recurring legitimate use case (cross-border energy flow analysis, EU-wide compliance reporting).\n\n  THREE OPTIONS UNDER CONSIDERATION:\n\n  OPTION A — WORKSPACE-PER-COUNTRY (FULL ISOLATION):\n    Create 4 separate workspaces (ws_silver_de, ws_silver_fr, ws_silver_nl, ws_silver_lu) with country-specific Lakehouses and Warehouses. Each workspace has its own role assignments. Cross-country analytics queries union 4 sources via OneLake shortcuts.\n    - Pros: clearest regulatory boundary (each regulator can audit a single workspace); minimum blast radius for credential leaks; easiest to demonstrate compliance during regulator inspections; per-country teams have full autonomy within their workspace\n    - Cons: cross-country queries are 4x more complex; cross-country shortcuts pay latency penalties (per FS7 Task 3); operational overhead of maintaining 4 parallel governance setups; the cross-country aggregation layer becomes its own architectural problem\n    - Estimated effort: 8 weeks (including consumer migration)\n\n  OPTION B — UNIFIED WORKSPACE WITH ROW-LEVEL SECURITY:\n    A single ws_silver_eu workspace with unified Lakehouses (silver_meter_readings_eu, etc.) and RLS predicates that filter rows by country_code based on the user's role. Engineers in the German team see only German rows; cross-country analysts see all 4 countries via a different role.\n    - Pros: single source of truth for cross-country queries; easiest cross-country aggregation; centralized governance; simplest schema evolution (one table to update)\n    - Cons: RLS misconfiguration would expose foreign country data (a one-line policy bug becomes a regulatory incident); regulator inspection is harder ('show me only the German data your platform processes' requires explaining RLS); a successful credential compromise on a unified-access role exposes all 4 countries' data\n    - Estimated effort: 4 weeks\n\n  OPTION C — HYBRID (WORKSPACE-PER-COUNTRY FOR RAW + UNIFIED FOR AGGREGATED):\n    Country-specific workspaces hold the raw Silver data (the per-country compliance boundary). A separate unified workspace (ws_gold_eu) holds aggregated cross-country data via OneLake shortcuts. Cross-country queries hit the unified workspace; per-country queries hit the country workspace.\n    - Pros: regulatory boundary is clear at the raw layer; cross-country queries are simple at the aggregated layer; the worst-case credential compromise is bounded by which workspace was compromised; engineers can be granted access only to their country at the raw layer\n    - Cons: the aggregated layer requires its own security model (who can read cross-country aggregates?); the OneLake shortcuts to country workspaces need access controls that mirror the source workspaces\n    - Estimated effort: 6 weeks\n\n  GRIDUNION CONSTRAINTS:\n    - 4 regulators with different audit expectations (BNetzA expects clear country boundaries; CRE has the strictest data residency rules of the four)\n    - 80 engineers across 12 teams; the platform team is 4 of those engineers\n    - Cross-country analytical queries are common (~40% of all queries against the unified data per FS5 Task 3)\n    - The platform team has been burned by an RLS misconfiguration in the past (a wrong predicate exposed German PII to the analytics team for 3 days before being caught)",
+        "task": "Evaluate the three options against the constraints and recommend ONE primary approach. Multiple defensible answers exist; the reasoning fields determine which is acceptable.",
+        "validationHint": "Both Option A (workspace-per-country) and Option C (Hybrid) are defensible primary answers. Option A is the conservative choice that prioritizes regulatory clarity and blast radius minimization above all else — appropriate when the team has been burned by RLS in the past and the regulators are strict. Option C is the architecturally optimal choice that balances regulatory clarity with cross-country query simplicity. Option B alone is rejected as primary because the past RLS misconfiguration incident is a strong signal that the team should NOT bet the regulatory boundary on RLS — once burned, twice shy."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS8-01-F1",
+            "type": "single_select",
+            "label": "RECOMMENDATION: Which approach do you recommend as the primary country isolation strategy?",
+            "options": [
+              "Option A (Workspace-Per-Country) — strictest regulatory boundary, smallest blast radius, easiest to demonstrate compliance",
+              "Option B (Unified Workspace With RLS) — simplest cross-country queries, single source of truth",
+              "Option C (Hybrid) — country-specific raw + unified aggregated, balances regulatory clarity with query simplicity",
+              "Option D (None of the above)"
+            ],
+            "correctAnswer": "Option C (Hybrid) — country-specific raw + unified aggregated, balances regulatory clarity with query simplicity",
+            "secondaryCorrectAnswer": "Option A (Workspace-Per-Country) — strictest regulatory boundary, smallest blast radius, easiest to demonstrate compliance",
+            "rationale": "PRIMARY answer is Option C (Hybrid) because it balances the regulatory boundary at the raw layer (where the regulators care most) with the cross-country query simplicity at the aggregated layer (where the analytics teams need it). The hybrid approach also has bounded credential compromise impact: a leak in a country workspace exposes that country, a leak in the aggregated workspace exposes only the aggregates (which are typically less sensitive). SECONDARY answer is Option A (Workspace-Per-Country) — the past RLS incident is a strong signal that the team should not bet the regulatory boundary on RLS, and Option A is the strictest defense. A staff engineer would defend either C or A depending on whether they prioritize architectural elegance (C) or maximum regulatory safety (A). Option B alone is rejected because the past RLS misconfiguration makes betting the entire platform on RLS unacceptably risky.",
+            "acceptable_alternatives": "Either Option C (primary) or Option A (secondary) is accepted. Option B may be accepted only if the student's reasoning explicitly addresses how the team will prevent a recurrence of the past RLS incident (e.g., automated RLS testing, dual-review of RLS predicates, periodic RLS audit) — without this, Option B is rejected because it ignores the team's burned history."
+          },
+          {
+            "id": "FS8-01-F2",
+            "type": "multi_select",
+            "label": "TRADE-OFF FACTORS: Which factors does your chosen approach prioritize? (Select all that apply)",
+            "options": [
+              "Regulatory boundary clarity (each regulator can audit their data without ambiguity)",
+              "Blast radius minimization (a credential compromise affects bounded scope)",
+              "Cross-country query simplicity (one table to read for cross-country analytics)",
+              "Implementation effort (fits within the platform team's bandwidth)",
+              "Tolerance for past RLS incidents (avoids betting the regulatory boundary on a mechanism that has failed)",
+              "Single source of truth for unified data"
+            ],
+            "correctAnswer": ["Regulatory boundary clarity (each regulator can audit their data without ambiguity)", "Blast radius minimization (a credential compromise affects bounded scope)", "Cross-country query simplicity (one table to read for cross-country analytics)", "Tolerance for past RLS incidents (avoids betting the regulatory boundary on a mechanism that has failed)"],
+            "rationale": "Option C (Hybrid) prioritizes regulatory boundary clarity (raw layer is per-country), blast radius minimization (compromise is bounded by workspace), cross-country query simplicity (aggregated layer is unified), and avoidance of the RLS-only failure mode. It does NOT optimize for implementation effort (Option B is faster) or single source of truth (Option B has a true single source). The student's multi-select must match the prioritization implied by their F1 choice.",
+            "acceptable_alternatives": "If F1 = Option A, accept {Regulatory boundary clarity, Blast radius minimization, Tolerance for past RLS incidents} — Option A doesn't optimize for cross-country query simplicity. If F1 = Option B, accept {Cross-country query simplicity, Implementation effort, Single source of truth}."
+          },
+          {
+            "id": "FS8-01-F3",
+            "type": "single_select",
+            "label": "EXPIRATION CONDITION: Under what conditions would your recommended approach stop being the right choice?",
+            "options": [
+              "When cross-country analytics becomes the dominant workload (e.g., 80%+ of queries are cross-country) AND the team has built robust RLS testing infrastructure (after-incident automation), Option B (unified RLS) becomes the better choice. The hybrid's per-country layer becomes overhead when most queries don't benefit from it",
+              "Never — Option C is always correct",
+              "When GridUnion adds a 5th country",
+              "When the team grows to 200 engineers"
+            ],
+            "correctAnswer": "When cross-country analytics becomes the dominant workload (e.g., 80%+ of queries are cross-country) AND the team has built robust RLS testing infrastructure (after-incident automation), Option B (unified RLS) becomes the better choice. The hybrid's per-country layer becomes overhead when most queries don't benefit from it",
+            "rationale": "Every senior architectural choice has expiration conditions. The Hybrid is right NOW because cross-country queries are 40% of the workload and the team has been burned by RLS. If both conditions reverse (cross-country becomes dominant AND RLS is hardened), the unified approach becomes more efficient. The senior pattern is to know the conditions under which the current decision should be revisited."
+          },
+          {
+            "id": "FS8-01-F4",
+            "type": "single_select",
+            "label": "STRONGEST COUNTERARGUMENT: What is the strongest argument a peer reviewer might raise against your recommendation?",
+            "options": [
+              "The Hybrid creates two security models (the per-country raw layer and the unified aggregated layer), each with its own access control logic. Two security models means two places where misconfiguration can happen and two surfaces for a peer reviewer to verify during a security audit. The complexity is real and recurring",
+              "The Hybrid is architecturally trivial",
+              "Hybrid is not supported in Fabric",
+              "There is no argument against the Hybrid"
+            ],
+            "correctAnswer": "The Hybrid creates two security models (the per-country raw layer and the unified aggregated layer), each with its own access control logic. Two security models means two places where misconfiguration can happen and two surfaces for a peer reviewer to verify during a security audit. The complexity is real and recurring",
+            "rationale": "The strongest counterargument to the Hybrid is the complexity tax: maintaining two security models is harder than maintaining one. The student's defense is that the complexity is bounded (the aggregated layer is smaller than the raw layer and has simpler access control because it's only aggregated data) and the regulatory benefits outweigh the complexity. A peer reviewer could legitimately argue that simpler is safer — and they would be right in some contexts. The senior reasoning is to know the trade-off and DEFEND the choice with the regulatory + past-incident context."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS8-task-02",
+      "title": "Build the Country-Boundary RLS Configuration",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "Following the Task 1 hybrid recommendation, the unified aggregated layer (silver_meter_readings_eu) needs an RLS configuration that maps each of GridUnion's 12 teams to the countries they're allowed to query. Plus a special cross_country_analytics role for the analytics team's EU-wide aggregations.\n\nThe 12 teams and their country access:\n  - data_engineering_de  (German DE team)              -> DE only\n  - data_engineering_fr  (French DE team)              -> FR only\n  - data_engineering_nl  (Dutch DE team)               -> NL only\n  - data_engineering_lu  (Luxembourg DE team)          -> LU only\n  - analytics_de         (German analytics team)      -> DE only\n  - analytics_fr         (French analytics team)      -> FR only\n  - analytics_nl         (Dutch analytics team)       -> NL only\n  - analytics_lu         (Luxembourg analytics team)  -> LU only\n  - ml_team              (centralized ML team)         -> all 4 countries (cross-country features)\n  - platform_team        (centralized platform team)   -> all 4 countries (operational access)\n  - compliance_team      (centralized compliance)      -> all 4 countries (audit access)\n  - cross_country_analytics (special EU-wide role)    -> all 4 countries\n\nIMPORTANT: PII columns (customer_name, contact_email, billing_address) must be HIDDEN from the ml_team and the cross_country_analytics role. They are visible to compliance_team, platform_team, and the per-country DE/analytics teams.\n\n  TABLE silver_meter_readings_eu COLUMNS:\n    meter_id, reading_date, country_code, region_code, daily_kw, tariff_id (visible to all roles based on country)\n    customer_name, contact_email, billing_address (PII; visible only to per-country roles + compliance + platform)",
+        "task": "Build a Python dict called rls_config with these top-level keys:\n  - role_country_access: a dict mapping each of the 12 role names to a list of allowed country_codes (sorted: ['DE'] / ['FR'] / ['NL'] / ['LU'] / ['DE','FR','LU','NL'])\n  - pii_visible_to: a list containing the role names that CAN see PII columns. Specifically: data_engineering_de, data_engineering_fr, data_engineering_nl, data_engineering_lu, analytics_de, analytics_fr, analytics_nl, analytics_lu, compliance_team, platform_team\n  - pii_columns: a list containing 'customer_name', 'contact_email', 'billing_address'\n  - default_action: 'deny' (deny by default; only explicit role grants allow access)",
+        "validationHint": "Build the dict literally. The keystone safety assertions are: ml_team and cross_country_analytics must NOT be in pii_visible_to (they get PII masked). All 4 per-country DE teams have only their country in role_country_access. All 4 per-country analytics teams have only their country. ml_team, platform_team, compliance_team, and cross_country_analytics each have all 4 countries."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS8 Lesson 2: country-boundary RLS configuration for silver_meter_readings_eu.\n\n# YOUR SOLUTION BELOW\n# Build rls_config with role_country_access (12 roles), pii_visible_to (10 roles),\n# pii_columns (3 columns), default_action ('deny').\n\nrls_config = {\n    'role_country_access': {\n        # 12 role entries\n    },\n    # pii_visible_to\n    # pii_columns\n    # default_action\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nfor role, countries in rls_config['role_country_access'].items():\n    print(f'{role}: {countries}')\nprint(f'PII visible to: {rls_config[\"pii_visible_to\"]}')"
+      },
+      "assertions": [
+        {
+          "id": "FS8-02-A1",
+          "description": "rls_config has all 4 required top-level keys",
+          "check": "set(rls_config.keys()) >= {'role_country_access', 'pii_visible_to', 'pii_columns', 'default_action'}"
+        },
+        {
+          "id": "FS8-02-A2",
+          "description": "role_country_access has all 12 expected role names",
+          "check": "set(rls_config['role_country_access'].keys()) == {'data_engineering_de', 'data_engineering_fr', 'data_engineering_nl', 'data_engineering_lu', 'analytics_de', 'analytics_fr', 'analytics_nl', 'analytics_lu', 'ml_team', 'platform_team', 'compliance_team', 'cross_country_analytics'}"
+        },
+        {
+          "id": "FS8-02-A3",
+          "description": "All 4 per-country DE teams have only their country in their access list",
+          "check": "set(rls_config['role_country_access']['data_engineering_de']) == {'DE'} and set(rls_config['role_country_access']['data_engineering_fr']) == {'FR'} and set(rls_config['role_country_access']['data_engineering_nl']) == {'NL'} and set(rls_config['role_country_access']['data_engineering_lu']) == {'LU'}"
+        },
+        {
+          "id": "FS8-02-A4",
+          "description": "All 4 per-country analytics teams have only their country in their access list",
+          "check": "set(rls_config['role_country_access']['analytics_de']) == {'DE'} and set(rls_config['role_country_access']['analytics_fr']) == {'FR'} and set(rls_config['role_country_access']['analytics_nl']) == {'NL'} and set(rls_config['role_country_access']['analytics_lu']) == {'LU'}"
+        },
+        {
+          "id": "FS8-02-A5",
+          "description": "ml_team, platform_team, compliance_team, and cross_country_analytics each have all 4 countries",
+          "check": "set(rls_config['role_country_access']['ml_team']) == {'DE','FR','NL','LU'} and set(rls_config['role_country_access']['platform_team']) == {'DE','FR','NL','LU'} and set(rls_config['role_country_access']['compliance_team']) == {'DE','FR','NL','LU'} and set(rls_config['role_country_access']['cross_country_analytics']) == {'DE','FR','NL','LU'}"
+        },
+        {
+          "id": "FS8-02-A6",
+          "description": "pii_visible_to contains the 10 expected roles (8 per-country + compliance + platform)",
+          "check": "set(rls_config['pii_visible_to']) == {'data_engineering_de', 'data_engineering_fr', 'data_engineering_nl', 'data_engineering_lu', 'analytics_de', 'analytics_fr', 'analytics_nl', 'analytics_lu', 'compliance_team', 'platform_team'}"
+        },
+        {
+          "id": "FS8-02-A7",
+          "description": "SAFETY KEYSTONE: ml_team is NOT in pii_visible_to (PII must be masked from ML)",
+          "check": "'ml_team' not in rls_config['pii_visible_to']"
+        },
+        {
+          "id": "FS8-02-A8",
+          "description": "SAFETY KEYSTONE: cross_country_analytics is NOT in pii_visible_to (PII masked from cross-country aggregations)",
+          "check": "'cross_country_analytics' not in rls_config['pii_visible_to']"
+        },
+        {
+          "id": "FS8-02-A9",
+          "description": "pii_columns contains all 3 expected PII column names",
+          "check": "set(rls_config['pii_columns']) == {'customer_name', 'contact_email', 'billing_address'}"
+        },
+        {
+          "id": "FS8-02-A10",
+          "description": "default_action is 'deny' (deny by default — explicit grants only)",
+          "check": "rls_config['default_action'] == 'deny'"
+        }
+      ],
+      "partialCredit": "10 independent assertions. Each passed assertion earns 1/10 credit. The KEYSTONES are A7 and A8 (ml_team and cross_country_analytics excluded from PII access) — these are the safety assertions that fail loudly if a student accidentally exposes customer PII to roles that should not see it. A10 (deny by default) is also load-bearing because it ensures no role gets accidental access through omission."
+    },
+    {
+      "id": "module-FS8-task-03",
+      "title": "Review GridUnion's Identity Governance Setup",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's platform team is reviewing the current identity governance setup for the engineering and analytics teams. The setup was created 6 months ago when the platform was 40 engineers; it has not been updated as the team grew to 80.\n\n  CURRENT IDENTITY GOVERNANCE SETUP:\n\n  ROLE GROUPS (Azure AD groups synced into Fabric):\n    grp_engineering_de       8 members\n    grp_engineering_fr       6 members\n    grp_engineering_nl       4 members\n    grp_engineering_lu       3 members\n    grp_analytics_de         5 members\n    grp_analytics_fr         5 members\n    grp_analytics_nl         3 members\n    grp_analytics_lu         3 members\n    grp_ml                   4 members\n    grp_platform             4 members\n    grp_compliance           2 members\n\n  SERVICE PRINCIPALS (for pipeline automation):\n    sp_silver_consolidator   used by Silver consolidation pipelines\n    sp_gold_aggregator       used by Gold aggregation pipelines\n    sp_billing_pipeline      used by the German billing pipeline\n    sp_regulatory_fr         used by the French regulatory pipeline\n    sp_ml_features           used by ML feature engineering pipelines\n    sp_streaming_ingest      used by Eventstream → Lakehouse ingestion\n    sp_legacy_etl_v1         used by a legacy ETL system being decommissioned\n    sp_legacy_etl_v2         used by a newer legacy ETL system being decommissioned\n    sp_jane_test             created 8 months ago by a former employee for one-off testing\n    sp_quarterly_reports     used by the quarterly regulatory report\n    sp_powerbi_refresh       used by Power BI dataset refreshes\n    sp_data_export           used by data export to external partners\n\n  PERMISSIONS PATTERN:\n    Role groups: members are granted workspace-level Admin or Contributor roles via group membership (a single grant per workspace). Group membership is managed in Azure AD.\n    Service principals: each SP is granted individual permissions on specific workspaces and tables through Fabric's UI. There is no group-based granting for SPs.\n\n  CREDENTIAL ROTATION POLICY:\n    Role group members: Azure AD enforces 90-day password rotation\n    Service principal secrets: 'rotate when convenient' (no enforced policy)\n    Recent rotations: sp_silver_consolidator was rotated 14 months ago; sp_billing_pipeline was rotated 18 months ago; the rest have been longer\n\n  RECENT EVENTS:\n    - 3 engineers left the company in the past 6 months; their Azure AD accounts were deactivated by HR within 24 hours\n    - 1 contractor's contract ended 2 months ago; their account was deactivated 3 weeks after the contract end\n    - sp_jane_test still has its original secret from 8 months ago and Active workspace permissions",
+        "task": "Review the identity governance setup for issues. Identify at least 4 problems and severity-rank them. Focus on credential management, sprawl, over-privilege, and process gaps.",
+        "validationHint": "Issue 1 (BLOCKING): sp_jane_test was created by a former employee, has its original secret, and still has active permissions. This is a direct security violation — orphaned service principal with old credentials is a credential leak waiting to happen. Issue 2 (HIGH): no rotation policy for service principal secrets. The 14-18 month rotation gap exceeds any reasonable security baseline. Issue 3 (HIGH): contractor offboarding lag (3 weeks vs 24 hours for employees) — the gap between contract end and account deactivation is a real exposure window. Issue 4 (HIGH): legacy SPs (sp_legacy_etl_v1, sp_legacy_etl_v2) have active permissions despite 'being decommissioned' — they should be aggressively decommissioned, not maintained in an in-between state. Issue 5 (DESIGN): no group-based granting for service principals means each SP is configured individually, which doesn't scale and creates configuration drift."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS8-03-F1",
+            "type": "single_select",
+            "label": "ISSUE 1 SEVERITY: sp_jane_test (created by a former employee, original 8-month-old secret, active permissions). Severity?",
+            "options": [
+              "BLOCKING — orphaned service principal with old credentials and active permissions is a credential leak waiting to happen. The original creator no longer works at GridUnion; the secret has not been rotated; nothing prevents unauthorized use if the secret was ever exposed. Immediate revocation of the SP",
+              "LOW — the SP is just for testing",
+              "HIGH but not urgent",
+              "Not a problem"
+            ],
+            "correctAnswer": "BLOCKING — orphaned service principal with old credentials and active permissions is a credential leak waiting to happen. The original creator no longer works at GridUnion; the secret has not been rotated; nothing prevents unauthorized use if the secret was ever exposed. Immediate revocation of the SP",
+            "rationale": "Orphaned service principals are the canonical security exposure: a credential exists, it works, and nobody is responsible for it. The 'just for testing' framing is dangerous because a test SP usually has broad permissions (it was created when the developer needed to debug something). The right action is immediate revocation, not 'we'll get to it'. This is the same lesson as FI9 Task 1 (permission sprawl) escalated to senior-level service principal hygiene."
+          },
+          {
+            "id": "FS8-03-F2",
+            "type": "single_select",
+            "label": "ISSUE 2 SEVERITY: No rotation policy for service principal secrets (14-18 month rotation gaps). Severity?",
+            "options": [
+              "HIGH — the rotation gap is a recurring exposure: every month a secret is not rotated, the probability of compromise increases. Industry baseline for SP secret rotation is 90-180 days; 14-18 months is well outside any reasonable baseline. The fix is automated rotation via Azure Key Vault or equivalent, not manual reminders",
+              "LOW — secrets don't expire",
+              "BLOCKING under all circumstances",
+              "Not a problem"
+            ],
+            "correctAnswer": "HIGH — the rotation gap is a recurring exposure: every month a secret is not rotated, the probability of compromise increases. Industry baseline for SP secret rotation is 90-180 days; 14-18 months is well outside any reasonable baseline. The fix is automated rotation via Azure Key Vault or equivalent, not manual reminders",
+            "rationale": "Service principal secrets are equivalent to long-lived passwords. Rotation is the security hygiene that limits the blast radius of any single compromise. 'Rotate when convenient' is a non-policy; the right approach is automated rotation tied to expiration dates that the platform enforces. Distractor C (BLOCKING under all circumstances) is too rigid — the absence of rotation is HIGH because it's an exposure but no current breach is known."
+          },
+          {
+            "id": "FS8-03-F3",
+            "type": "single_select",
+            "label": "ISSUE 3 SEVERITY: Contractor offboarding lag (3 weeks vs 24 hours for employees). Severity?",
+            "options": [
+              "HIGH — the 3-week window is a real exposure where the contractor's account is still active despite their relationship ending. The HR process for employees works (24 hours); the contractor process is broken. The fix is to apply the same SLA (24 hours) to contractor offboarding, ideally tying contract end dates to automatic deactivation",
+              "LOW — contractors are trustworthy",
+              "BLOCKING for every contractor",
+              "Not a problem"
+            ],
+            "correctAnswer": "HIGH — the 3-week window is a real exposure where the contractor's account is still active despite their relationship ending. The HR process for employees works (24 hours); the contractor process is broken. The fix is to apply the same SLA (24 hours) to contractor offboarding, ideally tying contract end dates to automatic deactivation",
+            "rationale": "The contractor offboarding gap is a process failure, not a technology failure. The same Azure AD that handles employee deactivation can handle contractor deactivation; the gap exists because someone forgot to push the button or the contract end date wasn't tracked in HR. The fix is to tie contractor account lifecycles to contract dates with automatic enforcement, the same way employee accounts are tied to employment status."
+          },
+          {
+            "id": "FS8-03-F4",
+            "type": "single_select",
+            "label": "ISSUE 4 SEVERITY: Legacy SPs (sp_legacy_etl_v1, sp_legacy_etl_v2) have active permissions despite 'being decommissioned'. Severity?",
+            "options": [
+              "HIGH — 'being decommissioned' has been the status for an unspecified period; 'in progress' decommissioning is the worst of both worlds (the SPs still have permissions, but no one is actively using or maintaining them). Either commit to decommissioning with a deadline (revoke permissions on a specific date) or commit to keeping the SPs active with rotation. The current limbo is unacceptable",
+              "LOW — they will be removed soon",
+              "BLOCKING — revoke immediately without notice",
+              "Not a problem"
+            ],
+            "correctAnswer": "HIGH — 'being decommissioned' has been the status for an unspecified period; 'in progress' decommissioning is the worst of both worlds (the SPs still have permissions, but no one is actively using or maintaining them). Either commit to decommissioning with a deadline (revoke permissions on a specific date) or commit to keeping the SPs active with rotation. The current limbo is unacceptable",
+            "rationale": "The 'being decommissioned' status is a recurring anti-pattern: it sounds like progress but actually means 'we forgot about this'. The senior insight is that decommissioning needs a specific deadline. Distractor C (revoke immediately without notice) is correct in spirit but may break the legacy ETL system if it's still feeding data somewhere. The right action is to investigate the actual usage (audit logs), set a deadline, communicate to consumers, and execute the deadline."
+          },
+          {
+            "id": "FS8-03-F5",
+            "type": "single_select",
+            "label": "REVIEWER VERDICT: What do you recommend the platform team do?",
+            "options": [
+              "1. Immediately revoke sp_jane_test (Issue 1, BLOCKING). 2. Implement automated SP secret rotation via Azure Key Vault within 2 weeks (Issue 2, HIGH). 3. Fix the contractor offboarding SLA to match employee SLA within 1 week (Issue 3, HIGH). 4. Set decommissioning deadlines for sp_legacy_etl_v1 and sp_legacy_etl_v2 within 1 sprint (Issue 4, HIGH). 5. Establish SP group-based granting as a longer-term improvement to prevent sprawl",
+              "Approve as-is",
+              "Block all production work until everything is fixed",
+              "Hire a security team to handle this"
+            ],
+            "correctAnswer": "1. Immediately revoke sp_jane_test (Issue 1, BLOCKING). 2. Implement automated SP secret rotation via Azure Key Vault within 2 weeks (Issue 2, HIGH). 3. Fix the contractor offboarding SLA to match employee SLA within 1 week (Issue 3, HIGH). 4. Set decommissioning deadlines for sp_legacy_etl_v1 and sp_legacy_etl_v2 within 1 sprint (Issue 4, HIGH). 5. Establish SP group-based granting as a longer-term improvement to prevent sprawl",
+            "rationale": "Senior reviewer verdict on identity issues: prioritized phased remediation. The BLOCKING issue gets immediate action (revoke sp_jane_test). The HIGH issues get sprint-level deadlines. The DESIGN issue (group-based SP granting) is the longer-term improvement that prevents recurrence. Distractor C (block all production) is over-correction. Distractor D (hire security team) abdicates platform team responsibility."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS8-task-04",
+      "title": "Anomalous Access Pattern in the Audit Log",
+      "type": "root_cause_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's compliance team flagged an unusual access pattern in the Fabric audit log: a service principal that historically accessed only German tables started accessing French tables on April 5, 2026. The compliance lead asks the platform team to investigate.\n\nThe audit log sample (FS8_data_audit_log.csv) contains 122 access events across 5 service principals over April 1-8, 2026. Your job is to analyze it, identify the anomalous pattern, and trace it to the root cause through the identity model.\n\n  KNOWN CONTEXT:\n  - sp_billing_pipeline historically accesses only German billing tables (fact_billing_de, dim_meters_de, dim_tariff_de) in ws_silver_de\n  - The German billing pipeline does NOT need French data — there is no business reason for sp_billing_pipeline to read French tables\n  - On April 5 at 14:00 UTC, the SP started accessing French tables\n  - All accesses are marked allowed=True (no permission denials)\n\nThe key diagnostic question: WHY were the French accesses allowed if sp_billing_pipeline should not have permission to read French tables?",
+        "task": "Read FS8_data_audit_log.csv into a Spark DataFrame as audit_log. Compute 4 variables and trace the root cause.\n\nVariables to compute:\n  - total_events: total row count in audit_log (int)\n  - billing_sp_total: total events for principal='sp_billing_pipeline' (int)\n  - billing_sp_french_events: count of events where principal='sp_billing_pipeline' AND item LIKE '%_fr' (int) — the anomalous events\n  - first_anomaly_date: the earliest timestamp where sp_billing_pipeline accessed a French table (string in 'YYYY-MM-DD' format)",
+        "validationHint": "Use Spark SQL: SELECT COUNT(*) FROM audit_log WHERE principal='sp_billing_pipeline' AND item LIKE '%_fr'. The dataset has 122 total events, ~62 events for sp_billing_pipeline (50 normal + 12 anomalous), 12 anomalous French events, and the first anomaly is on 2026-04-05. The root cause is that sp_billing_pipeline was granted cross-workspace access during a past investigation and the grant was never revoked — the same permission sprawl pattern as FI9 Task 1 escalated to service principal scope."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS8 Lesson 7: audit log forensics for anomalous access patterns.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('gridunion-audit-investigation') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_audit = spark.read.csv('FS8_data_audit_log.csv', header=True, inferSchema=True)\ndf_audit.createOrReplaceTempView('audit_log')\nprint(f'audit_log: {df_audit.count()} events')\n\n# YOUR SOLUTION BELOW\n# Compute the 4 variables: total_events, billing_sp_total, billing_sp_french_events,\n# first_anomaly_date.\n# Use Spark SQL to filter and count.\n# French tables are identified by the suffix '_fr' in the item column.\n\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f'total_events: {total_events}')\nprint(f'billing_sp_total: {billing_sp_total}')\nprint(f'billing_sp_french_events: {billing_sp_french_events}')\nprint(f'first_anomaly_date: {first_anomaly_date}')"
+      },
+      "assertions": [
+        {
+          "id": "FS8-04-A1",
+          "description": "total_events equals 122",
+          "check": "int(total_events) == 122"
+        },
+        {
+          "id": "FS8-04-A2",
+          "description": "billing_sp_total is approximately 62 (50 normal + 12 anomalous)",
+          "check": "55 <= int(billing_sp_total) <= 70"
+        },
+        {
+          "id": "FS8-04-A3",
+          "description": "billing_sp_french_events equals 12 (the planted anomalies)",
+          "check": "int(billing_sp_french_events) == 12"
+        },
+        {
+          "id": "FS8-04-A4",
+          "description": "first_anomaly_date is 2026-04-05",
+          "check": "str(first_anomaly_date) == '2026-04-05'"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "FS8-04-F1",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — SYMPTOM: What does the audit log show is anomalous about sp_billing_pipeline's behavior?",
+            "options": [
+              "12 events on April 5-6 where sp_billing_pipeline accessed French tables (fact_billing_fr, fact_readings_fr, dim_meters_fr) in ws_silver_fr — a workspace it has no business reason to read. Before April 5, the SP only accessed German tables. After April 5, it continues accessing both. The behavior change is sudden and unexplained",
+              "The SP made too many requests",
+              "The SP was denied access",
+              "The SP changed its name"
+            ],
+            "correctAnswer": "12 events on April 5-6 where sp_billing_pipeline accessed French tables (fact_billing_fr, fact_readings_fr, dim_meters_fr) in ws_silver_fr — a workspace it has no business reason to read. Before April 5, the SP only accessed German tables. After April 5, it continues accessing both. The behavior change is sudden and unexplained",
+            "rationale": "The first step in any audit-driven investigation is to localize the anomalous events. The 12 French accesses by sp_billing_pipeline are the anomaly. Time-localizing the change (April 5) is also important — it tells the investigator when something changed and where to look for the cause."
+          },
+          {
+            "id": "FS8-04-F2",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — COMPONENT: Why were the French accesses allowed (allowed=True in the audit log) if sp_billing_pipeline should not have French permissions?",
+            "options": [
+              "The SP has overly broad permissions: at some point in the past, sp_billing_pipeline was granted cross-workspace access (probably during an investigation or a one-off task), and the grant was never revoked. The Fabric permission system allowed the access because the permission grant was still valid; the audit log shows allowed=True because the system enforced the (incorrect) permission",
+              "The Fabric audit log is wrong",
+              "All service principals have access to all workspaces",
+              "French tables have no security"
+            ],
+            "correctAnswer": "The SP has overly broad permissions: at some point in the past, sp_billing_pipeline was granted cross-workspace access (probably during an investigation or a one-off task), and the grant was never revoked. The Fabric permission system allowed the access because the permission grant was still valid; the audit log shows allowed=True because the system enforced the (incorrect) permission",
+            "rationale": "The senior insight is that 'allowed=True' does not mean 'should be allowed' — it means 'the permission system was configured to allow it'. The audit log records what the permission system did, not what was correct. This distinguishes a configuration problem (the SP shouldn't have the permission) from a system bug (the permission system enforced the wrong rule). In this case, it's a configuration problem inherited from a past grant that was never revoked."
+          },
+          {
+            "id": "FS8-04-F3",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — MECHANISM: How did sp_billing_pipeline acquire the French access in the first place?",
+            "options": [
+              "An engineer with permission to grant SP access added French workspace access to sp_billing_pipeline at some point in the past — likely during an incident response, a one-off cross-country reconciliation task, or a temporary debugging session. The grant was meant to be temporary but was never revoked. This is the classic permission sprawl pattern from FI9 Task 1, escalated to service principals",
+              "The SP was created with French access",
+              "Microsoft Fabric grants all access automatically",
+              "Cross-country access is the default"
+            ],
+            "correctAnswer": "An engineer with permission to grant SP access added French workspace access to sp_billing_pipeline at some point in the past — likely during an incident response, a one-off cross-country reconciliation task, or a temporary debugging session. The grant was meant to be temporary but was never revoked. This is the classic permission sprawl pattern from FI9 Task 1, escalated to service principals",
+            "rationale": "Permission sprawl is the recurring anti-pattern: temporary grants become permanent because nothing in the system removes them. The same lesson from FI9 Task 1 (10 admins on the production Silver workspace, 8 of them unjustified) applies to service principals — they accumulate permissions during ad-hoc grants and never lose them. The senior fix is automated expiration of grants and periodic access reviews of SP permissions, not just user permissions."
+          },
+          {
+            "id": "FS8-04-F4",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — FIX: What is the immediate fix?",
+            "options": [
+              "1. Revoke sp_billing_pipeline's access to ws_silver_fr immediately. 2. Investigate WHY the SP started using the French permission on April 5 — was it a code change in the German billing pipeline that erroneously added French queries? Was it a malicious actor with the SP's credentials? The audit log shows the access but not the reason; the platform team must investigate the calling code. 3. Audit all SPs for similar over-permission patterns. 4. Implement time-bounded SP grants going forward",
+              "Wait until next quarter to address this",
+              "Disable all service principals",
+              "Notify the user and ask them to fix it"
+            ],
+            "correctAnswer": "1. Revoke sp_billing_pipeline's access to ws_silver_fr immediately. 2. Investigate WHY the SP started using the French permission on April 5 — was it a code change in the German billing pipeline that erroneously added French queries? Was it a malicious actor with the SP's credentials? The audit log shows the access but not the reason; the platform team must investigate the calling code. 3. Audit all SPs for similar over-permission patterns. 4. Implement time-bounded SP grants going forward",
+            "rationale": "Senior incident response: contain (revoke), investigate (find the cause), generalize (audit similar SPs), prevent (time-bounded grants). The audit log answers WHAT happened but not WHY — the platform team must investigate the calling code to determine whether this is a benign code change, a misconfiguration, or a credential compromise. Distractor B is unacceptable for a security incident. Distractor C is over-correction. Distractor D is wrong because there is no 'user' for a service principal — the platform team owns it."
+          },
+          {
+            "id": "FS8-04-F5",
+            "type": "single_select",
+            "label": "DIAGNOSTIC CHAIN — LESSON: What is the senior-level lesson about audit logs as a security control?",
+            "options": [
+              "Audit logs are detection, not prevention. They tell you what happened AFTER it happened, but they cannot stop access that the permission system allowed. The audit log is necessary for compliance and investigation, but the load-bearing security control is the permission system itself — what the SP is allowed to do. This investigation only worked because compliance was actively reviewing audit logs; without that review, the over-permission would have remained undetected indefinitely",
+              "Audit logs are sufficient for security",
+              "Audit logs prevent unauthorized access",
+              "Audit logs are optional for security"
+            ],
+            "correctAnswer": "Audit logs are detection, not prevention. They tell you what happened AFTER it happened, but they cannot stop access that the permission system allowed. The audit log is necessary for compliance and investigation, but the load-bearing security control is the permission system itself — what the SP is allowed to do. This investigation only worked because compliance was actively reviewing audit logs; without that review, the over-permission would have remained undetected indefinitely",
+            "rationale": "The detection-vs-prevention distinction is the senior insight. Audit logs are valuable but not load-bearing for security — the load-bearing control is what the permission system allows. A team that relies on audit logs to catch problems is reactive; a team that minimizes the permission system to least privilege prevents problems in the first place. Both are needed, but the order matters: prevention first, detection as the safety net."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS8-task-05",
+      "title": "GridUnion's Security Posture",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 23,
+      "description": {
+        "context": "This is the synthesis task. GridUnion's platform team is finalizing the complete security posture specification that integrates the lessons from this entire practice set:\n\n  - Country isolation architecture (Task 1: Hybrid)\n  - Country-boundary RLS configuration (Task 2)\n  - Identity governance with SP rotation and group-based granting (Task 3)\n  - Audit-driven anomaly detection and response (Task 4)\n  - Selective architectural review for high-impact security decisions\n\nYour job has two parts: (1) DIAGNOSIS — fill the 4-field template articulating the security principles. (2) ARTIFACT — build the security posture spec as a Python dict.",
+        "task": "Fill the diagnosis template AND build the security_posture dict.\n\nFor the ARTIFACT: Build a Python dict called security_posture with these top-level keys:\n  - country_isolation_strategy: 'hybrid_per_country_raw_unified_aggregated' (the Task 1 primary recommendation)\n  - rls_default_action: 'deny' (matches Task 2 A10)\n  - pii_masking_enabled: True\n  - sp_rotation_policy: a dict with rotation_days (90), enforced_by ('azure_key_vault'), exception_approval_required_from ('platform_team_lead')\n  - identity_review_cadence: 'quarterly'\n  - audit_log_review_cadence: 'weekly'\n  - selective_review_required_for: a list containing 'new_cross_workspace_grants', 'rls_predicate_changes', 'new_service_principals', 'pii_visibility_changes'\n  - regulatory_compliance: a dict mapping country to regulator. Keys: 'DE' ('BNetzA'), 'FR' ('CRE'), 'NL' ('ACM'), 'LU' ('ILR')\n  - incident_response: a dict with detect_via ('audit_log_anomaly_detection'), contain_action ('revoke_credentials_immediately'), investigate_then ('trace_calling_code_and_audit_similar_grants')",
+        "validationHint": "The 9 top-level keys integrate all 4 tasks plus the regulatory framework. The country_isolation_strategy reflects the Task 1 primary. The rls_default_action matches Task 2's deny-by-default. The sp_rotation_policy fixes the Task 3 issue with explicit numeric and tooling. The identity and audit review cadences are different (quarterly for permissions, weekly for audit logs) reflecting different rates of change. The selective_review list captures the senior governance principle. The regulatory_compliance dict encodes the 4 regulators by country. The incident_response dict encodes the Task 4 lesson (contain → investigate → audit similar)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS8-05-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does the security posture include BOTH RLS deny-by-default AND identity review BOTH AND audit log review?",
+            "options": [
+              "Defense in depth: RLS deny-by-default prevents accidental over-grants from happening (prevention), identity review catches grants that were made on purpose but should be revoked (detection), audit log review catches anomalous use of grants that look correct but are being abused (detection at use time). Each layer catches what the others miss. Removing any layer leaves a class of failures uncovered",
+              "Microsoft Fabric requires all three",
+              "All security systems use this combination",
+              "It is arbitrary"
+            ],
+            "correctAnswer": "Defense in depth: RLS deny-by-default prevents accidental over-grants from happening (prevention), identity review catches grants that were made on purpose but should be revoked (detection), audit log review catches anomalous use of grants that look correct but are being abused (detection at use time). Each layer catches what the others miss. Removing any layer leaves a class of failures uncovered",
+            "rationale": "Defense in depth is the recurring senior security pattern. Each layer covers a different failure mode: RLS catches mass-access bugs, identity review catches sprawl, audit logs catch active misuse. Mid-level engineers often pick one and rely on it; senior engineers know all three are needed because each fails differently. The Task 4 incident is the perfect example: RLS would not have caught it (the permission was technically valid), identity review would have caught it eventually (sprawl), audit log review caught it immediately (anomalous use)."
+          },
+          {
+            "id": "FS8-05-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why is identity review cadence quarterly but audit log review weekly?",
+            "options": [
+              "The two reviews catch different things at different timescales. Identity sprawl accumulates over months (a few extra grants per week) so a quarterly review catches it within 90 days. Audit log anomalies happen at use time (within hours of the over-permission being exercised) and need to be caught quickly to limit the exposure window. Weekly audit review catches anomalies within their first week; quarterly catches sprawl within their first quarter",
+              "Quarterly is faster than weekly",
+              "Audit logs are bigger than identity records",
+              "Weekly cadence is the only option for audit logs"
+            ],
+            "correctAnswer": "The two reviews catch different things at different timescales. Identity sprawl accumulates over months (a few extra grants per week) so a quarterly review catches it within 90 days. Audit log anomalies happen at use time (within hours of the over-permission being exercised) and need to be caught quickly to limit the exposure window. Weekly audit review catches anomalies within their first week; quarterly catches sprawl within their first quarter",
+            "rationale": "Review cadence matches the rate of the problem it catches. Sprawl is slow (the FI9 Task 1 audit showed 18-month-old grants); anomalies are fast (the Task 4 incident was 12 events over 96 minutes). Different cadences for different rates is the senior pattern, the same as FI8 weekly capacity reviews + monthly identity reviews."
+          },
+          {
+            "id": "FS8-05-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why is the SP rotation policy enforced by Azure Key Vault rather than by manual reminders?",
+            "options": [
+              "Manual reminders depend on humans remembering to rotate; the Task 3 audit showed 14-18 month rotation gaps because nobody remembered. Automated rotation (Azure Key Vault) makes the failure mode structurally impossible: if a secret is not rotated within the policy window, the system rotates it automatically (or alerts loudly). Replace human discipline with structural enforcement — the same pattern as automated label enforcement (FI9), per-notebook auto-pause (FI8), and write-time file size enforcement (FS7)",
+              "Key Vault is faster",
+              "Microsoft Fabric requires Key Vault",
+              "Manual reminders are not allowed"
+            ],
+            "correctAnswer": "Manual reminders depend on humans remembering to rotate; the Task 3 audit showed 14-18 month rotation gaps because nobody remembered. Automated rotation (Azure Key Vault) makes the failure mode structurally impossible: if a secret is not rotated within the policy window, the system rotates it automatically (or alerts loudly). Replace human discipline with structural enforcement — the same pattern as automated label enforcement (FI9), per-notebook auto-pause (FI8), and write-time file size enforcement (FS7)",
+            "rationale": "The structural-vs-behavioral enforcement principle is now a recurring senior pattern across the entire track. Mid-level relies on discipline (rotate when convenient); senior relies on automation (Key Vault enforces). Every example in this track points to the same pattern: when humans can forget to do the right thing, the system must do it for them or fail loudly when it isn't done."
+          },
+          {
+            "id": "FS8-05-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why does selective_review_required_for include 'new_cross_workspace_grants' but not 'within-workspace permission changes'?",
+            "options": [
+              "Cross-workspace grants are the irreversible and high-blast-radius decisions: granting access to another workspace (especially across country boundaries) creates a security boundary crossing that's hard to undo and easy to forget. Within-workspace permission changes are reversible and bounded — adding or removing a user from a workspace role is routine. Selective review focuses platform team attention on the decisions that have lasting consequences, the same pattern as FI8/FI9/FS4/FS5/FS7",
+              "Cross-workspace grants are easier to review",
+              "Within-workspace changes are not allowed",
+              "It is arbitrary"
+            ],
+            "correctAnswer": "Cross-workspace grants are the irreversible and high-blast-radius decisions: granting access to another workspace (especially across country boundaries) creates a security boundary crossing that's hard to undo and easy to forget. Within-workspace permission changes are reversible and bounded — adding or removing a user from a workspace role is routine. Selective review focuses platform team attention on the decisions that have lasting consequences, the same pattern as FI8/FI9/FS4/FS5/FS7",
+            "rationale": "Selective architectural review is now established as the platform-wide governance pattern across the entire track. The platform team reviews the decisions with lasting consequences (cross-workspace grants, RLS predicate changes, new SPs, PII visibility changes) and trusts engineers with routine decisions (within-workspace permission changes, intra-team role updates). This scales platform governance without creating bottlenecks."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS8 SYNTHESIS: GridUnion's complete security posture specification.\n\n# YOUR SOLUTION BELOW\n# Build security_posture with the 9 top-level keys from the task description.\n\nsecurity_posture = {\n    # Fill in: country_isolation_strategy, rls_default_action, pii_masking_enabled,\n    #          sp_rotation_policy, identity_review_cadence, audit_log_review_cadence,\n    #          selective_review_required_for, regulatory_compliance, incident_response\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(security_posture, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS8-05-A1",
+          "description": "security_posture has all 9 required top-level keys",
+          "check": "set(security_posture.keys()) >= {'country_isolation_strategy', 'rls_default_action', 'pii_masking_enabled', 'sp_rotation_policy', 'identity_review_cadence', 'audit_log_review_cadence', 'selective_review_required_for', 'regulatory_compliance', 'incident_response'}"
+        },
+        {
+          "id": "FS8-05-A2",
+          "description": "country_isolation_strategy is 'hybrid_per_country_raw_unified_aggregated'",
+          "check": "security_posture['country_isolation_strategy'] == 'hybrid_per_country_raw_unified_aggregated'"
+        },
+        {
+          "id": "FS8-05-A3",
+          "description": "rls_default_action is 'deny'",
+          "check": "security_posture['rls_default_action'] == 'deny'"
+        },
+        {
+          "id": "FS8-05-A4",
+          "description": "pii_masking_enabled is True",
+          "check": "security_posture['pii_masking_enabled'] == True"
+        },
+        {
+          "id": "FS8-05-A5",
+          "description": "sp_rotation_policy has rotation_days=90 and enforced_by='azure_key_vault'",
+          "check": "security_posture['sp_rotation_policy']['rotation_days'] == 90 and security_posture['sp_rotation_policy']['enforced_by'] == 'azure_key_vault'"
+        },
+        {
+          "id": "FS8-05-A6",
+          "description": "identity_review_cadence is 'quarterly' and audit_log_review_cadence is 'weekly'",
+          "check": "security_posture['identity_review_cadence'] == 'quarterly' and security_posture['audit_log_review_cadence'] == 'weekly'"
+        },
+        {
+          "id": "FS8-05-A7",
+          "description": "selective_review_required_for contains all 4 expected categories",
+          "check": "set(security_posture['selective_review_required_for']) >= {'new_cross_workspace_grants', 'rls_predicate_changes', 'new_service_principals', 'pii_visibility_changes'}"
+        },
+        {
+          "id": "FS8-05-A8",
+          "description": "regulatory_compliance maps all 4 countries to their regulators",
+          "check": "security_posture['regulatory_compliance']['DE'] == 'BNetzA' and security_posture['regulatory_compliance']['FR'] == 'CRE' and security_posture['regulatory_compliance']['NL'] == 'ACM' and security_posture['regulatory_compliance']['LU'] == 'ILR'"
+        },
+        {
+          "id": "FS8-05-A9",
+          "description": "incident_response has the 3 required keys with correct values",
+          "check": "security_posture['incident_response']['detect_via'] == 'audit_log_anomaly_detection' and security_posture['incident_response']['contain_action'] == 'revoke_credentials_immediately' and security_posture['incident_response']['investigate_then'] == 'trace_calling_code_and_audit_similar_grants'"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (9 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/9). The 9 assertions verify that the security posture integrates the country isolation (Task 1), RLS configuration (Task 2), identity governance (Task 3), and audit-driven incident response (Task 4) into a single platform-level specification.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Hybrid country isolation architecture (Task 1, Lesson 1)",
+          "Country-boundary RLS with PII masking (Task 2, Lessons 2 + 4)",
+          "Identity governance with automated rotation and selective review (Task 3, Lessons 4 + 5)",
+          "Audit-driven anomaly detection and incident response (Task 4, Lessons 7 + 9)",
+          "Defense in depth: prevention + detection + response (carryover from FI7/FI8/FI9 governance pattern)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines the country isolation architecture, RLS configuration, identity governance, and audit-driven incident response into a unified security posture. The keystones are A2 (hybrid strategy), A3 (deny by default), A5 (Key Vault enforced rotation), and A9 (incident response chain) — all encode senior-level security lessons that mid-level engineers don't internalize."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "tradeoffTasksHaveCompetingOptions": true,
+    "designReviewHasSubtleNotTextbookIssues": true,
+    "answerRangesDocumented": true,
+    "calibrationNotes": "Senior practice set in the enterprise operations phase. One of each task type plus the synthesis (5 total). Task 4 uses the second senior-level dataset (122-row audit log) to support the anomalous-access root cause analysis. The synthesis at 23 minutes is the longest in the senior track so far (matching FS6's synthesis duration). Task type mix (1 trade-off + 1 design artifact + 1 design review + 1 root cause + 1 synthesis) is within all section 6.2 limits. Multi-defensible answers documented in acceptable_alternatives metadata for fields F1-01-F1 and F1-01-F2.",
+    "theoryPracticeBoundary": "The theory teaches multi-tenant security, country-level isolation, Purview at scale, identity governance, security policy as code, regulatory compliance, security incident response, cross-tenant data sharing, security monitoring, and the security posture synthesis. The practice tests application: Task 1 forces an architectural choice with 3 genuinely competing options. Task 2 builds the RLS configuration with PII safety as the keystone. Task 3 reviews subtle identity governance issues at 80-engineer scale. Task 4 analyzes a real audit log to trace an anomalous access pattern through the identity model. Task 5 synthesizes the security posture.",
+    "datasetNotes": "One dataset (122-row audit log sample) used by Task 4's root cause analysis. The dataset is constructed to exhibit the anomalous-access pattern: a service principal that should only access German tables suddenly starts accessing French tables on a specific date, and all accesses are allowed because of overly broad permissions inherited from a past grant."
+  }
+}

@@ -76,24 +76,6 @@ export const TheorySidebar = ({
           {orderedLessons.length} lessons · {activeModule.totalMinutes} min
         </div>
 
-        <div className="mt-4 flex items-center gap-3">
-          <span className="font-mono text-[9px] text-primary/50 font-bold">
-            {completedLessonCount}/{orderedLessons.length}
-          </span>
-          <div className="flex items-center gap-1 flex-1">
-            {/* Battery cap */}
-            <div className="w-1.5 h-3 bg-primary/30" />
-            {/* Battery body (horizontal) */}
-            <div className="border-2 border-primary/20 p-1 flex gap-0.5 bg-surface-container-lowest/80 flex-1">
-              {Array.from({ length: Math.max(orderedLessons.length, 1) }, (_, i) => (
-                <div
-                  key={i}
-                  className={`flex-1 h-4 ${i < completedLessonCount ? 'bg-primary/80' : 'bg-surface-container-highest/20 border border-primary/10'}`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
 
         {checkpointMeta.hasCheckpoint ? (
           <div
@@ -146,20 +128,21 @@ export const TheorySidebar = ({
               >
                 <div className="flex items-start gap-3">
                   <div
-                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center font-mono text-[10px] font-bold ${
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md font-mono text-[10px] font-bold ${
                       isLockedLesson
                         ? 'bg-surface-container-highest text-on-surface-variant'
                         : isLessonRead
-                          ? isActiveLesson
-                            ? 'bg-primary text-on-primary'
-                            : 'bg-primary/15 text-primary'
+                          ? 'bg-primary/20 text-primary'
                           : isActiveLesson
                             ? 'bg-on-surface text-surface'
                             : 'bg-surface-container-highest text-on-surface-variant'
                     }`}
+                    style={isLessonRead && !isActiveLesson ? { boxShadow: '0 0 8px rgba(0,226,238,0.15)' } : undefined}
                   >
                     {isLockedLesson ? (
                       <Lock className="h-3 w-3" />
+                    ) : isLessonRead ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                     ) : (
                       lessonOrder
                     )}
@@ -170,7 +153,9 @@ export const TheorySidebar = ({
                       className={`text-sm leading-5 ${
                         isActiveLesson
                           ? 'font-semibold text-on-surface'
-                          : 'text-on-surface-variant'
+                          : isLessonRead
+                            ? 'text-on-surface/70 line-through decoration-white/10'
+                            : 'text-on-surface-variant'
                       }`}
                     >
                       {lessonLabel}

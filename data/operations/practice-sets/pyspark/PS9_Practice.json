@@ -1,0 +1,372 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 9 — Built-in Functions and Expressions",
+  "description": "Apply Spark's built-in function library: coalesce for null fallback, window functions for ranking and day-over-day comparison, collection functions, the performance hierarchy between built-ins and UDFs, and a mini-pipeline combining multiple function categories.",
+  "version": "authored 2026-03-30, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PS9",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 60,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "synthesis_toolkit",
+    "taskTypeMix": {
+      "writeTheCode": 3,
+      "outputPrediction": 1,
+      "conceptIdentification": 1,
+      "synthesisPipeline": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PS9_data_readings",
+      "file": "PS9_data_readings.csv",
+      "description": "NordGrid meter readings with dual source columns (scada_kw, cellular_kw). 140 rows: 20 meters × 7 days. Some rows have null scada_kw (SCADA outage), some have null cellular_kw (no backup), 7 rows have both null.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false, "description": "Meter ID (M-0001 through M-0020)"},
+          {"name": "scada_kw", "type": "double", "nullable": true, "description": "Primary SCADA reading — null during outages"},
+          {"name": "cellular_kw", "type": "double", "nullable": true, "description": "Backup cellular reading — null when unavailable"},
+          {"name": "date", "type": "string", "nullable": false, "description": "Reading date (2026-03-10 through 2026-03-16)"},
+          {"name": "region", "type": "string", "nullable": false, "description": "NORTH (7 meters), SOUTH (5), EAST (5), WEST (3)"}
+        ],
+        "characteristics": {
+          "nullScada": "16 rows have null scada_kw",
+          "nullCellular": "46 rows have null cellular_kw",
+          "bothNull": "7 rows have both sources null",
+          "metersPerRegion": "NORTH: 7, SOUTH: 5, EAST: 5, WEST: 3",
+          "daysPerMeter": "7 consecutive days for window function tasks"
+        }
+      },
+      "usedByTasks": ["module-PS9-task-01", "module-PS9-task-02", "module-PS9-task-03", "module-PS9-task-04", "module-PS9-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PS9-task-01",
+      "title": "Build NordGrid's Reading Fallback Chain",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's meters report readings through two channels: the primary SCADA feed (scada_kw) and a backup cellular connection (cellular_kw). When SCADA is down, the cellular value should be used. When both are down, the reading should default to 0.0 so downstream aggregations produce a number rather than null. The team uses coalesce() to implement this priority chain.",
+        "task": "Read PS9_data_readings.csv (header=True, inferSchema=True). Add a column called daily_kw using coalesce() that takes the first non-null value from: scada_kw, cellular_kw, and a literal 0.0 as the final fallback. Store the result in a variable called readings. Then count how many rows ended up with daily_kw = 0.0 (meaning both sources were null) and store in both_null_count.",
+        "validationHint": "daily_kw should never be null — coalesce guarantees a fallback to 0.0. The 7 rows where both scada_kw and cellular_kw are null should have daily_kw = 0.0."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, coalesce, lit\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-fallback-chain') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS9_data_readings.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Total rows: {readings.count()}\")\nprint(f\"Null daily_kw: {readings.filter(col('daily_kw').isNull()).count()}\")\nprint(f\"Both-null fallback (daily_kw = 0.0): {both_null_count}\")\nreadings.filter(col('daily_kw') == 0.0).show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS9-01-A1",
+          "description": "readings is a DataFrame with daily_kw column",
+          "check": "'daily_kw' in readings.columns"
+        },
+        {
+          "id": "PS9-01-A2",
+          "description": "No null values in daily_kw (coalesce guarantees a value)",
+          "check": "readings.filter(col('daily_kw').isNull()).count() == 0"
+        },
+        {
+          "id": "PS9-01-A3",
+          "description": "7 rows have daily_kw = 0.0 (both sources null, fell through to lit(0.0))",
+          "check": "both_null_count == 7"
+        },
+        {
+          "id": "PS9-01-A4",
+          "description": "Row count unchanged — coalesce adds a column, does not filter",
+          "check": "readings.count() == 140"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS9-task-02",
+      "title": "Rank NordGrid's Meters by Consumption Within Each Region",
+      "type": "write_the_code",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "NordGrid's operations team wants to identify the top-consuming meters within each region for capacity planning. They need a ranking where the meter with the highest average daily consumption in each region gets rank 1. The ranking must use a window function so that every meter keeps its row — unlike groupBy, no rows should be lost.",
+        "task": "Start with the readings DataFrame. First create a daily_kw column using coalesce(scada_kw, cellular_kw, lit(0.0)). Then compute each meter's average daily_kw across all 7 days using groupBy('meter_id', 'region').agg(avg('daily_kw').alias('avg_daily_kw')). Then apply a window function with Window.partitionBy('region').orderBy(col('avg_daily_kw').desc()) to add a rank_in_region column using row_number(). Store the result in a variable called ranked.",
+        "validationHint": "ranked should have 20 rows (one per meter). Each region's rank_in_region should start at 1. NORTH should have ranks 1–7, SOUTH 1–5, EAST 1–5, WEST 1–3."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.window import Window\nfrom pyspark.sql.functions import col, coalesce, lit, avg as spark_avg, row_number, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-meter-ranking') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS9_data_readings.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Total meters: {ranked.count()}\")\nprint(f\"Columns: {ranked.columns}\")\nranked.orderBy('region', 'rank_in_region').show(20)"
+      },
+      "assertions": [
+        {
+          "id": "PS9-02-A1",
+          "description": "ranked is a DataFrame",
+          "check": "isinstance(ranked, DataFrame)"
+        },
+        {
+          "id": "PS9-02-A2",
+          "description": "20 rows — one per meter (aggregated from 140 readings)",
+          "check": "ranked.count() == 20"
+        },
+        {
+          "id": "PS9-02-A3",
+          "description": "rank_in_region column exists",
+          "check": "'rank_in_region' in ranked.columns"
+        },
+        {
+          "id": "PS9-02-A4",
+          "description": "NORTH region has ranks 1 through 7",
+          "check": "ranked.filter(col('region') == 'NORTH').select('rank_in_region').distinct().count() == 7"
+        },
+        {
+          "id": "PS9-02-A5",
+          "description": "Every region's top rank is 1",
+          "check": "ranked.filter(col('rank_in_region') == 1).select('region').distinct().count() == 4"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS9-task-03",
+      "title": "Compute Day-Over-Day Consumption Change",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's anomaly detection system flags meters whose consumption changes dramatically from one day to the next. The system needs each row enriched with the previous day's reading so it can compute the day-over-day change. This requires a window function with lag() — partitioned by meter and ordered by date.",
+        "task": "Start with the readings DataFrame. Create daily_kw using coalesce(scada_kw, cellular_kw, lit(0.0)). Define a window partitioned by meter_id and ordered by date. Use lag('daily_kw', 1) over this window to add a prev_day_kw column. Then add a daily_change column computed as daily_kw - prev_day_kw. Store the result in a variable called with_change.",
+        "validationHint": "with_change should have 140 rows (same as input — window functions preserve row count). Each meter's first day should have null for prev_day_kw and null for daily_change (no previous day exists). The remaining 120 rows (20 meters × 6 days) should have non-null daily_change."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.window import Window\nfrom pyspark.sql.functions import col, coalesce, lit, lag\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-day-over-day') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS9_data_readings.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Total rows: {with_change.count()}\")\nprint(f\"Null prev_day_kw (first day per meter): {with_change.filter(col('prev_day_kw').isNull()).count()}\")\nwith_change.filter(col('meter_id') == 'M-0001').orderBy('date').select('meter_id', 'date', 'daily_kw', 'prev_day_kw', 'daily_change').show()"
+      },
+      "assertions": [
+        {
+          "id": "PS9-03-A1",
+          "description": "with_change is a DataFrame",
+          "check": "isinstance(with_change, DataFrame)"
+        },
+        {
+          "id": "PS9-03-A2",
+          "description": "Row count preserved — 140 rows (window functions don't reduce rows)",
+          "check": "with_change.count() == 140"
+        },
+        {
+          "id": "PS9-03-A3",
+          "description": "prev_day_kw column exists",
+          "check": "'prev_day_kw' in with_change.columns"
+        },
+        {
+          "id": "PS9-03-A4",
+          "description": "20 rows have null prev_day_kw (first day of each meter's 7-day window)",
+          "check": "with_change.filter(col('prev_day_kw').isNull()).count() == 20"
+        },
+        {
+          "id": "PS9-03-A5",
+          "description": "daily_change column exists and equals daily_kw - prev_day_kw",
+          "check": "'daily_change' in with_change.columns"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS9-task-04",
+      "title": "Predict Function Behavior: explode and greatest",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "A NordGrid engineer uses two functions they haven't encountered before: explode() to convert an array column into rows, and greatest() to find the maximum across columns within a single row. They need to predict the output to verify their understanding.",
+        "task": "Read each code snippet and predict the output. Pay close attention to the distinction between row-level operations (greatest) and row-multiplying operations (explode).",
+        "validationHint": "explode() increases the row count. greatest() compares across columns within one row (not across rows like max())."
+      },
+      "evidence": {
+        "type": "code_block",
+        "language": "python",
+        "content": "from pyspark.sql.functions import col, explode, greatest, array, lit\n\n# Snippet A: explode\ndf_a = spark.createDataFrame([\n    ('M-001', [100.0, 200.0, 300.0]),\n    ('M-002', [400.0, 500.0]),\n], schema=['meter_id', 'samples'])\ndf_exploded = df_a.select('meter_id', explode(col('samples')).alias('sample'))\n\n# Snippet B: greatest\ndf_b = spark.createDataFrame([\n    ('M-001', 800.0, 1250.5, 950.0),\n    ('M-002', 600.0,  870.2, 720.0),\n], schema=['meter_id', 'morning_kw', 'afternoon_kw', 'evening_kw'])\ndf_peak = df_b.select('meter_id', greatest('morning_kw', 'afternoon_kw', 'evening_kw').alias('peak_kw'))"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS9-04-F1",
+            "type": "numeric",
+            "label": "Snippet A: How many rows does df_exploded have?",
+            "correctAnswer": 5,
+            "tolerance": 0,
+            "rationale": "M-001 has an array of 3 elements → 3 rows. M-002 has an array of 2 elements → 2 rows. Total: 5 rows. explode() creates one row per array element."
+          },
+          {
+            "id": "PS9-04-F2",
+            "type": "numeric",
+            "label": "Snippet A: How many columns does df_exploded have?",
+            "correctAnswer": 2,
+            "tolerance": 0,
+            "rationale": "The select keeps 'meter_id' and the exploded 'sample' column. The original 'samples' array column is not carried forward."
+          },
+          {
+            "id": "PS9-04-F3",
+            "type": "numeric",
+            "label": "Snippet B: What is the peak_kw value for M-001?",
+            "correctAnswer": 1250.5,
+            "tolerance": 0,
+            "rationale": "greatest(800.0, 1250.5, 950.0) returns 1250.5 — the largest value across the three columns in that row."
+          },
+          {
+            "id": "PS9-04-F4",
+            "type": "single_select",
+            "label": "How does greatest() differ from max() in spark.sql.functions?",
+            "options": [
+              "They are identical — both find the maximum value",
+              "greatest() compares values across columns within one row; max() aggregates values down a column across all rows",
+              "greatest() is faster because it does not require a shuffle",
+              "max() works on strings; greatest() works only on numbers"
+            ],
+            "correctAnswer": "greatest() compares values across columns within one row; max() aggregates values down a column across all rows",
+            "distractorRationale": "Option 1 is the most common confusion. Option 3 is true but not the fundamental difference. Option 4 is wrong — both work on comparable types."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS9-task-05",
+      "title": "Choose the Right Function Approach",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's code review checklist requires engineers to justify their function choice for every transformation. The reviewer checks whether a built-in function could replace a UDF, whether expr() would be clearer, and whether the performance hierarchy was followed.",
+        "task": "For each transformation scenario, select the correct approach from the performance hierarchy: built-in function → expr() → Pandas UDF → Python UDF.",
+        "validationHint": "The decision tree: Can a built-in do it? → Use built-in. Is SQL syntax clearer? → Use expr(). Need Python libraries? → Pandas UDF. Custom row-level logic with no built-in? → Python UDF (last resort)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS9-05-F1",
+            "type": "single_select",
+            "label": "Convert daily_kw from kilowatts to megawatts (divide by 1000). Which approach?",
+            "options": [
+              "Python UDF: def to_mw(kw): return kw / 1000",
+              "Built-in: col('daily_kw') / 1000",
+              "expr(): expr('daily_kw / 1000')",
+              "Any approach — they all produce the same result with the same performance"
+            ],
+            "correctAnswer": "Built-in: col('daily_kw') / 1000",
+            "distractorRationale": "Option 1 works but is 10-100x slower. Option 3 produces the same plan as the built-in (same speed), but the built-in is the default choice per the decision framework. Option 4 is wrong — performance differs dramatically between UDFs and built-ins."
+          },
+          {
+            "id": "PS9-05-F2",
+            "type": "single_select",
+            "label": "Categorize meters into 6 billing tiers with complex threshold logic (CASE WHEN with 6 branches). Which approach?",
+            "options": [
+              "Built-in: when().when().when().when().when().otherwise() — 6 chained whens",
+              "expr(): expr('CASE WHEN ... WHEN ... WHEN ... END') — SQL syntax for complex branching",
+              "Python UDF: a function with if/elif/elif chains",
+              "Either built-in or expr() — both run at JVM speed and the choice depends on readability"
+            ],
+            "correctAnswer": "Either built-in or expr() — both run at JVM speed and the choice depends on readability",
+            "distractorRationale": "Options 1 and 2 are both correct individually but the question asks which approach, and both are equally valid. Option 3 works but is 10-100x slower. The decision framework says: when SQL syntax is clearer for complex branching, use expr(); otherwise use built-ins. Both are JVM-speed."
+          },
+          {
+            "id": "PS9-05-F3",
+            "type": "single_select",
+            "label": "Apply a proprietary encryption algorithm from a Python library to meter_id for anonymization. No Spark built-in exists for this. Which approach?",
+            "options": [
+              "Built-in: use Spark's built-in encryption functions",
+              "expr(): write the encryption logic in SQL",
+              "Python UDF: wrap the Python library call in a UDF (justified because no built-in exists)",
+              "Pandas UDF: batch process with the Python library for better performance than row-by-row UDF"
+            ],
+            "correctAnswer": "Pandas UDF: batch process with the Python library for better performance than row-by-row UDF",
+            "distractorRationale": "Option 1 is wrong — Spark has hashing functions but not the proprietary algorithm. Option 2 can't call Python libraries. Option 3 works but is slower than a Pandas UDF. Since the Python library needs to be called and can process batches, a Pandas UDF is the right choice per the hierarchy."
+          },
+          {
+            "id": "PS9-05-F4",
+            "type": "single_select",
+            "label": "A colleague writes a Python UDF to uppercase a string column: udf(lambda s: s.upper(), StringType()). What should the code reviewer recommend?",
+            "options": [
+              "Approve — the UDF is correct and readable",
+              "Replace with the built-in upper() function — identical result, 10-100x faster",
+              "Replace with expr('UPPER(region)') — SQL functions are faster than UDFs",
+              "Keep the UDF but add type annotations for safety"
+            ],
+            "correctAnswer": "Replace with the built-in upper() function — identical result, 10-100x faster",
+            "distractorRationale": "Option 1 ignores the performance cost. Option 3 would also work (same speed as built-in) but the built-in is the canonical first choice. Option 4 doesn't fix the performance problem."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS9-task-06",
+      "title": "Build NordGrid's Enriched Analytics Pipeline",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 13,
+      "description": {
+        "context": "NordGrid's analytics team needs a pipeline that produces a per-meter daily report. The report must resolve which reading source to use (SCADA vs cellular), compute each meter's regional rank by average consumption, and flag meters whose daily consumption exceeds 3,000 kW as 'high_alert'. The output should be ready for the dashboard team.",
+        "task": "Write a pipeline that: (1) reads PS9_data_readings.csv; (2) adds daily_kw using coalesce(scada_kw, cellular_kw, lit(0.0)); (3) adds daily_kw_billed using ceil(daily_kw) for billing (round up to nearest integer); (4) fills any remaining null scada_kw with 0.0 using na.fill({'scada_kw': 0.0}); (5) adds alert_flag using when(daily_kw > 3000, 'high_alert').otherwise('normal'); (6) selects final columns: meter_id, date, region, daily_kw, daily_kw_billed, alert_flag. Store in a variable called report.",
+        "validationHint": "report should have 140 rows and 6 columns. daily_kw should never be null (coalesce). daily_kw_billed should be an integer ceiling. alert_flag should have 2 distinct values."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, coalesce, lit, ceil, when\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-analytics-report') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS9_data_readings.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {report.count()}\")\nprint(f\"Columns: {report.columns}\")\nprint(f\"Null daily_kw: {report.filter(col('daily_kw').isNull()).count()}\")\nprint(f\"Alert distribution:\")\nreport.groupBy('alert_flag').count().show()\nreport.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS9-06-A1",
+          "description": "report is a DataFrame",
+          "check": "isinstance(report, DataFrame)"
+        },
+        {
+          "id": "PS9-06-A2",
+          "description": "140 rows preserved",
+          "check": "report.count() == 140"
+        },
+        {
+          "id": "PS9-06-A3",
+          "description": "6 output columns in correct order",
+          "check": "report.columns == ['meter_id', 'date', 'region', 'daily_kw', 'daily_kw_billed', 'alert_flag']"
+        },
+        {
+          "id": "PS9-06-A4",
+          "description": "No null daily_kw values (coalesce guarantees)",
+          "check": "report.filter(col('daily_kw').isNull()).count() == 0"
+        },
+        {
+          "id": "PS9-06-A5",
+          "description": "daily_kw_billed is ceiling of daily_kw (integer, always >= daily_kw)",
+          "check": "report.filter(col('daily_kw_billed') < col('daily_kw')).count() == 0"
+        },
+        {
+          "id": "PS9-06-A6",
+          "description": "alert_flag has exactly 2 distinct values: 'high_alert' and 'normal'",
+          "check": "set(report.select('alert_flag').distinct().toPandas()['alert_flag']) == {'high_alert', 'normal'}"
+        },
+        {
+          "id": "PS9-06-A7",
+          "description": "No null alert_flag values (otherwise catches everything)",
+          "check": "report.filter(col('alert_flag').isNull()).count() == 0"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "coalesce() for multi-source fallback (Lesson 6)",
+          "ceil() for billing rounding (Lesson 4)",
+          "na.fill() for remaining null cleanup (Lesson 7)",
+          "when().otherwise() for alert flag (Lesson 6, Module 5)",
+          "select() for output schema contract (Module 4)",
+          "Combining function categories: conditional + numeric + null-handling (Lesson 10)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This mini-pipeline combines four function categories (conditional, numeric, null-handling, column selection) into a realistic analytics output. The coalesce + ceil + when/otherwise chain demonstrates how built-in functions compose to solve real problems without UDFs. The alert_flag tests whether students remember that when/otherwise handles null daily_kw correctly (0.0 from coalesce is not > 3000, so it gets 'normal')."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Not applicable — Module 9 is Synthesis/Toolkit phase.",
+    "theoryPracticeBoundary": "Theory examples use single-source daily_kw. The practice dataset has dual-source readings (scada_kw, cellular_kw) requiring coalesce — same function, different application context. Window function tasks use the NordGrid meter/region structure from the theory but apply ranking and lag to a different metric. The UDF concept ID task tests the decision framework without requiring students to write a UDF (appropriate for junior level).",
+    "crossModuleNotes": "Tasks 2-3 combine Module 6 aggregation (groupBy/avg) with Module 9 window functions. Task 6 combines Module 4 select, Module 5 when/otherwise, and Module 9 coalesce/ceil/na.fill. These cross-module combinations follow the Synthesis/Toolkit §2.4 guidance for mini-pipeline tasks.",
+    "datasetNotes": "PS9_data_readings.csv has 140 rows: 20 meters × 7 days with dual source columns. The dual-source design forces coalesce usage. 7 rows have both sources null, testing the full fallback chain to lit(0.0). The 7-day time series per meter enables lag/lead window functions."
+  }
+}

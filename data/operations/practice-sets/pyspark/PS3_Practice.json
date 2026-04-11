@@ -1,0 +1,388 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 3 — DataFrames: The Core Abstraction",
+  "description": "Apply your understanding of DataFrames by creating them from Python data and files, enforcing schemas, exploring data with show/printSchema/describe, reasoning about lazy evaluation and immutability, and building a complete read-transform-act pipeline.",
+  "version": "authored 2026-03-30, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PS3",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 58,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "core_mechanics",
+    "taskTypeMix": {
+      "writeTheCode": 3,
+      "outputPrediction": 1,
+      "conceptIdentification": 1,
+      "synthesisPipeline": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PS3_data_readings",
+      "file": "PS3_data_readings.csv",
+      "description": "NordGrid daily meter readings for one week across all four regions. 100 rows.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false, "description": "Unique meter identifier (M-0001 through M-0100)"},
+          {"name": "daily_kw", "type": "double", "nullable": true, "description": "Daily energy consumption in kilowatts"},
+          {"name": "date", "type": "string", "nullable": false, "description": "Reading date in ISO format (YYYY-MM-DD)"},
+          {"name": "region", "type": "string", "nullable": false, "description": "Operating region: NORTH, SOUTH, EAST, or WEST"}
+        ],
+        "characteristics": {
+          "nulls": "7 rows have empty daily_kw (sensor malfunction)",
+          "negatives": "4 rows have negative daily_kw (faulty sensor)",
+          "zeros": "2 rows have daily_kw of exactly 0.0",
+          "edgeValues": "1 row has daily_kw of 5000.0, 1 row has 9999.9",
+          "regionSkew": "NORTH: 38, EAST: 27, SOUTH: 22, WEST: 13"
+        }
+      },
+      "usedByTasks": ["module-PS3-task-02", "module-PS3-task-04", "module-PS3-task-06"]
+    },
+    {
+      "id": "PS3_data_substations",
+      "file": "PS3_data_substations.csv",
+      "description": "NordGrid substation reference table. 8 rows, two substations per region.",
+      "schema": {
+        "columns": [
+          {"name": "substation_id", "type": "string", "nullable": false, "description": "Unique substation identifier"},
+          {"name": "name", "type": "string", "nullable": false, "description": "Human-readable substation name"},
+          {"name": "capacity_mw", "type": "double", "nullable": false, "description": "Maximum capacity in megawatts"},
+          {"name": "region", "type": "string", "nullable": false, "description": "Operating region"}
+        ]
+      },
+      "usedByTasks": ["module-PS3-task-01"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PS3-task-01",
+      "title": "Build NordGrid's Substation Reference Table",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's SCADA team sends a list of three new wind substations that need to be added to the data platform. Before the substations are registered in the official CSV file, the data engineering team needs to create a temporary DataFrame to validate the data. The team requires an explicit schema — they never rely on Spark's type inference for reference data.",
+        "task": "Create a DataFrame from the following Python data using spark.createDataFrame() with an explicit StructType schema. The DataFrame should have four columns: substation_id (StringType, non-nullable), name (StringType, non-nullable), capacity_mw (DoubleType, non-nullable), and region (StringType, non-nullable). Store the result in a variable called new_substations.",
+        "validationHint": "Your DataFrame should have exactly 3 rows and 4 columns. All columns should be non-nullable. Call printSchema() to verify the types match."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-substation-registration') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Data for the three new substations\nsubstation_data = [\n    ('SUB-009', 'Alta Fjord Wind Hub', 520.0, 'NORTH'),\n    ('SUB-010', 'Lofoten Tidal Array', 310.0, 'NORTH'),\n    ('SUB-011', 'Narvik Solar Grid', 280.0, 'WEST'),\n]\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nnew_substations.printSchema()\nnew_substations.show()\nprint(f\"Row count: {new_substations.count()}\")\nprint(f\"Column count: {len(new_substations.columns)}\")"
+      },
+      "assertions": [
+        {
+          "id": "PS3-01-A1",
+          "description": "new_substations variable exists and is a DataFrame",
+          "check": "isinstance(new_substations, DataFrame)"
+        },
+        {
+          "id": "PS3-01-A2",
+          "description": "DataFrame has exactly 3 rows",
+          "check": "new_substations.count() == 3"
+        },
+        {
+          "id": "PS3-01-A3",
+          "description": "DataFrame has correct column names",
+          "check": "new_substations.columns == ['substation_id', 'name', 'capacity_mw', 'region']"
+        },
+        {
+          "id": "PS3-01-A4",
+          "description": "capacity_mw column is DoubleType",
+          "check": "str(new_substations.schema['capacity_mw'].dataType) == 'DoubleType()'"
+        },
+        {
+          "id": "PS3-01-A5",
+          "description": "All columns are non-nullable",
+          "check": "all(not f.nullable for f in new_substations.schema.fields)"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS3-task-02",
+      "title": "Load NordGrid Readings with an Explicit Schema",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's daily meter readings CSV has been loaded into the Bronze layer. A junior engineer's first task is to read this file into a DataFrame using an explicit schema instead of inferSchema. The team's coding standard requires explicit schemas for all production reads because inference is slow on large files and can produce wrong types.",
+        "task": "Read the file PS3_data_readings.csv into a DataFrame using spark.read.csv() with an explicit StructType schema. Define meter_id as StringType (non-nullable), daily_kw as DoubleType (nullable), date as StringType (non-nullable), and region as StringType (non-nullable). Store the result in a variable called readings.",
+        "validationHint": "Your DataFrame should have 100 rows and 4 columns. The daily_kw column should be DoubleType (not StringType). Check with printSchema()."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-readings-load') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Test dataset path\nreadings_path = 'PS3_data_readings.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nreadings.printSchema()\nreadings.show(5)\nprint(f\"Row count: {readings.count()}\")"
+      },
+      "assertions": [
+        {
+          "id": "PS3-02-A1",
+          "description": "readings variable exists and is a DataFrame",
+          "check": "isinstance(readings, DataFrame)"
+        },
+        {
+          "id": "PS3-02-A2",
+          "description": "DataFrame has 100 rows",
+          "check": "readings.count() == 100"
+        },
+        {
+          "id": "PS3-02-A3",
+          "description": "DataFrame has correct column names",
+          "check": "readings.columns == ['meter_id', 'daily_kw', 'date', 'region']"
+        },
+        {
+          "id": "PS3-02-A4",
+          "description": "daily_kw column is DoubleType (not inferred as StringType)",
+          "check": "str(readings.schema['daily_kw'].dataType) == 'DoubleType()'"
+        },
+        {
+          "id": "PS3-02-A5",
+          "description": "daily_kw is nullable (sensor malfunctions produce nulls)",
+          "check": "readings.schema['daily_kw'].nullable == True"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS3-task-03",
+      "title": "Identify What Triggers Execution",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "A NordGrid engineer writes a pipeline that reads SCADA turbine data, applies several transformations, and produces output. The engineer wants to understand at which points Spark actually processes data versus building a plan.",
+        "task": "Read the code below. For each numbered line, determine whether it is a transformation (builds the plan, no data moves) or an action (triggers execution, data moves). Then predict how many times Spark reads the source file from disk during the entire script.",
+        "validationHint": "Remember: printSchema() is neither a transformation nor an action — it reads metadata only. explain() also does not trigger execution."
+      },
+      "evidence": {
+        "type": "code_block",
+        "language": "python",
+        "content": "from pyspark.sql.functions import col\n\ndf = spark.read.parquet('bronze/scada/')         # Line 1\ndf.printSchema()                                  # Line 2\ndf = df.filter(col('rpm') >= 0)                   # Line 3\ndf = df.filter(col('turbine_id').isNotNull())      # Line 4\nprint(f\"Filtered count: {df.count()}\")             # Line 5\ndf = df.withColumn('temp_f', col('temp') * 9/5 + 32)  # Line 6\ndf.explain()                                       # Line 7\ndf.show(5)                                         # Line 8"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS3-03-F1",
+            "type": "single_select",
+            "label": "Line 1 — spark.read.parquet('bronze/scada/'): what happens?",
+            "options": [
+              "Action — Spark reads all the Parquet data into memory",
+              "Transformation — Spark records a plan to read the file but does not read it yet",
+              "Neither — this is session setup, not a data operation"
+            ],
+            "correctAnswer": "Transformation — Spark records a plan to read the file but does not read it yet",
+            "distractorRationale": "Option 1 is the most common misconception — students expect read() to actually read. The read creates a DataFrame object that represents the plan to read, but no data is loaded until an action triggers execution."
+          },
+          {
+            "id": "PS3-03-F2",
+            "type": "single_select",
+            "label": "Line 2 — df.printSchema(): does this trigger execution?",
+            "options": [
+              "Yes — it needs to read the data to determine the schema",
+              "No — it reads schema metadata that Spark already has, without processing data",
+              "Yes — but only a small sample of data to infer types"
+            ],
+            "correctAnswer": "No — it reads schema metadata that Spark already has, without processing data",
+            "distractorRationale": "Option 1 is plausible if the student thinks schema requires reading data. Option 3 confuses printSchema with inferSchema. For Parquet files, the schema is embedded in the file metadata and available without reading data rows."
+          },
+          {
+            "id": "PS3-03-F3",
+            "type": "single_select",
+            "label": "Line 5 — df.count(): what happens?",
+            "options": [
+              "Transformation — count is recorded in the plan for later execution",
+              "Action — Spark executes the entire plan (read + both filters) and returns the row count",
+              "Action — Spark only counts the rows without applying the filters"
+            ],
+            "correctAnswer": "Action — Spark executes the entire plan (read + both filters) and returns the row count",
+            "distractorRationale": "Option 1 incorrectly classifies count as a transformation. Option 3 is a subtle trap — the student might think count() operates on the original data, but because of lazy evaluation, it executes the full plan including all preceding transformations."
+          },
+          {
+            "id": "PS3-03-F4",
+            "type": "single_select",
+            "label": "Line 7 — df.explain(): does this trigger execution?",
+            "options": [
+              "Yes — it runs the plan to show the execution results",
+              "No — it displays the execution plan as text without processing any data",
+              "Yes — but only the optimization phase, not the full execution"
+            ],
+            "correctAnswer": "No — it displays the execution plan as text without processing any data",
+            "distractorRationale": "Option 1 confuses explain with execute. Option 3 is plausible — the student might think Catalyst optimization requires data. explain() reads the plan metadata only."
+          },
+          {
+            "id": "PS3-03-F5",
+            "type": "numeric",
+            "label": "How many times does Spark read the source Parquet file from disk during the entire script?",
+            "correctAnswer": 2,
+            "tolerance": 0,
+            "rationale": "Two actions trigger execution: count() on line 5 reads the file and applies filters to count rows. show(5) on line 8 reads the file again and applies all transformations (filters + withColumn) to display 5 rows. printSchema() and explain() do not read data. Each action triggers a fresh execution of the plan from source."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS3-task-04",
+      "title": "Explore NordGrid's Meter Quality Profile",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's data quality team has received a new batch of meter readings and needs a quick profile before the Bronze-to-Silver pipeline runs. The engineer must check the schema, view sample rows, and compute summary statistics to identify potential data quality issues — null values, negative readings, and unexpected extremes.",
+        "task": "Load PS3_data_readings.csv into a DataFrame called readings (using header=True and inferSchema=True for quick exploration). Then use the three exploration methods to answer three questions: (1) store the result of printSchema() as a string using readings._jdf.schema().treeString() in a variable called schema_str, (2) store the row count in a variable called row_count, and (3) store the result of describe() on the daily_kw column in a variable called kw_stats.",
+        "validationHint": "row_count should be 100. kw_stats should be a DataFrame with 5 rows (count, mean, stddev, min, max). The count in describe() will show how many non-null values exist — compare this to the row count to spot nulls."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-quality-profile') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\nreadings_path = 'PS3_data_readings.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {row_count}\")\nprint(\"\\nKW Statistics:\")\nkw_stats.show()"
+      },
+      "assertions": [
+        {
+          "id": "PS3-04-A1",
+          "description": "readings is a DataFrame loaded from the CSV",
+          "check": "isinstance(readings, DataFrame)"
+        },
+        {
+          "id": "PS3-04-A2",
+          "description": "row_count is 100",
+          "check": "row_count == 100"
+        },
+        {
+          "id": "PS3-04-A3",
+          "description": "kw_stats is a DataFrame (result of describe)",
+          "check": "isinstance(kw_stats, DataFrame)"
+        },
+        {
+          "id": "PS3-04-A4",
+          "description": "kw_stats has 5 rows (count, mean, stddev, min, max)",
+          "check": "kw_stats.count() == 5"
+        }
+      ],
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+    },
+    {
+      "id": "module-PS3-task-05",
+      "title": "Classify DataFrame Properties",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "A new NordGrid engineer is reviewing the team's PySpark codebase and encounters several statements about DataFrames. Some are correct, some are common misconceptions. The engineer needs to identify which statements are true based on what Module 3 teaches.",
+        "task": "For each statement, determine whether it is true or false. Each statement relates to a core DataFrame property: distributed, typed, or immutable.",
+        "validationHint": "Think carefully about what immutability means for variable reassignment — the variable changes, but does the DataFrame?"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS3-05-F1",
+            "type": "single_select",
+            "label": "Statement: 'When you call df = df.filter(col(\"daily_kw\") > 0), Spark modifies the original DataFrame by removing rows with non-positive values.'",
+            "options": [
+              "True — the filter removes rows from the existing DataFrame",
+              "False — the filter creates a new DataFrame, and the variable df is reassigned to point at it"
+            ],
+            "correctAnswer": "False — the filter creates a new DataFrame, and the variable df is reassigned to point at it",
+            "distractorRationale": "This tests the immutability concept and the variable reassignment pattern. The code looks like mutation but is actually reassignment."
+          },
+          {
+            "id": "PS3-05-F2",
+            "type": "single_select",
+            "label": "Statement: 'When you read a CSV with inferSchema=True, Spark scans the data to guess column types. This is slower than providing an explicit StructType schema.'",
+            "options": [
+              "True — inference requires an extra pass over the data to determine types",
+              "False — Spark infers types from the header row alone, which is equally fast"
+            ],
+            "correctAnswer": "True — inference requires an extra pass over the data to determine types",
+            "distractorRationale": "Option 2 is plausible — students might think column names in the header imply types."
+          },
+          {
+            "id": "PS3-05-F3",
+            "type": "single_select",
+            "label": "Statement: 'printSchema() and describe() are both actions — they both trigger execution of the plan and move data across the cluster.'",
+            "options": [
+              "True — both need to process data to produce their output",
+              "False — printSchema() reads metadata without executing the plan; describe() is an action that triggers execution"
+            ],
+            "correctAnswer": "False — printSchema() reads metadata without executing the plan; describe() is an action that triggers execution",
+            "distractorRationale": "This tests whether the student distinguishes metadata operations from data operations. printSchema reads the schema object in the driver. describe computes statistics requiring a full data scan."
+          },
+          {
+            "id": "PS3-05-F4",
+            "type": "single_select",
+            "label": "Statement: 'Immutability makes distributed processing safe because if an executor fails during a transformation, Spark can retry the task without worrying about corrupted data.'",
+            "options": [
+              "True — the original data is untouched, so Spark can safely replay the transformation",
+              "False — Spark uses checkpointing, not immutability, to handle executor failures"
+            ],
+            "correctAnswer": "True — the original data is untouched, so Spark can safely replay the transformation",
+            "distractorRationale": "Option 2 is plausible — checkpointing is a real Spark concept. But the core safety mechanism for retries is immutability: since transformations never modify the source, retries always start from clean state."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS3-task-06",
+      "title": "Build NordGrid's Meter Validation Pipeline",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's data engineering team needs a validation pipeline that reads raw meter readings from the Bronze layer, removes invalid data, and writes clean output. The pipeline must handle three data quality issues present in the dataset: null daily_kw values (sensor malfunctions), negative daily_kw values (faulty sensors), and readings with daily_kw of exactly 0.0 (meters that reported but measured nothing — these are valid and should be kept).",
+        "task": "Write a complete pipeline that: (1) reads PS3_data_readings.csv with an explicit StructType schema defining meter_id as StringType, daily_kw as DoubleType (nullable), date as StringType, and region as StringType; (2) filters out rows where daily_kw is null; (3) filters out rows where daily_kw is negative (but keeps rows where daily_kw is exactly 0.0); (4) stores the final result in a variable called clean_readings. Follow the variable reassignment pattern — use the same variable name df for each transformation step.",
+        "validationHint": "The raw dataset has 100 rows: 7 nulls and 4 negatives should be removed. Zero-value readings (2 rows) should remain. Your result should have 89 rows."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-meter-validation') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\nreadings_path = 'PS3_data_readings.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nclean_readings.printSchema()\nprint(f\"Clean row count: {clean_readings.count()}\")\nprint(f\"Columns: {clean_readings.columns}\")\nclean_readings.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PS3-06-A1",
+          "description": "clean_readings is a DataFrame",
+          "check": "isinstance(clean_readings, DataFrame)"
+        },
+        {
+          "id": "PS3-06-A2",
+          "description": "Explicit schema used — daily_kw is DoubleType",
+          "check": "str(clean_readings.schema['daily_kw'].dataType) == 'DoubleType()'"
+        },
+        {
+          "id": "PS3-06-A3",
+          "description": "Null daily_kw values removed (7 nulls filtered)",
+          "check": "clean_readings.filter(col('daily_kw').isNull()).count() == 0"
+        },
+        {
+          "id": "PS3-06-A4",
+          "description": "Negative daily_kw values removed",
+          "check": "clean_readings.filter(col('daily_kw') < 0).count() == 0"
+        },
+        {
+          "id": "PS3-06-A5",
+          "description": "Zero-value readings preserved (edge case)",
+          "check": "clean_readings.filter(col('daily_kw') == 0.0).count() == 2"
+        },
+        {
+          "id": "PS3-06-A6",
+          "description": "Correct final row count: 100 - 7 nulls - 4 negatives = 89",
+          "check": "clean_readings.count() == 89"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Reading CSV with explicit StructType schema (Lessons 3-4)",
+          "Filtering with col() expressions (Lesson 8, previewing Module 4)",
+          "Immutability via variable reassignment pattern (Lesson 6)",
+          "Lazy evaluation — all transformations build a plan, verification triggers execution (Lesson 5)"
+        ],
+        "minimumConceptCount": 4,
+        "rationale": "This task mirrors NordGrid's actual Bronze-to-Silver validation step. The student must combine schema enforcement, null handling, conditional filtering (negative vs zero edge case), and the read-transform-act pattern from Lesson 10. The zero-value edge case tests whether the student uses >= 0 (wrong — keeps negatives if misread) vs > 0 (wrong — removes zeros) vs the correct two-step approach."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 4,
+    "foundationModuleException": "Not applicable — Module 3 is Core Mechanics phase. Task mix is write-the-code dominant (3 of 6) per §2.4 junior Core Mechanics guidance.",
+    "theoryPracticeBoundary": "Theory examples use meters with the standard schema. Task 1 uses substation reference data instead (same StructType pattern, different entity). Task 6 uses the same meter data but with a different filtering requirement (preserve zero-value readings) not shown in the theory's examples, testing transfer of the filter concept.",
+    "datasetNotes": "PS3_data_readings.csv has 100 rows with intentional quality issues (7 nulls, 4 negatives, 2 zeros, 2 extreme values). The zero-value edge case in Task 6 is the key differentiator — students who blindly filter daily_kw > 0 (as shown in the theory) will lose the 2 valid zero readings."
+  }
+}

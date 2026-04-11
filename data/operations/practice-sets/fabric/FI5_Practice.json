@@ -1,0 +1,390 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FI5 — Real-Time Intelligence",
+  "description": "Build NordGrid's real-time pipeline for SCADA turbine telemetry: design the Eventstream topology with sources and destinations, write KQL-style queries for anomaly detection on live RPM and temperature data, diagnose a streaming ingestion gap from monitoring metrics, write a time-series trend detection query that catches gradual temperature drift before bearing failure, and design the complete real-time architecture connecting Eventstream, KQL database, dashboards, and the medallion batch layer.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / Spark SQL 3.5+",
+  "metadata": {
+    "moduleId": "module-FI5",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 70,
+    "maximumDurationMinutes": 100,
+    "taskCount": 5,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "5,000 turbines emitting RPM/temperature every 10 seconds, F64 capacity, 12 regions",
+    "modulePhase": "architecture",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 1,
+      "fixImplementation": 3,
+      "refactoring": 0,
+      "diagnosticWorkflow": 1
+    },
+    "calibrationNotes": "Fifth Fabric mid-level practice set and the trickiest in the track. KQL (Kusto Query Language) and Eventstream APIs are not available in a vanilla PySpark sandbox — same constraint as Delta Lake in FI2. The grading approach (established in the concept plan): use Spark SQL as a syntactic proxy for KQL. KQL operators map to Spark SQL constructs: KQL 'where' = Spark SQL WHERE, KQL 'project' = Spark SQL SELECT, KQL 'summarize' = GROUP BY + aggregations, KQL 'extend' = SELECT with computed columns, KQL window functions = Spark SQL OVER. Each fix task scaffold shows the KQL the student would write in production AND the Spark SQL equivalent for local execution. Eventstream and dashboard configuration tasks (Tasks 1, 5) build Python dictionaries — the same pattern as FI3 pipeline configuration. Task type mix (1 diagnostic + 3 fix + 1 synthesis = 5 tasks) is the §2.2 minimum for mid-level and within all §5.2 limits."
+  },
+  "datasets": [
+    {
+      "id": "FI5_data_turbine_telemetry",
+      "file": "FI5_data_turbine_telemetry.csv",
+      "description": "NordGrid SCADA turbine telemetry sample. 100 rows = 5 turbines × 20 readings each, 10 seconds apart, spanning 2026-04-08 14:00:00 to 14:03:10. T-001, T-002, T-005 are healthy with constant RPM and temperature. T-003 has 3 RPM anomalies in its last 3 readings (rpm = 1850, 1900, 1950). T-004 has gradual temperature drift: 70 → 84 over the first 15 readings (linear ramp simulating bearing wear), then 91 → 95 in the last 5 readings (the anomaly threshold breach). Total anomalies for Task 2 (RPM > 1800 OR temperature > 90): 8 rows. Only T-004 shows the drift pattern Task 4 detects.",
+      "schema": {
+        "columns": [
+          {"name": "turbine_id", "type": "string", "nullable": false},
+          {"name": "timestamp", "type": "string", "nullable": false, "description": "ISO 8601 format YYYY-MM-DDTHH:MM:SS"},
+          {"name": "rpm", "type": "double", "nullable": false},
+          {"name": "temperature", "type": "double", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FI5-task-02", "module-FI5-task-04"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FI5-task-01",
+      "title": "Design the Eventstream for SCADA Telemetry",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid is building a real-time pipeline for the 5,000-turbine SCADA fleet. Each turbine emits RPM and temperature readings every 10 seconds. The platform team needs to capture this stream, route critical alerts to the operations dashboard, AND route the raw data to the Bronze Lakehouse for batch consolidation by the nightly Silver pipeline.\n\nFI5 Lesson 3's Eventstream pattern:\n- SOURCE: where the data comes from (Azure Event Hubs, custom HTTP endpoint, Fabric items, etc.)\n- IN-FLIGHT TRANSFORMATIONS: filter, project, aggregate operators applied as the data flows through (optional)\n- DESTINATIONS: where the data goes (KQL database, Lakehouse, Warehouse — can be multiple)\n\nNordGrid's specific design:\n- Source: Azure Event Hubs endpoint 'nordgrid-scada-stream' (where the turbines publish)\n- In-flight transformation: drop any rows where turbine_id is null (data quality filter)\n- Two destinations: (1) the KQL database 'kql_turbine_realtime' for live anomaly queries and dashboards, (2) the Bronze Lakehouse table 'lh_bronze.turbine_telemetry_raw' for nightly batch consolidation",
+        "task": "Build a Python dict called eventstream_config with these top-level keys:\n  - name: 'es_nordgrid_scada'\n  - source: a nested dict with type ('AzureEventHubs') and endpoint ('nordgrid-scada-stream')\n  - inflight_transformations: a list with at least one transformation dict containing type ('filter') and condition ('turbine_id IS NOT NULL')\n  - destinations: a list of EXACTLY 2 destination dicts. Each destination must have type and target. The first destination has type='KQLDatabase' and target='kql_turbine_realtime'. The second has type='Lakehouse' and target='lh_bronze.turbine_telemetry_raw'.",
+        "validationHint": "Two destinations is the keystone — single-destination Eventstreams cannot serve both real-time dashboards AND batch consolidation. Build the dict literally as described. The order of destinations in the list does not matter for assertions, but using KQLDatabase first matches NordGrid's documentation convention."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI5 Lesson 3: Eventstream design for SCADA telemetry.\n# In Fabric portal, this is configured visually in the Eventstream designer.\n# Here we build the equivalent Python dict.\n\n# YOUR SOLUTION BELOW\n# Build eventstream_config with the structure from the task description.\n\neventstream_config = {\n    # Fill in: name, source, inflight_transformations, destinations\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(eventstream_config, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI5-01-A1",
+          "description": "eventstream_config has the 4 required top-level keys",
+          "check": "set(eventstream_config.keys()) >= {'name', 'source', 'inflight_transformations', 'destinations'}"
+        },
+        {
+          "id": "FI5-01-A2",
+          "description": "name is 'es_nordgrid_scada'",
+          "check": "eventstream_config['name'] == 'es_nordgrid_scada'"
+        },
+        {
+          "id": "FI5-01-A3",
+          "description": "source has type 'AzureEventHubs' and endpoint 'nordgrid-scada-stream'",
+          "check": "eventstream_config['source']['type'] == 'AzureEventHubs' and eventstream_config['source']['endpoint'] == 'nordgrid-scada-stream'"
+        },
+        {
+          "id": "FI5-01-A4",
+          "description": "inflight_transformations contains a filter on turbine_id IS NOT NULL",
+          "check": "any(t['type'] == 'filter' and 'turbine_id' in t['condition'] and 'NOT NULL' in t['condition'].upper() for t in eventstream_config['inflight_transformations'])"
+        },
+        {
+          "id": "FI5-01-A5",
+          "description": "destinations is a list of exactly 2 entries",
+          "check": "len(eventstream_config['destinations']) == 2"
+        },
+        {
+          "id": "FI5-01-A6",
+          "description": "destinations include a KQLDatabase target 'kql_turbine_realtime'",
+          "check": "any(d['type'] == 'KQLDatabase' and d['target'] == 'kql_turbine_realtime' for d in eventstream_config['destinations'])"
+        },
+        {
+          "id": "FI5-01-A7",
+          "description": "destinations include a Lakehouse target 'lh_bronze.turbine_telemetry_raw'",
+          "check": "any(d['type'] == 'Lakehouse' and d['target'] == 'lh_bronze.turbine_telemetry_raw' for d in eventstream_config['destinations'])"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-FI5-task-02",
+      "title": "Write KQL for Anomaly Detection",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's operations team needs an alert query that scans the turbine_telemetry KQL table and returns any reading with critical RPM (> 1800) or critical temperature (> 90 °C). The query runs every minute on the live KQL database and feeds the operations dashboard.\n\nIN PRODUCTION FABRIC, this is a KQL query against the kql_turbine_realtime database:\n\n  turbine_telemetry\n  | where rpm > 1800 or temperature > 90\n  | project turbine_id, timestamp, rpm, temperature\n  | order by turbine_id asc, timestamp asc\n\nThe local environment does not have a KQL database. You will write the EQUIVALENT query in Spark SQL, which has the same logical operators. The KQL→Spark SQL mapping for this task:\n  KQL `| where ...`     →  Spark SQL `WHERE ...`\n  KQL `| project ...`   →  Spark SQL `SELECT ...`\n  KQL `| order by ...`  →  Spark SQL `ORDER BY ...`\n\nThe semantics are identical — only the syntax differs. Writing the Spark SQL version proves you understand what the KQL operators DO.",
+        "task": "Read FI5_data_turbine_telemetry.csv and register it as a temp view called turbine_telemetry. Write a Spark SQL query that selects turbine_id, timestamp, rpm, temperature from the view where rpm > 1800 OR temperature > 90, ordered by turbine_id ASC then timestamp ASC. Execute it via spark.sql() and store the result in df_anomalies. Store the row count in anomaly_count.",
+        "validationHint": "Expected: 8 anomaly rows. T-003 has 3 RPM anomalies (its last 3 readings with rpm = 1850, 1900, 1950). T-004 has 5 temperature anomalies (its last 5 readings with temp = 91, 92, 93, 94, 95). Total: 3 + 5 = 8."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI5 Lesson 5: writing KQL for anomaly detection.\n# In Fabric KQL database, you would write:\n#   turbine_telemetry\n#   | where rpm > 1800 or temperature > 90\n#   | project turbine_id, timestamp, rpm, temperature\n#   | order by turbine_id asc, timestamp asc\n# Locally we use the equivalent Spark SQL — same operators, different syntax.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-kql-anomaly') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_telemetry = spark.read.csv('FI5_data_turbine_telemetry.csv', header=True, inferSchema=True)\ndf_telemetry.createOrReplaceTempView('turbine_telemetry')\nprint(f\"turbine_telemetry: {df_telemetry.count()} rows\")\n\n# YOUR SOLUTION BELOW\n# Write a Spark SQL query (equivalent to the KQL above):\n#   - SELECT turbine_id, timestamp, rpm, temperature\n#   - FROM turbine_telemetry\n#   - WHERE rpm > 1800 OR temperature > 90\n#   - ORDER BY turbine_id ASC, timestamp ASC\n# Execute via spark.sql() and store the result in df_anomalies.\n# Store the row count in anomaly_count.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Anomaly count: {anomaly_count}\")\ndf_anomalies.show()"
+      },
+      "assertions": [
+        {
+          "id": "FI5-02-A1",
+          "description": "df_anomalies has exactly 8 rows (3 RPM anomalies on T-003 + 5 temperature anomalies on T-004)",
+          "check": "df_anomalies.count() == 8"
+        },
+        {
+          "id": "FI5-02-A2",
+          "description": "anomaly_count equals 8",
+          "check": "anomaly_count == 8"
+        },
+        {
+          "id": "FI5-02-A3",
+          "description": "df_anomalies has the 4 expected columns",
+          "check": "set(df_anomalies.columns) == {'turbine_id', 'timestamp', 'rpm', 'temperature'}"
+        },
+        {
+          "id": "FI5-02-A4",
+          "description": "All anomaly rows satisfy the OR condition (rpm > 1800 OR temperature > 90)",
+          "check": "df_anomalies.filter('rpm <= 1800 AND temperature <= 90').count() == 0"
+        },
+        {
+          "id": "FI5-02-A5",
+          "description": "Exactly 3 anomalies are from T-003 (the RPM anomaly turbine)",
+          "check": "df_anomalies.filter(\"turbine_id = 'T-003'\").count() == 3"
+        },
+        {
+          "id": "FI5-02-A6",
+          "description": "Exactly 5 anomalies are from T-004 (the temperature drift turbine)",
+          "check": "df_anomalies.filter(\"turbine_id = 'T-004'\").count() == 5"
+        },
+        {
+          "id": "FI5-02-A7",
+          "description": "First row is a T-003 anomaly (proves ORDER BY turbine_id ASC was applied — T-003 sorts before T-004)",
+          "check": "df_anomalies.first()['turbine_id'] == 'T-003'"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-FI5-task-03",
+      "title": "Diagnose a Streaming Data Gap",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's on-call engineer is investigating an alert that fired at 02:17 UTC. The Eventstream monitoring dashboard shows the following metrics for the SCADA telemetry stream over a 30-minute window:\n\n  EVENTSTREAM HEALTH — es_nordgrid_scada / 2026-04-08 02:00–02:30 UTC\n  ----------------------------------------\n  Time      Ingestion lag    Throughput (events/sec)   Failed events\n  02:00     2 sec            500                       0\n  02:05     2 sec            498                       0\n  02:10     2 sec            502                       0\n  02:15     2 sec            500                       0\n  02:16     1200 sec  <--    0   <--                   0\n  02:17     1200 sec         0                         0\n  02:20     1200 sec         0                         0\n  02:25     1200 sec         0                         0\n  02:30     1200 sec         0                         0\n  02:32     2 sec            520   <-- recovery        0\n  02:33     2 sec            500                       0\n\n  AUTOMATED ALERTS FIRED:\n    02:17 UTC — IngestionLagBreach: lag exceeded 60s threshold\n    02:18 UTC — ZeroThroughputAlert: 0 events/sec for 2 consecutive minutes\n\n  RECOVERY: At 02:32 the stream resumed normally with throughput at 520 events/sec\n  briefly (catching up the backlog) then settling back to the steady ~500/sec.\n\nThe failed_events count stayed at 0 throughout. The team needs to diagnose what happened during the 16-minute gap (02:16 to 02:32), why it auto-recovered, and what monitoring threshold was correct.",
+        "task": "Diagnose the streaming gap from the metrics.",
+        "validationHint": "The 0 events/sec + sustained 1200-second lag pattern is the signature of an UPSTREAM connection issue (network partition between the turbines and the Eventstream endpoint), NOT a downstream Eventstream failure. If Eventstream itself had failed, failed_events would have spiked. Instead, the metrics show no events arriving to fail. The 16-minute auto-recovery without intervention suggests the upstream issue resolved itself (network partition healed). The first alert at 02:17 (one minute into the gap) confirms the threshold was set tight enough to catch the issue quickly."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI5-03-F1",
+            "type": "single_select",
+            "label": "What is the most likely root cause of the 16-minute gap?",
+            "options": [
+              "Upstream network partition: the turbines could not reach the Event Hubs endpoint, so no events were published. The Eventstream itself was healthy — it just had nothing to ingest. The 0 throughput and 0 failed events together prove that no events arrived AT ALL, which rules out an Eventstream-side failure",
+              "Eventstream service outage: the Eventstream itself stopped processing events",
+              "KQL database storage full: writes were rejected",
+              "Schema validation failure: every event was rejected"
+            ],
+            "correctAnswer": "Upstream network partition: the turbines could not reach the Event Hubs endpoint, so no events were published. The Eventstream itself was healthy — it just had nothing to ingest. The 0 throughput and 0 failed events together prove that no events arrived AT ALL, which rules out an Eventstream-side failure",
+            "rationale": "Distinguishing between 'no events arriving' and 'events arriving but failing' is the key diagnostic skill. failed_events=0 means nothing failed. Throughput=0 means nothing arrived. Combined, the only consistent explanation is upstream — events were never published. Distractors B-D would all show non-zero failed_events because the Eventstream WOULD see and reject events."
+          },
+          {
+            "id": "FI5-03-F2",
+            "type": "numeric",
+            "label": "How long did the data gap last in MINUTES (from the moment lag spiked to the moment throughput recovered)?",
+            "correctAnswer": 16,
+            "tolerance": 1,
+            "rationale": "The lag spike occurred at 02:16 and throughput returned at 02:32 — a 16-minute gap. Acceptable tolerance ±1 minute for off-by-one interpretations of the metric timeline."
+          },
+          {
+            "id": "FI5-03-F3",
+            "type": "single_select",
+            "label": "Why did the stream recover automatically without intervention?",
+            "options": [
+              "The upstream network partition healed on its own (transient infrastructure issue), and once turbines could reach the endpoint again, normal publishing resumed. Eventstreams are resilient to upstream gaps — they continue running and resume ingestion as soon as events arrive again",
+              "Fabric automatically restarted the Eventstream after 15 minutes",
+              "The on-call engineer manually restarted the stream",
+              "The KQL database self-healed and reopened writes"
+            ],
+            "correctAnswer": "The upstream network partition healed on its own (transient infrastructure issue), and once turbines could reach the endpoint again, normal publishing resumed. Eventstreams are resilient to upstream gaps — they continue running and resume ingestion as soon as events arrive again",
+            "rationale": "Eventstreams are resilient: they do not crash or restart when no events arrive — they simply wait. When events resume, normal processing resumes immediately. Distractor B invents an auto-restart timer. Distractor C is incorrect because no manual action was logged. Distractor D confuses upstream availability with downstream storage."
+          },
+          {
+            "id": "FI5-03-F4",
+            "type": "single_select",
+            "label": "Was the IngestionLagBreach alert threshold set correctly for NordGrid's operational needs?",
+            "options": [
+              "Yes — the alert fired at 02:17, just one minute after the gap started (02:16). For a stream with normal lag of 2 seconds, a 60-second threshold catches problems quickly without false positives from minor blips",
+              "No — the threshold should be 1 second so any deviation from normal triggers immediately",
+              "No — the threshold should be 30 minutes to avoid alert fatigue",
+              "The threshold is irrelevant because the stream auto-recovered"
+            ],
+            "correctAnswer": "Yes — the alert fired at 02:17, just one minute after the gap started (02:16). For a stream with normal lag of 2 seconds, a 60-second threshold catches problems quickly without false positives from minor blips",
+            "rationale": "Alert thresholds need to balance sensitivity (catch problems early) with noise (avoid pages for transient blips). A 60-second threshold against a 2-second baseline is 30x normal — large enough to ignore brief jitter but small enough to detect real outages within a minute. Distractor B would page the engineer constantly. Distractor C waits too long for actionable response. Distractor D is wrong because the alert IS the reason the engineer is investigating."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI5-task-04",
+      "title": "Time-Series Trend Detection for Bearing Failure",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's reliability team has learned that bearing failures are preceded by gradual temperature drift over hours or days — long before the temperature crosses the 90 °C alert threshold. The team wants a query that identifies turbines whose temperature is rising significantly even when no individual reading is critical.\n\nIN PRODUCTION FABRIC KQL, this uses make-series and series_decompose:\n\n  turbine_telemetry\n  | summarize max_temp = max(temperature), min_temp = min(temperature) by turbine_id\n  | extend temp_delta = max_temp - min_temp\n  | where temp_delta > 20\n  | project turbine_id, max_temp, min_temp, temp_delta\n\nThe Spark SQL equivalent is straightforward — group by turbine_id, compute max and min, filter where the difference exceeds the threshold:\n\n  SELECT turbine_id, MAX(temperature) AS max_temp, MIN(temperature) AS min_temp,\n         MAX(temperature) - MIN(temperature) AS temp_delta\n  FROM turbine_telemetry\n  GROUP BY turbine_id\n  HAVING (MAX(temperature) - MIN(temperature)) > 20\n\nKQL → Spark SQL mapping for this task:\n  KQL `summarize ... by turbine_id`  →  Spark SQL `GROUP BY turbine_id`\n  KQL `extend col = expr`            →  Spark SQL `SELECT ..., expr AS col`\n  KQL `where temp_delta > 20`        →  Spark SQL `HAVING ... > 20` (after GROUP BY)",
+        "task": "Read the dataset, register as turbine_telemetry. Write a Spark SQL query that computes max temperature, min temperature, and the delta per turbine, filters to turbines with delta > 20, and returns the result. Store the result in df_drift and the row count in drift_count. Verify the specific finding: store the offending turbine_id in drift_turbine_id and its temp_delta in drift_temp_delta.",
+        "validationHint": "Expected: only T-004 matches because only T-004 has temperature drift (max=95, min=70, delta=25). All other turbines have constant temperature (delta=0). drift_count should be 1, drift_turbine_id should be 'T-004', drift_temp_delta should be 25.0."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI5 Lesson 6: time-series analysis for trend detection.\n# In Fabric KQL database, you would write:\n#   turbine_telemetry\n#   | summarize max_temp = max(temperature), min_temp = min(temperature) by turbine_id\n#   | extend temp_delta = max_temp - min_temp\n#   | where temp_delta > 20\n# Locally we use the equivalent Spark SQL with GROUP BY + HAVING.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-trend-detection') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_telemetry = spark.read.csv('FI5_data_turbine_telemetry.csv', header=True, inferSchema=True)\ndf_telemetry.createOrReplaceTempView('turbine_telemetry')\nprint(f\"turbine_telemetry: {df_telemetry.count()} rows\")\n\n# YOUR SOLUTION BELOW\n# Write a Spark SQL query that:\n#   - SELECTs turbine_id,\n#               MAX(temperature) AS max_temp,\n#               MIN(temperature) AS min_temp,\n#               MAX(temperature) - MIN(temperature) AS temp_delta\n#   - FROM turbine_telemetry\n#   - GROUP BY turbine_id\n#   - HAVING (MAX(temperature) - MIN(temperature)) > 20\n# Execute via spark.sql() and store the result in df_drift.\n# Store the row count in drift_count.\n# Store the offending turbine's ID in drift_turbine_id.\n# Store the offending turbine's temp_delta in drift_temp_delta.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Drift detection result: {drift_count} turbine(s)\")\nprint(f\"Offending turbine: {drift_turbine_id}\")\nprint(f\"Temperature delta: {drift_temp_delta}\")\ndf_drift.show()"
+      },
+      "assertions": [
+        {
+          "id": "FI5-04-A1",
+          "description": "df_drift has exactly 1 row (only T-004 has drift > 20)",
+          "check": "df_drift.count() == 1"
+        },
+        {
+          "id": "FI5-04-A2",
+          "description": "drift_count equals 1",
+          "check": "drift_count == 1"
+        },
+        {
+          "id": "FI5-04-A3",
+          "description": "df_drift has the 4 expected columns",
+          "check": "set(df_drift.columns) == {'turbine_id', 'max_temp', 'min_temp', 'temp_delta'}"
+        },
+        {
+          "id": "FI5-04-A4",
+          "description": "drift_turbine_id is 'T-004'",
+          "check": "drift_turbine_id == 'T-004'"
+        },
+        {
+          "id": "FI5-04-A5",
+          "description": "drift_temp_delta equals 25.0",
+          "check": "drift_temp_delta == 25.0"
+        },
+        {
+          "id": "FI5-04-A6",
+          "description": "T-004's max_temp is 95.0 and min_temp is 70.0",
+          "check": "df_drift.filter(\"turbine_id = 'T-004'\").first()['max_temp'] == 95.0 and df_drift.filter(\"turbine_id = 'T-004'\").first()['min_temp'] == 70.0"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit."
+    },
+    {
+      "id": "module-FI5-task-05",
+      "title": "Design NordGrid's Real-Time Architecture",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "This is the synthesis task. NordGrid's platform team is finalizing the production real-time architecture for the SCADA fleet. Requirements:\n\n  - Eventstream captures 5,000 turbines × 1 reading per 10 seconds = 500 events/sec sustained\n  - KQL database stores live data with 30-day retention for investigation queries\n  - Real-time dashboard refreshes every 60 seconds for the operations team\n  - Anomaly detection runs every 60 seconds using the query from Task 2\n  - Trend detection runs every 5 minutes using the query from Task 4\n  - Bronze Lakehouse receives the same raw data for nightly Silver consolidation\n  - Operational alerting: ingestion lag > 60 seconds triggers an on-call page (the threshold from Task 3)\n\nYour job: (1) DIAGNOSIS — fill the 4-field template confirming the design choices. (2) FIX — build the architecture spec as a Python dict integrating Eventstream + KQL database + dashboard + medallion connection + alerting. Both are graded independently and combined 50/50.",
+        "task": "Fill the diagnosis template AND build the architecture dict.\n\nFor the FIX: Build a Python dict called realtime_architecture with these top-level keys:\n  - eventstream: a dict with name, source_endpoint ('nordgrid-scada-stream'), and destinations (a list of 2 destination dicts: KQLDatabase 'kql_turbine_realtime' and Lakehouse 'lh_bronze.turbine_telemetry_raw')\n  - kql_database: a dict with name ('kql_turbine_realtime') and retention_days (30)\n  - dashboard: a dict with name ('rtd_turbine_operations') and refresh_seconds (60)\n  - alerting: a dict with at least one alert: lag_threshold_seconds (60)\n  - medallion_integration: a dict with target_lakehouse ('lh_bronze') and table ('turbine_telemetry_raw')",
+        "validationHint": "The architecture combines the Eventstream from Task 1, the alert threshold from Task 3, and the integration with the medallion architecture taught in FI5 Lesson 7. The KQL database retention (30 days) matches NordGrid's regulatory window for operational investigations. The dashboard refresh (60 seconds) matches the anomaly detection cadence so the dashboard always shows fresh alert results."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI5-05-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does the Eventstream need TWO destinations (KQL + Lakehouse) instead of just one?",
+            "options": [
+              "KQL serves the live anomaly queries and dashboard with second-level latency, but its 30-day retention is too short for historical analysis. The Lakehouse copy preserves the raw data permanently for nightly Silver consolidation, regulatory audit, and ML training data. Each destination serves a different consumer with different latency and retention needs",
+              "Two destinations is required by Fabric — Eventstreams cannot have just one",
+              "The Lakehouse is a backup in case KQL fails",
+              "Two destinations doubles the throughput"
+            ],
+            "correctAnswer": "KQL serves the live anomaly queries and dashboard with second-level latency, but its 30-day retention is too short for historical analysis. The Lakehouse copy preserves the raw data permanently for nightly Silver consolidation, regulatory audit, and ML training data. Each destination serves a different consumer with different latency and retention needs",
+            "rationale": "The two-destination pattern is the canonical real-time + batch architecture from FI5 Lesson 7. KQL is optimized for low-latency time-series queries (live alerts) but not for permanent storage. The Lakehouse copy plugs into the medallion architecture for batch consumers. Distractor C misses that the Lakehouse is the PRIMARY long-term store, not a backup."
+          },
+          {
+            "id": "FI5-05-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why does the KQL database use 30-day retention rather than 7 days or 365 days?",
+            "options": [
+              "30 days balances operational utility (long enough to investigate incidents from the past month) against KQL storage cost (which scales with retention) and query performance (KQL queries on shorter retention windows are faster). For longer-term analysis, the Lakehouse copy has the same data with no retention limit",
+              "30 days is the maximum KQL retention allowed in Fabric",
+              "30 days matches the Power BI semantic model refresh cycle",
+              "30 days is the minimum KQL retention allowed in Fabric"
+            ],
+            "correctAnswer": "30 days balances operational utility (long enough to investigate incidents from the past month) against KQL storage cost (which scales with retention) and query performance (KQL queries on shorter retention windows are faster). For longer-term analysis, the Lakehouse copy has the same data with no retention limit",
+            "rationale": "Retention choices are trade-offs. 30 days is long enough for the operations team to investigate any incident from the past month (covering monthly review cycles) but short enough to control KQL storage cost and keep queries fast. Longer-term needs are met by the Lakehouse — the architecture splits responsibilities between the two destinations. Distractors B and D invent fictional limits."
+          },
+          {
+            "id": "FI5-05-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why does the dashboard refresh every 60 seconds instead of continuously?",
+            "options": [
+              "60 seconds matches the anomaly detection cadence — the dashboard always shows fresh alert results without running queries more often than new data arrives. Refreshing more frequently would consume KQL query CUs without showing new information. Refreshing less frequently would let the dashboard go stale relative to the alerts",
+              "60 seconds is the minimum dashboard refresh interval Fabric supports",
+              "Continuous refresh would crash the operations team's browsers",
+              "60 seconds is required by the regulatory monitoring framework"
+            ],
+            "correctAnswer": "60 seconds matches the anomaly detection cadence — the dashboard always shows fresh alert results without running queries more often than new data arrives. Refreshing more frequently would consume KQL query CUs without showing new information. Refreshing less frequently would let the dashboard go stale relative to the alerts",
+            "rationale": "Dashboard refresh should match the rate at which new data is generated AND the rate at which queries are recomputed. With anomaly detection running every 60 seconds, refreshing more often shows the same data and wastes CUs; refreshing less often makes the dashboard lag the alerts. The cadences should be aligned. Distractors B-D invent constraints."
+          },
+          {
+            "id": "FI5-05-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why is the lag threshold for the on-call alert set to 60 seconds (from Task 3) rather than 5 seconds or 30 minutes?",
+            "options": [
+              "60 seconds is large enough to ignore transient blips (brief network jitter, momentary capacity contention) without paging the on-call engineer for nothing, but small enough to catch real outages within 1 minute — a balance between sensitivity and noise that respects the on-call engineer's time",
+              "60 seconds is the lowest threshold Fabric supports",
+              "60 seconds is regulated by Fabric's SLA",
+              "60 seconds is arbitrary and could be any value"
+            ],
+            "correctAnswer": "60 seconds is large enough to ignore transient blips (brief network jitter, momentary capacity contention) without paging the on-call engineer for nothing, but small enough to catch real outages within 1 minute — a balance between sensitivity and noise that respects the on-call engineer's time",
+            "rationale": "The same reasoning as Task 3 F4: alert thresholds balance sensitivity vs noise. 60 seconds is 30x the steady-state lag of 2 seconds, large enough to filter out blips but small enough to detect real failures fast. Distractors B-C invent constraints. Distractor D denies the engineering reasoning behind the choice."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI5 SYNTHESIS: NordGrid's complete real-time architecture spec.\n# Pure Python dict — no Spark needed.\n\n# YOUR SOLUTION BELOW\n# Build realtime_architecture with the structure from the task description.\n# Combine the Eventstream from Task 1, the lag threshold from Task 3, and the\n# medallion connection from FI5 Lesson 7.\n\nrealtime_architecture = {\n    # Fill in: eventstream, kql_database, dashboard, alerting, medallion_integration\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(realtime_architecture, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI5-05-A1",
+          "description": "realtime_architecture has the 5 required top-level keys",
+          "check": "set(realtime_architecture.keys()) >= {'eventstream', 'kql_database', 'dashboard', 'alerting', 'medallion_integration'}"
+        },
+        {
+          "id": "FI5-05-A2",
+          "description": "eventstream has source_endpoint and a destinations list with exactly 2 entries",
+          "check": "realtime_architecture['eventstream']['source_endpoint'] == 'nordgrid-scada-stream' and len(realtime_architecture['eventstream']['destinations']) == 2"
+        },
+        {
+          "id": "FI5-05-A3",
+          "description": "eventstream destinations include both a KQLDatabase and a Lakehouse",
+          "check": "set(d['type'] for d in realtime_architecture['eventstream']['destinations']) == {'KQLDatabase', 'Lakehouse'}"
+        },
+        {
+          "id": "FI5-05-A4",
+          "description": "kql_database has name 'kql_turbine_realtime' and 30-day retention",
+          "check": "realtime_architecture['kql_database']['name'] == 'kql_turbine_realtime' and realtime_architecture['kql_database']['retention_days'] == 30"
+        },
+        {
+          "id": "FI5-05-A5",
+          "description": "dashboard has refresh_seconds = 60",
+          "check": "realtime_architecture['dashboard']['refresh_seconds'] == 60"
+        },
+        {
+          "id": "FI5-05-A6",
+          "description": "alerting has lag_threshold_seconds = 60 (the threshold from Task 3)",
+          "check": "realtime_architecture['alerting']['lag_threshold_seconds'] == 60"
+        },
+        {
+          "id": "FI5-05-A7",
+          "description": "medallion_integration points to the lh_bronze Lakehouse and turbine_telemetry_raw table",
+          "check": "realtime_architecture['medallion_integration']['target_lakehouse'] == 'lh_bronze' and realtime_architecture['medallion_integration']['table'] == 'turbine_telemetry_raw'"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (7 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/7).",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Eventstream design with multiple destinations (Lesson 3)",
+          "KQL database with retention policy (Lesson 4)",
+          "Real-Time Dashboard with refresh cadence (Lesson 8)",
+          "Connecting real-time to the medallion architecture via Lakehouse destination (Lesson 7)",
+          "Operational alerting threshold for ingestion lag (Lesson 9)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis integrates all 5 layers of NordGrid's real-time architecture into one specification. The two-destination Eventstream pattern (KQL for live, Lakehouse for batch) is the keystone — it shows the student understands how real-time and batch worlds connect. The diagnosis template forces students to articulate WHY each retention/refresh/threshold value was chosen, ensuring they can defend the design rather than just transcribe values."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "calibrationNotes": "Fifth Fabric mid-level practice set. The KQL grading proxy is the trickiest pattern in the entire mid-level track and depends on reviewer acceptance. Tasks 2 and 4 use Spark SQL syntax for queries that would be KQL in production, with explicit KQL→Spark SQL mapping notes in every scaffold. The semantics are identical even though the syntax differs. Students learn the KQL operator vocabulary (where, project, summarize, extend) by seeing it in the scaffold comments while practicing the equivalent SQL. Task type mix (1 diagnostic + 3 fix + 1 synthesis = 5 tasks) is the §2.2 minimum for mid-level and within all §5.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches Eventstream design, KQL syntax, time-series analysis, real-time dashboards, and the medallion integration in Lessons 3-9. The practice tests application: Task 1 builds an Eventstream config matching the specific NordGrid SCADA scenario. Task 2 writes the anomaly detection query that runs every minute on production. Task 3 reproduces the standard 'lag spike + zero throughput' streaming gap pattern that distinguishes upstream from downstream failures. Task 4 builds the trend detection query for bearing failure prediction — a real reliability use case that the theory describes. Task 5 synthesizes the entire architecture.",
+    "datasetNotes": "One dataset (100 rows) covering 5 turbines with 20 readings each at 10-second intervals. Carefully constructed so Task 2 finds exactly 8 anomalies (3 RPM on T-003 + 5 temperature on T-004) and Task 4 finds exactly 1 turbine with drift (T-004 with delta 25.0). Other turbines have constant temperatures so the drift query returns a single deterministic result. The 10-second cadence and ISO 8601 timestamps reflect the production SCADA pattern from FI5 Lesson 4."
+  }
+}

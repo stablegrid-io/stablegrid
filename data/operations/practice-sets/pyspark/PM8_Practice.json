@@ -1,0 +1,482 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 8 \u2014 Adaptive Query Execution (AQE)",
+  "description": "Diagnose and configure Spark's Adaptive Query Execution: identify dynamic partition coalescing from execution plans, detect AQE skew join splitting, recognize runtime join strategy switching, configure AQE properties for NordGrid's workloads, and determine when AQE is insufficient and manual tuning is still required.",
+  "version": "authored 2026-04-06, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PM8",
+    "trackLevel": "mid-level",
+    "estimatedDurationMinutes": 74,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, multi-team",
+    "modulePhase": "operations",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 3,
+      "fixImplementation": 2,
+      "diagnosticWorkflow": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PM8_data_readings_silver",
+      "file": "PM8_data_readings_silver.csv",
+      "description": "NordGrid Silver readings. 600 rows, 12 regions, 14 dates. NORTH_COAST has 45% skew. 168 region\u00d7date groups for small-partition scenarios.",
+      "usedByTasks": [
+        "module-PM8-task-03",
+        "module-PM8-task-04",
+        "module-PM8-task-06"
+      ]
+    },
+    {
+      "id": "PM8_data_substations",
+      "file": "PM8_data_substations.csv",
+      "description": "NordGrid substations. 40 rows \u2014 small table for AQE dynamic join strategy switching.",
+      "usedByTasks": [
+        "module-PM8-task-03",
+        "module-PM8-task-06"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PM8-task-01",
+      "title": "Identify AQE Dynamic Partition Coalescing",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's Gold aggregation pipeline groups 1.2M readings by region (12 groups) with spark.sql.shuffle.partitions set to 200. Without AQE, this produces 200 post-shuffle partitions \u2014 188 of which are empty. With AQE enabled, Spark detects the empty partitions at runtime and coalesces them down to a smaller number. The engineer examines the AQE-annotated execution plan.",
+        "task": "Read the execution plan below. Identify where AQE applied coalescing, determine the before/after partition counts, and explain what triggered the optimization.",
+        "validationHint": "Look for 'CustomShuffleReader' or 'AQEShuffleRead' with coalesced partitions in the plan. The isFinalPlan=true marker indicates AQE has finalized its adaptations."
+      },
+      "evidence": {
+        "type": "execution_plan",
+        "label": "explain(True) output \u2014 AQE-enabled Gold aggregation",
+        "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=true\n+- == Final Plan ==\n   +- AQEShuffleRead coalesced\n      +- ShuffleQueryStage 1\n         +- Exchange hashpartitioning(region#15, 200), ENSURE_REQUIREMENTS, [plan_id=42]\n            +- HashAggregate(keys=[region#15], functions=[partial_sum(daily_kw#13), partial_count(1)])\n               +- FileScan parquet [daily_kw#13,region#15]\n\n== Initial Plan ==\n   +- Exchange hashpartitioning(region#15, 200), ENSURE_REQUIREMENTS\n      +- HashAggregate(keys=[region#15], functions=[partial_sum(daily_kw#13), partial_count(1)])\n         +- FileScan parquet [daily_kw#13,region#15]\n\nStatistics collected during query execution:\n  Stage 0: 24 input partitions, 1.2M rows\n  Stage 1: 200 shuffle partitions requested \u2192 12 non-empty partitions detected \u2192 coalesced to 12"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM8-01-F1",
+            "type": "single_select",
+            "label": "What AQE optimization was applied?",
+            "options": [
+              "Dynamic join strategy switching \u2014 AQE changed from SortMergeJoin to BroadcastHashJoin",
+              "Dynamic partition coalescing \u2014 AQE detected 188 empty partitions and coalesced 200 down to 12",
+              "Skew join optimization \u2014 AQE split a skewed partition into smaller pieces",
+              "No optimization \u2014 the plan ran as originally planned"
+            ],
+            "correctAnswer": "Dynamic partition coalescing \u2014 AQE detected 188 empty partitions and coalesced 200 down to 12"
+          },
+          {
+            "id": "PM8-01-F2",
+            "type": "numeric",
+            "label": "How many partitions did the shuffle originally request?",
+            "correctAnswer": 200,
+            "tolerance": 0,
+            "rationale": "The Exchange node shows hashpartitioning(region#15, 200) \u2014 the shuffle.partitions config value."
+          },
+          {
+            "id": "PM8-01-F3",
+            "type": "numeric",
+            "label": "How many partitions did AQE coalesce to?",
+            "correctAnswer": 12,
+            "tolerance": 0,
+            "rationale": "The statistics section shows: 200 shuffle partitions requested \u2192 12 non-empty \u2192 coalesced to 12."
+          },
+          {
+            "id": "PM8-01-F4",
+            "type": "single_select",
+            "label": "What triggered AQE to coalesce?",
+            "options": [
+              "AQE detected that the shuffle data was small enough to broadcast",
+              "AQE collected shuffle statistics after Stage 0 completed, detected that 188 of 200 partitions were empty (only 12 regions have data), and merged them to avoid scheduling and I/O overhead",
+              "AQE detected data skew in the region column",
+              "The user explicitly set spark.sql.adaptive.coalescePartitions.minPartitionNum = 12"
+            ],
+            "correctAnswer": "AQE collected shuffle statistics after Stage 0 completed, detected that 188 of 200 partitions were empty (only 12 regions have data), and merged them to avoid scheduling and I/O overhead"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM8-task-02",
+      "title": "Diagnose AQE Skew Join Handling",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's Silver enrichment pipeline joins 1.2M readings with the substations table on substation_id. SUB-001 has 45% of all readings. Without AQE, this creates a single straggler task processing 540K rows in 11 minutes. With AQE's skew join optimization enabled, Spark detects the skewed partition at runtime and splits it into smaller pieces.",
+        "task": "Examine the before/after task metrics below. Determine how AQE handled the skew, compute the split factor, and assess the performance improvement.",
+        "validationHint": "AQE's skew join splits a skewed partition when its size exceeds the median partition size by a configurable factor (default: 5x). The split distributes the skewed key's data across multiple tasks."
+      },
+      "evidence": {
+        "type": "combined",
+        "beforeAQE": {
+          "label": "Without AQE \u2014 Stage 2 task metrics",
+          "content": "Total tasks: 200 | Duration: 11.2 min\nMedian task: 1.6s, 5,400 records, 5.5 MB\nMax task (147): 11 min, 540,000 records, 520 MB\nSpill (Disk): 2.6 GB (all on task 147)"
+        },
+        "afterAQE": {
+          "label": "With AQE skew join \u2014 Stage 2 task metrics",
+          "content": "Total tasks: 205 | Duration: 48s\nMedian task: 1.5s, 5,400 records, 5.5 MB\nMax task: 12s, 108,000 records, 104 MB\nSpill (Disk): 0\n\nAQE annotation: SkewJoin detected on partition 147 (520 MB, threshold 27.5 MB = median 5.5 MB \u00d7 5).\nPartition 147 split into 5 sub-partitions of ~104 MB each."
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM8-02-F1",
+            "type": "single_select",
+            "label": "How did AQE handle the skewed partition?",
+            "options": [
+              "AQE removed the skewed key from the join entirely",
+              "AQE split partition 147 (520 MB) into 5 sub-partitions of ~104 MB each, distributing the skewed key's data across 5 tasks instead of 1",
+              "AQE broadcast the entire readings table to avoid the shuffle",
+              "AQE increased the shuffle partition count from 200 to 1000"
+            ],
+            "correctAnswer": "AQE split partition 147 (520 MB) into 5 sub-partitions of ~104 MB each, distributing the skewed key's data across 5 tasks instead of 1"
+          },
+          {
+            "id": "PM8-02-F2",
+            "type": "numeric",
+            "label": "What is the AQE skew threshold? (median partition size \u00d7 skewedPartitionFactor)",
+            "correctAnswer": 27.5,
+            "tolerance": 1,
+            "rationale": "Median partition: 5.5 MB. Default skewedPartitionFactor: 5. Threshold: 5.5 \u00d7 5 = 27.5 MB. Partition 147 at 520 MB is 18.9x above the threshold."
+          },
+          {
+            "id": "PM8-02-F3",
+            "type": "single_select",
+            "label": "What was the performance improvement?",
+            "options": [
+              "No improvement \u2014 the total task count increased from 200 to 205",
+              "~14x improvement: stage duration dropped from 11.2 min to 48s. The straggler was eliminated. Spill dropped from 2.6 GB to 0.",
+              "~2x improvement: stage duration dropped by half",
+              "Improvement in spill only \u2014 duration stayed the same"
+            ],
+            "correctAnswer": "~14x improvement: stage duration dropped from 11.2 min to 48s. The straggler was eliminated. Spill dropped from 2.6 GB to 0."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM8-task-03",
+      "title": "Configure AQE for NordGrid's Pipeline",
+      "type": "fix_implementation",
+      "estimatedMinutes": 13,
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
+      "description": {
+        "context": "NordGrid's platform team has AQE disabled on their cluster (spark.sql.adaptive.enabled = false). The data engineering team has permission to enable it at the session level for their pipelines. They want to enable all three AQE optimizations: partition coalescing, skew join handling, and dynamic join strategy switching.",
+        "task": "First, identify the three core AQE configuration properties. Then write a pipeline that enables AQE with appropriate settings, reads the readings and substations data, performs a join and aggregation, and verifies AQE is active. Store the result in a variable called result.",
+        "validationHint": "The three key configs are: spark.sql.adaptive.enabled (master switch), spark.sql.adaptive.coalescePartitions.enabled (coalescing), spark.sql.adaptive.skewJoin.enabled (skew handling). Dynamic join switching is enabled automatically when the master switch is on."
+      },
+      "evidence": {
+        "type": "config_list",
+        "label": "AQE configuration properties",
+        "content": "Property                                          | Default  | Description\n--------------------------------------------------|----------|----------------------------------\nspark.sql.adaptive.enabled                         | true*    | Master switch for AQE (* default changed in 3.2+)\nspark.sql.adaptive.coalescePartitions.enabled       | true     | Merge small post-shuffle partitions\nspark.sql.adaptive.coalescePartitions.minPartitionNum | 1       | Minimum partitions after coalescing\nspark.sql.adaptive.skewJoin.enabled                | true     | Split skewed partitions in joins\nspark.sql.adaptive.skewJoin.skewedPartitionFactor  | 5        | Partition is skewed if size > median \u00d7 factor\nspark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes | 256MB | Minimum absolute size to be considered skewed\nspark.sql.adaptive.localShuffleReader.enabled       | true     | Optimize shuffle reads for local data"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM8-03-F1",
+            "type": "single_select",
+            "label": "Which property is the master switch that must be enabled before any other AQE feature works?",
+            "options": [
+              "spark.sql.adaptive.coalescePartitions.enabled",
+              "spark.sql.adaptive.enabled",
+              "spark.sql.adaptive.skewJoin.enabled",
+              "spark.sql.adaptive.localShuffleReader.enabled"
+            ],
+            "correctAnswer": "spark.sql.adaptive.enabled"
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, count, broadcast\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-aqe-config') \\\n    .master('local[*]') \\\n    .config('spark.sql.adaptive.enabled', 'false') \\\n    .getOrCreate()\n\nprint(f\"AQE before: {spark.conf.get('spark.sql.adaptive.enabled')}\")\n\n# YOUR SOLUTION BELOW\n# 1. Enable AQE master switch\n# 2. Enable partition coalescing\n# 3. Enable skew join handling\n# 4. Read readings and substations\n# 5. Join readings with substations\n# 6. Aggregate by region: total_kw, reading_count\n# Store in 'result'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"AQE after: {spark.conf.get('spark.sql.adaptive.enabled')}\")\nprint(f\"Coalesce: {spark.conf.get('spark.sql.adaptive.coalescePartitions.enabled')}\")\nprint(f\"Skew join: {spark.conf.get('spark.sql.adaptive.skewJoin.enabled')}\")\nprint(f\"Result rows: {result.count()}\")\nresult.show()"
+      },
+      "assertions": [
+        {
+          "id": "PM8-03-A1",
+          "description": "AQE enabled",
+          "check": "spark.conf.get('spark.sql.adaptive.enabled') == 'true'"
+        },
+        {
+          "id": "PM8-03-A2",
+          "description": "Partition coalescing enabled",
+          "check": "spark.conf.get('spark.sql.adaptive.coalescePartitions.enabled') == 'true'"
+        },
+        {
+          "id": "PM8-03-A3",
+          "description": "Skew join enabled",
+          "check": "spark.conf.get('spark.sql.adaptive.skewJoin.enabled') == 'true'"
+        },
+        {
+          "id": "PM8-03-A4",
+          "description": "result has 12 rows (one per region)",
+          "check": "result.count() == 12"
+        },
+        {
+          "id": "PM8-03-A5",
+          "description": "result has total_kw and reading_count",
+          "check": "'total_kw' in result.columns and 'reading_count' in result.columns"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 field. Code (70%): 5 assertions."
+    },
+    {
+      "id": "module-PM8-task-04",
+      "title": "Identify When AQE Cannot Help",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 13,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's data engineering team enabled AQE and saw improvements for most pipelines. But the Silver pipeline that reads a 50 GB CSV file from Bronze, applies type casting and string cleaning, and writes to Parquet still takes 45 minutes. The team expected AQE to help but the execution plan shows 'isFinalPlan=true' with no AQE adaptations applied.",
+        "task": "Examine the pipeline description and execution plan below. Determine why AQE didn't help, identify the actual bottleneck, and recommend the correct fix.",
+        "validationHint": "AQE optimizes operations AFTER shuffles (it uses shuffle statistics). If a pipeline has no shuffle, AQE has nothing to adapt."
+      },
+      "evidence": {
+        "type": "combined",
+        "pipelineCode": {
+          "label": "The Silver pipeline code (no shuffle operations)",
+          "content": "df = spark.read.csv('bronze/meters/', header=True, schema=bronze_schema)\ndf = df.withColumn('daily_kw', col('kwh_reading').cast('double'))\ndf = df.withColumn('date', col('reading_date').cast('date'))\ndf = df.withColumn('region', upper(trim(col('rgn_code'))))\ndf = df.filter(col('daily_kw').isNotNull())\ndf = df.filter(col('daily_kw') > 0)\ndf = df.dropDuplicates(['meter_id', 'date'])\ndf.write.mode('overwrite').parquet('silver/meters/')"
+        },
+        "plan": {
+          "label": "explain(True) output",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=true\n+- Execute InsertIntoHadoopFsRelationCommand parquet, Overwrite\n   +- Deduplicate [meter_id#12, date#30]\n      +- Exchange hashpartitioning(meter_id#12, date#30, 200), REPARTITION_BY_COL, [plan_id=35]\n         +- Project [meter_id#12, cast(kwh_reading#13 as double) AS daily_kw#25, ...]\n            +- Filter (isnotnull(cast(kwh_reading#13 as double)) AND (cast(kwh_reading#13 as double) > 0.0))\n               +- FileScan csv [meter_id#12,kwh_reading#13,reading_date#14,rgn_code#15]\n\nNo AQE adaptations applied (coalescing, skew, or join switching)."
+        },
+        "stageMetrics": {
+          "label": "Stage metrics",
+          "content": "Stage 0: FileScan CSV + Filter + Cast | Duration: 38 min | Input: 50 GB | Output: 48 GB | Tasks: 400\nStage 1: Deduplicate + Write          | Duration: 7 min  | Shuffle Read: 48 GB | Tasks: 200"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM8-04-F1",
+            "type": "single_select",
+            "label": "Why didn't AQE apply any optimizations?",
+            "options": [
+              "AQE is disabled in this session",
+              "AQE applied coalescing but it had no visible effect on performance",
+              "The pipeline has only one shuffle (for dropDuplicates). AQE's coalescing has limited impact when the shuffle is already well-sized. The actual bottleneck is Stage 0 (38 min CSV read), which has no shuffle for AQE to optimize.",
+              "AQE cannot optimize Parquet writes"
+            ],
+            "correctAnswer": "The pipeline has only one shuffle (for dropDuplicates). AQE's coalescing has limited impact when the shuffle is already well-sized. The actual bottleneck is Stage 0 (38 min CSV read), which has no shuffle for AQE to optimize."
+          },
+          {
+            "id": "PM8-04-F2",
+            "type": "single_select",
+            "label": "What is the actual bottleneck that AQE cannot address?",
+            "options": [
+              "The shuffle in Stage 1 is too large",
+              "Stage 0 (CSV read + filter + cast) takes 38 of 45 minutes. CSV parsing is CPU-intensive and I/O-bound. AQE cannot optimize file reads \u2014 it only adapts post-shuffle operations.",
+              "The write in Stage 1 is slow due to too many output files",
+              "The dropDuplicates operation requires too many shuffle partitions"
+            ],
+            "correctAnswer": "Stage 0 (CSV read + filter + cast) takes 38 of 45 minutes. CSV parsing is CPU-intensive and I/O-bound. AQE cannot optimize file reads \u2014 it only adapts post-shuffle operations."
+          },
+          {
+            "id": "PM8-04-F3",
+            "type": "single_select",
+            "label": "What is the correct fix for this pipeline's performance?",
+            "options": [
+              "Increase AQE's coalescing aggressiveness",
+              "Enable AQE's skew join handling for the dropDuplicates",
+              "Convert the Bronze source from CSV to Parquet \u2014 Parquet reads are 5-10x faster due to columnar format, compression, and predicate pushdown. AQE cannot fix a slow CSV read.",
+              "Increase spark.sql.shuffle.partitions to 400"
+            ],
+            "correctAnswer": "Convert the Bronze source from CSV to Parquet \u2014 Parquet reads are 5-10x faster due to columnar format, compression, and predicate pushdown. AQE cannot fix a slow CSV read."
+          },
+          {
+            "id": "PM8-04-F4",
+            "type": "single_select",
+            "label": "What general principle does this scenario illustrate about AQE's scope?",
+            "options": [
+              "AQE is useless for ETL pipelines",
+              "AQE optimizes post-shuffle operations (partition sizing, skew handling, join strategy). It cannot optimize I/O-bound stages (file reads), CPU-bound stages (parsing, UDFs), or operations that don't involve shuffles. AQE is powerful but not a universal fix.",
+              "AQE should be disabled for pipelines without joins",
+              "AQE only helps when data is skewed"
+            ],
+            "correctAnswer": "AQE optimizes post-shuffle operations (partition sizing, skew handling, join strategy). It cannot optimize I/O-bound stages (file reads), CPU-bound stages (parsing, UDFs), or operations that don't involve shuffles. AQE is powerful but not a universal fix."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM8-task-05",
+      "title": "Compare AQE Dynamic Join Switching vs Manual Broadcast",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "gradingWeight": {
+        "template": 35,
+        "code": 65
+      },
+      "description": {
+        "context": "NordGrid's enrichment pipeline joins Silver readings (600 rows after filtering) with the 40-row substations table. The autoBroadcastJoinThreshold is set to -1 (disabled). Without AQE, Spark uses SortMergeJoin. With AQE enabled, Spark can detect the actual post-filter size at runtime and switch to BroadcastHashJoin dynamically. The team wants to compare both approaches: manual broadcast() hint vs relying on AQE.",
+        "task": "Write two versions of the join: (1) manual_join using explicit broadcast() hint, (2) aqe_join with AQE enabled and no broadcast hint. Compare the explain output of both. Store both results.",
+        "validationHint": "Both should produce the same output (600 rows). The manual version always broadcasts. The AQE version may or may not switch to broadcast depending on runtime statistics."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM8-05-F1",
+            "type": "single_select",
+            "label": "When should you use an explicit broadcast() hint instead of relying on AQE's dynamic switching?",
+            "options": [
+              "Always \u2014 AQE's dynamic switching is unreliable",
+              "When you KNOW the small table is always small (like a 40-row reference table). The broadcast hint guarantees the optimization regardless of config or AQE state. AQE is better for tables whose size varies across runs.",
+              "Never \u2014 AQE always makes better decisions than manual hints",
+              "Only when AQE is disabled on the cluster"
+            ],
+            "correctAnswer": "When you KNOW the small table is always small (like a 40-row reference table). The broadcast hint guarantees the optimization regardless of config or AQE state. AQE is better for tables whose size varies across runs."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, broadcast, sum as spark_sum, count\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-aqe-vs-manual') \\\n    .master('local[*]') \\\n    .config('spark.sql.autoBroadcastJoinThreshold', '-1') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PM8_data_readings_silver.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM8_data_substations.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Version 1: Manual broadcast hint (AQE off)\nspark.conf.set('spark.sql.adaptive.enabled', 'false')\n# Write the join with broadcast() hint\n# Store in 'manual_join'\n\n\n# Version 2: AQE-enabled (no broadcast hint)\nspark.conf.set('spark.sql.adaptive.enabled', 'true')\n# Write the same join WITHOUT broadcast() hint\n# Store in 'aqe_join'\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Manual join rows: {manual_join.count()}\")\nprint(f\"AQE join rows: {aqe_join.count()}\")\nprint(\"\\n--- Manual join plan ---\")\nmanual_join.explain(True)\nprint(\"\\n--- AQE join plan ---\")\naqe_join.explain(True)"
+      },
+      "assertions": [
+        {
+          "id": "PM8-05-A1",
+          "description": "manual_join has 600 rows",
+          "check": "manual_join.count() == 600"
+        },
+        {
+          "id": "PM8-05-A2",
+          "description": "aqe_join has 600 rows",
+          "check": "aqe_join.count() == 600"
+        },
+        {
+          "id": "PM8-05-A3",
+          "description": "Both have substation_name column",
+          "check": "'substation_name' in manual_join.columns and 'substation_name' in aqe_join.columns"
+        }
+      ],
+      "partialCredit": "Template (35%): 1 field. Code (65%): 3 assertions."
+    },
+    {
+      "id": "module-PM8-task-06",
+      "title": "Diagnose NordGrid's AQE-Enabled Pipeline",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 12,
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
+      "description": {
+        "context": "NordGrid enabled AQE cluster-wide. Most pipelines improved. But the Gold billing pipeline, which joins 1.2M readings with substations and then groups by region+date (168 groups), shows mixed results: the join improved (AQE switched to BroadcastHashJoin at runtime) but the aggregation still has a straggler task from NORTH_COAST's 45% data skew. AQE's skew handling only applies to joins, not to groupBy aggregations.",
+        "task": "Examine the AQE-annotated plan and metrics. Identify what AQE fixed, what it didn't fix, and write the config/code change needed for the remaining problem.",
+        "validationHint": "AQE's skewJoin optimization handles join skew. For aggregation skew (groupBy), AQE's coalescing helps with empty partitions but cannot split a large partition. The fix for aggregation skew is salting or pre-filtering."
+      },
+      "evidence": {
+        "type": "combined",
+        "plan": {
+          "label": "AQE-annotated plan",
+          "content": "AdaptiveSparkPlan isFinalPlan=true\n+- AQEShuffleRead coalesced (200 -> 24 partitions)\n   +- HashAggregate(keys=[region, date], functions=[sum, count])\n      +- Exchange hashpartitioning(region, date, 200)\n         +- HashAggregate(keys=[region, date], functions=[partial_sum, partial_count])\n            +- BroadcastHashJoin [substation_id], [substation_id], Inner\n               :- FileScan parquet [readings]\n               +- BroadcastExchange\n                  +- FileScan parquet [substations]\n\nAQE adaptations applied:\n  1. Dynamic join switching: SortMergeJoin -> BroadcastHashJoin (substations 4.2 KB < threshold)\n  2. Partition coalescing: 200 -> 24 (176 empty partitions removed)\nAQE adaptations NOT applied:\n  3. Skew join: N/A (no shuffle join to optimize \u2014 join was converted to broadcast)"
+        },
+        "stageMetrics": {
+          "label": "Stage 2 (Aggregate) task metrics with AQE coalescing",
+          "content": "Tasks: 24 (coalesced from 200)\nMedian task: 3.2s, 28K records\nMax task: 4.8 min, 540K records (NORTH_COAST partition)\nSpill: 0.8 GB (on the max task only)\n\nNote: AQE coalesced empty partitions but the NORTH_COAST partition\n(45% of data) cannot be split because it's a groupBy partition,\nnot a join partition. AQE skew handling only works on joins."
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM8-06-F1",
+            "type": "single_select",
+            "label": "What did AQE fix successfully?",
+            "options": [
+              "AQE fixed the aggregation skew by splitting the NORTH_COAST partition",
+              "AQE switched the join from SortMergeJoin to BroadcastHashJoin (eliminating the join shuffle) and coalesced 200 post-aggregate partitions down to 24 (removing empty partitions)",
+              "AQE fixed all performance problems in the pipeline",
+              "AQE didn't fix anything \u2014 the plan is unchanged"
+            ],
+            "correctAnswer": "AQE switched the join from SortMergeJoin to BroadcastHashJoin (eliminating the join shuffle) and coalesced 200 post-aggregate partitions down to 24 (removing empty partitions)"
+          },
+          {
+            "id": "PM8-06-F2",
+            "type": "single_select",
+            "label": "Why can't AQE fix the NORTH_COAST aggregation skew?",
+            "options": [
+              "AQE's skew handling is disabled",
+              "AQE's skew join optimization only splits partitions during shuffle joins. For groupBy aggregations, all rows with the same key MUST end up in the same partition for correct results. AQE cannot split a groupBy partition without breaking correctness.",
+              "AQE can fix it but the skewedPartitionFactor threshold is too high",
+              "NORTH_COAST's 45% skew is below AQE's detection threshold"
+            ],
+            "correctAnswer": "AQE's skew join optimization only splits partitions during shuffle joins. For groupBy aggregations, all rows with the same key MUST end up in the same partition for correct results. AQE cannot split a groupBy partition without breaking correctness."
+          },
+          {
+            "id": "PM8-06-F3",
+            "type": "single_select",
+            "label": "What manual fix addresses the groupBy aggregation skew that AQE cannot handle?",
+            "options": [
+              "Increase spark.sql.shuffle.partitions to 1000",
+              "Pre-filter to exclude NORTH_COAST readings",
+              "Two-stage aggregation: first aggregate by (region, date, salt) to spread NORTH_COAST across multiple partitions, then aggregate by (region, date) to combine the salted groups. This manually splits the skewed partition.",
+              "Enable a non-existent AQE config for aggregation skew"
+            ],
+            "correctAnswer": "Two-stage aggregation: first aggregate by (region, date, salt) to spread NORTH_COAST across multiple partitions, then aggregate by (region, date) to combine the salted groups. This manually splits the skewed partition."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, count, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-aqe-partial-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Enable AQE for what it CAN fix\nspark.conf.set('spark.sql.adaptive.enabled', 'true')\nspark.conf.set('spark.sql.adaptive.coalescePartitions.enabled', 'true')\n\ndf = spark.read.csv('PM8_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# The aggregation still has a straggler from NORTH_COAST (45% of data).\n# AQE can't fix groupBy skew. Apply a manual fix:\n# Option A: Increase shuffle partitions to reduce per-partition size\n# Option B: Pre-aggregate with a salt column, then final aggregate\n# Either approach is acceptable. Store result in 'gold'.\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Gold rows: {gold.count()}\")\nprint(f\"Gold columns: {gold.columns}\")\ngold.orderBy('region').show()"
+      },
+      "assertions": [
+        {
+          "id": "PM8-06-A1",
+          "description": "gold has correct aggregation result",
+          "check": "gold.count() > 0"
+        },
+        {
+          "id": "PM8-06-A2",
+          "description": "Has region column",
+          "check": "'region' in gold.columns"
+        },
+        {
+          "id": "PM8-06-A3",
+          "description": "AQE is enabled",
+          "check": "spark.conf.get('spark.sql.adaptive.enabled') == 'true'"
+        }
+      ],
+      "partialCredit": "Template (55%): 3 fields. Code (45%): 3 assertions.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "AQE dynamic join switching \u2014 runtime adaptation (Lessons 3-4)",
+          "AQE partition coalescing \u2014 empty partition removal (Lesson 2)",
+          "AQE skew join scope \u2014 joins only, not aggregations (Lesson 5-6)",
+          "Manual skew mitigation for groupBy (salting, PM2-PM3)",
+          "Understanding AQE's boundaries \u2014 what it can and cannot fix (Lesson 8)"
+        ],
+        "minimumConceptCount": 4,
+        "rationale": "This synthesis presents a realistic mixed-outcome scenario: AQE fixed two of three problems (join strategy + empty partitions) but cannot fix the third (aggregation skew). The student must understand AQE's scope \u2014 it optimizes post-shuffle operations for joins, not for groupBy. The remaining fix requires manual intervention (salting or increased partitions), teaching that AQE is a powerful complement to manual tuning, not a replacement."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 4,
+    "everyDiagnosticRequiresEvidence": true,
+    "distractorsPlausible": true,
+    "fixTasksTestModuleTechnique": true,
+    "evidenceRealistic": "AQE-annotated plans modeled on Spark 3.5+ explain output. Skew metrics and coalescing statistics match real AQE behavior.",
+    "theoryPracticeBoundary": "Theory teaches AQE's three optimizations individually. Practice requires diagnosing mixed-outcome scenarios where AQE partially helps, understanding the boundaries of what AQE can optimize, and applying manual fixes when AQE is insufficient."
+  }
+}

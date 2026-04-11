@@ -20,7 +20,7 @@ export function SettingsCard({
 }) {
   return (
     <section
-      className={`overflow-hidden border ${
+      className={`overflow-hidden rounded-[22px] border ${
         danger
           ? 'border-error/20'
           : 'border-outline-variant/20'
@@ -36,14 +36,14 @@ export function SettingsCard({
         {icon ? <span className={danger ? 'text-error' : 'text-primary'}>{icon}</span> : null}
         <div>
           <h2
-            className={`font-headline text-sm font-bold uppercase tracking-wider ${
+            className={`text-sm font-bold uppercase tracking-wider ${
               danger ? 'text-error' : 'text-on-surface'
             }`}
           >
             {title}
           </h2>
           {description ? (
-            <p className="mt-0.5 font-mono text-[10px] text-on-surface-variant">{description}</p>
+            <p className="mt-0.5 text-[10px] text-on-surface-variant">{description}</p>
           ) : null}
         </div>
       </header>
@@ -63,12 +63,12 @@ export function SettingsField({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">
+      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">
         {label}
       </span>
       {children}
       {hint ? (
-        <p className="font-mono text-[9px] text-on-surface-variant">{hint}</p>
+        <p className="text-[9px] text-on-surface-variant">{hint}</p>
       ) : null}
     </label>
   );
@@ -94,7 +94,7 @@ export function SettingsInput({
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="w-full bg-surface-container-low border border-outline-variant/30 px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary transition-colors font-mono"
+      className="w-full rounded-[14px] bg-surface-container-low border border-outline-variant/30 px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary transition-colors"
     />
   );
 }
@@ -122,7 +122,7 @@ export function SettingsPasswordInput({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="w-full bg-surface-container-low border border-outline-variant/30 px-3 py-2 pr-10 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary transition-colors font-mono"
+          className="w-full rounded-[14px] bg-surface-container-low border border-outline-variant/30 px-3 py-2 pr-10 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary transition-colors"
         />
         <button
           type="button"
@@ -148,16 +148,16 @@ export function SettingsToggle({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`inline-flex h-6 w-11 flex-shrink-0 items-center p-0.5 transition-colors ${
+      className={`relative inline-flex h-[22px] w-[38px] flex-shrink-0 items-center rounded-full p-[2px] transition-colors duration-200 ease-in-out ${
         checked
-          ? 'bg-primary'
-          : 'bg-outline-variant'
+          ? 'bg-[#99f7ff]'
+          : 'bg-white/[0.08]'
       }`}
       aria-pressed={checked}
     >
       <span
-        className={`block h-5 w-5 bg-surface shadow-sm transition-transform duration-200 ${
-          checked ? 'translate-x-5' : 'translate-x-0'
+        className={`block h-[18px] w-[18px] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-transform duration-200 ease-in-out ${
+          checked ? 'translate-x-4' : 'translate-x-0'
         }`}
       />
     </button>
@@ -186,7 +186,7 @@ export function SettingsModal({
         }
       }}
     >
-      <div className="w-full max-w-md border border-outline-variant/30 bg-surface p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-[22px] border border-outline-variant/30 bg-surface p-6 shadow-2xl">
         {children}
       </div>
     </div>
@@ -208,7 +208,7 @@ export function SettingsToast({ toast }: { toast: ToastPayload | null }) {
   return (
     <div className="fixed right-4 top-20 z-[90]">
       <div
-        className={`flex items-center gap-2 border px-3 py-2 font-mono text-xs shadow-lg ${colorClass}`}
+        className={`flex items-center gap-2 rounded-[14px] border px-3 py-2 text-xs shadow-lg ${colorClass}`}
       >
         {toast.type === 'error' ? (
           <XCircle className="h-4 w-4" />

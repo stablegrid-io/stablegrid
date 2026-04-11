@@ -21,7 +21,7 @@ export function StatBlock({
       <Icon className={`h-5 w-5 ${iconColor}`} />
       <div>
         <div className="text-[10px] font-mono text-on-surface-variant uppercase">{label}</div>
-        <div className="text-xl font-headline font-bold">{value}</div>
+        <div className="text-xl font-bold">{value}</div>
       </div>
     </div>
   );

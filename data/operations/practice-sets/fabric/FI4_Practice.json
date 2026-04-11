@@ -1,0 +1,462 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FI4 — Warehouse Design and Optimization",
+  "description": "Design Fabric Warehouse tables for production: choose distribution strategies based on table size and join patterns, diagnose stale-statistics performance regressions, build materialized views to accelerate dashboard queries, write window functions for top-N analytics, configure row-level security for regional analysts, and design NordGrid's complete Gold Warehouse architecture.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / Spark SQL 3.5+",
+  "metadata": {
+    "moduleId": "module-FI4",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 80,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, F64 capacity, 3 analyst teams (analytics, billing, regulatory)",
+    "modulePhase": "architecture",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 2,
+      "fixImplementation": 3,
+      "refactoring": 0,
+      "diagnosticWorkflow": 1
+    },
+    "calibrationNotes": "Fourth Fabric mid-level practice set. First mid-level set where T-SQL is the primary code surface. The local environment uses spark.sql() against temp views as the grading proxy for the Fabric Warehouse SQL editor — the same approach as the junior F9 set. CREATE MATERIALIZED VIEW is Fabric-specific and not supported in Spark SQL; the scaffold uses CREATE OR REPLACE TEMPORARY VIEW with an explicit translation note. Window functions (ROW_NUMBER, PARTITION BY, ORDER BY) work identically in both. RLS configuration is built as a Python dict because security predicates in Fabric are configured via portal + T-SQL CREATE FUNCTION which is not gradable locally."
+  },
+  "datasets": [
+    {
+      "id": "FI4_data_readings",
+      "file": "FI4_data_readings.csv",
+      "description": "NordGrid Silver readings for the Warehouse design tasks. 60 rows: 12 regions × 5 meters per region. Each region has 5 meters with daily_kw values exactly [2500, 2000, 1500, 1000, 500] — making the top-3 per region deterministic (the rows with daily_kw = 2500, 2000, 1500). 3 readings per region are in February (2026-02-15, 2026-02-20, 2026-02-25) and 2 are in March (2026-03-10, 2026-03-15). Per-region February sum is 6000 (2500+2000+1500), per-region March sum is 1500 (1000+500). Total Feb across all regions: 72000. Total Mar: 18000. Total: 90000.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FI4-task-03", "module-FI4-task-04", "module-FI4-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FI4-task-01",
+      "title": "Choose the Distribution Strategy for Each Warehouse Table",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid is building the Gold Warehouse and must decide a distribution strategy for each table. Fabric Warehouse supports three distribution types:\n\n  HASH(column): rows are distributed across compute nodes by a hash of the column. Best for large fact tables where joins and aggregations happen on the hash column — Spark/Fabric can co-locate matching rows on the same node, eliminating shuffle.\n\n  REPLICATE: the entire table is copied to every compute node. Best for small dimension tables (rule of thumb: under 100 MB and under 1 million rows). Joins against replicated dimensions need no shuffle.\n\n  ROUND_ROBIN: rows are distributed evenly with no key. Best for staging tables that are scanned without joins, or when no good distribution key exists.\n\nNordGrid's Warehouse will contain four tables:\n\n  TABLE 1: fact_readings\n    Row count:    1.2 million per day (180M after 5 months)\n    Avg row size: 60 bytes\n    Total size:   ~10 GB\n    Joined on:    meter_id (most queries), date (some queries)\n    Aggregations: GROUP BY region, GROUP BY region+month\n\n  TABLE 2: dim_meters\n    Row count:    1.2 million (one per meter)\n    Avg row size: 200 bytes\n    Total size:   ~240 MB\n    Joined on:    meter_id (every query)\n    Updates:      slow-changing dimension, ~500 changes per day\n\n  TABLE 3: dim_regions\n    Row count:    12 (one per NordGrid region)\n    Avg row size: 100 bytes\n    Total size:   ~1.2 KB (essentially nothing)\n    Joined on:    region_code\n    Updates:      almost never\n\n  TABLE 4: dim_substations\n    Row count:    200 (one per substation)\n    Avg row size: 150 bytes\n    Total size:   ~30 KB\n    Joined on:    substation_id\n    Updates:      a few changes per quarter",
+        "task": "Choose the right distribution strategy for each of the 4 tables.",
+        "validationHint": "fact_readings is a 10 GB fact table joined on meter_id — HASH(meter_id) co-locates with dim_meters. dim_meters at 240 MB is too large to replicate but is the join target — HASH(meter_id) matches the fact. dim_regions at 1.2 KB and dim_substations at 30 KB are tiny — REPLICATE so joins skip the shuffle entirely. None of the tables fit the round-robin pattern."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI4-01-F1",
+            "type": "single_select",
+            "label": "TABLE 1: fact_readings (10 GB, joined on meter_id, aggregated by region+month)",
+            "options": [
+              "HASH(meter_id) — co-locates with dim_meters on the join key, eliminating shuffle for the most common join pattern",
+              "REPLICATE — small enough to copy to every node",
+              "ROUND_ROBIN — fact tables have no natural distribution key",
+              "HASH(region) — aggregations are by region"
+            ],
+            "correctAnswer": "HASH(meter_id) — co-locates with dim_meters on the join key, eliminating shuffle for the most common join pattern",
+            "rationale": "Distribution choice for fact tables prioritizes the most common join key. fact_readings joins to dim_meters on meter_id in nearly every query — HASH(meter_id) on both tables means matching rows live on the same node, eliminating the shuffle that would otherwise dominate join cost. Distractor B is wrong because 10 GB is far too large to replicate. Distractor D would help aggregations but break the more frequent join pattern (the wrong trade-off — joins are usually more expensive than aggregations on large facts)."
+          },
+          {
+            "id": "FI4-01-F2",
+            "type": "single_select",
+            "label": "TABLE 2: dim_meters (240 MB, 1.2M rows, joined on meter_id from fact_readings)",
+            "options": [
+              "HASH(meter_id) — matches the fact table's distribution, creating a co-located join with no shuffle",
+              "REPLICATE — replicate the dimension to every node",
+              "ROUND_ROBIN",
+              "HASH(install_date)"
+            ],
+            "correctAnswer": "HASH(meter_id) — matches the fact table's distribution, creating a co-located join with no shuffle",
+            "rationale": "240 MB and 1.2M rows is the borderline case where REPLICATE is sometimes used, but the rule of thumb (under 100 MB and under ~1M rows) excludes this table. The right choice is to match the fact table's hash on meter_id so the join is co-located. If the dimension were 50 MB and 200K rows, REPLICATE would win — but at this size, the storage cost of replicating across many compute nodes outweighs the join savings."
+          },
+          {
+            "id": "FI4-01-F3",
+            "type": "single_select",
+            "label": "TABLE 3: dim_regions (12 rows, 1.2 KB total)",
+            "options": [
+              "REPLICATE — tiny table, copy to every node, joins to it never need shuffle",
+              "HASH(region_code) — primary keys should always use hash distribution",
+              "ROUND_ROBIN — uniformly distribute the 12 rows",
+              "HASH(name) — string columns hash well"
+            ],
+            "correctAnswer": "REPLICATE — tiny table, copy to every node, joins to it never need shuffle",
+            "rationale": "12 rows totaling 1.2 KB is the textbook REPLICATE case. Replicating to every node costs almost no storage and means every join against dim_regions is shuffle-free. HASH on a 12-row table is wasteful (most nodes get 0 or 1 rows) and breaks join co-location. ROUND_ROBIN at this scale is also wasteful and provides no co-location benefit."
+          },
+          {
+            "id": "FI4-01-F4",
+            "type": "single_select",
+            "label": "TABLE 4: dim_substations (200 rows, 30 KB total)",
+            "options": [
+              "REPLICATE — 30 KB is essentially free to replicate; joins to it become shuffle-free",
+              "HASH(substation_id) — primary keys always use hash",
+              "ROUND_ROBIN — distribute the 200 rows evenly",
+              "HASH(region) — co-locate with dim_regions"
+            ],
+            "correctAnswer": "REPLICATE — 30 KB is essentially free to replicate; joins to it become shuffle-free",
+            "rationale": "200 rows and 30 KB is well within the REPLICATE rule of thumb (under 100 MB). The savings from shuffle-free joins on every query against this dimension dwarfs the cost of storing 30 KB on every compute node. Same logic as dim_regions, just at a slightly larger scale. The 'always use hash on primary keys' distractor is a common myth that makes sense for fact tables but is wrong for small dimensions."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI4-task-02",
+      "title": "Diagnose the Stale-Statistics Slowdown",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's analyst reports that a query that ran in 2 seconds last week now takes 45 seconds. No code changed, no data volume jumped meaningfully, the cluster size is the same. The data engineer pulled the execution plan from the Warehouse SQL editor:\n\n  QUERY:\n    SELECT r.region_name, SUM(f.daily_kw) AS total_kw\n    FROM fact_readings f\n    INNER JOIN dim_regions r ON f.region_code = r.region_code\n    WHERE f.date >= '2026-04-01'\n    GROUP BY r.region_name\n\n  EXECUTION PLAN (current — 45 seconds):\n  ----------------------------------------\n  HashAggregate\n  -> NESTED LOOPS JOIN  <-- problem\n     -> FullScan fact_readings (180M rows)\n        Estimated rows: 1,000\n        Actual rows:    1,200,000\n        Rows estimated 1000x too low\n     -> Index Seek dim_regions\n        Per-iteration cost: 0.8 ms\n        Total iterations: 1,200,000\n        Total time: 38 seconds\n\n  PREVIOUS EXECUTION PLAN (last week — 2 seconds):\n  ----------------------------------------\n  HashAggregate\n  -> HASH JOIN\n     -> FullScan fact_readings\n     -> FullScan dim_regions\n\nThe estimated row count for fact_readings dropped from a healthy ~1.2M to 1,000 — a sign that the query optimizer is using stale statistics and dramatically underestimating the actual data volume. With this wrong estimate, the optimizer chose nested-loop join (good for small left side, terrible for large) instead of hash join (good for large left side).",
+        "task": "Diagnose the root cause and identify the fix.",
+        "validationHint": "The smoking gun is 'Estimated rows: 1,000 / Actual rows: 1,200,000' — the optimizer thinks fact_readings is tiny and chose nested loops accordingly. The fix is to refresh statistics: in Fabric Warehouse this is `UPDATE STATISTICS fact_readings` or the equivalent management command. After refresh, the optimizer will see realistic row counts and choose hash join again."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI4-02-F1",
+            "type": "single_select",
+            "label": "What is the root cause of the slowdown?",
+            "options": [
+              "Stale statistics: the optimizer's row estimate (1,000) is 1,200x lower than reality (1,200,000), causing it to choose a nested-loop join that is catastrophically wrong for the actual data size",
+              "The query needs an index on date",
+              "Network latency between compute nodes",
+              "fact_readings was rebuilt with a different distribution strategy"
+            ],
+            "correctAnswer": "Stale statistics: the optimizer's row estimate (1,000) is 1,200x lower than reality (1,200,000), causing it to choose a nested-loop join that is catastrophically wrong for the actual data size",
+            "rationale": "The 1000x estimate-vs-actual gap is the textbook stale-statistics symptom. Statistics tell the optimizer how big tables are; stale stats from when the table had 1K rows now drive plans for a 1.2M-row table. The nested-loop join makes sense if the left side is genuinely 1K rows (1K iterations × 0.8ms = 0.8 seconds) but is disastrous when actual is 1.2M (1.2M × 0.8ms = 16 minutes if not for parallelism)."
+          },
+          {
+            "id": "FI4-02-F2",
+            "type": "single_select",
+            "label": "Why did the optimizer choose nested-loop join when statistics were stale?",
+            "options": [
+              "Nested-loop join is fast when the outer (driving) table is small — with an estimated 1,000 rows, it would have completed in well under a second; the optimizer made a reasonable choice given wrong information",
+              "Nested-loop join is the default for all joins involving dimension tables",
+              "Nested-loop join is required when one side has an index",
+              "Nested-loop join uses less memory than hash join"
+            ],
+            "correctAnswer": "Nested-loop join is fast when the outer (driving) table is small — with an estimated 1,000 rows, it would have completed in well under a second; the optimizer made a reasonable choice given wrong information",
+            "rationale": "Nested-loop join is the right choice for SMALL outer tables: 1K iterations × 0.8ms each = sub-second. The optimizer picked it because the cost model showed nested-loop as cheaper than hash join for the (wrongly estimated) 1K rows. The optimizer is not broken — it was given bad input. Fix the input (statistics), and it will pick correctly."
+          },
+          {
+            "id": "FI4-02-F3",
+            "type": "single_select",
+            "label": "What is the immediate fix?",
+            "options": [
+              "Run UPDATE STATISTICS fact_readings (or equivalent statistics refresh) — refreshes the optimizer's row count estimates, which will then drive a better plan choice for future executions",
+              "Drop and recreate the table",
+              "Add a query hint forcing hash join",
+              "Restart the SQL endpoint"
+            ],
+            "correctAnswer": "Run UPDATE STATISTICS fact_readings (or equivalent statistics refresh) — refreshes the optimizer's row count estimates, which will then drive a better plan choice for future executions",
+            "rationale": "UPDATE STATISTICS refreshes the optimizer's metadata about row counts and column distributions. After the refresh, the next execution sees realistic row estimates and the optimizer chooses hash join correctly. Distractor B works but is wildly excessive. Distractor C works as a workaround but treats the symptom — every query needing a hint is unsustainable. Distractor D does nothing useful."
+          },
+          {
+            "id": "FI4-02-F4",
+            "type": "single_select",
+            "label": "What is the long-term fix to prevent this from recurring?",
+            "options": [
+              "Configure automatic statistics updates on a schedule that matches the data growth rate — for fact_readings with daily 1.2M-row appends, refresh statistics nightly as part of the maintenance window",
+              "Disable the query optimizer entirely",
+              "Always use query hints to force hash joins",
+              "Migrate to a Lakehouse instead of a Warehouse"
+            ],
+            "correctAnswer": "Configure automatic statistics updates on a schedule that matches the data growth rate — for fact_readings with daily 1.2M-row appends, refresh statistics nightly as part of the maintenance window",
+            "rationale": "Production data warehouses need scheduled stat refreshes that keep up with data growth. Daily appends mean nightly stat refreshes. Distractor B is nonsensical — disabling the optimizer means manually planning every query. Distractor C is the symptom-workaround. Distractor D is over-correction — Warehouses handle this fine when statistics are maintained."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FI4-task-03",
+      "title": "Build a Materialized View for Monthly Billing",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's billing dashboard runs the same query every time it loads — 5,000 dashboard refreshes per day, each running this aggregation:\n\n  SELECT region, MONTH(date) AS month_num, SUM(daily_kw) AS total_kw\n  FROM readings_silver\n  GROUP BY region, MONTH(date)\n\nAt 60 input rows the query is fast, but at 1.2M rows × 5,000 refreshes per day, the cost is significant. The fix is a materialized view: pre-compute the aggregation once, store the result, and let queries hit the small materialized result instead of re-running the aggregation against the fact table.\n\nIN PRODUCTION FABRIC WAREHOUSE, this is:\n\n  CREATE MATERIALIZED VIEW mv_monthly_billing AS\n  SELECT region, MONTH(date) AS month_num, SUM(daily_kw) AS total_kw\n  FROM readings_silver\n  GROUP BY region, MONTH(date)\n\nThe local environment uses Spark SQL, which does not support CREATE MATERIALIZED VIEW. The closest equivalent is CREATE OR REPLACE TEMPORARY VIEW (which is non-materialized) — for grading purposes, the query result is what matters, not the materialization mechanism. The scaffold notes the production translation explicitly.",
+        "task": "Read FI4_data_readings.csv and register it as the temp view readings_silver. Then create the materialized view (locally: a temporary view) called mv_monthly_billing using spark.sql with the SQL above. Query the view to extract the result into df_billing and store the row count in billing_row_count. Verify specific values: NORTH-A's February total in v_north_a_feb (should be 6000.0) and the WEST-A March total in v_west_a_mar (should be 1500.0).",
+        "validationHint": "Use spark.sql('CREATE OR REPLACE TEMPORARY VIEW mv_monthly_billing AS SELECT region, MONTH(date) AS month_num, SUM(daily_kw) AS total_kw FROM readings_silver GROUP BY region, MONTH(date)'). Then query it with spark.sql('SELECT * FROM mv_monthly_billing'). Expected: 24 rows (12 regions × 2 months). NORTH-A Feb = 6000.0 (the 2500 + 2000 + 1500 sum from the dataset). WEST-A Mar = 1500.0 (the 1000 + 500 sum)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI4 Lesson 4: materialized views for query acceleration.\n# In Fabric Warehouse:\n#   CREATE MATERIALIZED VIEW mv_monthly_billing AS SELECT ...\n# In the local Spark SQL proxy, we use TEMPORARY VIEW (non-materialized but functionally\n# equivalent for testing query correctness).\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-materialized-view') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Load and register the source\ndf_readings = spark.read.csv('FI4_data_readings.csv', header=True, inferSchema=True)\ndf_readings.createOrReplaceTempView('readings_silver')\nprint(f\"readings_silver registered with {df_readings.count()} rows.\")\n\n# YOUR SOLUTION BELOW\n# Step 1: Create the materialized view (locally: temp view) called mv_monthly_billing\n#         with columns (region, month_num, total_kw) using SUM and MONTH().\n#         GROUP BY region, MONTH(date).\n#         Use spark.sql('CREATE OR REPLACE TEMPORARY VIEW ...').\n#\n# Step 2: Query mv_monthly_billing into df_billing.\n#\n# Step 3: Compute and store these values:\n#   - billing_row_count = df_billing.count()\n#   - v_north_a_feb = the total_kw for region='NORTH-A' AND month_num=2\n#   - v_west_a_mar = the total_kw for region='WEST-A' AND month_num=3\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Materialized view rows: {billing_row_count}\")\nprint(f\"NORTH-A Feb total: {v_north_a_feb}\")\nprint(f\"WEST-A Mar total: {v_west_a_mar}\")\ndf_billing.orderBy('region', 'month_num').show(24)"
+      },
+      "assertions": [
+        {
+          "id": "FI4-03-A1",
+          "description": "mv_monthly_billing view exists and is queryable",
+          "check": "spark.sql('SELECT COUNT(*) AS c FROM mv_monthly_billing').first()['c'] == 24"
+        },
+        {
+          "id": "FI4-03-A2",
+          "description": "billing_row_count equals 24 (12 regions × 2 months)",
+          "check": "billing_row_count == 24"
+        },
+        {
+          "id": "FI4-03-A3",
+          "description": "df_billing has the 3 expected columns: region, month_num, total_kw",
+          "check": "set(df_billing.columns) == {'region', 'month_num', 'total_kw'}"
+        },
+        {
+          "id": "FI4-03-A4",
+          "description": "v_north_a_feb equals 6000.0 (the sum of NORTH-A's 3 February readings: 2500+2000+1500)",
+          "check": "v_north_a_feb == 6000.0"
+        },
+        {
+          "id": "FI4-03-A5",
+          "description": "v_west_a_mar equals 1500.0 (the sum of WEST-A's 2 March readings: 1000+500)",
+          "check": "v_west_a_mar == 1500.0"
+        },
+        {
+          "id": "FI4-03-A6",
+          "description": "Every region appears exactly twice in the materialized view (once per month)",
+          "check": "df_billing.groupBy('region').count().filter('count != 2').count() == 0"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit."
+    },
+    {
+      "id": "module-FI4-task-04",
+      "title": "Write Window Functions for Top-3 Meters per Region",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's operations team wants a daily report of the top 3 highest-consumption meters in each region, with their rank. The analyst would write this as a single window-function query in T-SQL:\n\n  SELECT meter_id, region, daily_kw, rank_in_region\n  FROM (\n    SELECT meter_id, region, daily_kw,\n           ROW_NUMBER() OVER (PARTITION BY region ORDER BY daily_kw DESC) AS rank_in_region\n    FROM readings_silver\n  ) ranked\n  WHERE rank_in_region <= 3\n\nThe ROW_NUMBER() OVER (PARTITION BY region ORDER BY daily_kw DESC) assigns rank 1 to the highest daily_kw within each region, rank 2 to the second highest, and so on. The outer WHERE filters to ranks 1-3.\n\nWindow functions work identically in Spark SQL and Fabric T-SQL — same syntax, same semantics.",
+        "task": "Read the dataset, register it as readings_silver. Write the window-function query above using spark.sql() and store the result in df_top3. Store the row count in top3_count. Then verify a specific case: store NORTH-A's rank-1 meter_id in north_a_rank1.",
+        "validationHint": "Expected result: 36 rows total (12 regions × 3 ranks). For each region, the rank-1 meter has daily_kw = 2500 (the highest in the dataset for that region). NORTH-A's rank-1 meter is M-001 (the first meter in the dataset, which has daily_kw = 2500). Use a subquery (or CTE) — you cannot reference window functions in a WHERE clause directly."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI4 Lesson 7: T-SQL window functions for top-N analytics.\n# Window function syntax is identical in Spark SQL and Fabric Warehouse T-SQL.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-window-functions') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('FI4_data_readings.csv', header=True, inferSchema=True)\ndf_readings.createOrReplaceTempView('readings_silver')\nprint(f\"readings_silver: {df_readings.count()} rows\")\n\n# YOUR SOLUTION BELOW\n# Write a SQL query that:\n#   - Uses ROW_NUMBER() OVER (PARTITION BY region ORDER BY daily_kw DESC) AS rank_in_region\n#   - In a subquery or CTE\n#   - Filters the outer query to rank_in_region <= 3\n#   - Selects meter_id, region, daily_kw, rank_in_region\n# Store the result in df_top3.\n# Store the row count in top3_count.\n# Store NORTH-A's rank-1 meter_id in north_a_rank1.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Top-3 row count: {top3_count}\")\nprint(f\"NORTH-A rank 1 meter: {north_a_rank1}\")\ndf_top3.orderBy('region', 'rank_in_region').show(36)"
+      },
+      "assertions": [
+        {
+          "id": "FI4-04-A1",
+          "description": "df_top3 has exactly 36 rows (12 regions × 3 ranks)",
+          "check": "df_top3.count() == 36"
+        },
+        {
+          "id": "FI4-04-A2",
+          "description": "top3_count equals 36",
+          "check": "top3_count == 36"
+        },
+        {
+          "id": "FI4-04-A3",
+          "description": "df_top3 has the 4 expected columns",
+          "check": "set(df_top3.columns) == {'meter_id', 'region', 'daily_kw', 'rank_in_region'}"
+        },
+        {
+          "id": "FI4-04-A4",
+          "description": "Every rank in df_top3 is between 1 and 3 inclusive",
+          "check": "df_top3.filter('rank_in_region < 1 OR rank_in_region > 3').count() == 0"
+        },
+        {
+          "id": "FI4-04-A5",
+          "description": "Every region appears exactly 3 times (one row for each of the top 3 ranks)",
+          "check": "df_top3.groupBy('region').count().filter('count != 3').count() == 0"
+        },
+        {
+          "id": "FI4-04-A6",
+          "description": "All rank-1 meters have daily_kw = 2500.0 (the highest value in every region)",
+          "check": "df_top3.filter('rank_in_region = 1').filter('daily_kw != 2500.0').count() == 0"
+        },
+        {
+          "id": "FI4-04-A7",
+          "description": "north_a_rank1 equals 'M-001' (the first meter in the dataset, in NORTH-A with daily_kw=2500)",
+          "check": "north_a_rank1 == 'M-001'"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-FI4-task-05",
+      "title": "Design RLS for Regional Analysts",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid has 3 regional analyst groups: each is allowed to see only the data for their assigned region. The central analytics team is allowed to see all 12 regions. Row-level security (RLS) enforces this at the Warehouse level so analysts cannot accidentally (or deliberately) read data outside their assignment.\n\nFI4 Lesson 9's NordGrid RLS pattern:\n- analyst_north sees rows where region IN ('NORTH-A', 'NORTH-B')\n- analyst_south sees rows where region IN ('SOUTH-A', 'SOUTH-B')\n- analyst_east sees rows where region IN ('EAST-A', 'EAST-B', 'EAST-C')\n- central_analytics sees ALL rows (no restriction)\n\nIN PRODUCTION FABRIC, this is implemented as a CREATE FUNCTION (security predicate) bound to the table via CREATE SECURITY POLICY. The portal lets you assign roles to the predicate.\n\nThis task builds the RLS configuration as a Python dict that captures the role-to-region mapping. The dict is the input the platform team would use when authoring the actual security policy in T-SQL.",
+        "task": "Build a Python dict called rls_config with two top-level keys: role_mappings (a dict mapping role names to lists of allowed regions) and unrestricted_roles (a list of roles that see all data). The role_mappings must contain exactly the 3 regional roles with their assigned regions, and unrestricted_roles must contain 'central_analytics'.",
+        "validationHint": "Map analyst_north → ['NORTH-A', 'NORTH-B'], analyst_south → ['SOUTH-A', 'SOUTH-B'], analyst_east → ['EAST-A', 'EAST-B', 'EAST-C']. Add 'central_analytics' to unrestricted_roles. Total of 3 + 1 = 4 roles configured."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI4 Lesson 9: row-level security configuration.\n# In Fabric, this becomes a CREATE FUNCTION + CREATE SECURITY POLICY in T-SQL.\n# Here we build the input dict the platform team uses to author those statements.\n\n# YOUR SOLUTION BELOW\n# Build rls_config with the structure from the task description.\n\nrls_config = {\n    # Fill in: role_mappings (dict), unrestricted_roles (list)\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(rls_config, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI4-05-A1",
+          "description": "rls_config has the 2 required top-level keys",
+          "check": "set(rls_config.keys()) == {'role_mappings', 'unrestricted_roles'}"
+        },
+        {
+          "id": "FI4-05-A2",
+          "description": "role_mappings contains exactly the 3 regional analyst roles",
+          "check": "set(rls_config['role_mappings'].keys()) == {'analyst_north', 'analyst_south', 'analyst_east'}"
+        },
+        {
+          "id": "FI4-05-A3",
+          "description": "analyst_north is mapped to NORTH-A and NORTH-B",
+          "check": "set(rls_config['role_mappings']['analyst_north']) == {'NORTH-A', 'NORTH-B'}"
+        },
+        {
+          "id": "FI4-05-A4",
+          "description": "analyst_south is mapped to SOUTH-A and SOUTH-B",
+          "check": "set(rls_config['role_mappings']['analyst_south']) == {'SOUTH-A', 'SOUTH-B'}"
+        },
+        {
+          "id": "FI4-05-A5",
+          "description": "analyst_east is mapped to EAST-A, EAST-B, and EAST-C (3 regions)",
+          "check": "set(rls_config['role_mappings']['analyst_east']) == {'EAST-A', 'EAST-B', 'EAST-C'}"
+        },
+        {
+          "id": "FI4-05-A6",
+          "description": "unrestricted_roles contains central_analytics",
+          "check": "'central_analytics' in rls_config['unrestricted_roles']"
+        }
+      ],
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit."
+    },
+    {
+      "id": "module-FI4-task-06",
+      "title": "Build NordGrid's Gold Warehouse Architecture",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "This is the synthesis task. NordGrid is launching the Gold Warehouse for the analytics, billing, and regulatory teams. Requirements:\n\n  - 4 tables: fact_readings (1.2M daily rows), dim_meters (1.2M rows), dim_regions (12 rows), dim_substations (200 rows)\n  - 3 analyst teams need different access: regional teams see only their regions, central team sees everything\n  - Dashboard SLA: under 1 second for the most-queried billing aggregate (region + month)\n  - Statistics maintenance to prevent the stale-stats slowdown from Task 2\n\nYour job: (1) DIAGNOSIS — fill the 4-field template confirming the design choices. (2) FIX — build the architecture spec as a Python dict combining distribution, materialized view, RLS, and statistics maintenance. Both are graded independently and combined 50/50.",
+        "task": "Fill the diagnosis template AND build the architecture dict.\n\nFor the FIX: Build a Python dict called gold_architecture with these keys:\n  - distribution: a dict mapping each table name to its distribution strategy (string: 'HASH(meter_id)', 'REPLICATE', etc.)\n  - materialized_views: a list of dicts, each with name and refresh_cadence — must include at least 'mv_monthly_billing'\n  - rls: the rls_config structure from Task 5 (role_mappings + unrestricted_roles)\n  - statistics_maintenance: a dict with cadence ('nightly') and tables (a list of tables to refresh)",
+        "validationHint": "Combine the answers from Tasks 1, 3, and 5 into a single specification. Distribution: fact_readings = HASH(meter_id), dim_meters = HASH(meter_id), dim_regions = REPLICATE, dim_substations = REPLICATE. Materialized view: at least mv_monthly_billing with daily refresh. RLS: same structure as Task 5. Statistics: nightly refresh on the fact and large dimension tables."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FI4-06-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does HASH(meter_id) on BOTH fact_readings AND dim_meters give the best join performance?",
+            "options": [
+              "Co-located join: matching rows from both tables hash to the same compute node, eliminating the shuffle that would otherwise dominate join cost on a 10 GB fact table",
+              "Hash distribution is always faster than replicate",
+              "Hash distribution reduces storage size",
+              "It is the default — no other choice is available"
+            ],
+            "correctAnswer": "Co-located join: matching rows from both tables hash to the same compute node, eliminating the shuffle that would otherwise dominate join cost on a 10 GB fact table",
+            "rationale": "Co-located joins are the highest-impact optimization in MPP warehouses. When both tables hash on the same key with the same hash function, every meter_id value lives on exactly one node — the node with the matching dim_meters row also has the corresponding fact_readings rows. Joins become local operations with no network shuffle. This is the single most important Warehouse design decision for fact-dimension join workloads."
+          },
+          {
+            "id": "FI4-06-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why does the materialized view accelerate the dashboard so dramatically?",
+            "options": [
+              "It pre-computes the GROUP BY result once and stores it; dashboard queries hit the small materialized result (24 rows for 12 regions × 2 months) instead of re-running the aggregation against the 1.2M-row fact table on every refresh",
+              "Materialized views skip the optimizer entirely",
+              "Materialized views compress data more efficiently",
+              "Materialized views run on a separate compute pool"
+            ],
+            "correctAnswer": "It pre-computes the GROUP BY result once and stores it; dashboard queries hit the small materialized result (24 rows for 12 regions × 2 months) instead of re-running the aggregation against the 1.2M-row fact table on every refresh",
+            "rationale": "Materialized views trade storage for query speed. The 1.2M-row aggregation runs once when the view refreshes; every dashboard query reads the 24-row pre-computed result. The cost ratio is dramatic: 5,000 daily refreshes × (1.2M-row scan + aggregate) becomes 5,000 × (24-row read). Distractor B is wrong — materialized views still go through the optimizer. Distractor C confuses materialization with compression."
+          },
+          {
+            "id": "FI4-06-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why must statistics maintenance be scheduled (nightly) rather than relying on automatic statistics?",
+            "options": [
+              "Automatic statistics may not refresh frequently enough for tables with daily 1.2M-row appends; the stale-statistics incident from Task 2 happens precisely when automatic stats lag behind data growth. Scheduled nightly refreshes guarantee the optimizer has fresh metadata before the morning analyst window",
+              "Automatic statistics do not exist in Fabric Warehouse",
+              "Scheduled statistics are cheaper than automatic statistics",
+              "Statistics never go stale on partitioned tables"
+            ],
+            "correctAnswer": "Automatic statistics may not refresh frequently enough for tables with daily 1.2M-row appends; the stale-statistics incident from Task 2 happens precisely when automatic stats lag behind data growth. Scheduled nightly refreshes guarantee the optimizer has fresh metadata before the morning analyst window",
+            "rationale": "The Task 2 incident demonstrated the cost of stale stats — a 22x slowdown. Automatic stats are a safety net but not a guarantee for tables with rapid growth. The production-grade pattern is explicit nightly refreshes scheduled before the analyst query window so the optimizer always has fresh estimates. NordGrid's standard from FI4 Lesson 10 is exactly this."
+          },
+          {
+            "id": "FI4-06-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why must RLS use a security policy (rather than relying on application-layer filtering)?",
+            "options": [
+              "Application-layer filtering is bypassed if the analyst writes ad-hoc queries directly against the Warehouse SQL endpoint; only Warehouse-enforced RLS guarantees that no query — by any user, through any tool — can return rows outside the user's allowed regions. RLS is enforced at the data plane, not the application plane",
+              "Application-layer filtering is faster than RLS",
+              "RLS is required by Fabric — there is no other option",
+              "Application-layer filtering does not work with Power BI"
+            ],
+            "correctAnswer": "Application-layer filtering is bypassed if the analyst writes ad-hoc queries directly against the Warehouse SQL endpoint; only Warehouse-enforced RLS guarantees that no query — by any user, through any tool — can return rows outside the user's allowed regions. RLS is enforced at the data plane, not the application plane",
+            "rationale": "Application-layer filtering only protects users who go through the application. Any analyst who connects directly to the Warehouse with a SQL client bypasses the application entirely. Data-plane enforcement (RLS) is the only way to guarantee restrictions hold for every access path. This is a defense-in-depth principle: enforce at the lowest layer possible."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FI4 SYNTHESIS: NordGrid's complete Gold Warehouse architecture spec.\n# Pure Python dict — no Spark needed.\n\n# YOUR SOLUTION BELOW\n# Build gold_architecture with the structure from the task description.\n# Combine the answers from Tasks 1, 3, and 5.\n\ngold_architecture = {\n    # Fill in: distribution, materialized_views, rls, statistics_maintenance\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(gold_architecture, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FI4-06-A1",
+          "description": "gold_architecture has the 4 required top-level keys",
+          "check": "set(gold_architecture.keys()) >= {'distribution', 'materialized_views', 'rls', 'statistics_maintenance'}"
+        },
+        {
+          "id": "FI4-06-A2",
+          "description": "distribution maps fact_readings to HASH(meter_id)",
+          "check": "'fact_readings' in gold_architecture['distribution'] and 'HASH' in gold_architecture['distribution']['fact_readings'] and 'meter_id' in gold_architecture['distribution']['fact_readings']"
+        },
+        {
+          "id": "FI4-06-A3",
+          "description": "distribution maps dim_meters to HASH(meter_id)",
+          "check": "'dim_meters' in gold_architecture['distribution'] and 'HASH' in gold_architecture['distribution']['dim_meters'] and 'meter_id' in gold_architecture['distribution']['dim_meters']"
+        },
+        {
+          "id": "FI4-06-A4",
+          "description": "distribution maps dim_regions and dim_substations to REPLICATE",
+          "check": "gold_architecture['distribution']['dim_regions'].upper() == 'REPLICATE' and gold_architecture['distribution']['dim_substations'].upper() == 'REPLICATE'"
+        },
+        {
+          "id": "FI4-06-A5",
+          "description": "materialized_views is a list and includes mv_monthly_billing",
+          "check": "isinstance(gold_architecture['materialized_views'], list) and any(mv['name'] == 'mv_monthly_billing' for mv in gold_architecture['materialized_views'])"
+        },
+        {
+          "id": "FI4-06-A6",
+          "description": "rls has both role_mappings and unrestricted_roles, with the 3 regional roles configured",
+          "check": "set(gold_architecture['rls'].keys()) == {'role_mappings', 'unrestricted_roles'} and set(gold_architecture['rls']['role_mappings'].keys()) == {'analyst_north', 'analyst_south', 'analyst_east'}"
+        },
+        {
+          "id": "FI4-06-A7",
+          "description": "rls.unrestricted_roles contains central_analytics",
+          "check": "'central_analytics' in gold_architecture['rls']['unrestricted_roles']"
+        },
+        {
+          "id": "FI4-06-A8",
+          "description": "statistics_maintenance has nightly cadence and includes fact_readings in the tables list",
+          "check": "gold_architecture['statistics_maintenance']['cadence'] == 'nightly' and 'fact_readings' in gold_architecture['statistics_maintenance']['tables']"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (8 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/8).",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Distribution strategy choice for fact and dimension tables (Lesson 2)",
+          "Statistics maintenance cadence to prevent stale-stats slowdowns (Lesson 3)",
+          "Materialized views for dashboard query acceleration (Lesson 4)",
+          "Row-level security for multi-team access control (Lesson 9)",
+          "Architectural integration of all four into a single specification (Lesson 10)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines the four pillar concepts of Warehouse design — distribution, statistics, materialized views, and RLS — into a single architecture specification that the platform team would version-control alongside the Warehouse code. Each individual task in this practice set tested one pillar in isolation; the synthesis tests whether the student can integrate all four into a coherent design that respects the constraints (sub-1-second SLA, multi-team RLS, scale-induced statistics maintenance). The keystone assertion is A4: students who pick HASH for the small dimensions (a common over-application of the 'use hash for primary keys' rule) fail it."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "calibrationNotes": "Fourth Fabric mid-level practice set. First mid-level set with T-SQL as the primary code surface (vs PySpark in FI1-3). Uses spark.sql proxy with explicit Fabric Warehouse translation notes for materialized views and statistics. Window functions work identically in Spark SQL and T-SQL so Task 4 tests the production syntax directly. Task type mix (2 diagnostic + 3 fix + 1 synthesis) is within section 5.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches distribution, statistics, materialized views, stored procedures, cross-database queries, window functions, query diagnostics, and RLS in Lessons 2-9. The practice tests application: Task 1 forces distribution decisions on 4 specific NordGrid tables with realistic sizes. Task 2 reproduces a stale-statistics incident with concrete plan evidence (1000-vs-1200000 estimate gap). Task 3 builds the materialized view that the Lesson 4 example describes but does not walk through. Task 4 writes a window-function query for top-3 per region, verified against deterministic test data. Task 5 builds RLS configuration for 4 specific roles. Task 6 synthesizes all of these into a single Warehouse architecture spec.",
+    "datasetNotes": "One dataset (60 rows) shared across the materialized view and window function tasks. The deterministic structure (12 regions × 5 readings per region with daily_kw values exactly [2500, 2000, 1500, 1000, 500]) makes the top-3 result and the monthly aggregations both have clean integer assertion targets. Per-region February sum is always 6000, March sum is always 1500, top-3 always have daily_kw values 2500/2000/1500."
+  }
+}

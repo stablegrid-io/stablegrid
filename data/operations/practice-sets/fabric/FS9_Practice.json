@@ -1,0 +1,454 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FS9 — Architect the 4-Country Streaming Platform",
+  "description": "Choose the Eventstream topology for GridUnion's 4-country SCADA platform, write the multi-stream correlation query that detects compound anomalies, review the current streaming topology for subtle issues, choose an exactly-once delivery strategy, and synthesize the complete streaming platform architecture. Senior-level practice in Eventstream topologies, multi-stream correlation, exactly-once semantics, and streaming disaster recovery at 172M events/day scale.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+ / Real-Time Intelligence",
+  "metadata": {
+    "moduleId": "module-FS9",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 95,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "GridUnion Continental",
+    "scenarioScale": "20,000 turbines, 4 countries (DE/FR/NL/LU), 172M SCADA events/day, 4 Eventstreams + 1 unified KQL Eventhouse, 4 capacities including 1 dedicated streaming",
+    "modulePhase": "enterprise_operations",
+    "taskTypeMix": {
+      "tradeoffAnalysis": 2,
+      "designReview": 1,
+      "rootCauseAnalysis": 0,
+      "designArtifact": 1,
+      "architecturalSynthesis": 1
+    },
+    "calibrationNotes": "Senior practice set in the enterprise operations phase, paired with FS8 (security) as the second of three enterprise ops sets. Two trade-off tasks (Task 1 topology + Task 4 exactly-once) anchor the set with multiple defensible answers. The design artifact (Task 2) writes a Spark SQL correlation query against a 100-row SCADA sample. The design review (Task 3) tests subtle topology issues. The synthesis combines all four into the complete streaming platform architecture. Multi-defensible answers documented in acceptable_alternatives metadata."
+  },
+  "datasets": [
+    {
+      "id": "FS9_data_scada_sample",
+      "file": "FS9_data_scada_sample.csv",
+      "description": "100-row SCADA telemetry sample for Task 2's correlation query. 4 countries x 5 turbines x 5 timestamps = 100 readings spanning 5 minutes (14:00-14:05 UTC on 2026-04-08). Each reading has rpm, temperature_c, and wind_speed_ms. The dataset contains exactly 1 planted anomaly: TUR-DE-003 has a temperature spike (85-95C) combined with low rpm (50-100 vs normal 1100-1500) at one timestamp. Normal turbines maintain rpm 1100-1500 and temperature 55-75C. The correlation query must detect compound anomalies (high temp AND low rpm) within a time window.",
+      "schema": {
+        "columns": [
+          {"name": "timestamp", "type": "string", "nullable": false},
+          {"name": "country_code", "type": "string", "nullable": false},
+          {"name": "turbine_id", "type": "string", "nullable": false},
+          {"name": "rpm", "type": "double", "nullable": false},
+          {"name": "temperature_c", "type": "double", "nullable": false},
+          {"name": "wind_speed_ms", "type": "double", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-FS9-task-02"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FS9-task-01",
+      "title": "Choose the Eventstream Topology",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's platform team must finalize the Eventstream topology for SCADA telemetry from 20,000 turbines across 4 countries. Each country's turbines emit telemetry to a country-specific Event Hub (already in place); the Eventstream layer must consume from these Event Hubs and route the data to (1) a unified KQL Eventhouse for real-time queries, (2) the Bronze Lakehouse for batch consolidation, and (3) an external SCADA monitoring system used by the operations team.\n\n  THREE OPTIONS UNDER CONSIDERATION:\n\n  OPTION A — 4 INDEPENDENT EVENTSTREAMS (CURRENT, FAN-OUT EACH):\n    One Eventstream per country (es_scada_de, es_scada_fr, es_scada_nl, es_scada_lu). Each Eventstream consumes its country's Event Hub and fans out to 3 destinations: KQL, Lakehouse, and the external system.\n    - Pros: country-level fault isolation (a problem in es_scada_de does not affect the other 3); regulatory boundary is clear at the stream layer; per-country teams have full autonomy over their stream\n    - Cons: 4 streams × 3 destinations = 12 destination configurations to maintain; cross-country queries on the KQL Eventhouse pay the cost of 4 ingest paths producing data into the same database; fan-out logic is duplicated 4 times\n    - Estimated effort: 0 (this is the current state)\n\n  OPTION B — 1 UNIFIED EVENTSTREAM (ROUTING LAYER):\n    A single es_scada_eu Eventstream consumes from all 4 country Event Hubs (4 sources, 1 stream) and routes the merged data to 3 destinations.\n    - Pros: single configuration to maintain; cross-country merges happen at the stream layer rather than at the KQL query layer; fan-out logic is centralized\n    - Cons: a problem in the unified stream (a deployment bug, a configuration error) takes down ALL 4 countries simultaneously; the regulatory boundary is harder to demonstrate (auditors must verify the routing logic separates country data correctly); per-country teams lose autonomy\n    - Estimated effort: 4-6 weeks (rebuilding the topology)\n\n  OPTION C — HYBRID (4 INGESTION STREAMS + 1 ROUTING STREAM):\n    4 country-specific ingestion Eventstreams that each consume from their Event Hub and write to a single intermediate topic. A separate routing Eventstream reads the intermediate topic and applies country-aware transformations + fan-out to the 3 destinations.\n    - Pros: ingestion fault isolation per country (the country streams are simple consumers); centralized routing logic for the fan-out; the routing layer can apply country-specific transformations cleanly; cross-country merging is explicit at one point\n    - Cons: introduces a 5th Eventstream (operational complexity); the intermediate topic adds latency (~2-5 seconds typical); 5 streams instead of 4 means more capacity consumption baseline\n    - Estimated effort: 6-8 weeks (greenfield topology)\n\n  GRIDUNION CONSTRAINTS:\n    - 172M events/day across 4 countries (~2000 events/sec average, ~5000 peak)\n    - Latency requirement: events must reach KQL within 15 seconds for the real-time anomaly detection system\n    - The streaming capacity (cap_streaming) is dedicated to streaming workloads (per FS1 multi-capacity design)\n    - Past incident: 6 months ago, a deployment bug in the German fan-out logic was deployed to production and corrupted German telemetry routing for 90 minutes — the Hybrid option's intermediate topic would have allowed faster rollback because the ingestion layer was unaffected\n    - 4 regulators require clear demonstration of country-level data segregation in the ingestion path",
+        "task": "Evaluate the three options and recommend ONE primary approach. Multiple defensible answers exist; the reasoning fields determine which is acceptable.",
+        "validationHint": "Both Option A (current 4 independent streams) and Option C (Hybrid 4+1) are defensible primary answers. Option A is the conservative choice that prioritizes country-level fault isolation and regulatory clarity above operational simplicity. Option C is the architecturally cleaner choice that separates ingestion (4 country streams) from routing (1 unified stream) — preserving fault isolation at ingestion while centralizing the fan-out logic. Option B alone is rejected as primary because the past deployment incident demonstrated that unified streams have correlated failure modes that hurt all 4 countries simultaneously."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS9-01-F1",
+            "type": "single_select",
+            "label": "RECOMMENDATION: Which approach do you recommend as the primary Eventstream topology?",
+            "options": [
+              "Option A (4 Independent Streams) — current state, preserves country fault isolation, zero migration cost",
+              "Option B (1 Unified Stream) — single configuration, simpler to maintain",
+              "Option C (Hybrid: 4 Ingestion + 1 Routing) — fault isolation at ingestion, centralized routing logic",
+              "Option D (none of the above)"
+            ],
+            "correctAnswer": "Option C (Hybrid: 4 Ingestion + 1 Routing) — fault isolation at ingestion, centralized routing logic",
+            "secondaryCorrectAnswer": "Option A (4 Independent Streams) — current state, preserves country fault isolation, zero migration cost",
+            "rationale": "PRIMARY answer is Option C (Hybrid) because it captures the strengths of both isolation patterns: ingestion is per-country (regulatory boundary, fault isolation) and routing is centralized (avoids the 12-configuration sprawl of the current state). The 5th stream is operational overhead, but the centralized routing logic prevents the duplication problem that Option A has and the past-incident risk that Option B introduces. SECONDARY answer is Option A (current state) because it has zero migration cost and the past incident proves that fault isolation matters — staying on Option A is defensible if the team prioritizes 'don't disrupt what's working' over 'reduce configuration sprawl'. Option B alone is rejected because the past deployment incident is a strong signal that unified streams have correlated failure modes, and the regulatory boundary is harder to demonstrate.",
+            "acceptable_alternatives": "Either Option C (primary) or Option A (secondary) is accepted with appropriate reasoning. Option B may be accepted only if the student explicitly addresses how to prevent recurrence of the past deployment incident (e.g., staged rollouts to one country at a time, automated rollback on telemetry corruption detection)."
+          },
+          {
+            "id": "FS9-01-F2",
+            "type": "multi_select",
+            "label": "TRADE-OFF FACTORS: Which factors does your chosen approach prioritize? (Select all that apply)",
+            "options": [
+              "Country-level fault isolation at ingestion",
+              "Centralized routing logic (avoids fan-out duplication)",
+              "Regulatory boundary clarity in the ingestion path",
+              "Zero migration cost (preserves current state)",
+              "Minimum number of streams (reduces capacity baseline)",
+              "Cross-country query simplicity at the stream layer"
+            ],
+            "correctAnswer": ["Country-level fault isolation at ingestion", "Centralized routing logic (avoids fan-out duplication)", "Regulatory boundary clarity in the ingestion path"],
+            "rationale": "Option C (Hybrid) prioritizes ingestion fault isolation, centralized routing, and regulatory clarity. It does NOT optimize for zero migration cost (Option A is current state) or minimum number of streams (Options A and B both have fewer streams). The student's multi-select must match the prioritization implied by their F1 choice.",
+            "acceptable_alternatives": "If F1 = Option A, accept {Country-level fault isolation, Regulatory boundary clarity, Zero migration cost}. If F1 = Option B, accept {Centralized routing logic, Minimum number of streams, Cross-country query simplicity}."
+          },
+          {
+            "id": "FS9-01-F3",
+            "type": "single_select",
+            "label": "EXPIRATION CONDITION: Under what conditions would your recommended approach stop being the right choice?",
+            "options": [
+              "When the operational overhead of maintaining 5 streams exceeds the value of the centralized routing layer (e.g., the team is spending more time managing the routing stream than they save from avoiding the fan-out duplication), Option A (4 streams without the routing layer) becomes the better choice. The Hybrid is right when the routing layer's value-vs-cost ratio is positive",
+              "Never — Option C is always correct",
+              "When GridUnion adds a 5th country",
+              "When the team grows to 200 engineers"
+            ],
+            "correctAnswer": "When the operational overhead of maintaining 5 streams exceeds the value of the centralized routing layer (e.g., the team is spending more time managing the routing stream than they save from avoiding the fan-out duplication), Option A (4 streams without the routing layer) becomes the better choice. The Hybrid is right when the routing layer's value-vs-cost ratio is positive",
+            "rationale": "Every senior architectural choice has expiration conditions. The Hybrid is right NOW because routing centralization saves more effort than the 5th stream costs. If the routing layer becomes complex and brittle (e.g., 50 different routing rules with their own tests), the value-vs-cost flips and the team should reconsider. The senior pattern is to know the conditions under which the current decision should be revisited."
+          },
+          {
+            "id": "FS9-01-F4",
+            "type": "single_select",
+            "label": "STRONGEST COUNTERARGUMENT: What is the strongest argument a peer reviewer might raise against the Hybrid?",
+            "options": [
+              "The intermediate topic adds latency (~2-5 seconds) that may push the end-to-end time toward the 15-second SLA limit. If the routing stream itself takes 3-5 seconds and the country streams take 5-7 seconds, the total budget shrinks to roughly 3 seconds for KQL ingestion — much tighter than the current state. A latency-sensitive incident (e.g., a brief routing stream slowdown) could push the end-to-end past 15 seconds and breach the SLA",
+              "The Hybrid is more expensive in CUs",
+              "Fabric does not support Hybrid topologies",
+              "There is no argument against the Hybrid"
+            ],
+            "correctAnswer": "The intermediate topic adds latency (~2-5 seconds) that may push the end-to-end time toward the 15-second SLA limit. If the routing stream itself takes 3-5 seconds and the country streams take 5-7 seconds, the total budget shrinks to roughly 3 seconds for KQL ingestion — much tighter than the current state. A latency-sensitive incident (e.g., a brief routing stream slowdown) could push the end-to-end past 15 seconds and breach the SLA",
+            "rationale": "The strongest counterargument is the latency budget. The Hybrid trades isolation for an extra hop, and the extra hop consumes part of the 15-second budget. A peer reviewer would correctly point out that the latency math is tight and that the current state (Option A) has no intermediate hop and therefore more headroom. The student's defense is that the Hybrid's centralized routing prevents the scenario where one country's fan-out bug breaks the SLA across all destinations — the 2-5 second latency is bounded, the duplication risk is unbounded. Distractor B may be true but is not the strongest argument."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS9-task-02",
+      "title": "Multi-Stream Correlation Query",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's real-time anomaly detection system needs to identify compound failures in turbines: a turbine showing BOTH a temperature spike AND an rpm drop within the same time window indicates a potential bearing failure (the turbine is overheating because something is preventing it from spinning normally). Single-signal alerts (just high temp or just low rpm) are noisy and produce false positives; the compound signal is much more reliable.\n\nThe FS9_data_scada_sample.csv contains 100 SCADA readings: 4 countries × 5 turbines × 5 timestamps spanning 5 minutes (14:00-14:05 UTC). Most readings are normal (rpm 1100-1500, temperature 55-75°C). The dataset contains exactly 1 anomaly: a turbine with elevated temperature (>80°C) AND reduced rpm (<200) at the same timestamp.\n\nYour job is to write a Spark SQL query that finds compound anomalies. In production this would be a KQL query against the streaming Eventhouse, but for the practice we use Spark SQL as a proxy with the same logic.\n\n  ANOMALY DEFINITION:\n  A compound anomaly is any reading where:\n    temperature_c > 80 AND rpm < 200\n  This is the production threshold from the FS9 Lesson 3 multi-stream correlation pattern.",
+        "task": "Read FS9_data_scada_sample.csv as a Spark view called scada_readings. Write a Spark SQL query that finds all compound anomalies (temperature_c > 80 AND rpm < 200) and store the results in 4 variables.\n\nVariables to compute:\n  - anomaly_count: total number of compound anomalies (int)\n  - anomalous_turbine_id: the turbine_id of the anomalous reading (string)\n  - anomalous_country: the country_code of the anomalous reading (string)\n  - anomalous_temperature: the temperature_c of the anomalous reading (float)",
+        "validationHint": "Use Spark SQL: SELECT * FROM scada_readings WHERE temperature_c > 80 AND rpm < 200. The dataset has exactly 1 anomaly: TUR-DE-003 with temperature ~85-95°C and rpm ~50-100. Expected: anomaly_count=1, anomalous_turbine_id='TUR-DE-003', anomalous_country='DE', anomalous_temperature in the 85-95 range."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS9 Lesson 3: multi-stream correlation for compound anomaly detection.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('gridunion-scada-correlation') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_scada = spark.read.csv('FS9_data_scada_sample.csv', header=True, inferSchema=True)\ndf_scada.createOrReplaceTempView('scada_readings')\nprint(f'scada_readings: {df_scada.count()} readings')\n\n# YOUR SOLUTION BELOW\n# Find compound anomalies (temperature_c > 80 AND rpm < 200).\n# Compute the 4 variables: anomaly_count, anomalous_turbine_id,\n# anomalous_country, anomalous_temperature.\n# Use Spark SQL with WHERE clause.\n\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f'anomaly_count: {anomaly_count}')\nprint(f'anomalous_turbine_id: {anomalous_turbine_id}')\nprint(f'anomalous_country: {anomalous_country}')\nprint(f'anomalous_temperature: {anomalous_temperature}')"
+      },
+      "assertions": [
+        {
+          "id": "FS9-02-A1",
+          "description": "anomaly_count equals 1 (the planted anomaly)",
+          "check": "int(anomaly_count) == 1"
+        },
+        {
+          "id": "FS9-02-A2",
+          "description": "anomalous_turbine_id is 'TUR-DE-003'",
+          "check": "str(anomalous_turbine_id) == 'TUR-DE-003'"
+        },
+        {
+          "id": "FS9-02-A3",
+          "description": "anomalous_country is 'DE'",
+          "check": "str(anomalous_country) == 'DE'"
+        },
+        {
+          "id": "FS9-02-A4",
+          "description": "anomalous_temperature is in the planted range (85-95°C)",
+          "check": "85 <= float(anomalous_temperature) <= 95"
+        },
+        {
+          "id": "FS9-02-A5",
+          "description": "The query correctly applies BOTH conditions (temperature > 80 AND rpm < 200), not just one — verified by ensuring the result row also has rpm < 200",
+          "check": "spark.sql(\"SELECT rpm FROM scada_readings WHERE turbine_id = '\" + str(anomalous_turbine_id) + \"' AND temperature_c > 80 AND rpm < 200\").collect()[0]['rpm'] < 200"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit. The keystone is A5 — students who only check temperature (forgetting the rpm condition) will fail because the dataset has multiple turbines with elevated temperature but only one with the compound condition."
+    },
+    {
+      "id": "module-FS9-task-03",
+      "title": "Review GridUnion's Streaming Topology",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's current streaming topology was deployed 9 months ago and has accumulated subtle issues. The platform team is reviewing it before adding new functionality.\n\n  CURRENT TOPOLOGY (4 INDEPENDENT EVENTSTREAMS):\n\n    es_scada_de       Source: eh_scada_de       Destinations: kql_eventhouse_de, lh_bronze_de, ext_scada_monitoring\n    es_scada_fr       Source: eh_scada_fr       Destinations: kql_eventhouse_fr, lh_bronze_fr, ext_scada_monitoring\n    es_scada_nl       Source: eh_scada_nl       Destinations: kql_eventhouse_eu, lh_bronze_nl, ext_scada_monitoring\n    es_scada_lu       Source: eh_scada_lu       Destinations: kql_eventhouse_eu, lh_bronze_lu, ext_scada_monitoring\n\n    Note: Germany and France each have their OWN KQL Eventhouse. NL and LU share the unified eu Eventhouse.\n\n  CONFIGURATION DETAILS:\n\n    es_scada_de:\n      Deduplication: NONE (events written as-received)\n      Retention on lh_bronze_de: 180 days\n      KQL retention on kql_eventhouse_de: 90 days\n\n    es_scada_fr:\n      Deduplication: enabled at the KQL ingestion layer (event_id as dedup key)\n      Retention on lh_bronze_fr: 180 days\n      KQL retention on kql_eventhouse_fr: 90 days\n\n    es_scada_nl:\n      Deduplication: enabled at the KQL ingestion layer\n      Retention on lh_bronze_nl: 30 days  <-- shorter than the others\n      KQL retention on kql_eventhouse_eu: 90 days (shared with LU)\n\n    es_scada_lu:\n      Deduplication: enabled at the KQL ingestion layer\n      Retention on lh_bronze_lu: 180 days\n      KQL retention on kql_eventhouse_eu: 90 days\n\n  REGULATORY CONTEXT:\n    BNetzA (German regulator): requires 365 days of SCADA event retention for grid stability analysis\n    CRE (French regulator): requires 180 days\n    ACM (Dutch regulator): requires 365 days\n    ILR (Luxembourg regulator): requires 90 days\n\n  THE CORRELATION QUERY (from Task 2):\n    The compound anomaly detection query joins data across multiple country streams within a 30-second time window. It runs against the unified KQL Eventhouse (kql_eventhouse_eu).\n\n  OPERATIONAL OBSERVATIONS:\n    - 3 weeks ago, the German team observed duplicate events in lh_bronze_de during a brief Event Hub reconnection event\n    - The correlation query for Germany has been failing intermittently because the German data is not in kql_eventhouse_eu — only NL and LU are there\n    - The French team's monthly regulatory submission requires querying events older than 90 days, which the KQL Eventhouse no longer holds",
+        "task": "Review the topology for issues. Identify at least 4 problems and severity-rank them. Focus on dedup, retention, KQL placement, and DR.",
+        "validationHint": "Issue 1 (BLOCKING regulatory): es_scada_de has NO deduplication. The 3-week-ago duplicate event observation is the symptom; the root cause is the missing dedup at ingestion. This is a regulatory issue because BNetzA requires accurate event records and duplicates corrupt the count. Issue 2 (HIGH regulatory): lh_bronze_nl has 30-day retention but ACM requires 365 days. The Bronze layer is the primary regulatory record; 30 days is well short of the requirement. Issue 3 (HIGH operational): Germany's KQL events go to kql_eventhouse_de while the unified correlation query runs on kql_eventhouse_eu. Germany is excluded from the correlation system entirely — the intermittent failures are because the correlation query has no German data to correlate with. Issue 4 (HIGH regulatory): KQL retention is 90 days everywhere, but France requires 180 days. The French regulatory submission failure is the symptom; the root cause is that KQL retention does not match the CRE requirement. Issue 5 (DESIGN): Inconsistent KQL placement (DE and FR have own Eventhouses, NL and LU share) creates a fragmented architecture that the correlation query cannot easily span."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS9-03-F1",
+            "type": "single_select",
+            "label": "ISSUE 1 SEVERITY: es_scada_de has NO deduplication while the other 3 streams do. Severity?",
+            "options": [
+              "BLOCKING regulatory — BNetzA requires accurate SCADA event records, and the absence of dedup means duplicate events (already observed 3 weeks ago during the reconnection incident) corrupt the official record. Eventstream's at-least-once delivery guarantees mean duplicates WILL happen during any reconnection or restart; without dedup, the German Bronze layer is structurally unreliable",
+              "LOW — duplicates are rare",
+              "HIGH but not regulatory",
+              "Not a problem"
+            ],
+            "correctAnswer": "BLOCKING regulatory — BNetzA requires accurate SCADA event records, and the absence of dedup means duplicate events (already observed 3 weeks ago during the reconnection incident) corrupt the official record. Eventstream's at-least-once delivery guarantees mean duplicates WILL happen during any reconnection or restart; without dedup, the German Bronze layer is structurally unreliable",
+            "rationale": "Eventstream provides at-least-once delivery as a guarantee, not best-effort. Reconnection events, restart cycles, and offset commit boundaries all produce duplicates that the consumer must handle. Without dedup, the consumer's data is structurally non-deterministic. The 3-week-ago observation is not a freak event — it's the normal at-least-once behavior. For a regulated workload (BNetzA SCADA records), this is BLOCKING."
+          },
+          {
+            "id": "FS9-03-F2",
+            "type": "single_select",
+            "label": "ISSUE 2 SEVERITY: lh_bronze_nl has 30-day retention but ACM requires 365 days. Severity?",
+            "options": [
+              "HIGH regulatory — the Bronze layer is the primary regulatory record. 30-day retention means events older than 30 days are gone from Bronze; if the Dutch regulator requests an event from 6 months ago, GridUnion cannot produce it. The fix is to extend retention to 365 days immediately, even though this increases storage cost",
+              "LOW — KQL has 90 days",
+              "BLOCKING under all circumstances",
+              "Not a problem"
+            ],
+            "correctAnswer": "HIGH regulatory — the Bronze layer is the primary regulatory record. 30-day retention means events older than 30 days are gone from Bronze; if the Dutch regulator requests an event from 6 months ago, GridUnion cannot produce it. The fix is to extend retention to 365 days immediately, even though this increases storage cost",
+            "rationale": "The Bronze layer is where the immutable regulatory record lives. KQL is for fast queries and has its own retention; Bronze is for the long-term archive. If Bronze retention is short of the regulatory requirement, the regulator cannot be satisfied — KQL is not a substitute. The fix is straightforward (extend retention) and the cost is bounded (Bronze storage is cheap). This is HIGH (not BLOCKING) because no immediate regulator request is pending, but it must be fixed before any audit."
+          },
+          {
+            "id": "FS9-03-F3",
+            "type": "single_select",
+            "label": "ISSUE 3 SEVERITY: Germany's KQL events go to kql_eventhouse_de but the cross-country correlation query runs on kql_eventhouse_eu. Severity?",
+            "options": [
+              "HIGH operational — the correlation query is fundamentally broken for Germany. The intermittent failures are not intermittent at all; they're systematic. Whenever a German turbine has an anomaly, the correlation query cannot correlate it because the German data is not in the queried database. The correlation system is silently incomplete for 25% of GridUnion's turbines",
+              "LOW — Germany has its own Eventhouse",
+              "BLOCKING — system is broken",
+              "Not a problem"
+            ],
+            "correctAnswer": "HIGH operational — the correlation query is fundamentally broken for Germany. The intermittent failures are not intermittent at all; they're systematic. Whenever a German turbine has an anomaly, the correlation query cannot correlate it because the German data is not in the queried database. The correlation system is silently incomplete for 25% of GridUnion's turbines",
+            "rationale": "The 'intermittent failures' framing in the operational observations is the diagnostic clue. The failures are not random; they're whenever the query touches German data. The senior insight is that 'intermittent' often means 'systematic but partial' — the query works for NL and LU but fails for DE because the data isn't there. This is the same diagnostic pattern as FS6 Task 2 (8% data growth = 88% slowdown is non-linear, signal of a threshold). The fix is to consolidate German KQL into the unified Eventhouse, or to make the correlation query span multiple Eventhouses."
+          },
+          {
+            "id": "FS9-03-F4",
+            "type": "single_select",
+            "label": "ISSUE 4 SEVERITY: KQL retention is 90 days but CRE requires 180 days. Severity?",
+            "options": [
+              "HIGH regulatory — the French regulatory submission failure is the symptom; the cause is that KQL retention is shorter than CRE requires. The fix is either to extend KQL retention to 180 days (more expensive) or to query Bronze for the older events (Bronze has 180 days for FR which is sufficient). The French team is currently blocked from completing their submission",
+              "LOW — French team can wait",
+              "BLOCKING for the French team",
+              "Not a problem"
+            ],
+            "correctAnswer": "HIGH regulatory — the French regulatory submission failure is the symptom; the cause is that KQL retention is shorter than CRE requires. The fix is either to extend KQL retention to 180 days (more expensive) or to query Bronze for the older events (Bronze has 180 days for FR which is sufficient). The French team is currently blocked from completing their submission",
+            "rationale": "The submission failure is observable evidence of a regulatory gap. The fix has two paths: extend KQL retention (matches the request location but costs more) or document that older queries should hit Bronze (matches the data location but adds query complexity). The senior reviewer should recommend the latter for cost reasons, but flag both options for the French team to choose."
+          },
+          {
+            "id": "FS9-03-F5",
+            "type": "single_select",
+            "label": "REVIEWER VERDICT: What do you recommend the platform team do?",
+            "options": [
+              "1. Enable dedup on es_scada_de immediately (Issue 1, BLOCKING). 2. Extend lh_bronze_nl retention to 365 days within 1 week (Issue 2, HIGH). 3. Consolidate German KQL into kql_eventhouse_eu OR adapt the correlation query to span multiple Eventhouses within 2 weeks (Issue 3, HIGH). 4. Document the Bronze fallback for French queries older than 90 days within 1 week (Issue 4, HIGH). 5. Establish standard topology defaults across all 4 countries to prevent future drift (Issue 5, DESIGN)",
+              "Approve as-is",
+              "Block all production work until everything is fixed",
+              "Hire a streaming team to handle this"
+            ],
+            "correctAnswer": "1. Enable dedup on es_scada_de immediately (Issue 1, BLOCKING). 2. Extend lh_bronze_nl retention to 365 days within 1 week (Issue 2, HIGH). 3. Consolidate German KQL into kql_eventhouse_eu OR adapt the correlation query to span multiple Eventhouses within 2 weeks (Issue 3, HIGH). 4. Document the Bronze fallback for French queries older than 90 days within 1 week (Issue 4, HIGH). 5. Establish standard topology defaults across all 4 countries to prevent future drift (Issue 5, DESIGN)",
+            "rationale": "Senior reviewer verdict on streaming topology issues: phased remediation with the BLOCKING issue first (German dedup), then the HIGH regulatory issues (NL retention, FR query path), then the operational HIGH issue (Germany KQL placement), and finally the DESIGN issue (standardize topology defaults). The remediation order reflects regulatory urgency and operational impact."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS9-task-04",
+      "title": "Choose an Exactly-Once Delivery Strategy",
+      "type": "tradeoff_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "The Task 3 review identified that es_scada_de has no dedup and must add it. The platform team is now deciding on the exactly-once delivery strategy that will be applied across all 4 streams (not just Germany). Eventstream provides at-least-once delivery; achieving exactly-once requires deduplication somewhere in the pipeline.\n\n  THREE APPROACHES UNDER CONSIDERATION:\n\n  APPROACH A — KQL-SIDE DEDUP ONLY:\n    Configure dedup at the KQL ingestion layer using event_id as the dedup key. The KQL Eventhouse handles dedup before storing the event. The Bronze Lakehouse receives raw events without dedup.\n    - Pros: simple to configure (KQL native feature); fast query path (KQL data is dedup'd); minimal performance overhead\n    - Cons: Bronze still has duplicates (consumers reading Bronze must handle dedup themselves); the regulatory record (Bronze) is non-deterministic; if KQL dedup is misconfigured, both layers have problems\n    - Effort: 1 week\n\n  APPROACH B — DELTA TX LOG IDEMPOTENCY ONLY (BRONZE-SIDE):\n    Configure idempotent writes at the Bronze Lakehouse layer using Delta Lake's MERGE on event_id. Each batch consolidation MERGEs events with deduplication. The KQL Eventhouse receives events from the Bronze layer (rather than directly from Eventstream).\n    - Pros: Bronze is the source of truth (single dedup point); the regulatory record is deterministic; KQL inherits dedup from Bronze automatically\n    - Cons: KQL ingestion latency increases (events go through Bronze first); the real-time anomaly detection system has higher end-to-end latency; the architecture has Bronze on the critical streaming path\n    - Effort: 3-4 weeks (rebuilding KQL ingestion path)\n\n  APPROACH C — BOTH LAYERS (KQL + DELTA):\n    Configure dedup at BOTH the KQL ingestion layer AND the Bronze layer. KQL handles dedup for the real-time path; Bronze handles dedup independently for the regulatory record.\n    - Pros: defense in depth (each layer is dedup'd independently); KQL latency stays low (dedup happens at ingestion); Bronze regulatory record is deterministic; if one layer's dedup misconfigures, the other still works\n    - Cons: dedup is configured twice (configuration overhead); the two dedup paths must use the same key logic to be consistent; double the dedup CU cost\n    - Effort: 2 weeks\n\n  GRIDUNION CONSTRAINTS:\n    - 172M events/day across 4 countries\n    - Real-time anomaly detection has a 15-second SLA from event generation to KQL availability\n    - Regulatory record (Bronze) must be deterministic for all 4 countries\n    - The platform team has been burned in the past by single-point-of-failure dedup configurations (the Task 3 incident showed what happens when dedup is missing on one stream)",
+        "task": "Recommend an exactly-once delivery strategy. Multiple defensible answers exist; the reasoning fields determine which is acceptable.",
+        "validationHint": "Both Approach A (KQL-side only) and Approach C (both layers) are defensible primary answers. Approach A is the conservative choice that minimizes complexity and matches the simplest production pattern. Approach C is the architecturally robust choice that provides defense in depth — particularly important given the past history of dedup misconfigurations. Approach B alone is rejected as primary because it puts Bronze on the critical streaming path, increasing KQL latency and potentially breaching the 15-second SLA."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS9-04-F1",
+            "type": "single_select",
+            "label": "RECOMMENDATION: Which exactly-once approach do you recommend?",
+            "options": [
+              "Approach A (KQL-side dedup only) — simple, low-latency, matches the FS9 Lesson 4 default pattern",
+              "Approach B (Delta Tx Log only) — single source of truth in Bronze",
+              "Approach C (both layers) — defense in depth, dedup at each layer independently",
+              "Approach D (none of the above)"
+            ],
+            "correctAnswer": "Approach C (both layers) — defense in depth, dedup at each layer independently",
+            "secondaryCorrectAnswer": "Approach A (KQL-side dedup only) — simple, low-latency, matches the FS9 Lesson 4 default pattern",
+            "rationale": "PRIMARY answer is Approach C (both layers) because the past dedup misconfiguration history is a strong signal that GridUnion needs defense in depth on this specific concern. The double-configuration cost is bounded (2 weeks of effort, 2x dedup CU cost) and the benefit is significant: if either layer misconfigures, the other catches the problem. Bronze gets a deterministic regulatory record AND KQL gets low latency. SECONDARY answer is Approach A (KQL-side only) because it's the simpler default that works for most production deployments — defensible if the team is confident in their dedup hygiene and prioritizes minimum complexity. Approach B is rejected because it puts Bronze on the streaming critical path, threatening the 15-second SLA.",
+            "acceptable_alternatives": "Either Approach C (primary) or Approach A (secondary) is accepted. Approach B may be accepted only if the student explicitly addresses the latency budget and shows that the Bronze write fits within the 15-second SLA budget."
+          },
+          {
+            "id": "FS9-04-F2",
+            "type": "single_select",
+            "label": "WHY DEFENSE IN DEPTH HERE: Why is dedup specifically a 'defense in depth' concern rather than a 'pick one approach' concern?",
+            "options": [
+              "Dedup is a single-point-of-failure concern: if the configured dedup mechanism fails (misconfiguration, version upgrade bug, key collision), the consumer receives duplicates and may produce wrong aggregates, false alerts, or corrupted regulatory records. The cost of a dedup failure is high enough that having a second mechanism as backup is justified, even at the cost of double configuration. This is the same reasoning as airplanes having two engines: the cost of failure is high, so redundancy is paid for",
+              "Dedup is computationally expensive",
+              "Dedup is required for compliance",
+              "Single-layer dedup is deprecated"
+            ],
+            "correctAnswer": "Dedup is a single-point-of-failure concern: if the configured dedup mechanism fails (misconfiguration, version upgrade bug, key collision), the consumer receives duplicates and may produce wrong aggregates, false alerts, or corrupted regulatory records. The cost of a dedup failure is high enough that having a second mechanism as backup is justified, even at the cost of double configuration. This is the same reasoning as airplanes having two engines: the cost of failure is high, so redundancy is paid for",
+            "rationale": "The defense-in-depth argument applies when the cost of failure exceeds the cost of redundancy. For dedup at GridUnion scale, the cost of failure (corrupted regulatory record + false anomaly alerts + wrong aggregates) clearly exceeds the cost of double configuration (2 weeks of work + 2x dedup CU cost). This is the same reasoning pattern as FS8's defense-in-depth security posture (RLS + identity review + audit log review)."
+          },
+          {
+            "id": "FS9-04-F3",
+            "type": "single_select",
+            "label": "EXPIRATION CONDITION: Under what conditions would your recommended approach stop being the right choice?",
+            "options": [
+              "When the team has built mature automated testing for the dedup configuration (so the past misconfiguration history is no longer a relevant risk) AND the dedup CU cost becomes a meaningful percentage of the streaming capacity, simplifying to Approach A becomes reasonable. The defense-in-depth is right when the failure mode is real and not mitigated by other controls",
+              "Never — Approach C is always correct",
+              "When GridUnion adds a 5th country",
+              "When the team grows to 200 engineers"
+            ],
+            "correctAnswer": "When the team has built mature automated testing for the dedup configuration (so the past misconfiguration history is no longer a relevant risk) AND the dedup CU cost becomes a meaningful percentage of the streaming capacity, simplifying to Approach A becomes reasonable. The defense-in-depth is right when the failure mode is real and not mitigated by other controls",
+            "rationale": "Defense in depth has expiration conditions like every other architectural choice. When the underlying concern is mitigated (automated tests prevent misconfiguration), the redundancy becomes overhead. The senior pattern is to know what would let the team simplify, and to plan for that future state."
+          },
+          {
+            "id": "FS9-04-F4",
+            "type": "single_select",
+            "label": "STRONGEST COUNTERARGUMENT: What is the strongest argument against Approach C?",
+            "options": [
+              "Configuring dedup twice means TWO places where the dedup logic can be wrong, and TWO surfaces for engineers to verify during a code review. The double configuration creates the opportunity for the two layers to diverge (different keys, different collision behavior), which is its own failure mode. Defense in depth works only if the two layers are TRULY independent; if they share the same upstream bug, both fail together and the redundancy is illusory",
+              "Approach C is too expensive in CUs",
+              "Approach C is not supported in Fabric",
+              "There is no argument against Approach C"
+            ],
+            "correctAnswer": "Configuring dedup twice means TWO places where the dedup logic can be wrong, and TWO surfaces for engineers to verify during a code review. The double configuration creates the opportunity for the two layers to diverge (different keys, different collision behavior), which is its own failure mode. Defense in depth works only if the two layers are TRULY independent; if they share the same upstream bug, both fail together and the redundancy is illusory",
+            "rationale": "The strongest counterargument is that double configuration creates double surface area for misconfiguration. The student's defense is that the two layers use different mechanisms (KQL ingestion dedup vs Delta MERGE) and therefore are truly independent — a bug in one is unlikely to affect the other. If they shared the same dedup library (e.g., both calling the same dedup function), the redundancy would be illusory and Approach A would be just as safe. The senior reasoning is to verify the independence claim before relying on defense in depth."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS9-task-05",
+      "title": "GridUnion Streaming Platform Architecture",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 23,
+      "description": {
+        "context": "This is the synthesis task. GridUnion's platform team is finalizing the complete streaming platform architecture that integrates the lessons from this entire practice set:\n\n  - Eventstream topology choice (Task 1: Hybrid 4+1)\n  - Multi-stream correlation query pattern (Task 2)\n  - Topology issues remediation (Task 3)\n  - Exactly-once delivery strategy (Task 4: both layers)\n  - Streaming DR and operational discipline\n\nYour job has two parts: (1) DIAGNOSIS — fill the 4-field template articulating the streaming principles. (2) ARTIFACT — build the streaming platform spec as a Python dict.",
+        "task": "Fill the diagnosis template AND build the streaming_platform dict.\n\nFor the ARTIFACT: Build a Python dict called streaming_platform with these top-level keys:\n  - topology: 'hybrid_4_country_ingestion_plus_1_routing' (the Task 1 primary)\n  - exactly_once_strategy: 'both_layers_kql_and_delta' (the Task 4 primary)\n  - kql_eventhouse_layout: 'unified_eu_eventhouse' (consolidate the Task 3 fragmented layout)\n  - retention_policy: a dict mapping the 4 countries to their bronze_retention_days. Keys: 'DE' (365), 'FR' (180), 'NL' (365), 'LU' (90)\n  - kql_retention_days: 180 (the maximum of the 4 countries' regulatory requirements, ensures all queries can hit KQL)\n  - latency_sla_seconds: 15 (the production SLA)\n  - correlation_query_pattern: a dict with window_seconds (30) and signals_combined (a list containing 'temperature_c > 80', 'rpm < 200')\n  - dr_strategy: a dict with cross_region_replication (True), recovery_point_objective_minutes (15), recovery_time_objective_minutes (30)\n  - selective_review_required_for: a list containing 'new_eventstream_topologies', 'kql_retention_changes', 'dedup_configuration_changes', 'latency_sla_changes'",
+        "validationHint": "The 9 top-level keys integrate all 4 tasks plus DR. The retention_policy encodes the per-country regulatory requirements. The kql_retention_days = 180 is the max of the 4 countries' requirements (DE=365 for Bronze, but France 180 is sufficient for KQL since older events can fall back to Bronze). The correlation_query_pattern matches Task 2's compound anomaly definition. The DR strategy values are typical for streaming workloads."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS9-05-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: Why does the streaming architecture include BOTH the Hybrid topology AND defense-in-depth dedup?",
+            "options": [
+              "The Hybrid topology and defense-in-depth dedup address different failure modes. The Hybrid topology prevents cross-country fault correlation at the routing layer (one country's bug doesn't take down all 4). Defense-in-depth dedup prevents data corruption at the consumer layers (a misconfigured dedup doesn't produce duplicates). Both are needed because both failure modes are real and have different consequences",
+              "Microsoft Fabric requires both",
+              "It is arbitrary",
+              "Defense in depth is always correct"
+            ],
+            "correctAnswer": "The Hybrid topology and defense-in-depth dedup address different failure modes. The Hybrid topology prevents cross-country fault correlation at the routing layer (one country's bug doesn't take down all 4). Defense-in-depth dedup prevents data corruption at the consumer layers (a misconfigured dedup doesn't produce duplicates). Both are needed because both failure modes are real and have different consequences",
+            "rationale": "Senior architectural reasoning: each control addresses a specific failure mode, and the architecture needs all the controls because all the failure modes are real. The Hybrid topology prevents fault correlation; defense-in-depth dedup prevents data corruption. They don't substitute for each other — they're orthogonal."
+          },
+          {
+            "id": "FS9-05-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why does the retention_policy use different values per country instead of a uniform retention?",
+            "options": [
+              "Each country's regulator has different retention requirements (BNetzA 365, CRE 180, ACM 365, ILR 90). A uniform retention of 365 days would over-provision storage for countries that need less, while a uniform retention of 90 would violate the strictest requirements. Per-country retention matches the actual regulatory requirements at minimum cost",
+              "All countries should have 365 days",
+              "Microsoft Fabric requires per-country retention",
+              "It is arbitrary"
+            ],
+            "correctAnswer": "Each country's regulator has different retention requirements (BNetzA 365, CRE 180, ACM 365, ILR 90). A uniform retention of 365 days would over-provision storage for countries that need less, while a uniform retention of 90 would violate the strictest requirements. Per-country retention matches the actual regulatory requirements at minimum cost",
+            "rationale": "Per-country retention reflects the asymmetric regulatory framework that's now established across FS7 (residency), FS8 (compliance), and FS9 (retention). Each regulator has specific requirements; the platform must encode them as constraints. A uniform value either violates the strictest requirements or wastes money on the most lenient countries."
+          },
+          {
+            "id": "FS9-05-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: Why does the streaming architecture set kql_retention_days to 180 instead of 365 (matching the strictest country)?",
+            "options": [
+              "KQL is for fast queries on recent data; Bronze is for the long-term regulatory archive. KQL retention should match the longest typical query window (180 days covers the French regulatory submission and most analytical queries) without paying for the full 365-day archive in KQL's faster, more expensive storage. Older queries fall back to Bronze, which has the per-country retention to satisfy the strictest requirements",
+              "180 days is the max KQL supports",
+              "365 days is too expensive in KQL",
+              "It is arbitrary"
+            ],
+            "correctAnswer": "KQL is for fast queries on recent data; Bronze is for the long-term regulatory archive. KQL retention should match the longest typical query window (180 days covers the French regulatory submission and most analytical queries) without paying for the full 365-day archive in KQL's faster, more expensive storage. Older queries fall back to Bronze, which has the per-country retention to satisfy the strictest requirements",
+            "rationale": "The KQL-vs-Bronze role split is the senior insight: KQL is the hot path, Bronze is the cold archive. The retention should reflect the actual access pattern, not the regulatory maximum. Most queries hit recent data; older queries (like the 12-month BNetzA inspection) can tolerate the slower Bronze path. This split optimizes cost while satisfying both regulatory requirements (Bronze) and query performance (KQL)."
+          },
+          {
+            "id": "FS9-05-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: Why does the DR strategy specify RPO=15 minutes and RTO=30 minutes for streaming?",
+            "options": [
+              "Streaming workloads tolerate small data loss windows (15 minutes is roughly the time between incident detection and stream restart) but cannot tolerate long downtime (30 minutes is the maximum acceptable gap before regulatory compliance and operational alerting are affected). Tighter values (RPO=0, RTO=5) are technically possible but expensive; looser values (RPO=60, RTO=120) would compound into unacceptable customer impact for the 4 regulators",
+              "These values are required by Microsoft Fabric",
+              "These are arbitrary defaults",
+              "Streaming has no DR"
+            ],
+            "correctAnswer": "Streaming workloads tolerate small data loss windows (15 minutes is roughly the time between incident detection and stream restart) but cannot tolerate long downtime (30 minutes is the maximum acceptable gap before regulatory compliance and operational alerting are affected). Tighter values (RPO=0, RTO=5) are technically possible but expensive; looser values (RPO=60, RTO=120) would compound into unacceptable customer impact for the 4 regulators",
+            "rationale": "DR values balance cost against business impact. Tighter RPO/RTO requires more infrastructure (active-active replication, automatic failover); looser values save cost but expose more risk. 15/30 are typical for streaming workloads where small gaps are acceptable but extended downtime is not. The student should recognize that DR values are business decisions, not technical defaults."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS9 SYNTHESIS: GridUnion's complete streaming platform architecture.\n\n# YOUR SOLUTION BELOW\n# Build streaming_platform with the 9 top-level keys from the task description.\n\nstreaming_platform = {\n    # Fill in: topology, exactly_once_strategy, kql_eventhouse_layout, retention_policy,\n    #          kql_retention_days, latency_sla_seconds, correlation_query_pattern,\n    #          dr_strategy, selective_review_required_for\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(streaming_platform, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS9-05-A1",
+          "description": "streaming_platform has all 9 required top-level keys",
+          "check": "set(streaming_platform.keys()) >= {'topology', 'exactly_once_strategy', 'kql_eventhouse_layout', 'retention_policy', 'kql_retention_days', 'latency_sla_seconds', 'correlation_query_pattern', 'dr_strategy', 'selective_review_required_for'}"
+        },
+        {
+          "id": "FS9-05-A2",
+          "description": "topology is 'hybrid_4_country_ingestion_plus_1_routing' (matches Task 1 primary)",
+          "check": "streaming_platform['topology'] == 'hybrid_4_country_ingestion_plus_1_routing'"
+        },
+        {
+          "id": "FS9-05-A3",
+          "description": "exactly_once_strategy is 'both_layers_kql_and_delta' (matches Task 4 primary)",
+          "check": "streaming_platform['exactly_once_strategy'] == 'both_layers_kql_and_delta'"
+        },
+        {
+          "id": "FS9-05-A4",
+          "description": "kql_eventhouse_layout is 'unified_eu_eventhouse'",
+          "check": "streaming_platform['kql_eventhouse_layout'] == 'unified_eu_eventhouse'"
+        },
+        {
+          "id": "FS9-05-A5",
+          "description": "retention_policy has all 4 countries with correct days",
+          "check": "streaming_platform['retention_policy']['DE'] == 365 and streaming_platform['retention_policy']['FR'] == 180 and streaming_platform['retention_policy']['NL'] == 365 and streaming_platform['retention_policy']['LU'] == 90"
+        },
+        {
+          "id": "FS9-05-A6",
+          "description": "kql_retention_days is 180 and latency_sla_seconds is 15",
+          "check": "streaming_platform['kql_retention_days'] == 180 and streaming_platform['latency_sla_seconds'] == 15"
+        },
+        {
+          "id": "FS9-05-A7",
+          "description": "correlation_query_pattern has window_seconds=30 and 2 signals combined",
+          "check": "streaming_platform['correlation_query_pattern']['window_seconds'] == 30 and len(streaming_platform['correlation_query_pattern']['signals_combined']) == 2"
+        },
+        {
+          "id": "FS9-05-A8",
+          "description": "dr_strategy has cross_region_replication=True, RPO=15, RTO=30",
+          "check": "streaming_platform['dr_strategy']['cross_region_replication'] == True and streaming_platform['dr_strategy']['recovery_point_objective_minutes'] == 15 and streaming_platform['dr_strategy']['recovery_time_objective_minutes'] == 30"
+        },
+        {
+          "id": "FS9-05-A9",
+          "description": "selective_review_required_for contains all 4 expected categories",
+          "check": "set(streaming_platform['selective_review_required_for']) >= {'new_eventstream_topologies', 'kql_retention_changes', 'dedup_configuration_changes', 'latency_sla_changes'}"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (9 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/9). The 9 assertions verify that the streaming platform integrates the topology (Task 1), correlation query (Task 2), topology fixes (Task 3), and exactly-once strategy (Task 4) into a single platform-level specification.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Hybrid Eventstream topology with ingestion + routing separation (Task 1, Lesson 2)",
+          "Multi-stream correlation query for compound anomaly detection (Task 2, Lesson 3)",
+          "Per-country retention policy aligned to regulatory requirements (Task 3, Lesson 8)",
+          "Defense-in-depth exactly-once delivery (Task 4, Lesson 4)",
+          "Streaming DR with RPO/RTO commitments (carryover from FI10/FS10 DR pattern)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis combines the topology, correlation pattern, retention policy, exactly-once strategy, and DR commitments into a unified streaming platform specification. The keystones are A2 (Hybrid topology), A3 (defense-in-depth dedup), A5 (per-country retention), and A8 (DR commitments) — all encode senior-level streaming lessons that mid-level engineers don't internalize."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "tradeoffTasksHaveCompetingOptions": true,
+    "designReviewHasSubtleNotTextbookIssues": true,
+    "answerRangesDocumented": true,
+    "calibrationNotes": "Senior practice set in the enterprise operations phase, paired with FS8 as the second of three enterprise ops sets. Two trade-off tasks anchor the set with multi-defensible answers. Task 2 uses the third senior dataset (100-row SCADA sample) for the correlation query design artifact. The synthesis at 23 minutes matches the FS6 and FS8 synthesis duration. Task type mix (2 trade-off + 1 design artifact + 1 design review + 1 synthesis) is within all section 6.2 limits.",
+    "theoryPracticeBoundary": "The theory teaches streaming at enterprise scale, complex Eventstream topologies, multi-stream correlation, exactly-once delivery, KQL at scale, streaming schema evolution, streaming state management, streaming DR, and streaming cost optimization. The practice tests application: Task 1 forces a topology choice with 3 genuinely competing options. Task 2 implements the multi-stream correlation pattern as a Spark SQL query. Task 3 reviews subtle topology issues including dedup, retention drift, and KQL placement. Task 4 chooses an exactly-once strategy with defense-in-depth reasoning. Task 5 synthesizes the streaming platform.",
+    "datasetNotes": "One dataset (100-row SCADA telemetry sample) used by Task 2's design artifact. The dataset is constructed to exhibit the canonical compound anomaly pattern: 1 turbine has BOTH high temperature AND low rpm at the same timestamp, while other turbines have normal readings."
+  }
+}

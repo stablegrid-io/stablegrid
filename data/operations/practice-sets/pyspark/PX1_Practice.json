@@ -1,0 +1,452 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 1 \u2014 Cluster Sizing and Resource Planning",
+  "description": "Make architectural decisions about NordGrid's compute infrastructure: evaluate executor sizing trade-offs, design spot instance strategies for cost optimization, build cost allocation models across teams, configure autoscaling for variable workloads, and design the cluster architecture for a multi-workload, multi-environment platform.",
+  "version": "authored 2026-04-06, targets PySpark 3.5+ / Spark on YARN/K8s",
+  "metadata": {
+    "moduleId": "module-PX1",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 92,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "3.2M meters, 24 regions, 3 countries, 8 teams, 150 pipelines, 3 clusters",
+    "modulePhase": "scaling_patterns",
+    "taskTypeMix": {
+      "tradeOffAnalysis": 3,
+      "designArtifact": 1,
+      "architecturalSynthesis": 1
+    },
+    "answerAcceptance": "Senior-level: multiple defensible answers with wider tolerance ranges. Numeric fields accept ranges. Single-select fields may have primary and secondary correct answers."
+  },
+  "datasets": [
+    {
+      "id": "PX1_data_pipeline_inventory",
+      "file": "PX1_data_pipeline_inventory.csv",
+      "description": "NordGrid's complete pipeline inventory. 150 pipelines across 8 teams, 3 countries. Includes executor configs, SLA tiers, workload types, costs, and spot eligibility. Columns: pipeline_id, team, country, mode, workload_type, sla_tier, sla_minutes, executor_count, executor_memory_gb, executor_cores, driver_memory_gb, avg_duration_min, runs_per_day, monthly_cost_usd, spot_eligible, consumer_count.",
+      "usedByTasks": [
+        "module-PX1-task-01",
+        "module-PX1-task-02",
+        "module-PX1-task-03",
+        "module-PX1-task-05"
+      ]
+    },
+    {
+      "id": "PX1_data_cluster_usage",
+      "file": "PX1_data_cluster_usage.csv",
+      "description": "Daily cluster utilization over 30 days across 4 time windows. 120 rows. Morning peak: 85% CPU avg. Night trough: 25% CPU avg. Shows the 5x utilization swing that motivates autoscaling.",
+      "usedByTasks": [
+        "module-PX1-task-04",
+        "module-PX1-task-05"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PX1-task-01",
+      "title": "Right-Size NordGrid's Silver Cluster",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 16,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's platform team is provisioning a new cluster for Silver-layer ETL workloads. The workload profile: 53 ETL pipelines, 51 aggregation pipelines, average 8 executors per pipeline, peak concurrency of 12 pipelines. The team has three configuration proposals from different engineers. Each makes different trade-offs between cost, fault tolerance, and per-task memory.",
+        "task": "Evaluate the three cluster configurations against NordGrid's constraints: (1) SLA compliance for critical and high-tier pipelines, (2) monthly compute cost, (3) fault tolerance (impact of losing one node), (4) per-task memory budget for the aggregation workloads that spill at <2 GB per task. Recommend one configuration and justify the trade-offs you accept.",
+        "validationHint": "No configuration is perfect. The right answer depends on which trade-off you prioritize. Both Options B and C are defensible \u2014 Option A has a clear weakness."
+      },
+      "evidence": {
+        "type": "combined",
+        "options": {
+          "label": "Three proposed cluster configurations",
+          "content": "Option A: Few Large Nodes\n  Nodes: 6 \u00d7 (64 GB RAM, 16 cores)\n  Total: 384 GB RAM, 96 cores\n  Executors: 24 (4 per node, 16 GB each, 4 cores each)\n  Cost: $12,400/month\n  Per-task memory: 4 GB (16 GB / 4 cores)\n  Fault tolerance: losing 1 node = losing 17% of capacity\n\nOption B: Many Small Nodes\n  Nodes: 16 \u00d7 (24 GB RAM, 8 cores)\n  Total: 384 GB RAM, 128 cores\n  Executors: 32 (2 per node, 12 GB each, 4 cores each)\n  Cost: $14,800/month (+19% vs A)\n  Per-task memory: 3 GB (12 GB / 4 cores)\n  Fault tolerance: losing 1 node = losing 6% of capacity\n\nOption C: Balanced\n  Nodes: 10 \u00d7 (48 GB RAM, 12 cores)\n  Total: 480 GB RAM, 120 cores\n  Executors: 30 (3 per node, 16 GB each, 4 cores each)\n  Cost: $15,600/month (+26% vs A)\n  Per-task memory: 4 GB (16 GB / 4 cores)\n  Fault tolerance: losing 1 node = losing 10% of capacity"
+        },
+        "constraints": {
+          "label": "NordGrid's constraints",
+          "content": "1. SLA: critical pipelines must complete within 30 min. Current average: 22 min.\n2. Budget: platform team's annual compute budget is $200K ($16,667/month).\n3. Aggregation pipelines spill to disk when per-task memory < 3.5 GB.\n4. Peak concurrency: 12 pipelines \u00d7 8 executors each = 96 executor slots needed.\n5. The cluster runs 24/7 including off-peak hours."
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX1-01-F1",
+            "type": "single_select",
+            "label": "Which option should be ELIMINATED first?",
+            "options": [
+              "Option A \u2014 per-task memory of 4 GB is sufficient, but losing 1 of 6 nodes (17% capacity) during morning peak likely violates the 30-min SLA for critical pipelines",
+              "Option B \u2014 per-task memory of 3 GB is below the 3.5 GB spill threshold, causing all aggregation pipelines to spill to disk",
+              "Option C \u2014 the 26% cost premium exceeds the budget",
+              "None can be eliminated \u2014 all three are viable"
+            ],
+            "correctAnswer": "Option B \u2014 per-task memory of 3 GB is below the 3.5 GB spill threshold, causing all aggregation pipelines to spill to disk",
+            "secondaryCorrectAnswer": "Option A \u2014 per-task memory of 4 GB is sufficient, but losing 1 of 6 nodes (17% capacity) during morning peak likely violates the 30-min SLA for critical pipelines",
+            "distractorRationale": "Both A and B have clear weaknesses. B's 3 GB per-task memory violates the 3.5 GB spill threshold for 51 aggregation pipelines \u2014 a hard constraint. A's fault tolerance is a soft constraint (nodes rarely fail, but the impact is severe). Either answer is defensible as the first elimination, but B's failure is deterministic while A's is probabilistic."
+          },
+          {
+            "id": "PX1-01-F2",
+            "type": "single_select",
+            "label": "Which option do you recommend?",
+            "options": [
+              "Option A \u2014 lowest cost, highest per-task memory, acceptable fault tolerance for a managed cloud cluster",
+              "Option B \u2014 best fault tolerance, highest core count for parallelism",
+              "Option C \u2014 balances per-task memory (4 GB, above spill threshold), fault tolerance (10% per node, manageable), and cost ($15,600, within $16,667 budget)",
+              "Option A with a modification \u2014 add one spare node for fault tolerance (7 nodes, $14,500)"
+            ],
+            "correctAnswer": "Option C \u2014 balances per-task memory (4 GB, above spill threshold), fault tolerance (10% per node, manageable), and cost ($15,600, within $16,667 budget)",
+            "secondaryCorrectAnswer": "Option A with a modification \u2014 add one spare node for fault tolerance (7 nodes, $14,500)",
+            "distractorRationale": "Both C and modified-A are defensible. C is the clean answer: no modifications needed, all constraints satisfied. Modified-A shows creative problem-solving: addressing A's weakness (fault tolerance) while keeping its cost advantage. B is eliminated by the spill constraint."
+          },
+          {
+            "id": "PX1-01-F3",
+            "type": "single_select",
+            "label": "Option C costs 26% more than Option A. What is the architectural justification for the premium?",
+            "options": [
+              "No justification \u2014 always choose the cheapest option that meets the SLA",
+              "The premium buys two things: (1) 25% more total RAM (480 vs 384 GB) providing headroom for growth, and (2) better fault tolerance (10% vs 17% per-node loss). At NordGrid's scale, one SLA violation from a node failure costs more in business impact than the annual cost difference.",
+              "The premium is justified solely by the additional 24 cores",
+              "The premium is justified because Option C uses newer hardware"
+            ],
+            "correctAnswer": "The premium buys two things: (1) 25% more total RAM (480 vs 384 GB) providing headroom for growth, and (2) better fault tolerance (10% vs 17% per-node loss). At NordGrid's scale, one SLA violation from a node failure costs more in business impact than the annual cost difference."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX1-task-02",
+      "title": "Design Spot Instance Strategy for NordGrid's Workloads",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 17,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's 150 pipelines cost $76,845/month on on-demand instances. The cloud provider offers spot instances at 70% discount but can terminate them with 2-minute warning. The platform team wants to identify which workloads can safely use spot instances to reduce costs, and which must remain on-demand.",
+        "task": "Classify NordGrid's workloads into spot-safe, spot-with-checkpointing, and on-demand-only categories. Estimate the monthly savings. Design the fallback strategy for spot termination.",
+        "validationHint": "Spot safety depends on: can the workload tolerate interruption? Batch ETL can be re-run. Streaming pipelines with state cannot. Critical-SLA pipelines cannot risk the delay. ML training can checkpoint and resume."
+      },
+      "evidence": {
+        "type": "combined",
+        "workloadProfile": {
+          "label": "Pipeline inventory summary by workload type and SLA",
+          "content": "Workload Type   | Count | SLA Critical/High | SLA Standard/Low | Monthly Cost | Avg Duration\nETL (batch)     | 53    | 12                | 41               | $18,240      | 18 min\nAggregation     | 51    | 15                | 36               | $15,920      | 12 min\nML Training     | 13    | 0                 | 13               | $28,400      | 95 min\nML Inference    | 3     | 3                 | 0                | $1,285       | 5 min\nReporting       | 30    | 2                 | 28               | $3,000       | 8 min\nStreaming        | 31    | 18                | 13               | $10,000      | continuous\n\nTotal: 150 pipelines | $76,845/month"
+        },
+        "spotTerms": {
+          "label": "Spot instance terms",
+          "content": "Discount: 70% off on-demand price\nTermination notice: 2 minutes\nAvailability: 95% of the time (5% interruption rate)\nBest for: fault-tolerant, restartable workloads\nWorst for: stateful streaming, latency-sensitive, cannot-restart workloads"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX1-02-F1",
+            "type": "single_select",
+            "label": "Which workloads are SPOT-SAFE (can run entirely on spot with simple retry-on-failure)?",
+            "options": [
+              "All batch ETL + all aggregation + all reporting (134 pipelines)",
+              "Standard/low SLA batch ETL (41) + standard/low aggregation (36) + standard/low reporting (28) = 105 pipelines. These can tolerate interruption and retry within their relaxed SLA windows.",
+              "Only ML training (13 pipelines) because they have no SLA",
+              "Only reporting (30 pipelines) because they are short-running"
+            ],
+            "correctAnswer": "Standard/low SLA batch ETL (41) + standard/low aggregation (36) + standard/low reporting (28) = 105 pipelines. These can tolerate interruption and retry within their relaxed SLA windows.",
+            "distractorRationale": "Option 1 includes critical/high SLA pipelines which cannot risk the delay of a spot termination + restart. The key filter is SLA tier, not workload type. Standard/low SLA pipelines have 2-8 hour windows \u2014 plenty of time to retry after a spot interruption."
+          },
+          {
+            "id": "PX1-02-F2",
+            "type": "single_select",
+            "label": "How should ML training workloads (13 pipelines, $28,400/month, 95 min avg) use spot instances?",
+            "options": [
+              "On-demand only \u2014 ML training is too expensive to risk interruption",
+              "Full spot \u2014 ML training is low SLA and can be restarted",
+              "Spot with checkpointing \u2014 checkpoint model state every 15 minutes. On termination, restart from the last checkpoint instead of from scratch. Saves 70% on the largest cost category.",
+              "Spot for the driver, on-demand for executors"
+            ],
+            "correctAnswer": "Spot with checkpointing \u2014 checkpoint model state every 15 minutes. On termination, restart from the last checkpoint instead of from scratch. Saves 70% on the largest cost category.",
+            "distractorRationale": "ML training is the single largest cost item ($28,400/month). Running fully on spot saves $19,880/month. Checkpointing limits the wasted work to at most 15 minutes on interruption \u2014 a small price for 70% savings on the biggest line item."
+          },
+          {
+            "id": "PX1-02-F3",
+            "type": "single_select",
+            "label": "Which workloads must remain on-demand (no spot)?",
+            "options": [
+              "All streaming (31) + critical/high SLA batch (29) + ML inference (3) = 63 pipelines. Streaming has state that is lost on termination. Critical/high SLA cannot risk retry delay. ML inference serves real-time billing.",
+              "Only streaming (31 pipelines)",
+              "Only critical SLA (18 pipelines)",
+              "All 150 pipelines should use spot with proper checkpointing"
+            ],
+            "correctAnswer": "All streaming (31) + critical/high SLA batch (29) + ML inference (3) = 63 pipelines. Streaming has state that is lost on termination. Critical/high SLA cannot risk retry delay. ML inference serves real-time billing."
+          },
+          {
+            "id": "PX1-02-F4",
+            "type": "numeric",
+            "label": "Estimate the monthly savings if spot-safe workloads (105 pipelines) move to spot and ML training uses spot-with-checkpointing. (Spot discount: 70%)",
+            "correctAnswer": 30800,
+            "tolerance": 5000,
+            "rationale": "Spot-safe monthly cost: ~$37,160 (105 of 150 pipelines, roughly proportional). At 70% discount: savings = $37,160 \u00d7 0.70 = $26,012. ML training: $28,400 \u00d7 0.70 = $19,880. But ML training may incur some waste from checkpoint restarts (~5%): $19,880 \u00d7 0.95 = $18,886. Total savings: ~$26,012 + $18,886 = ~$44,898. However, the exact split depends on cost per pipeline. A reasonable estimate is $25K-$40K monthly savings. The wide tolerance accommodates different calculation approaches."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX1-task-03",
+      "title": "Build a Cost Allocation Model for NordGrid's Teams",
+      "type": "design_artifact",
+      "estimatedMinutes": 19,
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
+      "description": {
+        "context": "NordGrid's finance team wants to allocate the $76,845 monthly compute bill to the 8 engineering teams based on their actual usage. Currently, the entire bill is charged to the platform team's budget, creating no incentive for other teams to optimize their pipelines. The platform team needs a cost allocation model that is fair, transparent, and actionable.",
+        "task": "Design and implement a cost allocation query: read the pipeline inventory, compute each team's total monthly cost and percentage of the total, and produce a cost allocation report. Include a shared-overhead component (20% of total cost allocated equally across teams for platform infrastructure). Store the result in a variable called allocation.",
+        "validationHint": "Each team's cost = sum of their pipeline costs + (total_cost \u00d7 0.20 / 8 teams) for shared overhead. The report should have 8 rows (one per team) with columns: team, direct_cost, overhead_share, total_allocated, pct_of_total."
+      },
+      "evidence": {
+        "type": "allocation_rules",
+        "label": "Cost allocation rules approved by finance",
+        "content": "Rule 1: 80% of total cost is DIRECT \u2014 allocated to each team based on their pipeline costs.\nRule 2: 20% of total cost is OVERHEAD \u2014 allocated equally across all 8 teams (platform infra, monitoring, networking).\nRule 3: Each team sees: direct_cost + overhead_share = total_allocated.\nRule 4: Report must show percentage of total for each team.\nRule 5: The sum of all team allocations must equal the total monthly cost (zero-sum)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX1-03-F1",
+            "type": "single_select",
+            "label": "Why is equal overhead allocation (20% / 8 teams) preferable to proportional overhead allocation (20% weighted by team's direct cost)?",
+            "options": [
+              "Equal is simpler to compute",
+              "Equal overhead reflects that each team uses the same platform infrastructure (monitoring, networking, control plane) regardless of pipeline count. Proportional would penalize high-usage teams twice \u2014 once in direct cost and again in overhead.",
+              "Equal overhead makes small teams pay less",
+              "There is no difference \u2014 both methods produce the same result"
+            ],
+            "correctAnswer": "Equal overhead reflects that each team uses the same platform infrastructure (monitoring, networking, control plane) regardless of pipeline count. Proportional would penalize high-usage teams twice \u2014 once in direct cost and again in overhead."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, round as spark_round, lit, count\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-cost-allocation') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PX1_data_pipeline_inventory.csv', header=True, inferSchema=True)\n\ntotal_cost = df.agg(spark_sum('monthly_cost_usd')).collect()[0][0]\nprint(f\"Total monthly cost: ${total_cost:,.0f}\")\n\n# YOUR SOLUTION BELOW\n# 1. Compute each team's direct cost: sum of their pipeline monthly_cost_usd\n# 2. Compute overhead share: total_cost * 0.20 / 8 (equal per team)\n# 3. Compute total_allocated = direct_cost + overhead_share\n# 4. Compute pct_of_total = total_allocated / total_cost * 100\n# 5. Include pipeline_count per team for context\n# Store in 'allocation'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"\\nCost Allocation Report:\")\nprint(f\"Teams: {allocation.count()}\")\nallocation.orderBy(col('total_allocated').desc()).show()\nalloc_sum = allocation.agg(spark_sum('total_allocated')).collect()[0][0]\nprint(f\"Allocation sum: ${alloc_sum:,.0f} (should equal ${total_cost:,.0f})\")"
+      },
+      "assertions": [
+        {
+          "id": "PX1-03-A1",
+          "description": "allocation has 8 rows (one per team)",
+          "check": "allocation.count() == 8"
+        },
+        {
+          "id": "PX1-03-A2",
+          "description": "Has required columns",
+          "check": "all(c in allocation.columns for c in ['team', 'direct_cost', 'overhead_share', 'total_allocated'])"
+        },
+        {
+          "id": "PX1-03-A3",
+          "description": "Sum of total_allocated equals total monthly cost (zero-sum)",
+          "check": "abs(allocation.agg(spark_sum('total_allocated')).collect()[0][0] - total_cost) < 1.0"
+        },
+        {
+          "id": "PX1-03-A4",
+          "description": "Overhead share is equal for all teams",
+          "check": "allocation.select('overhead_share').distinct().count() == 1"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 field. Code (70%): 4 assertions."
+    },
+    {
+      "id": "module-PX1-task-04",
+      "title": "Design Autoscaling for NordGrid's Variable Workload",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 18,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's cluster usage varies 5x between morning peak (85% CPU) and night trough (25% CPU). The current fixed cluster wastes 75% of its capacity overnight. The platform team wants to implement autoscaling to reduce cost during off-peak hours while ensuring peak hours have sufficient resources. The cloud provider supports scaling from min to max executors with a 3-minute spin-up time.",
+        "task": "Examine the usage data below. Design the autoscaling parameters: minimum executors (floor), maximum executors (ceiling), scale-up threshold, scale-down threshold, and cooldown period. Evaluate the trade-offs between aggressive scaling (maximum savings, risk of SLA violations during ramp-up) and conservative scaling (less savings, more headroom).",
+        "validationHint": "The min must handle night batch workloads. The max must handle morning peak. The scale-up threshold must trigger early enough that executors are ready before the 06:00 batch wave. The 3-minute spin-up time is the critical constraint."
+      },
+      "evidence": {
+        "type": "combined",
+        "usagePattern": {
+          "label": "30-day usage pattern summary",
+          "content": "Time Window    | Avg CPU | Avg Memory | Peak CPU | Pending Apps (days with queue)\n00:00-06:00    | 25%     | 30%        | 35%      | 0 of 30 days\n06:00-12:00    | 85%     | 88%        | 95%      | 18 of 30 days (pending apps at peak)\n12:00-18:00    | 52%     | 57%        | 65%      | 0 of 30 days\n18:00-24:00    | 33%     | 38%        | 45%      | 0 of 30 days\n\nCurrent cluster: 30 executors (fixed)\nAt 25% utilization: 22 executors idle overnight = ~$4,800/month waste"
+        },
+        "scalingConstraints": {
+          "label": "Autoscaling constraints",
+          "content": "Executor spin-up time: 3 minutes\nScale-up increment: 5 executors per scaling event\nScale-down increment: 2 executors per event (conservative teardown)\nMinimum cooldown between events: 5 minutes\nBatch pipeline wave: 06:00-06:15 (40 pipelines start within 15 minutes)\nSLA: critical pipelines must not wait in queue for executors"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX1-04-F1",
+            "type": "numeric",
+            "label": "Minimum executors (floor \u2014 always running, even at 3 AM)?",
+            "correctAnswer": 10,
+            "tolerance": 4,
+            "rationale": "Night usage averages 25% of 30 executors = 7.5 executors of actual work. Setting min to 8-12 handles night batch jobs + provides a base for the morning ramp. Lower than 6 risks night SLA violations. Higher than 14 wastes the overnight savings. 10 is a reasonable midpoint."
+          },
+          {
+            "id": "PX1-04-F2",
+            "type": "numeric",
+            "label": "Maximum executors (ceiling \u2014 peak capacity)?",
+            "correctAnswer": 35,
+            "tolerance": 5,
+            "rationale": "Morning peak uses 85% of 30 executors with pending apps on 18 of 30 days. Setting max to 30-40 provides headroom above the current fixed capacity. 35 gives 17% headroom over current 30 to eliminate pending apps. Higher than 40 provides diminishing returns."
+          },
+          {
+            "id": "PX1-04-F3",
+            "type": "single_select",
+            "label": "When should scale-up trigger relative to the 06:00 batch wave?",
+            "options": [
+              "At 06:00 when pipelines start \u2014 react to demand",
+              "At 05:45 (15 minutes before) \u2014 pre-scale based on schedule. With 3-min spin-up + 5 scaling events to go from 10 to 35 executors, the cluster needs ~25 minutes to fully scale. Starting at 05:45 gives 15 min head start.",
+              "At 05:00 (1 hour before) \u2014 maximum safety margin",
+              "No schedule-based trigger \u2014 rely entirely on CPU threshold"
+            ],
+            "correctAnswer": "At 05:45 (15 minutes before) \u2014 pre-scale based on schedule. With 3-min spin-up + 5 scaling events to go from 10 to 35 executors, the cluster needs ~25 minutes to fully scale. Starting at 05:45 gives 15 min head start.",
+            "distractorRationale": "Option 1 reacts too late \u2014 40 pipelines starting at 06:00 will queue for 25 minutes while executors spin up. Option 3 wastes 45 minutes of full-capacity cost. Option 4 is reactive, not proactive \u2014 the predictable 06:00 wave should be anticipated."
+          },
+          {
+            "id": "PX1-04-F4",
+            "type": "single_select",
+            "label": "Why should scale-down be slower (2 executors/event) than scale-up (5 executors/event)?",
+            "options": [
+              "No reason \u2014 symmetric scaling is simpler to configure",
+              "Asymmetric scaling prevents flapping: if scale-down is aggressive and demand fluctuates, the cluster oscillates between adding and removing executors. Slow teardown provides stability. The cost of an idle executor for 10 minutes is small; the cost of a queued critical pipeline is large.",
+              "Scale-down must be slow because executor termination is a slow operation",
+              "Scale-down should actually be faster than scale-up to save money"
+            ],
+            "correctAnswer": "Asymmetric scaling prevents flapping: if scale-down is aggressive and demand fluctuates, the cluster oscillates between adding and removing executors. Slow teardown provides stability. The cost of an idle executor for 10 minutes is small; the cost of a queued critical pipeline is large."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PX1-task-05",
+      "title": "Design NordGrid's Multi-Environment Cluster Architecture",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 22,
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
+      "description": {
+        "context": "NordGrid's CTO has approved a platform redesign. The current single production cluster serves all 150 pipelines, 8 teams, and 3 countries with no environment isolation. The platform team must design the target architecture: how many clusters, what sizing for each, which workloads go where, and how environments (production, staging, development) are isolated. The annual compute budget is $200K.",
+        "task": "Design the complete cluster architecture. First, decide the cluster topology (how many clusters, what purpose for each). Then, assign workload types to clusters. Finally, produce a configuration artifact that specifies each cluster's sizing. Justify every decision against NordGrid's constraints: cost, SLA, isolation, and multi-team governance.",
+        "validationHint": "There is no single correct architecture. The key decisions are: (1) separate production from dev/staging, (2) decide whether to separate streaming from batch, (3) decide whether to separate by country or share. Your total cost must stay under $16,667/month."
+      },
+      "evidence": {
+        "type": "combined",
+        "currentState": {
+          "label": "Current architecture (single cluster)",
+          "content": "1 cluster: 30 executors, 480 GB RAM, 120 cores\nAll 150 pipelines share one cluster\nNo environment separation: dev notebooks run on the same cluster as production billing\nProblems:\n  1. Dev queries consume production resources (noisy neighbor)\n  2. Staging tests can corrupt production data paths\n  3. No way to test Spark version upgrades without affecting production\n  4. Country teams cannot enforce data sovereignty (Finland data processed on Norway cluster)\n  5. Cost is not attributable to environments"
+        },
+        "constraints": {
+          "label": "Architecture constraints",
+          "content": "Annual budget: $200,000 ($16,667/month)\nCountries: Norway, Sweden, Finland (Finland requires data processing within Finland)\nEnvironments needed: production, staging, development\nStreaming pipelines (31): require 24/7 availability, cannot share with batch spikes\nDev/staging: 30% of production capacity is sufficient\nSLA: production critical pipelines cannot be affected by dev or staging activity"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PX1-05-F1",
+            "type": "single_select",
+            "label": "How many production clusters should NordGrid have?",
+            "options": [
+              "1 shared production cluster for all countries and workload types",
+              "2 production clusters: one for batch (ETL + aggregation + reporting), one for streaming (24/7 workloads). Batch cluster can autoscale; streaming cluster is fixed.",
+              "3 production clusters: one per country (Norway, Sweden, Finland) to satisfy data sovereignty",
+              "2 production clusters: one for Norway+Sweden (shared region), one for Finland (data sovereignty requirement). Streaming runs on both."
+            ],
+            "correctAnswer": "2 production clusters: one for batch (ETL + aggregation + reporting), one for streaming (24/7 workloads). Batch cluster can autoscale; streaming cluster is fixed.",
+            "secondaryCorrectAnswer": "2 production clusters: one for Norway+Sweden (shared region), one for Finland (data sovereignty requirement). Streaming runs on both.",
+            "distractorRationale": "Both 2-cluster options are defensible. Batch/streaming separation (option B) optimizes for workload isolation: the batch cluster's autoscaling doesn't disrupt streaming. Country separation (option D) optimizes for data sovereignty: Finland's data stays in Finland. The best choice depends on whether workload isolation or data sovereignty is NordGrid's bigger pain point. Option A keeps the current noisy-neighbor problem. Option C is too expensive (3 production clusters)."
+          },
+          {
+            "id": "PX1-05-F2",
+            "type": "single_select",
+            "label": "How should dev and staging environments be provisioned?",
+            "options": [
+              "Shared dev/staging cluster at 30% of production capacity, with namespace isolation between teams",
+              "Separate dev cluster + separate staging cluster (each at 15% of production)",
+              "Dev runs on individual developers' laptops; staging shares the production cluster with resource quotas",
+              "No dev/staging clusters \u2014 all testing happens in production with feature flags"
+            ],
+            "correctAnswer": "Shared dev/staging cluster at 30% of production capacity, with namespace isolation between teams",
+            "secondaryCorrectAnswer": "Separate dev cluster + separate staging cluster (each at 15% of production)",
+            "distractorRationale": "Both options A and B are valid. A is cheaper (one cluster, ~$5K/month). B provides stronger isolation between dev (exploratory, may crash) and staging (pre-production validation). C risks production impact. D is dangerous."
+          },
+          {
+            "id": "PX1-05-F3",
+            "type": "single_select",
+            "label": "How should the $16,667 monthly budget be allocated across environments?",
+            "options": [
+              "100% production \u2014 dev and staging are free tier",
+              "70% production ($11,667) + 20% staging ($3,333) + 10% dev ($1,667)",
+              "80% production ($13,333) + 15% dev/staging shared ($2,500) + 5% reserved for burst ($833)",
+              "50% production + 50% dev/staging \u2014 equal investment in quality"
+            ],
+            "correctAnswer": "80% production ($13,333) + 15% dev/staging shared ($2,500) + 5% reserved for burst ($833)",
+            "secondaryCorrectAnswer": "70% production ($11,667) + 20% staging ($3,333) + 10% dev ($1,667)",
+            "distractorRationale": "Both B and C are reasonable. C reserves burst capacity for unexpected peaks. B invests more in staging for better pre-production testing. A under-invests in dev/staging, reducing test quality. D over-invests in non-production."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, count, when, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-cluster-architecture') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_pipelines = spark.read.csv('PX1_data_pipeline_inventory.csv', header=True, inferSchema=True)\ndf_usage = spark.read.csv('PX1_data_cluster_usage.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Produce a cluster architecture configuration as a DataFrame.\n# Each row = one cluster with its specifications.\n# Required columns: cluster_name, purpose, environment, \n#   executor_count, executor_memory_gb, autoscaling (yes/no),\n#   min_executors, max_executors, monthly_budget_usd,\n#   pipeline_count (how many pipelines run on it)\n# Store in 'architecture'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(\"NordGrid Cluster Architecture:\")\narchitecture.show(truncate=False)\ntotal_budget = architecture.agg(spark_sum('monthly_budget_usd')).collect()[0][0]\nprint(f\"Total monthly budget: ${total_budget:,.0f} (limit: $16,667)\")"
+      },
+      "assertions": [
+        {
+          "id": "PX1-05-A1",
+          "description": "architecture has at least 2 clusters (prod + dev/staging minimum)",
+          "check": "architecture.count() >= 2"
+        },
+        {
+          "id": "PX1-05-A2",
+          "description": "Has required columns",
+          "check": "all(c in architecture.columns for c in ['cluster_name', 'purpose', 'environment', 'monthly_budget_usd'])"
+        },
+        {
+          "id": "PX1-05-A3",
+          "description": "Total budget does not exceed $16,667/month",
+          "check": "architecture.agg(spark_sum('monthly_budget_usd')).collect()[0][0] <= 16667"
+        },
+        {
+          "id": "PX1-05-A4",
+          "description": "At least one production cluster exists",
+          "check": "architecture.filter(col('environment') == 'production').count() >= 1"
+        },
+        {
+          "id": "PX1-05-A5",
+          "description": "At least one non-production cluster exists (dev or staging)",
+          "check": "architecture.filter(col('environment') != 'production').count() >= 1"
+        }
+      ],
+      "partialCredit": "Template (55%): 3 fields with primary + secondary correct answers. Code (45%): 5 assertions.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Executor sizing trade-offs: memory vs cores vs count (Task 1, Lessons 1-3)",
+          "Cost optimization: spot instances, autoscaling (Task 2, Task 4, Lessons 4-6)",
+          "Environment isolation: production vs dev/staging (Lesson 7-8)",
+          "Workload separation: batch vs streaming (Lessons 3, 5)",
+          "Budget allocation across environments and teams (Task 3, Lesson 9)",
+          "Multi-stakeholder constraints: cost + SLA + sovereignty + governance (Lesson 10)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This capstone requires the student to make 5+ interconnected architectural decisions (cluster count, workload assignment, sizing, autoscaling, budget split) under competing constraints (cost vs SLA vs isolation vs sovereignty). No single decision can be evaluated in isolation \u2014 choosing 3 production clusters constrains the budget available for dev/staging. This is the class of problem that only matters at senior scale: a mid-level engineer sizes one cluster; a senior engineer designs the platform."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "tradeOffsGenuinelyCompeting": "Every trade-off task has 2+ defensible answers with documented primary and secondary correct answers.",
+    "scaleMatters": "All decisions change at NordGrid's scale (150 pipelines, 8 teams, $200K budget). At mid-level scale (12 pipelines, 1 team), the answer would be trivial.",
+    "designArtifactUsable": "The cost allocation model (Task 3) and cluster architecture (Task 5) produce artifacts that other engineers would consume.",
+    "acceptableRangesDocumented": "Numeric fields have tolerance ranges. Single-select fields have primary and secondary correct answers.",
+    "theoryPracticeBoundary": "Theory teaches cluster sizing concepts. Practice requires making interconnected decisions under competing constraints with real cost data \u2014 a design exercise not found verbatim in the theory."
+  }
+}

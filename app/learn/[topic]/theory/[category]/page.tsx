@@ -121,7 +121,7 @@ export default async function LearnTopicTheoryCategoryPage({
         completedChapterIds={completedChapterIds}
         chapterProgressById={chapterProgressById}
         moduleProgressById={moduleProgressById}
-        practiceSets={levelPracticeSets}
+        practiceSets={[]}
         practiceBasePath={`/learn/${params.topic}/theory/${categoryParam}`}
       />
     );

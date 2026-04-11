@@ -1,0 +1,461 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 7 \u2014 Monitoring and the Spark UI Deep Dive",
+  "description": "Diagnose pipeline performance from Spark UI evidence: read stage-level metrics to find bottlenecks, detect task skew from duration distributions, identify GC pressure from executor metrics, recognize disk spill from stage tables, write monitoring queries against pipeline run history, and resolve a multi-symptom production slowdown.",
+  "version": "authored 2026-04-06, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PM7",
+    "trackLevel": "mid-level",
+    "estimatedDurationMinutes": 75,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, multi-team",
+    "modulePhase": "engineering_discipline",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 4,
+      "fixImplementation": 1,
+      "diagnosticWorkflow": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PM7_data_pipeline_metrics",
+      "file": "PM7_data_pipeline_metrics.csv",
+      "description": "Historical pipeline run metrics for 4 NordGrid pipelines over 30 days. 390 rows. Contains 3 injected anomalies.",
+      "usedByTasks": [
+        "module-PM7-task-05"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PM7-task-01",
+      "title": "Read Stage-Level Metrics to Find the Bottleneck",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 10,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's Gold billing pipeline took 11 minutes today instead of the usual 2 minutes. The Spark UI's Stages tab shows four stages.",
+        "task": "Examine the stage metrics table below. Identify the bottleneck stage, determine what the shuffle and spill metrics indicate, and calculate the stage's percentage of total runtime.",
+        "validationHint": "The bottleneck stage has the longest duration. Spill indicates memory pressure."
+      },
+      "evidence": {
+        "type": "stage_metrics",
+        "label": "Spark UI \u2014 Stages tab for the Gold billing pipeline",
+        "content": "Stage | Description                   | Duration | Input    | Shuffle Read | Spill (Mem) | Spill (Disk) | Tasks\n------|------------------------------|----------|----------|-------------|-------------|-------------|------\n  0   | FileScan Silver readings      | 22s      | 3.4 GB   | \u2014           | 0           | 0           | 24\n  1   | FileScan meters_ref + Filter   | 0.8s     | 12 MB    | \u2014           | 0           | 0           | 1\n  2   | BroadcastHashJoin + Aggregate  | 9.8 min  | \u2014        | 2.9 GB      | 8.1 GB      | 3.2 GB      | 200\n  3   | Write Parquet                  | 4s       | 12 rows  | \u2014           | 0           | 0           | 1"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM7-01-F1",
+            "type": "single_select",
+            "label": "Which stage is the bottleneck?",
+            "options": [
+              "Stage 0 \u2014 the 3.4 GB file scan takes 22 seconds",
+              "Stage 2 \u2014 the join + aggregate takes 9.8 minutes with 3.2 GB disk spill",
+              "Stage 3 \u2014 the write produces only 12 rows which is suspicious",
+              "All stages contribute equally to the 11-minute runtime"
+            ],
+            "correctAnswer": "Stage 2 \u2014 the join + aggregate takes 9.8 minutes with 3.2 GB disk spill"
+          },
+          {
+            "id": "PM7-01-F2",
+            "type": "single_select",
+            "label": "What do the spill metrics (8.1 GB memory spill, 3.2 GB disk spill) indicate?",
+            "options": [
+              "Normal behavior \u2014 all aggregations produce some spill",
+              "Memory pressure \u2014 the aggregation's intermediate data exceeds the executor memory budget, forcing Spark to write overflow data to disk",
+              "Disk failure \u2014 the executor's SSD cannot keep up",
+              "The spill is from Stage 0, not Stage 2"
+            ],
+            "correctAnswer": "Memory pressure \u2014 the aggregation's intermediate data exceeds the executor memory budget, forcing Spark to write overflow data to disk"
+          },
+          {
+            "id": "PM7-01-F3",
+            "type": "numeric",
+            "label": "What percentage of total pipeline runtime is Stage 2? (Total: 22s + 0.8s + 588s + 4s = 614.8s)",
+            "correctAnswer": 96,
+            "tolerance": 3,
+            "rationale": "588/614.8 = 95.6%, rounds to 96%."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM7-task-02",
+      "title": "Detect Task Skew from Duration Distribution",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "Stage 2 of NordGrid's Gold billing pipeline has 200 tasks. The Spark UI's Summary Metrics show the task duration distribution.",
+        "task": "Determine whether skew is present, identify the straggler, and explain the impact on stage duration.",
+        "validationHint": "Compare max to median. A ratio above 10x strongly suggests skew."
+      },
+      "evidence": {
+        "type": "combined",
+        "taskDistribution": {
+          "label": "Stage 2 \u2014 Summary Metrics (200 tasks)",
+          "content": "Metric          | Value\n----------------|--------\nMin duration    | 0.4s\nMedian          | 1.8s\nP95             | 3.1s\nMax duration    | 9.6 min\n\nTotal records: 1,200,000 | Median records/task: 5,200 | Max records: 498,000"
+        },
+        "topTasks": {
+          "label": "Top 3 tasks by duration",
+          "content": "Task ID | Duration | Records  | Shuffle Read | Spill (Disk) | GC Time\n--------|----------|----------|-------------|-------------|--------\n  147   | 9.6 min  | 498,000  | 512 MB      | 2.9 GB      | 45s\n  22    | 3.1s     | 6,200    | 6.4 MB      | 0           | 0.2s\n  88    | 2.4s     | 5,100    | 5.2 MB      | 0           | 0.1s"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM7-02-F1",
+            "type": "single_select",
+            "label": "Is task skew present?",
+            "options": [
+              "No \u2014 the distribution is normal",
+              "Yes \u2014 task 147 processes 498K records (96x the median of 5.2K) and takes 9.6 min (320x the median of 1.8s)",
+              "Inconclusive \u2014 need more data",
+              "Yes, but it's minor"
+            ],
+            "correctAnswer": "Yes \u2014 task 147 processes 498K records (96x the median of 5.2K) and takes 9.6 min (320x the median of 1.8s)"
+          },
+          {
+            "id": "PM7-02-F2",
+            "type": "single_select",
+            "label": "Task 147 has 2.9 GB disk spill and 45s GC time. What does this combination indicate?",
+            "options": [
+              "The spill and GC are unrelated to the skew",
+              "The skewed partition exceeds per-task memory, causing spill. The large in-memory data triggers GC. All three symptoms stem from data skew.",
+              "The GC is from a memory leak",
+              "The spill is from the file scan"
+            ],
+            "correctAnswer": "The skewed partition exceeds per-task memory, causing spill. The large in-memory data triggers GC. All three symptoms stem from data skew."
+          },
+          {
+            "id": "PM7-02-F3",
+            "type": "single_select",
+            "label": "Why does one straggler determine the entire stage duration?",
+            "options": [
+              "Minimal impact \u2014 stages run in parallel",
+              "Spark must wait for all tasks to finish before the next stage. 199 tasks finish in under 4s, then the cluster idles 9.6 min waiting for task 147.",
+              "The straggler causes other tasks to fail",
+              "It only affects spill metrics, not wall-clock time"
+            ],
+            "correctAnswer": "Spark must wait for all tasks to finish before the next stage. 199 tasks finish in under 4s, then the cluster idles 9.6 min waiting for task 147."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM7-task-03",
+      "title": "Diagnose GC Pressure from Executor Metrics",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's Gold billing pipeline is 3x slower than usual. The Executors tab shows unusual GC activity across all executors.",
+        "task": "Identify the severity of GC pressure, determine the root cause, and recommend the configuration fix.",
+        "validationHint": "GC% below 5% is healthy. Above 20% is severe."
+      },
+      "evidence": {
+        "type": "executor_metrics",
+        "label": "Spark UI \u2014 Executors tab",
+        "content": "Executor | Cores | Memory | Task Time | GC Time | GC %  | Failed | Shuffle Read | Spill (Disk)\n---------|-------|--------|-----------|---------|-------|--------|-------------|------------\n  1      | 4     | 8 GB   | 420s      | 145s    | 34.5% | 2      | 812 MB      | 1.2 GB\n  2      | 4     | 8 GB   | 395s      | 128s    | 32.4% | 1      | 798 MB      | 1.1 GB\n  3      | 4     | 8 GB   | 410s      | 138s    | 33.7% | 2      | 825 MB      | 1.3 GB\n  4      | 4     | 8 GB   | 388s      | 122s    | 31.4% | 0      | 781 MB      | 0.9 GB\n\nCluster: 16 cores, 32 GB executor memory. JVM overhead ~25% -> 6 GB usable per executor."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM7-03-F1",
+            "type": "single_select",
+            "label": "Is the GC pressure a problem?",
+            "options": [
+              "No \u2014 GC at 30-35% is normal for data-intensive workloads",
+              "Yes \u2014 GC at 30-35% is severe. For every 3s of work, 1s is GC pause. This directly causes the 3x slowdown.",
+              "Inconclusive without knowing task types",
+              "No \u2014 GC is only on executors, not the driver"
+            ],
+            "correctAnswer": "Yes \u2014 GC at 30-35% is severe. For every 3s of work, 1s is GC pause. This directly causes the 3x slowdown."
+          },
+          {
+            "id": "PM7-03-F2",
+            "type": "single_select",
+            "label": "What is the root cause?",
+            "options": [
+              "The driver has too little memory",
+              "Executor memory (8 GB, ~6 GB usable) is insufficient for the per-executor data volume (~800 MB shuffle + spill). Hash tables exceed memory, triggering frequent full-GC.",
+              "JVM overhead is too high at 25%",
+              "Too many concurrent tasks (4 cores) competing for memory"
+            ],
+            "correctAnswer": "Executor memory (8 GB, ~6 GB usable) is insufficient for the per-executor data volume (~800 MB shuffle + spill). Hash tables exceed memory, triggering frequent full-GC."
+          },
+          {
+            "id": "PM7-03-F3",
+            "type": "single_select",
+            "label": "What configuration change reduces GC pressure?",
+            "options": [
+              "Increase driver memory to 8 GB",
+              "Increase spark.executor.memory from 8 GB to 16 GB",
+              "Decrease executors from 4 to 2",
+              "Increase shuffle partitions to 400"
+            ],
+            "correctAnswer": "Increase spark.executor.memory from 8 GB to 16 GB"
+          },
+          {
+            "id": "PM7-03-F4",
+            "type": "single_select",
+            "label": "5 failed tasks (2+1+2+0) combined with high GC indicate what?",
+            "options": [
+              "Random task failures",
+              "OutOfMemoryError during GC \u2014 JVM kills tasks when GC cannot reclaim enough memory. Failures correlate with highest-GC executors.",
+              "Network timeouts",
+              "Corrupt input data"
+            ],
+            "correctAnswer": "OutOfMemoryError during GC \u2014 JVM kills tasks when GC cannot reclaim enough memory. Failures correlate with highest-GC executors."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM7-task-04",
+      "title": "Identify Disk Spill from Stage Metrics",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {
+        "template": 100
+      },
+      "description": {
+        "context": "NordGrid's Silver aggregation groups 1.2M readings by meter_id and month with shuffle.partitions=16. Stage metrics show significant spill.",
+        "task": "Diagnose the spill, compute the target partition count, and identify alternative fixes.",
+        "validationHint": "Spill happens when partition working set exceeds per-task memory."
+      },
+      "evidence": {
+        "type": "stage_metrics",
+        "label": "Stage 1 (Exchange + HashAggregate)",
+        "content": "Duration: 6.2 min | Shuffle Read: 4.8 GB | Tasks: 16\nSpill (Memory): 12.4 GB | Spill (Disk): 5.8 GB\n\nPer-task: Avg shuffle read 300 MB | Avg spill 362 MB disk\nExecutor budget per task: ~1.5 GB (6 GB usable / 4 concurrent tasks)\n\nThe 300 MB input expands to ~1.8 GB hash table (14.4M groups per partition) exceeding the 1.5 GB budget."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM7-04-F1",
+            "type": "single_select",
+            "label": "What is the difference between Spill (Memory) and Spill (Disk)?",
+            "options": [
+              "Spill (Memory) is total data size; Spill (Disk) is compressed size on disk",
+              "Spill (Memory) is data that exceeded the memory budget for external merge. Spill (Disk) is the amount written to disk. Memory > Disk because disk version is compressed.",
+              "They should always be equal",
+              "Spill (Memory) is a warning; only Spill (Disk) matters"
+            ],
+            "correctAnswer": "Spill (Memory) is data that exceeded the memory budget for external merge. Spill (Disk) is the amount written to disk. Memory > Disk because disk version is compressed."
+          },
+          {
+            "id": "PM7-04-F2",
+            "type": "numeric",
+            "label": "Target: each partition under 128 MB. How many shuffle partitions for 4.8 GB?",
+            "correctAnswer": 48,
+            "tolerance": 16,
+            "rationale": "4800/128 = 37.5, round up. 40-64 is appropriate."
+          },
+          {
+            "id": "PM7-04-F3",
+            "type": "single_select",
+            "label": "Besides increasing shuffle partitions, what alternatives reduce spill?",
+            "options": [
+              "Pre-filter to reduce volume",
+              "Increase executor memory",
+              "Reduce cores per executor (more memory per task)",
+              "All three \u2014 best choice depends on constraints"
+            ],
+            "correctAnswer": "All three \u2014 best choice depends on constraints"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM7-task-05",
+      "title": "Write Pipeline Health Monitoring Queries",
+      "type": "fix_implementation",
+      "estimatedMinutes": 14,
+      "gradingWeight": {
+        "template": 25,
+        "code": 75
+      },
+      "description": {
+        "context": "NordGrid logs every pipeline run to a metrics table. The team needs monitoring queries that detect: (1) duration spikes (>300s), (2) zero-row runs, and (3) spill events (spill_mb > 0).",
+        "task": "Read PM7_data_pipeline_metrics.csv, register as a view, and write three queries. Store results in duration_spikes, zero_row_runs, spill_events.",
+        "validationHint": "The dataset has 3 injected anomalies: 8-min join (day 15), 0-row failure (day 22), 5-min aggregation (day 28)."
+      },
+      "evidence": {
+        "type": "schema",
+        "label": "Pipeline metrics table schema",
+        "content": "pipeline_id (string), run_date (string), stage_name (string), duration_s (double), rows_in (int), rows_out (int), shuffle_mb (int), spill_mb (int), status (string)"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM7-05-F1",
+            "type": "single_select",
+            "label": "Why check for zero-row runs when status = 'success'?",
+            "options": [
+              "Spark marks zero-row runs as failed",
+              "A pipeline that reads/writes 0 rows completes successfully \u2014 no error is raised. Only monitoring catches the silent failure.",
+              "Zero rows indicates a network partition",
+              "Zero-row runs are impossible"
+            ],
+            "correctAnswer": "A pipeline that reads/writes 0 rows completes successfully \u2014 no error is raised. Only monitoring catches the silent failure."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-monitoring-queries') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_metrics = spark.read.csv('PM7_data_pipeline_metrics.csv', header=True, inferSchema=True)\ndf_metrics.createOrReplaceTempView('pipeline_metrics')\n\n# YOUR SOLUTION BELOW\n# 1. duration_spikes: stages where duration_s > 300\n# 2. zero_row_runs: (pipeline_id, run_date) where any stage has rows_in = 0\n# 3. spill_events: rows where spill_mb > 0\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Duration spikes: {duration_spikes.count()}\")\nduration_spikes.show()\nprint(f\"Zero-row runs: {zero_row_runs.count()}\")\nzero_row_runs.show()\nprint(f\"Spill events: {spill_events.count()}\")\nspill_events.show()"
+      },
+      "assertions": [
+        {
+          "id": "PM7-05-A1",
+          "description": "duration_spikes finds at least 2 anomalies",
+          "check": "duration_spikes.count() >= 2"
+        },
+        {
+          "id": "PM7-05-A2",
+          "description": "zero_row_runs finds 2026-03-23 failure",
+          "check": "zero_row_runs.filter(col('run_date') == '2026-03-23').count() >= 1"
+        },
+        {
+          "id": "PM7-05-A3",
+          "description": "spill_events finds at least 2 incidents",
+          "check": "spill_events.count() >= 2"
+        },
+        {
+          "id": "PM7-05-A4",
+          "description": "All three result DataFrames exist",
+          "check": "isinstance(duration_spikes, DataFrame) and isinstance(zero_row_runs, DataFrame) and isinstance(spill_events, DataFrame)"
+        }
+      ],
+      "partialCredit": "Template (25%): 1 field. Code (75%): 4 assertions."
+    },
+    {
+      "id": "module-PM7-task-06",
+      "title": "Diagnose NordGrid's Production Slowdown",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 15,
+      "gradingWeight": {
+        "template": 60,
+        "code": 40
+      },
+      "description": {
+        "context": "NordGrid's Gold billing pipeline took 14 minutes instead of 2. Evidence from three Spark UI tabs is provided. Build the diagnosis chain across all three views.",
+        "task": "Identify the bottleneck stage, check for task skew, check executor health, determine root cause, and write the config fix.",
+        "validationHint": "One skewed partition causes one straggler task, which causes spill and GC on one executor."
+      },
+      "evidence": {
+        "type": "combined",
+        "stageMetrics": {
+          "label": "Stages tab",
+          "content": "Stage 0: FileScan 25s | Stage 1: Broadcast 0.3s | Stage 2: Join+Agg 13.2 min, Spill 2.8 GB, 200 tasks | Stage 3: Write 3s"
+        },
+        "taskMetrics": {
+          "label": "Stage 2 \u2014 Task distribution",
+          "content": "Median: 2.1s | P95: 3.4s | Max: 12.8 min (Task 147)\nTask 147: 502K records (vs median 5.1K), 520 MB shuffle read, 2.8 GB spill, 52s GC"
+        },
+        "executorMetrics": {
+          "label": "Executors tab",
+          "content": "Executor 1: GC 7.3%, 790s task time \u2014 processed the straggler\nExecutors 2-4: GC 4-6%, 48-55s task time \u2014 normal"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM7-06-F1",
+            "type": "single_select",
+            "label": "What is the bottleneck?",
+            "options": [
+              "Stage 0 \u2014 the file scan",
+              "Stage 2 \u2014 join + aggregate at 13.2 min with 2.8 GB spill",
+              "Stage 3 \u2014 the write",
+              "All stages equally"
+            ],
+            "correctAnswer": "Stage 2 \u2014 join + aggregate at 13.2 min with 2.8 GB spill"
+          },
+          {
+            "id": "PM7-06-F2",
+            "type": "single_select",
+            "label": "Is the bottleneck from overall volume or task skew?",
+            "options": [
+              "Overall volume \u2014 3.1 GB is too much",
+              "Task skew \u2014 task 147 has 502K records (98x median) taking 12.8 min while 199 tasks finish in <4s. Spill is concentrated on task 147.",
+              "Both equally",
+              "Neither \u2014 it's GC pressure across all executors"
+            ],
+            "correctAnswer": "Task skew \u2014 task 147 has 502K records (98x median) taking 12.8 min while 199 tasks finish in <4s. Spill is concentrated on task 147."
+          },
+          {
+            "id": "PM7-06-F3",
+            "type": "single_select",
+            "label": "Why does executor 1 have higher GC (7.3%) than executors 2-4 (4-6%)?",
+            "options": [
+              "Hardware problem on executor 1",
+              "Executor 1 processed the skewed task 147 \u2014 its 502K records caused memory pressure and elevated GC. Other executors processed normal tasks.",
+              "All executors have the same GC \u2014 normal variance",
+              "Executor 1 has less memory"
+            ],
+            "correctAnswer": "Executor 1 processed the skewed task 147 \u2014 its 502K records caused memory pressure and elevated GC. Other executors processed normal tasks."
+          },
+          {
+            "id": "PM7-06-F4",
+            "type": "single_select",
+            "label": "Complete diagnosis chain?",
+            "options": [
+              "Insufficient memory -> GC -> failures -> slowdown",
+              "Skewed key -> one partition gets 42% of data -> straggler task 147 -> spill -> GC on executor 1 -> 199 tasks wait 12.8 min -> 14 min total",
+              "Small files -> slow scan -> cascade",
+              "Wrong join strategy -> shuffle -> spill -> GC"
+            ],
+            "correctAnswer": "Skewed key -> one partition gets 42% of data -> straggler task 147 -> spill -> GC on executor 1 -> 199 tasks wait 12.8 min -> 14 min total"
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-slowdown-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# YOUR SOLUTION BELOW\n# Fix the skewed aggregation with config changes.\n# Option 1: Increase shuffle partitions to spread skewed key\n# Option 2: Enable AQE for automatic skew handling\n# Apply configs to spark session.\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"shuffle.partitions: {spark.conf.get('spark.sql.shuffle.partitions')}\")\ntry:\n    print(f\"AQE enabled: {spark.conf.get('spark.sql.adaptive.enabled')}\")\nexcept:\n    print('AQE config not set')"
+      },
+      "assertions": [
+        {
+          "id": "PM7-06-A1",
+          "description": "Config changed: higher shuffle partitions or AQE enabled",
+          "check": "int(spark.conf.get('spark.sql.shuffle.partitions', '200')) > 200 or spark.conf.get('spark.sql.adaptive.enabled', 'false') == 'true'"
+        }
+      ],
+      "partialCredit": "Template (60%): 4 fields. Code (40%): 1 assertion.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Stage-level bottleneck identification (Lesson 1-2)",
+          "Task skew detection from duration distribution (Lesson 3-4)",
+          "GC pressure detection from Executors tab (Lesson 5-6)",
+          "Disk spill interpretation (Lesson 7)",
+          "Three-view correlation: Stages + Tasks + Executors (Lesson 8)",
+          "Configuration tuning (Lesson 9-10, PM2)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "The synthesis requires correlating evidence across three Spark UI views to build a causal chain from root cause to symptom. This three-view correlation is the core skill of Spark UI diagnosis."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "everyDiagnosticRequiresEvidence": true,
+    "distractorsPlausible": true,
+    "fixTasksTestModuleTechnique": true,
+    "evidenceRealistic": "Stage metrics, task distributions, and executor tables modeled on Spark 3.5+ UI output.",
+    "theoryPracticeBoundary": "Theory teaches individual UI tabs. Practice requires cross-tab correlation for incident diagnosis."
+  }
+}

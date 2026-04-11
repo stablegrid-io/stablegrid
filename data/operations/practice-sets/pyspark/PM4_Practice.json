@@ -1,0 +1,525 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 4 — Schema Evolution and Data Contracts",
+  "description": "Diagnose schema mismatches between pipeline versions, classify schema changes as safe or breaking, design contract tests that catch regressions, handle column additions and renames, and build a migration pipeline that bridges two schema versions without breaking downstream consumers.",
+  "version": "authored 2026-04-05, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PM4",
+    "trackLevel": "mid-level",
+    "estimatedDurationMinutes": 72,
+    "maximumDurationMinutes": 100,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "1.2M meters, 12 regions, multi-team",
+    "modulePhase": "architecture",
+    "taskTypeMix": {
+      "diagnosticAnalysis": 3,
+      "fixImplementation": 2,
+      "diagnosticWorkflow": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PM4_data_readings_v1",
+      "file": "PM4_data_readings_v1.csv",
+      "description": "NordGrid Silver readings — Schema V1 (current production). 300 rows, 6 columns: meter_id, daily_kw, date, region, customer_type, substation_id.",
+      "usedByTasks": ["module-PM4-task-01", "module-PM4-task-03", "module-PM4-task-04", "module-PM4-task-06"]
+    },
+    {
+      "id": "PM4_data_readings_v2",
+      "file": "PM4_data_readings_v2.csv",
+      "description": "NordGrid Silver readings — Schema V2 (new version). 300 rows, 8 columns. Changes from V1: daily_kw RENAMED to daily_kwh (breaking), tier ADDED (safe), processed_at ADDED (safe).",
+      "usedByTasks": ["module-PM4-task-01", "module-PM4-task-02", "module-PM4-task-06"]
+    },
+    {
+      "id": "PM4_data_readings_type_change",
+      "file": "PM4_data_readings_type_change.csv",
+      "description": "NordGrid Silver readings — V3 variant with type change. 200 rows, 7 columns. daily_kw changed from DOUBLE to INTEGER (narrowing — breaking). capacity_flag ADDED (safe).",
+      "usedByTasks": ["module-PM4-task-02", "module-PM4-task-05"]
+    },
+    {
+      "id": "PM4_data_downstream_contract",
+      "file": "PM4_data_downstream_contract.csv",
+      "description": "Schema contract defining the columns, types, and nullability that downstream consumers (Gold pipelines, dashboards, billing) depend on. 6 rows.",
+      "usedByTasks": ["module-PM4-task-04", "module-PM4-task-06"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PM4-task-01",
+      "title": "Detect the Schema Mismatch Between V1 and V2",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 10,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's Silver pipeline was upgraded to V2 over the weekend. On Monday morning, the Gold aggregation pipeline fails with 'AnalysisException: cannot resolve daily_kw.' The on-call engineer needs to compare the V1 and V2 schemas to identify what changed and determine which changes are safe and which are breaking.",
+        "task": "Examine the two schemas below. Identify every change between V1 and V2, classify each as safe (additive) or breaking (destructive), and determine which change caused the Gold pipeline failure.",
+        "validationHint": "A safe change is one that doesn't break existing consumers (e.g., adding a new column — old queries that don't reference it still work). A breaking change disrupts consumers that depend on the changed element."
+      },
+      "evidence": {
+        "type": "two_schemas",
+        "schemaV1": {
+          "label": "Schema V1 — current production (printSchema output)",
+          "content": "root\n |-- meter_id: string (nullable = false)\n |-- daily_kw: double (nullable = true)\n |-- date: date (nullable = false)\n |-- region: string (nullable = false)\n |-- customer_type: string (nullable = false)\n |-- substation_id: string (nullable = false)"
+        },
+        "schemaV2": {
+          "label": "Schema V2 — new version (printSchema output)",
+          "content": "root\n |-- meter_id: string (nullable = false)\n |-- daily_kwh: double (nullable = true)\n |-- date: date (nullable = false)\n |-- region: string (nullable = false)\n |-- customer_type: string (nullable = false)\n |-- substation_id: string (nullable = false)\n |-- tier: string (nullable = true)\n |-- processed_at: timestamp (nullable = true)"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM4-01-F1",
+            "type": "single_select",
+            "label": "How many schema changes exist between V1 and V2?",
+            "options": [
+              "1 — one column was added",
+              "2 — two columns were added",
+              "3 — one column was renamed and two columns were added",
+              "4 — one column renamed, two added, and one type changed"
+            ],
+            "correctAnswer": "3 — one column was renamed and two columns were added",
+            "distractorRationale": "daily_kw → daily_kwh is a rename (not visible as a simple add/remove without careful comparison). tier and processed_at are additions. No type changes occurred."
+          },
+          {
+            "id": "PM4-01-F2",
+            "type": "multi_select",
+            "label": "Which changes are BREAKING (will disrupt existing downstream consumers)? Select all that apply.",
+            "options": [
+              "daily_kw renamed to daily_kwh — consumers referencing col('daily_kw') will fail",
+              "tier column added — new column that consumers don't reference",
+              "processed_at column added — new column that consumers don't reference",
+              "The column count changed from 6 to 8 — consumers expecting 6 columns will fail"
+            ],
+            "correctAnswers": [
+              "daily_kw renamed to daily_kwh — consumers referencing col('daily_kw') will fail"
+            ],
+            "distractorRationale": "Adding columns is safe — existing queries that don't reference the new columns continue to work. Column count changes are not breaking because PySpark references columns by name, not by position. Only the rename is breaking because consumers that reference 'daily_kw' get AnalysisException."
+          },
+          {
+            "id": "PM4-01-F3",
+            "type": "single_select",
+            "label": "Which change caused the Gold pipeline's 'cannot resolve daily_kw' error?",
+            "options": [
+              "The tier column — it conflicts with an existing Gold column name",
+              "The daily_kw → daily_kwh rename — the Gold pipeline references col('daily_kw') which no longer exists in V2",
+              "The processed_at column — its timestamp type conflicts with the Gold pipeline's date processing",
+              "The nullable change — daily_kwh is nullable=true while daily_kw was nullable=false"
+            ],
+            "correctAnswer": "The daily_kw → daily_kwh rename — the Gold pipeline references col('daily_kw') which no longer exists in V2",
+            "distractorRationale": "The error message 'cannot resolve daily_kw' directly points to a missing column. The rename from daily_kw to daily_kwh removed the column name the Gold pipeline depends on. Note: both V1 and V2 have nullable=true for the energy column, so option 4 is factually wrong."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM4-task-02",
+      "title": "Classify Schema Changes as Safe or Breaking",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 11,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's platform team is reviewing a batch of proposed schema changes for the Silver meter readings table. Before approving any change, they must classify each one as safe (backwards-compatible) or breaking (requires consumer migration). The classification determines whether the change can be deployed immediately or needs a coordinated rollout.",
+        "task": "For each proposed change below, classify it as safe or breaking. A safe change does not disrupt any existing consumer. A breaking change causes at least one consumer to fail or produce wrong results.",
+        "validationHint": "Think about what happens to a downstream pipeline that was written against the current schema and runs unchanged after the proposed change is deployed."
+      },
+      "evidence": {
+        "type": "change_list",
+        "label": "Proposed schema changes for Silver meter readings",
+        "content": "Change 1: Add a new column 'data_source' (StringType, nullable=true) with default value 'scada'\nChange 2: Remove the 'substation_id' column (no longer needed after pipeline refactor)\nChange 3: Rename 'customer_type' to 'cust_type' for consistency with billing system\nChange 4: Widen 'daily_kw' from DoubleType to DecimalType(20,5) for billing precision\nChange 5: Narrow 'daily_kw' from DoubleType to IntegerType to save storage\nChange 6: Change 'region' from nullable=false to nullable=true (some new meters have unknown region)\nChange 7: Add a new column 'is_estimated' (BooleanType, nullable=true) to flag estimated readings"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM4-02-F1",
+            "type": "single_select",
+            "label": "Change 1: Add column 'data_source' (nullable=true)",
+            "options": [
+              "Safe — adding a nullable column doesn't break existing consumers that don't reference it",
+              "Breaking — consumers expecting exactly 6 columns will fail"
+            ],
+            "correctAnswer": "Safe — adding a nullable column doesn't break existing consumers that don't reference it",
+            "distractorRationale": "PySpark references columns by name, not position. A new column is invisible to queries that don't reference it."
+          },
+          {
+            "id": "PM4-02-F2",
+            "type": "single_select",
+            "label": "Change 2: Remove column 'substation_id'",
+            "options": [
+              "Safe — unused columns can be removed without impact",
+              "Breaking — any consumer that references col('substation_id') will get AnalysisException"
+            ],
+            "correctAnswer": "Breaking — any consumer that references col('substation_id') will get AnalysisException"
+          },
+          {
+            "id": "PM4-02-F3",
+            "type": "single_select",
+            "label": "Change 3: Rename 'customer_type' to 'cust_type'",
+            "options": [
+              "Safe — Spark tracks columns by internal ID, not by name",
+              "Breaking — any consumer referencing col('customer_type') will fail with 'cannot resolve'"
+            ],
+            "correctAnswer": "Breaking — any consumer referencing col('customer_type') will fail with 'cannot resolve'"
+          },
+          {
+            "id": "PM4-02-F4",
+            "type": "single_select",
+            "label": "Change 4: Widen 'daily_kw' from DoubleType to DecimalType(20,5)",
+            "options": [
+              "Safe — type widening preserves all existing values and consumers reading as 'double' get implicit conversion",
+              "Breaking — consumers with explicit DoubleType schemas will reject the DecimalType column",
+              "It depends — safe for consumers using inferSchema, breaking for consumers with explicit StructType schemas that specify DoubleType"
+            ],
+            "correctAnswer": "It depends — safe for consumers using inferSchema, breaking for consumers with explicit StructType schemas that specify DoubleType",
+            "distractorRationale": "Type widening is nuanced. If consumers read with inferSchema or without explicit schemas, Spark adapts. But if consumers specify DoubleType in their StructType, reading a DecimalType column with a DoubleType schema may produce nulls or errors depending on the Spark version and mode settings. NordGrid uses explicit schemas in production, making this a breaking change for them."
+          },
+          {
+            "id": "PM4-02-F5",
+            "type": "single_select",
+            "label": "Change 5: Narrow 'daily_kw' from DoubleType to IntegerType",
+            "options": [
+              "Safe — IntegerType is a subset of DoubleType",
+              "Breaking — type narrowing loses precision (1250.7 becomes 1250) and consumers expecting doubles get wrong values"
+            ],
+            "correctAnswer": "Breaking — type narrowing loses precision (1250.7 becomes 1250) and consumers expecting doubles get wrong values"
+          },
+          {
+            "id": "PM4-02-F6",
+            "type": "single_select",
+            "label": "Change 6: Change 'region' from nullable=false to nullable=true",
+            "options": [
+              "Safe — relaxing nullability is backwards-compatible; existing data has no nulls",
+              "Breaking — consumers with filter(col('region').isNotNull()) become semantically wrong",
+              "It depends — safe structurally, but risky if downstream aggregations (groupBy region) don't handle null groups"
+            ],
+            "correctAnswer": "It depends — safe structurally, but risky if downstream aggregations (groupBy region) don't handle null groups",
+            "distractorRationale": "Relaxing nullability doesn't cause AnalysisException, so it's not a hard breaking change. But if null regions appear, groupBy('region') creates a null group that dashboards may not expect. This is a 'soft break' — the pipeline runs but produces unexpected results."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM4-task-03",
+      "title": "Handle a New Column with mergeSchema",
+      "type": "fix_implementation",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 30, "code": 70},
+      "description": {
+        "context": "NordGrid's Silver pipeline writes Parquet files partitioned by date. Older partitions (from V1) have 6 columns. Newer partitions (from V2) have 8 columns (added tier and processed_at). When a Gold pipeline tries to read all partitions together, Spark fails because the schemas don't match across partition directories.",
+        "task": "First, diagnose what happens when Spark reads Parquet files with different schemas. Then fix the read by enabling schema merging. After reading, fill the missing columns in old partitions with defaults: tier should be 'unknown' and processed_at should be null (already null from merge). Store the result in a variable called merged.",
+        "validationHint": "spark.read.option('mergeSchema', 'true').parquet() merges schemas from all partition files. Old partitions will have null for the new columns. The result should have 600 rows (300 V1 + 300 V2) and 8 columns."
+      },
+      "evidence": {
+        "type": "error_log",
+        "label": "Error when reading mixed-schema Parquet directory",
+        "content": "AnalysisException: Failed to merge fields 'daily_kw' and 'daily_kwh'.\nCaused by: merging incompatible column types. Column 'daily_kw' exists in some files but not others.\n\nNote: The V2 files renamed daily_kw to daily_kwh. This prevents schema merge even with mergeSchema=true because the columns have different names."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM4-03-F1",
+            "type": "single_select",
+            "label": "Why can't mergeSchema alone fix the V1/V2 mismatch?",
+            "options": [
+              "mergeSchema doesn't work with Parquet files",
+              "mergeSchema handles added/removed columns but cannot reconcile renamed columns (daily_kw vs daily_kwh are treated as two different columns, not one renamed)",
+              "mergeSchema only works with CSV files",
+              "mergeSchema requires all files to have the same number of columns"
+            ],
+            "correctAnswer": "mergeSchema handles added/removed columns but cannot reconcile renamed columns (daily_kw vs daily_kwh are treated as two different columns, not one renamed)"
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, coalesce, lit, when\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-schema-merge') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Read V1 and V2 separately since mergeSchema can't handle the rename\ndf_v1 = spark.read.csv('PM4_data_readings_v1.csv', header=True, inferSchema=True)\ndf_v2 = spark.read.csv('PM4_data_readings_v2.csv', header=True, inferSchema=True)\n\nprint(f\"V1 columns: {df_v1.columns}\")\nprint(f\"V2 columns: {df_v2.columns}\")\n\n# YOUR SOLUTION BELOW\n# Strategy: align V1 to V2's schema, then union.\n# 1. Rename daily_kw to daily_kwh in V1 (or vice versa — pick one standard)\n# 2. Add missing columns (tier, processed_at) to V1 with default values\n# 3. Union V1 and V2\n# 4. Standardize column name to 'daily_kw' for the downstream contract\n# Store in 'merged'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Merged rows: {merged.count()}\")\nprint(f\"Merged columns: {merged.columns}\")\nmerged.printSchema()\nmerged.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PM4-03-A1",
+          "description": "merged has 600 rows (300 V1 + 300 V2)",
+          "check": "merged.count() == 600"
+        },
+        {
+          "id": "PM4-03-A2",
+          "description": "Has a consistent energy column (either daily_kw or daily_kwh — one standard name)",
+          "check": "'daily_kw' in merged.columns or 'daily_kwh' in merged.columns"
+        },
+        {
+          "id": "PM4-03-A3",
+          "description": "tier column exists — V1 rows filled with a default value",
+          "check": "'tier' in merged.columns"
+        },
+        {
+          "id": "PM4-03-A4",
+          "description": "No null values in meter_id, date, or region (core columns from both versions)",
+          "check": "merged.filter(col('meter_id').isNull() | col('date').isNull() | col('region').isNull()).count() == 0"
+        }
+      ],
+      "partialCredit": "Template (30%): 1 field. Code (70%): 4 assertions graded independently."
+    },
+    {
+      "id": "module-PM4-task-04",
+      "title": "Design a Schema Contract Test",
+      "type": "fix_implementation",
+      "estimatedMinutes": 13,
+      "gradingWeight": {"template": 35, "code": 65},
+      "description": {
+        "context": "NordGrid's data quality team wants to add automated schema contract tests to the Silver pipeline. Every time the pipeline writes output, a validation function should check that the output schema matches the downstream contract. If the schema drifts — a column is missing, renamed, or has the wrong type — the test should catch it before consumers are affected.",
+        "task": "Read the downstream contract (PM4_data_downstream_contract.csv) which defines the expected column names, types, and nullability. Then write a validation function that compares a DataFrame's schema against this contract. Test it against the V1 readings. Store the validation result (True/False) in a variable called is_valid, and store a list of mismatches in a variable called mismatches.",
+        "validationHint": "The V1 data read with inferSchema may have 'string' for the date column instead of the contract's 'date' type — this should be caught as a mismatch. The function should check column names, data types, and nullability."
+      },
+      "evidence": {
+        "type": "contract",
+        "label": "Downstream schema contract (PM4_data_downstream_contract.csv)",
+        "content": "column_name  | data_type | nullable | description\nmeter_id     | string    | false    | Unique meter identifier\ndaily_kw     | double    | true     | Daily energy consumption in kilowatts\ndate         | date      | false    | Reading date\nregion       | string    | false    | Operating region (12 values)\ncustomer_type| string    | false    | residential, commercial, or industrial\nsubstation_id| string    | false    | Reference to substations table"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM4-04-F1",
+            "type": "single_select",
+            "label": "When should schema contract tests run in a production pipeline?",
+            "options": [
+              "Once during initial development — schemas don't change after deployment",
+              "After every write — validate the output schema before downstream consumers read it",
+              "Only when a schema change is intentionally deployed",
+              "Monthly during data quality audits"
+            ],
+            "correctAnswer": "After every write — validate the output schema before downstream consumers read it",
+            "distractorRationale": "Option 1 is wrong because schemas drift unintentionally (source system changes, inference changes). Option 3 misses unintentional drift. Option 4 catches problems too late."
+          },
+          {
+            "id": "PM4-04-F2",
+            "type": "multi_select",
+            "label": "What should a schema contract test check? Select all that apply.",
+            "options": [
+              "Column names match exactly",
+              "Data types match (string, double, date, etc.)",
+              "Nullability matches (nullable=true/false)",
+              "Row count is within expected range",
+              "Column order matches exactly"
+            ],
+            "correctAnswers": [
+              "Column names match exactly",
+              "Data types match (string, double, date, etc.)",
+              "Nullability matches (nullable=true/false)"
+            ],
+            "distractorRationale": "Row count is a data quality check, not a schema check. Column order is not part of the schema contract in PySpark — columns are referenced by name, not position."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-contract-test') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Load the contract\ncontract_df = spark.read.csv('PM4_data_downstream_contract.csv', header=True)\ncontract = [(r['column_name'], r['data_type'], r['nullable'] == 'true') \n            for r in contract_df.collect()]\n\n# Load V1 data with inferSchema\ndf_v1 = spark.read.csv('PM4_data_readings_v1.csv', header=True, inferSchema=True)\n\nprint(f\"Contract expects: {[(c[0], c[1]) for c in contract]}\")\nprint(f\"Actual schema:    {[(f.name, f.dataType.simpleString()) for f in df_v1.schema.fields]}\")\n\n# YOUR SOLUTION BELOW\n# Write a validation that compares df_v1's schema against the contract.\n# Store True/False in 'is_valid'\n# Store list of mismatch descriptions in 'mismatches' (empty list if valid)\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Schema valid: {is_valid}\")\nif mismatches:\n    print(f\"Mismatches found: {len(mismatches)}\")\n    for m in mismatches:\n        print(f\"  - {m}\")\nelse:\n    print(\"No mismatches.\")"
+      },
+      "assertions": [
+        {
+          "id": "PM4-04-A1",
+          "description": "is_valid is a boolean",
+          "check": "isinstance(is_valid, bool)"
+        },
+        {
+          "id": "PM4-04-A2",
+          "description": "mismatches is a list",
+          "check": "isinstance(mismatches, list)"
+        },
+        {
+          "id": "PM4-04-A3",
+          "description": "At least one mismatch detected (date column type: contract says 'date', inferSchema produces 'string')",
+          "check": "len(mismatches) >= 1"
+        },
+        {
+          "id": "PM4-04-A4",
+          "description": "is_valid is False (schema does not fully match contract)",
+          "check": "is_valid == False"
+        }
+      ],
+      "partialCredit": "Template (35%): 2 fields graded independently. Code (65%): 4 assertions graded independently."
+    },
+    {
+      "id": "module-PM4-task-05",
+      "title": "Diagnose a Type Narrowing Failure",
+      "type": "diagnostic_analysis",
+      "estimatedMinutes": 12,
+      "gradingWeight": {"template": 100},
+      "description": {
+        "context": "NordGrid's source system was upgraded and now exports daily_kw as integers instead of decimals (1250 instead of 1250.7). The Silver pipeline reads with an explicit DoubleType schema, so the integers are widened to doubles safely. But a new junior engineer proposes changing the Silver schema to IntegerType to 'match the source' and save storage. The senior engineer needs to evaluate this proposal.",
+        "task": "Examine the type change scenario below. Determine whether the proposed narrowing is safe, identify the data loss risk, and recommend the correct approach.",
+        "validationHint": "Type narrowing (double → integer) truncates decimal values. Type widening (integer → double) preserves all values. The direction of the change determines safety."
+      },
+      "evidence": {
+        "type": "combined",
+        "currentState": {
+          "label": "Current Silver schema (DoubleType for daily_kw)",
+          "content": "root\n |-- meter_id: string (nullable = false)\n |-- daily_kw: double (nullable = true)   ← current: DoubleType\n |-- date: date (nullable = false)\n |-- region: string (nullable = false)"
+        },
+        "proposal": {
+          "label": "Proposed change: daily_kw from DoubleType to IntegerType",
+          "content": "Rationale: Source now sends integers. IntegerType saves 4 bytes per row.\nAt 1.2M rows/day × 365 days = 438M rows, saving 4 bytes each = 1.75 GB storage savings."
+        },
+        "dataSample": {
+          "label": "Sample data showing the problem",
+          "content": "Historical Silver data (DoubleType):\nmeter_id | daily_kw\nM-00001  | 1250.7\nM-00002  | 873.2\nM-00003  | 2100.0\n\nIf converted to IntegerType:\nmeter_id | daily_kw\nM-00001  | 1250     ← lost 0.7\nM-00002  | 873      ← lost 0.2\nM-00003  | 2100     ← no loss (was already whole number)"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM4-05-F1",
+            "type": "single_select",
+            "label": "Is the proposed type narrowing (DoubleType → IntegerType) safe?",
+            "options": [
+              "Yes — the source now sends integers, so the Silver schema should match",
+              "No — historical Silver data contains decimal values that would be truncated if reprocessed or if the schema is applied to existing Parquet files",
+              "Yes — Spark automatically rounds during type conversion without data loss",
+              "No — IntegerType cannot hold values above 2,147,483,647"
+            ],
+            "correctAnswer": "No — historical Silver data contains decimal values that would be truncated if reprocessed or if the schema is applied to existing Parquet files",
+            "distractorRationale": "Option 1 confuses 'source sends integers now' with 'all historical data is integers.' Option 3 is wrong — rounding IS data loss for billing (1250.7 kW billed differently than 1250 kW). Option 4 is a valid concern but secondary — meter readings are well within integer range."
+          },
+          {
+            "id": "PM4-05-F2",
+            "type": "single_select",
+            "label": "What is the correct approach for handling the source system's type change?",
+            "options": [
+              "Change Silver to IntegerType and reprocess all historical data",
+              "Keep Silver at DoubleType — integers from the new source are safely widened to doubles automatically. No schema change needed.",
+              "Create a separate Silver table for integer data and maintain both",
+              "Cast the source integers to strings before writing to Silver"
+            ],
+            "correctAnswer": "Keep Silver at DoubleType — integers from the new source are safely widened to doubles automatically. No schema change needed.",
+            "distractorRationale": "Integer → Double is a safe implicit widening. 1250 becomes 1250.0 with zero precision loss. The Silver schema should be the most permissive type that covers both historical and current data. Narrowing to match the source is backwards — the schema should protect consumers, not mirror the source."
+          },
+          {
+            "id": "PM4-05-F3",
+            "type": "single_select",
+            "label": "What general principle about schema evolution does this scenario illustrate?",
+            "options": [
+              "Schema changes should always match the source system's current format",
+              "Type widening is safe (no data loss); type narrowing is breaking (potential data loss). Always widen, never narrow.",
+              "Schema changes should be avoided entirely — freeze the schema at V1 forever",
+              "Type changes are always safe because Spark handles implicit conversion"
+            ],
+            "correctAnswer": "Type widening is safe (no data loss); type narrowing is breaking (potential data loss). Always widen, never narrow.",
+            "distractorRationale": "This is the core principle. Option 1 mistakes the source for the authority (the schema protects consumers, not the source). Option 3 is impractical. Option 4 is wrong — implicit narrowing truncates data."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PM4-task-06",
+      "title": "Build NordGrid's Schema Migration Pipeline",
+      "type": "diagnostic_workflow",
+      "estimatedMinutes": 14,
+      "gradingWeight": {"template": 45, "code": 55},
+      "description": {
+        "context": "NordGrid must migrate from Schema V1 to a unified schema that preserves the downstream contract. The V2 team renamed daily_kw to daily_kwh and added tier and processed_at. The downstream contract requires daily_kw (not daily_kwh). The migration pipeline must: read both V1 and V2 data, standardize column names to match the downstream contract, fill missing columns with safe defaults, and produce a unified output that passes schema contract validation.",
+        "task": "Diagnose the migration requirements: which columns need renaming, which need defaults, and which contract columns are at risk. Then write a pipeline that reads V1 and V2, standardizes both to the downstream contract's schema, unions them, and validates. Store the unified output in a variable called unified.",
+        "validationHint": "The downstream contract expects 'daily_kw' (not 'daily_kwh'). V2's daily_kwh must be renamed back to daily_kw. V1 needs tier and processed_at added. The union of both should have 600 rows."
+      },
+      "evidence": {
+        "type": "combined",
+        "contractSummary": {
+          "label": "Downstream contract (required output columns)",
+          "content": "Required: meter_id (string), daily_kw (double), date (string), region (string), customer_type (string), substation_id (string)\nOptional: tier (string, nullable), processed_at (string, nullable)\n\nCritical constraint: Column MUST be named 'daily_kw', NOT 'daily_kwh'. Five Gold pipelines, the billing system, and two dashboards reference col('daily_kw')."
+        },
+        "v1Schema": {
+          "label": "V1 columns",
+          "content": "meter_id, daily_kw, date, region, customer_type, substation_id"
+        },
+        "v2Schema": {
+          "label": "V2 columns",
+          "content": "meter_id, daily_kwh, date, region, customer_type, substation_id, tier, processed_at"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PM4-06-F1",
+            "type": "single_select",
+            "label": "What must happen to V2's 'daily_kwh' column?",
+            "options": [
+              "Keep it as daily_kwh — update all downstream consumers to use the new name",
+              "Rename it back to daily_kw to match the downstream contract — renaming one pipeline is cheaper than updating 5 Gold pipelines, billing, and 2 dashboards",
+              "Keep both daily_kw (null) and daily_kwh in the output",
+              "Drop it entirely — the energy column is no longer needed"
+            ],
+            "correctAnswer": "Rename it back to daily_kw to match the downstream contract — renaming one pipeline is cheaper than updating 5 Gold pipelines, billing, and 2 dashboards"
+          },
+          {
+            "id": "PM4-06-F2",
+            "type": "single_select",
+            "label": "What must happen to V1's missing tier and processed_at columns?",
+            "options": [
+              "Backfill them by reprocessing V1 data through the V2 pipeline logic",
+              "Fill tier with a default like 'unknown' and processed_at with null — these are optional columns and downstream consumers handle nulls",
+              "Leave them missing — unionByName with allowMissingColumns handles it",
+              "Both options 2 and 3 are valid approaches"
+            ],
+            "correctAnswer": "Both options 2 and 3 are valid approaches",
+            "distractorRationale": "Explicit defaults (option 2) and allowMissingColumns (option 3, which fills with null automatically) both produce valid output. The choice depends on whether downstream consumers need a non-null default for tier."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit, coalesce\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-schema-migration') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_v1 = spark.read.csv('PM4_data_readings_v1.csv', header=True, inferSchema=True)\ndf_v2 = spark.read.csv('PM4_data_readings_v2.csv', header=True, inferSchema=True)\n\nprint(f\"V1: {df_v1.count()} rows, columns: {df_v1.columns}\")\nprint(f\"V2: {df_v2.count()} rows, columns: {df_v2.columns}\")\n\n# YOUR SOLUTION BELOW\n# 1. Standardize V2: rename daily_kwh → daily_kw\n# 2. Standardize V1: add tier (default 'unknown') and processed_at (null)\n# 3. Ensure both DataFrames have the same columns in the same order\n# 4. Union V1 and V2\n# Store in 'unified'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Unified rows: {unified.count()}\")\nprint(f\"Unified columns: {unified.columns}\")\nprint(f\"Has daily_kw (not daily_kwh): {'daily_kw' in unified.columns and 'daily_kwh' not in unified.columns}\")\nunified.show(5)"
+      },
+      "assertions": [
+        {
+          "id": "PM4-06-A1",
+          "description": "unified has 600 rows (300 V1 + 300 V2)",
+          "check": "unified.count() == 600"
+        },
+        {
+          "id": "PM4-06-A2",
+          "description": "Column named 'daily_kw' exists (contract name)",
+          "check": "'daily_kw' in unified.columns"
+        },
+        {
+          "id": "PM4-06-A3",
+          "description": "Column 'daily_kwh' does NOT exist (V2 rename reverted)",
+          "check": "'daily_kwh' not in unified.columns"
+        },
+        {
+          "id": "PM4-06-A4",
+          "description": "tier column exists with no nulls in V2 rows and defaults in V1 rows",
+          "check": "'tier' in unified.columns"
+        },
+        {
+          "id": "PM4-06-A5",
+          "description": "All core contract columns present: meter_id, daily_kw, date, region, customer_type, substation_id",
+          "check": "all(c in unified.columns for c in ['meter_id', 'daily_kw', 'date', 'region', 'customer_type', 'substation_id'])"
+        }
+      ],
+      "partialCredit": "Template (45%): 2 fields graded independently. Code (55%): 5 assertions graded independently.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Schema comparison — identifying additions, removals, and renames (Lessons 1-2)",
+          "Breaking vs safe classification — rename is breaking, add is safe (Lesson 3)",
+          "Schema merging limitations — mergeSchema can't handle renames (Lesson 4)",
+          "Contract-first design — schema serves consumers, not the source (Lesson 5-6)",
+          "Migration strategy — standardize both sides, fill defaults, union (Lesson 7-8)",
+          "Type widening principle — keep the most permissive type (Lesson 3)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This diagnostic workflow mirrors a real migration: a well-intentioned V2 rename broke the downstream contract. The student must diagnose the incompatibility, design the migration (rename V2 back, add defaults to V1), and implement the unification. The key insight is contract-first design: the schema exists to serve consumers, and the cheapest migration path is to fix the one pipeline that deviated rather than update 8 downstream systems."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "everyDiagnosticRequiresEvidence": true,
+    "distractorsPlausible": true,
+    "fixTasksTestModuleTechnique": true,
+    "evidenceRealistic": "Schema printouts and error messages are modeled on Spark 3.5+ behavior. The V1→V2 rename scenario mirrors a common real-world problem where a column rename in the writer breaks all readers.",
+    "theoryPracticeBoundary": "Theory teaches schema evolution concepts: safe vs breaking, widening vs narrowing, mergeSchema behavior. Practice applies these to diagnose a realistic multi-version migration at NordGrid where a rename broke the downstream contract. The contract test implementation (Task 4) is a design task not shown in theory — students must build the validation logic from the principles taught."
+  }
+}

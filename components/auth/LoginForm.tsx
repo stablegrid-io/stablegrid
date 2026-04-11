@@ -72,15 +72,12 @@ export function LoginForm() {
 
           {/* Header */}
           <header className="mb-8">
-            <div className="font-headline font-black text-primary tracking-widest text-lg mb-3">
+            <div className="font-black text-primary tracking-widest text-lg mb-3">
               stableGrid
             </div>
-            <h1 className="font-headline text-2xl font-bold text-on-surface tracking-tight">
+            <h1 className="text-2xl font-bold text-on-surface tracking-tight">
               Access Terminal
             </h1>
-            <p className="mt-1 font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">
-              AUTHENTICATE TO CONTINUE
-            </p>
           </header>
 
           {/* OAuth buttons */}
@@ -88,7 +85,7 @@ export function LoginForm() {
             <button
               type="button"
               onClick={() => handleOAuth('google')}
-              className="inline-flex h-10 items-center justify-center gap-2 border border-outline-variant/40 bg-surface-container px-3 font-mono text-xs text-on-surface transition-all hover:border-primary/40 hover:bg-surface-container-high"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-outline-variant/40 bg-surface-container px-3 text-xs text-on-surface transition-all hover:border-primary/40 hover:bg-surface-container-high"
             >
               {GOOGLE_ICON}
               Google
@@ -96,7 +93,7 @@ export function LoginForm() {
             <button
               type="button"
               onClick={() => handleOAuth('github')}
-              className="inline-flex h-10 items-center justify-center gap-2 border border-outline-variant/40 bg-surface-container px-3 font-mono text-xs text-on-surface transition-all hover:border-primary/40 hover:bg-surface-container-high"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-outline-variant/40 bg-surface-container px-3 text-xs text-on-surface transition-all hover:border-primary/40 hover:bg-surface-container-high"
             >
               {GITHUB_ICON}
               GitHub
@@ -106,13 +103,13 @@ export function LoginForm() {
           {/* Divider */}
           <div className="mb-5 flex items-center gap-3">
             <div className="h-px flex-1 bg-outline-variant/30" />
-            <span className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest">or credentials</span>
+            <span className="text-[9px] text-on-surface-variant uppercase tracking-widest">or credentials</span>
             <div className="h-px flex-1 bg-outline-variant/30" />
           </div>
 
           {/* Error */}
           {error ? (
-            <div className="mb-3 border border-error/30 bg-error/10 px-3 py-2 font-mono text-xs text-error">
+            <div className="mb-3 border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">
               {error}
             </div>
           ) : null}
@@ -120,7 +117,7 @@ export function LoginForm() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="login-email" className="mb-1.5 block font-mono text-[9px] text-on-surface-variant uppercase tracking-[0.2em]">
+              <label htmlFor="login-email" className="mb-1.5 block text-[9px] text-on-surface-variant uppercase tracking-[0.2em]">
                 Email
               </label>
               <input
@@ -130,17 +127,17 @@ export function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="operator@stablegrid.io"
-                className="h-10 w-full bg-surface-container-low border border-outline-variant/30 px-3 text-sm text-on-surface font-mono placeholder:text-on-surface-variant/30 focus:outline-none focus:border-primary transition-colors"
+                className="h-10 w-full rounded-[14px] bg-surface-container-low border border-outline-variant/30 px-3 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:outline-none focus:border-primary transition-colors"
                 required
               />
             </div>
 
             <div>
               <div className="mb-1.5 flex items-center justify-between">
-                <label htmlFor="login-password" className="font-mono text-[9px] text-on-surface-variant uppercase tracking-[0.2em]">
+                <label htmlFor="login-password" className="text-[9px] text-on-surface-variant uppercase tracking-[0.2em]">
                   Password
                 </label>
-                <Link href="/reset-password" className="font-mono text-[9px] text-primary/60 hover:text-primary uppercase tracking-wider transition-colors">
+                <Link href="/reset-password" className="text-[9px] text-primary/60 hover:text-primary uppercase tracking-wider transition-colors">
                   Reset?
                 </Link>
               </div>
@@ -152,7 +149,7 @@ export function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="h-10 w-full bg-surface-container-low border border-outline-variant/30 px-3 pr-10 text-sm text-on-surface font-mono placeholder:text-on-surface-variant/30 focus:outline-none focus:border-primary transition-colors"
+                  className="h-10 w-full rounded-[14px] bg-surface-container-low border border-outline-variant/30 px-3 pr-10 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:outline-none focus:border-primary transition-colors"
                   required
                 />
                 <button
@@ -169,7 +166,7 @@ export function LoginForm() {
             <button
               type="submit"
               disabled={!email || !password || isSubmitting}
-              className="w-full h-10 bg-primary text-on-primary font-headline font-bold text-xs tracking-widest uppercase flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+              className="w-full h-10 rounded-[14px] bg-primary text-on-primary font-bold text-xs tracking-widest uppercase flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
             >
               {isSubmitting ? (
                 <>
@@ -185,13 +182,13 @@ export function LoginForm() {
             </button>
           </form>
 
-          <p className="mt-5 text-center font-mono text-[10px] text-on-surface-variant">
+          <p className="mt-5 text-center text-[10px] text-on-surface-variant">
             New operator?{' '}
             <Link href="/signup" className="text-primary font-bold hover:underline uppercase">
               Register
             </Link>
           </p>
-          <p className="mt-2 text-center font-mono text-[9px] text-on-surface-variant/50">
+          <p className="mt-2 text-center text-[9px] text-on-surface-variant/50">
             <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
             {' · '}
             <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>

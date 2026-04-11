@@ -1,0 +1,422 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set 9 — The SQL Analytics Endpoint and Warehouse",
+  "description": "Write T-SQL queries against NordGrid's Silver readings: filter and order rows, group by region with multiple aggregations, extract month from date strings, create reusable views, predict which SQL operations the read-only Lakehouse endpoint accepts versus rejects, and build a complete Gold query layer that combines aggregation, view creation, and a final filtered query.",
+  "version": "authored 2026-04-06, targets Microsoft Fabric GA 2025+ / Spark SQL 3.5+",
+  "metadata": {
+    "moduleId": "module-F9",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 57,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "scenarioScale": "500K meters, 4 regions, single team, 3 medallion workspaces",
+    "modulePhase": "synthesis_toolkit",
+    "taskTypeMix": {
+      "writeTheCode": 4,
+      "outputPrediction": 1,
+      "conceptIdentification": 0,
+      "synthesisPipeline": 1
+    },
+    "foundationException": "Not applied. F9 is in the Synthesis/Toolkit phase. F9 is the first practice set in the Fabric junior track that uses T-SQL instead of PySpark. The grading challenge: the local practice environment has no Fabric SQL analytics endpoint or Warehouse, so SQL queries are executed via spark.sql() against DataFrames registered as temporary views. Spark SQL is ANSI-compatible enough that the queries the student writes match the T-SQL they would write in the actual Fabric SQL editor — including SELECT, WHERE, GROUP BY, ORDER BY, CREATE VIEW, DATEPART/extract, SUM, AVG, COUNT, and LIMIT. Each scaffold explicitly notes the equivalence. Task type mix (4 write_the_code + 1 output_prediction + 1 synthesis_pipeline) matches the maximum write_the_code allowance from §4.2."
+  },
+  "datasets": [
+    {
+      "id": "F9_data_readings",
+      "file": "F9_data_readings.csv",
+      "description": "NordGrid meter readings spanning 3 months (January, February, March 2026) across 4 regions. 24 rows total: each region has exactly 2 readings per month, hand-crafted so aggregations produce clean integer values. Per-region monthly sums: NORTH (Jan 3000, Feb 4000, Mar 3000), SOUTH (Jan 3000, Feb 3600, Mar 3000), EAST (Jan 3200, Feb 3800, Mar 3100), WEST (Jan 3200, Feb 4000, Mar 3300). Per-region totals: NORTH 10000, SOUTH 9600, EAST 10100, WEST 10500.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "daily_kw", "type": "double", "nullable": false},
+          {"name": "date", "type": "string", "nullable": false, "description": "ISO format YYYY-MM-DD"},
+          {"name": "region", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": ["module-F9-task-01", "module-F9-task-02", "module-F9-task-03", "module-F9-task-04", "module-F9-task-06"]
+    },
+    {
+      "id": "F9_data_meters",
+      "file": "F9_data_meters.csv",
+      "description": "NordGrid meter reference table. 16 rows with meter_id, customer_type, and substation_id. Used for optional join scenarios, but the core SQL tasks operate on readings alone.",
+      "schema": {
+        "columns": [
+          {"name": "meter_id", "type": "string", "nullable": false},
+          {"name": "customer_type", "type": "string", "nullable": false},
+          {"name": "substation_id", "type": "string", "nullable": false}
+        ]
+      },
+      "usedByTasks": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-F9-task-01",
+      "title": "Filter and Order NordGrid's Silver Readings",
+      "type": "write_the_code",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's analyst, Lars, opens the Silver Lakehouse SQL analytics endpoint and writes his first query. He needs the top 10 highest-consumption meter readings from the NORTH region, sorted from highest to lowest daily_kw. The endpoint is read-only — Lars uses SELECT, WHERE, ORDER BY, and LIMIT only.",
+        "task": "Write a SQL query that selects all columns from the readings_silver view, filters to region = 'NORTH', orders by daily_kw descending, and limits to 10 rows. Execute it through spark.sql() and store the resulting DataFrame in df_top_north. Also store the row count in north_row_count.",
+        "validationHint": "The NORTH region has 6 readings total in the dataset. The query asks for the top 10, so all 6 NORTH readings will be returned (LIMIT 10 returns up to 10 rows; if fewer match the filter, all matching rows are returned). The first row should have the highest daily_kw value among NORTH readings (2500.0)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F9 Lesson 3: writing T-SQL queries. In a Fabric SQL analytics endpoint or notebook,\n# you would write this directly in the SQL editor. In this local practice, we use\n# spark.sql() against a temp view registered from the CSV — the SQL syntax is the same.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-sql-filter') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Load readings and register the temp view that simulates the SQL endpoint\ndf_readings = spark.read.csv('F9_data_readings.csv', header=True, inferSchema=True)\ndf_readings.createOrReplaceTempView('readings_silver')\nprint(f\"readings_silver view registered with {df_readings.count()} rows.\")\n\n# YOUR SOLUTION BELOW\n# Write a SQL query that:\n#   - SELECTs all columns from readings_silver\n#   - WHERE region = 'NORTH'\n#   - ORDER BY daily_kw DESC\n#   - LIMIT 10\n# Execute it with spark.sql() and store the resulting DataFrame in df_top_north.\n# Store the row count in north_row_count.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"NORTH rows returned: {north_row_count}\")\ndf_top_north.show()"
+      },
+      "assertions": [
+        {
+          "id": "F9-01-A1",
+          "description": "df_top_north is a DataFrame",
+          "check": "hasattr(df_top_north, 'count') and hasattr(df_top_north, 'columns')"
+        },
+        {
+          "id": "F9-01-A2",
+          "description": "north_row_count equals 6 (all NORTH rows, since LIMIT 10 returns up to 10)",
+          "check": "north_row_count == 6"
+        },
+        {
+          "id": "F9-01-A3",
+          "description": "All rows have region = NORTH",
+          "check": "df_top_north.filter(\"region != 'NORTH'\").count() == 0"
+        },
+        {
+          "id": "F9-01-A4",
+          "description": "First row has the highest daily_kw among NORTH (2500.0)",
+          "check": "df_top_north.first()['daily_kw'] == 2500.0"
+        },
+        {
+          "id": "F9-01-A5",
+          "description": "All 4 original columns preserved (SELECT *)",
+          "check": "set(df_top_north.columns) == {'meter_id', 'daily_kw', 'date', 'region'}"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-F9-task-02",
+      "title": "Compute Regional Energy Summaries",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's monthly reporting requires regional totals across the 3-month period. Lars writes a SQL query that computes 4 metrics per region: total kWh consumed (SUM), average daily consumption (AVG), number of readings (COUNT), and the maximum single reading (MAX). The result must have one row per region.",
+        "task": "Write a SQL query against readings_silver that groups by region and computes 4 aggregations with explicit aliases: total_kw (SUM of daily_kw), avg_kw (AVG of daily_kw), reading_count (COUNT of all rows), and max_kw (MAX of daily_kw). Order the result by region ascending. Store the result in df_regional and store the row count in regional_count.",
+        "validationHint": "Use SUM(daily_kw) AS total_kw, AVG(daily_kw) AS avg_kw, COUNT(*) AS reading_count, MAX(daily_kw) AS max_kw. Group by region. Expected: 4 rows (one per region). NORTH total_kw = 10000.0, SOUTH = 9600.0, EAST = 10100.0, WEST = 10500.0. The avg_kw values are total/6 since each region has 6 readings."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F9 Lesson 8: SQL aggregation functions. Use SUM, AVG, COUNT, MAX with GROUP BY\n# and assign explicit aliases with AS. This is the same pattern Fabric analysts use\n# in the SQL editor — spark.sql() executes ANSI-compatible SQL.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-sql-aggregate') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('F9_data_readings.csv', header=True, inferSchema=True)\ndf_readings.createOrReplaceTempView('readings_silver')\nprint(f\"readings_silver: {df_readings.count()} rows\")\n\n# YOUR SOLUTION BELOW\n# Write a SQL query that:\n#   - SELECTs region, SUM(daily_kw) AS total_kw, AVG(daily_kw) AS avg_kw,\n#     COUNT(*) AS reading_count, MAX(daily_kw) AS max_kw\n#   - FROM readings_silver\n#   - GROUP BY region\n#   - ORDER BY region\n# Store the result in df_regional. Store the row count in regional_count.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Regional summary rows: {regional_count}\")\ndf_regional.show()"
+      },
+      "assertions": [
+        {
+          "id": "F9-02-A1",
+          "description": "df_regional is a DataFrame",
+          "check": "hasattr(df_regional, 'count') and hasattr(df_regional, 'columns')"
+        },
+        {
+          "id": "F9-02-A2",
+          "description": "regional_count equals 4 (one row per region)",
+          "check": "regional_count == 4"
+        },
+        {
+          "id": "F9-02-A3",
+          "description": "All 5 expected columns present with the requested aliases",
+          "check": "set(df_regional.columns) == {'region', 'total_kw', 'avg_kw', 'reading_count', 'max_kw'}"
+        },
+        {
+          "id": "F9-02-A4",
+          "description": "NORTH total_kw equals 10000.0",
+          "check": "df_regional.filter(\"region = 'NORTH'\").first()['total_kw'] == 10000.0"
+        },
+        {
+          "id": "F9-02-A5",
+          "description": "EAST total_kw equals 10100.0",
+          "check": "df_regional.filter(\"region = 'EAST'\").first()['total_kw'] == 10100.0"
+        },
+        {
+          "id": "F9-02-A6",
+          "description": "Each region has reading_count = 6",
+          "check": "df_regional.filter('reading_count != 6').count() == 0"
+        },
+        {
+          "id": "F9-02-A7",
+          "description": "Result is ordered by region ascending (first row is EAST)",
+          "check": "df_regional.first()['region'] == 'EAST'"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-F9-task-03",
+      "title": "Build a Monthly Summary with Date Functions",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's billing team needs energy totals broken down by region AND month. The date column in readings_silver is a string in YYYY-MM-DD format (Spark SQL will see it as either string or date depending on inferSchema, but for portability use the MONTH() function which works on either). The result must have one row per (region, month) combination.",
+        "task": "Write a SQL query that selects region, the month number extracted from date (call this column month_num), and SUM(daily_kw) aliased as monthly_total. Group by region and month_num. Order by region ascending, then month_num ascending. Store the result in df_monthly and the row count in monthly_count.",
+        "validationHint": "Use MONTH(date) to extract the month number (1-12). The function works whether date is stored as a string or a date type in Spark SQL. Expected: 12 rows (4 regions × 3 months). NORTH January monthly_total = 3000.0 (1000 + 2000). NORTH February = 4000.0 (1500 + 2500). NORTH March = 3000.0 (1200 + 1800)."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F9 Lesson 8: date functions in SQL. The MONTH() function extracts the month number\n# from a date or date-formatted string. This is the same syntax Fabric SQL editor uses.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-sql-monthly') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('F9_data_readings.csv', header=True, inferSchema=True)\ndf_readings.createOrReplaceTempView('readings_silver')\nprint(f\"readings_silver: {df_readings.count()} rows\")\n\n# YOUR SOLUTION BELOW\n# Write a SQL query that:\n#   - SELECTs region, MONTH(date) AS month_num, SUM(daily_kw) AS monthly_total\n#   - FROM readings_silver\n#   - GROUP BY region, month_num (or GROUP BY region, MONTH(date))\n#   - ORDER BY region ASC, month_num ASC\n# Store the result in df_monthly and the row count in monthly_count.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Monthly rows: {monthly_count}\")\ndf_monthly.show()"
+      },
+      "assertions": [
+        {
+          "id": "F9-03-A1",
+          "description": "df_monthly is a DataFrame",
+          "check": "hasattr(df_monthly, 'count') and hasattr(df_monthly, 'columns')"
+        },
+        {
+          "id": "F9-03-A2",
+          "description": "monthly_count equals 12 (4 regions × 3 months)",
+          "check": "monthly_count == 12"
+        },
+        {
+          "id": "F9-03-A3",
+          "description": "All 3 expected columns present with the requested aliases",
+          "check": "set(df_monthly.columns) == {'region', 'month_num', 'monthly_total'}"
+        },
+        {
+          "id": "F9-03-A4",
+          "description": "NORTH January monthly_total equals 3000.0",
+          "check": "df_monthly.filter(\"region = 'NORTH' AND month_num = 1\").first()['monthly_total'] == 3000.0"
+        },
+        {
+          "id": "F9-03-A5",
+          "description": "NORTH February monthly_total equals 4000.0",
+          "check": "df_monthly.filter(\"region = 'NORTH' AND month_num = 2\").first()['monthly_total'] == 4000.0"
+        },
+        {
+          "id": "F9-03-A6",
+          "description": "WEST March monthly_total equals 3300.0",
+          "check": "df_monthly.filter(\"region = 'WEST' AND month_num = 3\").first()['monthly_total'] == 3300.0"
+        },
+        {
+          "id": "F9-03-A7",
+          "description": "First row is EAST month 1 (ordered by region ASC, month_num ASC)",
+          "check": "df_monthly.first()['region'] == 'EAST' and df_monthly.first()['month_num'] == 1"
+        }
+      ],
+      "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit."
+    },
+    {
+      "id": "module-F9-task-04",
+      "title": "Create a View for NordGrid's Analysts",
+      "type": "write_the_code",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's analysts repeatedly write the same query: 'show me the monthly regional totals.' To avoid repetition, NordGrid's data engineer creates a reusable SQL view that wraps the aggregation logic. Once the view exists, analysts simply SELECT FROM v_monthly_region_summary instead of rewriting the GROUP BY each time. This is the F9 Lesson 4 view pattern.",
+        "task": "Write a SQL CREATE VIEW statement that defines v_monthly_region_summary as the same query from Task 3 (region, month_num, monthly_total grouped by region and month). After creating the view, query it: SELECT * FROM v_monthly_region_summary WHERE region = 'NORTH' ORDER BY month_num. Store the resulting DataFrame in df_north_monthly and the row count in north_monthly_count.",
+        "validationHint": "Use spark.sql('CREATE OR REPLACE TEMPORARY VIEW v_monthly_region_summary AS SELECT region, MONTH(date) AS month_num, SUM(daily_kw) AS monthly_total FROM readings_silver GROUP BY region, MONTH(date)'). Then query the view in a second spark.sql() call. Expected: 3 rows (NORTH × 3 months). The values should be 3000.0, 4000.0, 3000.0 for January, February, March."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F9 Lesson 4: creating a view. CREATE VIEW packages a query into a reusable name.\n# In the local practice, we use CREATE OR REPLACE TEMPORARY VIEW so the view does not\n# persist across sessions and so re-running the task does not fail.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-sql-view') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('F9_data_readings.csv', header=True, inferSchema=True)\ndf_readings.createOrReplaceTempView('readings_silver')\nprint(f\"readings_silver: {df_readings.count()} rows\")\n\n# YOUR SOLUTION BELOW\n# 1. Run a CREATE OR REPLACE TEMPORARY VIEW statement that defines v_monthly_region_summary\n#    with columns (region, month_num, monthly_total) — same query as Task 3.\n# 2. Then query the view: SELECT * FROM v_monthly_region_summary WHERE region = 'NORTH'\n#    ORDER BY month_num. Store the result in df_north_monthly.\n# 3. Store the row count in north_monthly_count.\n\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"NORTH monthly rows: {north_monthly_count}\")\ndf_north_monthly.show()"
+      },
+      "assertions": [
+        {
+          "id": "F9-04-A1",
+          "description": "v_monthly_region_summary view was created and is queryable",
+          "check": "spark.sql('SELECT COUNT(*) AS c FROM v_monthly_region_summary').first()['c'] == 12"
+        },
+        {
+          "id": "F9-04-A2",
+          "description": "df_north_monthly is a DataFrame",
+          "check": "hasattr(df_north_monthly, 'count') and hasattr(df_north_monthly, 'columns')"
+        },
+        {
+          "id": "F9-04-A3",
+          "description": "north_monthly_count equals 3 (NORTH × 3 months)",
+          "check": "north_monthly_count == 3"
+        },
+        {
+          "id": "F9-04-A4",
+          "description": "View has the 3 expected columns",
+          "check": "set(df_north_monthly.columns) == {'region', 'month_num', 'monthly_total'}"
+        },
+        {
+          "id": "F9-04-A5",
+          "description": "All 3 NORTH rows have correct totals (Jan 3000, Feb 4000, Mar 3000)",
+          "check": "[(r['month_num'], r['monthly_total']) for r in df_north_monthly.collect()] == [(1, 3000.0), (2, 4000.0), (3, 3000.0)]"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-F9-task-05",
+      "title": "Predict Endpoint vs Warehouse Behavior",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "NordGrid's analyst Lars now understands that the SQL analytics endpoint (auto-generated from a Lakehouse) is read-only, while the Fabric Warehouse supports full read-write T-SQL. He drafts 5 SQL operations and wants to verify, for each one, whether it succeeds against the SQL endpoint, against a Warehouse, or against both. The operations are real T-SQL statements he might run during a typical workday.",
+        "task": "For each operation, predict where it will succeed.",
+        "validationHint": "SQL analytics endpoint: read-only. Supports SELECT, JOIN, GROUP BY, CREATE VIEW, table-valued functions. Does NOT support INSERT, UPDATE, DELETE, CREATE TABLE (for new data tables), MERGE, or stored procedures. Fabric Warehouse: full read-write. Supports everything the endpoint supports plus all DML and DDL."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "F9-05-F1",
+            "type": "single_select",
+            "label": "SELECT region, SUM(daily_kw) FROM readings_silver GROUP BY region",
+            "options": [
+              "Succeeds on the SQL analytics endpoint only (Warehouse rejects aggregations)",
+              "Succeeds on both the SQL analytics endpoint and the Warehouse",
+              "Succeeds on the Warehouse only",
+              "Fails on both"
+            ],
+            "correctAnswer": "Succeeds on both the SQL analytics endpoint and the Warehouse",
+            "distractorRationale": "Aggregations are read operations supported by every T-SQL surface. Option 1 invents a Warehouse limitation. Option 3 misses that the endpoint handles aggregations. Option 4 would mean SELECT itself is unsupported, which is false."
+          },
+          {
+            "id": "F9-05-F2",
+            "type": "single_select",
+            "label": "INSERT INTO readings_silver VALUES ('M-9999', 1500.0, '2026-03-15', 'NORTH')",
+            "options": [
+              "Succeeds on the SQL analytics endpoint",
+              "Succeeds on the Warehouse only — the endpoint is read-only and rejects all DML",
+              "Succeeds on both",
+              "Fails on both"
+            ],
+            "correctAnswer": "Succeeds on the Warehouse only — the endpoint is read-only and rejects all DML",
+            "distractorRationale": "Option 1 contradicts the read-only nature of the endpoint (Lessons 2, 5). Option 3 grants the endpoint write capability it does not have. Option 4 over-restricts the Warehouse, which exists precisely to support DML."
+          },
+          {
+            "id": "F9-05-F3",
+            "type": "single_select",
+            "label": "CREATE VIEW v_north_monthly AS SELECT * FROM readings_silver WHERE region = 'NORTH'",
+            "options": [
+              "Succeeds on both — CREATE VIEW is a metadata operation supported by both surfaces",
+              "Succeeds on the Warehouse only — CREATE statements are DDL and DDL only works on Warehouses",
+              "Succeeds on the SQL analytics endpoint only",
+              "Fails on both"
+            ],
+            "correctAnswer": "Succeeds on both — CREATE VIEW is a metadata operation supported by both surfaces",
+            "distractorRationale": "This is the trap: option 2 over-applies the 'DDL = Warehouse only' rule, but Lesson 4 explicitly states the endpoint supports CREATE VIEW. Views do not modify data — they create a query alias. Both surfaces support views. CREATE TABLE for data tables is the operation that the endpoint rejects."
+          },
+          {
+            "id": "F9-05-F4",
+            "type": "single_select",
+            "label": "UPDATE readings_silver SET daily_kw = daily_kw * 1.1 WHERE region = 'NORTH'",
+            "options": [
+              "Succeeds on the SQL analytics endpoint",
+              "Succeeds on the Warehouse only — UPDATE is DML, which only the Warehouse supports",
+              "Succeeds on both",
+              "Fails on both — UPDATE is never permitted on Delta tables"
+            ],
+            "correctAnswer": "Succeeds on the Warehouse only — UPDATE is DML, which only the Warehouse supports",
+            "distractorRationale": "Option 1 contradicts the read-only endpoint. Option 3 grants the endpoint write capability. Option 4 confuses the endpoint's restriction with a fundamental Delta restriction — Delta tables CAN be updated through Warehouses or notebooks, just not through the endpoint."
+          },
+          {
+            "id": "F9-05-F5",
+            "type": "single_select",
+            "label": "CREATE TABLE silver_summary (region VARCHAR(10), total_kw FLOAT)",
+            "options": [
+              "Succeeds on the SQL analytics endpoint — CREATE statements are supported",
+              "Succeeds on the Warehouse only — creating new data tables is a Warehouse-only operation",
+              "Succeeds on both",
+              "Fails on both"
+            ],
+            "correctAnswer": "Succeeds on the Warehouse only — creating new data tables is a Warehouse-only operation",
+            "distractorRationale": "Option 1 confuses CREATE VIEW (metadata, allowed on the endpoint) with CREATE TABLE (creates a new physical data table, only allowed on the Warehouse). Option 3 over-extends endpoint capabilities. Option 4 over-restricts the Warehouse, which is the canonical CREATE TABLE target. The contrast with field F3 is the key: views are metadata, tables are storage."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-F9-task-06",
+      "title": "Build NordGrid's Complete Gold SQL Layer",
+      "type": "synthesis_pipeline",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "NordGrid's Gold-layer SQL strategy combines every F9 concept: aggregation by region and month (Lesson 8), view creation for analyst reuse (Lesson 4), and a final filtered query against the view (Lesson 3). This synthesis builds the complete Gold query layer in 4 steps.\n\nThis task mirrors the production NordGrid pattern from Lesson 10: a view named v_monthly_region_summary lives on the Silver Lakehouse SQL endpoint, and analysts query it for region-specific reports. The synthesis tests whether the student can chain the SQL concepts into a coherent layer rather than executing them in isolation.",
+        "task": "Build the complete pipeline:\n\n(1) Read F9_data_readings.csv into df_readings and register it as a temp view called readings_silver.\n\n(2) Create a temp view called v_monthly_region_summary with columns (region, month_num, monthly_total) using SUM and MONTH().\n\n(3) Create a SECOND temp view called v_quarterly_region_totals that aggregates the v_monthly_region_summary view further: select region and SUM(monthly_total) AS quarter_total, GROUP BY region. This demonstrates view-on-view composition.\n\n(4) Run a final query against v_monthly_region_summary that filters to month_num = 2 (February) and orders by monthly_total descending. Store the result in df_february and store the row count in february_count.\n\n(5) Also store the result of querying v_quarterly_region_totals (no filter, ordered by region) in df_quarterly and store the row count in quarterly_count.",
+        "validationHint": "v_monthly_region_summary has 12 rows (4 regions × 3 months). v_quarterly_region_totals has 4 rows (one per region) with quarter_total = sum across all 3 months. df_february has 4 rows (one per region for February). For February: NORTH = 4000.0, SOUTH = 3600.0, EAST = 3800.0, WEST = 4000.0. Quarter totals: NORTH = 10000.0, SOUTH = 9600.0, EAST = 10100.0, WEST = 10500.0."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# F9 synthesis: build the complete NordGrid Gold SQL layer in 4 steps.\n# Combines aggregation, view creation, view-on-view composition, and a final filtered query.\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-gold-sql-layer') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\nprint('Building NordGrid Gold SQL layer...')\n\n# YOUR SOLUTION BELOW\n\n# Step 1: Read F9_data_readings.csv into df_readings (header=True, inferSchema=True)\n#         and register it as a temp view called 'readings_silver'.\n\n\n\n# Step 2: Create a CREATE OR REPLACE TEMPORARY VIEW called v_monthly_region_summary\n#         with columns (region, month_num, monthly_total) using SUM(daily_kw) and MONTH(date).\n#         Group by region and MONTH(date).\n\n\n\n# Step 3: Create a SECOND view called v_quarterly_region_totals that aggregates\n#         v_monthly_region_summary further: SELECT region, SUM(monthly_total) AS quarter_total\n#         FROM v_monthly_region_summary GROUP BY region.\n\n\n\n# Step 4: Query v_monthly_region_summary for February only (month_num = 2),\n#         ordered by monthly_total DESC. Store result in df_february, count in february_count.\n\n\n\n# Step 5: Query v_quarterly_region_totals (no filter), ordered by region.\n#         Store result in df_quarterly, count in quarterly_count.\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"\\nFebruary rows: {february_count}\")\ndf_february.show()\nprint(f\"\\nQuarterly rows: {quarterly_count}\")\ndf_quarterly.show()"
+      },
+      "assertions": [
+        {
+          "id": "F9-06-A1",
+          "description": "readings_silver view exists with 24 rows",
+          "check": "spark.sql('SELECT COUNT(*) AS c FROM readings_silver').first()['c'] == 24"
+        },
+        {
+          "id": "F9-06-A2",
+          "description": "v_monthly_region_summary exists with 12 rows",
+          "check": "spark.sql('SELECT COUNT(*) AS c FROM v_monthly_region_summary').first()['c'] == 12"
+        },
+        {
+          "id": "F9-06-A3",
+          "description": "v_monthly_region_summary has the 3 expected columns",
+          "check": "set([f.name for f in spark.sql('SELECT * FROM v_monthly_region_summary LIMIT 0').schema.fields]) == {'region', 'month_num', 'monthly_total'}"
+        },
+        {
+          "id": "F9-06-A4",
+          "description": "v_quarterly_region_totals exists with 4 rows (one per region)",
+          "check": "spark.sql('SELECT COUNT(*) AS c FROM v_quarterly_region_totals').first()['c'] == 4"
+        },
+        {
+          "id": "F9-06-A5",
+          "description": "v_quarterly_region_totals has columns region and quarter_total",
+          "check": "set([f.name for f in spark.sql('SELECT * FROM v_quarterly_region_totals LIMIT 0').schema.fields]) == {'region', 'quarter_total'}"
+        },
+        {
+          "id": "F9-06-A6",
+          "description": "february_count equals 4 (one row per region for February)",
+          "check": "february_count == 4"
+        },
+        {
+          "id": "F9-06-A7",
+          "description": "df_february all rows have month_num = 2",
+          "check": "df_february.filter('month_num != 2').count() == 0"
+        },
+        {
+          "id": "F9-06-A8",
+          "description": "df_february top row has the highest monthly_total (NORTH or WEST tied at 4000.0)",
+          "check": "df_february.first()['monthly_total'] == 4000.0"
+        },
+        {
+          "id": "F9-06-A9",
+          "description": "quarterly_count equals 4",
+          "check": "quarterly_count == 4"
+        },
+        {
+          "id": "F9-06-A10",
+          "description": "Quarterly total for NORTH equals 10000.0",
+          "check": "df_quarterly.filter(\"region = 'NORTH'\").first()['quarter_total'] == 10000.0"
+        },
+        {
+          "id": "F9-06-A11",
+          "description": "Quarterly total for WEST equals 10500.0",
+          "check": "df_quarterly.filter(\"region = 'WEST'\").first()['quarter_total'] == 10500.0"
+        }
+      ],
+      "partialCredit": "11 independent assertions. Each passed assertion earns 1/11 credit. A student who completes steps 1-3 (the views) earns at least 5/11 even if the final queries fail.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Writing T-SQL with SELECT, FROM, WHERE, GROUP BY, ORDER BY (Lesson 3)",
+          "Creating views with CREATE VIEW for analyst reuse (Lesson 4)",
+          "Aggregation functions: SUM, COUNT (Lesson 8)",
+          "Date functions: MONTH() to extract the month number from a date (Lesson 8)",
+          "View-on-view composition: building a quarterly view on top of the monthly view, demonstrating that views can reference other views (Lesson 4 + Lesson 10)"
+        ],
+        "minimumConceptCount": 5,
+        "rationale": "This task synthesizes the module by chaining 5 concepts in a single coherent pipeline. The view-on-view composition (Step 3) is the most distinctive synthesis: it shows that v_quarterly_region_totals references v_monthly_region_summary, which in turn references readings_silver — a 3-layer query stack that mirrors NordGrid's actual Gold SQL strategy from Lesson 10. A student who completed each individual task in this practice set without understanding how they compose would still struggle to chain them into a coherent layer. The 11 independent assertions reward partial completion, so students who get the views right but fail the final queries earn meaningful credit."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Not applied. F9 is in the Synthesis/Toolkit phase. This is the first practice set in the Fabric junior track that uses T-SQL instead of PySpark. Tasks 1-4 and 6 use spark.sql() against temp views to execute SQL queries equivalent to what would run on the Fabric SQL analytics endpoint or Warehouse. Task 5 uses templates to test the conceptual difference between the endpoint and the Warehouse. Task type mix (4 write_the_code + 1 output_prediction + 1 synthesis_pipeline) reaches the §4.2 max for write_the_code.",
+    "theoryPracticeBoundary": "The theory teaches T-SQL through NordGrid examples in Lessons 3, 4, 7, 8, and 10. The practice tests application: Tasks 1-3 use a 24-row dataset with hand-crafted clean integer aggregations so students can verify their answers without a calculator. Task 4 builds a view named identically to the theory's example (v_monthly_region_summary) but the student writes the CREATE VIEW from scratch. Task 5 tests endpoint-vs-Warehouse capabilities through 5 specific T-SQL statements not enumerated in the theory's lesson summaries. Task 6 builds a view-on-view composition that the theory describes but does not walk through line-by-line.",
+    "crossModuleNotes": "This practice set assumes F4's distinction between the SQL analytics endpoint (read-only) and the Warehouse (read-write), tested directly in Task 5. F5's spark.sql() pattern from Module 5 is reused throughout — the student writes SQL queries in the same Python wrapper they learned in F5 Task 5, just with more sophisticated SQL inside. F6's transformation patterns (filter, group, aggregate) are reframed as SQL equivalents in this module — the student learns that PySpark's groupBy().agg() and SQL's GROUP BY are two ways to express the same operation. F10 will combine these into the full medallion architecture.",
+    "datasetNotes": "Two CSV datasets. F9_data_readings.csv (24 rows) is hand-crafted so every aggregation produces clean integer values: each region has exactly 6 readings, 2 per month across 3 months, with daily_kw values that sum to round numbers. This makes it possible to assert specific values (NORTH January = 3000.0, NORTH February = 4000.0, etc.) without floating-point comparison concerns. F9_data_meters.csv (16 rows) is included as a reference table for potential JOIN scenarios but is not used by any current task — it is reserved for future expansion or advanced student exploration."
+  }
+}

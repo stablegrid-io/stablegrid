@@ -1050,7 +1050,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Track Map</span>
+            <span className="hidden sm:inline">Learning Path</span>
           </Link>
           <button
             type="button"

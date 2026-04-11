@@ -24,8 +24,8 @@ const GITHUB_ICON = (
   </svg>
 );
 
-const inputClass = "h-10 w-full bg-surface-container-low border border-outline-variant/30 px-3 text-sm text-on-surface font-mono placeholder:text-on-surface-variant/30 focus:outline-none focus:border-primary transition-colors";
-const labelClass = "mb-1.5 block font-mono text-[9px] text-on-surface-variant uppercase tracking-[0.2em]";
+const inputClass = "h-10 w-full rounded-[14px] bg-surface-container-low border border-outline-variant/30 px-3 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:outline-none focus:border-primary transition-colors";
+const labelClass = "mb-1.5 block text-[9px] text-on-surface-variant uppercase tracking-[0.2em]";
 
 export function SignupForm() {
   const router = useRouter();
@@ -105,37 +105,37 @@ export function SignupForm() {
           <div className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-primary" />
 
           <header className="mb-8">
-            <div className="font-headline font-black text-primary tracking-widest text-lg mb-3">stableGrid</div>
-            <h1 className="font-headline text-2xl font-bold text-on-surface tracking-tight">Register Operator</h1>
-            <p className="mt-1 font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">CREATE NEW ACCESS CREDENTIALS</p>
+            <div className="font-black text-primary tracking-widest text-lg mb-3">stableGrid</div>
+            <h1 className="text-2xl font-bold text-on-surface tracking-tight">Register Operator</h1>
+            <p className="mt-1 text-[10px] text-on-surface-variant uppercase tracking-widest">CREATE NEW ACCESS CREDENTIALS</p>
           </header>
 
           {success ? (
             <div className="border border-primary/30 bg-primary/5 p-5">
-              <p className="font-mono text-sm text-on-surface">{success}</p>
-              <Link href="/login" className="mt-4 inline-flex items-center gap-1 font-mono text-xs text-primary font-bold hover:underline uppercase">
+              <p className="text-sm text-on-surface">{success}</p>
+              <Link href="/login" className="mt-4 inline-flex items-center gap-1 text-xs text-primary font-bold hover:underline uppercase">
                 Continue to authenticate <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           ) : (
             <>
               <div className="mb-5 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => handleOAuth('google')} className="inline-flex h-10 items-center justify-center gap-2 border border-outline-variant/40 bg-surface-container px-3 font-mono text-xs text-on-surface transition-all hover:border-primary/40 hover:bg-surface-container-high">
+                <button type="button" onClick={() => handleOAuth('google')} className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-outline-variant/40 bg-surface-container px-3 text-xs text-on-surface transition-all hover:border-primary/40 hover:bg-surface-container-high">
                   {GOOGLE_ICON} Google
                 </button>
-                <button type="button" onClick={() => handleOAuth('github')} className="inline-flex h-10 items-center justify-center gap-2 border border-outline-variant/40 bg-surface-container px-3 font-mono text-xs text-on-surface transition-all hover:border-primary/40 hover:bg-surface-container-high">
+                <button type="button" onClick={() => handleOAuth('github')} className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-outline-variant/40 bg-surface-container px-3 text-xs text-on-surface transition-all hover:border-primary/40 hover:bg-surface-container-high">
                   {GITHUB_ICON} GitHub
                 </button>
               </div>
 
               <div className="mb-5 flex items-center gap-3">
                 <div className="h-px flex-1 bg-outline-variant/30" />
-                <span className="font-mono text-[9px] text-on-surface-variant uppercase tracking-widest">or credentials</span>
+                <span className="text-[9px] text-on-surface-variant uppercase tracking-widest">or credentials</span>
                 <div className="h-px flex-1 bg-outline-variant/30" />
               </div>
 
               {error ? (
-                <div className="mb-3 border border-error/30 bg-error/10 px-3 py-2 font-mono text-xs text-error">{error}</div>
+                <div className="mb-3 border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{error}</div>
               ) : null}
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -153,7 +153,7 @@ export function SignupForm() {
                   <div className="mb-1.5 flex items-center justify-between">
                     <label htmlFor="signup-password" className={labelClass}>Password</label>
                     {passwordStrength ? (
-                      <span className="font-mono text-[9px] font-bold uppercase" style={{ color: passwordStrengthColor }}>{passwordStrength}</span>
+                      <span className="text-[9px] font-bold uppercase" style={{ color: passwordStrengthColor }}>{passwordStrength}</span>
                     ) : null}
                   </div>
                   <div className="relative">
@@ -169,7 +169,7 @@ export function SignupForm() {
                         {passwordRules.map((rule) => {
                           const isMet = !passwordIssues.includes(rule.label);
                           return (
-                            <li key={rule.id} className="flex items-center justify-between font-mono text-[10px]">
+                            <li key={rule.id} className="flex items-center justify-between text-[10px]">
                               <span className={`inline-flex items-center gap-2 ${isMet ? 'text-primary' : 'text-on-surface-variant'}`}>
                                 <span className={`inline-flex h-3.5 w-3.5 items-center justify-center border ${isMet ? 'border-primary bg-primary text-on-primary' : 'border-outline-variant bg-surface-container'}`}>
                                   <Check className="h-2.5 w-2.5" />
@@ -209,7 +209,7 @@ export function SignupForm() {
                     required
                   />
                   {showConfirmMismatch ? (
-                    <p className="mt-1 font-mono text-[9px] text-error">MISMATCH_DETECTED</p>
+                    <p className="mt-1 text-[9px] text-error">MISMATCH_DETECTED</p>
                   ) : null}
                 </div>
 
@@ -219,7 +219,7 @@ export function SignupForm() {
                   </div>
                 ) : null}
 
-                <p className="font-mono text-[9px] text-on-surface-variant leading-5">
+                <p className="text-[9px] text-on-surface-variant leading-5">
                   By continuing, you agree to{' '}
                   <Link href="/terms" className="text-primary hover:underline">Terms</Link> and{' '}
                   <Link href="/privacy" className="text-primary hover:underline">Privacy</Link>.
@@ -228,7 +228,7 @@ export function SignupForm() {
                 <button
                   type="submit"
                   disabled={!canSubmit || isSubmitting}
-                  className="w-full h-10 bg-primary text-on-primary font-headline font-bold text-xs tracking-widest uppercase flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                  className="w-full h-10 rounded-[14px] bg-primary text-on-primary font-bold text-xs tracking-widest uppercase flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
                 >
                   {isSubmitting ? (
                     <><span className="h-3.5 w-3.5 animate-spin border-2 border-on-primary/30 border-t-on-primary" /> REGISTERING...</>
@@ -240,7 +240,7 @@ export function SignupForm() {
             </>
           )}
 
-          <p className="mt-5 text-center font-mono text-[10px] text-on-surface-variant">
+          <p className="mt-5 text-center text-[10px] text-on-surface-variant">
             Already registered?{' '}
             <Link href="/login" className="text-primary font-bold hover:underline uppercase">Authenticate</Link>
           </p>

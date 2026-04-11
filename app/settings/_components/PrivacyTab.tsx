@@ -24,7 +24,7 @@ export function PrivacyTab() {
         </p>
       </header>
 
-      <section className="space-y-3 rounded-2xl border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface">
+      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
         <h2 className="text-xl font-semibold">What we collect</h2>
         <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
           We collect account information (name, email), reading progress, session usage,
@@ -32,7 +32,7 @@ export function PrivacyTab() {
         </p>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface">
+      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
         <h2 className="text-xl font-semibold">Why we collect it</h2>
         <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
           Data is used to authenticate your account, persist chapter progress, improve
@@ -40,7 +40,7 @@ export function PrivacyTab() {
         </p>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface">
+      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
         <h2 className="text-xl font-semibold">Your controls</h2>
         <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
           You can request a GDPR export or permanently delete your account in
@@ -61,7 +61,7 @@ export function PrivacyTab() {
 
       <section
         id="cookie-policy"
-        className="space-y-4 rounded-2xl border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface"
+        className="space-y-4 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5"
       >
         <h2 className="text-xl font-semibold">Cookie Policy</h2>
         <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
@@ -73,7 +73,7 @@ export function PrivacyTab() {
           {policyCategories.map((category) => (
             <article
               key={category.label}
-              className="rounded-xl border border-light-border bg-light-bg p-3 dark:border-dark-border dark:bg-dark-bg"
+              className="rounded-[14px] border border-white/[0.06] bg-[#0c0e10] p-3"
             >
               <h3 className="text-sm font-semibold">{category.label}</h3>
               <p className="mt-1 text-xs leading-6 text-text-light-secondary dark:text-text-dark-secondary">
@@ -87,9 +87,9 @@ export function PrivacyTab() {
           <h3 className="text-sm font-semibold uppercase tracking-wide text-text-light-tertiary dark:text-text-dark-tertiary">
             Cookie and service inventory
           </h3>
-          <div className="overflow-x-auto rounded-xl border border-light-border dark:border-dark-border">
+          <div className="overflow-x-auto rounded-[14px] border border-white/[0.06]">
             <table className="min-w-full divide-y divide-light-border text-left text-sm dark:divide-dark-border">
-              <thead className="bg-light-bg text-xs uppercase tracking-wide text-text-light-tertiary dark:bg-dark-bg dark:text-text-dark-tertiary">
+              <thead className="bg-[#0c0e10] text-xs uppercase tracking-wide text-text-light-tertiary dark:text-text-dark-tertiary">
                 <tr>
                   <th className="px-3 py-2 font-semibold">Name</th>
                   <th className="px-3 py-2 font-semibold">Provider</th>
@@ -118,7 +118,7 @@ export function PrivacyTab() {
         </div>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-light-border bg-light-surface p-5 dark:border-dark-border dark:bg-dark-surface">
+      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
         <h2 className="text-xl font-semibold">Contact</h2>
         <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
           For privacy questions, contact{' '}

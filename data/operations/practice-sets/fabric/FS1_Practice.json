@@ -1,0 +1,506 @@
+{
+  "topic": "fabric",
+  "title": "Practice Set FS1 — Design GridUnion's Multi-Tenant Workspace Architecture",
+  "description": "GridUnion Continental's platform team is designing the post-acquisition Fabric workspace architecture for 4 countries, 12 teams, 80 engineers, and 500+ pipelines. Choose the workspace namespace strategy from competing alternatives, design the three-tier naming convention, review the proposed initial layout from the pre-acquisition NordGrid team, build the data product manifest for the unified Silver meter table, and synthesize all of these into the complete platform architecture specification.",
+  "version": "authored 2026-04-09, targets Microsoft Fabric GA 2025+",
+  "metadata": {
+    "moduleId": "module-FS1",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 95,
+    "maximumDurationMinutes": 120,
+    "taskCount": 5,
+    "scenarioCompany": "GridUnion Continental",
+    "scenarioScale": "5M meters, 30 regions, 4 countries (DE/FR/NL/LU), 12 teams, 80 engineers, 500+ pipelines, 80+ workspaces, 4 capacities",
+    "modulePhase": "scaling_patterns",
+    "taskTypeMix": {
+      "tradeOffAnalysis": 2,
+      "designReview": 1,
+      "rootCauseAnalysis": 0,
+      "designArtifact": 1,
+      "architecturalSynthesis": 1
+    },
+    "calibrationNotes": "First senior-level Fabric practice set. Establishes the calibration anchors for the entire senior track: (1) trade-off analysis tasks with 2 defensible primary answers, ranking + multi-select factors + reasoning fields, and wider numeric tolerances; (2) design review tasks with realistic (not strawman) weaknesses requiring deep understanding to identify; (3) design artifact tasks validated for structural properties not exact values; (4) architectural synthesis with combined grading template (50%) + dict (50%) per section 6.2. Senior task philosophy from section 6.1: the shift from 'fix this problem' (mid-level) to 'design the solution for this class of problems' (senior). Task type mix (2 trade-off + 1 design review + 1 design artifact + 1 synthesis) is within all section 6.2 limits."
+  },
+  "datasets": [],
+  "tasks": [
+    {
+      "id": "module-FS1-task-01",
+      "title": "Choose GridUnion's Workspace Namespace Strategy",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion Continental's platform team is in week 3 of the post-acquisition merger. The pre-acquisition NordGrid platform had 13 workspaces across 1 country, 3 teams, 15 engineers. GridUnion will have ~80 workspaces across 4 countries, 12 teams, 80 engineers, 500+ pipelines. The mid-level hybrid pattern (layer-based shared + team sandboxes) does not extend cleanly because the regulatory boundary between countries adds a constraint that NordGrid never faced.\n\nThree workspace namespace strategies are on the table for the architecture review:\n\n  OPTION A — Country-tenant primary axis\n  ----------------------------------------\n  Each country gets its own workspace tree for the medallion layers.\n  Workspaces:\n    {country}_bronze_{env}      (4 countries × 3 envs = 12)\n    {country}_silver_{env}      (4 × 3 = 12)\n    {country}_gold_{env}        (4 × 3 = 12)\n    shared_platinum_{env}       (3 — cross-country curated layer)\n    shared_analytics_{env}      (3)\n    shared_ml_{env}             (3)\n    shared_platform_{env}       (3)\n    team_sandboxes              (12 — one per team)\n  Total: ~60 workspaces\n  Country owns: physical data, regulatory boundary, residency\n  Shared owns: cross-country analytics, ML, platform utilities\n\n  OPTION B — Domain-tenant primary axis\n  ----------------------------------------\n  Workspaces are organized by business domain. Country becomes a column in the data,\n  enforced by RLS rather than workspace boundaries.\n  Workspaces:\n    {domain}_bronze_{env}       (8 domains × 3 envs = 24)\n    {domain}_silver_{env}       (8 × 3 = 24)\n    {domain}_gold_{env}         (8 × 3 = 24)\n    shared_analytics_{env}      (3)\n    shared_platform_{env}       (3)\n    team_sandboxes              (12)\n  Total: ~90 workspaces\n  Domain owns: business logic, schema, contracts\n  Country isolation: enforced by RLS predicates within each workspace\n\n  OPTION C — Hybrid country/layer\n  ----------------------------------------\n  Country owns the raw and cleansed layers (Bronze, Silver) where regulatory residency\n  applies. Curated layers (Gold, Platinum) are shared across countries with column-level\n  security and RLS handling cross-country access.\n  Workspaces:\n    {country}_bronze_{env}      (4 × 3 = 12)\n    {country}_silver_{env}      (4 × 3 = 12)\n    shared_gold_{env}           (3)\n    shared_platinum_{env}       (3)\n    shared_analytics_{env}      (3)\n    shared_ml_{env}             (3)\n    shared_platform_{env}       (3)\n    team_sandboxes              (12)\n  Total: ~51 workspaces\n  Country owns: raw + cleansed (regulatory layer)\n  Shared owns: curated + analytics + ML (cross-country layer)\n\nThe architecture committee meets next Tuesday. Your job is to make the recommendation.",
+        "task": "Rank the three options, identify the constraints that drove your ranking, recommend one with reasoning, and estimate the workspace count under your recommendation.",
+        "validationHint": "There are TWO defensible primary recommendations. Option C (hybrid) is the canonical answer that matches GridUnion's actual constraints — it satisfies the regulatory boundary at the layer where it matters (Bronze/Silver) without duplicating the curated layers across countries. Option A (country-tenant) is also defensible if regulatory simplicity is the dominant concern — it duplicates more but provides the cleanest audit story. Option B (domain-tenant) is defensible only with significant caveats and is the least-recommended of the three because it pushes country isolation into RLS predicates, which is harder to audit and easier to misconfigure."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS1-01-F1",
+            "type": "rank_priorities",
+            "label": "Rank the three options from BEST FIT (1) to WORST FIT (3) for GridUnion's specific constraints (4 countries, 12 teams, regulatory residency requirements, ~80 engineer scale).",
+            "options": [
+              "Option A — Country-tenant primary axis",
+              "Option B — Domain-tenant primary axis",
+              "Option C — Hybrid country/layer"
+            ],
+            "canonicalOrdering": ["Option C — Hybrid country/layer", "Option A — Country-tenant primary axis", "Option B — Domain-tenant primary axis"],
+            "acceptableAlternativeOrderings": [
+              ["Option A — Country-tenant primary axis", "Option C — Hybrid country/layer", "Option B — Domain-tenant primary axis"]
+            ],
+            "rationale": "Hybrid (C) is canonically best because it places the workspace boundary at the regulatory layer and shares the cross-country layer where most analytics happens. Country-tenant (A) is the acceptable alternative because some teams reasonably prefer maximum auditability over reduced workspace count. Domain-tenant (B) is consistently last because country isolation via RLS is harder to audit than via workspace boundaries."
+          },
+          {
+            "id": "FS1-01-F2",
+            "type": "multi_select",
+            "label": "Which constraints most influenced your ranking? (Select all that apply — at least 3 must be selected.)",
+            "options": [
+              "Regulatory residency requirements (BNetzA / CRE / ACM / ILR)",
+              "Cross-country analytics frequency",
+              "Team ownership clarity at 12-team scale",
+              "Workspace count and naming complexity",
+              "Audit and compliance evidence generation",
+              "Cost allocation by country",
+              "Migration friction from the NordGrid layout",
+              "ML team's need for cross-country data access"
+            ],
+            "expectedSelections": [
+              "Regulatory residency requirements (BNetzA / CRE / ACM / ILR)",
+              "Cross-country analytics frequency",
+              "Team ownership clarity at 12-team scale",
+              "Audit and compliance evidence generation"
+            ],
+            "rationale": "The 4 dominant constraints are regulatory residency (the new dimension at senior level), cross-country analytics (the value driver for sharing layers), team ownership clarity (the operational concern at 12-team scale), and audit (the compliance dimension). Workspace count and migration friction are real but secondary. ML cross-country access is solved by either A or C; not the deciding factor."
+          },
+          {
+            "id": "FS1-01-F3",
+            "type": "single_select",
+            "label": "Your primary recommendation to the architecture committee:",
+            "options": [
+              "Option A — Country-tenant primary axis. Maximum regulatory clarity, cleanest audit, willing to accept the duplicate-curated-layer cost.",
+              "Option B — Domain-tenant primary axis. Centralized domain ownership, RLS enforces country boundaries.",
+              "Option C — Hybrid country/layer. Country isolation where regulators care (Bronze/Silver), shared curation where the value lives (Gold/Platinum)."
+            ],
+            "primaryCorrect": "Option C — Hybrid country/layer. Country isolation where regulators care (Bronze/Silver), shared curation where the value lives (Gold/Platinum).",
+            "secondaryCorrect": "Option A — Country-tenant primary axis. Maximum regulatory clarity, cleanest audit, willing to accept the duplicate-curated-layer cost.",
+            "rationale": "Option C is the canonical recommendation: it matches the constraint where the constraint applies (regulatory boundary at the data residency layer) without paying the cost everywhere. Option A is the acceptable alternative when the team prioritizes audit simplicity over operational efficiency — both are defensible architectural choices made by real teams. Option B is rejected: pushing country isolation into RLS makes audit evidence generation much harder and creates a class of misconfiguration bugs that workspace boundaries prevent structurally."
+          },
+          {
+            "id": "FS1-01-F4",
+            "type": "numeric",
+            "label": "Estimated total workspace count under your recommended option (including team sandboxes). Tolerance: ±10.",
+            "primaryCorrectAnswer": 51,
+            "secondaryCorrectAnswer": 60,
+            "tolerance": 10,
+            "rationale": "Hybrid (C) totals ~51 workspaces. Country-tenant (A) totals ~60. Both are within their respective tolerance windows. A student who picked Option B should have answered ~90, which is OUT of tolerance for either canonical answer — this is intentional, the numeric field acts as a consistency check between the recommendation field and the count field."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS1-task-02",
+      "title": "Design the Three-Tier Namespace Convention",
+      "type": "trade_off_analysis",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "Once the workspace strategy is chosen (Task 1), GridUnion needs a naming convention that encodes the workspace's tenant, domain, layer, and environment so that operators can find any workspace by name and tooling can parse the structure. Fabric workspace names have a hard limit of approximately 80 characters and a restricted character set (alphanumeric + hyphens + underscores).\n\nThree naming conventions are on the table:\n\n  CONVENTION A — Flat with environment suffix\n  ----------------------------------------\n  Pattern: {domain}_{layer}_{env}\n  Examples:\n    meters_bronze_de_prod\n    meters_silver_fr_staging\n    billing_gold_shared_dev\n  Identifier length: 18-30 characters typical\n  Pros: Short, easy to type, easy to scan visually\n  Cons: No tenant/organization prefix, ambiguous if GridUnion ever\n         shares workspaces with subsidiaries\n\n  CONVENTION B — Three-tier hierarchical with explicit prefix\n  ----------------------------------------\n  Pattern: gu-{tenant}-{domain}-{layer}-{env}\n  Examples:\n    gu-de-meters-bronze-prod\n    gu-fr-meters-silver-staging\n    gu-shared-billing-gold-dev\n  Identifier length: 22-35 characters typical\n  Pros: Self-describing, sortable, parseable by tooling, unambiguous\n  Cons: Slightly longer, hyphens conflict with some Git path conventions\n\n  CONVENTION C — Path-based with deep hierarchy\n  ----------------------------------------\n  Pattern: gridunion/{country}/{domain}/{layer}/{env}\n  Examples:\n    gridunion/de/meters/bronze/prod\n    gridunion/fr/meters/silver/staging\n    gridunion/shared/billing/gold/dev\n  Identifier length: 30-50 characters typical\n  Pros: Maximum readability, mirrors filesystem hierarchy, intuitive for new engineers\n  Cons: Forward slashes are invalid in Fabric workspace names — would require\n         encoding (replace / with _ or -), which defeats the readability advantage\n\nThe naming convention will outlive the people who choose it. Migration is expensive (every reference in code, docs, dashboards, and GitOps repos must be updated). Pick once, live with it.",
+        "task": "Rank the three conventions, identify the constraints that drove your ranking, recommend one, and verify that the longest possible identifier under your recommendation fits within Fabric's ~80 character limit.",
+        "validationHint": "Convention B (three-tier hierarchical) is the canonical recommendation: parseable by tooling, sortable, and self-describing without violating Fabric's character set. The 'gu-' prefix is a tenant marker that lets the convention coexist with other Microsoft tenants if needed. Convention A is acceptable for teams that prioritize brevity over self-description but loses parseability. Convention C is rejected because it requires encoding the slashes, which defeats its readability advantage. The longest realistic identifier under Convention B is approximately 35-40 characters, well under the 80-char limit."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS1-02-F1",
+            "type": "rank_priorities",
+            "label": "Rank the three naming conventions from BEST (1) to WORST (3) for GridUnion's operational needs.",
+            "options": [
+              "Convention A — Flat with environment suffix",
+              "Convention B — Three-tier hierarchical with explicit prefix",
+              "Convention C — Path-based with deep hierarchy"
+            ],
+            "canonicalOrdering": ["Convention B — Three-tier hierarchical with explicit prefix", "Convention A — Flat with environment suffix", "Convention C — Path-based with deep hierarchy"],
+            "acceptableAlternativeOrderings": [
+              ["Convention A — Flat with environment suffix", "Convention B — Three-tier hierarchical with explicit prefix", "Convention C — Path-based with deep hierarchy"]
+            ],
+            "rationale": "B is canonically first because it is parseable, sortable, and self-describing. A is acceptable as the alternative if brevity is the dominant concern (some teams prefer it). C is consistently last because forward slashes are invalid in Fabric workspace names — the convention is unimplementable as written."
+          },
+          {
+            "id": "FS1-02-F2",
+            "type": "multi_select",
+            "label": "Which factors drove your ranking? (Select all that apply.)",
+            "options": [
+              "Compatibility with Fabric's workspace name character set",
+              "Parseability by tooling (Git automation, CI/CD scripts)",
+              "Readability for new engineers",
+              "Sortability when listing workspaces alphabetically",
+              "Identifier length (must fit in ~80 char limit)",
+              "Migration cost from the NordGrid naming convention",
+              "Disambiguity in cross-tenant scenarios"
+            ],
+            "expectedSelections": [
+              "Compatibility with Fabric's workspace name character set",
+              "Parseability by tooling (Git automation, CI/CD scripts)",
+              "Sortability when listing workspaces alphabetically",
+              "Identifier length (must fit in ~80 char limit)"
+            ],
+            "rationale": "Compatibility is the load-bearing factor — a convention that uses invalid characters (Convention C with slashes) is unimplementable regardless of its other virtues. Parseability and sortability are the next tier — they enable tooling that all 12 teams will rely on. Identifier length is the third tier because 80 characters is generous but not infinite. Readability and migration cost are real but secondary."
+          },
+          {
+            "id": "FS1-02-F3",
+            "type": "single_select",
+            "label": "Your primary recommendation:",
+            "options": [
+              "Convention A — Flat with environment suffix",
+              "Convention B — Three-tier hierarchical with explicit prefix",
+              "Convention C — Path-based with deep hierarchy (with slash-to-hyphen encoding)"
+            ],
+            "primaryCorrect": "Convention B — Three-tier hierarchical with explicit prefix",
+            "secondaryCorrect": "Convention A — Flat with environment suffix",
+            "rationale": "B is canonical for the parseability and self-description benefits. A is acceptable when the team prefers brevity. C is rejected even with encoding because the encoding negates the readability advantage that was its sole virtue."
+          },
+          {
+            "id": "FS1-02-F4",
+            "type": "numeric",
+            "label": "What is the LONGEST possible workspace identifier under your recommended convention, given GridUnion's actual values? (Use the longest realistic combinations: country=netherlands, domain=regulatory_compliance, layer=platinum, env=production. Tolerance: ±5 characters.)",
+            "primaryCorrectAnswer": 47,
+            "secondaryCorrectAnswer": 35,
+            "tolerance": 5,
+            "rationale": "Convention B example: 'gu-netherlands-regulatory_compliance-platinum-production' = 47 characters (using underscores within a token and hyphens between tokens). Convention A example: 'regulatory_compliance_platinum_netherlands_production' = 53 chars. Both fit under 80. Acceptable answers vary based on the specific abbreviations the student uses; tolerance ±5 catches reasonable variations. The point is to verify the student computed the worst case and confirmed it fits."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS1-task-03",
+      "title": "Review GridUnion's Initial Workspace Layout",
+      "type": "design_review",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "The pre-acquisition NordGrid platform team has proposed extending their existing workspace layout to GridUnion Continental. They argue the layout 'worked fine for NordGrid' and want to minimize migration work. The proposed layout for review:\n\n  PROPOSED LAYOUT — submitted by ex-NordGrid platform lead\n  ============================================================\n  Workspaces:\n    lh_bronze_production\n    lh_silver_production\n    lh_gold_production\n    lh_bronze_staging\n    lh_silver_staging\n    lh_gold_staging\n    lh_bronze_dev\n    lh_silver_dev\n    lh_gold_dev\n    ws_engineering_sandbox\n    ws_analytics_sandbox\n    ws_ml_sandbox\n\n  OWNERSHIP (per the proposal):\n    lh_bronze_production:  Owners = [eng_lead_de, eng_lead_fr, eng_lead_nl, eng_lead_lu]\n    lh_silver_production:  Owners = [eng_lead_de, eng_lead_fr, eng_lead_nl, eng_lead_lu]\n    lh_gold_production:    Owners = [eng_lead_de, eng_lead_fr, eng_lead_nl, eng_lead_lu]\n    (other layers omitted for brevity)\n\n  DATA RESIDENCY (per the proposal):\n    All meter data from all 4 countries lives in lh_silver_production.\n    BNetzA-governed German data, CRE-governed French data, ACM-governed Dutch data,\n    and ILR-governed Luxembourg data are co-located in the same Lakehouse.\n    Country distinction is preserved as a 'country' column in each table.\n    Row-level security restricts users to their assigned country.\n\n  PLATFORM TEAM:\n    No dedicated workspace. Platform utilities live in lh_silver_production alongside\n    the production data.\n\n  RATIONALE FROM THE PROPOSAL:\n    'NordGrid's layout worked well for 3 teams. With 12 teams we just add more sandboxes.\n    The medallion layers are already shared in the NordGrid model, so cross-country sharing\n    is automatic. RLS handles the country-level isolation, which is what the regulators\n    actually care about (data access, not data location). This minimizes migration work.'\n\nThe architecture committee asked you to review the proposal and submit a written critique before next Tuesday.",
+        "task": "Identify the issues in the proposed layout, rank them by severity, and recommend a remediation approach. Note: this is not a strawman — the proposal represents a genuinely defensible position from someone who built the NordGrid platform successfully. The issues are subtle and require senior-level reasoning to identify.",
+        "validationHint": "There are 5 substantive issues: (1) regulatory residency violation — German data must be physically isolated from non-German data per BNetzA, RLS is not sufficient as 'data location' is interpreted as physical isolation by EU regulators; (2) ownership ambiguity — every production workspace has 4 co-equal owners with no single accountable lead, which fails on incident response; (3) no platform team workspace — platform utilities sharing the production data Lakehouse is a security and dependency anti-pattern; (4) no environment isolation per country — all 4 countries' production data is in the same workspace, so any production workspace incident affects all 4 regulators simultaneously; (5) NordGrid naming convention does not encode country, blocking the namespace from Task 2. The MOST critical issue is (1) — regulatory residency violation is a compliance failure, not just a design preference."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS1-03-F1",
+            "type": "multi_select",
+            "label": "Which substantive issues are present in the proposal? (Select all that apply.)",
+            "options": [
+              "Regulatory residency violation: physical co-location of country-regulated data violates BNetzA/CRE/ACM/ILR data location requirements",
+              "Ownership ambiguity: production workspaces have 4 co-equal owners with no single accountable lead",
+              "No platform team workspace: platform utilities sharing the production data Lakehouse",
+              "No environment isolation per country: a single production workspace incident affects all 4 countries",
+              "Naming convention does not encode country, breaking the namespace strategy from Task 2",
+              "Insufficient sandbox count for 12 teams (only 3 sandboxes proposed)",
+              "No dev environment for the engineering team",
+              "Bronze layer is missing"
+            ],
+            "expectedSelections": [
+              "Regulatory residency violation: physical co-location of country-regulated data violates BNetzA/CRE/ACM/ILR data location requirements",
+              "Ownership ambiguity: production workspaces have 4 co-equal owners with no single accountable lead",
+              "No platform team workspace: platform utilities sharing the production data Lakehouse",
+              "No environment isolation per country: a single production workspace incident affects all 4 countries",
+              "Naming convention does not encode country, breaking the namespace strategy from Task 2"
+            ],
+            "rationale": "5 substantive issues are present and should all be selected. The 3 distractors at the bottom are NOT real issues: 3 sandboxes for 12 teams is insufficient but is mentioned in the proposal as something to scale up; the dev environment exists in the proposal; the Bronze layer exists. Distractors test whether the student is reading carefully or just selecting everything."
+          },
+          {
+            "id": "FS1-03-F2",
+            "type": "rank_priorities",
+            "label": "Rank the 5 issues from MOST CRITICAL (1) to LEAST CRITICAL (5).",
+            "options": [
+              "Regulatory residency violation",
+              "Ownership ambiguity",
+              "No platform team workspace",
+              "No environment isolation per country",
+              "Naming convention does not encode country"
+            ],
+            "canonicalOrdering": ["Regulatory residency violation", "No environment isolation per country", "Ownership ambiguity", "No platform team workspace", "Naming convention does not encode country"],
+            "acceptableAlternativeOrderings": [
+              ["Regulatory residency violation", "Ownership ambiguity", "No environment isolation per country", "No platform team workspace", "Naming convention does not encode country"]
+            ],
+            "rationale": "Regulatory residency MUST be ranked #1 because it is the only compliance failure on the list — the others are operational risks but residency is a legal/contractual breach. Environment isolation per country is the closely-related #2 because any production incident becomes a 4-country incident under the proposal. Ownership ambiguity and platform workspace are operational concerns ranked 3-4. Naming is the lowest priority because it can be fixed without re-architecting."
+          },
+          {
+            "id": "FS1-03-F3",
+            "type": "single_select",
+            "label": "Which issue is the BIGGEST blocker for production deployment of the proposed layout?",
+            "options": [
+              "Regulatory residency violation — the proposal cannot ship to production without BNetzA/CRE/ACM/ILR review and likely rejection",
+              "Ownership ambiguity — incidents will have no clear responder",
+              "Naming convention — it conflicts with the chosen namespace strategy",
+              "No platform team workspace — the team cannot operate without it"
+            ],
+            "primaryCorrect": "Regulatory residency violation — the proposal cannot ship to production without BNetzA/CRE/ACM/ILR review and likely rejection",
+            "secondaryCorrect": null,
+            "rationale": "Single correct answer here, no ambiguity. The other issues cause operational pain; the residency violation is the only one that can result in regulatory penalties and forced platform shutdown. Senior-level recognition: compliance failures are categorically different from operational failures — they should be ranked above any operational concern when present."
+          },
+          {
+            "id": "FS1-03-F4",
+            "type": "numeric",
+            "label": "Approximately how many ADDITIONAL workspaces would be needed to fix the residency and isolation issues, beyond the 12 in the proposal? (Tolerance: ±5)",
+            "primaryCorrectAnswer": 24,
+            "secondaryCorrectAnswer": 18,
+            "tolerance": 5,
+            "rationale": "The fix requires per-country Bronze and Silver workspaces in each environment: 4 countries × 2 layers × 3 envs = 24 new workspaces (replacing the 6 generic Bronze/Silver workspaces). Plus 3 environments for the platform team workspace = 3 more. Net additional: 24 - 6 + 3 = 21, rounded to 24 with tolerance. A student who only adds production country workspaces gets ~12 (out of tolerance). A student who proposes per-country EVERYTHING gets ~36 (also out of tolerance — over-correction)."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-FS1-task-04",
+      "title": "Build the Data Product Manifest for Silver Meters",
+      "type": "design_artifact",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "GridUnion's Data Product Model (FS1 Lesson 4) requires every shared data product to publish a manifest in the OneLake data hub. The manifest tells consumers what they can rely on: the schema, the freshness guarantee, the quality bounds, the owner, and the deprecation policy. Without a manifest, a Lakehouse table is not a data product — it is just storage that someone happens to read.\n\nYour task is to author the manifest for the unified German Silver meter table (lh_de_silver_meters), which will be consumed by 8 downstream pipelines across 4 teams. The manifest is a Python dictionary that follows GridUnion's standard template.\n\nTHE STANDARD TEMPLATE (from FS1 Lesson 4):\n\n  manifest = {\n      'name': str,                  # the product name (no spaces, lowercase)\n      'version': str,               # semver: major.minor.patch\n      'owner_team': str,            # the single accountable team (not a list)\n      'workspace': str,             # the Fabric workspace housing the table\n      'tenant': str,                # gridunion\n      'country': str,               # one of: de, fr, nl, lu, shared\n      'layer': str,                 # one of: bronze, silver, gold, platinum\n      'schema_contract': {          # column definitions with types and constraints\n          '<col_name>': {\n              'type': str,\n              'nullable': bool,\n              'description': str\n          },\n          ...\n      },\n      'sla': {\n          'freshness_minutes': int,    # max minutes between source and table\n          'uptime_pct': float,         # 99.0, 99.5, 99.9, etc.\n      },\n      'quality_thresholds': {\n          'row_count_min': int,\n          'null_rate_max_pct': float,\n          'duplicate_rate_max_pct': float,\n      },\n      'retention_days': int,        # how long the table keeps history\n      'deprecation_policy': {\n          'notice_period_days': int,  # GridUnion standard is 90\n          'migration_window_days': int,\n      },\n      'consumers': list,            # the teams that consume this product\n      'classification': str,        # 'public', 'internal', 'confidential', 'restricted'\n  }\n\nFor lh_de_silver_meters specifically:\n  - Owner: de_data_engineering\n  - Workspace: gu-de-meters-silver-prod\n  - Country: de, layer: silver\n  - Schema: meter_id (string, not null), daily_kw (double, not null), date (string, not null), region (string, not null), customer_type (string, nullable)\n  - SLA: freshness 60 minutes (the table is updated within 1 hour of source), uptime 99.9%\n  - Quality: minimum 1,000,000 rows expected, null rate under 0.1%, duplicate rate under 0.01%\n  - Retention: 1095 days (3 years)\n  - Deprecation: 90 days notice, 30 days migration window (GridUnion standards)\n  - Consumers: ['de_billing', 'de_analytics', 'shared_ml', 'shared_compliance']\n  - Classification: 'confidential' (German PII regulated by BNetzA)",
+        "task": "Build the Python dict called `manifest` matching the template above with the values specified for lh_de_silver_meters. Every required key from the template must be present and correctly typed.",
+        "validationHint": "Build the manifest literally with the values from the context. The schema_contract dict has 5 column entries (meter_id, daily_kw, date, region, customer_type). The consumers list has exactly 4 entries. The classification is 'confidential'. The retention is 1095 (3 years × 365 days). The SLA freshness is 60 minutes."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS1 Lesson 4: data product manifest for the unified German Silver meter table.\n# The manifest is the public contract between this data product and its consumers.\n\n# YOUR SOLUTION BELOW\n# Build manifest dict matching the template in the task description.\n# Every required key must be present with the values from the context.\n\nmanifest = {\n    # Fill in all required keys per the template\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(manifest, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS1-04-A1",
+          "description": "manifest has all 13 required top-level keys",
+          "check": "set(manifest.keys()) >= {'name', 'version', 'owner_team', 'workspace', 'tenant', 'country', 'layer', 'schema_contract', 'sla', 'quality_thresholds', 'retention_days', 'deprecation_policy', 'consumers', 'classification'}"
+        },
+        {
+          "id": "FS1-04-A2",
+          "description": "owner_team is 'de_data_engineering' (a single string, not a list)",
+          "check": "manifest['owner_team'] == 'de_data_engineering' and isinstance(manifest['owner_team'], str)"
+        },
+        {
+          "id": "FS1-04-A3",
+          "description": "country is 'de' and layer is 'silver'",
+          "check": "manifest['country'] == 'de' and manifest['layer'] == 'silver'"
+        },
+        {
+          "id": "FS1-04-A4",
+          "description": "tenant is 'gridunion'",
+          "check": "manifest['tenant'] == 'gridunion'"
+        },
+        {
+          "id": "FS1-04-A5",
+          "description": "workspace follows the namespace from Task 2 ('gu-de-meters-silver-prod')",
+          "check": "manifest['workspace'] == 'gu-de-meters-silver-prod'"
+        },
+        {
+          "id": "FS1-04-A6",
+          "description": "schema_contract has all 5 expected columns (meter_id, daily_kw, date, region, customer_type)",
+          "check": "set(manifest['schema_contract'].keys()) == {'meter_id', 'daily_kw', 'date', 'region', 'customer_type'}"
+        },
+        {
+          "id": "FS1-04-A7",
+          "description": "Every column in schema_contract has type, nullable, and description",
+          "check": "all(set(c.keys()) >= {'type', 'nullable', 'description'} for c in manifest['schema_contract'].values())"
+        },
+        {
+          "id": "FS1-04-A8",
+          "description": "customer_type is the only nullable column",
+          "check": "manifest['schema_contract']['customer_type']['nullable'] == True and all(manifest['schema_contract'][c]['nullable'] == False for c in ['meter_id', 'daily_kw', 'date', 'region'])"
+        },
+        {
+          "id": "FS1-04-A9",
+          "description": "sla.freshness_minutes is 60 and sla.uptime_pct is 99.9",
+          "check": "manifest['sla']['freshness_minutes'] == 60 and manifest['sla']['uptime_pct'] == 99.9"
+        },
+        {
+          "id": "FS1-04-A10",
+          "description": "quality_thresholds has the 3 expected keys with correct values",
+          "check": "manifest['quality_thresholds']['row_count_min'] == 1000000 and manifest['quality_thresholds']['null_rate_max_pct'] == 0.1 and manifest['quality_thresholds']['duplicate_rate_max_pct'] == 0.01"
+        },
+        {
+          "id": "FS1-04-A11",
+          "description": "retention_days is 1095 (3 years)",
+          "check": "manifest['retention_days'] == 1095"
+        },
+        {
+          "id": "FS1-04-A12",
+          "description": "deprecation_policy has 90-day notice and 30-day migration window",
+          "check": "manifest['deprecation_policy']['notice_period_days'] == 90 and manifest['deprecation_policy']['migration_window_days'] == 30"
+        },
+        {
+          "id": "FS1-04-A13",
+          "description": "consumers is a list with all 4 expected teams",
+          "check": "set(manifest['consumers']) == {'de_billing', 'de_analytics', 'shared_ml', 'shared_compliance'}"
+        },
+        {
+          "id": "FS1-04-A14",
+          "description": "classification is 'confidential' (German PII under BNetzA)",
+          "check": "manifest['classification'] == 'confidential'"
+        }
+      ],
+      "partialCredit": "14 independent assertions. Each passed assertion earns 1/14 credit. The structural assertions (A1, A6, A7) and the value assertions are graded independently — students who get the structure right but miss a few values still earn most of the credit."
+    },
+    {
+      "id": "module-FS1-task-05",
+      "title": "GridUnion Continental Platform Architecture",
+      "type": "architectural_synthesis",
+      "estimatedMinutes": 23,
+      "description": {
+        "context": "This is the synthesis task. The architecture committee meets next Tuesday and you are presenting GridUnion's complete platform architecture. Your presentation must integrate:\n  - The workspace strategy from Task 1 (your recommendation, with reasoning)\n  - The naming convention from Task 2 (your recommendation, with verification)\n  - The fixes for the issues from Task 3 (the proposal review)\n  - The data product manifest pattern from Task 4 (as the standard for all production tables)\n  - The four-layer Lakehouse model (Bronze / Silver / Gold / Platinum) from FS1 Lesson 6\n  - Cross-team ownership contracts (each item has exactly one owner team) from FS1 Lesson 5\n  - The platform observability commitment from FS1 Lesson 9\n\nYour deliverable has two parts: (1) DIAGNOSIS — fill the 4-field template confirming the platform-level decisions and the load-bearing principle. (2) FIX — build the complete architecture spec as a Python dict that will be reviewed by the committee and version-controlled in Git.",
+        "task": "Fill the diagnosis template AND build the platform_architecture dict.\n\nFor the FIX: Build a Python dict called platform_architecture with these top-level keys:\n  - workspace_strategy: 'hybrid_country_layer' (from Task 1's canonical recommendation) OR 'country_tenant' (from Task 1's secondary)\n  - naming_convention: 'three_tier_hierarchical' (from Task 2's canonical) OR 'flat_with_env_suffix' (from Task 2's secondary)\n  - tenant_prefix: 'gu'\n  - countries: a list of all 4: ['de', 'fr', 'nl', 'lu']\n  - layers: a list of all 4: ['bronze', 'silver', 'gold', 'platinum']\n  - environments: a list of all 3: ['dev', 'staging', 'prod']\n  - layer_ownership: a dict mapping each layer to its owning team category. bronze→'country_data_engineering', silver→'country_data_engineering', gold→'country_domain', platinum→'shared_analytics'\n  - data_product_manifest_required: True (every production item must publish a manifest)\n  - single_owner_per_item: True (no co-ownership of items)\n  - regulatory_isolation: 'workspace_boundary' (NOT 'rls_only')\n  - platform_observability: a dict with at least 'central_dashboard': True and 'sla_per_data_product': True",
+        "validationHint": "The architecture integrates the recommended values from Tasks 1-4. The keystone is regulatory_isolation = 'workspace_boundary' — students who answer 'rls_only' have not internalized the Task 3 lesson that residency requires physical isolation, not access control. The single_owner_per_item key reflects the Task 3 finding that 4-co-owner workspaces fail on incident response. The data_product_manifest_required key reflects the Task 4 standard."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "FS1-05-F1",
+            "type": "single_select",
+            "label": "DIAGNOSIS 1: What is the LOAD-BEARING constraint that distinguishes GridUnion's platform from NordGrid's?",
+            "options": [
+              "Multi-country regulatory residency: NordGrid had one regulator and could co-locate all data. GridUnion has 4 regulators with potentially conflicting residency requirements that must be enforced at the workspace boundary, not the access policy",
+              "The 4x increase in data volume (5M meters vs 1.2M)",
+              "The 4x increase in team count (12 vs 3)",
+              "The new ML team's compute requirements"
+            ],
+            "primaryCorrect": "Multi-country regulatory residency: NordGrid had one regulator and could co-locate all data. GridUnion has 4 regulators with potentially conflicting residency requirements that must be enforced at the workspace boundary, not the access policy",
+            "secondaryCorrect": null,
+            "rationale": "Regulatory residency is the categorical change between NordGrid and GridUnion. Volume and team count are quantitative changes that mid-level patterns can absorb. Residency is qualitative — it forces architectural choices (workspace boundary, not RLS) that NordGrid never had to make. This is the senior-level shift in one sentence."
+          },
+          {
+            "id": "FS1-05-F2",
+            "type": "single_select",
+            "label": "DIAGNOSIS 2: Why is single_owner_per_item required even though many tables are useful to multiple teams?",
+            "options": [
+              "Single ownership creates clear incident accountability: when something breaks at 03:00 UTC, the on-call rotation knows exactly which team owns the response. Co-ownership creates the diffusion-of-responsibility pattern that the Task 3 proposal exhibits — '4 owners' means '0 owners' during an incident",
+              "Microsoft Fabric does not allow multiple owners",
+              "Single ownership is easier to type",
+              "It is a regulatory requirement"
+            ],
+            "primaryCorrect": "Single ownership creates clear incident accountability: when something breaks at 03:00 UTC, the on-call rotation knows exactly which team owns the response. Co-ownership creates the diffusion-of-responsibility pattern that the Task 3 proposal exhibits — '4 owners' means '0 owners' during an incident",
+            "secondaryCorrect": null,
+            "rationale": "The diffusion-of-responsibility pattern is the operational reason. Useful-to-many-teams is solved by data products (consumers) not by co-ownership. The owner produces, consumers read — the contract is asymmetric and the ownership is single. This is FS1 Lesson 5's central principle."
+          },
+          {
+            "id": "FS1-05-F3",
+            "type": "single_select",
+            "label": "DIAGNOSIS 3: What is the most important INVESTMENT for the platform's years 2-3?",
+            "options": [
+              "Platform observability with per-data-product SLI tracking: as the platform grows from 50 to 200 to 500 pipelines, the only sustainable way to track health is automated observability that surfaces every data product's status at a glance",
+              "More workspaces",
+              "More team sandboxes",
+              "More documentation pages"
+            ],
+            "primaryCorrect": "Platform observability with per-data-product SLI tracking: as the platform grows from 50 to 200 to 500 pipelines, the only sustainable way to track health is automated observability that surfaces every data product's status at a glance",
+            "secondaryCorrect": null,
+            "rationale": "Observability is the year-2-3 investment because the cost of NOT having it grows quadratically with team count. With 3 teams (NordGrid), engineers can know the platform state by talking to each other. With 12 teams (GridUnion year 1), this stops working. With 30 teams (year 3 projection), observability is the only mechanism that scales. This is FS1 Lesson 9."
+          },
+          {
+            "id": "FS1-05-F4",
+            "type": "single_select",
+            "label": "DIAGNOSIS 4: A junior engineer asks: 'Why don't we just use RLS for country isolation? It's simpler than per-country workspaces.' What is the senior-level answer?",
+            "options": [
+              "RLS enforces ACCESS, not LOCATION. EU energy regulators interpret residency as physical data location, not query-time filtering. A breach where French data is queried by an unauthorized German user is bad; a breach where French data is found stored in a German Azure region is a regulatory violation regardless of who queried it. RLS protects against the wrong threat model for residency",
+              "RLS is slower than workspace boundaries",
+              "RLS does not work in Microsoft Fabric",
+              "Junior engineers should not ask architectural questions"
+            ],
+            "primaryCorrect": "RLS enforces ACCESS, not LOCATION. EU energy regulators interpret residency as physical data location, not query-time filtering. A breach where French data is queried by an unauthorized German user is bad; a breach where French data is found stored in a German Azure region is a regulatory violation regardless of who queried it. RLS protects against the wrong threat model for residency",
+            "secondaryCorrect": null,
+            "rationale": "This is the senior-level distinction. Mid-level engineers think of RLS as the universal access control. Senior engineers know that access control and data location are separate concerns enforced by separate mechanisms. Residency requires location enforcement (workspace boundary, region pinning); access control requires permission enforcement (RLS, role assignments). Conflating them produces the Task 3 proposal's compliance violation."
+          }
+        ]
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "# FS1 SYNTHESIS: GridUnion Continental's complete platform architecture spec.\n# Pure Python dict — no Spark needed.\n\n# YOUR SOLUTION BELOW\n# Build platform_architecture with the structure from the task description.\n# Integrate the recommendations from Tasks 1-4.\n\nplatform_architecture = {\n    # Fill in: workspace_strategy, naming_convention, tenant_prefix, countries,\n    # layers, environments, layer_ownership, data_product_manifest_required,\n    # single_owner_per_item, regulatory_isolation, platform_observability\n}\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nimport json\nprint(json.dumps(platform_architecture, indent=2))"
+      },
+      "assertions": [
+        {
+          "id": "FS1-05-A1",
+          "description": "platform_architecture has all 11 required top-level keys",
+          "check": "set(platform_architecture.keys()) >= {'workspace_strategy', 'naming_convention', 'tenant_prefix', 'countries', 'layers', 'environments', 'layer_ownership', 'data_product_manifest_required', 'single_owner_per_item', 'regulatory_isolation', 'platform_observability'}"
+        },
+        {
+          "id": "FS1-05-A2",
+          "description": "workspace_strategy is one of the two acceptable values from Task 1",
+          "check": "platform_architecture['workspace_strategy'] in ('hybrid_country_layer', 'country_tenant')"
+        },
+        {
+          "id": "FS1-05-A3",
+          "description": "naming_convention is one of the two acceptable values from Task 2",
+          "check": "platform_architecture['naming_convention'] in ('three_tier_hierarchical', 'flat_with_env_suffix')"
+        },
+        {
+          "id": "FS1-05-A4",
+          "description": "tenant_prefix is 'gu'",
+          "check": "platform_architecture['tenant_prefix'] == 'gu'"
+        },
+        {
+          "id": "FS1-05-A5",
+          "description": "countries is the 4-country list",
+          "check": "set(platform_architecture['countries']) == {'de', 'fr', 'nl', 'lu'}"
+        },
+        {
+          "id": "FS1-05-A6",
+          "description": "layers is the 4-layer list (bronze, silver, gold, platinum)",
+          "check": "set(platform_architecture['layers']) == {'bronze', 'silver', 'gold', 'platinum'}"
+        },
+        {
+          "id": "FS1-05-A7",
+          "description": "environments is the 3-environment list",
+          "check": "set(platform_architecture['environments']) == {'dev', 'staging', 'prod'}"
+        },
+        {
+          "id": "FS1-05-A8",
+          "description": "layer_ownership has all 4 layers and assigns bronze/silver to country_data_engineering",
+          "check": "set(platform_architecture['layer_ownership'].keys()) == {'bronze', 'silver', 'gold', 'platinum'} and platform_architecture['layer_ownership']['bronze'] == 'country_data_engineering' and platform_architecture['layer_ownership']['silver'] == 'country_data_engineering'"
+        },
+        {
+          "id": "FS1-05-A9",
+          "description": "data_product_manifest_required is True (the Task 4 standard)",
+          "check": "platform_architecture['data_product_manifest_required'] == True"
+        },
+        {
+          "id": "FS1-05-A10",
+          "description": "single_owner_per_item is True (the Task 3 lesson on co-ownership)",
+          "check": "platform_architecture['single_owner_per_item'] == True"
+        },
+        {
+          "id": "FS1-05-A11",
+          "description": "regulatory_isolation is 'workspace_boundary' — the keystone of the entire set, NOT 'rls_only'",
+          "check": "platform_architecture['regulatory_isolation'] == 'workspace_boundary'"
+        },
+        {
+          "id": "FS1-05-A12",
+          "description": "platform_observability has central_dashboard and sla_per_data_product both True",
+          "check": "platform_architecture['platform_observability']['central_dashboard'] == True and platform_architecture['platform_observability']['sla_per_data_product'] == True"
+        }
+      ],
+      "partialCredit": "Combined grading: template (4 fields, 50% weight) + assertions (12 code checks, 50% weight). Final score = 0.5 * (template_passed/4) + 0.5 * (assertions_passed/12). The keystone assertion is A11 (regulatory_isolation == 'workspace_boundary') — students who set it to 'rls_only' have not internalized the Task 3 design review lesson that residency is a location constraint, not an access constraint.",
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "FS1 Lesson 2 — Multi-tenant workspace namespace strategy",
+          "FS1 Lesson 4 — Data product model with publishable manifest",
+          "FS1 Lesson 5 — Single-owner contracts (no co-ownership)",
+          "FS1 Lesson 6 — Four-layer Lakehouse model with layer-specific ownership",
+          "FS1 Lesson 9 — Platform observability with per-product SLI tracking",
+          "The senior-level distinction between access control and residency control"
+        ],
+        "minimumConceptCount": 6,
+        "rationale": "The synthesis is the convergence of Tasks 1-4 plus the FS1 lessons that don't get their own task. The keystone is the residency-vs-access distinction in F4 and A11 — the single most important architectural insight in FS1 that distinguishes senior from mid-level thinking."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 6,
+    "evidenceProvidedForDiagnosticTasks": true,
+    "combinedGradingOnSynthesis": true,
+    "tradeoffTasksHaveCompetingOptions": true,
+    "designReviewHasRealisticWeaknesses": true,
+    "answerRangesDocumented": true,
+    "calibrationNotes": "First senior-level Fabric practice set. Establishes the trade-off task pattern (rank_priorities + multi_select factors + single_select recommendation with primary+secondary correct + numeric with wider tolerance), the design review pattern (multi_select issues + rank_priorities severity + single_select biggest blocker + numeric remediation count), the design artifact pattern (14 structural assertions on a manifest dict), and the architectural synthesis pattern (combined template + dict with the keystone load-bearing assertion). Task type mix (2 trade-off + 1 design review + 1 design artifact + 1 synthesis) is within all section 6.2 limits. Multiple defensible answers are encoded throughout via primary_correct + secondary_correct fields and acceptable_alternative_orderings.",
+    "theoryPracticeBoundary": "FS1 theory teaches the platform architecture concepts in 10 lessons. The practice tests application: Task 1 forces a real architectural decision with competing options; Task 2 forces a naming-convention decision with verification math; Task 3 reproduces a realistic design review with subtle (not strawman) issues including a compliance violation; Task 4 builds the data product manifest from Lesson 4's template; Task 5 synthesizes everything into the architecture committee deliverable.",
+    "datasetNotes": "No datasets — every task is configuration artifact, design template, or trade-off analysis. This is consistent with section 6.1: senior code tasks are design artifacts rather than transformation logic. The single dataset-free shape matches FI7 in mid-level."
+  }
+}

@@ -1,0 +1,13 @@
+meter_id,customer_type,substation_id,region
+M-0001,residential,SUB-01,NORTH
+M-0002,commercial,SUB-01,NORTH
+M-0003,residential,SUB-02,NORTH
+M-0006,residential,SUB-03,SOUTH
+M-0008,commercial,SUB-03,SOUTH
+M-0011,industrial,SUB-05,EAST
+M-0012,residential,SUB-05,EAST
+M-0013,residential,SUB-06,EAST
+M-0016,commercial,SUB-07,WEST
+M-0017,residential,SUB-07,WEST
+M-0018,residential,SUB-08,WEST
+M-0019,industrial,SUB-08,WEST

@@ -99,32 +99,38 @@ export const ReadingModeDropdown = () => {
               const Icon = opt.icon;
               const isActive = mode === opt.id;
               const isFocused = focusedIndex === index;
+              // Dividers between groups: after Light (idx 1), after Kindle (idx 3)
+              const showDivider = index === 2 || index === 4;
               return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => handleModeClick(opt.id, opt.label)}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-150"
-                  style={{
-                    backgroundColor: isActive
-                      ? 'color-mix(in srgb, var(--rm-accent) 12%, transparent)'
-                      : isFocused
-                        ? 'color-mix(in srgb, var(--rm-text-secondary) 8%, transparent)'
-                        : 'transparent',
-                    color: isActive ? 'var(--rm-accent)' : 'var(--rm-text-secondary)',
-                  }}
-                  role="radio"
-                  aria-checked={isActive}
-                  tabIndex={isFocused || (focusedIndex === -1 && isActive) ? 0 : -1}
-                >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
-                  <span className="text-[11px] font-medium tracking-wide">
-                    {opt.label.charAt(0) + opt.label.slice(1).toLowerCase()}
-                  </span>
-                  {isActive && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--rm-accent)' }} />
+                <div key={opt.id}>
+                  {showDivider && (
+                    <div className="mx-3 my-0.5 h-px" style={{ backgroundColor: 'var(--rm-border)' }} />
                   )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleModeClick(opt.id, opt.label)}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-150"
+                    style={{
+                      backgroundColor: isActive
+                        ? 'color-mix(in srgb, var(--rm-accent) 12%, transparent)'
+                        : isFocused
+                          ? 'color-mix(in srgb, var(--rm-text-secondary) 8%, transparent)'
+                          : 'transparent',
+                      color: isActive ? 'var(--rm-accent)' : 'var(--rm-text-secondary)',
+                    }}
+                    role="radio"
+                    aria-checked={isActive}
+                    tabIndex={isFocused || (focusedIndex === -1 && isActive) ? 0 : -1}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="text-[11px] font-medium tracking-wide">
+                      {opt.label.charAt(0) + opt.label.slice(1).toLowerCase()}
+                    </span>
+                    {isActive && (
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--rm-accent)' }} />
+                    )}
+                  </button>
+                </div>
               );
             })}
           </div>

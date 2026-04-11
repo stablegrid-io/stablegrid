@@ -1,0 +1,444 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set 2 — The SparkSession: Your Entry Point",
+  "description": "Test your ability to create, configure, and manage SparkSessions. This practice set covers the builder pattern, configuration properties and precedence, running modes, the Spark UI, and session lifecycle management — everything you need before working with DataFrames in Module 3.",
+  "version": "authored 2026-03-30, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PS2",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 55,
+    "maximumDurationMinutes": 75,
+    "taskCount": 6,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "foundation",
+    "taskTypeMix": {
+      "conceptIdentification": 2,
+      "outputPrediction": 2,
+      "writeTheCode": 1,
+      "synthesisTemplate": 1
+    }
+  },
+  "tasks": [
+    {
+      "id": "module-PS2-task-01",
+      "title": "Match NordGrid's Tasks to SparkSession Capabilities",
+      "type": "concept_identification",
+      "estimatedMinutes": 7,
+      "description": {
+        "context": "NordGrid's new data engineer is onboarding and reviewing the team's daily meter pipeline. The pipeline script creates a SparkSession on its first line and then performs several operations. The engineer needs to understand which SparkSession capability each operation uses.",
+        "task": "For each operation the pipeline performs, identify which SparkSession capability it relies on. Each capability is accessed through a specific property or method on the spark object.",
+        "validationHint": "Each operation maps to exactly one of the five capabilities listed in the options."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS2-01-F1",
+            "type": "single_select",
+            "label": "The pipeline loads NordGrid's daily meter CSV file into a DataFrame using spark.read.csv('bronze/meters/'). Which capability is this?",
+            "options": [
+              "Read data (spark.read)",
+              "Run SQL (spark.sql())",
+              "Create DataFrames (spark.createDataFrame())",
+              "Access configuration (spark.conf)"
+            ],
+            "correctAnswer": "Read data (spark.read)"
+          },
+          {
+            "id": "PS2-01-F2",
+            "type": "single_select",
+            "label": "The pipeline checks how many shuffle partitions are configured by calling spark.conf.get('spark.sql.shuffle.partitions'). Which capability is this?",
+            "options": [
+              "Read data (spark.read)",
+              "Run SQL (spark.sql())",
+              "Access configuration (spark.conf)",
+              "Access the catalog (spark.catalog)"
+            ],
+            "correctAnswer": "Access configuration (spark.conf)"
+          },
+          {
+            "id": "PS2-01-F3",
+            "type": "single_select",
+            "label": "The pipeline registers the meter DataFrame as a temporary view, then runs spark.sql('SELECT region, AVG(daily_kw) FROM meters GROUP BY region'). Which capability is this?",
+            "options": [
+              "Read data (spark.read)",
+              "Run SQL (spark.sql())",
+              "Create DataFrames (spark.createDataFrame())",
+              "Access the catalog (spark.catalog)"
+            ],
+            "correctAnswer": "Run SQL (spark.sql())"
+          },
+          {
+            "id": "PS2-01-F4",
+            "type": "single_select",
+            "label": "The engineer checks which temporary views exist in the session by calling spark.catalog.listTables(). Which capability is this?",
+            "options": [
+              "Run SQL (spark.sql())",
+              "Access configuration (spark.conf)",
+              "Access the catalog (spark.catalog)",
+              "Read data (spark.read)"
+            ],
+            "correctAnswer": "Access the catalog (spark.catalog)"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS2-task-02",
+      "title": "Identify NordGrid's Running Modes",
+      "type": "concept_identification",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "NordGrid's data engineering team runs their PySpark pipelines in different environments: on laptops during development, on a staging cluster for validation, and on the production Kubernetes cluster. Each environment uses a different master setting in the SparkSession builder.",
+        "task": "For each master setting, identify what mode Spark runs in and what it means for the driver and executors. Then determine which setting NordGrid should avoid hardcoding in their production pipeline scripts.",
+        "validationHint": "Pay attention to the difference between local mode strings — the value inside the brackets controls parallelism."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS2-02-F1",
+            "type": "single_select",
+            "label": "A developer sets .master('local[4]') on their laptop. What does this mean?",
+            "options": [
+              "Spark connects to a cluster of 4 machines",
+              "Spark runs locally using 4 threads to simulate 4 cores",
+              "Spark runs locally with 4 GB of memory",
+              "Spark creates 4 partitions for every operation"
+            ],
+            "correctAnswer": "Spark runs locally using 4 threads to simulate 4 cores",
+            "distractorRationale": "Option 1 confuses local mode with a cluster of 4 nodes. Option 3 confuses the bracket number with memory. Option 4 confuses threads with partitions. All are plausible misreadings of the local[N] syntax."
+          },
+          {
+            "id": "PS2-02-F2",
+            "type": "single_select",
+            "label": "Another developer sets .master('local[*]'). How does this differ from local[4]?",
+            "options": [
+              "It uses all available CPU cores on the machine instead of a fixed number",
+              "It connects to all available machines on the local network",
+              "It uses unlimited memory instead of the default",
+              "It creates as many partitions as there are files to read"
+            ],
+            "correctAnswer": "It uses all available CPU cores on the machine instead of a fixed number",
+            "distractorRationale": "Option 2 sounds plausible for 'all available' but confuses local with network. Option 3 confuses cores with memory. Option 4 confuses core count with partition strategy."
+          },
+          {
+            "id": "PS2-02-F3",
+            "type": "single_select",
+            "label": "The staging cluster uses .master('yarn'). What happens in this mode?",
+            "options": [
+              "Spark runs locally but writes output to the YARN file system",
+              "Spark connects to the YARN cluster manager, which allocates real executors on separate machines",
+              "Spark creates a YARN configuration file with the session's settings",
+              "Spark uses YARN's built-in data processing engine instead of the Spark engine"
+            ],
+            "correctAnswer": "Spark connects to the YARN cluster manager, which allocates real executors on separate machines",
+            "distractorRationale": "Option 1 confuses cluster mode with local mode plus remote storage. Option 3 confuses session creation with configuration file generation. Option 4 confuses YARN (a resource manager) with a processing engine."
+          },
+          {
+            "id": "PS2-02-F4",
+            "type": "single_select",
+            "label": "NordGrid's production pipeline script does NOT set .master() in the builder. Why?",
+            "options": [
+              "Because Spark automatically detects the cluster and connects to it",
+              "Because the master is provided by spark-submit at deployment time, keeping the script portable",
+              "Because the master is not needed when running in cluster mode",
+              "Because NordGrid's cluster does not use a master node"
+            ],
+            "correctAnswer": "Because the master is provided by spark-submit at deployment time, keeping the script portable",
+            "distractorRationale": "Option 1 is plausible but Spark does not auto-detect clusters. Option 3 sounds logical but the master is always required — it just comes from spark-submit. Option 4 misunderstands cluster architecture."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS2-task-03",
+      "title": "Predict Configuration Values After Session Creation",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "A NordGrid engineer writes a script that creates a SparkSession with several configuration settings, then reads and modifies properties at runtime. The engineer wants to verify the values before running the pipeline.",
+        "task": "Read the code below and predict the output of each print statement. Pay attention to which properties were set in the builder, which were changed at runtime, and which use Spark's built-in defaults.",
+        "validationHint": "Not all properties can be changed at runtime. Memory properties are set when the JVM starts and cannot be modified afterward."
+      },
+      "evidence": {
+        "type": "code_block",
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-scada-enrichment') \\\n    .master('local[4]') \\\n    .config('spark.sql.shuffle.partitions', '16') \\\n    .config('spark.driver.memory', '4g') \\\n    .getOrCreate()\n\n# Attempt to change shuffle partitions at runtime\nspark.conf.set('spark.sql.shuffle.partitions', '32')\n\n# Attempt to change driver memory at runtime\nspark.conf.set('spark.driver.memory', '8g')\n\nprint(f\"A: {spark.conf.get('spark.app.name')}\")\nprint(f\"B: {spark.conf.get('spark.sql.shuffle.partitions')}\")\nprint(f\"C: {spark.conf.get('spark.driver.memory')}\")"
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS2-03-F1",
+            "type": "short_text",
+            "label": "What does print A output for the application name?",
+            "correctAnswer": "nordgrid-scada-enrichment",
+            "acceptableSynonyms": ["nordgrid-scada-enrichment"]
+          },
+          {
+            "id": "PS2-03-F2",
+            "type": "short_text",
+            "label": "What does print B output for shuffle partitions?",
+            "correctAnswer": "32",
+            "acceptableSynonyms": ["32"],
+            "rationale": "spark.sql.shuffle.partitions is mutable — the runtime spark.conf.set() call changes it from 16 to 32."
+          },
+          {
+            "id": "PS2-03-F3",
+            "type": "single_select",
+            "label": "What happens when the script tries to change spark.driver.memory to '8g' at runtime?",
+            "options": [
+              "The driver restarts with 8g of memory",
+              "The property string changes to '8g' but the actual memory remains 4g because memory is immutable after session creation",
+              "Spark throws an error and the script crashes",
+              "The change takes effect when the next action is triggered"
+            ],
+            "correctAnswer": "The property string changes to '8g' but the actual memory remains 4g because memory is immutable after session creation",
+            "distractorRationale": "Option 1 is plausible — students might expect dynamic resource adjustment. Option 3 is plausible — some systems do throw errors for invalid operations. Option 4 confuses lazy evaluation of data with lazy evaluation of config. The correct answer highlights the gap between the property value and the actual allocation."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS2-task-04",
+      "title": "Resolve NordGrid's Configuration Conflict",
+      "type": "output_prediction",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's platform team has set spark.sql.shuffle.partitions to 400 in the cluster's spark-defaults.conf file. A developer submits the daily turbine pipeline using spark-submit with --conf spark.sql.shuffle.partitions=16 for a quick local test. The pipeline script itself also sets the property in the builder. The developer is confused about which value Spark will actually use.",
+        "task": "Determine the active value of spark.sql.shuffle.partitions at each stage of execution. Apply the four-layer configuration precedence rule to resolve the conflict.",
+        "validationHint": "The precedence order from lowest to highest priority is: built-in defaults → spark-defaults.conf → spark-submit flags → code."
+      },
+      "evidence": {
+        "type": "scenario_with_code",
+        "layers": {
+          "builtInDefault": "spark.sql.shuffle.partitions = 200",
+          "sparkDefaultsConf": "spark.sql.shuffle.partitions  400",
+          "sparkSubmitCommand": "spark-submit --conf spark.sql.shuffle.partitions=16 pipeline.py",
+          "codeBlock": "spark = SparkSession.builder \\\n    .appName('nordgrid-turbine-pipeline') \\\n    .config('spark.sql.shuffle.partitions', '24') \\\n    .getOrCreate()"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS2-04-F1",
+            "type": "single_select",
+            "label": "If the pipeline sets .config('spark.sql.shuffle.partitions', '24') in the builder, what value is active when the session starts?",
+            "options": [
+              "200 — the built-in default always applies",
+              "400 — the cluster admin's spark-defaults.conf wins",
+              "16 — the spark-submit --conf flag overrides the file",
+              "24 — the code-level config has the highest priority"
+            ],
+            "correctAnswer": "24 — the code-level config has the highest priority",
+            "distractorRationale": "Each option represents a real layer in the precedence stack. A student who does not know the precedence order would find all four plausible."
+          },
+          {
+            "id": "PS2-04-F2",
+            "type": "single_select",
+            "label": "If the developer removes the .config() line from the code and resubmits with the same spark-submit command, what value is active?",
+            "options": [
+              "200 — falls back to the built-in default",
+              "400 — the spark-defaults.conf takes over",
+              "16 — the spark-submit --conf flag is now the highest active layer",
+              "24 — the previous code value is cached"
+            ],
+            "correctAnswer": "16 — the spark-submit --conf flag is now the highest active layer",
+            "distractorRationale": "Option 1 skips two layers. Option 2 skips the spark-submit layer. Option 4 tests whether the student understands that config is per-session, not persistent."
+          },
+          {
+            "id": "PS2-04-F3",
+            "type": "single_select",
+            "label": "If the developer also removes the --conf flag from spark-submit and resubmits, what value is active?",
+            "options": [
+              "200 — falls back to the built-in default",
+              "400 — the spark-defaults.conf is now the highest active layer",
+              "16 — the previous spark-submit value is remembered",
+              "The session fails because no value is specified"
+            ],
+            "correctAnswer": "400 — the spark-defaults.conf is now the highest active layer",
+            "distractorRationale": "Option 1 skips the conf file layer. Option 3 tests whether students think spark-submit flags persist between runs. Option 4 is a common fear — but built-in defaults ensure a value always exists."
+          },
+          {
+            "id": "PS2-04-F4",
+            "type": "ordered_ranking",
+            "label": "Rank the four configuration sources from lowest priority (1) to highest priority (4).",
+            "options": [
+              "SparkSession.builder.config()",
+              "spark-submit --conf flags",
+              "Built-in defaults",
+              "spark-defaults.conf file"
+            ],
+            "correctOrder": [
+              "Built-in defaults",
+              "spark-defaults.conf file",
+              "spark-submit --conf flags",
+              "SparkSession.builder.config()"
+            ],
+            "scoringMethod": "adjacent_swap_partial_credit"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-PS2-task-05",
+      "title": "Create NordGrid's Turbine Enrichment Session",
+      "type": "write_the_code",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "NordGrid's data engineering team is building a new pipeline to enrich SCADA turbine telemetry with location data. The pipeline will run in local mode during development on a laptop with 8 CPU cores. The team's naming convention requires the application name to include the pipeline purpose and today's date.",
+        "task": "Write the code to create a SparkSession for this pipeline. The session must have a descriptive application name following NordGrid's convention, run in local mode using all available cores, set shuffle partitions to 8 for local development, and set the Parquet compression codec to 'snappy'. Store the session in a variable called spark.",
+        "validationHint": "Your session should have exactly 4 configuration values set: app name, master, shuffle partitions, and compression codec. Verify with spark.conf.get() after creation."
+      },
+      "starterScaffold": {
+        "language": "python",
+        "content": "from pyspark.sql import SparkSession\nfrom datetime import date\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"App name:    {spark.conf.get('spark.app.name')}\")\nprint(f\"Master:      {spark.conf.get('spark.master')}\")\nprint(f\"Shuffle:     {spark.conf.get('spark.sql.shuffle.partitions')}\")\nprint(f\"Compression: {spark.conf.get('spark.sql.parquet.compression.codec')}\")"
+      },
+      "expectedOutput": {
+        "pattern": "App name:    nordgrid-turbine-enrichment-{date}\nMaster:      local[*]\nShuffle:     8\nCompression: snappy",
+        "notes": "The {date} portion must be today's date in ISO format. The exact app name prefix may vary as long as it includes 'turbine' or 'scada' and the date."
+      },
+      "assertions": [
+        {
+          "id": "PS2-05-A1",
+          "description": "spark variable exists and is a SparkSession",
+          "check": "isinstance(spark, SparkSession)"
+        },
+        {
+          "id": "PS2-05-A2",
+          "description": "Application name contains today's date",
+          "check": "date.today().isoformat() in spark.conf.get('spark.app.name')"
+        },
+        {
+          "id": "PS2-05-A3",
+          "description": "Master is set to local[*]",
+          "check": "spark.conf.get('spark.master') == 'local[*]'"
+        },
+        {
+          "id": "PS2-05-A4",
+          "description": "Shuffle partitions set to 8",
+          "check": "spark.conf.get('spark.sql.shuffle.partitions') == '8'"
+        },
+        {
+          "id": "PS2-05-A5",
+          "description": "Parquet compression codec set to snappy",
+          "check": "spark.conf.get('spark.sql.parquet.compression.codec') == 'snappy'"
+        }
+      ],
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+    },
+    {
+      "id": "module-PS2-task-06",
+      "title": "Audit NordGrid's Failed Pipeline Session",
+      "type": "synthesis",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "NordGrid's on-call engineer is investigating a production incident. The daily meter Bronze-to-Silver pipeline failed overnight at 03:12 AM. The engineer opens the cluster manager dashboard and sees 43 Spark applications listed. They need to find the failed pipeline, diagnose the configuration, and identify a resource management problem that compounded the failure.",
+        "task": "Trace the session from creation to failure. Each question tests a different Module 2 concept. Use the pipeline code and the cluster dashboard evidence below to answer.",
+        "validationHint": "This task covers session naming, the Spark UI, configuration, and session lifecycle. Each question is independent."
+      },
+      "evidence": {
+        "type": "combined",
+        "codeBlock": {
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('pipeline') \\\n    .config('spark.executor.memory', '16g') \\\n    .config('spark.sql.shuffle.partitions', '200') \\\n    .getOrCreate()\n\ntry:\n    df = spark.read.csv('bronze/meters/2026-03-22.csv', header=True)\n    df = df.filter(col('daily_kw').cast('double') > 0)\n    df.write.mode('overwrite').parquet('silver/meters/2026-03-22/')\n    print('Pipeline complete.')\nexcept Exception as e:\n    print(f'Pipeline failed: {e}')\n    # NOTE: no finally block"
+        },
+        "clusterDashboard": {
+          "type": "table",
+          "description": "Cluster manager application list (excerpt showing 5 of 43 apps)",
+          "content": "App ID      Name                                          Status     Started       Executors\napp-0041    nordgrid-daily-meters-bronze-to-silver-03-22   FINISHED   02:00 AM      8\napp-0042    pipeline                                       FAILED     03:00 AM      8\napp-0043    pipeline                                       FAILED     03:12 AM      8\napp-0044    nordgrid-scada-enrichment-03-22                 WAITING    03:30 AM      0\napp-0045    nordgrid-weather-ingest-03-22                   WAITING    03:45 AM      0"
+        }
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "PS2-06-F1",
+            "type": "single_select",
+            "label": "The on-call engineer sees 43 applications in the dashboard. Two of them are named 'pipeline'. What naming mistake did the developer make?",
+            "options": [
+              "The name is too short — Spark requires at least 10 characters",
+              "The name is not descriptive — it does not identify the pipeline, the data, or the date, making it impossible to distinguish from other applications",
+              "The name contains no version number",
+              "The name should use underscores instead of a single word"
+            ],
+            "correctAnswer": "The name is not descriptive — it does not identify the pipeline, the data, or the date, making it impossible to distinguish from other applications",
+            "conceptsTested": ["application_naming"]
+          },
+          {
+            "id": "PS2-06-F2",
+            "type": "single_select",
+            "label": "The engineer needs to find out which stage of the failed pipeline took the longest. Which Spark UI tab should they check first?",
+            "options": [
+              "The Environment tab — it shows which configuration caused the failure",
+              "The Storage tab — it shows which data was cached",
+              "The Jobs tab, then click into the failed job to see its Stages",
+              "The Executors tab — it shows which executor crashed"
+            ],
+            "correctAnswer": "The Jobs tab, then click into the failed job to see its Stages",
+            "conceptsTested": ["spark_ui_navigation"]
+          },
+          {
+            "id": "PS2-06-F3",
+            "type": "single_select",
+            "label": "The script sets spark.executor.memory to '16g' in the builder. If the engineer wants to verify this value is actually active (and not overridden by spark-defaults.conf or spark-submit), where should they look?",
+            "options": [
+              "The Jobs tab shows memory allocation per job",
+              "The Environment tab in the Spark UI lists all active configuration values and their source",
+              "The Stages tab shows memory per stage",
+              "The driver log prints all configuration at startup"
+            ],
+            "correctAnswer": "The Environment tab in the Spark UI lists all active configuration values and their source",
+            "conceptsTested": ["spark_ui_environment", "configuration_verification"]
+          },
+          {
+            "id": "PS2-06-F4",
+            "type": "single_select",
+            "label": "The dashboard shows app-0044 and app-0045 are WAITING with 0 executors. The cluster has 32 executors total. Apps app-0042 and app-0043 each hold 8 executors despite having FAILED. What caused the resource starvation?",
+            "options": [
+              "The cluster does not have enough total executors for all applications",
+              "The failed applications did not call spark.stop(), so their 16 executors were never released back to the cluster",
+              "YARN does not allow new applications while failed applications are in the dashboard",
+              "The WAITING applications have lower priority than FAILED ones"
+            ],
+            "correctAnswer": "The failed applications did not call spark.stop(), so their 16 executors were never released back to the cluster",
+            "conceptsTested": ["session_lifecycle", "spark_stop", "resource_management"]
+          },
+          {
+            "id": "PS2-06-F5",
+            "type": "single_select",
+            "label": "What code change would prevent this resource starvation from happening again?",
+            "options": [
+              "Add spark.conf.set('spark.executor.instances', '0') in the except block",
+              "Replace the try/except with a try/finally block that calls spark.stop()",
+              "Add spark.stop() inside the except block only",
+              "Reduce the number of executors to 4 so there are more available"
+            ],
+            "correctAnswer": "Replace the try/except with a try/finally block that calls spark.stop()",
+            "distractorRationale": "Option 1 cannot release executors by changing a config string. Option 3 only stops the session on failure — a successful run would also leak resources if the script has other paths that skip stop. Option 4 reduces the symptom but does not fix the root cause. The try/finally pattern guarantees stop runs regardless of success or failure.",
+            "conceptsTested": ["try_finally_pattern", "session_lifecycle"]
+          }
+        ]
+      },
+      "synthesisNotes": {
+        "conceptsCombined": [
+          "Application naming conventions (Lesson 3)",
+          "Spark UI navigation — Jobs and Stages tabs (Lesson 4)",
+          "Configuration verification via Environment tab (Lessons 7-8)",
+          "Session lifecycle — spark.stop() and resource release (Lesson 10)",
+          "try/finally pattern for safe session management (Lesson 10)"
+        ],
+        "minimumConceptCount": 4,
+        "rationale": "This task traces a realistic production incident through multiple Module 2 concepts: bad naming makes triage harder, the Spark UI is the diagnostic tool, configuration verification confirms the right values are active, and missing spark.stop() causes cascading resource starvation. The student must connect all these concepts to understand the full incident."
+      }
+    }
+  ],
+  "selfCheck": {
+    "scenarioDataUsed": true,
+    "allTasksUnambiguous": true,
+    "singleModuleScope": true,
+    "finalTaskIsSynthesis": true,
+    "synthesisUsesAtLeastThreeConcepts": true,
+    "conceptCountInSynthesis": 5,
+    "foundationModuleException": "Applied §4.3 with adaptation — Module 2 teaches the SparkSession builder API, which is codeable. The mix is 2 concept identification, 2 output prediction, 1 write-the-code, and 1 synthesis. The single write-the-code task (Task 5) tests session creation, which is the module's core hands-on skill.",
+    "theoryPracticeBoundary": "Theory examples use the meter Bronze-to-Silver pipeline with appName 'nordgrid-daily-meters-bronze-to-silver'. Task 5 asks the student to create a session for the turbine enrichment pipeline instead — same builder pattern, different scenario entity. Task 6 uses a deliberately bad pipeline to test diagnosis, not recall.",
+    "crossModuleNotes": "Task 6 references Bronze and Silver layers from Module 1 in the scenario context but does not test those concepts — they are background for the incident scenario. All graded questions test Module 2 concepts only."
+  }
+}
