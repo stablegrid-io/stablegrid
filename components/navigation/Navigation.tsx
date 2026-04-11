@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
@@ -10,7 +10,11 @@ import { BottomNav } from './BottomNav';
 import { UnifiedMiniPlayer } from '@/components/session/UnifiedMiniPlayer';
 import { isCompactDesktopNavPath, isPracticeSessionPath, shouldHideNav } from './navigation-config';
 
-export const Navigation = ({ children }: { children: ReactNode }) => {
+/**
+ * Inner shell that reads search params — must be wrapped in Suspense
+ * so Next.js can prerender pages that import Navigation statically.
+ */
+const NavigationShell = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams ? `?${searchParams.toString()}` : '';
@@ -51,3 +55,9 @@ export const Navigation = ({ children }: { children: ReactNode }) => {
     </>
   );
 };
+
+export const Navigation = ({ children }: { children: ReactNode }) => (
+  <Suspense fallback={<div className="min-h-screen">{children}</div>}>
+    <NavigationShell>{children}</NavigationShell>
+  </Suspense>
+);
