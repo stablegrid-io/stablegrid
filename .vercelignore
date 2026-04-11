@@ -1,0 +1,10 @@
+node_modules
+.next
+.claude
+.git
+coverage
+tests
+playwright-report
+test-results
+*.log
+.DS_Store
