@@ -4,7 +4,7 @@ import { createMiddlewareClient } from '@/lib/supabase/middleware';
 // ── MAINTENANCE MODE ──────────────────────────────────────────────────────────
 // Set to true to redirect all traffic to the maintenance page.
 // Set to false to restore normal operation.
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/update-password'];
 const PROTECTED_ROUTES = ['/home', '/hub', '/missions', '/practice', '/workspace', '/onboarding', '/operations', '/theory', '/learn', '/settings', '/progress'];
