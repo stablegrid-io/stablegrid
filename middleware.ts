@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@/lib/supabase/middleware';
 
+// ── MAINTENANCE MODE ──────────────────────────────────────────────────────────
+// Set to true to redirect all traffic to the maintenance page.
+// Set to false to restore normal operation.
+const MAINTENANCE_MODE = true;
+
 const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/update-password'];
 const PROTECTED_ROUTES = ['/home', '/hub', '/missions', '/practice', '/workspace', '/onboarding', '/operations', '/theory', '/learn', '/settings', '/progress'];
 const ADMIN_ROUTES = ['/admin'];
@@ -36,6 +41,15 @@ const hasAdminMembership = async (userId: string) => {
 };
 
 export async function middleware(request: NextRequest) {
+  // Maintenance mode: redirect everything except / and static assets
+  if (MAINTENANCE_MODE) {
+    const { pathname } = request.nextUrl;
+    if (pathname !== '/' && !pathname.startsWith('/_next') && !pathname.startsWith('/icon') && !pathname.startsWith('/favicon')) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    return NextResponse.next();
+  }
+
   const { supabase, response } = createMiddlewareClient(request);
   const {
     data: { user }
