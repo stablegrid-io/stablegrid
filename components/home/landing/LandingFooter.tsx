@@ -24,7 +24,7 @@ export const LandingFooter = () => {
             { label: 'Terms', href: '/terms' },
             { label: 'Support', href: '/support' },
             { label: 'Login', href: '/login' },
-            { label: 'Start free', href: '/signup' }
+            { label: 'Start free', href: '/login' }
           ].map((item) => (
             <Link
               key={item.label}

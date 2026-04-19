@@ -72,6 +72,13 @@ export const useTheoryModuleProgressSnapshots = ({
   }, [initialModuleProgressById]);
 
   useEffect(() => {
+    // Skip the client-side refetch if the server already provided module progress.
+    // This prevents the flash where progress bars jump to 100% then drop back
+    // because the API response momentarily clears the server-rendered state.
+    if (initialModuleProgressById && Object.keys(initialModuleProgressById).length > 0) {
+      return;
+    }
+
     let cancelled = false;
 
     const refreshProgress = async () => {
@@ -105,7 +112,7 @@ export const useTheoryModuleProgressSnapshots = ({
     return () => {
       cancelled = true;
     };
-  }, [topic]);
+  }, [topic, initialModuleProgressById]);
 
   const completedChapterIds = useMemo(
     () =>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Shield, Settings, HelpCircle } from 'lucide-react';
+import { Fingerprint, Wrench, MessageCircle } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { AdminRole } from '@/lib/admin/types';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
@@ -196,6 +196,9 @@ export const Sidebar = () => {
         )}
       </div>
 
+      {/* Divider */}
+      <div className={`${isCompact ? 'mx-3' : 'mx-4'} h-px bg-white/[0.06]`} />
+
       {/* Nav links */}
       <nav className="flex-1 py-3 px-2 space-y-0.5">
         {filteredItems.map((item) => {
@@ -235,7 +238,7 @@ export const Sidebar = () => {
             title={isCompact ? 'Admin' : undefined}
             className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
           >
-            <Shield className="h-[18px] w-[18px]" />
+            <Fingerprint className="h-[18px] w-[18px]" />
             {!isCompact && <span>Admin</span>}
           </Link>
         )}
@@ -245,7 +248,7 @@ export const Sidebar = () => {
           title={isCompact ? 'Settings' : undefined}
           className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
         >
-          <Settings className="h-[18px] w-[18px]" />
+          <Wrench className="h-[18px] w-[18px]" />
           {!isCompact && <span>Settings</span>}
         </Link>
         <Link
@@ -253,7 +256,7 @@ export const Sidebar = () => {
           title={isCompact ? 'Support' : undefined}
           className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
         >
-          <HelpCircle className="h-[18px] w-[18px]" />
+          <MessageCircle className="h-[18px] w-[18px]" />
           {!isCompact && <span>Support</span>}
         </Link>
       </div>

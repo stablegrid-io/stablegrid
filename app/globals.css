@@ -216,7 +216,7 @@
   --rm-code-label-text: #94a3b8;
   --rm-code-radius: 0px;
   --rm-font: Inter, system-ui, sans-serif;
-  --rm-font-heading: 'Space Grotesk', sans-serif;
+  --rm-font-heading: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
   --rm-line-height: 1.8;
   --rm-content-max-width: 54rem;
   --rm-table-header-bg: rgba(255,255,255,0.03);
@@ -376,7 +376,7 @@
   --rm-code-label-text: #555555;
   --rm-code-radius: 0px;
   --rm-font: Inter, system-ui, sans-serif;
-  --rm-font-heading: 'Space Grotesk', sans-serif;
+  --rm-font-heading: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
   --rm-line-height: 1.8;
   --rm-content-max-width: 54rem;
   --rm-table-header-bg: #0a0a0a;

@@ -37,7 +37,7 @@ export const TOPIC_CATEGORY_MAP: Record<string, CategoryName> = {
 };
 
 export const TRACK_COLORS = {
-  junior: '240,240,243',
+  junior: '153,247,255',
   mid: '255,201,101',
   senior: '255,113,108',
 } as const;

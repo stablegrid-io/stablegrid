@@ -2,9 +2,10 @@
 
 import {
   type LucideIcon,
-  BarChart3,
-  BookOpen,
-  Home
+  Radar,
+  Atom,
+  Braces,
+  TrendingUp
 } from 'lucide-react';
 
 export interface NavItem {
@@ -16,27 +17,36 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { href: '/home', icon: Home, label: 'Home', matchPrefixes: ['/home', '/'] },
+  { href: '/home', icon: Radar, label: 'Home', matchPrefixes: ['/home', '/'] },
   {
     href: '/learn',
-    icon: BookOpen,
+    icon: Atom,
     label: 'Learn',
     matchPrefixes: ['/theory', '/learn']
   },
   {
+    href: '/cheat-sheets',
+    icon: Braces,
+    label: 'Cheat Sheets',
+    matchPrefixes: ['/cheat-sheets']
+  },
+  {
     href: '/progress',
-    icon: BarChart3,
+    icon: TrendingUp,
     label: 'Progress',
     matchPrefixes: ['/progress']
   },
 ];
 
-export const shouldHideNav = (pathname?: string | null, _isAuthenticated?: boolean) => {
+export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
   if (!pathname) return false;
   // Hide nav on the landing page and auth pages
   if (pathname === '/') return true;
   const authPages = ['/login', '/signup', '/reset-password', '/update-password'];
   if (authPages.includes(pathname)) return true;
+  // Hide nav on public pages when not authenticated
+  const publicPages = ['/privacy', '/terms', '/support', '/support/report-bug'];
+  if (!isAuthenticated && publicPages.includes(pathname)) return true;
   return false;
 };
 
@@ -51,7 +61,7 @@ export const isPracticeSessionPath = (pathname?: string | null, search?: string 
 };
 
 export const isCompactDesktopNavPath = (pathname?: string | null) =>
-  Boolean(pathname?.startsWith('/admin')) || isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname);
+  Boolean(pathname?.startsWith('/admin')) || Boolean(pathname?.startsWith('/cheat-sheets')) || isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname);
 
 export const isNavItemActive = (pathname: string | null, item: NavItem) =>
   Boolean(

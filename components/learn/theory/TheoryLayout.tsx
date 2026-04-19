@@ -1088,7 +1088,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
               type="button"
               onClick={openSessionPicker}
               disabled={!sessionDefaultsHydrated}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/8 px-3 text-xs font-medium text-primary transition-all hover:bg-primary/15 hover:border-primary/30"
+              className="inline-flex h-8 items-center gap-1.5 rounded-[14px] border border-white/[0.12] bg-white/[0.06] px-3 text-xs font-medium text-white/70 transition-all hover:bg-white/[0.1] hover:border-white/[0.18]"
             >
               <Clock3 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Start session</span>

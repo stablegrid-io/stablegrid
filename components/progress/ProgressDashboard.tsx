@@ -79,13 +79,13 @@ export function ProgressDashboard({
   /* ── Session counts by type ── */
   const sessionCounts = useMemo(() => {
     let sprint = 0, pomodoro = 0, deepFocus = 0;
-    for (const s of allSessions) {
-      if (!s.isCompleted) continue;
+    const completed = allSessions.filter((s) => s.isCompleted);
+    for (const s of completed) {
       if (s.activeSeconds <= 900) sprint++;
       else if (s.activeSeconds <= 2700) pomodoro++;
       else deepFocus++;
     }
-    return { sprint, pomodoro, deepFocus, freeRead: allSessions.filter((s) => s.isCompleted).length };
+    return { sprint, pomodoro, deepFocus, total: completed.length };
   }, [allSessions]);
 
   const totalModulesDone = topicSnapshots.reduce((s, t) => s + t.completed, 0);
@@ -163,22 +163,31 @@ export function ProgressDashboard({
 
   /* ── Track level grid ── */
   const trackGrid = useMemo(() => {
+    // Build a set of all completed chapter IDs across topics from topicProgress
+    const completedModuleIds = new Set<string>();
+    topicProgress.forEach((tp) => {
+      // A chapter is "completed" if sectionsRead >= sectionsTotal (all lessons read)
+      // We don't have per-chapter data here, so use theoryChaptersCompleted as the count
+      // and rely on trackMetaByTopic.moduleIds to map which modules are in which track
+    });
+
     return topicSnapshots.map((topic) => {
-      const tracks = (trackMetaByTopic as Record<string, Array<{ slug: string; moduleCount: number }>>)[topic.topicId] ?? [];
+      const tracks = (trackMetaByTopic as Record<string, Array<{ slug: string; moduleCount: number; moduleIds: string[] }>>)[topic.topicId] ?? [];
+      // Distribute completed count sequentially across tracks (modules are ordered)
+      let remaining = topic.completed;
       const levels = ['junior', 'mid', 'senior'].map((slug) => {
         const track = tracks.find((t) => t.slug === slug);
         if (!track || track.moduleCount === 0) return { slug, status: 'empty' as const };
-        // Rough estimate: distribute completed modules across tracks
-        const perTrack = Math.ceil(topic.total / Math.max(tracks.length, 1));
-        const trackCompleted = Math.min(track.moduleCount, Math.max(0, topic.completed - tracks.indexOf(track) * perTrack));
-        const pct = track.moduleCount > 0 ? Math.round((trackCompleted / track.moduleCount) * 100) : 0;
+        const trackCompleted = Math.min(track.moduleCount, remaining);
+        remaining = Math.max(0, remaining - track.moduleCount);
+        const pct = Math.round((trackCompleted / track.moduleCount) * 100);
         if (pct >= 100) return { slug, status: 'complete' as const };
         if (pct > 0) return { slug, status: 'progress' as const };
         return { slug, status: 'available' as const };
       });
       return { ...topic, levels };
     });
-  }, [topicSnapshots, trackMetaByTopic]);
+  }, [topicSnapshots, trackMetaByTopic, topicProgress]);
 
   /* ── Total sessions + time ── */
   const totalSessions = allSessions.length;
@@ -363,7 +372,7 @@ export function ProgressDashboard({
               { label: 'Sprint', count: sessionCounts.sprint, rgb: '153,247,255', icon: Zap },
               { label: 'Pomodoro', count: sessionCounts.pomodoro, rgb: '255,113,108', icon: Clock },
               { label: 'Deep Focus', count: sessionCounts.deepFocus, rgb: '191,129,255', icon: BookOpen },
-              { label: 'Free Read', count: sessionCounts.freeRead, rgb: '255,201,101', icon: BookOpen },
+              { label: 'Total', count: sessionCounts.total, rgb: '255,201,101', icon: BookOpen },
             ] as const).map((item, i) => {
               const Icon = item.icon;
               return (

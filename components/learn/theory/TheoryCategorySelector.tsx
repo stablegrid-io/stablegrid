@@ -438,11 +438,8 @@ export const TheoryCategorySelector = ({
                 {completedLessons}/{totalLessons} lessons read
               </span>
             </div>
-            <div className="mt-2 h-1 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-              <div
-                className="h-full rounded-full bg-brand-500 transition-all duration-500"
-                style={{ width: `${overallProgressPct}%` }}
-              />
+            <div className="mt-2 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+              <div style={{ width: `${overallProgressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
             </div>
             <p className="mt-3 text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
               Browse the PySpark curriculum as a gallery of themed tracks, then open any
@@ -527,11 +524,8 @@ export const TheoryCategorySelector = ({
                         </span>
                       </div>
 
-                      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${style.progressClass}`}
-                          style={{ width: `${progressPct}%` }}
-                        />
+                      <div className="mt-4 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                        <div style={{ width: `${progressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">

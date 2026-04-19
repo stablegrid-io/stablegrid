@@ -68,11 +68,8 @@ export function TopicCard({ topic, index = 0 }: TopicCardProps) {
           <span>Completion</span>
           <span>{completion}%</span>
         </div>
-        <div className="h-1.5 rounded-full bg-light-border dark:bg-dark-border">
-          <div
-            className="h-1.5 rounded-full bg-brand-500"
-            style={{ width: `${completion}%` }}
-          />
+        <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+          <div style={{ width: `${completion}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
         </div>
       </div>
     </Link>

@@ -8,9 +8,9 @@ interface TheoryProgressBarProps {
 
 export const TheoryProgressBar = ({ progress }: TheoryProgressBarProps) => {
   return (
-    <div className="fixed left-0 right-0 top-0 z-[100] h-0.5 bg-light-border dark:bg-dark-border">
+    <div className="fixed left-0 right-0 top-0 z-[100] overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)' }}>
       <motion.div
-        className="h-full bg-brand-500"
+        style={{ height: '100%', background: '#fff', opacity: 0.85 }}
         animate={{ width: `${progress}%` }}
         transition={{ duration: 0.1 }}
       />

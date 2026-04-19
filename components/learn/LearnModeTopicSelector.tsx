@@ -159,13 +159,13 @@ export function LearnModeTopicSelector({
       result = result.filter((t) => topicStatuses[t.id] === topicFilter);
     }
 
-    // Sort — always push topics with no content to the end
+    // Hide topics with no content
+    result = result.filter((t) => (chapterCountByTopic[t.id] ?? t.chapterCount) > 0);
+
+    // Sort
     result = [...result].sort((a, b) => {
       const aTotal = chapterCountByTopic[a.id] ?? a.chapterCount;
       const bTotal = chapterCountByTopic[b.id] ?? b.chapterCount;
-      const aHasContent = aTotal > 0 ? 0 : 1;
-      const bHasContent = bTotal > 0 ? 0 : 1;
-      if (aHasContent !== bHasContent) return aHasContent - bHasContent;
 
       const aCompleted = completedChapterCountByTopic[a.id] ?? 0;
       const bCompleted = completedChapterCountByTopic[b.id] ?? 0;
@@ -433,28 +433,14 @@ export function LearnModeTopicSelector({
                               <span className="font-mono text-[10px] text-on-surface-variant/35 uppercase tracking-widest">
                                 Progress
                               </span>
-                              <span className="font-mono text-sm font-bold" style={{ color: '#99f7ff' }}>
+                              <span className="font-mono text-sm font-bold" style={{ color: '#f0f0f3' }}>
                                 {topicProgressPct}%
                               </span>
                             </div>
 
-                            {/* Segmented progress bar */}
-                            <div className="flex gap-[3px] mb-8">
-                              {Array.from({ length: 10 }, (_, i) => (
-                                <div
-                                  key={i}
-                                  className="flex-1 h-[7px] rounded-[1px]"
-                                  style={{
-                                    backgroundColor: i < filledBlocks
-                                      ? `rgba(153,247,255,${0.55 + (i / 10) * 0.45})`
-                                      : 'rgba(255,255,255,0.04)',
-                                    boxShadow: i === filledBlocks - 1 && filledBlocks > 0
-                                      ? '0 0 6px rgba(153,247,255,0.4)' : 'none',
-                                    opacity: 0,
-                                    animation: `fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) ${staggerDelay + 300 + i * 40}ms forwards`,
-                                  }}
-                                />
-                              ))}
+                            {/* Progress bar */}
+                            <div className="mb-8 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                              <div style={{ width: `${topicProgressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
                             </div>
 
                             {/* CTA */}
@@ -462,8 +448,9 @@ export function LearnModeTopicSelector({
                               <div
                                 className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase rounded-[14px]"
                                 style={{
-                                  backgroundColor: '#99f7ff',
-                                  color: '#0c0e10'
+                                  backgroundColor: 'rgba(255,255,255,0.08)',
+                                  border: '1px solid rgba(255,255,255,0.12)',
+                                  color: 'rgba(255,255,255,0.8)',
                                 }}
                               >
                                 Continue Track
@@ -473,7 +460,7 @@ export function LearnModeTopicSelector({
                                 className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase rounded-[14px]"
                                 style={{
                                   border: '1px solid rgba(255,255,255,0.1)',
-                                  color: '#99f7ff'
+                                  color: '#f0f0f3'
                                 }}
                               >
                                 Initialize Track
@@ -545,35 +532,6 @@ export function LearnModeTopicSelector({
           </div>
         )}
 
-        {/* Stats bar */}
-        <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {orderedTopics.map((topic) => {
-            const completedTopicChapters = completedChapterCountByTopic[topic.id] ?? 0;
-            const totalTopicChapters =
-              chapterCountByTopic[topic.id] && chapterCountByTopic[topic.id] > 0
-                ? chapterCountByTopic[topic.id]
-                : topic.chapterCount;
-            return (
-              <div key={topic.id} className="p-4 border border-outline-variant bg-surface-container-low flex items-center gap-4">
-                <Image
-                  src={TRACK_ICON_SRC_BY_TOPIC[topic.id] ?? '/brand/pyspark-track-star.svg'}
-                  alt=""
-                  width={20}
-                  height={20}
-                  className="h-5 w-5 object-contain opacity-60"
-                />
-                <div>
-                  <div className="text-[10px] font-mono text-on-surface-variant uppercase">
-                    {getSimpleTrackName(topic.title)}
-                  </div>
-                  <div className="text-xl font-bold">
-                    {completedTopicChapters} / {totalTopicChapters}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );

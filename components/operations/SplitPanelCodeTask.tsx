@@ -161,6 +161,14 @@ class _MockColumn:
         return self
     def isNull(self):
         return self
+    def cast(self, t):
+        return self
+    def isin(self, *vals):
+        return self
+    def when(self, cond, val):
+        return self
+    def otherwise(self, val):
+        return self
     def __ge__(self, other):
         return self
     def __gt__(self, other):
@@ -172,6 +180,12 @@ class _MockColumn:
     def __eq__(self, other):
         return self
     def __ne__(self, other):
+        return self
+    def __and__(self, other):
+        return self
+    def __or__(self, other):
+        return self
+    def __invert__(self):
         return self
 
 class _MockDF:
@@ -212,14 +226,23 @@ class _MockDF:
         return _MockDF(target.describe().reset_index().rename(columns={'index': 'summary'}))
     def select(self, *cols):
         names = [c._name if hasattr(c, '_name') else c for c in cols]
-        return _MockDF(self._pdf[names])
+        existing = [n for n in names if n in self._pdf.columns]
+        missing = [n for n in names if n not in self._pdf.columns]
+        pdf = self._pdf[existing].copy() if existing else pd.DataFrame(index=self._pdf.index)
+        for m in missing:
+            pdf[m] = None
+        pdf = pdf[names]
+        return _MockDF(pdf)
     def filter(self, cond):
         return self
     def where(self, cond):
         return self.filter(cond)
-    def withColumn(self, name, col):
+    def withColumn(self, name, expr):
         pdf = self._pdf.copy()
-        pdf[name] = None
+        if hasattr(expr, '_name') and expr._name in pdf.columns:
+            pdf[name] = pdf[expr._name]
+        else:
+            pdf[name] = None
         return _MockDF(pdf)
     def drop(self, *cols):
         names = [c._name if hasattr(c, '_name') else c for c in cols]
@@ -261,12 +284,25 @@ class _MockDF:
     def union(self, other):
         return _MockDF(pd.concat([self._pdf, other._pdf], ignore_index=True))
     def join(self, other, on=None, how='inner'):
-        return _MockDF(pd.merge(self._pdf, other._pdf, on=on, how=how))
+        if on is not None and hasattr(on, '_name'):
+            # MockColumn from df.col == df.col expression — find common columns
+            common = list(set(self._pdf.columns) & set(other._pdf.columns))
+            on = common if common else None
+        try:
+            return _MockDF(pd.merge(self._pdf, other._pdf, on=on, how=how))
+        except Exception:
+            return _MockDF(pd.concat([self._pdf, other._pdf.reindex(self._pdf.index)], axis=1))
+    def createOrReplaceTempView(self, name):
+        pass
     def na(self):
         return self
     @property
     def _jdf(self):
         return _MockJDF(self._schema)
+    def __getattr__(self, name):
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return _MockColumn(name)
     def __repr__(self):
         return f"DataFrame[{', '.join(self.columns)}]"
 
@@ -369,7 +405,13 @@ class _MockReader:
             opts['inferSchema'] = inferSchema
         use_header = str(opts.get('header', 'true')).lower() == 'true'
         sch = schema or self._schema
-        pdf = pd.read_csv(path, header=0 if use_header else None)
+        import os
+        read_path = path
+        if not os.path.exists(read_path):
+            basename = os.path.basename(read_path)
+            if os.path.exists(basename):
+                read_path = basename
+        pdf = pd.read_csv(read_path, header=0 if use_header else None)
         if sch and hasattr(sch, 'fields'):
             type_to_dtype = {
                 'StringType()': 'object', 'DoubleType()': 'float64',
@@ -404,6 +446,8 @@ class _MockWriter:
         return self
     def option(self, k, v):
         self._options[k] = v
+        return self
+    def partitionBy(self, *cols):
         return self
     def csv(self, path, **kw):
         self._df._pdf.to_csv(path, index=False)
@@ -446,6 +490,7 @@ class _MockSession:
         self.sparkContext = types.SimpleNamespace(
             setLogLevel=lambda l: None,
             appName=name,
+            isActive=True,
         )
         self.catalog = types.SimpleNamespace(
             listDatabases=lambda: [],
@@ -501,6 +546,15 @@ _pyspark_sql_functions.when = lambda cond, val: _MockColumn('when')
 _pyspark_sql_functions.upper = lambda c: _MockColumn('upper')
 _pyspark_sql_functions.lower = lambda c: _MockColumn('lower')
 _pyspark_sql_functions.trim = lambda c: _MockColumn('trim')
+_pyspark_sql_functions.round = lambda c, scale=0: _MockColumn('round')
+_pyspark_sql_functions.year = lambda c: _MockColumn('year')
+_pyspark_sql_functions.month = lambda c: _MockColumn('month')
+_pyspark_sql_functions.dayofmonth = lambda c: _MockColumn('dayofmonth')
+_pyspark_sql_functions.cast = lambda c, t: _MockColumn('cast')
+_pyspark_sql_functions.concat = lambda *cols: _MockColumn('concat')
+_pyspark_sql_functions.concat_ws = lambda sep, *cols: _MockColumn('concat_ws')
+_pyspark_sql_functions.coalesce = lambda *cols: _MockColumn('coalesce')
+_pyspark_sql_functions.isin = lambda *vals: _MockColumn('isin')
 
 sys.modules['pyspark'] = _pyspark
 sys.modules['pyspark.sql'] = _pyspark_sql
@@ -620,7 +674,7 @@ function DatasetPanel({
         return (
           <div
             key={ds.id}
-            className="rounded-xl overflow-hidden"
+            className="rounded-[14px] overflow-hidden"
             style={{
               border: '1px solid var(--rm-border)',
               backgroundColor: 'var(--rm-bg-elevated)',
@@ -868,7 +922,7 @@ function FieldRenderer({
           onChange={(e) => !readOnly && !checked && onChange(e.target.value)}
           readOnly={readOnly || checked}
           placeholder={field.type === 'numeric' ? 'Enter a number' : 'Type your answer...'}
-          className="w-full rounded-xl px-4 py-3.5 text-[13px] leading-relaxed outline-none transition-all duration-200"
+          className="w-full rounded-[14px] px-4 py-3.5 text-[13px] leading-relaxed outline-none transition-all duration-200"
           style={{
             border: showFeedback && result === true
               ? `1px solid rgba(${GREEN_RGB},0.3)`
@@ -888,7 +942,7 @@ function FieldRenderer({
       {/* Show correct answer when wrong (text/numeric) */}
       {showFeedback && result === false && (field.type === 'short_text' || field.type === 'numeric') && (
         <div
-          className="rounded-lg px-3 py-2 text-[12px] flex items-center gap-2"
+          className="rounded-[14px] px-3 py-2 text-[12px] flex items-center gap-2"
           style={{
             background: `rgba(${GREEN_RGB},0.05)`,
             border: `1px solid rgba(${GREEN_RGB},0.12)`,
@@ -914,7 +968,7 @@ function RationaleCard({ field, result }: { field: TemplateField; result: boolea
 
   return (
     <div
-      className="rounded-xl px-4 py-3 text-[12px] leading-relaxed"
+      className="rounded-[14px] px-4 py-3 text-[12px] leading-relaxed"
       style={{
         background: `rgba(${tint},0.03)`,
         border: `1px solid rgba(${tint},0.08)`,
@@ -1008,7 +1062,7 @@ function EvidenceLabelledBlock({ content, label, isCode = true }: { content: str
   const lineCount = lines.length;
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--rm-code-bg, #0d1117)', border: '1px solid var(--rm-border)' }}>
+    <div className="rounded-[14px] overflow-hidden" style={{ backgroundColor: 'var(--rm-code-bg, #0d1117)', border: '1px solid var(--rm-border)' }}>
       {/* Toolbar — mirrors solution.py header */}
       {label && (
         <div
@@ -1048,6 +1102,136 @@ function EvidenceLabelledBlock({ content, label, isCode = true }: { content: str
 function EvidencePanel({ evidence }: { evidence: any }) {
   if (!evidence) return null;
   const ev = evidence;
+  // Skip rendering if evidence is an empty object
+  if (typeof ev === 'object' && !Array.isArray(ev) && Object.keys(ev).length === 0) return null;
+
+  // Handle array of structured evidence items (tables, code blocks, etc.)
+  if (Array.isArray(ev)) {
+    if (ev.length === 0) return null;
+    return (
+      <div>
+        <h4
+          className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-2.5"
+          style={{ color: 'var(--rm-text-secondary)' }}
+        >
+          Evidence
+        </h4>
+        <div className="space-y-4">
+          {ev.map((item: any, idx: number) => {
+            if (item.type === 'table' && item.headers && item.rows) {
+              return (
+                <div key={item.id ?? idx}>
+                  {item.title && (
+                    <p className="text-[12px] font-semibold mb-1" style={{ color: 'var(--rm-text)' }}>{item.title}</p>
+                  )}
+                  {item.caption && (
+                    <p className="text-[11px] leading-relaxed mb-2" style={{ color: 'var(--rm-text-secondary)' }}>{item.caption}</p>
+                  )}
+                  <div className="overflow-x-auto rounded-[10px]" style={{ border: '1px solid var(--rm-border)' }}>
+                    <table className="w-full text-[11px] font-mono border-collapse">
+                      <thead>
+                        <tr>
+                          {item.headers.map((h: string, hi: number) => (
+                            <th
+                              key={hi}
+                              className="px-3 py-2 text-left font-semibold whitespace-nowrap"
+                              style={{ backgroundColor: 'var(--rm-bg-elevated)', color: 'var(--rm-text-secondary)', borderBottom: '1px solid var(--rm-border)' }}
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {item.rows.map((row: string[], ri: number) => (
+                          <tr key={ri}>
+                            {row.map((cell: string, ci: number) => (
+                              <td
+                                key={ci}
+                                className="px-3 py-1.5"
+                                style={{ color: 'var(--rm-text)', borderBottom: ri < item.rows.length - 1 ? '1px solid var(--rm-border)' : 'none' }}
+                              >
+                                {cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            }
+            if (item.type === 'code_block' && item.content) {
+              return (
+                <div key={item.id ?? idx}>
+                  {item.title && (
+                    <p className="text-[12px] font-semibold mb-1" style={{ color: 'var(--rm-text)' }}>{item.title}</p>
+                  )}
+                  <EvidenceLabelledBlock content={item.content} label={item.label} isCode />
+                </div>
+              );
+            }
+            if (item.type === 'text' && item.content) {
+              return (
+                <div key={item.id ?? idx}>
+                  {item.title && (
+                    <p className="text-[12px] font-semibold mb-1" style={{ color: 'var(--rm-text)' }}>{item.title}</p>
+                  )}
+                  <p className="text-[13px] leading-relaxed" style={{ color: 'var(--rm-text)' }}>{item.content}</p>
+                </div>
+              );
+            }
+            if (item.type === 'policy_document' && item.sections) {
+              return (
+                <div key={item.id ?? idx} className="space-y-3">
+                  {item.title && (
+                    <p className="text-[12px] font-semibold mb-1" style={{ color: 'var(--rm-text)' }}>{item.title}</p>
+                  )}
+                  {item.caption && (
+                    <p className="text-[11px] leading-relaxed mb-2" style={{ color: 'var(--rm-text-secondary)' }}>{item.caption}</p>
+                  )}
+                  {(item.sections as Array<{ section: string; text: string }>).map((sec, si) => (
+                    <div
+                      key={si}
+                      className="rounded-[10px] px-4 py-3"
+                      style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)' }}
+                    >
+                      <p className="text-[11px] font-semibold mb-1.5" style={{ color: 'var(--rm-text)' }}>{sec.section}</p>
+                      <p className="text-[12px] leading-relaxed" style={{ color: 'var(--rm-text-secondary)' }}>{sec.text}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            if (item.type === 'incident_timeline_panel' && item.fields) {
+              return (
+                <div key={item.id ?? idx} className="space-y-2">
+                  {item.title && (
+                    <p className="text-[12px] font-semibold mb-1" style={{ color: 'var(--rm-text)' }}>{item.title}</p>
+                  )}
+                  {item.caption && (
+                    <p className="text-[11px] leading-relaxed mb-2" style={{ color: 'var(--rm-text-secondary)' }}>{item.caption}</p>
+                  )}
+                  {(item.fields as Array<{ id: string; label: string; value_source?: string }>).map((f) => (
+                    <div
+                      key={f.id}
+                      className="flex items-center gap-3 rounded-[10px] px-4 py-2.5"
+                      style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)' }}
+                    >
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: 'rgba(153,247,255,0.4)' }} />
+                      <span className="text-[12px]" style={{ color: 'var(--rm-text)' }}>{f.label}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            return null;
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -1115,7 +1299,7 @@ function EvidencePanel({ evidence }: { evidence: any }) {
         )}
 
         {ev.errorLog && (
-          <div className="rounded-xl p-3" style={{ backgroundColor: `rgba(${RED_RGB},0.05)`, border: `1px solid rgba(${RED_RGB},0.15)` }}>
+          <div className="rounded-[14px] p-3" style={{ backgroundColor: `rgba(${RED_RGB},0.05)`, border: `1px solid rgba(${RED_RGB},0.15)` }}>
             <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: `rgb(${RED_RGB})` }}>Error Log</p>
             <pre className="font-mono text-[12px] whitespace-pre-wrap" style={{ color: 'var(--rm-code-text)' }}>
               {ev.errorLog.content ?? ev.errorLog}
@@ -1123,7 +1307,7 @@ function EvidencePanel({ evidence }: { evidence: any }) {
           </div>
         )}
         {ev.runtimeOutput && (
-          <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--rm-callout-bg)', border: '1px solid var(--rm-callout-border)' }}>
+          <div className="rounded-[14px] p-3" style={{ backgroundColor: 'var(--rm-callout-bg)', border: '1px solid var(--rm-callout-border)' }}>
             <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--rm-text-secondary)' }}>Runtime Output</p>
             <pre className="font-mono text-[12px] whitespace-pre-wrap" style={{ color: 'var(--rm-code-text)' }}>
               {ev.runtimeOutput.content ?? ev.runtimeOutput}
@@ -1163,6 +1347,16 @@ export function SplitPanelCodeTask({
   /* Left panel tab */
   const [leftTab, setLeftTab] = useState<LeftTab>('context');
 
+  /* Tiered hints state — track which hint tiers are unlocked */
+  const [unlockedHints, setUnlockedHints] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    // Only H1 is unlocked by default
+    task.hints?.forEach((h) => {
+      if (h.tier === 'H1') initial.add(h.tier);
+    });
+    return initial;
+  });
+
   /* Code state */
   const scaffold = task.starterScaffold?.content ?? '';
   const initialCode = taskState.answers['__code']?.value || scaffold;
@@ -1199,9 +1393,9 @@ export function SplitPanelCodeTask({
   const availableTabs = useMemo(() => {
     const tabs: LeftTab[] = ['context'];
     if (taskDatasets.length > 0) tabs.push('dataset');
-    if (task.description.validationHint) tabs.push('hints');
+    if (task.description.validationHint || (task.hints && task.hints.length > 0)) tabs.push('hints');
     return tabs;
-  }, [taskDatasets, task.description.validationHint]);
+  }, [taskDatasets, task.description.validationHint, task.hints]);
 
   /* Stable ref to handleRun for keyboard shortcut */
   const handleRunRef = useRef<() => void>();
@@ -1282,6 +1476,18 @@ export function SplitPanelCodeTask({
           pyodide.FS.writeFile(ds.file, csvContent);
           const underscoreName = ds.file.replace(/\//g, '_');
           pyodide.FS.writeFile(underscoreName, csvContent);
+          // Also write to data/bronze/ for capstone scaffold compatibility
+          const basename = ds.file.split('/').pop() ?? ds.file;
+          if (basename !== ds.file) {
+            pyodide.FS.writeFile(basename, csvContent);
+          }
+          try {
+            pyodide.FS.mkdir('data');
+          } catch { /* exists */ }
+          try {
+            pyodide.FS.mkdir('data/bronze');
+          } catch { /* exists */ }
+          pyodide.FS.writeFile(`data/bronze/${basename}`, csvContent);
         }
       }
 
@@ -1289,9 +1495,12 @@ export function SplitPanelCodeTask({
         (task.starterScaffold?.language ?? 'python') === 'python' &&
         (code.includes('pyspark') ||
           code.includes('SparkSession') ||
-          code.includes('spark.read'));
+          code.includes('spark.read') ||
+          Boolean(task.setupCode));
 
-      const fullCode = isPySpark ? `${PYSPARK_MOCK}\n\n${code}` : code;
+      // Prepend hidden setup code (e.g. capstone chapter dependencies)
+      const setupPrefix = task.setupCode ? `${task.setupCode}\n` : '';
+      const fullCode = isPySpark ? `${PYSPARK_MOCK}\n\n${setupPrefix}${code}` : `${setupPrefix}${code}`;
 
       await pyodide.runPythonAsync(`
 import sys, io
@@ -1410,7 +1619,7 @@ sys.stderr = sys.__stderr__
 
   return (
     <div
-      className="rounded-xl overflow-hidden"
+      className="rounded-[14px] overflow-hidden"
       style={{
         border: '1px solid var(--rm-border)',
         backgroundColor: 'var(--rm-bg-elevated)',
@@ -1448,7 +1657,7 @@ sys.stderr = sys.__stderr__
                     <button
                       key={tab}
                       onClick={() => setLeftTab(tab)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 cursor-pointer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[14px] text-[11px] font-medium transition-all duration-200 cursor-pointer"
                       style={{
                         color: active ? 'var(--rm-text)' : 'var(--rm-text-secondary)',
                         backgroundColor: active ? 'var(--rm-bg-elevated)' : 'transparent',
@@ -1470,7 +1679,7 @@ sys.stderr = sys.__stderr__
                 <div className="flex items-center gap-3">
                   {typeInfo && (
                     <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[14px] text-[11px] font-medium"
                       style={{
                         backgroundColor: `rgba(${typeInfo.color},0.08)`,
                         color: `rgb(${typeInfo.color})`,
@@ -1516,9 +1725,20 @@ sys.stderr = sys.__stderr__
                   >
                     Task
                   </h4>
-                  <p className="text-[13px] leading-[1.75]" style={{ color: 'var(--rm-text)' }}>
-                    {task.description.task}
-                  </p>
+                  {(() => {
+                    const raw = task.description.task ?? '';
+                    const sentences = raw.split(/(?<=\.)\s+/).filter(Boolean);
+                    if (sentences.length <= 1) {
+                      return <p className="text-[13px] leading-[1.75]" style={{ color: 'var(--rm-text)' }}>{raw}</p>;
+                    }
+                    return (
+                      <ul className="space-y-1.5 pl-4 list-disc marker:text-white/20">
+                        {sentences.map((s, i) => (
+                          <li key={i} className="text-[13px] leading-[1.75]" style={{ color: 'var(--rm-text)' }}>{s}</li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
                 </div>
 
                 {/* Schema grid */}
@@ -1534,7 +1754,7 @@ sys.stderr = sys.__stderr__
                       {schemaFields.map((field) => (
                         <div
                           key={field.name}
-                          className="rounded-lg px-3 py-2.5"
+                          className="rounded-[14px] px-3 py-2.5"
                           style={{
                             backgroundColor: 'var(--rm-bg-elevated)',
                             border: '1px solid var(--rm-border)',
@@ -1579,7 +1799,7 @@ sys.stderr = sys.__stderr__
                       </h4>
                       <div className="space-y-3">
                         {referenced.map(ds => (
-                          <div key={ds.id} className="rounded-xl p-3" style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)' }}>
+                          <div key={ds.id} className="rounded-[14px] p-3" style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)' }}>
                             <div className="flex items-center justify-between mb-2">
                               <code className="text-[12px] font-mono font-semibold" style={{ color: `rgb(${ACCENT})` }}>{ds.file}</code>
                             </div>
@@ -1623,7 +1843,7 @@ sys.stderr = sys.__stderr__
                       Scaffold
                     </h4>
                     <pre
-                      className="rounded-xl p-4 text-[12px] leading-relaxed overflow-x-auto font-mono"
+                      className="rounded-[14px] p-4 text-[12px] leading-relaxed overflow-x-auto font-mono"
                       style={{
                         backgroundColor: 'var(--rm-code-bg)',
                         border: '1px solid var(--rm-border)',
@@ -1647,7 +1867,7 @@ sys.stderr = sys.__stderr__
                   >
                     {task.expectedOutput && (
                       <div
-                        className="rounded-xl p-4"
+                        className="rounded-[14px] p-4"
                         style={{
                           backgroundColor: 'var(--rm-callout-bg)',
                           border: '1px solid var(--rm-callout-border)',
@@ -1678,7 +1898,7 @@ sys.stderr = sys.__stderr__
 
                     {task.assertions && task.assertions.length > 0 && (
                       <div
-                        className="rounded-xl p-4"
+                        className="rounded-[14px] p-4"
                         style={{
                           backgroundColor: 'var(--rm-bg-elevated)',
                           border: '1px solid var(--rm-border)',
@@ -1724,9 +1944,10 @@ sys.stderr = sys.__stderr__
 
             {leftTab === 'hints' && (
               <div className="p-5 space-y-4">
-                {task.description.validationHint && (
+                {/* Legacy single validation hint */}
+                {task.description.validationHint && (!task.hints || task.hints.length === 0) && (
                   <div
-                    className="rounded-xl px-4 py-3.5 text-[13px] leading-relaxed"
+                    className="rounded-[14px] px-4 py-3.5 text-[13px] leading-relaxed"
                     style={{
                       backgroundColor: 'rgba(59,130,246,0.06)',
                       border: '1px solid rgba(59,130,246,0.12)',
@@ -1743,6 +1964,82 @@ sys.stderr = sys.__stderr__
                       </span>
                     </div>
                     {task.description.validationHint}
+                  </div>
+                )}
+
+                {/* Tiered hints */}
+                {task.hints && task.hints.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-[11px] text-on-surface-variant/40 leading-relaxed">
+                      Hints reveal progressively more detail. Higher tiers cost XP.
+                    </p>
+                    {task.hints.map((hint, i) => {
+                      const isUnlocked = unlockedHints.has(hint.tier);
+                      const tierNum = parseInt(hint.tier.replace('H', ''), 10) || (i + 1);
+                      const TIER_COLORS = [
+                        { rgb: '59,130,246', label: 'Direction' },
+                        { rgb: '168,85,247', label: 'Guidance' },
+                        { rgb: '245,158,11', label: 'Walkthrough' },
+                        { rgb: '239,68,68', label: 'Solution' },
+                      ];
+                      const tc = TIER_COLORS[tierNum - 1] ?? TIER_COLORS[0];
+
+                      return (
+                        <div
+                          key={hint.tier}
+                          className="rounded-[14px] overflow-hidden transition-all duration-300"
+                          style={{
+                            border: `1px solid rgba(${tc.rgb},${isUnlocked ? 0.15 : 0.06})`,
+                            backgroundColor: isUnlocked ? `rgba(${tc.rgb},0.04)` : 'rgba(255,255,255,0.02)',
+                          }}
+                        >
+                          {/* Header — always visible */}
+                          <div className="flex items-center justify-between px-4 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className="flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold"
+                                style={{
+                                  backgroundColor: `rgba(${tc.rgb},${isUnlocked ? 0.15 : 0.08})`,
+                                  color: isUnlocked ? `rgb(${tc.rgb})` : 'rgba(255,255,255,0.25)',
+                                }}
+                              >
+                                {tierNum}
+                              </div>
+                              <span
+                                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
+                                style={{ color: isUnlocked ? `rgb(${tc.rgb})` : 'rgba(255,255,255,0.3)' }}
+                              >
+                                {hint.tier} · {tc.label}
+                              </span>
+                            </div>
+                            {!isUnlocked && (
+                              <button
+                                type="button"
+                                onClick={() => setUnlockedHints((prev) => new Set(prev).add(hint.tier))}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium tracking-wide uppercase transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] cursor-pointer"
+                                style={{
+                                  border: `1px solid rgba(${tc.rgb},0.2)`,
+                                  backgroundColor: `rgba(${tc.rgb},0.06)`,
+                                  color: `rgb(${tc.rgb})`,
+                                }}
+                              >
+                                {hint.xp_cost > 0 ? `Unlock · −${hint.xp_cost} XP` : 'Reveal'}
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Body — revealed content */}
+                          {isUnlocked && (
+                            <div
+                              className="px-4 pb-4 text-[13px] leading-[1.75] whitespace-pre-wrap"
+                              style={{ color: 'var(--rm-text)' }}
+                            >
+                              {hint.text}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1791,11 +2088,11 @@ sys.stderr = sys.__stderr__
                 {!isReview && (
                   <button
                     onClick={handleReset}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[14px] text-[11px] font-medium transition-all duration-200 cursor-pointer"
                     style={{
-                      color: 'var(--rm-text-secondary)',
-                      border: '1px solid var(--rm-border)',
-                      backgroundColor: 'transparent',
+                      color: 'rgba(255,255,255,0.7)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      backgroundColor: 'rgba(255,255,255,0.08)',
                     }}
                     title="Reset to starter scaffold"
                   >
@@ -1805,11 +2102,11 @@ sys.stderr = sys.__stderr__
                 )}
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[14px] text-[11px] font-medium transition-all duration-200 cursor-pointer"
                   style={{
-                    color: copied ? `rgb(${GREEN_RGB})` : 'var(--rm-text-secondary)',
-                    border: `1px solid ${copied ? `rgba(${GREEN_RGB},0.3)` : 'var(--rm-border)'}`,
-                    backgroundColor: copied ? `rgba(${GREEN_RGB},0.05)` : 'transparent',
+                    color: copied ? `rgb(${GREEN_RGB})` : 'rgba(255,255,255,0.7)',
+                    border: `1px solid ${copied ? `rgba(${GREEN_RGB},0.3)` : 'rgba(255,255,255,0.12)'}`,
+                    backgroundColor: copied ? `rgba(${GREEN_RGB},0.05)` : 'rgba(255,255,255,0.08)',
                   }}
                 >
                   {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
@@ -1852,7 +2149,7 @@ sys.stderr = sys.__stderr__
                     onKeyDown={isReview ? undefined : handleKeyDown}
                     readOnly={isReview}
                     rows={Math.max(14, lineCount + 2)}
-                    className="relative z-10 w-full h-full font-mono text-[13px] leading-relaxed p-4 resize-y focus:outline-none"
+                    className="relative z-10 w-full h-full font-mono text-[13px] leading-relaxed p-4 resize-none focus:outline-none overflow-hidden"
                     style={{
                       backgroundColor: 'transparent',
                       color: 'transparent',
@@ -1891,7 +2188,7 @@ sys.stderr = sys.__stderr__
                   {(output || error) && (
                     <button
                       onClick={handleClearOutput}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 cursor-pointer"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[14px] text-[11px] font-medium transition-all duration-200 cursor-pointer"
                       style={{
                         color: 'var(--rm-text-secondary)',
                         border: '1px solid var(--rm-border)',
@@ -1906,7 +2203,7 @@ sys.stderr = sys.__stderr__
                     <button
                       onClick={handleRun}
                       disabled={running}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[14px] text-[11px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
                       style={{
                         color: running ? 'rgba(255,255,255,0.5)' : '#fff',
                         backgroundColor: running ? `rgba(${GREEN_RGB},0.15)` : RUN_GREEN,

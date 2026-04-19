@@ -13,9 +13,9 @@ const config: Config = {
         sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
         serif: ['Georgia', 'serif'],
         mono: ['var(--font-jetbrains-mono)', 'JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
-        headline: ['var(--font-space-grotesk)', 'Space Grotesk', 'system-ui', 'sans-serif'],
+        headline: ['-apple-system', 'SF Pro Display', 'Helvetica Neue', 'system-ui', 'sans-serif'],
         body: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
-        label: ['var(--font-space-grotesk)', 'Space Grotesk', 'system-ui', 'sans-serif'],
+        label: ['-apple-system', 'SF Pro Display', 'Helvetica Neue', 'system-ui', 'sans-serif'],
         'data-mono': ['var(--font-jetbrains-mono)', 'JetBrains Mono', 'ui-monospace', 'monospace']
       },
       colors: {

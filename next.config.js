@@ -66,8 +66,8 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stripe.com https://*.google-analytics.com https://va.vercel-scripts.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com https://cdn.jsdelivr.net",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stripe.com https://*.google-analytics.com https://va.vercel-scripts.com https://cdn.jsdelivr.net",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com",
               "font-src 'self' data:",

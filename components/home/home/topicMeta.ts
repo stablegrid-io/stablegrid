@@ -48,8 +48,8 @@ export const HOME_TOPICS: Record<Topic, HomeTopicMeta> = {
   },
   sql: {
     id: 'sql',
-    label: 'SQL',
-    trackLabel: 'SQL: Foundations Track',
+    label: 'SQL for Data Engineering',
+    trackLabel: 'SQL for Data Engineering: Foundations Track',
     icon: '🗄️',
     color: '#4285f4',
     softBg: 'rgba(66, 133, 244, 0.10)',

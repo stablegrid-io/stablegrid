@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, Lock, Zap, BookOpen, FlaskConical, Layers, Clock } from 'lucide-react';
+import { ArrowLeft, Check, Lock, Zap, BookOpen, FlaskConical, Layers, Clock, Trophy } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { getTrackConceptMeta } from '@/data/learn/theory/trackConceptMeta';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
@@ -67,7 +67,7 @@ const stripModulePrefix = (title: string) =>
 /* ── Track accent colours ───────────────────────────────────────────────────── */
 
 const TRACK_LEVEL_ACCENT: Record<string, { color: string; rgb: string }> = {
-  junior: { color: '#f0f0f3', rgb: '240,240,243' },
+  junior: { color: '#99f7ff', rgb: '153,247,255' },
   mid:    { color: '#ffc965', rgb: '255,201,101' },
   senior: { color: '#ff716c', rgb: '255,113,108' },
 };
@@ -221,6 +221,76 @@ export const TheoryTrackPath = ({
             );
           })}
 
+          {/* ── Capstone Project (only show when a project exists) ── */}
+          {(doc.topic === 'pyspark' || doc.topic === 'PySpark') && (track.slug === 'junior' || track.slug === 'mid' || track.slug === 'senior') ? (<div
+            className="relative flex items-center mb-16 md:mb-20"
+            style={{ opacity: 0, animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${cards.length * 70 + 100}ms forwards` }}
+          >
+            {/* Center connector dot */}
+            <div className="absolute left-1/2 -translate-x-1/2 z-20 hidden md:flex items-center justify-center">
+              <div
+                className="w-5 h-5 rounded-full"
+                style={{
+                  backgroundColor: overallPct >= 100 ? ta.color : '#0c0e10',
+                  border: `2px solid ${overallPct >= 100 ? ta.color : `rgba(${ta.rgb},0.2)`}`,
+                  boxShadow: overallPct >= 100 ? `0 0 12px rgba(${ta.rgb},0.5)` : 'none',
+                }}
+              >
+                {overallPct >= 100 && <Trophy className="h-2.5 w-2.5 m-auto" style={{ color: '#0c0e10' }} />}
+              </div>
+            </div>
+
+            {/* Card — opposite side of the last theory card */}
+            <div className={`w-full md:w-[calc(50%-32px)] ${cards.length % 2 === 0 ? 'md:mr-auto' : 'md:ml-auto'}`}>
+              <Link href={`/learn/${doc.topic}/theory/${track.slug}?capstone=true`} className="group block h-full">
+                <div
+                  className="relative p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
+                  style={{
+                    background: '#111416',
+                    border: `1px solid rgba(${ta.rgb},0.15)`,
+                    borderRadius: '22px',
+                  }}
+                >
+                  {/* Top accent line */}
+                  <div className="absolute top-0 inset-x-0 h-[2px] rounded-t-[22px] overflow-hidden" style={{
+                    background: `linear-gradient(90deg, transparent 5%, rgba(${ta.rgb},0.5), transparent 95%)`,
+                  }} />
+
+                  {/* Eyebrow */}
+                  <div className="flex items-start justify-between mb-4">
+                    <span className="font-mono text-[10px] font-bold tracking-widest uppercase" style={{ color: ta.color }}>
+                      Capstone Project
+                    </span>
+                    <Trophy className="h-5 w-5" style={{ color: `rgba(${ta.rgb},0.3)` }} />
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="text-xl font-bold tracking-tight text-on-surface mb-2">
+                    Final Project
+                  </h3>
+
+                  {/* Description */}
+                  <p className="text-[12px] leading-relaxed text-on-surface-variant/40 mb-5">
+                    Apply everything you learned in a real-world scenario. Build a complete data pipeline from raw ingestion to clean output.
+                  </p>
+
+                  {/* CTA */}
+                  <div
+                    className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
+                    style={{
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      color: 'rgba(255,255,255,0.7)',
+                      borderRadius: '14px',
+                    }}
+                  >
+                    Start Project
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </div>) : null}
+
           {/* ── Mastery node ── */}
           <div
             className="relative flex justify-center py-12"
@@ -297,44 +367,23 @@ function TheoryNode({ card, idx, ta, topic }: {
                 <span className="font-mono text-[10px] text-on-surface-variant/35 tracking-wide">Module Progress</span>
                 <span className="font-mono text-[13px] font-bold" style={{ color: ta.color }}>{card.progressPct}%</span>
               </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${card.progressPct}%`,
-                    backgroundColor: ta.color,
-                    boxShadow: card.progressPct > 0 ? `0 0 8px rgba(${ta.rgb},0.5)` : 'none',
-                  }}
-                />
+              <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                <div style={{ width: `${card.progressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
               </div>
             </div>
 
             {/* CTA button */}
-            {isActive ? (
-              <div
-                className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
-                style={{
-                  backgroundColor: ta.color,
-                  color: '#0c0e10',
-                  borderRadius: '14px',
-                  boxShadow: `0 0 20px rgba(${ta.rgb},0.3), 0 0 50px rgba(${ta.rgb},0.12)`,
-                }}
-              >
-                {ctaLabel}
-              </div>
-            ) : (
-              <div
-                className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
-                style={{
-                  border: `1px solid ${isCompleted ? `rgba(${ta.rgb},0.2)` : 'rgba(255,255,255,0.06)'}`,
-                  color: isCompleted ? ta.color : 'rgba(255,255,255,0.3)',
-                  borderRadius: '14px',
-                  backgroundColor: isCompleted ? `rgba(${ta.rgb},0.04)` : 'transparent',
-                }}
-              >
-                {ctaLabel}
-              </div>
-            )}
+            <div
+              className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
+              style={{
+                border: '1px solid rgba(255,255,255,0.12)',
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.7)',
+                borderRadius: '14px',
+              }}
+            >
+              {ctaLabel}
+            </div>
           </div>
     </Link>
   );
@@ -401,10 +450,10 @@ function PracticeNode({ ps, idx, ta, practiceBasePath }: {
             <div
               className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
               style={{
-                border: `1px solid rgba(${ta.rgb},0.2)`,
-                color: ta.color,
+                border: '1px solid rgba(255,255,255,0.12)',
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.7)',
                 borderRadius: '14px',
-                backgroundColor: `rgba(${ta.rgb},0.04)`,
               }}
             >
               Engage Lab

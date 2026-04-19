@@ -39,7 +39,7 @@ const ReadingModeDropdown = dynamic(
 
 const SplitPanelCodeTask = dynamic(
   () => import('@/components/operations/SplitPanelCodeTask').then((m) => m.SplitPanelCodeTask),
-  { ssr: false, loading: () => <div className="h-96 rounded-xl animate-pulse" style={{ backgroundColor: 'var(--rm-code-bg, #0d1117)' }} /> }
+  { ssr: false, loading: () => <div className="h-96 rounded-[14px] animate-pulse" style={{ backgroundColor: 'var(--rm-code-bg, #0d1117)' }} /> }
 );
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -339,7 +339,7 @@ function StartScreen({
         {/* Begin button */}
         <Link
           href={sessionPath}
-          className="group inline-flex items-center gap-3 rounded-xl py-3.5 px-8 text-[15px] font-semibold transition-all duration-200 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+          className="group inline-flex items-center gap-3 rounded-[14px] py-3.5 px-8 text-[15px] font-semibold transition-all duration-200 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
           style={{
             background: `rgba(${ACCENT},0.12)`,
             border: `1px solid rgba(${ACCENT},0.2)`,
@@ -575,8 +575,8 @@ function TaskScreen({
             {!isFirst && (
               <button
                 onClick={handlePrev}
-                className="rounded-xl px-5 py-3 text-[13px] font-medium transition-all duration-200 cursor-pointer flex items-center gap-2"
-                style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)', color: 'var(--rm-text-secondary)' }}
+                className="rounded-[14px] px-5 py-3 text-[13px] font-medium transition-all duration-200 cursor-pointer flex items-center gap-2"
+                style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Previous
@@ -591,7 +591,7 @@ function TaskScreen({
               <button
                 onClick={handleCheck}
                 disabled={!allFieldsFilled}
-                className="rounded-xl px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+                className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{
                   background: allFieldsFilled ? `rgba(${ACCENT},0.12)` : 'var(--rm-bg-elevated)',
                   border: `1px solid ${allFieldsFilled ? `rgba(${ACCENT},0.2)` : 'var(--rm-border)'}`,
@@ -607,11 +607,11 @@ function TaskScreen({
               !isLast ? (
                 <button
                   onClick={handleNext}
-                  className="rounded-xl px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+                  className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                   style={{
-                    background: `rgba(${ACCENT},0.1)`,
-                    border: `1px solid rgba(${ACCENT},0.2)`,
-                    color: `rgb(${ACCENT})`,
+                    background: 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    color: 'rgba(255,255,255,0.8)',
                   }}
                 >
                   Continue
@@ -620,11 +620,11 @@ function TaskScreen({
               ) : (
                 <button
                   onClick={handleNext}
-                  className="rounded-xl px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+                  className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                   style={{
-                    background: `rgba(${ACCENT},0.12)`,
-                    border: `1px solid rgba(${ACCENT},0.2)`,
-                    color: `rgb(${ACCENT})`,
+                    background: 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    color: 'rgba(255,255,255,0.8)',
                   }}
                 >
                   See Results
@@ -636,7 +636,7 @@ function TaskScreen({
             {state.isReview && (
               <button
                 onClick={() => dispatch({ type: 'BACK_TO_RESULTS' })}
-                className="rounded-xl px-5 py-3 text-[13px] font-medium transition-all duration-200 cursor-pointer hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+                className="rounded-[14px] px-5 py-3 text-[13px] font-medium transition-all duration-200 cursor-pointer hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)', color: 'var(--rm-text-secondary)' }}
               >
                 Back to Results
@@ -669,7 +669,7 @@ function ResultsBreakdownRow({
 
   return (
     <div
-      className="rounded-xl overflow-hidden transition-all duration-200"
+      className="rounded-[14px] overflow-hidden transition-all duration-200"
       style={{
         background: 'var(--rm-bg-elevated)',
         border: '1px solid var(--rm-border)',
@@ -860,7 +860,7 @@ function ResultsScreen({
         <div className="flex flex-col sm:flex-row gap-3 mt-10 max-w-md mx-auto">
           <button
             onClick={() => dispatch({ type: 'REVIEW' })}
-            className="flex-1 rounded-xl py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+            className="flex-1 rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
             style={{
               background: 'var(--rm-bg-elevated)',
               border: '1px solid var(--rm-border)',
@@ -873,7 +873,7 @@ function ResultsScreen({
 
           <button
             onClick={() => dispatch({ type: 'RESET', taskCount: tasks.length })}
-            className="flex-1 rounded-xl py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+            className="flex-1 rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
             style={{
               background: 'var(--rm-bg-elevated)',
               border: '1px solid var(--rm-border)',
@@ -1118,12 +1118,12 @@ export function PracticeSetSession({ practiceSet }: { practiceSet: PracticeSet }
             {/* Right: reading mode + start session */}
             <div className="flex items-center gap-1">
               <ReadingModeDropdown />
-              {!practiceSession.hasActiveSession && (
+              {!practiceSession.hasActiveSession && !moduleId.startsWith('capstone-') && (
                 <button
                   type="button"
                   onClick={openSessionPicker}
                   disabled={!sessionDefaultsHydrated}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/8 px-3 text-xs font-medium text-primary transition-all hover:bg-primary/15 hover:border-primary/30"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-[14px] border border-white/[0.12] bg-white/[0.06] px-3 text-xs font-medium text-white/70 transition-all hover:bg-white/[0.1] hover:border-white/[0.18]"
                 >
                   <Clock3 className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Start session</span>

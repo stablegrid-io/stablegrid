@@ -160,11 +160,8 @@ const ProgressRow = ({
     <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6d746f] dark:text-[#7e9589]">
       {label}
     </span>
-    <div className="h-1.5 overflow-hidden rounded-full bg-[#ece4d8] dark:bg-white/8">
-      <div
-        className="h-full rounded-full transition-all"
-        style={{ width: `${percentage}%`, backgroundColor: color }}
-      />
+    <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+      <div style={{ width: `${percentage}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
     </div>
     <span className="text-[10px] text-[#6d746f] dark:text-[#7e9589]">{value}</span>
   </div>

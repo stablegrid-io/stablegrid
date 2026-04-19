@@ -173,11 +173,8 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
   return (
     <div className="flex min-h-screen flex-col bg-light-bg dark:bg-dark-bg">
       {/* Progress bar */}
-      <div className="fixed inset-x-0 top-0 z-50 h-0.5 bg-light-border dark:bg-dark-border">
-        <div
-          className="h-full bg-brand-500 transition-all duration-500 ease-out"
-          style={{ width: `${progress}%` }}
-        />
+      <div className="fixed inset-x-0 top-0 z-50 overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)' }}>
+        <div style={{ width: `${progress}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
       </div>
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center px-6 py-16">

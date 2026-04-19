@@ -62,16 +62,16 @@ export const TheorySidebar = ({
       <div className="border-b border-outline-variant/30 px-4 py-4">
         <Link
           href={`/learn/${doc.topic}/theory`}
-          className="mb-3 inline-flex items-center gap-2 font-mono text-[10px] text-on-surface-variant transition-colors hover:text-primary uppercase tracking-wider"
+          className="mb-3 inline-flex items-center gap-2 text-[10px] text-on-surface-variant transition-colors hover:text-on-surface uppercase tracking-wider"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           All Modules
         </Link>
 
-        <div className="text-sm font-headline font-bold text-on-surface">
+        <div className="text-sm font-bold text-on-surface">
           {activeModule.title}
         </div>
-        <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-on-surface-variant uppercase">
+        <div className="mt-1 flex items-center gap-2 text-[10px] text-on-surface-variant uppercase">
           <Clock3 className="h-3.5 w-3.5" />
           {orderedLessons.length} lessons · {activeModule.totalMinutes} min
         </div>
@@ -79,7 +79,7 @@ export const TheorySidebar = ({
 
         {checkpointMeta.hasCheckpoint ? (
           <div
-            className={`mt-3 inline-flex items-center gap-2 border px-3 py-1.5 font-mono text-[10px] font-medium ${checkpointBadgeClass}`}
+            className={`mt-3 inline-flex items-center gap-2 border px-3 py-1.5 text-[10px] font-medium ${checkpointBadgeClass}`}
           >
             {checkpointMeta.state === 'passed' ? (
               <CheckCircle2 className="h-3.5 w-3.5" />
@@ -120,7 +120,7 @@ export const TheorySidebar = ({
                 title={lessonLabel}
                 className={`w-full border px-3 py-2.5 text-left transition-colors ${
                   isActiveLesson
-                    ? 'border-primary/25 bg-primary/10'
+                    ? 'border-white/[0.12] bg-white/[0.06]'
                     : isLockedLesson
                       ? 'cursor-not-allowed border-transparent opacity-55'
                       : 'border-transparent hover:border-outline-variant/30 hover:bg-surface-container-high'
@@ -128,7 +128,7 @@ export const TheorySidebar = ({
               >
                 <div className="flex items-start gap-3">
                   <div
-                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md font-mono text-[10px] font-bold ${
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${
                       isLockedLesson
                         ? 'bg-surface-container-highest text-on-surface-variant'
                         : isLessonRead
@@ -137,7 +137,7 @@ export const TheorySidebar = ({
                             ? 'bg-on-surface text-surface'
                             : 'bg-surface-container-highest text-on-surface-variant'
                     }`}
-                    style={isLessonRead && !isActiveLesson ? { boxShadow: '0 0 8px rgba(0,226,238,0.15)' } : undefined}
+                    style={isLessonRead && !isActiveLesson ? { boxShadow: '0 0 8px rgba(153,247,255,0.15)' } : undefined}
                   >
                     {isLockedLesson ? (
                       <Lock className="h-3 w-3" />
@@ -154,13 +154,13 @@ export const TheorySidebar = ({
                         isActiveLesson
                           ? 'font-semibold text-on-surface'
                           : isLessonRead
-                            ? 'text-on-surface/70 line-through decoration-white/10'
+                            ? 'text-on-surface/70'
                             : 'text-on-surface-variant'
                       }`}
                     >
                       {lessonLabel}
                     </div>
-                    <div className="mt-1 font-mono text-[10px] text-on-surface-variant/60">
+                    <div className="mt-1 text-[10px] text-on-surface-variant/60">
                       {isCheckpointLesson && checkpointMeta.hasCheckpoint ? (
                         <>
                           {checkpointMeta.label} · {checkpointMeta.detail} ·{' '}

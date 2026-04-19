@@ -23,7 +23,7 @@ export const LandingNav = () => {
             Sign in
           </Link>
           <Link
-            href="/signup"
+            href="/login"
             onClick={() => {
               void trackProductEvent('landing_cta', {
                 source: 'nav_primary'
@@ -31,7 +31,7 @@ export const LandingNav = () => {
             }}
             className="rounded-full border border-primary/20 bg-primary/15 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/25"
           >
-            Start free
+            Get started
           </Link>
         </div>
       </div>

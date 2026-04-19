@@ -572,31 +572,17 @@ export async function GET(request: Request) {
     const scopedRows = filterRowsForCanonicalModules(rows, canonicalModules);
     return NextResponse.json({ data: scopedRows, storage: 'module_progress' });
   } catch (error) {
-    console.warn('[module-progress GET] primary path failed:', error instanceof Error ? error.message : error);
+    console.warn('[module-progress GET] failed:', error instanceof Error ? error.message : error);
 
-    // Try reading_sessions fallback for any failure (not just missing table)
-    try {
-      const fallbackRows = await fetchFallbackRowsFromReadingSessions({
-        supabase,
-        userId: user.id,
-        topic,
-        canonicalModules
-      });
-      return NextResponse.json({
-        data: fallbackRows,
-        storage: 'reading_sessions_fallback',
-        warning: 'Using reading_sessions fallback.'
-      });
-    } catch (fallbackError) {
-      console.warn('[module-progress GET] fallback also failed:', fallbackError instanceof Error ? fallbackError.message : fallbackError);
-
-      // Return empty data so the user can still read — don't block on progress
-      return NextResponse.json({
-        data: [],
-        storage: 'none',
-        warning: 'Progress temporarily unavailable. Reading is not affected.'
-      });
-    }
+    // Return empty data so the user can still read — don't block on progress.
+    // The server-rendered initial state from page.tsx is the source of truth;
+    // this client-side fetch only refreshes it. Falling back to reading_sessions
+    // caused data divergence and hydration flash bugs.
+    return NextResponse.json({
+      data: [],
+      storage: 'none',
+      warning: 'Progress temporarily unavailable. Reading is not affected.'
+    });
   }
 }
 
@@ -658,40 +644,17 @@ export async function POST(request: Request) {
         track: payload.trackSlug
       },
       execute: async () => {
-        let ensuredRows: ModuleProgressRow[];
-        let usingFallback = false;
-
-        try {
-          ensuredRows = await ensureModuleProgress({
-            supabase,
-            userId: user.id,
-            topic: payload.topic,
-            canonicalModules
-          });
-        } catch (error) {
-          if (!isMissingModuleProgressTableError(error)) {
-            throw error;
-          }
-
-          usingFallback = true;
-          ensuredRows = await fetchFallbackRowsFromReadingSessions({
-            supabase,
-            userId: user.id,
-            topic: payload.topic,
-            canonicalModules
-          });
-        }
+        let ensuredRows = await ensureModuleProgress({
+          supabase,
+          userId: user.id,
+          topic: payload.topic,
+          canonicalModules
+        });
         ensuredRows = filterRowsForCanonicalModules(ensuredRows, canonicalModules);
 
         if (payload.action === 'ensure') {
           return {
-            body: {
-              data: ensuredRows,
-              storage: usingFallback ? 'reading_sessions_fallback' : 'module_progress',
-              warning: usingFallback
-                ? 'module_progress table missing; using reading_sessions fallback.'
-                : undefined
-            },
+            body: { data: ensuredRows, storage: 'module_progress' },
             status: 200
           };
         }
@@ -762,36 +725,6 @@ export async function POST(request: Request) {
                   },
                   nowIso
                 });
-
-        if (usingFallback) {
-          await persistFallbackReadingSessionAction({
-            supabase,
-            userId: user.id,
-            topic: payload.topic,
-            moduleContext: canonicalModuleContext,
-            action: payload.action,
-            moduleId: payload.moduleId,
-            nowIso,
-            currentLessonId: payload.currentLessonId,
-            lastVisitedRoute: payload.lastVisitedRoute
-          });
-          revalidateTheoryProgressViews(payload.topic);
-
-          const fallbackRows = await fetchFallbackRowsFromReadingSessions({
-            supabase,
-            userId: user.id,
-            topic: payload.topic,
-            canonicalModules
-          });
-          return {
-            body: {
-              data: fallbackRows,
-              storage: 'reading_sessions_fallback',
-              warning: 'module_progress table missing; using reading_sessions fallback.'
-            },
-            status: 200
-          };
-        }
 
         const syncedRows = await syncModuleProgressChain({
           supabase,

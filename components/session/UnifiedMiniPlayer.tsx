@@ -168,7 +168,13 @@ export function UnifiedMiniPlayer() {
 
       {/* Practice session card */}
       {showPractice && practice && (() => {
-        const accent = '245,158,11';
+        const isCapstone = practice.modulePrefix.startsWith('capstone-');
+        const route = practice.route.toLowerCase();
+        const accent = route.includes('/senior') ? '255,113,108'
+          : route.includes('/mid') ? '255,201,101'
+          : '153,247,255';
+        const sessionLabel = isCapstone ? 'Project' : 'Practice';
+        const resumeLabel = isCapstone ? 'Resume project' : 'Resume practice';
         return (
           <div
             className="relative rounded-[22px] border px-4 py-3 min-w-[220px]"
@@ -193,7 +199,7 @@ export function UnifiedMiniPlayer() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: `rgb(${accent})` }}>
-                  Practice — {practice.modulePrefix}
+                  {sessionLabel} — {practice.modulePrefix}
                 </p>
                 <p className="text-[9px] text-white/25">Task {practice.taskIndex + 1}/{practice.totalTasks}</p>
               </div>
@@ -207,7 +213,7 @@ export function UnifiedMiniPlayer() {
                 color: `rgb(${accent})`,
               }}
             >
-              <span>Resume practice</span>
+              <span>{resumeLabel}</span>
               <ArrowRight className="h-2.5 w-2.5" />
             </Link>
           </div>

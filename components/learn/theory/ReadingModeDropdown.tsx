@@ -55,7 +55,7 @@ export const ReadingModeDropdown = () => {
   };
 
   return (
-    <div ref={ref} className="relative" data-reading-mode={focusMode ? mode : 'dark'}>
+    <div ref={ref} className="relative" data-reading-mode={mode}>
       <div className="sr-only" aria-live="polite" role="status">{announcement}</div>
 
       <button
@@ -112,11 +112,11 @@ export const ReadingModeDropdown = () => {
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-150"
                     style={{
                       backgroundColor: isActive
-                        ? 'color-mix(in srgb, var(--rm-accent) 12%, transparent)'
+                        ? 'var(--rm-bg)'
                         : isFocused
-                          ? 'color-mix(in srgb, var(--rm-text-secondary) 8%, transparent)'
+                          ? 'var(--rm-bg)'
                           : 'transparent',
-                      color: isActive ? 'var(--rm-accent)' : 'var(--rm-text-secondary)',
+                      color: isActive ? 'var(--rm-text)' : 'var(--rm-text-secondary)',
                     }}
                     role="radio"
                     aria-checked={isActive}
@@ -127,7 +127,7 @@ export const ReadingModeDropdown = () => {
                       {opt.label.charAt(0) + opt.label.slice(1).toLowerCase()}
                     </span>
                     {isActive && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--rm-accent)' }} />
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--rm-text)' }} />
                     )}
                   </button>
                 </div>
@@ -143,10 +143,8 @@ export const ReadingModeDropdown = () => {
               onClick={toggleFocus}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-150"
               style={{
-                backgroundColor: focusMode
-                  ? 'color-mix(in srgb, var(--rm-accent) 12%, transparent)'
-                  : 'transparent',
-                color: focusMode ? 'var(--rm-accent)' : 'var(--rm-text-secondary)',
+                backgroundColor: focusMode ? 'var(--rm-bg)' : 'transparent',
+                color: focusMode ? 'var(--rm-text)' : 'var(--rm-text-secondary)',
               }}
               role="switch"
               aria-checked={focusMode}
@@ -157,12 +155,13 @@ export const ReadingModeDropdown = () => {
                 className="ml-auto relative w-8 h-[18px] rounded-full transition-colors duration-200"
                 style={{
                   backgroundColor: focusMode
-                    ? 'var(--rm-accent)'
-                    : 'color-mix(in srgb, var(--rm-text-secondary) 25%, transparent)',
+                    ? 'var(--rm-text-secondary)'
+                    : 'var(--rm-border)',
                 }}
               >
                 <div
-                  className="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200"
+                  className="absolute top-[2px] w-[14px] h-[14px] rounded-full shadow-sm transition-transform duration-200"
+                  style={{ backgroundColor: 'var(--rm-bg)' }}
                   style={{
                     transform: focusMode ? 'translateX(16px)' : 'translateX(2px)',
                   }}

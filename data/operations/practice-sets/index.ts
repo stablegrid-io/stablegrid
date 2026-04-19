@@ -104,6 +104,13 @@ export interface ExpectedOutput {
   notes?: string;
 }
 
+export interface PracticeTaskHint {
+  tier: string;
+  xp_cost: number;
+  unlock_condition?: string;
+  text: string;
+}
+
 export interface PracticeTask {
   id: string;
   title: string;
@@ -121,6 +128,8 @@ export interface PracticeTask {
   partialCredit?: boolean;
   grading?: Record<string, unknown>;
   synthesisNotes?: Record<string, unknown>;
+  hints?: PracticeTaskHint[];
+  setupCode?: string;
 }
 
 export interface PracticeSetMetadata {

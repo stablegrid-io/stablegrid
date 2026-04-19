@@ -57,7 +57,7 @@ export const PricingSection = () => {
             </ul>
 
             <Link
-              href="/signup"
+              href="/login"
               onClick={() => {
                 void trackProductEvent('landing_cta', {
                   source: 'pricing_free'

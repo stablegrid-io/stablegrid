@@ -26,7 +26,7 @@ interface TheoryTrackGalleryProps {
 
 const TIER = [
   {
-    color: '#f0f0f3', rgb: '240,240,243',
+    color: '#99f7ff', rgb: '153,247,255',
     label: 'JUNIOR', subtitle: 'FOUNDATIONAL MODULES',
     xp: '1.0X', cta: 'Start Learning',
     image: '/brand/track-junior.png',
@@ -194,20 +194,9 @@ export const TheoryTrackGallery = ({
                       <span className="font-mono text-[13px] font-bold" style={{ color: tier.color }}>{progressPct}%</span>
                     </div>
 
-                    {/* Segmented bar */}
-                    <div className="flex gap-[3px] mb-8">
-                      {Array.from({ length: segments }, (_, s) => (
-                        <div
-                          key={s}
-                          className="flex-1 h-[7px] rounded-[1px]"
-                          style={{
-                            backgroundColor: s < filled
-                              ? `rgba(${tier.rgb},${0.55 + (s / segments) * 0.45})`
-                              : 'rgba(255,255,255,0.04)',
-                            boxShadow: s === filled - 1 && filled > 0 ? `0 0 8px rgba(${tier.rgb},0.5)` : 'none',
-                          }}
-                        />
-                      ))}
+                    {/* Progress bar */}
+                    <div className="mb-8 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                      <div style={{ width: `${progressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
                     </div>
 
                     {/* Stat rows */}
@@ -219,13 +208,13 @@ export const TheoryTrackGallery = ({
 
                     {/* CTA */}
                     <div className="mt-6">
-                      {tier.ctaStyle === 'filled' && !isLocked ? (
+                      {isLocked ? (
                         <div
                           className="w-full py-3.5 text-center font-mono text-[12px] font-bold tracking-[0.2em] uppercase rounded-[14px] transition-all duration-300"
                           style={{
-                            backgroundColor: '#f0f0f3',
-                            color: '#08090b',
-                            boxShadow: '0 0 20px rgba(255,255,255,0.15), 0 0 50px rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            backgroundColor: 'rgba(255,255,255,0.02)',
+                            color: 'rgba(255,255,255,0.12)',
                           }}
                         >
                           {cta}
@@ -234,9 +223,9 @@ export const TheoryTrackGallery = ({
                         <div
                           className="w-full py-3.5 text-center font-mono text-[12px] font-bold tracking-[0.2em] uppercase rounded-[14px] transition-all duration-300"
                           style={{
-                            border: `1px solid ${isLocked ? 'rgba(255,255,255,0.06)' : `rgba(${tier.rgb},0.2)`}`,
-                            backgroundColor: isLocked ? 'rgba(255,255,255,0.02)' : `rgba(${tier.rgb},0.04)`,
-                            color: isLocked ? 'rgba(255,255,255,0.12)' : `rgba(${tier.rgb},0.7)`,
+                            border: '1px solid rgba(255,255,255,0.12)',
+                            backgroundColor: 'rgba(255,255,255,0.08)',
+                            color: 'rgba(255,255,255,0.7)',
                           }}
                         >
                           {cta}

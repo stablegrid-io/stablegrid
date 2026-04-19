@@ -9,6 +9,7 @@ export interface TrackMetaSummary {
   slug: string;
   label: string;
   moduleCount: number;
+  moduleIds: string[];
 }
 
 export interface TopicTrackMeta {
@@ -25,11 +26,15 @@ export function buildTrackMetaByTopic(): TrackMetaByTopic {
   for (const [topicId, doc] of Object.entries(theoryDocs)) {
     if (!doc) continue;
     const tracks = getTheoryTracks(doc);
-    result[topicId] = tracks.map((track) => ({
-      slug: track.slug,
-      label: track.label,
-      moduleCount: sortModulesByOrder(track.chapters).length,
-    }));
+    result[topicId] = tracks.map((track) => {
+      const modules = sortModulesByOrder(track.chapters);
+      return {
+        slug: track.slug,
+        label: track.label,
+        moduleCount: modules.length,
+        moduleIds: modules.map((m) => m.id),
+      };
+    });
   }
 
   return result;

@@ -93,16 +93,8 @@ export const LessonCompletionToast = ({
               <span className="text-[10px] text-white/30">{completedModules}/{totalModules} modules</span>
               <span className="text-[11px] font-bold" style={{ color: `rgb(${accentRgb})` }}>{progressPct}%</span>
             </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: `rgba(${accentRgb},0.08)` }}>
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${barWidth}%`,
-                  background: `linear-gradient(90deg, rgba(${accentRgb},0.5), rgba(${accentRgb},0.9))`,
-                  boxShadow: `0 0 8px rgba(${accentRgb},0.3)`,
-                  transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-                }}
-              />
+            <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+              <div style={{ width: `${barWidth}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
             </div>
           </div>
 

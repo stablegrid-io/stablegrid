@@ -640,11 +640,8 @@ export function AdminSpendingPage() {
                               {fmt(total)}
                             </span>
                           </div>
-                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.04]">
-                            <div
-                              className="h-full rounded-full bg-rose-400/50 transition-all duration-500"
-                              style={{ width: `${pct}%` }}
-                            />
+                          <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                            <div style={{ width: `${pct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
                           </div>
                         </div>
                       );

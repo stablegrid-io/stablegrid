@@ -232,11 +232,11 @@ export function CookieConsentManager() {
       {bannerVisible ? (
         <section
           aria-label="Cookie consent"
-          className="fixed bottom-6 left-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-white/[0.08] bg-[#0d0f11]/90 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:left-auto sm:right-5 sm:translate-x-0"
+          className="fixed bottom-6 left-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 rounded-[22px] border border-white/[0.08] bg-[#0d0f11]/90 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:left-auto sm:right-5 sm:translate-x-0"
         >
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-start gap-3 mb-4">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.04]">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.04]">
                 <Shield className="h-4 w-4 text-white/50" />
               </div>
               <div>
@@ -259,21 +259,21 @@ export function CookieConsentManager() {
               <button
                 type="button"
                 onClick={() => commitConsent(buildAcceptAllConsentState(), 'banner_accept_all')}
-                className="flex-1 rounded-xl bg-white/[0.08] px-4 py-2 text-[0.8rem] font-medium text-white/90 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex-1 rounded-[14px] bg-white/[0.08] px-4 py-2 text-[0.8rem] font-medium text-white/90 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 Accept all
               </button>
               <button
                 type="button"
                 onClick={() => commitConsent(buildRejectAllConsentState(), 'banner_reject_all')}
-                className="flex-1 rounded-xl bg-white/[0.04] px-4 py-2 text-[0.8rem] font-medium text-white/50 transition-all hover:bg-white/[0.07] hover:text-white/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex-1 rounded-[14px] bg-white/[0.04] px-4 py-2 text-[0.8rem] font-medium text-white/50 transition-all hover:bg-white/[0.07] hover:text-white/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 Reject all
               </button>
               <button
                 type="button"
                 onClick={openPreferences}
-                className="rounded-xl px-3 py-2 text-[0.8rem] font-medium text-white/30 transition-all hover:text-white/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="rounded-[14px] px-3 py-2 text-[0.8rem] font-medium text-white/30 transition-all hover:text-white/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 Manage
               </button>
@@ -296,12 +296,12 @@ export function CookieConsentManager() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="cookie-preferences-title"
-            className="relative z-10 w-[calc(100vw-1.5rem)] max-w-[34rem] max-h-[85vh] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#0d0f11]/95 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
+            className="relative z-10 w-[calc(100vw-1.5rem)] max-w-[34rem] max-h-[85vh] overflow-y-auto rounded-[22px] border border-white/[0.08] bg-[#0d0f11]/95 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
           >
             {/* Header */}
             <header className="flex items-center justify-between px-5 pt-5 pb-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.04]">
+                <div className="flex h-9 w-9 items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.04]">
                   <Shield className="h-4.5 w-4.5 text-white/50" />
                 </div>
                 <div>
@@ -318,7 +318,7 @@ export function CookieConsentManager() {
                 type="button"
                 aria-label="Close"
                 onClick={() => setModalOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-white/25 transition-colors hover:bg-white/[0.06] hover:text-white/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex h-8 w-8 items-center justify-center rounded-[14px] text-white/25 transition-colors hover:bg-white/[0.06] hover:text-white/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -428,14 +428,14 @@ export function CookieConsentManager() {
                     setDraftConsent(buildRejectAllConsentState());
                     commitConsent(buildRejectAllConsentState(), 'preferences_reject_all');
                   }}
-                  className="rounded-xl px-3.5 py-2 text-[0.8rem] font-medium text-white/35 transition-all hover:bg-white/[0.04] hover:text-white/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                  className="rounded-[14px] px-3.5 py-2 text-[0.8rem] font-medium text-white/35 transition-all hover:bg-white/[0.04] hover:text-white/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 >
                   Reject all
                 </button>
                 <button
                   type="button"
                   onClick={() => commitConsent(draftConsent, 'preferences_save')}
-                  className="rounded-xl bg-white/[0.08] px-5 py-2 text-[0.8rem] font-medium text-white/85 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                  className="rounded-[14px] bg-white/[0.08] px-5 py-2 text-[0.8rem] font-medium text-white/85 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 >
                   Save preferences
                 </button>

@@ -616,8 +616,8 @@ function StepSnapshot({
                   <span>Stability meter</span>
                   <span>78%</span>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-[#99a4a0] via-[#b5bfbb] to-[#d1d9d5]" />
+                <div className="mt-2 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                  <div style={{ width: '78%', height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85 }} />
                 </div>
               </div>
             </div>
@@ -793,8 +793,8 @@ function StepSnapshot({
         ) : null}
         {progressionSnapshot ? null : (
           <div className="flex items-center gap-3 pt-1">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-              <div className={`h-full w-2/3 rounded-full bg-gradient-to-r ${tone.bar}`} />
+            <div className="flex-1 overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+              <div style={{ width: '66%', height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85 }} />
             </div>
             <span className={`text-[11px] font-semibold ${tone.action}`}>{snapshot.actionLabel}</span>
           </div>
@@ -822,7 +822,7 @@ function PrimaryCta({
 
   return (
     <Link
-      href="/signup"
+      href="/login"
       onClick={() => {
         void trackProductEvent('landing_cta', { source });
       }}

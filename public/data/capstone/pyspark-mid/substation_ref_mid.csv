@@ -1,0 +1,5 @@
+substation_id,name,region,capacity_mw
+SUB-N,Northern Grid Hub,NORTH,850.0
+SUB-S,Southern Power Centre,SOUTH,720.0
+SUB-E,Eastern Distribution Node,EAST,640.0
+SUB-W,Western Relay Station,WEST,580.0

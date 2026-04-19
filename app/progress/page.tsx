@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCanonicalTheoryStats } from '@/lib/learn/theoryProgress';
 import {
+  buildTheorySummaryByTopic,
   mapReadingSessionRow,
   type ReadingSessionRowLike
 } from '@/lib/learn/readingProgressModels';
@@ -109,12 +110,24 @@ export default async function ProgressPage() {
   const allReadingSessionRows = (allReadingSessionsResult.data ?? []) as ReadingSessionRowLike[];
   const userProgress = (userProgressResult.data ?? null) as UserProgressRow | null;
 
-  const topicProgress = topicProgressRows.map(mapTopicProgressRow);
+  // Correct topic_progress with actual reading session data (source of truth)
+  const theorySummaryByTopic = buildTheorySummaryByTopic(allReadingSessionRows);
+  const topicProgress = topicProgressRows.map((row) => {
+    const base = mapTopicProgressRow(row);
+    const summary = theorySummaryByTopic.get(row.topic);
+    if (!summary) return base;
+    return {
+      ...base,
+      theoryChaptersCompleted: summary.chapterCompleted,
+      theorySectionsRead: summary.sectionRead,
+      theoryTotalMinutesRead: Math.round(summary.totalSeconds / 60),
+    };
+  });
+
   const allSessions = allReadingSessionRows.map(mapReadingSessionRow);
 
   const questionsCompleted =
-    userProgress?.completed_questions?.length ??
-    topicProgress.reduce((sum, item) => sum + item.practiceQuestionsAttempted, 0);
+    userProgress?.completed_questions?.length ?? 0;
 
   const trackMetaByTopic = buildTrackMetaByTopic();
 

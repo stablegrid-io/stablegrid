@@ -25,7 +25,7 @@ export const TopBar = () => {
           <StableGridBrand className="text-xl" />
         </Link>
         <span className="hidden lg:block text-[11px] font-medium tracking-wide text-white/70">
-          The engineers who understand always win.
+          Understanding data is your edge.
         </span>
       </div>
 

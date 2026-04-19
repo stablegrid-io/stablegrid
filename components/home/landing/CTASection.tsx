@@ -16,7 +16,7 @@ export const CTASection = () => {
           Finish the core PySpark route with reliable progress tracking. Practice and mission layers are rolling out after this scope is complete.
         </p>
         <Link
-          href="/signup"
+          href="/login"
           onClick={() => {
             void trackProductEvent('landing_cta', {
               source: 'final_cta'
@@ -24,7 +24,7 @@ export const CTASection = () => {
           }}
           className="inline-flex items-center gap-2 rounded-xl bg-[#22b999] px-8 py-4 text-lg font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
         >
-          Start free
+          Get started
         </Link>
         <p className="mt-4 text-xs text-[#6f8f7d]">No credit card required for Free tier.</p>
       </div>
