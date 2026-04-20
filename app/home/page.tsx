@@ -395,7 +395,8 @@ export default async function HomePage() {
   const [
     topicProgressResult,
     allReadingSessionsResult,
-    userProgressResult
+    userProgressResult,
+    gridPurchasesResult
   ] =
     await Promise.all([
       supabase
@@ -414,12 +415,21 @@ export default async function HomePage() {
         .from('user_progress')
         .select('xp, streak, completed_questions, topic_progress, last_activity, updated_at')
         .eq('user_id', userId)
-        .maybeSingle()
+        .maybeSingle(),
+      supabase
+        .from('user_grid_purchases')
+        .select('cost_paid')
+        .eq('user_id', userId)
     ]);
 
   const topicProgressRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
   const allReadingSessionRows = (allReadingSessionsResult.data ?? []) as ReadingSessionRowLike[];
   const userProgress = (userProgressResult.data ?? null) as UserProgressRow | null;
+  const gridSpentKwh = (gridPurchasesResult.data ?? []).reduce(
+    (sum, row: { cost_paid: number | null }) => sum + (row.cost_paid ?? 0),
+    0,
+  );
+  const availableKwh = Math.max(0, (userProgress?.xp ?? 0) - gridSpentKwh);
 
   // Derive subsets from the single reading_sessions query
   const recentSessionRows = allReadingSessionRows
@@ -547,7 +557,7 @@ export default async function HomePage() {
         readingSignals={readingSignals}
         trackMetaByTopic={trackMetaByTopic}
         stats={{
-          totalXp: userProgress?.xp ?? 0,
+          totalXp: availableKwh,
           currentStreak: userProgress?.streak ?? 0,
           questionsCompleted,
           overallAccuracy

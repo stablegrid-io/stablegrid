@@ -1,14 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { DoorOpen, DoorClosed } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import type { TrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
-import { computeLevel, computeLessonsLeft, LEVEL_THRESHOLDS } from '@/lib/level';
 import BessContainer from '@/components/home/BessContainer';
+
+const BATTERY_CAPACITY_KWH = 1000;
 
 /* ── Types ── */
 interface HomeDashboardProps {
@@ -32,7 +33,7 @@ interface HomeDashboardProps {
 /* ── Dashboard ── */
 export const HomeDashboard = ({
   user,
-  topicProgress,
+  topicProgress: _topicProgress,
   recentSessions,
   completedSessions: _completedSessions,
   latestTheorySession,
@@ -50,16 +51,37 @@ export const HomeDashboard = ({
     user.email?.split('@')[0] ?? 'Operator'
   ).split(' ')[0];
 
-  const { level, pct, remaining } = useMemo(() => computeLevel(stats.totalXp), [stats.totalXp]);
   const [doorsOpen, setDoorsOpen] = useState(false);
+  const [infoPanelVisible, setInfoPanelVisible] = useState(true);
 
-  // Battery fill: total kWh as fraction of next level threshold
-  const nextThreshold = LEVEL_THRESHOLDS[level] ?? LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1];
-  const batteryFill = nextThreshold > 0 ? Math.min(1, stats.totalXp / nextThreshold) : 1;
+  // Live balance: seed from server prop, refetch on mount + window focus so
+  // returning from /grid after a purchase shows the updated reserve.
+  const [availableKwh, setAvailableKwh] = useState(stats.totalXp);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refetch = async () => {
+      try {
+        const r = await fetch('/api/user/balance', { cache: 'no-store' });
+        if (!r.ok || cancelled) return;
+        const json = await r.json();
+        if (typeof json?.balance === 'number') setAvailableKwh(json.balance);
+      } catch { /* keep prior value */ }
+    };
+    refetch();
+    window.addEventListener('focus', refetch);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refetch);
+    };
+  }, []);
+
+  const batteryFill = Math.min(1, availableKwh / BATTERY_CAPACITY_KWH);
+  const chargePct = Math.round(batteryFill * 100);
+  const remainingToFull = Math.max(0, BATTERY_CAPACITY_KWH - availableKwh);
   const TOTAL_CELLS = 42;
   const litCells = Math.floor(batteryFill * TOTAL_CELLS);
-  const lessonsLeft = useMemo(() => computeLessonsLeft(topicProgress), [topicProgress]);
-  const kWh = stats.totalXp.toLocaleString();
+  const kWh = availableKwh.toLocaleString();
 
   const resumeHref = useMemo(() => {
     const ls = latestTheorySession ?? recentSessions[0] ?? null;
@@ -129,18 +151,12 @@ export const HomeDashboard = ({
             }}
           >
             {/* Stats */}
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: 500, marginBottom: 4 }}>Level</div>
-                <div className="tabular-nums text-on-surface" style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em' }}>{level}</div>
+            <div className="mb-5">
+              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: 500, marginBottom: 6 }}>
+                kWh stored
               </div>
-              <div className="text-right">
-                <div className="tabular-nums" style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', color: '#99f7ff' }}>
-                  {kWh}
-                </div>
-                <div style={{ fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: 500, marginTop: 2 }}>
-                  kWh stored
-                </div>
+              <div className="tabular-nums" style={{ fontSize: 38, fontWeight: 600, letterSpacing: '-0.02em', color: '#99f7ff', lineHeight: 1 }}>
+                {kWh}
               </div>
             </div>
 
@@ -148,14 +164,14 @@ export const HomeDashboard = ({
             <div style={{ marginBottom: 20 }}>
               <div className="flex items-baseline justify-between" style={{ marginBottom: 6 }}>
                 <span style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: 500 }}>
-                  {remaining > 0 ? `${remaining.toLocaleString()} kWh to level ${level + 1}` : 'Max level'}
+                  {remainingToFull > 0 ? `${remainingToFull.toLocaleString()} kWh to full charge` : 'Battery fully charged'}
                 </span>
                 <span className="font-mono tabular-nums" style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-                  {pct}%
+                  {chargePct}%
                 </span>
               </div>
               <div style={{ height: 2, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
-                <div style={{ width: `${Math.max(pct, 1)}%`, height: '100%', borderRadius: 100, background: 'rgba(255,255,255,0.6)', transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
+                <div style={{ width: `${Math.max(chargePct, 1)}%`, height: '100%', borderRadius: 100, background: 'rgba(255,255,255,0.6)', transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
               </div>
             </div>
 
@@ -175,7 +191,7 @@ export const HomeDashboard = ({
                 Continue Learning
               </Link>
               <button
-                onClick={() => setDoorsOpen((v) => !v)}
+                onClick={() => { setDoorsOpen((v) => !v); setInfoPanelVisible(true); }}
                 className="flex items-center gap-2 font-mono uppercase transition-all hover:bg-white/[0.06] active:scale-[0.97]"
                 style={{
                   padding: '14px 16px', borderRadius: 14, fontSize: 11,
@@ -193,10 +209,10 @@ export const HomeDashboard = ({
         {/* ── Right: battery ── */}
         <div className="hidden lg:flex items-center justify-center" style={anim(200)}>
           <div className="relative w-full" style={{ maxWidth: 600 }}>
-            <BessContainer fill={batteryFill} doorsOpen={doorsOpen} kWh={stats.totalXp} level={level} pct={pct} />
+            <BessContainer fill={batteryFill} doorsOpen={doorsOpen} kWh={availableKwh} pct={chargePct} litCells={litCells} totalCells={TOTAL_CELLS} />
 
             {/* Info panel — visible when doors open */}
-            {doorsOpen && (
+            {doorsOpen && infoPanelVisible && (
               <div
                 className="absolute left-1/2 -translate-x-1/2 bottom-4 z-10"
                 style={{
@@ -209,8 +225,20 @@ export const HomeDashboard = ({
                   boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
                 }}
               >
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.8)', marginBottom: 10 }}>
-                  BESS Energy Storage
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>
+                    BESS Energy Storage
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setInfoPanelVisible(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'rgba(255,255,255,0.3)', lineHeight: 1, fontSize: 14 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; }}
+                    aria-label="Close info panel"
+                  >
+                    ✕
+                  </button>
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6, marginBottom: 12 }}>
                   Your battery stores kWh earned by reading lessons, completing modules, and finishing tracks. Cells light up as you learn.

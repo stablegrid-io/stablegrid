@@ -5,12 +5,14 @@ import {
   Radar,
   Atom,
   Braces,
+  Target,
   TrendingUp
 } from 'lucide-react';
+import { SubstationIcon } from './icons/SubstationIcon';
 
 export interface NavItem {
   href: string;
-  icon: LucideIcon;
+  icon: LucideIcon | typeof SubstationIcon;
   label: string;
   matchPrefixes?: string[];
   disabled?: boolean;
@@ -30,6 +32,18 @@ export const navItems: NavItem[] = [
   //   label: 'Cheat Sheets',
   //   matchPrefixes: ['/cheat-sheets']
   // },
+  {
+    href: '/practice',
+    icon: Target,
+    label: 'Practice',
+    matchPrefixes: ['/practice']
+  },
+  {
+    href: '/grid',
+    icon: SubstationIcon,
+    label: 'Grid',
+    matchPrefixes: ['/grid']
+  },
   {
     href: '/progress',
     icon: TrendingUp,

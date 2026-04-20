@@ -116,6 +116,10 @@ export function LearnModeTopicSelector({
 
   const orderedTopics = useMemo(() => {
     return [...topics].sort((left, right) => {
+      // Under construction (no chapters) always last
+      const leftHas = left.chapterCount > 0 ? 0 : 1;
+      const rightHas = right.chapterCount > 0 ? 0 : 1;
+      if (leftHas !== rightHas) return leftHas - rightHas;
       if (left.workload !== right.workload) {
         return right.workload - left.workload;
       }
@@ -159,8 +163,12 @@ export function LearnModeTopicSelector({
       result = result.filter((t) => topicStatuses[t.id] === topicFilter);
     }
 
-    // Sort
+    // Sort — under construction always last
     result = [...result].sort((a, b) => {
+      const aUC = (chapterCountByTopic[a.id] ?? a.chapterCount) === 0 ? 1 : 0;
+      const bUC = (chapterCountByTopic[b.id] ?? b.chapterCount) === 0 ? 1 : 0;
+      if (aUC !== bUC) return aUC - bUC;
+
       const aTotal = chapterCountByTopic[a.id] ?? a.chapterCount;
       const bTotal = chapterCountByTopic[b.id] ?? b.chapterCount;
 
@@ -373,16 +381,30 @@ export function LearnModeTopicSelector({
               const wrapperClassName = `group h-full ${hasContent ? '' : 'cursor-default'}`;
               const wrapperKey = `${mode}-${topic.id}`;
               const staggerDelay = index * 80;
+              const catRgb = CATEGORY_COLORS[meta.category as CategoryName] ?? style.accentRgb;
               const cardInner = (
+                <div
+                  style={{
+                    opacity: 0,
+                    animation: `fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${staggerDelay + 100}ms forwards`,
+                  }}
+                  className="h-full"
+                >
                   <section
                     className="bg-[#111416] relative overflow-hidden transition-all duration-300 h-full rounded-[22px]"
                     style={{
                       border: `1px solid ${borderAccent}`,
-                      opacity: 0,
-                      animation: `fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${staggerDelay + 100}ms forwards`,
                     }}
-                    onMouseEnter={(e) => { if (hasContent) { e.currentTarget.style.boxShadow = '0 0 30px rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.transform = 'scale(1.02)'; } }}
-                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = borderAccent; e.currentTarget.style.transform = 'scale(1)'; }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.03)';
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+                      e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.borderColor = borderAccent;
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                   >
                     <div
                       className="p-6 h-full flex flex-col relative"
@@ -401,17 +423,12 @@ export function LearnModeTopicSelector({
                             className="h-7 w-7 object-contain"
                           />
                         </div>
-                        {(() => {
-                          const catRgb = CATEGORY_COLORS[meta.category as CategoryName] ?? style.accentRgb;
-                          return (
-                            <span
-                              className="font-mono text-[10px] px-2 py-0.5 uppercase rounded-full"
-                              style={{ color: `rgb(${catRgb})`, border: `1px solid rgba(${catRgb},0.3)`, backgroundColor: `rgba(${catRgb},0.06)` }}
-                            >
-                              {meta.category}
-                            </span>
-                          );
-                        })()}
+                        <span
+                          className="font-mono text-[10px] px-2 py-0.5 uppercase rounded-full"
+                          style={{ color: `rgb(${catRgb})`, border: `1px solid rgba(${catRgb},0.3)`, backgroundColor: `rgba(${catRgb},0.06)` }}
+                        >
+                          {meta.category}
+                        </span>
                       </div>
 
                       {/* Title + description */}
@@ -486,7 +503,7 @@ export function LearnModeTopicSelector({
 
                             {/* Construction CTA */}
                             <div
-                              className="w-full py-4 font-mono text-[10px] font-bold tracking-widest text-center uppercase opacity-40"
+                              className="w-full py-4 font-mono text-[10px] font-bold tracking-widest text-center uppercase opacity-40 rounded-[14px]"
                               style={{
                                 border: `1px dashed rgba(${style.accentRgb},0.3)`,
                                 color: `rgba(${style.accentRgb},0.5)`
@@ -499,6 +516,7 @@ export function LearnModeTopicSelector({
                       </div>
                     </div>
                   </section>
+                </div>
               );
 
               return hasContent ? (

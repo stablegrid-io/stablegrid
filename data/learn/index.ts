@@ -64,7 +64,7 @@ export const learnTopics = Object.values(cheatSheets)
       chapterCount: theory?.chapterCount ?? 0
     };
   })
-  .filter((t) => t.chapterCount > 0);
+;
 
 export const getLearnTopicMeta = (topic: string) => {
   const sheet = cheatSheets[topic];

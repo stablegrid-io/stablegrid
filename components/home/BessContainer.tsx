@@ -7,8 +7,9 @@ interface BessContainerProps {
   fill?: number;
   doorsOpen?: boolean;
   kWh?: number;
-  level?: number;
   pct?: number;
+  litCells?: number;
+  totalCells?: number;
   className?: string;
   style?: CSSProperties;
 }
@@ -18,8 +19,9 @@ export default function BessContainer({
   fill = 0.65,
   doorsOpen = false,
   kWh = 0,
-  level = 1,
   pct = 0,
+  litCells: litCellsProp,
+  totalCells: totalCellsProp,
   className = '',
   style = {},
 }: BessContainerProps) {
@@ -305,8 +307,8 @@ export default function BessContainer({
 
                     <line x1="30" y1="56" x2="70" y2="56" stroke="#0b0e14" strokeOpacity="0.15" strokeWidth="0.3" />
 
-                    <text x="35" y="66" fontSize="2" fontWeight="600" fontFamily="system-ui" fill="#6b7280" letterSpacing="1" textAnchor="middle">LEVEL</text>
-                    <text x="35" y="74" fontSize="5.5" fontWeight="700" fontFamily="system-ui" fill="#1a1f2a" textAnchor="middle">{level}</text>
+                    <text x="35" y="66" fontSize="2" fontWeight="600" fontFamily="system-ui" fill="#6b7280" letterSpacing="1" textAnchor="middle">CELLS</text>
+                    <text x="35" y="74" fontSize="5.5" fontWeight="700" fontFamily="system-ui" fill="#1a1f2a" textAnchor="middle">{litCellsProp ?? Math.floor((fill ?? 0) * (totalCellsProp ?? COLS * ROWS))}/{totalCellsProp ?? COLS * ROWS}</text>
 
                     <text x="65" y="66" fontSize="2" fontWeight="600" fontFamily="system-ui" fill="#6b7280" letterSpacing="1" textAnchor="middle">CHARGE</text>
                     <text x="65" y="74" fontSize="5.5" fontWeight="700" fontFamily="system-ui" fill="#1a1f2a" textAnchor="middle">{pct}%</text>

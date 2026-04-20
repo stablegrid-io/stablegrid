@@ -413,8 +413,3 @@ export const useProgressStore = create<ProgressState>()(
   )
 );
 
-// ── Convenience derived selector ──────────────────────────────────────────────
-// Reads live XP from the store and returns the full level progress object.
-// Re-renders only when xp changes.
-import { computeLevel } from '@/lib/level';
-export const useCharacterLevel = () => computeLevel(useProgressStore((s) => s.xp));
