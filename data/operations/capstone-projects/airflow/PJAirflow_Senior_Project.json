@@ -1,0 +1,1567 @@
+{
+  "id": "PJ_Airflow_Senior",
+  "version": "1.0.0",
+  "track": "Apache Airflow",
+  "level": "Senior",
+  "scenario": "BalticSolar Alliance",
+  "total_xp": 700,
+  "narrative_premise": "BalticSolar Alliance's board approved the consolidation yesterday. SaulėGrid (Lithuania) absorbs Saule Tīkls (Latvia) and Päike Võrk (Estonia); the parent company wants one orchestration platform running all three countries' pipelines within 90 days. You are the lead orchestration platform architect. Aušra, the CTO, has scheduled the architecture review for Friday afternoon — she wants a recommendation she can take to the board next Tuesday. Between now and Friday you must produce four artefacts: an audit of the current SaulėGrid platform at 3× projected load, an architecture recommendation comparing three named options against named criteria, a 90-day migration plan classifying every production pipeline into delivery waves, and a governance policy that closes the gaps three recent near-miss incidents exposed. Friday afternoon you present the synthesis — the CTO deck — with every section tied back to an auditable decision. The platform currently runs 200 DAGs across 10 teams with one PostgreSQL metadata DB and one CeleryExecutor worker pool. Consolidation triples every load metric in the evidence pack. The constraints are real — Lithuanian, Latvian, and Estonian data residency laws, the platform team's headcount, and the 90-day board-approved timeline — and every decision you make ends up on slides Aušra reads aloud to directors who cannot debug Airflow. Start with the audit.",
+  "ux": {
+    "persistent_element": "design_journal",
+    "journal_entries": [
+      {
+        "id": "j_1",
+        "label": "Top 3 platform risks at 3× scale",
+        "populated_by": "chapter_1"
+      },
+      {
+        "id": "j_2",
+        "label": "Recommended architecture",
+        "populated_by": "chapter_2"
+      },
+      {
+        "id": "j_3",
+        "label": "Wave 1 pipeline count + top critical",
+        "populated_by": "chapter_3"
+      },
+      {
+        "id": "j_4",
+        "label": "Primary governance gap + enforcement mechanism",
+        "populated_by": "chapter_4"
+      }
+    ],
+    "score_card": {
+      "thresholds": {
+        "distinguished": 665,
+        "proficient": 560,
+        "developing": 420
+      },
+      "labels": {
+        "distinguished": "Strong architectural judgment. Your audit, recommendation, migration, and governance choices form a coherent narrative. The CTO deck reads as one decision, not five. You are ready to operate as the platform lead for a multi-country Airflow estate.",
+        "proficient": "Solid senior-level work. One or two chapters showed inconsistency with your own earlier choices — review the chapters with the lowest scores and the hint tiers you used.",
+        "developing": "The individual chapters are defensible but the synthesis is not tight. Review where your CTO deck (Ch5) did not match your earlier chapters' selections.",
+        "incomplete": "The senior-level track content should be reviewed before attempting to lead a platform consolidation. The chapter breakdown identifies which modules need attention."
+      }
+    }
+  },
+  "coverage_matrix": {
+    "1": [
+      "chapter_1",
+      "chapter_2",
+      "chapter_5"
+    ],
+    "2": [
+      "chapter_3"
+    ],
+    "3": [
+      "chapter_1",
+      "chapter_2"
+    ],
+    "4": [
+      "chapter_1"
+    ],
+    "5": [
+      "chapter_2"
+    ],
+    "6": [
+      "chapter_1"
+    ],
+    "7": [
+      "chapter_1",
+      "chapter_2"
+    ],
+    "8": [
+      "chapter_4"
+    ],
+    "9": [
+      "chapter_1",
+      "chapter_4"
+    ],
+    "10": [
+      "chapter_3",
+      "chapter_4",
+      "chapter_5"
+    ]
+  },
+  "datasets": [],
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "title": "Audit the Current State",
+      "unlock_condition": null,
+      "chapter_type": "template",
+      "base_xp": 140,
+      "modules_primary": [
+        1,
+        6,
+        9
+      ],
+      "modules_secondary": [
+        3,
+        4,
+        7
+      ],
+      "inter_chapter_dependency": null,
+      "narrative_context": "Before you can recommend anything, Aušra wants an honest read of what SaulėGrid's platform actually looks like today — and what breaks first when you triple it. Four evidence panels are on the table: the pipeline inventory (20 production DAGs that will be representative of the 200-DAG fleet), the scheduler and metadata DB metrics pulled this morning, the RBAC and governance topology, and the four recent near-miss incidents the team filed post-mortems for. Your job is to name the three risks that become critical at 3× load, and identify the single platform metric most likely to fail first.",
+      "task": "Select the three technical risks that become critical when the current platform's load triples (multi-select, exactly 3 from 8 candidates). Then select the single scheduler/metadata metric from ev_1_2 that, if it continues scaling linearly with DAG count, most directly threatens scheduler availability at 3× the current volume.",
+      "validation_hint": "The correct three risks are R1 (parse time vs heartbeat), R2 (metadata DB saturation), and R3 (no multi-tenant isolation). Each is decisively supported by one of the four evidence panels. The correct KPI is dag_processing_manager_last_runtime_seconds — at 180s today with 200 DAGs, linear scaling gives 540s at 600 DAGs, far beyond the 30s heartbeat ceiling.",
+      "evidence": [
+        {
+          "id": "ev_1_1",
+          "type": "table",
+          "title": "Pipeline inventory — representative 20 of 200 production DAGs",
+          "caption": "Team, country, SLA tier, consumer count. Full 200-DAG fleet shows identical distributions.",
+          "headers": [
+            "pipeline_id",
+            "operator",
+            "team",
+            "sla",
+            "consumers",
+            "annual_cost_keur",
+            "schedule_type"
+          ],
+          "rows": [
+            [
+              "sg_bronze_meters",
+              "SaulėGrid",
+              "DataEng",
+              "critical",
+              "8",
+              "120",
+              "cron"
+            ],
+            [
+              "sg_silver_transform",
+              "SaulėGrid",
+              "DataEng",
+              "critical",
+              "8",
+              "180",
+              "dataset"
+            ],
+            [
+              "sg_gold_vert",
+              "SaulėGrid",
+              "DataEng",
+              "critical",
+              "6",
+              "90",
+              "dataset"
+            ],
+            [
+              "sg_weather_ingest",
+              "SaulėGrid",
+              "DataEng",
+              "high",
+              "5",
+              "70",
+              "cron"
+            ],
+            [
+              "sg_inverter_tel",
+              "SaulėGrid",
+              "DataEng",
+              "high",
+              "4",
+              "85",
+              "cron"
+            ],
+            [
+              "sg_battery_state",
+              "SaulėGrid",
+              "DataEng",
+              "medium",
+              "3",
+              "45",
+              "cron"
+            ],
+            [
+              "sg_reporting_daily",
+              "SaulėGrid",
+              "Analytics",
+              "high",
+              "6",
+              "95",
+              "cron"
+            ],
+            [
+              "sg_billing_monthly",
+              "SaulėGrid",
+              "Analytics",
+              "critical",
+              "10",
+              "140",
+              "cron"
+            ],
+            [
+              "sg_campaign_emails",
+              "SaulėGrid",
+              "Marketing",
+              "low",
+              "2",
+              "30",
+              "cron"
+            ],
+            [
+              "sg_audit_extract",
+              "SaulėGrid",
+              "Compliance",
+              "medium",
+              "3",
+              "55",
+              "cron"
+            ],
+            [
+              "st_bronze_meters",
+              "SauleTikls",
+              "DataEng",
+              "critical",
+              "6",
+              "110",
+              "cron"
+            ],
+            [
+              "st_silver_transform",
+              "SauleTikls",
+              "DataEng",
+              "critical",
+              "6",
+              "160",
+              "cron"
+            ],
+            [
+              "st_gold_regulatory",
+              "SauleTikls",
+              "DataEng",
+              "critical",
+              "5",
+              "100",
+              "cron"
+            ],
+            [
+              "st_weather_ingest",
+              "SauleTikls",
+              "DataEng",
+              "high",
+              "4",
+              "65",
+              "cron"
+            ],
+            [
+              "st_reporting_daily",
+              "SauleTikls",
+              "Analytics",
+              "high",
+              "4",
+              "80",
+              "cron"
+            ],
+            [
+              "pv_bronze_meters",
+              "PaikeVork",
+              "DataEng",
+              "critical",
+              "5",
+              "95",
+              "cron"
+            ],
+            [
+              "pv_silver_transform",
+              "PaikeVork",
+              "DataEng",
+              "critical",
+              "5",
+              "140",
+              "cron"
+            ],
+            [
+              "pv_gold_regulatory",
+              "PaikeVork",
+              "DataEng",
+              "critical",
+              "4",
+              "85",
+              "cron"
+            ],
+            [
+              "pv_weather_ingest",
+              "PaikeVork",
+              "DataEng",
+              "high",
+              "3",
+              "55",
+              "cron"
+            ],
+            [
+              "pv_reporting_daily",
+              "PaikeVork",
+              "Analytics",
+              "medium",
+              "3",
+              "50",
+              "cron"
+            ]
+          ]
+        },
+        {
+          "id": "ev_1_2",
+          "type": "log_excerpt",
+          "title": "Scheduler and metadata DB metrics — this morning",
+          "caption": "Pulled from Grafana at 09:00 Europe/Vilnius. Platform currently runs 200 DAGs.",
+          "content": "dag_processing_manager_last_runtime_seconds: 180\nscheduler_heartbeat_recent_seconds: 28\nscheduler_heartbeat_ceiling_seconds: 30\nmetadata_db_cpu_pct: 71\nmetadata_db_connection_pool: 18/20 in use\nmetadata_db_query_p95_ms: 142\nexecutor_open_slots: 72/192 (62% in-use)\ncelery_worker_count: 6\ncelery_worker_memory_headroom_pct: 44\nprovider_package_versions: current (apache-airflow-providers-* all <30 days old)"
+        },
+        {
+          "id": "ev_1_3",
+          "type": "log_excerpt",
+          "title": "RBAC and governance topology",
+          "caption": "Output of `airflow roles list-users --verbose` and governance review.",
+          "content": "rbac_roles_configured: 1 (role: airflow-editor)\ndag_level_permissions: DISABLED\nfolder_organization: flat — all 200 DAGs in dags/ with no team subdirectories\non_call_rotation: ESTABLISHED (PagerDuty, 24/7, 8 engineers across 3 teams)\ndag_code_review_policy: informal (no required approvers configured)\nci_dag_integrity_check: NONE (the find_orphaned_consumers test from March is not wired into CI yet)\nsecrets_backend: AWS Secrets Manager (operational)\ntimezone_discipline: single TZ (Europe/Vilnius) across all DAGs"
+        },
+        {
+          "id": "ev_1_4",
+          "type": "log_excerpt",
+          "title": "Recent near-miss incidents (last 90 days)",
+          "caption": "Post-mortems filed in the team wiki. All four avoided outage by luck or manual intervention.",
+          "content": "INC-2026-03-30: Silver DAG silently not running for 8 days post-sprint — caught Monday morning.\n                 Root cause: producer DAG missing Dataset outlet after consumer-side migration.\nINC-2026-03-12: Latvian team engineer edited sg_billing_monthly by mistake while browsing flat dags/ dir.\n                 Root cause: no per-team DAG isolation. No technical control stopped the edit from deploying.\nINC-2026-02-22: Scheduler restart took 12m 40s due to 200-DAG parse queue backlog.\n                 Root cause: DAG parsing scaling pressure. Pods marked unhealthy during restart.\nINC-2026-02-08: Metadata DB CPU alarm fired 3× in one week. Queries backed up; UI became unresponsive.\n                 Root cause: DB saturation from scheduler + web server + workers competing for the single DB."
+        }
+      ],
+      "grading": {
+        "type": "template",
+        "xp_per_unit_default": 35,
+        "template_fields": [
+          {
+            "id": "F1_1",
+            "xp": 105,
+            "label": "Select exactly 3 technical risks that become CRITICAL at 3× current load.",
+            "field_type": "multi_select",
+            "select_count": 3,
+            "options": [
+              "R1: DAG parsing time approaches the scheduler heartbeat window",
+              "R2: PostgreSQL metadata DB saturates on CPU and connection pool",
+              "R3: No multi-tenant DAG isolation — all teams share a flat dags/ folder with one RBAC role",
+              "R4: CeleryExecutor worker count is at capacity",
+              "R5: SFTP connection pool is exhausted across ingestion DAGs",
+              "R6: No on-call rotation to respond to incidents",
+              "R7: Provider packages are significantly out of date",
+              "R8: Timezone inconsistencies across country DAGs cause schedule drift"
+            ],
+            "correct_answers": [
+              "R1: DAG parsing time approaches the scheduler heartbeat window",
+              "R2: PostgreSQL metadata DB saturates on CPU and connection pool",
+              "R3: No multi-tenant DAG isolation — all teams share a flat dags/ folder with one RBAC role"
+            ],
+            "scoring_rule": "35 XP per correct selection up to 3. Maximum 105 XP. Selecting a distractor scores 0 XP for that pick but does not subtract from correct picks.",
+            "failure_message": "R1 is supported by ev_1_2 (parse 180s vs 30s heartbeat; linear 3× gives 540s) and ev_1_4 INC-2026-02-22. R2 is supported by ev_1_2 (71% CPU, 18/20 connections) and ev_1_4 INC-2026-02-08. R3 is supported by ev_1_3 (flat dags/ dir, 1 RBAC role, dag_level_permissions disabled) and ev_1_4 INC-2026-03-12. R4 is ruled out by ev_1_2 (62% worker utilization — not the bottleneck). R5/R7/R8 have no evidence. R6 is ruled out by ev_1_3 (rotation is ESTABLISHED)."
+          },
+          {
+            "id": "F1_2",
+            "xp": 35,
+            "label": "Which metric in ev_1_2, if it continues scaling linearly with DAG count at 3× current volume, most directly threatens scheduler AVAILABILITY (not just performance)?",
+            "field_type": "single_select",
+            "options": [
+              "dag_processing_manager_last_runtime_seconds",
+              "metadata_db_cpu_pct",
+              "metadata_db_connection_pool",
+              "executor_open_slots",
+              "scheduler_heartbeat_recent_seconds"
+            ],
+            "correct_answer": "dag_processing_manager_last_runtime_seconds",
+            "failure_message": "Parse time has a HARD CEILING in the heartbeat (30s). At 180s today with 200 DAGs, linear scaling gives 540s at 600 DAGs — far beyond the ceiling, at which point the scheduler is marked unhealthy and effectively unavailable. metadata_db_cpu_pct is a PERFORMANCE concern (queries slow) but can be vertically scaled. scheduler_heartbeat_recent_seconds is a symptom of the parse-time cause, not the independent cause. Worker slots and DB pool are far from their ceilings."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "BalticSolar's platform audits follow the SaulėGrid rule Rokas trained the team on: sort everything in the evidence by what SCALES with load and what does not. At 3× scale the things that scale linearly hit their ceilings; the things that don't scale become proportionally cheaper. Find the first three things that hit a ceiling."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "ev_1_2 has numeric metrics with some hard-coded ceilings and some that can be scaled vertically. ev_1_3 describes the governance topology (roles, folders, CI). ev_1_4 has four incident summaries — each points to a specific category of risk. Cross-check incidents against the evidence panels that describe the same category."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Three categories of risk dominate at platform scale: (1) scheduler parse-time approaching heartbeat ceiling — look at ev_1_2's two heartbeat lines and ev_1_4 INC-2026-02-22; (2) metadata resource saturation — look at ev_1_2's DB lines and ev_1_4 INC-2026-02-08; (3) multi-tenant governance with 10 teams on shared resources — look at ev_1_3 and ev_1_4 INC-2026-03-12. Worker utilization, SFTP, and on-call are decisively NOT current issues per the evidence."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "F1_2 = dag_processing_manager_last_runtime_seconds. Parse time has a hard ceiling at the scheduler heartbeat (30s). 180s today × 3× = 540s, which is 18× past the ceiling. No other metric has that combination of linear scaling AND hard availability ceiling."
+        }
+      ]
+    },
+    {
+      "id": "chapter_2",
+      "title": "Recommend the Onboarding Architecture",
+      "unlock_condition": {
+        "after_chapter": 1
+      },
+      "chapter_type": "template",
+      "base_xp": 140,
+      "modules_primary": [
+        1,
+        5,
+        7
+      ],
+      "modules_secondary": [
+        3
+      ],
+      "inter_chapter_dependency": {
+        "source_chapter": 1,
+        "fallback_dataset": null
+      },
+      "narrative_context": "Three options for the onboarding architecture are on the table — Aušra circulated them in Tuesday's platform sync. None is obviously correct; each trades complexity, residency compliance, scaling headroom, and cost. Your job is to pick one, justify it against four named criteria with ratings consistent with the option's actual profile, and document the two trade-offs that any senior engineer would accept as decisive for that option. The rubric does NOT grade which option you pick — it grades whether your ratings and trade-offs are internally consistent with the option you chose.",
+      "task": "Select one of the three architecture options (F2_1). For each of the four evaluation criteria (F2_2 through F2_5), pick the rating that is INTERNALLY CONSISTENT with your chosen option — not 'the best rating overall'. Then (F2_6) pick the two decisive trade-offs any senior engineer would accept for your chosen option.",
+      "validation_hint": "For each option, the expected-rating vector across the four criteria is pre-computed based on the option's architectural properties. Option A's strengths are simplicity and cost; its risks are residency and scaling. Option B inverts that. Option C is in between on most axes.",
+      "evidence": [
+        {
+          "id": "ev_2_1",
+          "type": "log_excerpt",
+          "title": "Option A — Single shared Airflow instance",
+          "caption": "One metadata DB, one scheduler, one worker pool. All three operators' DAGs live in subdirectories.",
+          "content": "Topology: 1 metadata DB (scaled up), 1 scheduler pod, 1 worker pool with isolation via queues.\nDAG organization: dags/lt/, dags/lv/, dags/ee/ with DAG-level RBAC per country.\nData residency: all metadata (run history, XComs, task logs) stored in the single DB at the LT-hosted cluster.\nScaling model: vertical on DB; horizontal on workers.\nTeam operational model: one platform team operates the single instance for all 10 consumer teams."
+        },
+        {
+          "id": "ev_2_2",
+          "type": "log_excerpt",
+          "title": "Option B — Federated per-country Airflow instances",
+          "caption": "Three independent Airflow instances (LT, LV, EE), each with its own metadata DB, scheduler, workers. A central catalog tracks cross-country Dataset dependencies.",
+          "content": "Topology: 3 metadata DBs (one per country), 3 schedulers, 3 worker pools.\nDAG organization: each country's DAGs run in their country's instance.\nData residency: each country's metadata stays within national borders — fully compliant.\nScaling model: parallel vertical scaling per instance.\nTeam operational model: each operator's team operates its own instance; SaulėGrid platform team maintains the shared catalog."
+        },
+        {
+          "id": "ev_2_3",
+          "type": "log_excerpt",
+          "title": "Option C — Hub-and-spoke with local execution",
+          "caption": "SaulėGrid's Airflow (the hub) orchestrates; workers and metadata runs local to each country.",
+          "content": "Topology: 1 hub scheduler + metadata DB (LT), 3 local worker pools (LT/LV/EE), country-scoped Kubernetes executors.\nDAG organization: all DAGs defined in the hub; execution happens in the country where the task's data lives.\nData residency: task logs and intermediate data stay local to the country; the hub only sees task metadata (task_id, state, timing) — residency compliance requires explicit log-routing configuration per country.\nScaling model: hub is a bottleneck for scheduling; workers scale per country.\nTeam operational model: SaulėGrid platform team operates the hub; per-country teams operate their local worker pool."
+        },
+        {
+          "id": "ev_2_4",
+          "type": "log_excerpt",
+          "title": "Constraints from Aušra's Tuesday brief",
+          "caption": "Non-negotiables called out by the CTO at the platform sync.",
+          "content": "- Lithuanian, Latvian, and Estonian data residency laws each require personally-identifiable meter data (and any derived task logs containing it) to be stored WITHIN that country's borders.\n- Platform team headcount is FIXED at 4 engineers through 2027. No new hires to operate additional infrastructure.\n- 90-day timeline for full cutover.\n- Board-approved operational budget is 1.3× current (not 3×)."
+        }
+      ],
+      "grading": {
+        "type": "template",
+        "xp_per_unit_default": 20,
+        "template_fields": [
+          {
+            "id": "F2_1",
+            "xp": 20,
+            "label": "Which architecture option do you recommend?",
+            "field_type": "single_select",
+            "options": [
+              "A: Single shared Airflow instance",
+              "B: Federated per-country Airflow instances",
+              "C: Hub-and-spoke with local execution"
+            ],
+            "correct_answer": "ANY_OPTION_VALID",
+            "scoring_rule": "20 XP awarded for any valid selection. The option choice itself is not scored as right/wrong — the rubric scores whether subsequent ratings are CONSISTENT with this choice.",
+            "failure_message": "Pick one option. The grading does not penalize the choice itself; it measures whether your evaluation of the criteria matches the profile of the option you picked."
+          },
+          {
+            "id": "F2_2",
+            "xp": 20,
+            "label": "Operational complexity rating — for your chosen option (considering fixed 4-engineer headcount).",
+            "field_type": "single_select",
+            "options": [
+              "Strong positive (operationally simple)",
+              "Neutral",
+              "Concern (operationally demanding)",
+              "Significant risk (requires headcount we do not have)"
+            ],
+            "correct_answer_by_option": {
+              "A: Single shared Airflow instance": "Strong positive (operationally simple)",
+              "B: Federated per-country Airflow instances": "Significant risk (requires headcount we do not have)",
+              "C: Hub-and-spoke with local execution": "Concern (operationally demanding)"
+            },
+            "scoring_rule": "20 XP if student's rating matches the expected rating for their F2_1 selection. 0 otherwise.",
+            "failure_message": "Option A runs one Airflow instance — one operational surface; simple. Option B runs three — 3× the operational surface against fixed 4-engineer headcount; significant risk per ev_2_4. Option C runs a hub plus three local worker pools — mixed complexity; a concern."
+          },
+          {
+            "id": "F2_3",
+            "xp": 20,
+            "label": "Cross-country data residency compliance rating — for your chosen option.",
+            "field_type": "single_select",
+            "options": [
+              "Strong positive (residency is a design asset)",
+              "Neutral",
+              "Concern (requires mitigation)",
+              "Significant risk (residency laws likely violated)"
+            ],
+            "correct_answer_by_option": {
+              "A: Single shared Airflow instance": "Significant risk (residency laws likely violated)",
+              "B: Federated per-country Airflow instances": "Strong positive (residency is a design asset)",
+              "C: Hub-and-spoke with local execution": "Concern (requires mitigation)"
+            },
+            "scoring_rule": "20 XP if student's rating matches the expected rating for their F2_1 selection. 0 otherwise.",
+            "failure_message": "Option A stores all metadata in one LT-hosted DB — Latvian and Estonian PII-derived data crosses borders; per ev_2_4 this is a residency violation. Option B keeps each country's metadata in-country — fully compliant. Option C requires explicit log-routing configuration per country; compliance is achievable but not automatic — a concern."
+          },
+          {
+            "id": "F2_4",
+            "xp": 20,
+            "label": "Performance scaling rating — for your chosen option (relative to the 3× load from Chapter 1).",
+            "field_type": "single_select",
+            "options": [
+              "Strong positive (headroom for 3× and beyond)",
+              "Neutral",
+              "Concern (3× is reachable with tuning)",
+              "Significant risk (3× load tips current bottlenecks)"
+            ],
+            "correct_answer_by_option": {
+              "A: Single shared Airflow instance": "Significant risk (3× load tips current bottlenecks)",
+              "B: Federated per-country Airflow instances": "Strong positive (headroom for 3× and beyond)",
+              "C: Hub-and-spoke with local execution": "Concern (3× is reachable with tuning)"
+            },
+            "scoring_rule": "20 XP if student's rating matches the expected rating for their F2_1 selection. 0 otherwise.",
+            "failure_message": "Chapter 1 identified parse time and DB saturation as the two dominant scaling risks. Option A keeps both on a single instance — 3× load tips the parse-time ceiling identified in F1_2. Option B distributes load across three instances — each instance stays near current scale, low risk. Option C partially distributes (workers) but keeps the scheduler centralized — scheduler parse time still scales."
+          },
+          {
+            "id": "F2_5",
+            "xp": 20,
+            "label": "Cost rating — for your chosen option (relative to board-approved 1.3× budget).",
+            "field_type": "single_select",
+            "options": [
+              "Strong positive (fits within budget with headroom)",
+              "Neutral",
+              "Concern (fits within budget with no headroom)",
+              "Significant risk (exceeds board-approved budget)"
+            ],
+            "correct_answer_by_option": {
+              "A: Single shared Airflow instance": "Strong positive (fits within budget with headroom)",
+              "B: Federated per-country Airflow instances": "Significant risk (exceeds board-approved budget)",
+              "C: Hub-and-spoke with local execution": "Neutral"
+            },
+            "scoring_rule": "20 XP if student's rating matches the expected rating for their F2_1 selection. 0 otherwise.",
+            "failure_message": "Option A shares infrastructure — lowest cost, well within 1.3× budget. Option B replicates infrastructure per country — approximately 3× infra cost, exceeding the 1.3× board cap (ev_2_4). Option C shares the hub but replicates workers per country — moderate cost, roughly fits budget neutrally."
+          },
+          {
+            "id": "F2_6",
+            "xp": 40,
+            "label": "Select exactly 2 decisive trade-offs for your chosen option.",
+            "field_type": "multi_select",
+            "select_count": 2,
+            "options": [
+              "T1: Accept residency risk in exchange for operational simplicity and budget fit",
+              "T2: Accept higher operational headcount demand in exchange for residency compliance and scaling headroom",
+              "T3: Accept partial residency mitigation complexity in exchange for scalable workers and moderate cost",
+              "T4: Accept higher infrastructure cost in exchange for guaranteed data sovereignty",
+              "T5: Accept tightly coupled scheduling in exchange for distributed execution",
+              "T6: Accept SQL-replication overhead in exchange for eventual-consistency reporting"
+            ],
+            "correct_answers_by_option": {
+              "A: Single shared Airflow instance": [
+                "T1: Accept residency risk in exchange for operational simplicity and budget fit"
+              ],
+              "B: Federated per-country Airflow instances": [
+                "T2: Accept higher operational headcount demand in exchange for residency compliance and scaling headroom",
+                "T4: Accept higher infrastructure cost in exchange for guaranteed data sovereignty"
+              ],
+              "C: Hub-and-spoke with local execution": [
+                "T3: Accept partial residency mitigation complexity in exchange for scalable workers and moderate cost",
+                "T5: Accept tightly coupled scheduling in exchange for distributed execution"
+              ]
+            },
+            "scoring_rule": "For Option A the correct set has only one entry (T1); student needs T1 AND any second pick from the list to receive 20 XP for T1 — second pick does not score. For Options B and C, 20 XP per correct selection up to 40 XP total. T6 is a distractor for all options (no SQL replication is in any of these architectures).",
+            "failure_message": "T1 is decisive for A (simplicity and budget wins against residency). T2 and T4 together anchor B (headcount cost and infra cost against residency guarantee). T3 and T5 together anchor C (partial residency mitigation and coupled scheduling against worker distribution). T6 mentions SQL replication which is not in any option."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Aušra's rubric is the BalticSolar architectural review rubric — it does not grade 'which option is right' because the board accepts any of the three as a reasonable choice. It grades whether your evaluation matches the option you picked. Pick the option whose profile you can defend consistently, not the one you think is the 'expected answer'."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "ev_2_1, ev_2_2, ev_2_3 describe the three options' topology, data flows, and team model. ev_2_4 lists the four hard constraints — data residency laws, fixed 4-engineer headcount, 90-day timeline, 1.3× budget. For each option, work through how it handles each constraint."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Option A concentrates everything in one place: that is GREAT for simplicity and cost, TERRIBLE for residency and scaling (see Chapter 1 risks). Option B distributes everything: INVERSE of A. Option C is the middle ground: scheduling centralized, execution distributed — partial residency mitigation, partial scaling, partial complexity. Pick the one whose trade-offs you want to defend."
+        }
+      ]
+    },
+    {
+      "id": "chapter_3",
+      "title": "Plan the Migration",
+      "unlock_condition": {
+        "after_chapter": 2
+      },
+      "chapter_type": "design_artifact",
+      "base_xp": 140,
+      "modules_primary": [
+        2,
+        10
+      ],
+      "modules_secondary": [
+        1,
+        3
+      ],
+      "inter_chapter_dependency": {
+        "source_chapter": 1,
+        "fallback_dataset": null
+      },
+      "narrative_context": "The architecture is chosen — now the timeline. Aušra wants a migration priority matrix: which pipelines move in Wave 1 (first 30 days), Wave 2 (days 31-60), Wave 3 (days 61-90), or Out-of-scope (deferred past the 90-day window). The matrix lets the board see exactly what gets migrated when, and what gets consciously left behind. BalticSolar's migration philosophy (the 'land-and-expand' playbook Rokas codified last year): derisk what you already know first, then tackle acquired operators' critical paths, then stretch into high-SLA coverage for everyone.",
+      "task": "Classify each of the 20 representative pipelines from the Chapter 1 inventory into Wave 1, Wave 2, Wave 3, or Out-of-scope, using the published criteria below.\n\nWave 1 (first 30 days): operator = SaulėGrid AND sla = critical. These are the pipelines we control end-to-end today; they must migrate first because any migration bug here is familiar terrain.\n\nWave 2 (days 31-60): operator ∈ {SauleTikls, PaikeVork} AND sla = critical. Acquired operators' critical paths; after Wave 1 the platform is battle-tested.\n\nWave 3 (days 61-90): sla = high (regardless of operator). High-SLA pipelines across all three operators.\n\nOut-of-scope: sla ∈ {medium, low}. Deferred until after the consolidation completes.\n\nThe inventory from ev_1_1 is reproduced below (with operator and sla as the two decisive columns). Every other column is informational.",
+      "validation_hint": "Wave 1 has exactly 4 SaulėGrid critical pipelines. Wave 2 has exactly 6 non-SaulėGrid critical pipelines (3 from each acquired operator). Wave 3 has exactly 6 high-SLA pipelines. Out-of-scope has exactly 4 medium/low pipelines. Total 20.",
+      "evidence": [
+        {
+          "id": "ev_3_1",
+          "type": "table",
+          "title": "Pipeline inventory with operator and SLA columns (decisive)",
+          "caption": "Reproduced from ev_1_1 for ease of classification. Only 'operator' and 'sla' determine the wave.",
+          "headers": [
+            "pipeline_id",
+            "operator",
+            "sla"
+          ],
+          "rows": [
+            [
+              "sg_bronze_meters",
+              "SaulėGrid",
+              "critical"
+            ],
+            [
+              "sg_silver_transform",
+              "SaulėGrid",
+              "critical"
+            ],
+            [
+              "sg_gold_vert",
+              "SaulėGrid",
+              "critical"
+            ],
+            [
+              "sg_weather_ingest",
+              "SaulėGrid",
+              "high"
+            ],
+            [
+              "sg_inverter_tel",
+              "SaulėGrid",
+              "high"
+            ],
+            [
+              "sg_battery_state",
+              "SaulėGrid",
+              "medium"
+            ],
+            [
+              "sg_reporting_daily",
+              "SaulėGrid",
+              "high"
+            ],
+            [
+              "sg_billing_monthly",
+              "SaulėGrid",
+              "critical"
+            ],
+            [
+              "sg_campaign_emails",
+              "SaulėGrid",
+              "low"
+            ],
+            [
+              "sg_audit_extract",
+              "SaulėGrid",
+              "medium"
+            ],
+            [
+              "st_bronze_meters",
+              "SauleTikls",
+              "critical"
+            ],
+            [
+              "st_silver_transform",
+              "SauleTikls",
+              "critical"
+            ],
+            [
+              "st_gold_regulatory",
+              "SauleTikls",
+              "critical"
+            ],
+            [
+              "st_weather_ingest",
+              "SauleTikls",
+              "high"
+            ],
+            [
+              "st_reporting_daily",
+              "SauleTikls",
+              "high"
+            ],
+            [
+              "pv_bronze_meters",
+              "PaikeVork",
+              "critical"
+            ],
+            [
+              "pv_silver_transform",
+              "PaikeVork",
+              "critical"
+            ],
+            [
+              "pv_gold_regulatory",
+              "PaikeVork",
+              "critical"
+            ],
+            [
+              "pv_weather_ingest",
+              "PaikeVork",
+              "high"
+            ],
+            [
+              "pv_reporting_daily",
+              "PaikeVork",
+              "medium"
+            ]
+          ]
+        }
+      ],
+      "grading": {
+        "type": "template",
+        "xp_per_unit_default": 7,
+        "template_fields": [
+          {
+            "id": "F3_01",
+            "xp": 7,
+            "label": "sg_bronze_meters (SaulėGrid, critical)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 1",
+            "failure_message": "SaulėGrid + critical → Wave 1."
+          },
+          {
+            "id": "F3_02",
+            "xp": 7,
+            "label": "sg_silver_transform (SaulėGrid, critical)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 1",
+            "failure_message": "SaulėGrid + critical → Wave 1."
+          },
+          {
+            "id": "F3_03",
+            "xp": 7,
+            "label": "sg_gold_vert (SaulėGrid, critical)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 1",
+            "failure_message": "SaulėGrid + critical → Wave 1."
+          },
+          {
+            "id": "F3_04",
+            "xp": 7,
+            "label": "sg_weather_ingest (SaulėGrid, high)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 3",
+            "failure_message": "sla=high → Wave 3 regardless of operator."
+          },
+          {
+            "id": "F3_05",
+            "xp": 7,
+            "label": "sg_inverter_tel (SaulėGrid, high)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 3",
+            "failure_message": "sla=high → Wave 3 regardless of operator."
+          },
+          {
+            "id": "F3_06",
+            "xp": 7,
+            "label": "sg_battery_state (SaulėGrid, medium)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Out-of-scope",
+            "failure_message": "sla=medium → Out-of-scope."
+          },
+          {
+            "id": "F3_07",
+            "xp": 7,
+            "label": "sg_reporting_daily (SaulėGrid, high)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 3",
+            "failure_message": "sla=high → Wave 3."
+          },
+          {
+            "id": "F3_08",
+            "xp": 7,
+            "label": "sg_billing_monthly (SaulėGrid, critical)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 1",
+            "failure_message": "SaulėGrid + critical → Wave 1. The Analytics team's billing pipeline is still in scope — the team ownership does not change the wave rule."
+          },
+          {
+            "id": "F3_09",
+            "xp": 7,
+            "label": "sg_campaign_emails (SaulėGrid, low)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Out-of-scope",
+            "failure_message": "sla=low → Out-of-scope."
+          },
+          {
+            "id": "F3_10",
+            "xp": 7,
+            "label": "sg_audit_extract (SaulėGrid, medium)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Out-of-scope",
+            "failure_message": "sla=medium → Out-of-scope."
+          },
+          {
+            "id": "F3_11",
+            "xp": 7,
+            "label": "st_bronze_meters (SauleTikls, critical)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 2",
+            "failure_message": "Non-SaulėGrid + critical → Wave 2."
+          },
+          {
+            "id": "F3_12",
+            "xp": 7,
+            "label": "st_silver_transform (SauleTikls, critical)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 2",
+            "failure_message": "Non-SaulėGrid + critical → Wave 2."
+          },
+          {
+            "id": "F3_13",
+            "xp": 7,
+            "label": "st_gold_regulatory (SauleTikls, critical)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 2",
+            "failure_message": "Non-SaulėGrid + critical → Wave 2."
+          },
+          {
+            "id": "F3_14",
+            "xp": 7,
+            "label": "st_weather_ingest (SauleTikls, high)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 3",
+            "failure_message": "sla=high → Wave 3 regardless of operator."
+          },
+          {
+            "id": "F3_15",
+            "xp": 7,
+            "label": "st_reporting_daily (SauleTikls, high)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 3",
+            "failure_message": "sla=high → Wave 3."
+          },
+          {
+            "id": "F3_16",
+            "xp": 7,
+            "label": "pv_bronze_meters (PaikeVork, critical)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 2",
+            "failure_message": "Non-SaulėGrid + critical → Wave 2."
+          },
+          {
+            "id": "F3_17",
+            "xp": 7,
+            "label": "pv_silver_transform (PaikeVork, critical)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 2",
+            "failure_message": "Non-SaulėGrid + critical → Wave 2."
+          },
+          {
+            "id": "F3_18",
+            "xp": 7,
+            "label": "pv_gold_regulatory (PaikeVork, critical)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 2",
+            "failure_message": "Non-SaulėGrid + critical → Wave 2."
+          },
+          {
+            "id": "F3_19",
+            "xp": 7,
+            "label": "pv_weather_ingest (PaikeVork, high)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Wave 3",
+            "failure_message": "sla=high → Wave 3."
+          },
+          {
+            "id": "F3_20",
+            "xp": 7,
+            "label": "pv_reporting_daily (PaikeVork, medium)",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1",
+              "Wave 2",
+              "Wave 3",
+              "Out-of-scope"
+            ],
+            "correct_answer": "Out-of-scope",
+            "failure_message": "sla=medium → Out-of-scope."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "BalticSolar's land-and-expand playbook classifies pipelines along exactly two axes: who operates them today (risk of the unfamiliar) and how critical they are (blast radius). The 20-pipeline inventory has both columns explicitly — operator and sla. No other column influences the wave."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "Only ev_3_1's 'operator' and 'sla' columns determine the wave. Team, consumer count, annual cost, and schedule type are decoys — they describe the pipeline but do not affect wave assignment per the criteria."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Walk down the inventory row by row. For each row: (1) sla = 'critical' AND operator = 'SaulėGrid' → Wave 1; (2) sla = 'critical' AND operator ≠ 'SaulėGrid' → Wave 2; (3) sla = 'high' regardless of operator → Wave 3; (4) sla ∈ {'medium', 'low'} → Out-of-scope. The distribution is 4 / 6 / 6 / 4."
+        }
+      ]
+    },
+    {
+      "id": "chapter_4",
+      "title": "Write the Governance Policy",
+      "unlock_condition": {
+        "after_chapter": 3
+      },
+      "chapter_type": "template",
+      "base_xp": 140,
+      "modules_primary": [
+        8,
+        10
+      ],
+      "modules_secondary": [
+        9
+      ],
+      "inter_chapter_dependency": {
+        "source_chapter": 1,
+        "fallback_dataset": null
+      },
+      "narrative_context": "Three of the four recent incidents (ev_1_4) were prevented from becoming outages by luck or manual intervention. The current BalticSolar governance framework (ev_4_1) is underspecified — it describes intent without specifying what enforces the intent. Your job is to identify the three specific policy gaps supported by the incidents, and for each gap name the four enforcement parameters BalticSolar's governance board requires: scope, trigger, enforcement mechanism, and owner.",
+      "task": "Select the three policy gaps that are decisively supported by the four incidents in ev_4_2 (F4_1, multi-select 3 of 6). Then for each of the three correct gaps (G1, G2, G3), fill the four enforcement fields — scope, trigger, enforcement mechanism, owner — by picking the option that matches BalticSolar's governance conventions described in ev_4_1. Each field is single-select with one correct option per gap.",
+      "validation_hint": "G1 (code review gap) is supported by INC-2026-03-30 (Rokas's unreviewed Friday sprint). G2 (residency policy gap) is supported by INC-2026-03-12 (cross-border edit with no jurisdiction check). G3 (DAG integrity CI gap) is supported by INC-2026-03-30 as well (the exact class of bug a DagBag integrity test catches). G4/G5/G6 are decoys — G4 is ruled out by ev_1_3 (on-call rotation ESTABLISHED), G5 is ruled out by ev_1_2 (monitoring metrics are visible), G6 is not incident-supported.",
+      "evidence": [
+        {
+          "id": "ev_4_1",
+          "type": "log_excerpt",
+          "title": "Current BalticSolar governance policy (Section 4: Platform Controls) — excerpt",
+          "caption": "The governance document describes intent but does not specify enforcement.",
+          "content": "4.1 DAGs should be reviewed before deployment.\n4.2 Data should be handled in compliance with applicable residency laws.\n4.3 The platform should be tested.\n\n(The current policy is three sentences. The governance board rejected it at the June review for failing to specify enforcement. Each policy must specify: scope — which DAGs does it apply to; trigger — what event invokes the control; enforcement mechanism — what technical or process control enforces it; owner — which team is accountable. The four fields below encode the BalticSolar standard.)"
+        },
+        {
+          "id": "ev_4_2",
+          "type": "log_excerpt",
+          "title": "The four recent near-miss incidents (full summaries)",
+          "caption": "Same incidents referenced in ev_1_4. Full post-mortem highlights.",
+          "content": "INC-2026-03-30 (Silent Silver DAG break):\n  Rokas deployed a Friday migration without PR review. The Bronze producer missed an outlets=[Dataset(...)] change. CI had no DagBag integrity check to catch the orphaned consumer. Detected Monday morning after 8 days of missing VERT extracts.\n\nINC-2026-03-12 (Cross-border DAG edit):\n  A Latvian team engineer browsing the flat dags/ directory edited sg_billing_monthly.py by mistake (confusing it with st_billing_monthly). The edit deployed because no technical control checked that the editor was authorized for the country of the DAG's data.\n\nINC-2026-02-22 (Scheduler restart backlog):\n  Scheduler pod restart took 12m 40s due to DAG parse queue. Monitoring fired correctly; on-call responded within SLA. No governance gap exposed — a capacity gap (which Chapter 1 already captures as Risk R1).\n\nINC-2026-02-08 (Metadata DB CPU alarm):\n  DB CPU alarm fired 3× in a week. Monitoring fired correctly; platform team added indexes within 48h. No governance gap exposed — another capacity-planning concern."
+        },
+        {
+          "id": "ev_4_3",
+          "type": "log_excerpt",
+          "title": "Candidate policy gaps",
+          "caption": "Six gaps proposed at the governance board meeting. Three of them are backed by the incidents above; three are red herrings.",
+          "content": "G1: No mandatory code review gate for DAG PRs before production deploy.\nG2: No per-country data residency check at DAG deploy time.\nG3: No CI-enforced DAG integrity check (DagBag-level Dataset linkage, empty-schedule detection, missing-owner detection).\nG4: No on-call rotation to respond to incidents.\nG5: Insufficient monitoring of scheduler health metrics.\nG6: No cost allocation tagging per team."
+        }
+      ],
+      "grading": {
+        "type": "template",
+        "xp_per_unit_default": 10,
+        "template_fields": [
+          {
+            "id": "F4_1",
+            "xp": 20,
+            "label": "Select the 3 policy gaps decisively supported by the incidents in ev_4_2.",
+            "field_type": "multi_select",
+            "select_count": 3,
+            "options": [
+              "G1: No mandatory code review gate for DAG PRs before production deploy",
+              "G2: No per-country data residency check at DAG deploy time",
+              "G3: No CI-enforced DAG integrity check",
+              "G4: No on-call rotation to respond to incidents",
+              "G5: Insufficient monitoring of scheduler health metrics",
+              "G6: No cost allocation tagging per team"
+            ],
+            "correct_answers": [
+              "G1: No mandatory code review gate for DAG PRs before production deploy",
+              "G2: No per-country data residency check at DAG deploy time",
+              "G3: No CI-enforced DAG integrity check"
+            ],
+            "scoring_rule": "3 correct = 20 XP, 2 correct = 12 XP, 1 correct = 6 XP, 0 correct = 0 XP.",
+            "failure_message": "G1 supported by INC-2026-03-30 (unreviewed deploy). G2 supported by INC-2026-03-12 (cross-border edit). G3 supported by INC-2026-03-30 (integrity CI would have caught). G4 ruled out by ev_1_3 (rotation ESTABLISHED). G5 ruled out by INC-2026-02-22 and INC-2026-02-08 (monitoring fired correctly). G6 has no incident support."
+          },
+          {
+            "id": "F4_2",
+            "xp": 10,
+            "label": "G1 — scope",
+            "field_type": "single_select",
+            "options": [
+              "All DAGs",
+              "Per-team DAGs",
+              "Production-promoted DAGs",
+              "Customer-facing DAGs"
+            ],
+            "correct_answer": "Production-promoted DAGs",
+            "failure_message": "Code review gate applies to DAGs being promoted to production — not every feature-branch DAG. Applying it to 'all DAGs' would block development."
+          },
+          {
+            "id": "F4_3",
+            "xp": 10,
+            "label": "G1 — trigger",
+            "field_type": "single_select",
+            "options": [
+              "On PR",
+              "On merge",
+              "On deploy",
+              "On schedule"
+            ],
+            "correct_answer": "On PR",
+            "failure_message": "Code review is a PR-time control — review before merge, not after deploy. 'On deploy' is too late; the code is already merged."
+          },
+          {
+            "id": "F4_4",
+            "xp": 10,
+            "label": "G1 — enforcement mechanism",
+            "field_type": "single_select",
+            "options": [
+              "CI block",
+              "Scheduler refusal",
+              "Manual review only",
+              "Audit log only"
+            ],
+            "correct_answer": "CI block",
+            "failure_message": "A CI check that blocks merge until the review is signed off is the enforceable version. Manual review alone is what existed and failed in INC-2026-03-30."
+          },
+          {
+            "id": "F4_5",
+            "xp": 10,
+            "label": "G1 — owner",
+            "field_type": "single_select",
+            "options": [
+              "Platform team",
+              "SaulėGrid data engineering",
+              "Security team",
+              "Compliance team"
+            ],
+            "correct_answer": "Platform team",
+            "failure_message": "Platform team owns CI controls at BalticSolar. The data team is the REVIEWER on most PRs, but the ownership of the CI control itself sits with Platform."
+          },
+          {
+            "id": "F4_6",
+            "xp": 10,
+            "label": "G2 — scope",
+            "field_type": "single_select",
+            "options": [
+              "All DAGs",
+              "Per-team DAGs",
+              "Production-promoted DAGs",
+              "Customer-facing DAGs"
+            ],
+            "correct_answer": "All DAGs",
+            "failure_message": "Residency checks must apply to every DAG that can move regulated data — which in a multi-country platform is effectively all DAGs, not just customer-facing ones."
+          },
+          {
+            "id": "F4_7",
+            "xp": 10,
+            "label": "G2 — trigger",
+            "field_type": "single_select",
+            "options": [
+              "On PR",
+              "On merge",
+              "On deploy",
+              "On schedule"
+            ],
+            "correct_answer": "On deploy",
+            "failure_message": "Residency is verified at deploy time — that is when the DAG is about to start operating on real country-scoped data. Earlier triggers may not know the deployment target."
+          },
+          {
+            "id": "F4_8",
+            "xp": 10,
+            "label": "G2 — enforcement mechanism",
+            "field_type": "single_select",
+            "options": [
+              "CI block",
+              "Scheduler refusal",
+              "Manual review only",
+              "Audit log only"
+            ],
+            "correct_answer": "Scheduler refusal",
+            "failure_message": "The scheduler REFUSES to register a DAG whose jurisdiction declaration does not match the deployed instance's country. This is the enforceable control. CI-only is insufficient because CI runs before deploy configuration is known."
+          },
+          {
+            "id": "F4_9",
+            "xp": 10,
+            "label": "G2 — owner",
+            "field_type": "single_select",
+            "options": [
+              "Platform team",
+              "SaulėGrid data engineering",
+              "Security team",
+              "Compliance team"
+            ],
+            "correct_answer": "Compliance team",
+            "failure_message": "Residency policy is owned by Compliance. Platform provides the technical control; Compliance owns the policy and its updates (new countries, new regulations)."
+          },
+          {
+            "id": "F4_10",
+            "xp": 10,
+            "label": "G3 — scope",
+            "field_type": "single_select",
+            "options": [
+              "All DAGs",
+              "Per-team DAGs",
+              "Production-promoted DAGs",
+              "Customer-facing DAGs"
+            ],
+            "correct_answer": "All DAGs",
+            "failure_message": "DAG integrity is a bag-level check — every DAG in the bag affects every other DAG's Dataset dependencies. Narrower scope defeats the purpose."
+          },
+          {
+            "id": "F4_11",
+            "xp": 10,
+            "label": "G3 — trigger",
+            "field_type": "single_select",
+            "options": [
+              "On PR",
+              "On merge",
+              "On deploy",
+              "On schedule"
+            ],
+            "correct_answer": "On PR",
+            "failure_message": "The DagBag integrity check must run at PR time so that orphaned-consumer bugs like INC-2026-03-30 never make it to merge. Post-merge is too late."
+          },
+          {
+            "id": "F4_12",
+            "xp": 10,
+            "label": "G3 — enforcement mechanism",
+            "field_type": "single_select",
+            "options": [
+              "CI block",
+              "Scheduler refusal",
+              "Manual review only",
+              "Audit log only"
+            ],
+            "correct_answer": "CI block",
+            "failure_message": "CI block — if find_orphaned_consumers returns non-empty, the PR cannot merge. The check is mechanical and automated; manual or audit-log-only would not have prevented INC-2026-03-30."
+          },
+          {
+            "id": "F4_13",
+            "xp": 10,
+            "label": "G3 — owner",
+            "field_type": "single_select",
+            "options": [
+              "Platform team",
+              "SaulėGrid data engineering",
+              "Security team",
+              "Compliance team"
+            ],
+            "correct_answer": "Platform team",
+            "failure_message": "DAG integrity is a platform concern — the test harness is platform infrastructure, not team infrastructure. Platform team owns it."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "BalticSolar's governance board grades policies on the same four axes for every control: what SCOPE, what TRIGGER, what ENFORCEMENT, what OWNER. A policy that does not specify all four is not a policy — it is a wish. The three real incidents each map to a specific (scope, trigger, enforcement, owner) tuple."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "Read ev_4_2 carefully. Two of the four incidents are genuine governance gaps (INC-2026-03-30 and INC-2026-03-12). The other two (INC-2026-02-22 and INC-2026-02-08) map to capacity planning — Chapter 1 already captured them as R1 and R2. Pair each genuine governance incident to the gap in ev_4_3 that would have prevented it."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "G1 (code review): scope is production-promoted DAGs (not all); trigger is on PR (review before merge); enforcement is CI block; Platform owns CI controls. G2 (residency): scope is all DAGs; trigger is on deploy (when target country is known); enforcement is scheduler refusal (registration fails); Compliance owns the policy. G3 (DAG integrity): scope is all DAGs; trigger is on PR; enforcement is CI block; Platform owns the test harness."
+        }
+      ]
+    },
+    {
+      "id": "chapter_5",
+      "title": "The CTO Deck",
+      "unlock_condition": {
+        "after_chapter": 4
+      },
+      "chapter_type": "template",
+      "base_xp": 140,
+      "modules_primary": [
+        1,
+        10
+      ],
+      "modules_secondary": [],
+      "inter_chapter_dependency": {
+        "source_chapter": 4,
+        "fallback_dataset": null
+      },
+      "narrative_context": "Friday 14:00. Aušra's architecture review is in an hour. Your design journal panel to the right of this chapter summarizes every decision you made in Chapters 1-4: the three platform risks, the recommended architecture, the Wave 1 pipeline count and top critical pipeline, and the primary governance gap with its enforcement mechanism. Your job is to assemble the five-section CTO deck. Every field is scored on whether it is CONSISTENT with your earlier decisions — not against an external 'correct' answer. A student who picked Option A in Chapter 2 must recommend Option A in Section 3 here; a student who picked Option B must recommend Option B. The CTO deck reveals nothing new — it shows the board that your four chapters add up to one coherent recommendation.",
+      "task": "Complete the five-section CTO deck template. Each section has 2 fields; every field is single-select with options whose correctness is defined by consistency with your Chapter 1-4 selections. The design journal panel pre-populates the reference values; select the option that matches.",
+      "validation_hint": "The design journal on the right panel shows: 'Top 3 risks: R1, R2, R3' (from Ch1), 'Recommended: Option X' (from Ch2 F2_1), 'Wave 1: 4 pipelines; top: sg_billing_monthly (10 consumers)' (from Ch3), 'Top governance gap: G3 DAG integrity; enforcement: CI block' (from Ch4 F4_1/F4_12 selections). Every field below is answered by reading the journal.",
+      "evidence": [
+        {
+          "id": "ev_5_1",
+          "type": "design_journal_panel",
+          "title": "Your design journal (pre-populated from Chapters 1-4)",
+          "caption": "Read-only. Populated from your graded chapter outputs. The rubric scores consistency between your Section 1-5 selections and this panel.",
+          "fields": [
+            {
+              "id": "j_1_1",
+              "label": "Primary risk at 3× load (scheduler availability)",
+              "value_source": "chapter_1_F1_2"
+            },
+            {
+              "id": "j_1_2",
+              "label": "Top 3 risks identified",
+              "value_source": "chapter_1_F1_1"
+            },
+            {
+              "id": "j_2_1",
+              "label": "Recommended architecture option",
+              "value_source": "chapter_2_F2_1"
+            },
+            {
+              "id": "j_2_2",
+              "label": "Decisive trade-offs accepted",
+              "value_source": "chapter_2_F2_6"
+            },
+            {
+              "id": "j_3_1",
+              "label": "Wave 1 scope (SaulėGrid + critical)",
+              "value_source": "chapter_3"
+            },
+            {
+              "id": "j_4_1",
+              "label": "Top governance gap and enforcement",
+              "value_source": "chapter_4_F4_1_F4_12"
+            }
+          ]
+        }
+      ],
+      "grading": {
+        "type": "template",
+        "xp_per_unit_default": 14,
+        "template_fields": [
+          {
+            "id": "F5_1_1",
+            "xp": 14,
+            "label": "Section 1 (Situation) — Primary driver for the consolidation decision",
+            "field_type": "single_select",
+            "options": [
+              "BalticSolar board approved acquisition consolidation with a 90-day onboarding deadline",
+              "Current Airflow platform was operating at loss and needed rationalization",
+              "Data residency audit findings forced a multi-country architecture review",
+              "Provider package end-of-life required emergency platform upgrade"
+            ],
+            "correct_answer": "BalticSolar board approved acquisition consolidation with a 90-day onboarding deadline",
+            "failure_message": "The premise establishes the board-approved consolidation and 90-day timeline as the driver. The other options are not what Aušra is responding to."
+          },
+          {
+            "id": "F5_1_2",
+            "xp": 14,
+            "label": "Section 1 (Situation) — Scale of the challenge",
+            "field_type": "single_select",
+            "options": [
+              "1.3× load increase, fits within current platform capacity",
+              "3× load increase, current platform capacity insufficient (per Chapter 1 risks R1/R2)",
+              "10× load increase, greenfield rebuild required",
+              "Scale unchanged; migration is an organizational exercise only"
+            ],
+            "correct_answer": "3× load increase, current platform capacity insufficient (per Chapter 1 risks R1/R2)",
+            "failure_message": "Chapter 1 established the 3× scale point. Ch1 F1_1 identified the capacity risks — the CTO deck's Situation section must name that scale."
+          },
+          {
+            "id": "F5_2_1",
+            "xp": 14,
+            "label": "Section 2 (Options Considered) — Options reviewed at the architecture review",
+            "field_type": "single_select",
+            "options": [
+              "Only Option A (the current architecture extended to 3×)",
+              "Only Options B and C (the distributed architectures)",
+              "All three: Option A (single shared), Option B (federated), Option C (hub-and-spoke)",
+              "Alternative architectures outside the A/B/C set"
+            ],
+            "correct_answer": "All three: Option A (single shared), Option B (federated), Option C (hub-and-spoke)",
+            "failure_message": "Chapter 2 evaluated all three options. A complete CTO deck shows the full option set was considered, not a narrowed subset."
+          },
+          {
+            "id": "F5_2_2",
+            "xp": 14,
+            "label": "Section 2 (Options Considered) — Primary axis of differentiation among the three options",
+            "field_type": "single_select",
+            "options": [
+              "Data residency compliance vs. operational simplicity trade-off",
+              "Provider package compatibility across options",
+              "UI theme and branding customization across options",
+              "Vendor licensing terms across options"
+            ],
+            "correct_answer": "Data residency compliance vs. operational simplicity trade-off",
+            "failure_message": "The four criteria in Chapter 2 reduce, at the board level, to 'distribute for residency and scaling at operational/cost expense' versus 'centralize for simplicity and cost at residency/scaling expense'. That axis is what the CTO needs to communicate."
+          },
+          {
+            "id": "F5_3_1",
+            "xp": 14,
+            "label": "Section 3 (Recommendation) — Recommended architecture",
+            "field_type": "single_select",
+            "options": [
+              "A: Single shared Airflow instance",
+              "B: Federated per-country Airflow instances",
+              "C: Hub-and-spoke with local execution"
+            ],
+            "correct_answer_by_chapter_ref": "chapter_2.F2_1",
+            "scoring_rule": "14 XP if the selection here matches the student's Chapter 2 F2_1 selection exactly. 0 XP otherwise. This is the primary consistency gate of the CTO deck.",
+            "failure_message": "The recommendation must match your Chapter 2 selection. If you picked Option B in Ch2, pick Option B here. The CTO deck is not a place to revise your recommendation — it is where you communicate it."
+          },
+          {
+            "id": "F5_3_2",
+            "xp": 14,
+            "label": "Section 3 (Recommendation) — Decisive criterion for this recommendation",
+            "field_type": "single_select",
+            "options": [
+              "Operational complexity",
+              "Data residency compliance",
+              "Performance scaling",
+              "Cost"
+            ],
+            "correct_answer_by_option": {
+              "A: Single shared Airflow instance": "Operational complexity",
+              "B: Federated per-country Airflow instances": "Data residency compliance",
+              "C: Hub-and-spoke with local execution": "Performance scaling"
+            },
+            "scoring_rule": "14 XP if the decisive criterion matches the criterion where the student's F2_1 option rated 'Strong positive' in Chapter 2. 0 XP otherwise.",
+            "failure_message": "For your recommended option, the decisive criterion is the one where you rated it 'Strong positive' in Chapter 2 — that is the criterion that justifies the recommendation to the board. A=simplicity; B=residency; C=scaling."
+          },
+          {
+            "id": "F5_4_1",
+            "xp": 14,
+            "label": "Section 4 (Timeline) — Wave 1 summary",
+            "field_type": "single_select",
+            "options": [
+              "Wave 1 (first 30 days): all 20 representative pipelines onboarded",
+              "Wave 1 (first 30 days): 4 SaulėGrid-operated critical pipelines (land-and-expand playbook)",
+              "Wave 1 (first 30 days): all 6 critical pipelines from the two acquired operators",
+              "Wave 1 (first 30 days): only the single highest-consumer pipeline"
+            ],
+            "correct_answer": "Wave 1 (first 30 days): 4 SaulėGrid-operated critical pipelines (land-and-expand playbook)",
+            "failure_message": "Chapter 3 classified exactly 4 SaulėGrid critical pipelines into Wave 1. The CTO deck summarizes that as the land-and-expand starting position."
+          },
+          {
+            "id": "F5_4_2",
+            "xp": 14,
+            "label": "Section 4 (Timeline) — 90-day end-state",
+            "field_type": "single_select",
+            "options": [
+              "All 20 pipelines migrated including medium/low SLA",
+              "16 pipelines migrated (4 + 6 + 6); 4 medium/low pipelines deferred as Out-of-scope",
+              "All medium/low pipelines migrated, critical pipelines deferred",
+              "None of the pipelines migrated — 90 days is insufficient"
+            ],
+            "correct_answer": "16 pipelines migrated (4 + 6 + 6); 4 medium/low pipelines deferred as Out-of-scope",
+            "failure_message": "Chapter 3 distribution: Wave 1 = 4, Wave 2 = 6, Wave 3 = 6, Out-of-scope = 4. Total migrated by day 90 = 16. The deck states this exactly."
+          },
+          {
+            "id": "F5_5_1",
+            "xp": 14,
+            "label": "Section 5 (Risks) — Top governance risk",
+            "field_type": "single_select",
+            "options": [
+              "No mandatory code review gate for DAG PRs before production deploy",
+              "No per-country data residency check at DAG deploy time",
+              "No CI-enforced DAG integrity check",
+              "No on-call rotation to respond to incidents"
+            ],
+            "correct_answer_by_chapter_ref": "chapter_4.F4_1_first_selected",
+            "scoring_rule": "14 XP if the selected risk here matches one of the three gaps the student identified in Chapter 4 F4_1 (G1, G2, or G3). Not matching a correct gap = 0 XP. The 'No on-call rotation' option is always wrong here (it was a decoy in Ch4).",
+            "failure_message": "The top governance risk on the CTO deck must be one of the three gaps you identified in Chapter 4 F4_1. 'No on-call rotation' was a Ch4 decoy — G4 — and ev_1_3 shows rotation exists."
+          },
+          {
+            "id": "F5_5_2",
+            "xp": 14,
+            "label": "Section 5 (Risks) — Mitigation mechanism",
+            "field_type": "single_select",
+            "options": [
+              "CI block at PR time",
+              "Scheduler refusal at deploy time",
+              "Manual review process improvements only",
+              "Audit log analysis only"
+            ],
+            "correct_answer_by_chapter_ref": "chapter_4.enforcement_of_F5_5_1",
+            "scoring_rule": "14 XP if the mitigation here matches the enforcement mechanism the student specified in Chapter 4 for the gap selected in F5_5_1. If F5_5_1 = G1 or G3, enforcement = 'CI block at PR time'. If F5_5_1 = G2, enforcement = 'Scheduler refusal at deploy time'. Manual/audit options are always 0 XP.",
+            "failure_message": "The mitigation must match the enforcement mechanism you assigned to the selected gap in Chapter 4. G1 and G3 both use 'CI block at PR time'. G2 uses 'Scheduler refusal at deploy time'. Manual review and audit-log-only were what existed and failed — they are not mitigations."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "The CTO deck at BalticSolar is deliberately derivative. Aušra's rule: every slide is traceable to an earlier decision. If you find yourself wanting to pick a different answer on the deck than you picked in the chapter it references, the deck is not where to correct — the earlier chapter is."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "The design journal panel shows your prior decisions. Section 1 anchors to Chapter 1. Section 2 describes the Chapter 2 process. Section 3 must mirror your Chapter 2 F2_1 selection. Section 4 reflects Chapter 3 wave distribution (4/6/6/4). Section 5 must match one of your Chapter 4 F4_1 gaps and its enforcement."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "F5_3_1 = your Chapter 2 F2_1 option, exactly. F5_3_2 = the criterion where your chosen option rated 'Strong positive' (A=simplicity, B=residency, C=scaling). F5_4_1 = '4 SaulėGrid-operated critical pipelines'. F5_4_2 = '16 pipelines migrated'. F5_5_1 = one of G1/G2/G3 (the gaps you picked in F4_1). F5_5_2 = that gap's enforcement (G1/G3 → CI block; G2 → scheduler refusal)."
+        }
+      ]
+    }
+  ],
+  "authoring_metadata": {
+    "authored_by": "StableGrid content team",
+    "authored_date": "2026-04-20",
+    "version_notes": "v1.0.0 — initial senior-level Airflow capstone. Reference project: 'The Expansion Decision'. Scenario: BalticSolar Alliance (4M meters, 3 countries, 10 teams, 200+ DAGs). Chapters adapted from Project Creation Rules §7.2: Audit → Architecture → Migration → Governance → CTO Deck. Checkability constraint honored everywhere: every grading unit is a constrained-option equality check. No free-form text. No subjective rubric judgement.",
+    "self_check_passed": true,
+    "self_check_notes": [
+      "All 10 senior-level Airflow modules represented in coverage_matrix",
+      "Zero free-form text fields. Every template_field is single_select or multi_select with deterministic correct_answer or correct_answer_by_option or correct_answer_by_chapter_ref",
+      "Ch2 'which option is right' is NOT graded — only internal consistency of the rating vector against the chosen option. Matches §7.3 rule: rubric evaluates consistency, not option matching",
+      "Ch3 uses 20 discrete single_select fields (one per pipeline) instead of a matrix type, for schema compatibility with junior/mid projects",
+      "Ch5 uses correct_answer_by_chapter_ref to implement cross-chapter consistency checks mechanically — each such field scored by equality to the referenced earlier selection",
+      "Hint XP costs: 0/6/12/24 per §4.2 senior table",
+      "Ch1 has 4 hints (H1-H4) — structured diagnostic template, treated like mid-level template per §4.4",
+      "Ch2-5 have 3 hints each (H1-H3) — per §4.4 'H4 does not exist for design artifact chapters' and §11.3 'Do Chapters 2-5 have exactly 3 hints'",
+      "H1s reference BalticSolar, Aušra, Rokas, or named playbooks — no bare module numbers",
+      "H2s name specific evidence IDs (ev_1_1, ev_2_1, ev_4_2) without interpreting",
+      "H3s name frameworks (SCOPE/TRIGGER/ENFORCEMENT/OWNER, land-and-expand) without giving away option choices",
+      "Ch1 H4 reveals F1_2 only (single most-unblocking field) per §4.4 template rule",
+      "XP totals verified: Ch1=140 (105+35), Ch2=140 (20+80+40), Ch3=140 (20×7), Ch4=140 (20+120), Ch5=140 (10×14). Total 700",
+      "UX persistent_element is design_journal per §8.2 senior specification",
+      "Ch1 evidence supports all three of the required risk selections (§11.3 self-check)",
+      "Project operates at senior scale (4M meters, 3 countries, 10 teams) per §11.3 self-check",
+      "Narrative premise (~290 words) justifies full senior module set: platform architecture at scale (M1), DAG factories as implicit in 200+ DAGs (M2), scheduling architecture (M3), executor runtime concerns (M4), integration/provider design via multi-country connections (M5), scheduler internals surfaced via parse time (M6), metadata DB architecture (M7), multi-tenant governance (M8), observability (M9), enterprise governance and capacity (M10)"
+    ]
+  }
+}

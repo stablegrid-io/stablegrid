@@ -8,11 +8,17 @@ import { PracticeSetSession } from '@/app/operations/practice/[topic]/[level]/[m
 import pyjuniorRaw from '@/data/operations/capstone-projects/pyspark/PJPySpark_Junior_Project.json';
 import pymidRaw from '@/data/operations/capstone-projects/pyspark/PJPySpark_Mid_Project.json';
 import pyseniorRaw from '@/data/operations/capstone-projects/pyspark/PJPySpark_Senior_Project.json';
+import fabJuniorRaw from '@/data/operations/capstone-projects/fabric/PJFabric_Junior_Project.json';
+import fabMidRaw from '@/data/operations/capstone-projects/fabric/PJFabric_Mid_Project.json';
+import fabSeniorRaw from '@/data/operations/capstone-projects/fabric/PJFabric_Senior_Project.json';
+import afJuniorRaw from '@/data/operations/capstone-projects/airflow/PJAirflow_Junior_Project.json';
+import afMidRaw from '@/data/operations/capstone-projects/airflow/PJAirflow_Mid_Project.json';
+import afSeniorRaw from '@/data/operations/capstone-projects/airflow/PJAirflow_Senior_Project.json';
 
 /* ── Types ──────────────────────────────────────────────────────────────────── */
 
 interface CapstoneDataset { name: string; path: string; row_count: number; description: string }
-interface CapstoneChapter { id: string; title: string; chapter_type: string; base_xp: number; narrative_context: string; task: string; validation_hint: string; scaffold?: { filename: string; language: string; preamble_comment: string; code: string }; evidence?: Array<Record<string, unknown>>; grading: { type: string; method?: string; fields?: Array<Record<string, unknown>>; template_fields?: Array<Record<string, unknown>>; assertions?: Array<{ id: string; xp: number; description: string; check: string; failure_message: string }> }; hints: Array<{ tier: string; xp_cost: number; unlock_condition?: string; text: string }> }
+interface CapstoneChapter { id: string; title: string; chapter_type: string; base_xp: number; narrative_context: string; task: string; validation_hint: string; scaffold?: { filename: string; language: string; preamble_comment: string; code: string }; evidence?: Array<Record<string, unknown>>; grading: { type: string; method?: string; fields?: Array<Record<string, unknown>>; template_fields?: Array<Record<string, unknown>>; rubric_criteria?: Array<Record<string, unknown>>; assertions?: Array<{ id: string; xp: number; description: string; check: string; failure_message: string }> }; hints: Array<{ tier: string; xp_cost: number; unlock_condition?: string; text: string }> }
 interface CapstoneProject { id: string; version: string; track: string; level: string; scenario: string; total_xp: number; narrative_premise: string; datasets: CapstoneDataset[]; chapters: CapstoneChapter[] }
 
 interface Props { topic: string; level: string }
@@ -27,6 +33,12 @@ function loadProject(topic: string, level: string): CapstoneProject | null {
   if (topic === 'pyspark' && level === 'junior') return pyjuniorRaw as unknown as CapstoneProject;
   if (topic === 'pyspark' && level === 'mid') return pymidRaw as unknown as CapstoneProject;
   if (topic === 'pyspark' && level === 'senior') return pyseniorRaw as unknown as CapstoneProject;
+  if (topic === 'fabric' && level === 'junior') return fabJuniorRaw as unknown as CapstoneProject;
+  if (topic === 'fabric' && level === 'mid') return fabMidRaw as unknown as CapstoneProject;
+  if (topic === 'fabric' && level === 'senior') return fabSeniorRaw as unknown as CapstoneProject;
+  if (topic === 'airflow' && level === 'junior') return afJuniorRaw as unknown as CapstoneProject;
+  if (topic === 'airflow' && level === 'mid') return afMidRaw as unknown as CapstoneProject;
+  if (topic === 'airflow' && level === 'senior') return afSeniorRaw as unknown as CapstoneProject;
   return null;
 }
 
@@ -121,8 +133,54 @@ df_substation = spark.read.csv('substation_ref_mid.csv', header=True, inferSchem
     chapter_1: '', chapter_2: '', chapter_3: '', chapter_4: '', chapter_5: '',
   };
 
+  // Fabric Junior: same NordGrid scenario, same CSV names, same setup chain as PySpark Junior
+  const fabricJuniorSetup = juniorSetup;
+
+  // Fabric Mid: chapters 1-2 template (no code), chapter 3 code (self-contained scaffold),
+  // chapters 4-5 need bronze + silver data
+  const FAB_MID_SETUP_SESSION = `from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, year, month, when, lit
+spark = SparkSession.builder.appName('nordgrid-incident-fix').config('spark.sql.shuffle.partitions', '8').getOrCreate()
+`;
+  const FAB_MID_SETUP_DATA = `df_bronze = spark.read.csv('bronze_readings_today.csv', header=True, inferSchema=True)
+df_silver = spark.read.csv('silver_meters_reference.csv', header=True, inferSchema=True)
+`;
+  const fabricMidSetup: Record<string, string> = {
+    chapter_1: '',
+    chapter_2: '',
+    chapter_3: '',
+    chapter_4: FAB_MID_SETUP_SESSION + FAB_MID_SETUP_DATA,
+    chapter_5: FAB_MID_SETUP_SESSION + FAB_MID_SETUP_DATA,
+  };
+
+  // Fabric Senior: all template/design_artifact — no code
+  const fabricSeniorSetup = seniorSetup;
+
+  // Airflow Junior: code chapters, each scaffold is self-contained (inlined)
+  const airflowJuniorSetup: Record<string, string> = {
+    chapter_1: '', chapter_2: '', chapter_3: '', chapter_4: '', chapter_5: '',
+  };
+
+  // Airflow Mid: ch1-2 template, ch3-4 code (scaffolds self-contained), ch5 combined
+  const airflowMidSetup: Record<string, string> = {
+    chapter_1: '', chapter_2: '', chapter_3: '', chapter_4: '', chapter_5: '',
+  };
+
+  // Airflow Senior: all template/design_artifact — no code
+  const airflowSeniorSetup = seniorSetup;
+
+  const topic = project.track.toLowerCase();
   const lvl = project.level.toLowerCase();
-  const chapterSetup = lvl === 'senior' ? seniorSetup : lvl === 'mid' ? midSetup : juniorSetup;
+  const chapterSetup =
+    topic === 'fabric' && lvl === 'junior' ? fabricJuniorSetup :
+    topic === 'fabric' && lvl === 'mid' ? fabricMidSetup :
+    topic === 'fabric' && lvl === 'senior' ? fabricSeniorSetup :
+    topic === 'airflow' && lvl === 'junior' ? airflowJuniorSetup :
+    topic === 'airflow' && lvl === 'mid' ? airflowMidSetup :
+    topic === 'airflow' && lvl === 'senior' ? airflowSeniorSetup :
+    lvl === 'senior' ? seniorSetup :
+    lvl === 'mid' ? midSetup :
+    juniorSetup;
 
   // Code tasks (actual chapters)
   const codeTasks = project.chapters.map((ch) => ({
@@ -138,18 +196,35 @@ df_substation = spark.read.csv('substation_ref_mid.csv', header=True, inferSchem
     evidence: ch.evidence ?? {},
     setupCode: chapterSetup[ch.id] || '',
     template: (() => {
-      const rawFields = (ch.grading?.fields ?? ch.grading?.template_fields) as Array<Record<string, unknown>> | undefined;
+      let rawFields = (ch.grading?.fields ?? ch.grading?.template_fields) as Array<Record<string, unknown>> | undefined;
+
+      // design_artifact chapters: synthesize fields from rubric_criteria
+      if ((!rawFields || rawFields.length === 0) && ch.grading?.rubric_criteria) {
+        const criteria = ch.grading.rubric_criteria as Array<Record<string, unknown>>;
+        rawFields = criteria.map((c) => ({
+          id: c.id,
+          prompt: c.description,
+          input_type: 'short_text',
+        }));
+      }
+
       if (!rawFields || rawFields.length === 0) return undefined;
+
+      const KNOWN_TYPES = new Set(['single_select', 'multi_select', 'short_text', 'numeric']);
       return {
-        fields: rawFields.map((f) => ({
-          id: f.id as string,
-          label: f.label as string,
-          type: (f.field_type ?? f.type) as string,
-          options: f.options as string[] | undefined,
-          correctAnswer: f.correct_answer ?? f.correctAnswer,
-          tolerance: f.tolerance as number | undefined,
-          rationale: f.failure_message as string | undefined,
-        })),
+        fields: rawFields.map((f) => {
+          const rawType = (f.field_type ?? f.input_type ?? f.type) as string | undefined;
+          const resolvedType = rawType && KNOWN_TYPES.has(rawType) ? rawType : 'short_text';
+          return {
+            id: f.id as string,
+            label: (f.label ?? f.prompt) as string,
+            type: resolvedType,
+            options: f.options as string[] | undefined,
+            correctAnswer: f.correct_answer ?? f.correct_answer_any_of ?? f.correct_answer_shape ?? f.correctAnswer,
+            tolerance: f.tolerance as number | undefined,
+            rationale: (f.failure_message ?? f.rationale_correct) as string | undefined,
+          };
+        }),
       };
     })(),
     starterScaffold: ch.scaffold ? {

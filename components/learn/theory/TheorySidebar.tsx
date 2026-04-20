@@ -128,16 +128,16 @@ export const TheorySidebar = ({
               >
                 <div className="flex items-start gap-3">
                   <div
-                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
                       isLockedLesson
                         ? 'bg-surface-container-highest text-on-surface-variant'
                         : isLessonRead
-                          ? 'bg-primary/20 text-primary'
+                          ? 'bg-primary text-surface'
                           : isActiveLesson
                             ? 'bg-on-surface text-surface'
                             : 'bg-surface-container-highest text-on-surface-variant'
                     }`}
-                    style={isLessonRead && !isActiveLesson ? { boxShadow: '0 0 8px rgba(153,247,255,0.15)' } : undefined}
+                    style={undefined}
                   >
                     {isLockedLesson ? (
                       <Lock className="h-3 w-3" />

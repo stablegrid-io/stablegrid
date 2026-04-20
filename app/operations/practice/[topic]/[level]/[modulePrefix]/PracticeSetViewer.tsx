@@ -593,9 +593,9 @@ function TaskScreen({
                 disabled={!allFieldsFilled}
                 className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{
-                  background: allFieldsFilled ? `rgba(${ACCENT},0.12)` : 'var(--rm-bg-elevated)',
-                  border: `1px solid ${allFieldsFilled ? `rgba(${ACCENT},0.2)` : 'var(--rm-border)'}`,
-                  color: allFieldsFilled ? `rgb(${ACCENT})` : 'var(--rm-text-secondary)',
+                  background: allFieldsFilled ? 'rgba(255,255,255,0.12)' : 'var(--rm-bg-elevated)',
+                  border: `1px solid ${allFieldsFilled ? 'rgba(255,255,255,0.2)' : 'var(--rm-border)'}`,
+                  color: allFieldsFilled ? '#ffffff' : 'var(--rm-text-secondary)',
                 }}
               >
                 Check Answer

@@ -1,0 +1,70 @@
+# Spark physical plan — nb_transform_meters, NORTH-2 iteration, 2026-04-18 02:03:14Z
+# Captured from Spark UI → SQL tab → Details → Formatted Plan
+
+== Parsed Logical Plan ==
+'Project [...]
++- 'Filter isnotnull('tariff_code)
+   +- 'Filter (('daily_kw > 0) AND ('daily_kw < 10000))
+      +- 'Filter isnotnull('meter_id)
+         +- 'Filter isnotnull('date)
+            +- 'SubqueryAlias source
+               +- 'UnresolvedRelation [bronze_today_filtered_by_region]
+
+== Analyzed Logical Plan ==
+meter_id: string, daily_kw: double, date: date, region: string, year: int, month: int,
+tariff_code: string, substation_name: string
+
+Project [meter_id#142, daily_kw#143, date#144, region#145, year#146, month#147,
+        tariff_code#148, substation_name#149]
++- Filter isnotnull(tariff_code#148)                     # <── added in PR #847 (2026-04-17)
+   +- Filter ((daily_kw#143 > 0.0) AND (daily_kw#143 < 10000.0))
+      +- Filter isnotnull(meter_id#142)
+         +- Filter isnotnull(date#144)
+            +- ...
+
+== Physical Plan ==
+AdaptiveSparkPlan isFinalPlan=true
++- == Final Plan ==
+   WriteDelta table=silver_meters, mode=merge, matchCondition=(region=@item() AND date=@date)
+   +- *(3) HashAggregate(keys=[meter_id#142, date#144], functions=[])
+      +- Exchange hashpartitioning(meter_id#142, date#144, 48)
+         +- *(2) HashAggregate(keys=[meter_id#142, date#144], functions=[])
+            +- *(2) Project [meter_id#142, daily_kw#143, date#144, region#145, year#146,
+                            month#147, tariff_code#148, substation_name#149]
+               +- *(2) Filter ((((isnotnull(tariff_code#148)                      # <── removes 99,868 rows
+                               AND isnotnull(meter_id#142))
+                               AND isnotnull(date#144))
+                               AND (daily_kw#143 > 0.0))
+                               AND (daily_kw#143 < 10000.0))
+                  +- *(2) BroadcastHashJoin [region#145], [substation_region#201], LeftOuter, BuildRight
+                     :- *(2) ColumnarToRow
+                     :  +- FileScan parquet [..., tariff_code#148, ...]
+                     :      Batched: true, Location: InMemoryFileIndex[abfss://.../bronze_today],
+                     :      PartitionFilters: [isnotnull(region#145), (region#145 = NORTH-2)],
+                     :      PushedFilters: [],
+                     :      ReadSchema: struct<meter_id:string,kwh_reading:double,
+                     :                         reading_date:string,rgn_code:string,
+                     :                         tariff_code:string>
+                     +- BroadcastExchange ...
+
+== Per-Node Row Counts (captured 2026-04-18 02:03:14Z) ==
+FileScan parquet .......................... 99,868 rows    (NORTH-2 Bronze input)
+BroadcastHashJoin (LeftOuter) ............. 99,868 rows    (substation join, no row change)
+Filter isnotnull(meter_id) ................ 99,868 rows    (0 filtered)
+Filter isnotnull(date) .................... 99,868 rows    (0 filtered)
+Filter (daily_kw > 0 AND daily_kw < 10000)  99,864 rows    (4 filtered — within expected range)
+Filter isnotnull(tariff_code) .............      0 rows    (99,864 filtered ★)     # <── silent failure
+HashAggregate (dedup on meter_id, date) ...      0 rows
+WriteDelta (MERGE) ........................      0 rows written, 0 rows updated, 0 rows inserted
+
+# The WriteDelta MERGE operation was atomic and succeeded. With 0 source rows,
+# whenMatchedUpdateAll and whenNotMatchedInsertAll had nothing to do.
+# Spark reports: "Query completed in 0.8s. No data written."
+# The pipeline's Notebook activity received exit code 0 and reported "Succeeded".
+
+
+== For comparison — NORTH-1 plan (same run) ==
+# Identical plan structure. Row counts at the Filter isnotnull(tariff_code) node:
+#   input:  100,412 rows
+#   output: 100,412 rows     (0 filtered — NORTH-1's Bronze has tariff_code populated)
+# WriteDelta MERGE: 100,412 rows inserted. Duration: 198s.

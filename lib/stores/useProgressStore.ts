@@ -53,6 +53,8 @@ type EnergyEventSource =
   | 'flashcard-correct'
   | 'streak-milestone'
   | 'chapter-complete'
+  | 'lesson-read'
+  | 'track-complete'
   | 'mission'
   | 'infrastructure-deploy'
   | 'manual';

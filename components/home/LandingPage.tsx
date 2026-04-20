@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { BookOpen, Layers, Clock, BarChart3, ArrowRight, Zap, Target, GraduationCap } from 'lucide-react';
+import WindTurbine from '@/components/home/WindTurbine';
 
 // ─── Nav on scroll ───────────────────────────────────────────────────────────
 
@@ -190,140 +191,168 @@ export const LandingPage = () => {
           from { opacity: 0; }
           to   { opacity: 1; }
         }
+        @keyframes shineSwipe {
+          0%, 80% { background-position: -200% center; }
+          100%    { background-position: 200% center; }
+        }
       `}</style>
 
       {/* ── Navigation (appears on scroll) ─────────────────────────────── */}
       <NavOnScroll />
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <section className="pt-24 pb-32 px-6 relative overflow-hidden">
-        {/* Subtle background gradient */}
+      <section className="min-h-[90vh] flex items-center px-6 relative overflow-hidden">
+        {/* Background gradient — shifted right for turbine halo */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(153,247,255,0.07) 0%, transparent 60%)'
+              'radial-gradient(ellipse 60% 50% at 70% 30%, rgba(153,247,255,0.06) 0%, transparent 60%)'
           }}
         />
 
-        <div className="max-w-6xl mx-auto relative">
-          {/* Logo */}
-          <div
-            className="font-bold tracking-tight text-sm mb-10"
-            style={{ color: '#99f7ff', letterSpacing: '0.08em', opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 0ms forwards' }}
-          >
-            STABLEGRID.IO
-          </div>
+        <div className="max-w-6xl mx-auto relative w-full grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-0">
+          {/* Left column — text content */}
+          <div>
+            {/* Logo */}
+            <div
+              className="font-bold tracking-tight text-sm mb-10"
+              style={{ color: '#99f7ff', letterSpacing: '0.08em', opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 0ms forwards' }}
+            >
+              STABLEGRID.IO
+            </div>
 
-          {/* Headline */}
-          <h1
-            className="font-bold tracking-tight mb-6"
-            style={{
-              fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
-              lineHeight: 1.05,
-              opacity: 0,
-              animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 80ms forwards',
-              maxWidth: '900px'
-            }}
-          >
-            Understanding <span style={{ color: '#99f7ff' }}>data</span>
-            <br />
-            is your edge.
-          </h1>
-
-          {/* Subtitle */}
-          <p
-            className="text-lg mb-10 max-w-2xl"
-            style={{
-              color: 'rgba(255,255,255,0.5)',
-              lineHeight: 1.7,
-              opacity: 0,
-              animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 160ms forwards'
-            }}
-          >
-            Master data engineering through structured theory tracks, real-world practice sets,
-            and deep technical understanding — across PySpark, Fabric, Airflow, and more.
-          </p>
-
-          {/* CTAs */}
-          <div
-            className="flex flex-wrap gap-3 mb-20"
-            style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 240ms forwards' }}
-          >
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-semibold transition-all"
+            {/* Headline */}
+            <h1
+              className="font-bold tracking-tight mb-6"
               style={{
-                backgroundColor: '#f0f0f3',
-                color: '#0a0c0e',
-                borderRadius: '14px',
-                boxShadow: '0 0 12px rgba(240,240,243,0.1)'
-              }}
-              onMouseOver={e => {
-                e.currentTarget.style.boxShadow = '0 0 24px rgba(240,240,243,0.2)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseOut={e => {
-                e.currentTarget.style.boxShadow = '0 0 12px rgba(240,240,243,0.1)';
-                e.currentTarget.style.transform = 'translateY(0)';
+                fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+                fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
+                lineHeight: 1.05,
+                opacity: 0,
+                animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 80ms forwards',
               }}
             >
-              Get started
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <a
-              href="#topics"
-              className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-medium transition-all"
-              style={{
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '14px',
-                color: 'rgba(255,255,255,0.7)'
-              }}
-              onMouseOver={e => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
-                e.currentTarget.style.color = 'rgba(255,255,255,0.95)';
-              }}
-              onMouseOut={e => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
-              }}
-            >
-              Explore topics
-            </a>
-          </div>
+              Understanding <span style={{ color: '#99f7ff' }}>data</span>
+              <br />
+              is your edge.
+            </h1>
 
-          {/* Topic icon strip */}
-          <div
-            className="flex items-center gap-6 flex-wrap"
-            style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 340ms forwards' }}
-          >
-            <span
-              className="text-xs uppercase tracking-widest shrink-0"
-              style={{ color: 'rgba(255,255,255,0.2)', letterSpacing: '0.15em' }}
+            {/* Subtitle */}
+            <p
+              className="text-lg mb-10 max-w-lg"
+              style={{
+                color: 'rgba(255,255,255,0.5)',
+                lineHeight: 1.7,
+                opacity: 0,
+                animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 160ms forwards'
+              }}
             >
-              Topics
-            </span>
-            {TOPIC_ICONS.map((src, i) => (
-              <div
-                key={src}
-                className="w-7 h-7 relative transition-opacity"
-                style={{ opacity: 0.25 + i * 0.01 }}
+              Master data engineering through structured theory tracks, real-world practice sets,
+              and deep technical understanding — across PySpark, Fabric, Airflow, and more.
+            </p>
+
+            {/* CTAs */}
+            <div
+              className="flex flex-wrap gap-3 mb-16"
+              style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 240ms forwards' }}
+            >
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-semibold transition-all relative overflow-hidden"
+                style={{
+                  backgroundColor: '#f0f0f3',
+                  color: '#0a0c0e',
+                  borderRadius: '14px',
+                  boxShadow: '0 0 12px rgba(240,240,243,0.1)',
+                  backgroundImage: 'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.4) 45%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.4) 55%, transparent 70%)',
+                  backgroundSize: '250% 100%',
+                  backgroundPosition: '-200% center',
+                  animation: 'shineSwipe 5s ease-in-out infinite',
+                }}
+                onMouseOver={e => {
+                  e.currentTarget.style.boxShadow = '0 0 24px rgba(240,240,243,0.2)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={e => {
+                  e.currentTarget.style.boxShadow = '0 0 12px rgba(240,240,243,0.1)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
               >
-                <Image
-                  src={src}
-                  alt=""
-                  fill
-                  className="object-contain"
-                  style={{ filter: 'grayscale(1) brightness(1.8)' }}
-                />
-              </div>
-            ))}
+                Get started
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <a
+                href="#topics"
+                className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-medium transition-all"
+                style={{
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '14px',
+                  color: 'rgba(255,255,255,0.7)'
+                }}
+                onMouseOver={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.95)';
+                }}
+                onMouseOut={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                }}
+              >
+                Explore topics
+              </a>
+            </div>
+
+            {/* Topic icon strip */}
+            <div
+              className="flex items-center gap-6 flex-wrap"
+              style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 340ms forwards' }}
+            >
+              <span
+                className="text-xs uppercase tracking-widest shrink-0"
+                style={{ color: 'rgba(255,255,255,0.2)', letterSpacing: '0.15em' }}
+              >
+                Topics
+              </span>
+              {TOPIC_ICONS.map((src, i) => (
+                <div
+                  key={src}
+                  className="w-7 h-7 relative transition-opacity"
+                  style={{ opacity: 0.7 }}
+                >
+                  <Image
+                    src={src}
+                    alt=""
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right column — WindTurbine */}
+          <div
+            className="hidden lg:flex items-center justify-center relative"
+            style={{ opacity: 0, animation: 'fadeIn 1s cubic-bezier(.16,1,.3,1) 300ms forwards' }}
+          >
+            {/* Subtle cyan glow behind turbine */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(153,247,255,0.05) 0%, transparent 70%)'
+              }}
+            />
+            <WindTurbine size="custom" width={760} height={900} scale={1} background="transparent" showBeacon />
           </div>
         </div>
       </section>
 
+      {/* Section divider */}
+      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+
       {/* ── How it Works ───────────────────────────────────────────────────── */}
-      <section className="py-24 lg:py-32 px-6">
+      <section className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
           {/* Section label */}
           <p
@@ -377,8 +406,11 @@ export const LandingPage = () => {
         </div>
       </section>
 
+      {/* Section divider */}
+      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+
       {/* ── Topics Showcase ────────────────────────────────────────────────── */}
-      <section id="topics" className="py-24 lg:py-32 px-6">
+      <section id="topics" className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
           <p
             className="text-xs uppercase tracking-widest mb-4"
@@ -450,8 +482,11 @@ export const LandingPage = () => {
         </div>
       </section>
 
+      {/* Section divider */}
+      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+
       {/* ── Tier Showcase ────────────────────────────────────────────────── */}
-      <section className="py-24 lg:py-32 px-6">
+      <section className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
           <p
             className="text-xs uppercase tracking-widest mb-4"
@@ -527,8 +562,11 @@ export const LandingPage = () => {
         </div>
       </section>
 
+      {/* Section divider */}
+      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+
       {/* ── Features Grid ──────────────────────────────────────────────────── */}
-      <section className="py-24 lg:py-32 px-6">
+      <section className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
           <p
             className="text-xs uppercase tracking-widest mb-4"
@@ -585,8 +623,11 @@ export const LandingPage = () => {
         </div>
       </section>
 
+      {/* Section divider */}
+      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+
       {/* ── CTA Section ────────────────────────────────────────────────────── */}
-      <section className="py-24 lg:py-32 px-6">
+      <section className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
           <div
             className="text-center px-8 py-20"

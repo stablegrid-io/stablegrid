@@ -221,8 +221,8 @@ export const TheoryTrackPath = ({
             );
           })}
 
-          {/* ── Capstone Project (only show when a project exists) ── */}
-          {(doc.topic === 'pyspark' || doc.topic === 'PySpark') && (track.slug === 'junior' || track.slug === 'mid' || track.slug === 'senior') ? (<div
+          {/* ── Capstone Project (hidden for now) ── */}
+          {false && (doc.topic === 'pyspark' || doc.topic === 'PySpark' || doc.topic === 'fabric' || doc.topic === 'Fabric' || doc.topic === 'airflow' || doc.topic === 'Airflow') && (track.slug === 'junior' || track.slug === 'mid' || track.slug === 'senior') ? (<div
             className="relative flex items-center mb-16 md:mb-20"
             style={{ opacity: 0, animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${cards.length * 70 + 100}ms forwards` }}
           >

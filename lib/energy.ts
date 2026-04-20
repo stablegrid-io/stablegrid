@@ -1,12 +1,44 @@
-// Legacy stub — system removed
-// Stub — energy game system removed. Minimal exports kept for compatibility.
+/* ── kWh Reward System ──────────────────────────────────────────────────────── */
+
+const TIER_MULTIPLIER: Record<string, number> = {
+  junior: 1.0,
+  mid: 1.5,
+  senior: 3.0,
+};
+
+const BASE_REWARDS = {
+  lessonRead: 5,
+  moduleComplete: 25,
+  trackComplete: 200,
+};
+
+export function getLessonRewardKWh(trackLevel: string): number {
+  const mult = TIER_MULTIPLIER[trackLevel] ?? 1;
+  return Math.round(BASE_REWARDS.lessonRead * mult);
+}
+
+export function getModuleCompleteBonus(trackLevel: string): number {
+  const mult = TIER_MULTIPLIER[trackLevel] ?? 1;
+  return Math.round(BASE_REWARDS.moduleComplete * mult);
+}
+
+export function getTrackCompleteBonus(trackLevel: string): number {
+  const mult = TIER_MULTIPLIER[trackLevel] ?? 1;
+  return Math.round(BASE_REWARDS.trackComplete * mult);
+}
+
+export function getTierMultiplier(trackLevel: string): number {
+  return TIER_MULTIPLIER[trackLevel] ?? 1;
+}
+
+/* ── Legacy stubs (backward compatibility) ─────────────────────────────────── */
 
 export const getChapterCompletionRewardUnits = (_totalMinutes: number): number => 0;
 export const getPracticeRewardUnits = (_difficulty: any): number => 0;
 export const getAvailableBudgetUnits = (..._args: any[]): number => 0;
-export const formatKwh = (_value: number): string => '0 kWh';
-export const formatUnitsAsKwh = (_units: number): string => '0 kWh';
-export const unitsToKwh = (_units: number): number => 0;
+export const formatKwh = (value: number): string => `${value.toLocaleString()} kWh`;
+export const formatUnitsAsKwh = (units: number): string => `${units.toLocaleString()} kWh`;
+export const unitsToKwh = (units: number): number => units;
 export const getLevelProgress = (_xp: number) => ({ level: 1, progress: 0, nextLevelXp: 1000 });
 export const INFRASTRUCTURE_NODES: any[] = [];
 export const INFRASTRUCTURE_BY_ID: Record<string, any> = {};
@@ -17,5 +49,5 @@ export type CharacterTierId = string;
 export type LevelDefinition = any;
 export const ENERGY_REWARDS: Record<string, number> = {};
 export const FLASHCARD_STREAK_MILESTONES: number[] = [];
-export const kwhToUnits = (_kwh: number): number => 0;
+export const kwhToUnits = (kwh: number): number => kwh;
 export const getGridStabilityPct = (..._args: any[]): number => 100;

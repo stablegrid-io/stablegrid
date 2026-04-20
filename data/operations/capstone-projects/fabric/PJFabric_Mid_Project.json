@@ -1,0 +1,919 @@
+{
+  "id": "PJ_Fabric_Mid",
+  "version": "1.0.0",
+  "track": "Fabric",
+  "level": "Mid",
+  "scenario": "NordGrid",
+  "total_xp": 600,
+  "narrative_premise": "It is 07:32 UTC on Saturday, 19 April 2026. Your phone buzzes. PagerDuty: 'NordGrid billing dashboard — NORTH-2 region missing from monthly_billing for April 2026.' You are the on-call data engineer. You open Teams and see alex.rivera from central analytics: '06:40 morning check on the Gold dashboard — monthly_billing shows 11 rows for April, not 12. NORTH-2 is gone. All other regions look normal. Pipeline status is green. I can't tell whether this is a vendor issue, a silent pipeline failure, or stale data. The monthly billing run fires at 10:00 and we cannot process NORTH-2 customers without their April totals. Need a fix or an explanation before then.' You open the ws_nordgrid_silver_prod workspace. Last night's pl_daily_meter run is in the Monitoring hub — every activity green, ForEach reports 12 iterations Succeeded. The Warehouse's v_monthly_billing view really does return 11 rows. You open the Spark UI for the NORTH-2 iteration and pull down yesterday's deployment log. Four pieces of evidence sit in front of you: the pipeline run log, the NORTH-2 execution plan, the current state of silver_meters, and the current state of the Gold Warehouse. You have two and a half hours. Read the evidence, identify what silently failed, pick the root cause from the candidates the team lead will ask you to defend, deploy a fix that restores NORTH-2 without collateral damage, add a monitoring control so this cannot recur, and write the post-mortem before 10:00.",
+  "ux": {
+    "persistent_element": "incident_timeline_panel",
+    "panel_description": "A read-only chronological list of incident events. Each event populates from a specific graded field in Chapters 1–4 as those chapters complete. By Chapter 5, the panel contains the full sequence that pre-populates the post-mortem timeline section.",
+    "timeline_events": [
+      {
+        "order": 1,
+        "time_utc": "2026-04-17 22:14",
+        "label_template": "PR #847 merged and deployed: {pr_title}",
+        "source_chapter": 2,
+        "source_field": "root_cause_selection"
+      },
+      {
+        "order": 2,
+        "time_utc": "2026-04-18 02:00",
+        "label_template": "pl_daily_meter scheduled run starts",
+        "source_chapter": 1,
+        "source_field": "first_silent_failure",
+        "static": true
+      },
+      {
+        "order": 3,
+        "time_utc": "2026-04-18 02:03",
+        "label_template": "{first_silent_failure} completes in 0.8s writing 0 rows",
+        "source_chapter": 1,
+        "source_field": "first_silent_failure"
+      },
+      {
+        "order": 4,
+        "time_utc": "2026-04-18 02:08",
+        "label_template": "Pipeline reports Succeeded — Slack success notification fires",
+        "static": true
+      },
+      {
+        "order": 5,
+        "time_utc": "2026-04-18 06:40",
+        "label_template": "Analyst notices: {symptom_observed}",
+        "source_chapter": 1,
+        "source_field": "symptom_observed"
+      },
+      {
+        "order": 6,
+        "time_utc": "2026-04-19 07:32",
+        "label_template": "PagerDuty alert fires — on-call engineer begins diagnosis",
+        "static": true
+      },
+      {
+        "order": 7,
+        "time_utc": "2026-04-19 08:15",
+        "label_template": "Root cause identified: {root_cause_selection}",
+        "source_chapter": 2,
+        "source_field": "root_cause_selection"
+      },
+      {
+        "order": 8,
+        "time_utc": "2026-04-19 08:45",
+        "label_template": "Fix deployed to apply_quality_filters; NORTH-2 backfilled ({silver_rows_recovered} rows)",
+        "source_chapter": 3,
+        "source_field": "runner_output.silver_rows_recovered"
+      },
+      {
+        "order": 9,
+        "time_utc": "2026-04-19 09:20",
+        "label_template": "Prevention control added: check_per_region_row_counts deployed as pipeline gate",
+        "source_chapter": 4,
+        "source_field": "runner_output.function_registered"
+      }
+    ],
+    "score_card": {
+      "thresholds": {
+        "distinguished": 570,
+        "proficient": 480,
+        "developing": 360
+      },
+      "labels": {
+        "distinguished": "You read the evidence, isolated the root cause from credible alternatives, deployed a surgical fix, and closed the detection gap with a production-ready control. This is what senior incident response looks like.",
+        "proficient": "Solid incident-response instincts. One or two steps needed coaching — check the hint usage breakdown and the assertions that still failed on the fix or the DQ function.",
+        "developing": "The diagnosis is uneven. Revisit Modules FI1 (execution plans), FI3 (ForEach failure semantics), and FI6 (data quality frameworks) — those are the three modules most junior of this project's demands.",
+        "incomplete": "Work the track's failure-first lessons again before retrying. Focus on the diagnostic pattern: read the evidence, form a hypothesis, test it against the data, only then write code."
+      }
+    }
+  },
+  "coverage_matrix": {
+    "1": [
+      "chapter_1",
+      "chapter_2"
+    ],
+    "2": [
+      "chapter_1",
+      "chapter_2",
+      "chapter_3"
+    ],
+    "3": [
+      "chapter_1",
+      "chapter_2",
+      "chapter_5"
+    ],
+    "4": [
+      "chapter_1",
+      "chapter_5"
+    ],
+    "5": [
+      "chapter_2"
+    ],
+    "6": [
+      "chapter_4",
+      "chapter_5"
+    ],
+    "7": [
+      "chapter_2",
+      "chapter_5"
+    ],
+    "8": [
+      "chapter_2"
+    ],
+    "9": [
+      "chapter_5"
+    ],
+    "10": [
+      "chapter_1",
+      "chapter_5"
+    ]
+  },
+  "datasets": [
+    {
+      "name": "bronze_readings_today.csv",
+      "path": "PJFabric_Mid_data/evidence/bronze_readings_today.csv",
+      "row_count": 60,
+      "description": "Yesterday's Bronze input for processing_date 2026-04-18. Columns: mtr_id, kwh_reading, reading_date, rgn_code, tariff_code. Twelve regions (NORTH-1..3, SOUTH-1..3, EAST-1..3, WEST-1..3) with 5 rows each. NORTH-2 rows have empty tariff_code (the vendor has not populated this column for that region). EAST-3 row 3 has null kwh_reading and WEST-1 row 4 has kwh_reading=-10.0 — both legitimate defects the quality filter should remove. All valid rows after a correct filter: 58. All rows after the broken filter that also requires tariff_code NOT NULL: 53 (NORTH-2 completely absent)."
+    },
+    {
+      "name": "silver_meters_snapshot.csv",
+      "path": "PJFabric_Mid_data/evidence/silver_meters_snapshot.csv",
+      "row_count": 53,
+      "description": "Snapshot of silver_meters filtered to date=2026-04-18 as it looked after last night's failed run. Columns: meter_id, daily_kw, date, region, year, month, tariff_code, substation_name. Eleven of the 12 regions are present with their expected row counts; NORTH-2 is entirely absent (the incident symptom). Used as the primary evidence in Chapter 1 for the 'affected layer' and 'estimated row loss' fields."
+    },
+    {
+      "name": "warehouse_monthly_billing_snapshot.csv",
+      "path": "PJFabric_Mid_data/evidence/warehouse_monthly_billing_snapshot.csv",
+      "row_count": 11,
+      "description": "Snapshot of dw_nordgrid_analytics.dbo.monthly_billing for April 2026 after last night's Gold refresh. Columns: year, month, region, total_kw, avg_kw, reading_count. Eleven rows — NORTH-2 absent because silver_meters had no NORTH-2 rows for the current month when the cross-database INSERT ran. This is what alex.rivera noticed at 06:40."
+    },
+    {
+      "name": "pipeline_run_log.json",
+      "path": "PJFabric_Mid_data/evidence/pipeline_run_log.json",
+      "row_count": null,
+      "description": "Structured JSON log for run_id pl_daily_meter-20260418-0200. Contains: overall_status (Succeeded); per-activity entries (Copy, Refresh Substation Dataflow, Lookup, If Condition, ForEach, Invoke pl_gold_aggregate, Write pipeline_metrics, Slack Notification); per-iteration rows_read/rows_written for all 12 ForEach iterations including the telltale NORTH-2 entry (duration 0.8s, rows_written 0, note about the silent completion); a baseline_rows_per_region block documenting each region's typical daily volume; a recent_deployments block with PR #847 (the schema-filter change), PR #844 (no-op), and PR #842 (unrelated SCADA Eventstream change); and capacity_metrics showing no throttling. The primary evidence for both Ch1 and Ch2."
+    },
+    {
+      "name": "execution_plan_excerpt.txt",
+      "path": "PJFabric_Mid_data/evidence/execution_plan_excerpt.txt",
+      "row_count": null,
+      "description": "Spark physical plan captured from the Spark UI for the NORTH-2 Notebook activity at 2026-04-18 02:03:14Z. Annotated per-node row counts at the bottom show 99,868 rows entering the final filter and 0 rows leaving it, with the offending filter node (Filter isnotnull(tariff_code)) explicitly marked. A comparison block at the end shows the same plan for NORTH-1 where the filter removed 0 rows."
+    },
+    {
+      "name": "nordgrid_transforms_broken.py",
+      "path": "PJFabric_Mid_data/scaffolds/nordgrid_transforms_broken.py",
+      "row_count": null,
+      "description": "The shared transformation module nb_transform_meters imports, as it exists at 07:30 Saturday. PR #847 added .filter(col('tariff_code').isNotNull()) to apply_quality_filters — the bug. The student's Chapter 3 task is to open this file and produce a fixed version. The module also contains standardize_strings, add_date_parts, deduplicate_readings, and a transform_region driver. These helper functions are correct; only apply_quality_filters needs editing."
+    },
+    {
+      "name": "bronze_readings_reference.csv",
+      "path": "PJFabric_Mid_data/fallback/bronze_readings_reference.csv",
+      "row_count": 60,
+      "description": "Healthy fixture: identical row layout to bronze_readings_today.csv except every tariff_code value is populated. Used as the Chapter 4 fixture for the passing-path test (the DQ function must return passed=True against the Silver derived from this Bronze). Also used as the Chapter 3 raw-Bronze fallback if the evidence file was altered."
+    },
+    {
+      "name": "silver_meters_reference.csv",
+      "path": "PJFabric_Mid_data/fallback/silver_meters_reference.csv",
+      "row_count": 58,
+      "description": "Post-fix Silver state: what silver_meters for 2026-04-18 looks like after a correct Chapter 3 fix. All 12 regions present. NORTH-2 has 5 rows with empty tariff_code preserved. EAST-3 and WEST-1 have 4 rows each (the two legitimate defects filtered out). Every other region has 5 rows. Used as the Chapter 4 healthy-fixture input and as the Chapter 5 fallback so the post-mortem timeline still populates the 'fix applied' entry when Chapter 3 did not complete."
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "title": "Read the Evidence",
+      "unlock_condition": null,
+      "inter_chapter_dependency": null,
+      "chapter_type": "template",
+      "base_xp": 120,
+      "modules_primary": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "modules_secondary": [
+        10
+      ],
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Pipeline Run Log (pl_daily_meter-20260418)",
+          "content": "Overall status: Succeeded. All 12 ForEach iterations report Succeeded.\n\nNORTH-2 iteration: duration=0.8s, rows_read=99,868, rows_written=0. Note: completed without error but wrote zero rows.\n\nAll other iterations: rows_written > 0, durations 2–5s.\n\nRecent deployments:\n• PR #847 \"feat(silver): add tariff_code quality filter\" — merged 2026-04-17 22:14 UTC\n• PR #844 — no-op refactor\n• PR #842 — unrelated SCADA Eventstream change"
+        },
+        {
+          "type": "text",
+          "title": "Execution Plan (NORTH-2 Spark UI)",
+          "content": "Physical plan for NORTH-2 at 2026-04-18 02:03:14Z:\n\nFilter node: isnotnull(tariff_code)\n• Rows in: 99,868\n• Rows out: 0\n\nComparison — NORTH-1 same filter node:\n• Rows in: 98,442\n• Rows out: 98,442 (no rows removed)"
+        },
+        {
+          "type": "text",
+          "title": "silver_meters Snapshot (date=2026-04-18)",
+          "content": "53 rows total. 11 of 12 regions present with expected counts.\nNORTH-2: completely absent (0 rows)."
+        },
+        {
+          "type": "text",
+          "title": "monthly_billing (April 2026)",
+          "content": "11 rows. NORTH-2 absent. All other regions have expected totals."
+        }
+      ],
+      "narrative_context": "You cannot fix anything until you know what happened. Four pieces of evidence are open on your screen: the pipeline run log (activity graph, ForEach iterations, capacity metrics, recent deployments), the NORTH-2 Spark execution plan with per-node row counts, the current state of silver_meters for 2026-04-18, and the current state of the Gold Warehouse's monthly_billing for April. Before you guess at the root cause, establish the facts: which activity silently failed, which layer carries the loss, roughly how many rows disappeared, and what the analyst actually saw at 06:40.",
+      "task": "Fill the four diagnostic fields. Every answer is constrained — either a single option from the listed candidates or an integer within a tolerance. Use only the four evidence files; do not guess. Each field populates a specific event in the incident timeline panel on the right.",
+      "validation_hint": "If your first_silent_failure choice writes a non-zero number of rows elsewhere in the log, you have picked the wrong activity. If your estimated_row_loss is outside the 95,000–105,000 band, re-check the baseline_rows_per_region block against the ForEach iteration for NORTH-2.",
+      "grading": {
+        "type": "structured_template",
+        "method": "exact_match_with_tolerance",
+        "xp_per_field": 30,
+        "fields": [
+          {
+            "id": "first_silent_failure",
+            "xp": 30,
+            "prompt": "Which pipeline activity silently succeeded when it should have caught or surfaced the problem?",
+            "input_type": "single_select",
+            "options": [
+              "Copy Meter CSV (Bronze ingest)",
+              "Refresh Substation Dataflow",
+              "Lookup Bronze Row Count",
+              "If Bronze Has Rows (condition activity)",
+              "ForEach iteration: NORTH-2 Silver notebook",
+              "Invoke pl_gold_aggregate (Warehouse refresh)",
+              "Slack Success Notification"
+            ],
+            "correct_answer": "ForEach iteration: NORTH-2 Silver notebook",
+            "failure_message": "The run log entry for this activity shows rows_written=0 and duration 0.8s while every other iteration wrote ~100,000 rows in ~200s. That is the silent failure."
+          },
+          {
+            "id": "affected_layer",
+            "xp": 30,
+            "prompt": "Which medallion layer carries the missing NORTH-2 data?",
+            "input_type": "single_select",
+            "options": [
+              "Bronze — the SFTP Copy lost the file",
+              "Silver — today's NORTH-2 rows never reached silver_meters",
+              "Warehouse Gold — the cross-database INSERT dropped NORTH-2",
+              "Semantic Model — the Direct Lake cache is stale",
+              "Power BI Report — a visual-level filter hides NORTH-2"
+            ],
+            "correct_answer": "Silver — today's NORTH-2 rows never reached silver_meters",
+            "failure_message": "The Bronze row count for NORTH-2 in the run log matches its baseline (99,868). The Warehouse refresh correctly aggregated whatever was in silver_meters. The loss happened between Bronze and Silver."
+          },
+          {
+            "id": "estimated_row_loss",
+            "xp": 30,
+            "prompt": "Approximately how many NORTH-2 rows are missing from Silver for 2026-04-18?",
+            "input_type": "integer",
+            "correct_range": [
+              95000,
+              105000
+            ],
+            "correct_answer_hint": "Look at baseline_rows_per_region for NORTH-2 in the run log (99,868), or the FileScan row count in the execution plan (99,868).",
+            "failure_message": "The expected loss is within ~5% of NORTH-2's daily baseline. The run log's baseline_rows_per_region block gives you the number. If you answered 0 or a small number, you were looking at the test-dataset rather than the production baseline the log documents."
+          },
+          {
+            "id": "symptom_observed",
+            "xp": 30,
+            "prompt": "What did the central analytics analyst actually notice at 06:40 UTC?",
+            "input_type": "single_select",
+            "options": [
+              "Pipeline status showed red in the Monitoring hub",
+              "The monthly_billing view returned 11 rows for April 2026 instead of 12",
+              "The Spark UI flagged a broadcast join failure",
+              "Capacity consumption spiked above 90%",
+              "A Great Expectations validation run failed in the pipeline gate"
+            ],
+            "correct_answer": "The monthly_billing view returned 11 rows for April 2026 instead of 12",
+            "failure_message": "The morning_dashboard_indicators block in the run log records exactly what alex.rivera saw. The pipeline status was green; the Spark UI had no errors; there is no DQ gate deployed yet; capacity was at 41%."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Mid-level diagnosis starts with evidence, not hypothesis. You covered how to read a Fabric pipeline run log and how to read an execution plan — both skills appear together in the module on performance and in the production-platform module on incident management."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "In pipeline_run_log.json, the ForEach activity's iterations array has one entry per region with rows_read, rows_written, and duration_seconds. Compare NORTH-2's row to the other eleven. In execution_plan_excerpt.txt, the 'Per-Node Row Counts' block at the bottom walks the rows down each filter. In silver_meters_snapshot.csv, count the distinct region values."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "For first_silent_failure, the Succeeded activity that wrote zero rows is the answer. For affected_layer, the layer where the rows are missing is not necessarily the layer where the failure happened — trace the data flow from where the rows exist (Bronze baseline) to where they don't (silver_meters_snapshot). For estimated_row_loss, the baseline_rows_per_region key in the log gives production-scale numbers — answer in that scale, not in the 5-row test sample. For symptom_observed, the morning_dashboard_indicators key records exactly what the analyst said."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Here is one field to unblock the rest. first_silent_failure = 'ForEach iteration: NORTH-2 Silver notebook'. With that one answer, the other three fields fall into place — the affected layer is Silver (because the notebook writes to Silver), the row loss is ~NORTH-2's baseline (because the notebook wrote 0 rows), and the symptom is whatever downstream consumer first missed the data."
+        }
+      ]
+    },
+    {
+      "id": "chapter_2",
+      "title": "Trace the Root Cause",
+      "unlock_condition": {
+        "after_chapter": 1
+      },
+      "inter_chapter_dependency": null,
+      "chapter_type": "template",
+      "base_xp": 120,
+      "modules_primary": [
+        1,
+        2,
+        3,
+        7
+      ],
+      "modules_secondary": [
+        5,
+        8
+      ],
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Pipeline Run Log — Key Details",
+          "content": "NORTH-2 iteration: rows_read=99,868, rows_written=0, duration=0.8s, status=Succeeded, no error_message.\n\nForEach config: is_sequential=false, batch_count=4. No iteration logged retry or ConcurrentModificationException.\n\nPR #847 merged 2026-04-17 22:14 UTC: \"feat(silver): add tariff_code quality filter\""
+        },
+        {
+          "type": "text",
+          "title": "Execution Plan — Filter Evidence",
+          "content": "NORTH-2: Filter isnotnull(tariff_code) → 99,868 rows in, 0 rows out.\nNORTH-1: same filter → 98,442 in, 98,442 out.\n\nNORTH-2 Bronze rows have empty tariff_code; all other regions have populated tariff_code."
+        },
+        {
+          "type": "text",
+          "title": "bronze_readings_today.csv",
+          "content": "60 rows, 12 regions × 5 rows each.\nNORTH-2: all 5 rows have empty tariff_code.\nEAST-3 row 3: null kwh_reading. WEST-1 row 4: kwh_reading=-10.0."
+        }
+      ],
+      "narrative_context": "You know NORTH-2's notebook ran for 0.8 seconds and wrote nothing. You do not yet know why. Your team lead will not approve a code change without a defended root cause, and three plausible hypotheses are on the whiteboard from the previous on-call engineer's notes. One of them fits the evidence; two do not. Pick the right cause, cite two specific pieces of evidence that support it, and explain how you ruled out the other two.",
+      "task": "Fill five fields. Pick one of three root-cause candidates, cite two independent pieces of evidence supporting your pick, and cite one piece of evidence that rules out each of the other two candidates. Every citation is a single option from a fixed list — no free-text.",
+      "validation_hint": "If your two supporting citations both come from the same evidence file or both describe the same finding, the defence is shallow. Strong diagnosis triangulates — one citation from the run log, one from the plan or the source, not both from the same document.",
+      "grading": {
+        "type": "structured_template",
+        "method": "exact_match",
+        "xp_per_field": 24,
+        "fields": [
+          {
+            "id": "root_cause_selection",
+            "xp": 24,
+            "prompt": "Select the root cause.",
+            "input_type": "single_select",
+            "options": [
+              "A. PR #847 added a .filter(col('tariff_code').isNotNull()) line to apply_quality_filters. NORTH-2 Bronze rows all have empty tariff_code, so the filter removed every row before the MERGE.",
+              "B. The ForEach batchCount of 4 caused concurrent writes to silver_meters that hit a Delta concurrent-modification conflict. NORTH-2's notebook saw the conflict, rolled back, and reported success with zero rows.",
+              "C. The SFTP vendor delivered an empty NORTH-2 Bronze export. The If-Condition's Lookup did not catch it because the Lookup counted rows across all regions, not per region."
+            ],
+            "correct_answer": "A. PR #847 added a .filter(col('tariff_code').isNotNull()) line to apply_quality_filters. NORTH-2 Bronze rows all have empty tariff_code, so the filter removed every row before the MERGE.",
+            "failure_message": "The root cause must explain three things at once: why the notebook ran in 0.8 seconds, why it wrote 0 rows, and why no error surfaced. Only one candidate does that. Re-read the execution plan's per-node row counts and the PR #847 entry in the run log side by side."
+          },
+          {
+            "id": "support_citation_1",
+            "xp": 24,
+            "prompt": "First piece of evidence that supports the selected root cause.",
+            "input_type": "single_select",
+            "options": [
+              "pipeline_run_log.json – ForEach iteration NORTH-2: rows_read=99,868, rows_written=0, duration_seconds=0.8",
+              "pipeline_run_log.json – recent_deployments[0] PR #847 titled 'feat(silver): add tariff_code quality filter' merged 2026-04-17 22:14 UTC",
+              "pipeline_run_log.json – capacity_metrics.throttling_events = 0",
+              "execution_plan_excerpt.txt – 'Filter isnotnull(tariff_code) … 0 rows (99,864 filtered)' at the final filter node of the NORTH-2 plan",
+              "execution_plan_excerpt.txt – FileScan parquet – 99,868 rows at the top of the plan",
+              "bronze_readings_today.csv – NORTH-2 rows have empty tariff_code values",
+              "nordgrid_transforms_broken.py – apply_quality_filters includes .filter(col('tariff_code').isNotNull())"
+            ],
+            "correct_answer_any_of": [
+              "execution_plan_excerpt.txt – 'Filter isnotnull(tariff_code) … 0 rows (99,864 filtered)' at the final filter node of the NORTH-2 plan",
+              "nordgrid_transforms_broken.py – apply_quality_filters includes .filter(col('tariff_code').isNotNull())"
+            ],
+            "failure_message": "The strongest support shows the filter in the plan or the code. A deployment timestamp alone says the change went in, not that the change caused the loss."
+          },
+          {
+            "id": "support_citation_2",
+            "xp": 24,
+            "prompt": "Second, independent piece of evidence. Must come from a different source file than your first citation.",
+            "input_type": "single_select",
+            "options": [
+              "pipeline_run_log.json – ForEach iteration NORTH-2: rows_read=99,868, rows_written=0, duration_seconds=0.8",
+              "pipeline_run_log.json – recent_deployments[0] PR #847 titled 'feat(silver): add tariff_code quality filter' merged 2026-04-17 22:14 UTC",
+              "pipeline_run_log.json – capacity_metrics.throttling_events = 0",
+              "execution_plan_excerpt.txt – 'Filter isnotnull(tariff_code) … 0 rows (99,864 filtered)' at the final filter node of the NORTH-2 plan",
+              "execution_plan_excerpt.txt – FileScan parquet – 99,868 rows at the top of the plan",
+              "bronze_readings_today.csv – NORTH-2 rows have empty tariff_code values",
+              "nordgrid_transforms_broken.py – apply_quality_filters includes .filter(col('tariff_code').isNotNull())"
+            ],
+            "correct_answer_any_of": [
+              "pipeline_run_log.json – recent_deployments[0] PR #847 titled 'feat(silver): add tariff_code quality filter' merged 2026-04-17 22:14 UTC",
+              "bronze_readings_today.csv – NORTH-2 rows have empty tariff_code values",
+              "pipeline_run_log.json – ForEach iteration NORTH-2: rows_read=99,868, rows_written=0, duration_seconds=0.8",
+              "execution_plan_excerpt.txt – 'Filter isnotnull(tariff_code) … 0 rows (99,864 filtered)' at the final filter node of the NORTH-2 plan",
+              "nordgrid_transforms_broken.py – apply_quality_filters includes .filter(col('tariff_code').isNotNull())"
+            ],
+            "cross_field_constraint": "must_be_from_different_source_file_than support_citation_1",
+            "failure_message": "Two citations from the same source file only prove one thing twice. Pick a citation from a different evidence source — the run log and the plan, or the plan and the source CSV."
+          },
+          {
+            "id": "rule_out_cause_b",
+            "xp": 24,
+            "prompt": "Which piece of evidence rules out candidate B (concurrent-modification conflict)?",
+            "input_type": "single_select",
+            "options": [
+              "pipeline_run_log.json – ForEach.is_sequential=false with batch_count=4 (so concurrency was possible)",
+              "pipeline_run_log.json – no iteration records a retry or a 'ConcurrentModificationException' error; all 12 report status Succeeded with no error_message",
+              "execution_plan_excerpt.txt – the NORTH-2 plan shows a WriteDelta MERGE at the bottom",
+              "pipeline_run_log.json – capacity_metrics.throttling_events = 0",
+              "bronze_readings_today.csv – NORTH-2 rows have empty tariff_code"
+            ],
+            "correct_answer": "pipeline_run_log.json – no iteration records a retry or a 'ConcurrentModificationException' error; all 12 report status Succeeded with no error_message",
+            "failure_message": "A concurrent-modification conflict surfaces in the log as either a retry or an explicit exception message. The NORTH-2 iteration has neither. Capacity throttling and the MERGE presence do not rule out the conflict hypothesis; absence of the error signature does."
+          },
+          {
+            "id": "rule_out_cause_c",
+            "xp": 24,
+            "prompt": "Which piece of evidence rules out candidate C (empty vendor export)?",
+            "input_type": "single_select",
+            "options": [
+              "pipeline_run_log.json – Lookup Bronze Row Count returned count=1,200,824 (total Bronze rows, not per-region)",
+              "pipeline_run_log.json – ForEach iteration NORTH-2: rows_read=99,868 (the notebook read 99,868 rows from Bronze)",
+              "pipeline_run_log.json – recent_deployments[0] is PR #847",
+              "execution_plan_excerpt.txt – FileScan parquet – 99,868 rows",
+              "warehouse_monthly_billing_snapshot.csv – 11 rows, NORTH-2 absent"
+            ],
+            "correct_answer_any_of": [
+              "pipeline_run_log.json – ForEach iteration NORTH-2: rows_read=99,868 (the notebook read 99,868 rows from Bronze)",
+              "execution_plan_excerpt.txt – FileScan parquet – 99,868 rows"
+            ],
+            "failure_message": "If the vendor delivered an empty NORTH-2 file, the notebook would have read 0 rows. The log and the plan both show the notebook read 99,868 rows from Bronze — the file was not empty. The rows were dropped inside the notebook, not missing from Bronze."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Strong root-cause analysis triangulates: the failure's mechanism must be visible in more than one evidence source, and each alternative hypothesis must be disproven with a specific observation. You covered this pattern when Module 10 walked through an incident lifecycle with its detection, triage, and response phases."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "Focus on four specific evidence fragments. In pipeline_run_log.json: the ForEach iteration for NORTH-2 (rows_read vs rows_written), and the recent_deployments array (PR #847's title and merged timestamp). In execution_plan_excerpt.txt: the 'Per-Node Row Counts' block at the bottom, specifically the line annotated with '★'. In nordgrid_transforms_broken.py: the last line of apply_quality_filters."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "To rule out the concurrent-modification hypothesis, search the log for retry counts or explicit exception types — a concurrent-modification conflict on a Delta MERGE always leaves one of those signatures, and NORTH-2's iteration shows neither. To rule out the empty-export hypothesis, check whether NORTH-2's notebook actually read rows from Bronze (it did — 99,868). The surviving hypothesis is the one consistent with a notebook that reads rows, filters them out entirely, and reports success."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Unlocking the hardest field: root_cause_selection = candidate A (the PR #847 tariff_code filter). With that fixed, support_citation_1 should be the execution-plan Filter node line (the direct mechanism) and support_citation_2 should be a non-overlapping citation — the PR #847 entry in the run log or the NORTH-2 empty-tariff rows in bronze_readings_today.csv."
+        }
+      ]
+    },
+    {
+      "id": "chapter_3",
+      "title": "Write the Fix",
+      "unlock_condition": {
+        "after_chapter": 2
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": null,
+        "uses_variable": null,
+        "fallback_dataset": "PJFabric_Mid_data/fallback/bronze_readings_reference.csv",
+        "fallback_note": "The test harness always reads bronze_readings_today.csv from the evidence directory. If the student altered the evidence file, the harness falls back to bronze_readings_reference.csv (which has every tariff_code populated) so at least the generic-filter assertions still run."
+      },
+      "chapter_type": "code",
+      "base_xp": 120,
+      "modules_primary": [
+        2,
+        3,
+        6
+      ],
+      "modules_secondary": [
+        1
+      ],
+      "narrative_context": "Cause confirmed. The apply_quality_filters function in nordgrid_transforms.py has a non-null check on tariff_code that must not stay. The function is shared between the notebook and the test suite, so whatever you write has to pass every pre-existing quality rule: meter_id not null, date not null and not in the future, daily_kw strictly positive and below 10,000. It must also leave the tariff_code column intact — null values are valid and must be written through to Silver. The billing team reads tariff_code downstream but tolerates nulls; the schema-evolution playbook calls this an additive change, not a mandatory field.",
+      "task": "Open nordgrid_transforms_broken.py and produce the fixed apply_quality_filters. Keep the four correct checks (meter_id, date present, date not future, daily_kw range). Remove the tariff_code NOT NULL check — or replace it with a softer check that fills null tariff_code with the string 'UNCLASSIFIED' so downstream consumers see a sentinel rather than a filter drop. Do not modify the other helper functions (standardize_strings, add_date_parts, deduplicate_readings, transform_region). The harness imports your edited apply_quality_filters and runs it against bronze_readings_today.csv.",
+      "validation_hint": "Against bronze_readings_today.csv, a correct apply_quality_filters returns a DataFrame with 58 rows: 60 minus 2 legitimate defects (null daily_kw in EAST-3, negative daily_kw in WEST-1). All 12 regions must be present, including NORTH-2 with 5 rows. If your output is 53 or 55 rows, you still have an over-filter somewhere.",
+      "scaffold": {
+        "filename": "nordgrid_transforms.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 3 — Write the Fix\n# Open scaffolds/nordgrid_transforms_broken.py and produce a corrected\n# apply_quality_filters. Leave every other function unchanged.\n# The harness imports your function and runs it against bronze_readings_today.csv.",
+        "code": "from pyspark.sql import DataFrame\nfrom pyspark.sql.functions import col, upper, trim, coalesce, lit, year, month, current_date\n\n\ndef apply_quality_filters(df: DataFrame) -> DataFrame:\n    \"\"\"Drop rows that violate NordGrid's Bronze-to-Silver quality rules.\n\n    Rules, in order:\n      1. meter_id must not be null.\n      2. date must not be null and must not be in the future.\n      3. daily_kw must be strictly between 0 and 10000.\n      tariff_code: null is allowed — this is an additive column; do NOT drop rows on its null-ness.\n    \"\"\"\n    # YOUR SOLUTION BELOW\n    # ─────────────────────────────────────────────────────────────────────\n\n    return df\n\n    # ─────────────────────────────────────────────────────────────────────\n    # YOUR SOLUTION ABOVE\n\n\n# ---------------------------------------------------------------------------\n# The following helpers are correct — do not modify them.\n# ---------------------------------------------------------------------------\n\ndef standardize_strings(df: DataFrame) -> DataFrame:\n    return (\n        df\n        .withColumn('region', upper(trim(col('region'))))\n        .withColumn('region', coalesce(col('region'), lit('UNKNOWN')))\n    )\n\n\ndef add_date_parts(df: DataFrame) -> DataFrame:\n    return (\n        df\n        .withColumn('year',  year(col('date')))\n        .withColumn('month', month(col('date')))\n    )\n\n\ndef deduplicate_readings(df: DataFrame) -> DataFrame:\n    return df.dropDuplicates(['meter_id', 'date'])"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 24,
+        "harness_note": "The harness loads bronze_readings_today.csv, projects the Silver-shaped columns (meter_id=mtr_id, daily_kw=cast kwh_reading to double, date=to_date(reading_date), region=rgn_code, tariff_code=nullIf(tariff_code,'')), imports the student's apply_quality_filters, and binds the result to df_fixed. Assertions then run against df_fixed.",
+        "assertions": [
+          {
+            "id": "A3_1",
+            "xp": 24,
+            "description": "NORTH-2 is restored: exactly 5 rows for NORTH-2 survive the filter",
+            "check": "from pyspark.sql.functions import col as _col\nn2 = df_fixed.filter(_col('region') == 'NORTH-2').count()\nassert n2 == 5, f'Expected 5 NORTH-2 rows after fix, got {n2}. If 0, the tariff_code filter is still present.'",
+            "failure_message": "NORTH-2 is still being filtered out. The tariff_code NOT NULL check must be removed or softened to a coalesce-to-sentinel."
+          },
+          {
+            "id": "A3_2",
+            "xp": 24,
+            "description": "Total row count is 58 (60 minus the 2 legitimate defects)",
+            "check": "n = df_fixed.count()\nassert n == 58, f'Expected 58 Silver rows after fix, got {n}. 60 Bronze rows minus 2 legitimate defects (null daily_kw in EAST-3, negative daily_kw in WEST-1) = 58.'",
+            "failure_message": "Row count is wrong. Check each filter: meter_id not null (removes 0), date not null and not future (removes 0), daily_kw in (0, 10000) (removes 2). Any fewer than 58 rows means an extra filter; any more than 58 means a legitimate defect passed through."
+          },
+          {
+            "id": "A3_3",
+            "xp": 24,
+            "description": "No null meter_id, no null date, and no future date remain",
+            "check": "from pyspark.sql.functions import col as _col, current_date as _today\nassert df_fixed.filter(_col('meter_id').isNull()).count() == 0, 'Null meter_id rows survived.'\nassert df_fixed.filter(_col('date').isNull()).count() == 0, 'Null date rows survived.'\nassert df_fixed.filter(_col('date') > _today()).count() == 0, 'Future-dated rows survived.'",
+            "failure_message": "One of the three identity/date rules was dropped by the rewrite. Keep isNotNull(meter_id), isNotNull(date), and date <= current_date()."
+          },
+          {
+            "id": "A3_4",
+            "xp": 24,
+            "description": "All daily_kw values are strictly greater than 0 and strictly less than 10000",
+            "check": "from pyspark.sql.functions import col as _col\nbad = df_fixed.filter((_col('daily_kw') <= 0) | (_col('daily_kw') >= 10000) | _col('daily_kw').isNull()).count()\nassert bad == 0, f'{bad} rows have daily_kw out of the (0, 10000) range or null.'",
+            "failure_message": "A row with an invalid daily_kw survived — or the daily_kw range filter was dropped. Keep the two bounds and the not-null check."
+          },
+          {
+            "id": "A3_5",
+            "xp": 24,
+            "description": "NORTH-2 tariff_code values are either preserved as null or filled with a sentinel — but not dropped",
+            "check": "from pyspark.sql.functions import col as _col\nn2_rows = df_fixed.filter(_col('region') == 'NORTH-2').collect()\nassert len(n2_rows) == 5, 'NORTH-2 must still have 5 rows (this re-checks A3_1).'\n# Every NORTH-2 row must either have tariff_code null OR the sentinel 'UNCLASSIFIED' (or similar consistent string).\nimport re\nfor r in n2_rows:\n    t = r['tariff_code']\n    assert t is None or t == '' or re.match(r'^[A-Z_]+$', t), f'NORTH-2 tariff_code has an unexpected value: {t!r}.'",
+            "failure_message": "NORTH-2 tariff_code handling is inconsistent. Either leave the values null (by removing the filter), or fill null with a single uppercase sentinel string (e.g., 'UNCLASSIFIED') applied uniformly. Do not drop the rows."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "NordGrid's Delta operations playbook classifies schema changes as additive, type-widening, or breaking. The tariff_code column is additive — it was added without a backfill. Additive columns are nullable by contract, and quality filters should not enforce NOT NULL on them. You covered this in Module 2."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "In scaffolds/nordgrid_transforms_broken.py, the function body is a chain of .filter(...) calls. The last one is the culprit. The five assertions in this chapter bind to: NORTH-2 rows = 5, total rows = 58, no null meter_id/date, daily_kw in (0, 10000), and tariff_code survival for NORTH-2. Match each assertion to one of the rules in the docstring."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Two acceptable fixes. (a) Delete the tariff_code filter entirely — the column continues to flow through the pipeline with its null values, and downstream consumers handle nulls. (b) Replace the filter with a coalesce: .withColumn('tariff_code', coalesce(col('tariff_code'), lit('UNCLASSIFIED'))). Either passes the assertions. Do not change any of the other four filters or the order they appear in."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Here is the start of the fixed function. Finish the return expression so all four remaining rules are applied.\n\n    return (\n        df\n        .filter(col('meter_id').isNotNull())\n        .filter(col('date').isNotNull())\n        # … add the date <= current_date, daily_kw > 0, and daily_kw < 10000 filters here;\n        #     do NOT add a filter on tariff_code\n    )"
+        }
+      ],
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Root Cause",
+          "content": "PR #847 added .filter(col(\"tariff_code\").isNotNull()) to apply_quality_filters. NORTH-2 Bronze rows all have empty tariff_code, so the filter removed every row."
+        },
+        {
+          "type": "text",
+          "title": "Fix Requirements",
+          "content": "Keep the four correct quality checks:\n1. meter_id not null\n2. reading_date present and not future\n3. kwh_reading not null and > 0\n4. region code valid\n\nRemove the tariff_code filter. After fix: 58 valid rows (was 53)."
+        }
+      ]
+    },
+    {
+      "id": "chapter_4",
+      "title": "Prevent the Recurrence",
+      "unlock_condition": {
+        "after_chapter": 3
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": 3,
+        "uses_variable": "df_fixed",
+        "fallback_dataset": "PJFabric_Mid_data/fallback/silver_meters_reference.csv",
+        "fallback_note": "If Chapter 3 did not produce df_fixed, the harness loads silver_meters_reference.csv and binds it as the healthy-path fixture for the function's passing-path test."
+      },
+      "chapter_type": "code",
+      "base_xp": 120,
+      "modules_primary": [
+        6,
+        10
+      ],
+      "modules_secondary": [
+        3
+      ],
+      "narrative_context": "The fix is deployed; NORTH-2 is back in monthly_billing. The team lead's next question is the one that matters: 'How do we make sure nobody does this to us again?' The answer is a data quality control that runs at the end of every Silver notebook iteration and fails loud when a region's row count collapses. You covered this pattern in the testing module — a per-region row-count baseline with a tolerance, a pass/fail outcome, and a structured report that the pipeline gate can inspect. Write the function. The pipeline team will wire it into the ForEach body tomorrow.",
+      "task": "Write check_per_region_row_counts(df, baseline, tolerance_pct=20) in dq_checks.py. Input: a Silver DataFrame, a dict mapping region code to expected row count, and a percentage tolerance (default 20). Output: a dict with three keys: 'passed' (bool), 'failures' (list of {'region': str, 'expected': int, 'actual': int} objects for regions outside the tolerance band or missing entirely), and 'summary' (a one-line string). A region whose actual row count is within ±tolerance_pct% of its expected count passes. A region missing from the DataFrame counts as 0 actual rows and fails if expected > 0. Regions present in the DataFrame but not in the baseline are silently ignored (they may be new regions). The function must not raise — it returns the report and the pipeline gate decides whether to halt.",
+      "validation_hint": "Against silver_meters_snapshot.csv (53 rows, NORTH-2 absent), the function must return passed=False with NORTH-2 in the failures list at expected=5 and actual=0. Against silver_meters_reference.csv (58 rows), the function must return passed=True with an empty failures list.",
+      "scaffold": {
+        "filename": "dq_checks.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 4 — Prevent the Recurrence\n# Data quality check function for the Silver pipeline gate.\n# Imported by nb_run_tests and called at the end of every ForEach iteration.\n# Must not raise — return a structured report instead.",
+        "code": "from pyspark.sql import DataFrame\nfrom pyspark.sql.functions import col\nfrom typing import Dict, List\n\n\ndef check_per_region_row_counts(\n    df: DataFrame,\n    baseline: Dict[str, int],\n    tolerance_pct: float = 20.0,\n) -> dict:\n    \"\"\"Verify that each expected region's row count is within tolerance of its baseline.\n\n    Returns a dict:\n      {\n        'passed':   bool,\n        'failures': [{'region': str, 'expected': int, 'actual': int}, ...],\n        'summary':  str,   # one-line human-readable summary\n      }\n\n    Rules:\n      - A region in `baseline` with `actual` within ±tolerance_pct% of `expected` passes.\n      - A region in `baseline` missing from df counts as actual=0 and fails if expected > 0.\n      - A region present in df but not in `baseline` is ignored (may be a new region).\n      - Never raises; the pipeline gate inspects the returned dict.\n    \"\"\"\n    # YOUR SOLUTION BELOW\n    # ─────────────────────────────────────────────────────────────────────\n\n    return {'passed': True, 'failures': [], 'summary': ''}\n\n    # ─────────────────────────────────────────────────────────────────────\n    # YOUR SOLUTION ABOVE"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 30,
+        "harness_note": "The harness imports the student's check_per_region_row_counts. It provides two fixtures: df_broken (53 rows loaded from silver_meters_snapshot.csv, NORTH-2 absent) and df_healthy (58 rows loaded from silver_meters_reference.csv or from df_fixed if Chapter 3 completed). The baseline is {NORTH-1:5, NORTH-2:5, NORTH-3:5, SOUTH-1:5, SOUTH-2:5, SOUTH-3:5, EAST-1:5, EAST-2:5, EAST-3:4, WEST-1:4, WEST-2:5, WEST-3:5}.",
+        "assertions": [
+          {
+            "id": "A4_1",
+            "xp": 30,
+            "description": "The function detects the NORTH-2 absence on the broken snapshot",
+            "check": "report = check_per_region_row_counts(df_broken, baseline)\nassert report['passed'] is False, 'Function must return passed=False when NORTH-2 has 0 rows vs baseline 5.'\nfailures = report['failures']\nn2 = [f for f in failures if f.get('region') == 'NORTH-2']\nassert len(n2) == 1, f'Expected exactly one NORTH-2 entry in failures, got {len(n2)}.'\nassert n2[0]['expected'] == 5 and n2[0]['actual'] == 0, f'NORTH-2 failure entry is wrong: {n2[0]!r}'",
+            "failure_message": "Function did not catch the fault. A region missing from the DataFrame with a baseline > 0 must produce a failure with expected=baseline and actual=0."
+          },
+          {
+            "id": "A4_2",
+            "xp": 30,
+            "description": "The function returns passed=True with an empty failures list on the healthy data",
+            "check": "report = check_per_region_row_counts(df_healthy, baseline)\nassert report['passed'] is True, f'Function must pass on healthy data. Got: {report}'\nassert report['failures'] == [], f'Expected empty failures on healthy data, got: {report[\"failures\"]}'",
+            "failure_message": "Function flagged a region that is within tolerance. Review the tolerance calculation — 4 vs baseline 5 is 20% off, which must be at the boundary (configurable; default 20 percent). Use inclusive boundaries (abs(actual - expected) / expected <= tolerance_pct/100)."
+          },
+          {
+            "id": "A4_3",
+            "xp": 30,
+            "description": "The tolerance parameter works: a small deviation inside the band passes, a large deviation fails",
+            "check": "# Build a test frame where EAST-3 has exactly its baseline (4), but WEST-1 is at 2 rows (50% short).\nfrom pyspark.sql import Row\ntest_rows = [Row(region='EAST-3')] * 4 + [Row(region='WEST-1')] * 2\nfor r in ['NORTH-1','NORTH-2','NORTH-3','SOUTH-1','SOUTH-2','SOUTH-3','EAST-1','EAST-2','WEST-2','WEST-3']:\n    test_rows.extend([Row(region=r)] * 5)\ndf_tol = spark.createDataFrame(test_rows)\nreport = check_per_region_row_counts(df_tol, baseline, tolerance_pct=20)\nassert report['passed'] is False, 'WEST-1 at 2 rows vs baseline 4 is 50% off — must fail.'\nfailing_regions = {f['region'] for f in report['failures']}\nassert 'WEST-1' in failing_regions, f'WEST-1 must be in failures. Got: {failing_regions}'\nassert 'EAST-3' not in failing_regions, f'EAST-3 at its exact baseline must not be in failures. Got: {failing_regions}'\n# And with a relaxed 60% tolerance, WEST-1 should pass.\nreport_relaxed = check_per_region_row_counts(df_tol, baseline, tolerance_pct=60)\nassert report_relaxed['passed'] is True, 'WEST-1 at 2 vs baseline 4 is 50% off — must pass with tolerance_pct=60.'",
+            "failure_message": "tolerance_pct is not being applied correctly. Use |actual - expected| / expected * 100 <= tolerance_pct as the pass condition. Do not hard-code 20."
+          },
+          {
+            "id": "A4_4",
+            "xp": 30,
+            "description": "The return shape matches the contract exactly",
+            "check": "report = check_per_region_row_counts(df_broken, baseline)\nassert set(report.keys()) == {'passed','failures','summary'}, f'Return dict has wrong keys: {set(report.keys())}'\nassert isinstance(report['passed'], bool), 'passed must be a bool.'\nassert isinstance(report['failures'], list), 'failures must be a list.'\nassert isinstance(report['summary'], str) and len(report['summary']) > 0, 'summary must be a non-empty string.'\nfor f in report['failures']:\n    assert set(f.keys()) == {'region','expected','actual'}, f'failure entry has wrong keys: {set(f.keys())}'\n    assert isinstance(f['region'], str) and isinstance(f['expected'], int) and isinstance(f['actual'], int), f'failure entry types wrong: {f!r}'",
+            "failure_message": "Return shape does not match the contract. The pipeline gate depends on exactly these keys and types: top-level {'passed': bool, 'failures': list, 'summary': str}, each failure {'region': str, 'expected': int, 'actual': int}."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "The testing module's Fabric testing pyramid places data quality tests above unit and schema tests — they check the actual output of a production run, not a function in isolation. Expectations about row count per region are exactly the kind of check that would have caught yesterday's incident at the Silver boundary, before the Warehouse refresh ran."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "Two facts anchor the implementation. First, pipeline_run_log.json.baseline_rows_per_region is exactly the shape of the `baseline` argument — a dict from region code to expected count. Second, the return contract is inspected by the pipeline gate with keys 'passed', 'failures', 'summary'. The harness calls your function with df_broken (NORTH-2 absent — should fail) and df_healthy (all regions present — should pass)."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Aggregate df to one row per region with a count: actuals = dict(df.groupBy('region').count().collect() or df.groupBy('region').agg(...)). Iterate over baseline.items(). For each (region, expected), look up the region in actuals (default 0 if missing). Compute percentage deviation = abs(actual - expected) / expected * 100. If deviation > tolerance_pct, append to failures. passed = len(failures) == 0. Write a short summary like f'{len(failures)} region(s) outside tolerance' or 'All {n} regions within {tolerance_pct}% of baseline'."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Here is the skeleton. Finish the loop body and the summary.\n\n    actuals = {r['region']: r['count'] for r in df.groupBy('region').count().collect()}\n    failures = []\n    for region, expected in baseline.items():\n        actual = actuals.get(region, 0)\n        # … compute percentage deviation, append to failures if > tolerance_pct\n    passed = len(failures) == 0\n    # … build summary string and return the dict"
+        }
+      ],
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Function Spec",
+          "content": "check_per_region_row_counts(df, baseline, tolerance_pct=20)\n\nInput: Silver DataFrame, dict of region→expected_count.\nOutput: raises AssertionError listing regions outside tolerance.\n\nBaseline for April 2026: each of 12 regions expects ~5 rows/day."
+        }
+      ]
+    },
+    {
+      "id": "chapter_5",
+      "title": "Write the Post-Mortem",
+      "unlock_condition": {
+        "after_chapter": 4
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": null,
+        "uses_variable": null,
+        "fallback_dataset": null,
+        "fallback_note": "The post-mortem template pre-populates from the incident timeline panel, which itself populates from Chapters 1–4's graded outputs. If prior chapters did not complete, the corresponding timeline entries remain blank and the student must fill them manually — the template still grades, but the rubric's consistency dimension penalises inconsistency with whatever graded evidence is available."
+      },
+      "chapter_type": "combined",
+      "base_xp": 120,
+      "modules_primary": [
+        9,
+        10
+      ],
+      "modules_secondary": [
+        2,
+        3,
+        6,
+        7
+      ],
+      "narrative_context": "It is 09:35. NORTH-2 is back in monthly_billing. The DQ function is ready for the next deployment. The billing run at 10:00 has its data. The incident is resolved in the operational sense but not in the organisational sense — the team runs a post-mortem after every severity-1 event, and yours is due before the Monday stand-up. The incident timeline panel on your right has filled in from Chapters 1–4; you are writing the report that turns that timeline into institutional memory.",
+      "task": "Complete the five-field post-mortem template. The timeline auto-populates from the panel; refine it if needed. The root cause, fix applied, detection gap, and prevention measure fields must be consistent with the selections and code you produced in Chapters 2–4. A rubric evaluates the post-mortem across four weighted dimensions: Timeline (20%), Root Cause (30%), Fix Rationale (24%), and Prevention (26%). Inconsistency between a field and the graded chapter it refers to is the primary way rubric points are lost.",
+      "validation_hint": "Before submitting, open the incident timeline panel and read it top to bottom. Your timeline field should mirror it in the same order with the same event labels. Your root_cause_statement should name PR #847 and the tariff_code filter (the selection you made in Chapter 2). Your prevention_measure should reference check_per_region_row_counts by name.",
+      "grading": {
+        "type": "combined",
+        "template_xp": 70,
+        "rubric_xp": 50,
+        "template_fields": [
+          {
+            "id": "timeline",
+            "xp": 14,
+            "prompt": "Chronological list of events from PR #847 merge through post-mortem submission. One line per event.",
+            "input_type": "single_select",
+            "correct_answer_shape": "nine or more lines, first line referencing PR #847 or the 2026-04-17 22:14 deployment, and an entry for 02:03 NORTH-2 notebook 0-row completion",
+            "failure_message": "Timeline is missing events or out of order. The incident timeline panel is authoritative — copy its entries in order, then refine wording if needed.",
+            "options": [
+              "PR #847 merged (Apr 17 22:14) → pipeline ran (Apr 18 02:00) → NORTH-2 wrote 0 rows (02:03) → pipeline Succeeded (02:08) → analyst noticed (06:40) → PagerDuty (Apr 19 07:32) → root cause found (08:15) → fix deployed (08:45) → prevention added (09:20)",
+              "Pipeline failed (Apr 18 02:00) → PagerDuty fired immediately (02:01) → root cause found (02:30) → fix deployed (03:00)",
+              "Bronze landing failed (Apr 18 01:00) → pipeline skipped NORTH-2 (02:00) → no alert until Monday (Apr 21)",
+              "Schema change deployed (Apr 17) → all regions affected (Apr 18) → full pipeline rollback (Apr 19)"
+            ],
+            "correct_answer": "PR #847 merged (Apr 17 22:14) → pipeline ran (Apr 18 02:00) → NORTH-2 wrote 0 rows (02:03) → pipeline Succeeded (02:08) → analyst noticed (06:40) → PagerDuty (Apr 19 07:32) → root cause found (08:15) → fix deployed (08:45) → prevention added (09:20)"
+          },
+          {
+            "id": "root_cause_statement",
+            "xp": 14,
+            "prompt": "One or two sentences stating the root cause.",
+            "input_type": "single_select",
+            "correct_answer_keywords": [
+              "PR #847",
+              "tariff_code",
+              "filter",
+              "NORTH-2"
+            ],
+            "failure_message": "The root cause statement must name PR #847 (or the tariff_code filter), the affected column (tariff_code), and the region impact (NORTH-2). Fewer than 3 of those 4 anchors is scored as incomplete.",
+            "options": [
+              "PR #847 added a tariff_code NOT NULL filter. NORTH-2 Bronze rows have empty tariff_code, so the filter silently dropped all NORTH-2 rows before the Silver MERGE.",
+              "The ForEach batch_count=4 caused a concurrent Delta write conflict that rolled back NORTH-2 silently.",
+              "The SFTP Copy activity failed to download the NORTH-2 CSV file, but the error was swallowed by the pipeline retry logic.",
+              "The daily schedule fired before the Bronze landing was complete, causing a race condition on NORTH-2 data."
+            ],
+            "correct_answer": "PR #847 added a tariff_code NOT NULL filter. NORTH-2 Bronze rows have empty tariff_code, so the filter silently dropped all NORTH-2 rows before the Silver MERGE."
+          },
+          {
+            "id": "fix_applied",
+            "xp": 14,
+            "prompt": "One or two sentences describing the code change that resolved the incident.",
+            "input_type": "single_select",
+            "correct_answer_keywords": [
+              "apply_quality_filters",
+              "tariff_code",
+              "remove",
+              "nordgrid_transforms"
+            ],
+            "alternate_keywords": [
+              "apply_quality_filters",
+              "tariff_code",
+              "coalesce",
+              "UNCLASSIFIED"
+            ],
+            "failure_message": "The fix field must reference apply_quality_filters and what you did to it — either removed the tariff_code filter, or replaced it with a coalesce-to-sentinel. Inconsistency with your Chapter 3 submission costs rubric points.",
+            "options": [
+              "Removed the tariff_code NOT NULL filter from apply_quality_filters; backfilled NORTH-2 Silver rows.",
+              "Increased ForEach batch_count to 12 to eliminate concurrency conflicts.",
+              "Added a retry policy to the SFTP Copy activity with 3 retries.",
+              "Moved the daily schedule 2 hours later to ensure Bronze landing completes first."
+            ],
+            "correct_answer": "Removed the tariff_code NOT NULL filter from apply_quality_filters; backfilled NORTH-2 Silver rows."
+          },
+          {
+            "id": "detection_gap",
+            "xp": 14,
+            "prompt": "One sentence naming the monitoring control that was missing.",
+            "input_type": "single_select",
+            "options": [
+              "The pipeline has no per-region row-count assertion — a notebook that writes 0 rows reports Succeeded.",
+              "The pipeline has no alerting — PagerDuty was never configured.",
+              "The Spark UI was not monitored — no one checks execution plans after each run.",
+              "The monthly_billing view has no freshness check — stale data is served silently."
+            ],
+            "correct_answer": "The pipeline has no per-region row-count assertion — a notebook that writes 0 rows reports Succeeded.",
+            "failure_message": "The symptom (NORTH-2 at 0 rows) would have been caught by a per-region row-count baseline — the same control you wrote in Chapter 4. The other options would not have caught this specific failure."
+          },
+          {
+            "id": "prevention_measure",
+            "xp": 14,
+            "prompt": "One or two sentences describing the new control that makes recurrence impossible.",
+            "input_type": "single_select",
+            "correct_answer_keywords": [
+              "check_per_region_row_counts",
+              "baseline",
+              "ForEach",
+              "pipeline gate"
+            ],
+            "alternate_keywords": [
+              "check_per_region_row_counts",
+              "tolerance",
+              "halts",
+              "pipeline"
+            ],
+            "failure_message": "The prevention field must reference check_per_region_row_counts (the function you wrote in Chapter 4) and how it will be wired into the pipeline (e.g., as a gate after each ForEach iteration that halts the downstream Gold refresh on failure).",
+            "options": [
+              "Deployed check_per_region_row_counts as a pipeline gate that fails the run if any region drops below tolerance.",
+              "Added a manual review step where an analyst checks row counts before the pipeline completes.",
+              "Disabled the ForEach parallelism to prevent future concurrent write conflicts.",
+              "Added a 30-minute delay between pipeline stages to ensure data settles."
+            ],
+            "correct_answer": "Deployed check_per_region_row_counts as a pipeline gate that fails the run if any region drops below tolerance."
+          }
+        ],
+        "rubric_criteria": [
+          {
+            "id": "timeline_consistency",
+            "xp": 10,
+            "weight_percent": 20,
+            "description": "Does the timeline field match the incident timeline panel's confirmed events in order?",
+            "score_if_perfect": "Student's timeline has all 9 panel events in the same order with no fabricated events.",
+            "score_if_zero": "Student's timeline contradicts the panel (wrong order, wrong facts, or fabricates events not derived from Chapters 1–4)."
+          },
+          {
+            "id": "root_cause_consistency",
+            "xp": 15,
+            "weight_percent": 30,
+            "description": "Does root_cause_statement match the root_cause_selection from Chapter 2?",
+            "score_if_perfect": "Student's root cause in Ch5 is the same candidate they selected in Ch2 (A: PR #847 tariff_code filter) and the narrative matches.",
+            "score_if_zero": "Student picks a different cause in Ch5 than in Ch2 without acknowledgement, or the narrative contradicts their Chapter 2 citations."
+          },
+          {
+            "id": "fix_rationale_consistency",
+            "xp": 12,
+            "weight_percent": 24,
+            "description": "Does fix_applied describe the same change the student actually wrote in Chapter 3?",
+            "score_if_perfect": "Student's fix field matches their Chapter 3 code (filter removed vs coalesce-to-sentinel) with the correct function name.",
+            "score_if_zero": "Student claims a fix they did not make (e.g., describes removing the filter but their Ch3 code kept it with a workaround)."
+          },
+          {
+            "id": "prevention_consistency",
+            "xp": 13,
+            "weight_percent": 26,
+            "description": "Does prevention_measure reference the function the student wrote in Chapter 4 and describe its pipeline integration?",
+            "score_if_perfect": "Student names check_per_region_row_counts, describes its baseline+tolerance contract, and explains its placement as a gate inside the ForEach or before the Gold invocation.",
+            "score_if_zero": "Prevention is generic ('add more tests') without referencing the Ch4 function, or proposes a different control (e.g., 'add a Power BI alert') than the one built."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "The production-platform module's incident management lesson laid out the lifecycle: detection, triage, response, communication, post-mortem. A good post-mortem records the four dimensions this rubric evaluates. The incident timeline panel is the evidence you draw from — do not re-derive anything; reference what is already there."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "The panel on the right already contains the nine events that make up the timeline. The fields root_cause_statement, fix_applied, and prevention_measure must each reference a specific artefact you produced in an earlier chapter: the Chapter 2 root cause selection, the Chapter 3 code change, the Chapter 4 function. Inconsistency between chapters is the single largest rubric deduction."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Anchor phrases that the rubric matches on: timeline must reference '22:14' (PR merge), '02:03' (NORTH-2 0-row completion), and '06:40' (analyst detection). Root cause must name 'PR #847', 'tariff_code', and 'NORTH-2'. Fix applied must name 'apply_quality_filters' and either 'remove' or 'coalesce'. Prevention must name 'check_per_region_row_counts' and its placement ('pipeline gate' or 'after the ForEach')."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "One field to unblock: detection_gap is 'A per-region row count check between Silver and the pipeline's success notification'. That is the single option that describes the exact control Chapter 4 built. With that fixed, your prevention_measure field writes itself: 'Deployed check_per_region_row_counts as a pipeline gate inside the ForEach body; the gate halts the Gold invocation if any region's row count deviates from baseline by more than 20%.'"
+        }
+      ],
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Incident Timeline",
+          "content": "2026-04-17 22:14 — PR #847 merged (tariff_code filter)\n2026-04-18 02:00 — pl_daily_meter scheduled run\n2026-04-18 02:03 — NORTH-2 notebook: 0 rows written in 0.8s\n2026-04-18 02:08 — Pipeline reports Succeeded\n2026-04-18 06:40 — Analyst notices 11 rows in monthly_billing\n2026-04-19 07:32 — PagerDuty alert"
+        },
+        {
+          "type": "text",
+          "title": "Post-Mortem Fields",
+          "content": "Root cause: PR #847 added tariff_code NOT NULL filter; NORTH-2 has empty tariff_code.\nFix: removed tariff_code filter, backfilled 5 NORTH-2 rows.\nDetection gap: pipeline reported Succeeded with 0 rows — no row-count assertion.\nPrevention: check_per_region_row_counts gate added to pipeline."
+        }
+      ]
+    }
+  ],
+  "authoring_metadata": {
+    "authored_by": "StableGrid content team",
+    "authored_date": "2026-04-19",
+    "version_notes": "v1.0.0 — initial release of the Microsoft Fabric Mid-Level project capstone.",
+    "reference_project": "The Saturday Incident (Project Creation Rules §6.2), adapted to Fabric: the silent failure manifests in silver_meters (Delta Lake MERGE with 0 source rows) and propagates through the Warehouse's cross-database Gold refresh.",
+    "self_check_passed": true,
+    "self_check_notes": [
+      "§11.2 — Every diagnostic chapter (Ch1, Ch2) provides evidence the student must analyse, not recall: pipeline_run_log.json, execution_plan_excerpt.txt, silver_meters_snapshot.csv, warehouse_monthly_billing_snapshot.csv, bronze_readings_today.csv, and nordgrid_transforms_broken.py.",
+      "§11.2 — Incident timeline panel populates from graded chapter fields, not static content: timeline_events[0,2,4] bind to Ch1/Ch2 selections; [7,8] bind to Ch3/Ch4 outputs; only the bookend events (schedule start, success Slack, PagerDuty alert) are static.",
+      "§11.2 — Chapter 2 root cause has two plausible alternatives (concurrent-modification, empty vendor export) with distinct evidence signatures; ruling either in without reading the log is impossible.",
+      "§11.2 — Chapter 5 rubric covers all four required dimensions (timeline, root cause, fix rationale, prevention) at the weights specified in §6.3 (20/30/24/26, summing to 100% of the 50 XP rubric portion).",
+      "§11.2 — H2 for template chapters names specific fields and JSON keys (ForEach.iterations[NORTH-2], recent_deployments[0], Per-Node Row Counts block), not general areas.",
+      "§6.3 — Grading split per chapter: Ch1 template 4×30 = 120; Ch2 template 5×24 = 120; Ch3 code 5×24 = 120; Ch4 code 4×30 = 120; Ch5 combined 70 template + 50 rubric = 120. Sum = 600.",
+      "§4.2–4.3 — Mid-level hint costs (H1 0 / H2 6 / H3 12 / H4 24) and unlock conditions (H1/H2 always, H3 after 1 failure, H4 after 2) applied uniformly across all 5 chapters.",
+      "§4.4 — Every chapter has 4 hints; each is independently usable; H3 names the technique without code or option selections; H4 reveals one field (templates) or the first 1–2 meaningful lines (code).",
+      "§2.5 — Coverage matrix maps FI1–FI10: FI1 (plans: Ch1/Ch2), FI2 (Delta/MERGE: Ch1/Ch2/Ch3), FI3 (ForEach/If: Ch1/Ch2/Ch5), FI4 (Warehouse/cross-DB: Ch1/Ch5), FI5 (Real-Time via Eventstream ruled-out deployment: Ch2), FI6 (testing: Ch4/Ch5), FI7 (CI/CD deploy review: Ch2/Ch5), FI8 (capacity throttling ruled-out: Ch2), FI9 (governance incident review: Ch5), FI10 (production platform operations: Ch1/Ch5). Every module is meaningfully tested in at least one chapter."
+    ]
+  }
+}

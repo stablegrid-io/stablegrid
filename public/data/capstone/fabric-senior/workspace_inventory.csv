@@ -1,0 +1,79 @@
+workspace_id,workspace_name,country,domain,environment,owning_team,storage_gb,attached_capacity,item_count
+ws_001,ws_de_ingest_dev,DE,ingest,dev,DE Data Eng,150,cap_f128_de_nl_eng,31
+ws_002,ws_de_ingest_staging,DE,ingest,staging,DE Data Eng,150,cap_f128_de_nl_eng,32
+ws_003,ws_de_ingest_prod,DE,ingest,prod,DE Data Eng,1200,cap_f128_de_nl_eng,33
+ws_004,ws_de_transform_dev,DE,transform,dev,DE Data Eng,100,cap_f128_de_nl_eng,34
+ws_005,ws_de_transform_staging,DE,transform,staging,DE Data Eng,100,cap_f128_de_nl_eng,35
+ws_006,ws_de_transform_prod,DE,transform,prod,DE Data Eng,800,cap_f128_de_nl_eng,36
+ws_007,ws_de_warehouse_dev,DE,warehouse,dev,DE Data Eng,50,cap_f128_de_nl_eng,37
+ws_008,ws_de_warehouse_staging,DE,warehouse,staging,DE Data Eng,50,cap_f128_de_nl_eng,38
+ws_009,ws_de_warehouse_prod,DE,warehouse,prod,DE Data Eng,400,cap_f128_de_nl_eng,39
+ws_010,ws_de_analytics_dev,DE,analytics,dev,DE Analytics,15,cap_f64_analytics,40
+ws_011,ws_de_analytics_staging,DE,analytics,staging,DE Analytics,15,cap_f64_analytics,41
+ws_012,ws_de_analytics_prod,DE,analytics,prod,DE Analytics,120,cap_f64_analytics,42
+ws_013,ws_de_realtime_dev,DE,realtime,dev,DE Data Eng,7,cap_f32_streaming,43
+ws_014,ws_de_realtime_staging,DE,realtime,staging,DE Data Eng,7,cap_f32_streaming,44
+ws_015,ws_de_realtime_prod,DE,realtime,prod,DE Data Eng,60,cap_f32_streaming,45
+ws_016,ws_de_platform_dev,DE,platform,dev,GU Platform,3,cap_f128_de_nl_eng,46
+ws_017,ws_de_platform_staging,DE,platform,staging,GU Platform,3,cap_f128_de_nl_eng,47
+ws_018,ws_de_platform_prod,DE,platform,prod,GU Platform,30,cap_f128_de_nl_eng,30
+ws_019,ws_fr_ingest_dev,FR,ingest,dev,FR Data Eng,150,cap_f64_fr_lu_eng,31
+ws_020,ws_fr_ingest_staging,FR,ingest,staging,FR Data Eng,150,cap_f64_fr_lu_eng,32
+ws_021,ws_fr_ingest_prod,FR,ingest,prod,FR Data Eng,1200,cap_f64_fr_lu_eng,33
+ws_022,ws_fr_transform_dev,FR,transform,dev,FR Data Eng,100,cap_f64_fr_lu_eng,34
+ws_023,ws_fr_transform_staging,FR,transform,staging,FR Data Eng,100,cap_f64_fr_lu_eng,35
+ws_024,ws_fr_transform_prod,FR,transform,prod,FR Data Eng,800,cap_f64_fr_lu_eng,36
+ws_025,ws_fr_warehouse_dev,FR,warehouse,dev,FR Data Eng,50,cap_f64_fr_lu_eng,37
+ws_026,ws_fr_warehouse_staging,FR,warehouse,staging,FR Data Eng,50,cap_f64_fr_lu_eng,38
+ws_027,ws_fr_warehouse_prod,FR,warehouse,prod,FR Data Eng,400,cap_f64_fr_lu_eng,39
+ws_028,ws_fr_analytics_dev,FR,analytics,dev,FR Analytics,15,cap_f64_analytics,40
+ws_029,ws_fr_analytics_staging,FR,analytics,staging,FR Analytics,15,cap_f64_analytics,41
+ws_030,ws_fr_analytics_prod,FR,analytics,prod,FR Analytics,120,cap_f64_analytics,42
+ws_031,ws_fr_realtime_staging,FR,realtime,staging,FR Data Eng,7,cap_f32_streaming,43
+ws_032,ws_fr_realtime_prod,FR,realtime,prod,FR Data Eng,60,cap_f32_streaming,44
+ws_033,ws_fr_platform_dev,FR,platform,dev,GU Platform,3,cap_f64_fr_lu_eng,45
+ws_034,ws_fr_platform_staging,FR,platform,staging,GU Platform,3,cap_f64_fr_lu_eng,46
+ws_035,ws_fr_platform_prod,FR,platform,prod,GU Platform,30,cap_f64_fr_lu_eng,47
+ws_036,ws_nl_ingest_dev,NL,ingest,dev,NL Data Eng,150,cap_f128_de_nl_eng,30
+ws_037,ws_nl_ingest_staging,NL,ingest,staging,NL Data Eng,150,cap_f128_de_nl_eng,31
+ws_038,ws_nl_ingest_prod,NL,ingest,prod,NL Data Eng,1200,cap_f128_de_nl_eng,32
+ws_039,ws_nl_transform_dev,NL,transform,dev,NL Data Eng,100,cap_f128_de_nl_eng,33
+ws_040,ws_nl_transform_staging,NL,transform,staging,NL Data Eng,100,cap_f128_de_nl_eng,34
+ws_041,ws_nl_transform_prod,NL,transform,prod,NL Data Eng,800,cap_f128_de_nl_eng,35
+ws_042,ws_nl_warehouse_dev,NL,warehouse,dev,NL Data Eng,50,cap_f128_de_nl_eng,36
+ws_043,ws_nl_warehouse_staging,NL,warehouse,staging,NL Data Eng,50,cap_f128_de_nl_eng,37
+ws_044,ws_nl_warehouse_prod,NL,warehouse,prod,NL Data Eng,400,cap_f128_de_nl_eng,38
+ws_045,ws_nl_analytics_dev,NL,analytics,dev,NL Analytics,15,cap_f64_analytics,39
+ws_046,ws_nl_analytics_staging,NL,analytics,staging,NL Analytics,15,cap_f64_analytics,40
+ws_047,ws_nl_analytics_prod,NL,analytics,prod,NL Analytics,120,cap_f64_analytics,41
+ws_048,ws_nl_realtime_staging,NL,realtime,staging,NL Data Eng,7,cap_f32_streaming,42
+ws_049,ws_nl_realtime_prod,NL,realtime,prod,NL Data Eng,60,cap_f32_streaming,43
+ws_050,ws_nl_platform_dev,NL,platform,dev,GU Platform,3,cap_f128_de_nl_eng,44
+ws_051,ws_nl_platform_staging,NL,platform,staging,GU Platform,3,cap_f128_de_nl_eng,45
+ws_052,ws_nl_platform_prod,NL,platform,prod,GU Platform,30,cap_f128_de_nl_eng,46
+ws_053,ws_lu_ingest_dev,LU,ingest,dev,LU Data Eng,150,cap_f64_fr_lu_eng,47
+ws_054,ws_lu_ingest_staging,LU,ingest,staging,LU Data Eng,150,cap_f64_fr_lu_eng,30
+ws_055,ws_lu_ingest_prod,LU,ingest,prod,LU Data Eng,1200,cap_f64_fr_lu_eng,31
+ws_056,ws_lu_transform_dev,LU,transform,dev,LU Data Eng,100,cap_f64_fr_lu_eng,32
+ws_057,ws_lu_transform_staging,LU,transform,staging,LU Data Eng,100,cap_f64_fr_lu_eng,33
+ws_058,ws_lu_transform_prod,LU,transform,prod,LU Data Eng,800,cap_f64_fr_lu_eng,34
+ws_059,ws_lu_warehouse_dev,LU,warehouse,dev,LU Data Eng,50,cap_f64_fr_lu_eng,35
+ws_060,ws_lu_warehouse_staging,LU,warehouse,staging,LU Data Eng,50,cap_f64_fr_lu_eng,36
+ws_061,ws_lu_warehouse_prod,LU,warehouse,prod,LU Data Eng,400,cap_f64_fr_lu_eng,37
+ws_062,ws_lu_analytics_dev,LU,analytics,dev,LU Analytics,15,cap_f64_analytics,38
+ws_063,ws_lu_analytics_staging,LU,analytics,staging,LU Analytics,15,cap_f64_analytics,39
+ws_064,ws_lu_analytics_prod,LU,analytics,prod,LU Analytics,120,cap_f64_analytics,40
+ws_065,ws_lu_realtime_staging,LU,realtime,staging,LU Data Eng,7,cap_f32_streaming,41
+ws_066,ws_lu_realtime_prod,LU,realtime,prod,LU Data Eng,60,cap_f32_streaming,42
+ws_067,ws_lu_platform_dev,LU,platform,dev,GU Platform,3,cap_f64_fr_lu_eng,43
+ws_068,ws_lu_platform_staging,LU,platform,staging,GU Platform,3,cap_f64_fr_lu_eng,44
+ws_069,ws_lu_platform_prod,LU,platform,prod,GU Platform,30,cap_f64_fr_lu_eng,45
+ws_070,ws_gu_analytics_dev,GU,analytics,dev,GU Analytics,15,cap_f64_analytics,46
+ws_071,ws_gu_analytics_staging,GU,analytics,staging,GU Analytics,15,cap_f64_analytics,47
+ws_072,ws_gu_analytics_prod,GU,analytics,prod,GU Analytics,120,cap_f64_analytics,30
+ws_073,ws_gu_realtime_dev,GU,realtime,dev,GU Platform,7,cap_f32_streaming,31
+ws_074,ws_gu_realtime_staging,GU,realtime,staging,GU Platform,7,cap_f32_streaming,32
+ws_075,ws_gu_realtime_prod,GU,realtime,prod,GU Platform,60,cap_f32_streaming,33
+ws_076,ws_gu_platform_dev,GU,platform,dev,GU Platform,3,cap_f64_analytics,34
+ws_077,ws_gu_platform_staging,GU,platform,staging,GU Platform,3,cap_f64_analytics,35
+ws_078,ws_gu_platform_prod,GU,platform,prod,GU Platform,30,cap_f64_analytics,36

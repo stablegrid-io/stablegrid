@@ -1,0 +1,1659 @@
+{
+  "id": "PJ_Fabric_Senior",
+  "version": "1.0.0",
+  "track": "Fabric",
+  "level": "Senior",
+  "scenario": "GridUnionContinental",
+  "total_xp": 700,
+  "narrative_premise": "It is Thursday 2 April 2026. Olivia Lund, VP Platform Engineering, calls you into a 90-minute session that ends with an email subject line: 'Fabric expansion — 90-day window starts today.' The GridUnion Continental board approved two acquisitions 48 hours ago: SauleGrid in Lithuania (820K solar meters under VERT-LT) and HydroAlpes in Austria (1.25M hydro meters under E-Control AT, with the mandatory balancing_zone_id column on every reading). Closing is 1 July. You own the architecture decision. The CTO, Pete Maretsis, expects a recommendation, a 90-day migration plan, a governance rewrite, and an executive brief by then, and he does not want you to rebuild what the four existing countries (Germany, France, Netherlands, Luxembourg) are already running in production on the GridUnion tenant. The platform today: 78 workspaces across 4 capacities (F128 DE+NL, F64 FR+LU, F64 analytics, F32 streaming), 80 pipelines, 128 production tables with schemas split across three major versions and a 30% non-ACTIVE contract rate, 172M daily stream events already pressing the F32 streaming capacity. Post-acquisition: 6 countries, ~113 workspaces, 7M meters, 242M stream events, two new regulatory regimes that each demand a country-specific column the current schema registry does not anticipate. Olivia has given you six evidence files and a working design journal. By Day 14 you need the risk audit in the journal. By Day 90 you need the CTO deck.",
+  "ux": {
+    "persistent_element": "design_journal_panel",
+    "panel_description": "A read-only panel on the right of every chapter view. Records key decisions from Chapters 1–4 as they complete. Pre-populates Chapter 5 CTO Deck sections from the recorded entries. Inconsistencies between journal entries and Chapter 5 edits are flagged in the Chapter 5 rubric. Students cannot revise journal entries once a chapter is graded.",
+    "binding_specification": "PJFabric_Senior_data/journal_templates/journal_binding.md",
+    "journal_entries": [
+      {
+        "id": "je_risk_1",
+        "source_chapter": 1,
+        "source_fields": [
+          "risk_1_selection",
+          "risk_1_supporting_evidence"
+        ],
+        "display_section": "Audit"
+      },
+      {
+        "id": "je_risk_2",
+        "source_chapter": 1,
+        "source_fields": [
+          "risk_2_selection",
+          "risk_2_supporting_evidence"
+        ],
+        "display_section": "Audit"
+      },
+      {
+        "id": "je_risk_3",
+        "source_chapter": 1,
+        "source_fields": [
+          "risk_3_selection",
+          "risk_3_supporting_evidence"
+        ],
+        "display_section": "Audit"
+      },
+      {
+        "id": "je_risk_ranking",
+        "source_chapter": 1,
+        "source_fields": [
+          "most_critical_of_the_three"
+        ],
+        "display_section": "Audit"
+      },
+      {
+        "id": "je_chosen_option",
+        "source_chapter": 2,
+        "source_fields": [
+          "architecture_option_selected"
+        ],
+        "display_section": "Architecture"
+      },
+      {
+        "id": "je_criteria_justification",
+        "source_chapter": 2,
+        "source_fields": [
+          "justification_cost",
+          "justification_regulatory_isolation",
+          "justification_onboarding_speed",
+          "justification_team_autonomy"
+        ],
+        "display_section": "Architecture"
+      },
+      {
+        "id": "je_accepted_tradeoffs",
+        "source_chapter": 2,
+        "source_fields": [
+          "tradeoff_1",
+          "tradeoff_2"
+        ],
+        "display_section": "Architecture"
+      },
+      {
+        "id": "je_wave_1_pipelines",
+        "source_chapter": 3,
+        "source_fields": [
+          "wave_1_assignments"
+        ],
+        "display_section": "Migration"
+      },
+      {
+        "id": "je_wave_2_pipelines",
+        "source_chapter": 3,
+        "source_fields": [
+          "wave_2_assignments"
+        ],
+        "display_section": "Migration"
+      },
+      {
+        "id": "je_wave_3_pipelines",
+        "source_chapter": 3,
+        "source_fields": [
+          "wave_3_assignments"
+        ],
+        "display_section": "Migration"
+      },
+      {
+        "id": "je_policy_gap_1",
+        "source_chapter": 4,
+        "source_fields": [
+          "gap_1_description",
+          "gap_1_policy_addition"
+        ],
+        "display_section": "Governance"
+      },
+      {
+        "id": "je_policy_gap_2",
+        "source_chapter": 4,
+        "source_fields": [
+          "gap_2_description",
+          "gap_2_policy_addition"
+        ],
+        "display_section": "Governance"
+      },
+      {
+        "id": "je_policy_gap_3",
+        "source_chapter": 4,
+        "source_fields": [
+          "gap_3_description",
+          "gap_3_policy_addition"
+        ],
+        "display_section": "Governance"
+      }
+    ],
+    "score_card": {
+      "thresholds": {
+        "distinguished": 665,
+        "proficient": 560,
+        "developing": 420
+      },
+      "labels": {
+        "distinguished": "You audited the platform, picked a defensible architecture, produced a consistent migration plan, closed the governance gaps the acquisition will expose, and wrote an executive brief that a CTO could sign. This is the work of a senior Fabric architect.",
+        "proficient": "The design holds together. One or two chapters drifted from the earlier chapters' decisions — check the consistency deductions in Chapter 5 and the rubric notes on the chapter with the lowest score.",
+        "developing": "The pieces are individually coherent but the design does not read as one decision. Revisit the design journal: your Chapter 2 choice, Chapter 3 waves, Chapter 4 gaps, and Chapter 5 recommendation must tell the same story.",
+        "incomplete": "The audit or the architecture recommendation did not land. The mid-level track's incident-response pattern is the wrong template for senior work — re-read FS1 and FS10, then reattempt."
+      }
+    }
+  },
+  "coverage_matrix": {
+    "1": [
+      "chapter_1",
+      "chapter_2",
+      "chapter_5"
+    ],
+    "2": [
+      "chapter_1",
+      "chapter_3"
+    ],
+    "3": [
+      "chapter_1",
+      "chapter_3"
+    ],
+    "4": [
+      "chapter_1",
+      "chapter_3"
+    ],
+    "5": [
+      "chapter_1",
+      "chapter_4",
+      "chapter_5"
+    ],
+    "6": [
+      "chapter_1",
+      "chapter_3"
+    ],
+    "7": [
+      "chapter_1",
+      "chapter_3"
+    ],
+    "8": [
+      "chapter_2",
+      "chapter_4",
+      "chapter_5"
+    ],
+    "9": [
+      "chapter_1",
+      "chapter_3",
+      "chapter_5"
+    ],
+    "10": [
+      "chapter_1",
+      "chapter_2",
+      "chapter_4",
+      "chapter_5"
+    ]
+  },
+  "datasets": [
+    {
+      "name": "acquisition_briefing.md",
+      "path": "PJFabric_Senior_data/evidence/acquisition_briefing.md",
+      "row_count": null,
+      "description": "Olivia Lund's Day-1 hand-off memo: the 90-day clock, the two acquisitions (SauleGrid-LT under VERT-LT, HydroAlpes-AT under E-Control AT), the combined post-acquisition scale (6 countries, 7M meters, ~113 workspaces, 242M daily stream events), and the deliverables expected from each chapter. Authoritative for all scale numbers. Referenced from every chapter's narrative_context."
+    },
+    {
+      "name": "current_governance_policy.md",
+      "path": "PJFabric_Senior_data/evidence/current_governance_policy.md",
+      "row_count": null,
+      "description": "GridUnion's current governance document v1.3 (2025-11-02). Deliberately sparse in three specific places Chapter 4 asks the student to identify: §2 Data Classification (no country scope on Purview labels), §3 Schema Changes (no automated impact analysis for cross-country changes), §4 Capacity and Cost (no capacity budget authority across capacities)."
+    },
+    {
+      "name": "pipeline_inventory.csv",
+      "path": "PJFabric_Senior_data/evidence/pipeline_inventory.csv",
+      "row_count": 80,
+      "description": "Every pipeline currently running on the GridUnion tenant. Columns: pipeline_id, country, owner_team, layer, sla_tier, consumer_count, avg_cu_minutes_per_run, schedule, data_volume_gb_per_day, workspace. Distribution: DE (24), FR (22), NL (14), LU (8), GU-shared (12). 14 streaming pipelines consuming 1,802 CU-min/hour in aggregate — primary evidence for the streaming-capacity risk. 32 gold-SLA pipelines are Chapter 3 Wave 1 candidates; 6 bronze-SLA pipelines are Wave 3 candidates."
+    },
+    {
+      "name": "workspace_inventory.csv",
+      "path": "PJFabric_Senior_data/evidence/workspace_inventory.csv",
+      "row_count": 78,
+      "description": "Every workspace on the tenant. Columns: workspace_id, workspace_name, country, domain, environment, owning_team, storage_gb, attached_capacity, item_count. 27 distinct (country, domain) stems across 78 workspaces. Evidence for the workspace-namespace-collapse risk: projected post-acquisition is ~113 workspaces under the existing 3-tier naming convention."
+    },
+    {
+      "name": "table_catalog.csv",
+      "path": "PJFabric_Senior_data/evidence/table_catalog.csv",
+      "row_count": 128,
+      "description": "Every production Delta and Warehouse table. Columns: table_fqn, workspace, country, layer, owning_team, row_count_millions, size_gb, schema_version, contract_status (ACTIVE/DEPRECATED/SUPERSEDED), last_schema_change, dependent_pipeline_count. 30% of contracts are non-ACTIVE. Major versions spread v1.x (45 tables), v2.x (41), v3.x (42) across countries — primary evidence for the schema-contract-fragmentation risk."
+    },
+    {
+      "name": "capacity_metrics.csv",
+      "path": "PJFabric_Senior_data/evidence/capacity_metrics.csv",
+      "row_count": 24,
+      "description": "Weekly peak and p95 utilization for the 4 capacities across 6 weeks (2026-02-23 to 2026-03-30). Columns: week_start, capacity_name, sku, workload_description, peak_cu_percent, p95_cu_percent, throttling_events, weekly_growth_pct. Latest-week headroom to the 70% safety threshold: F128 DE+NL eng 9.6pp, F64 FR+LU eng 21.8pp, F64 analytics 13.5pp, F32 streaming 11.9pp. F32 streaming growth of 1.1%/week is the smoking-gun evidence for the streaming-saturation risk."
+    },
+    {
+      "name": "incident_history.csv",
+      "path": "PJFabric_Senior_data/evidence/incident_history.csv",
+      "row_count": 24,
+      "description": "Severity-1/2/3 production incidents from 2025-07 to 2026-03. Columns: date, type, severity, country, root_cause_brief, relates_to_risk. Each row carries an optional relates_to_risk tag (risk_A, risk_B, risk_C, or empty). Distribution: 5 tagged risk_A (streaming capacity), 7 tagged risk_B (schema drift), 5 tagged risk_C (workspace naming), 7 unrelated. Used by the Chapter 1 rubric to weight risk defences — a risk defence backed by tagged incidents scores higher than one backed by untagged incidents."
+    },
+    {
+      "name": "journal_binding.md",
+      "path": "PJFabric_Senior_data/journal_templates/journal_binding.md",
+      "row_count": null,
+      "description": "Authoring-only specification of how the design journal panel populates Chapter 5 sections from graded Chapter 1–4 fields. The grading engine reads this file at run time. Students never see it. Mirrors the project JSON's Chapter 5 grading.rubric_criteria block — changing one without the other breaks grading consistency."
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "title": "Audit the Current State",
+      "unlock_condition": null,
+      "inter_chapter_dependency": null,
+      "chapter_type": "template",
+      "base_xp": 140,
+      "modules_primary": [
+        1,
+        5,
+        10
+      ],
+      "modules_secondary": [
+        2,
+        3,
+        4,
+        6,
+        7,
+        9
+      ],
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Acquisition Briefing (Summary)",
+          "content": "Two acquisitions approved 48h ago:\n• SauleGrid (Lithuania) — 820K solar meters under VERT-LT, mandatory grid_operator_license_id column\n• HydroAlpes (Austria) — 1.25M hydro meters under E-Control AT, mandatory balancing_zone_id column\n\nClosing: 1 July 2026. 90-day window starts today.\n\nPost-acquisition scale:\n• 6 countries (DE, FR, NL, LU + LT, AT)\n• ~113 workspaces (up from 78)\n• 7M meters total\n• 242M daily stream events (up from 172M)\n• 4 capacities: F128 DE+NL, F64 FR+LU, F64 analytics, F32 streaming"
+        },
+        {
+          "type": "table",
+          "title": "Capacity Metrics (Latest Week — 2026-03-30)",
+          "headers": [
+            "Capacity",
+            "SKU",
+            "Peak CU%",
+            "P95 CU%",
+            "Growth/wk",
+            "Headroom to 70%"
+          ],
+          "rows": [
+            [
+              "DE+NL Engineering",
+              "F128",
+              "60.4%",
+              "54.2%",
+              "0.4%",
+              "9.6pp"
+            ],
+            [
+              "FR+LU Engineering",
+              "F64",
+              "48.2%",
+              "42.8%",
+              "0.3%",
+              "21.8pp"
+            ],
+            [
+              "Analytics",
+              "F64",
+              "56.5%",
+              "48.1%",
+              "0.6%",
+              "13.5pp"
+            ],
+            [
+              "Streaming",
+              "F32",
+              "58.1%",
+              "52.4%",
+              "1.1%",
+              "11.9pp"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Incident History (Risk-Tagged, Last 8 Months)",
+          "headers": [
+            "Risk Tag",
+            "Count",
+            "Examples"
+          ],
+          "rows": [
+            [
+              "risk_A (streaming capacity)",
+              "5",
+              "3 throttling incidents on F32 in last 4 weeks (Mar 7, 21, 28)"
+            ],
+            [
+              "risk_B (schema drift)",
+              "7",
+              "7 schema_drift incidents across 4 countries"
+            ],
+            [
+              "risk_C (workspace naming)",
+              "5",
+              "5 workspace incidents — duplicates and discovery failures"
+            ],
+            [
+              "Unrelated",
+              "7",
+              "Various operational incidents"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Table Catalog Summary",
+          "headers": [
+            "Metric",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Total production tables",
+              "128"
+            ],
+            [
+              "Contract status: ACTIVE",
+              "~70%"
+            ],
+            [
+              "Contract status: DEPRECATED/SUPERSEDED",
+              "~30%"
+            ],
+            [
+              "Schema versions",
+              "v1.x (45), v2.x (41), v3.x (42)"
+            ],
+            [
+              "Countries covered",
+              "DE, FR, NL, LU"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Workspace Inventory Summary",
+          "headers": [
+            "Metric",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Total workspaces",
+              "78"
+            ],
+            [
+              "Distinct (country, domain) stems",
+              "27"
+            ],
+            [
+              "Projected post-acquisition",
+              "~113"
+            ],
+            [
+              "Naming convention",
+              "3-tier"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Pipeline Inventory Summary",
+          "headers": [
+            "Metric",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Total pipelines",
+              "80"
+            ],
+            [
+              "By country",
+              "DE (24), FR (22), NL (14), LU (8), GU-shared (12)"
+            ],
+            [
+              "Streaming pipelines",
+              "14 (1,802 CU-min/hr aggregate)"
+            ],
+            [
+              "Gold-SLA pipelines",
+              "32"
+            ],
+            [
+              "Bronze-SLA pipelines",
+              "6"
+            ]
+          ]
+        }
+      ],
+      "narrative_context": "Olivia wants the risk audit in the design journal by Day 14 so the Chapter 2 working session can use it. The six evidence files are in front of you. You are looking for risks that are uncomfortable at GridUnion's current scale and become critical at 6-country, ~113-workspace, 7M-meter scale. Not every weakness you spot is a top-tier risk — you must rank the three that need executive attention from the broader set of technical concerns.",
+      "task": "Pick the three most critical technical risks the acquisition will expose. For each, cite one row or section from the evidence files that supports the selection. Then rank them: which risk is the #1 priority for Chapter 2's architecture decision? Ch1 uses exact-match grading — the three correct risks form a determinate set and each is paired with a specific supporting citation. The remaining distractors are ruled out either by missing incident history, by flat utilization trends, or by the acquisition briefing's scope notes.",
+      "validation_hint": "Your three selections should be triangulable across at least two evidence files each. A risk that only the incident history mentions, or only one CSV hints at, is probably a distractor. The acquisition briefing is authoritative for scale numbers; if your reasoning depends on a number not in the briefing, double-check it.",
+      "grading": {
+        "type": "structured_template",
+        "method": "exact_match",
+        "xp_per_field": 20,
+        "fields": [
+          {
+            "id": "risk_1_selection",
+            "xp": 20,
+            "prompt": "Select the first of three most critical risks.",
+            "input_type": "single_select",
+            "options": [
+              "A. F32 streaming capacity will cross the 70% safety headroom within 3 months of cutover as SauleGrid solar telemetry and HydroAlpes dam-sensor streams come online",
+              "B. Schema contracts will fragment across country-specific regulatory columns (VERT-LT grid_operator_license_id, E-Control balancing_zone_id) without a cross-country governance process",
+              "C. The 3-tier workspace naming convention cannot accommodate 2 new countries worth of workspaces without a hierarchy revision, producing discovery and duplicate-creation incidents",
+              "D. OneLake cross-region shortcuts will exceed 200ms latency once Austrian data is pinned to EU-Central, degrading regulatory-reporting queries",
+              "E. The governance committee's current throughput of 8 contracts per quarter cannot absorb the ~30 new contracts from SauleGrid and HydroAlpes",
+              "F. The F128 DE+NL engineering capacity will saturate first as SauleGrid volume joins Dutch workloads",
+              "G. Purview's automated classification will mislabel the new Austrian balancing-zone tables as Internal when they should be Confidential"
+            ],
+            "correct_answer_any_of": [
+              "A. F32 streaming capacity will cross the 70% safety headroom within 3 months of cutover as SauleGrid solar telemetry and HydroAlpes dam-sensor streams come online",
+              "B. Schema contracts will fragment across country-specific regulatory columns (VERT-LT grid_operator_license_id, E-Control balancing_zone_id) without a cross-country governance process",
+              "C. The 3-tier workspace naming convention cannot accommodate 2 new countries worth of workspaces without a hierarchy revision, producing discovery and duplicate-creation incidents"
+            ],
+            "rationale_correct": "A, B, and C are the three risks supported by evidence in two or more files. A: capacity_metrics + incident_history (5 throttling events on F32 streaming) + briefing (28% incremental load). B: table_catalog (30% non-ACTIVE) + incident_history (7 schema_drift incidents) + briefing (two new mandatory columns). C: workspace_inventory (78 workspaces, 27 stems) + incident_history (5 workspace-related incidents) + briefing (~113 projected).",
+            "rationale_distractors": "D: shortcut latency has no evidence in any file — speculation. E: governance throughput is not measured in the evidence. F: capacity_metrics shows F128 DE+NL at 60.4% with only 0.4%/week growth; the 9.6pp headroom is comfortable for the 41% volume increase (SauleGrid is small by volume). G: Purview accuracy is not measured."
+          },
+          {
+            "id": "risk_1_supporting_evidence",
+            "xp": 20,
+            "prompt": "One piece of evidence supporting your Risk #1 selection. Must come from one of the six evidence files.",
+            "input_type": "single_select",
+            "options": [
+              "capacity_metrics.csv — cap_f32_streaming 2026-03-30 row: peak_cu_percent=58.1, weekly_growth_pct=1.1",
+              "incident_history.csv — three throttling incidents on cap_f32_streaming in the last 4 weeks (2026-03-07, -21, -28)",
+              "table_catalog.csv — 30% of contracts are DEPRECATED or SUPERSEDED",
+              "incident_history.csv — seven schema_drift incidents in the last 8 months affecting 4 different countries",
+              "workspace_inventory.csv — 78 existing workspaces with 27 distinct (country, domain) stems",
+              "incident_history.csv — five workspace-related incidents where engineers created duplicates or wasted time on discovery",
+              "acquisition_briefing.md — the combined-scale table row for Daily stream events",
+              "acquisition_briefing.md — the combined-scale table row for Workspaces (current / projected)"
+            ],
+            "correct_answer_requires": "evidence_consistent_with_risk_1_selection",
+            "correct_answer_any_of_for_risk_A": [
+              "capacity_metrics.csv — cap_f32_streaming 2026-03-30 row: peak_cu_percent=58.1, weekly_growth_pct=1.1",
+              "incident_history.csv — three throttling incidents on cap_f32_streaming in the last 4 weeks (2026-03-07, -21, -28)",
+              "acquisition_briefing.md — the combined-scale table row for Daily stream events"
+            ],
+            "correct_answer_any_of_for_risk_B": [
+              "table_catalog.csv — 30% of contracts are DEPRECATED or SUPERSEDED",
+              "incident_history.csv — seven schema_drift incidents in the last 8 months affecting 4 different countries"
+            ],
+            "correct_answer_any_of_for_risk_C": [
+              "workspace_inventory.csv — 78 existing workspaces with 27 distinct (country, domain) stems",
+              "incident_history.csv — five workspace-related incidents where engineers created duplicates or wasted time on discovery",
+              "acquisition_briefing.md — the combined-scale table row for Workspaces (current / projected)"
+            ],
+            "failure_message": "The evidence you cited does not support the risk you selected. Every risk is defensible from at least two of the six files — pick one that directly quantifies or demonstrates the risk mechanism."
+          },
+          {
+            "id": "risk_2_selection",
+            "xp": 20,
+            "prompt": "Select the second risk. Must be different from Risk #1.",
+            "input_type": "single_select",
+            "options": [
+              "A. F32 streaming capacity will cross the 70% safety headroom within 3 months of cutover",
+              "B. Schema contracts will fragment across country-specific regulatory columns without a cross-country governance process",
+              "C. The 3-tier workspace naming convention cannot accommodate 2 new countries worth of workspaces",
+              "D. OneLake cross-region shortcuts will exceed 200ms latency once Austrian data is pinned to EU-Central",
+              "E. The governance committee's current throughput cannot absorb the new contracts from SauleGrid and HydroAlpes",
+              "F. The F128 DE+NL engineering capacity will saturate first",
+              "G. Purview's automated classification will mislabel the new Austrian balancing-zone tables"
+            ],
+            "correct_answer_any_of": [
+              "A. F32 streaming capacity will cross the 70% safety headroom within 3 months of cutover",
+              "B. Schema contracts will fragment across country-specific regulatory columns without a cross-country governance process",
+              "C. The 3-tier workspace naming convention cannot accommodate 2 new countries worth of workspaces"
+            ],
+            "cross_field_constraint": "must_be_different_from risk_1_selection",
+            "failure_message": "The three correct risks are A, B, and C. Re-read the evidence on streaming capacity, schema contracts, and workspace density."
+          },
+          {
+            "id": "risk_2_supporting_evidence",
+            "xp": 20,
+            "prompt": "One piece of evidence supporting your Risk #2 selection.",
+            "input_type": "single_select",
+            "options": [
+              "capacity_metrics.csv — cap_f32_streaming 2026-03-30 row: peak_cu_percent=58.1, weekly_growth_pct=1.1",
+              "incident_history.csv — three throttling incidents on cap_f32_streaming in the last 4 weeks",
+              "table_catalog.csv — 30% of contracts are DEPRECATED or SUPERSEDED",
+              "incident_history.csv — seven schema_drift incidents in the last 8 months affecting 4 different countries",
+              "workspace_inventory.csv — 78 existing workspaces with 27 distinct (country, domain) stems",
+              "incident_history.csv — five workspace-related incidents where engineers created duplicates",
+              "acquisition_briefing.md — the combined-scale table row for Daily stream events",
+              "acquisition_briefing.md — the combined-scale table row for Workspaces (current / projected)"
+            ],
+            "correct_answer_requires": "evidence_consistent_with_risk_2_selection",
+            "failure_message": "The evidence you cited does not support the risk you selected. Re-check which file quantifies the specific mechanism of the risk."
+          },
+          {
+            "id": "risk_3_selection",
+            "xp": 20,
+            "prompt": "Select the third risk. Must be different from Risks #1 and #2.",
+            "input_type": "single_select",
+            "options": [
+              "A. F32 streaming capacity will cross the 70% safety headroom within 3 months of cutover",
+              "B. Schema contracts will fragment across country-specific regulatory columns without a cross-country governance process",
+              "C. The 3-tier workspace naming convention cannot accommodate 2 new countries worth of workspaces",
+              "D. OneLake cross-region shortcuts will exceed 200ms latency once Austrian data is pinned to EU-Central",
+              "E. The governance committee's current throughput cannot absorb the new contracts from SauleGrid and HydroAlpes",
+              "F. The F128 DE+NL engineering capacity will saturate first",
+              "G. Purview's automated classification will mislabel the new Austrian balancing-zone tables"
+            ],
+            "correct_answer_any_of": [
+              "A. F32 streaming capacity will cross the 70% safety headroom within 3 months of cutover",
+              "B. Schema contracts will fragment across country-specific regulatory columns without a cross-country governance process",
+              "C. The 3-tier workspace naming convention cannot accommodate 2 new countries worth of workspaces"
+            ],
+            "cross_field_constraint": "must_be_different_from risk_1_selection AND risk_2_selection"
+          },
+          {
+            "id": "risk_3_supporting_evidence",
+            "xp": 20,
+            "prompt": "One piece of evidence supporting your Risk #3 selection.",
+            "input_type": "single_select",
+            "options": [
+              "capacity_metrics.csv — cap_f32_streaming 2026-03-30 row: peak_cu_percent=58.1, weekly_growth_pct=1.1",
+              "incident_history.csv — three throttling incidents on cap_f32_streaming in the last 4 weeks",
+              "table_catalog.csv — 30% of contracts are DEPRECATED or SUPERSEDED",
+              "incident_history.csv — seven schema_drift incidents in the last 8 months affecting 4 different countries",
+              "workspace_inventory.csv — 78 existing workspaces with 27 distinct (country, domain) stems",
+              "incident_history.csv — five workspace-related incidents where engineers created duplicates",
+              "acquisition_briefing.md — the combined-scale table row for Daily stream events",
+              "acquisition_briefing.md — the combined-scale table row for Workspaces (current / projected)"
+            ],
+            "correct_answer_requires": "evidence_consistent_with_risk_3_selection"
+          },
+          {
+            "id": "most_critical_of_the_three",
+            "xp": 20,
+            "prompt": "Which of your three selected risks is the #1 priority for Chapter 2's architecture decision?",
+            "input_type": "single_select_of_previously_selected",
+            "options_derived_from": [
+              "risk_1_selection",
+              "risk_2_selection",
+              "risk_3_selection"
+            ],
+            "correct_answer": "A. F32 streaming capacity will cross the 70% safety headroom within 3 months of cutover as SauleGrid solar telemetry and HydroAlpes dam-sensor streams come online",
+            "rationale_correct": "Risk A has a concrete expiration date: the crossing arrives in ~11 weeks on current trajectory, before the 90-day window closes. Risks B and C are urgent but not tied to a calendar event inside the acquisition window. The architecture decision in Chapter 2 must allocate (or add) streaming capacity before cutover; deferring it is not an option.",
+            "failure_message": "Compare the three risks on one dimension: does the risk produce a concrete operational failure inside the 90-day window? Streaming capacity crosses 70% inside the window. Schema fragmentation is a long-horizon governance risk. Workspace density is a discoverability risk. Only one has a hard deadline attached to the acquisition cutover."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "A senior audit triangulates: a real risk is visible in at least two independent evidence sources, and its severity is quantifiable. Evidence types at your disposal: utilization trends (capacity_metrics.csv), structural inventories (pipeline_inventory.csv, workspace_inventory.csv, table_catalog.csv), historical incidents (incident_history.csv), and the briefing's scope deltas. A risk that appears in only one file is either a distractor or underspecified."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "Three specific numeric anchors guide the audit. First: in capacity_metrics.csv, read cap_f32_streaming's 2026-03-30 row and compute how many weeks at 1.1%/week growth reach 70%. Second: in table_catalog.csv, count rows where contract_status is not ACTIVE and divide by total. Third: in workspace_inventory.csv, count unique workspace_name values; then combine with the acquisition_briefing.md combined-scale table's workspace projection."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "The three risks with triangulated evidence are: (a) streaming capacity saturation (capacity metrics + streaming incidents + briefing's daily events), (b) schema contract fragmentation (table catalog's contract status + schema drift incidents + the two new mandatory columns in the briefing), (c) workspace namespace collapse (workspace inventory's stem count + workspace incidents + briefing's projected 113 workspaces). Distractors D, E, F, G each fail the two-source test: cross-region latency is speculative, governance throughput is not measured, F128 headroom is comfortable, Purview accuracy is not in evidence."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "One field to unblock: most_critical_of_the_three = Risk A (F32 streaming capacity). The reason: only Risk A has a concrete expiration inside the 90-day window. The streaming capacity crosses 70% headroom in approximately 11 weeks at current trajectory, which intersects the acquisition cutover. Risks B and C are urgent but do not have a hard deadline tied to Day 90. With Risk A ranked first, the remaining risks populate risk_1 through risk_3 slots in any order; each must be paired with its triangulated evidence."
+        }
+      ]
+    },
+    {
+      "id": "chapter_2",
+      "title": "Design the Onboarding Architecture",
+      "unlock_condition": {
+        "after_chapter": 1
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": 1,
+        "uses_variable": "je_risk_1 je_risk_2 je_risk_3 je_risk_ranking",
+        "fallback_dataset": null,
+        "fallback_note": "If Chapter 1 did not complete, the design journal panel shows [missing — chapter 1 not graded] placeholders. The rubric still evaluates Chapter 2 on its own merits but the consistency-with-audit criterion is scored against whatever the student writes without a comparable source."
+      },
+      "chapter_type": "design_artifact",
+      "base_xp": 140,
+      "modules_primary": [
+        1,
+        8,
+        10
+      ],
+      "modules_secondary": [],
+      "narrative_context": "The working session starts with your audit loaded into the design journal. Pete, the CTO, has given you four evaluation criteria: regulatory isolation, onboarding speed, capacity cost, and team autonomy. Three architectural options are on the whiteboard from last quarter's planning: Option A — tenant-per-country (stand up new Fabric tenants for LT and AT), Option B — unified single-tenant extension (add country workspaces to the existing GridUnion tenant using the current 3-tier namespace), Option C — federated hub-and-spoke (country workspaces plus a shared GU platform workspace exposing cross-country dimensions via OneLake shortcuts). Pete is agnostic on the choice. He cares about the reasoning.",
+      "task": "Pick one of the three options. Justify it against each of the four named criteria with a specific reference to Chapter 1 evidence or to the acquisition briefing. Document two trade-offs you are explicitly accepting — things that your choice makes measurably worse, with your reasoning for why the benefits outweigh them. Multiple defensible answers exist: the rubric evaluates internal consistency, evidence grounding, and trade-off honesty — not whether you matched a hidden 'correct' option.",
+      "validation_hint": "A choice without accepted trade-offs is not a senior decision — every architecture option is wrong about something, and the rubric deducts heavily for justifications that claim an option is superior on all four criteria. Your two trade-offs should name specific downsides the other options handle better.",
+      "grading": {
+        "type": "rubric",
+        "method": "multi_criterion_rubric",
+        "xp_total": 140,
+        "acceptable_answer_ranges": {
+          "Option A": "Defensible when Chapter 1 prioritises regulatory isolation above all other risks. Accepted trade-offs typically include: slower onboarding (3–4 new capacities to provision, 2 new compliance setups), higher capacity cost (redundant platform infrastructure per tenant), fragmented cross-country analytics. The rubric rewards explicit acknowledgement of these trade-offs.",
+          "Option B": "Defensible when Chapter 1 prioritises onboarding speed and cost efficiency. Accepted trade-offs typically include: additional investment in workspace namespace revision (addresses Risk C but does not eliminate it), new OneLake security rules and country-level capacity allocation policy (addresses Risk A and regulatory isolation partially), cross-country governance committee expansion. The rubric rewards pairing each accepted trade-off with a Chapter 4 governance addition.",
+          "Option C": "Defensible when the audit emphasises the balance between isolation and shared-platform efficiency. Accepted trade-offs typically include: OneLake shortcut operational complexity, dual ownership model for shared GU platform tables, need for cross-workspace performance tuning. The rubric rewards showing how the hub-and-spoke pattern addresses each of the three Chapter 1 risks."
+        },
+        "rubric_criteria": [
+          {
+            "id": "justification_against_all_four_criteria",
+            "xp": 40,
+            "weight_percent": 28.6,
+            "description": "Does the justification explicitly address all four named criteria (regulatory isolation, onboarding speed, capacity cost, team autonomy)?",
+            "score_full_xp": "Student provides a specific per-criterion justification for each of the four criteria, each referencing either Chapter 1 evidence or the acquisition briefing. No criterion is missing or handled in generic terms.",
+            "score_partial_xp": "Three criteria justified specifically, one justified in generic terms without evidence reference.",
+            "score_zero_xp": "Fewer than three criteria justified, or all four justifications are generic with no evidence grounding."
+          },
+          {
+            "id": "evidence_grounding",
+            "xp": 35,
+            "weight_percent": 25.0,
+            "description": "Does each justification reference a specific row, section, or scale number from the Chapter 1 evidence or the acquisition briefing?",
+            "score_full_xp": "Every justification cites a specific evidence anchor (capacity metric value, workspace count, contract-status percentage, briefing section).",
+            "score_partial_xp": "Justifications include some evidence anchors but at least one is abstract (‘this option handles cost well’ without citing a cost number).",
+            "score_zero_xp": "Justifications rely on generic platform engineering reasoning without citing Chapter 1 evidence."
+          },
+          {
+            "id": "tradeoffs_honesty",
+            "xp": 35,
+            "weight_percent": 25.0,
+            "description": "Are the two accepted trade-offs genuine downsides where another option performs measurably better?",
+            "score_full_xp": "Each trade-off names a specific dimension (regulatory isolation, onboarding speed, capacity cost, team autonomy, or operational complexity) and explicitly notes which alternative option handles that dimension better. The reasoning for accepting the trade-off references the risk prioritisation from Chapter 1.",
+            "score_partial_xp": "Trade-offs are acknowledged but one is generic (‘this is more complex’) without naming the alternative that is simpler.",
+            "score_zero_xp": "No trade-offs documented, or both trade-offs minimise the downside rather than accepting it (‘this is slightly slower to onboard but we can mitigate that’)."
+          },
+          {
+            "id": "consistency_with_audit",
+            "xp": 30,
+            "weight_percent": 21.4,
+            "description": "Does the recommendation address the risk ranked #1 in Chapter 1?",
+            "score_full_xp": "The recommendation explicitly states how it handles the #1-ranked risk from Chapter 1, and the two other risks are addressed in the justifications or trade-offs.",
+            "score_partial_xp": "The #1 risk is addressed but the other two Chapter 1 risks are not mentioned.",
+            "score_zero_xp": "The recommendation does not reference any Chapter 1 risk — the two chapters read as independent exercises."
+          }
+        ],
+        "template_fields_for_rubric": [
+          {
+            "id": "architecture_option_selected",
+            "prompt": "Pick one: A (tenant-per-country), B (unified single-tenant extension), or C (federated hub-and-spoke).",
+            "input_type": "single_select"
+          },
+          {
+            "id": "justification_regulatory_isolation",
+            "prompt": "How does the selected option handle regulatory isolation across 6 countries? Cite evidence.",
+            "input_type": "freeform_1_3_sentences"
+          },
+          {
+            "id": "justification_onboarding_speed",
+            "prompt": "How does the selected option handle the 90-day onboarding window? Cite evidence.",
+            "input_type": "freeform_1_3_sentences"
+          },
+          {
+            "id": "justification_cost",
+            "prompt": "How does the selected option handle capacity cost across current + 2 new countries? Cite evidence.",
+            "input_type": "freeform_1_3_sentences"
+          },
+          {
+            "id": "justification_team_autonomy",
+            "prompt": "How does the selected option handle team autonomy at 17-team scale? Cite evidence.",
+            "input_type": "freeform_1_3_sentences"
+          },
+          {
+            "id": "tradeoff_1",
+            "prompt": "First accepted trade-off. Name the dimension and which alternative option performs better on it.",
+            "input_type": "freeform_1_2_sentences"
+          },
+          {
+            "id": "tradeoff_2",
+            "prompt": "Second accepted trade-off. Different dimension from trade-off #1.",
+            "input_type": "freeform_1_2_sentences"
+          }
+        ],
+        "fields": [
+          {
+            "id": "architecture_option_selected",
+            "xp": 35,
+            "prompt": "Which architecture option do you recommend?",
+            "input_type": "single_select",
+            "options": [
+              "Option A — Tenant-per-country (new Fabric tenants for LT and AT)",
+              "Option B — Unified single-tenant extension (add country workspaces to existing GridUnion tenant)",
+              "Option C — Federated hub-and-spoke (country workspaces + shared GU platform workspace via OneLake shortcuts)"
+            ],
+            "failure_message": "All three options are defensible. The rubric evaluates consistency with your Chapter 1 risk ranking, not a single correct answer."
+          },
+          {
+            "id": "justification_regulatory_isolation",
+            "xp": 15,
+            "prompt": "How does your choice address regulatory isolation?",
+            "input_type": "single_select",
+            "options": [
+              "Full tenant-level isolation — each country has its own Fabric tenant, Purview instance, and capacity",
+              "Workspace-level isolation with OneLake security rules and country-scoped Purview labels",
+              "Hub-and-spoke isolation — country workspaces own all regulated data; shared GU workspace has read-only OneLake shortcuts",
+              "No additional isolation needed — the current workspace structure already separates by country"
+            ],
+            "failure_message": "Your justification must reference the regulatory isolation criterion specifically."
+          },
+          {
+            "id": "justification_onboarding_speed",
+            "xp": 15,
+            "prompt": "How does your choice address onboarding speed?",
+            "input_type": "single_select",
+            "options": [
+              "Fast — new countries join existing tenant; workspace templates are cloned in days",
+              "Moderate — new tenant provisioning takes 2–3 weeks; capacity and Purview setup per tenant",
+              "Moderate — hub-and-spoke requires shortcut configuration and cross-workspace testing per country",
+              "Slow — requires rebuilding the entire platform from scratch for each country"
+            ],
+            "failure_message": "Your justification must reference the onboarding speed criterion specifically."
+          },
+          {
+            "id": "justification_capacity_cost",
+            "xp": 15,
+            "prompt": "How does your choice address capacity cost?",
+            "input_type": "single_select",
+            "options": [
+              "Lowest cost — shared capacity pools across all countries on one tenant",
+              "Moderate cost — country capacities are separate but can be right-sized per country workload",
+              "Higher cost — each tenant needs its own capacity SKUs, leading to redundant provisioning",
+              "Cost-neutral — hub-and-spoke shares analytics capacity but isolates country-specific engineering capacity"
+            ],
+            "failure_message": "Your justification must reference the capacity cost criterion specifically."
+          },
+          {
+            "id": "justification_team_autonomy",
+            "xp": 15,
+            "prompt": "How does your choice address team autonomy?",
+            "input_type": "single_select",
+            "options": [
+              "Full autonomy — each country team controls their own tenant, pipelines, and governance",
+              "Shared autonomy — country teams own their workspaces but share platform-level governance",
+              "Federated autonomy — country teams manage country workspaces; GU platform team manages shared hub",
+              "Centralized control — a single platform team manages everything across countries"
+            ],
+            "failure_message": "Your justification must reference the team autonomy criterion specifically."
+          },
+          {
+            "id": "tradeoff_1",
+            "xp": 25,
+            "prompt": "Name the first trade-off you are explicitly accepting.",
+            "input_type": "single_select",
+            "options": [
+              "Slower onboarding: 3–4 new capacities to provision, 2 new compliance setups per tenant",
+              "Higher capacity cost: redundant platform infrastructure per tenant",
+              "Fragmented cross-country analytics: no single-query access across country boundaries",
+              "Additional workspace namespace revision required before onboarding",
+              "New OneLake security rules and country-level capacity allocation policy needed",
+              "Cross-country governance committee expansion to manage shared schemas",
+              "OneLake shortcut operational complexity across hub-and-spoke boundaries",
+              "Dual ownership model for shared GU platform tables",
+              "Cross-workspace performance tuning needed for shortcut-based queries"
+            ],
+            "failure_message": "A trade-off must be a genuine downside of your chosen option where another option performs better."
+          },
+          {
+            "id": "tradeoff_2",
+            "xp": 20,
+            "prompt": "Name the second trade-off you are explicitly accepting.",
+            "input_type": "single_select",
+            "options": [
+              "Slower onboarding: 3–4 new capacities to provision, 2 new compliance setups per tenant",
+              "Higher capacity cost: redundant platform infrastructure per tenant",
+              "Fragmented cross-country analytics: no single-query access across country boundaries",
+              "Additional workspace namespace revision required before onboarding",
+              "New OneLake security rules and country-level capacity allocation policy needed",
+              "Cross-country governance committee expansion to manage shared schemas",
+              "OneLake shortcut operational complexity across hub-and-spoke boundaries",
+              "Dual ownership model for shared GU platform tables",
+              "Cross-workspace performance tuning needed for shortcut-based queries"
+            ],
+            "failure_message": "The second trade-off must be different from the first and genuine to your chosen option."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Senior architecture decisions are about which problems to solve and which problems to push into governance. The rubric does not reward the 'best' option — it rewards the option you can defend against the four named criteria using the evidence you gathered in Chapter 1. Every option is wrong about something; that something is your first trade-off."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "For each of the three options, ask: how does this option handle each of Chapter 1's three risks? Option A (tenant-per-country) excels at regulatory isolation but worsens onboarding speed and cost. Option B (unified extension) excels at speed and cost but needs additional controls to handle the regulatory and workspace risks. Option C (hub-and-spoke) is the balance but introduces OneLake shortcut operational complexity. Your trade-offs should name the specific dimension where your pick is weakest."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Two concrete anchoring moves. First, reference your risk_1_selection from Chapter 1 and state how your chosen option addresses it — if Risk #1 is streaming capacity saturation, your option must say something specific about how it allocates streaming capacity for the new countries. Second, for each accepted trade-off, name the alternative option and the criterion where the alternative wins: 'Option A would provide stronger regulatory isolation but requires ~14 additional weeks to provision two new tenants and two new compliance setups, exceeding the 90-day window — I accept weaker native isolation in favour of schedule feasibility.'"
+        }
+      ],
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Chapter 1 Risk Audit (Your Results)",
+          "content": "Three critical risks identified:\n\n1. F32 streaming capacity saturation — peak 58.1%, growing 1.1%/wk, 3 throttling incidents in 4 weeks. Post-acquisition adds ~28% stream volume.\n\n2. Schema contract fragmentation — 30% of contracts non-ACTIVE, 7 schema_drift incidents. Two new mandatory regulatory columns (VERT-LT, E-Control) have no governance process.\n\n3. Workspace naming convention collapse — 78→~113 workspaces, 27 stems, 5 workspace incidents."
+        },
+        {
+          "type": "text",
+          "title": "Option A — Tenant-per-Country",
+          "content": "Stand up new Fabric tenants for LT and AT.\n\n• Regulatory isolation: Full — each country has its own tenant, Purview instance, capacity\n• Onboarding speed: Slow — 3–4 new capacities, 2 new compliance setups per tenant\n• Capacity cost: Higher — redundant platform infrastructure per tenant\n• Team autonomy: Full — each country team controls their own tenant\n\nTypical trade-offs: slower onboarding, higher cost, fragmented cross-country analytics."
+        },
+        {
+          "type": "text",
+          "title": "Option B — Unified Single-Tenant Extension",
+          "content": "Add country workspaces to the existing GridUnion tenant using the current 3-tier namespace.\n\n• Regulatory isolation: Workspace-level with OneLake security rules and country-scoped Purview labels\n• Onboarding speed: Fastest — workspace templates cloned in days\n• Capacity cost: Lowest — shared capacity pools across all countries\n• Team autonomy: Shared — country teams own workspaces but share platform governance\n\nTypical trade-offs: namespace revision required, new security rules needed, governance expansion."
+        },
+        {
+          "type": "text",
+          "title": "Option C — Federated Hub-and-Spoke",
+          "content": "Country workspaces plus a shared GU platform workspace exposing cross-country dimensions via OneLake shortcuts.\n\n• Regulatory isolation: Hub-and-spoke — country workspaces own regulated data; shared GU workspace has read-only shortcuts\n• Onboarding speed: Moderate — shortcut configuration and cross-workspace testing per country\n• Capacity cost: Cost-neutral — shared analytics capacity, isolated country engineering capacity\n• Team autonomy: Federated — country teams manage country workspaces; GU platform team manages shared hub\n\nTypical trade-offs: OneLake shortcut complexity, dual ownership model, cross-workspace performance tuning."
+        }
+      ]
+    },
+    {
+      "id": "chapter_3",
+      "title": "Plan the Migration",
+      "unlock_condition": {
+        "after_chapter": 2
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": 2,
+        "uses_variable": "je_chosen_option",
+        "fallback_dataset": null,
+        "fallback_note": "The migration plan assumes the architecture chosen in Chapter 2. If Chapter 2 was not completed, the chapter narrative explicitly says 'assume Option B' as a fallback — this is the most common pick and has the broadest migration implications, so it produces a defensible plan even without Chapter 2's decision."
+      },
+      "chapter_type": "design_artifact",
+      "base_xp": 140,
+      "modules_primary": [
+        3,
+        9,
+        10
+      ],
+      "modules_secondary": [
+        2,
+        4,
+        5,
+        6,
+        7
+      ],
+      "narrative_context": "Architecture decided. Now you plan the migration. Olivia has handed you a working list of roughly 30 pipelines from pipeline_inventory.csv that will need some form of restructuring under your chosen architecture — streaming pipelines that touch the F32 capacity, silver pipelines whose schemas will need the new regulatory columns, and gold-layer pipelines whose cross-country joins will change. You have 90 days. The CTO wants three waves: Wave 1 (days 1–30) handles what must be in place before cutover; Wave 2 (days 31–60) handles what must be migrated before the first quarterly close post-acquisition; Wave 3 (days 61–90) handles what can defer until after cutover. Each pipeline is in exactly one wave.",
+      "task": "Produce a three-wave migration plan as a structured JSON artefact: three arrays (wave_1_assignments, wave_2_assignments, wave_3_assignments), each containing pipeline_id values from pipeline_inventory.csv. Each pipeline appears in exactly one wave. Then answer three justification fields: why Wave 1 is this composition (not more, not less), why Wave 2 is this composition, and what Wave 3 defers. The rubric evaluates alignment of (SLA tier, consumer count, CU cost) to wave assignment, the internal consistency of the rationale with Chapter 2's architecture choice, and the feasibility of Wave 1's scope within 30 days.",
+      "validation_hint": "A defensible Wave 1 is 8–14 pipelines — too few and you are back-loading risk into Wave 2; too many and the Wave 1 scope is infeasible in 30 days. A gold-SLA pipeline with 8+ consumers cannot sit in Wave 3. A bronze-SLA pipeline with 0 consumers should not be in Wave 1.",
+      "grading": {
+        "type": "rubric",
+        "method": "design_artifact_rubric",
+        "xp_total": 140,
+        "acceptable_answer_ranges": {
+          "wave_1_size": "8–14 pipelines (below 8: too little; above 14: infeasible in 30 days)",
+          "wave_1_composition": "Must include all streaming pipelines whose capacity reallocation is Chapter 1's #1 risk. Must include all gold-SLA cross-country pipelines whose dependencies change under the chosen architecture. Typical scope: 14 streaming + 2–3 highest-consumer-count gold-SLA pipelines.",
+          "wave_2_size": "8–14 pipelines",
+          "wave_2_composition": "Country-specific silver pipelines whose schemas need VERT-LT or E-Control columns; the bulk of the gold-layer reshaping; governance tables.",
+          "wave_3_size": "6–10 pipelines",
+          "wave_3_composition": "Bronze-SLA pipelines, analytics backfills, lowest-consumer ML feature pipelines. None of these should be gold-SLA or have more than 3 consumers."
+        },
+        "rubric_criteria": [
+          {
+            "id": "wave_1_composition",
+            "xp": 40,
+            "weight_percent": 28.6,
+            "description": "Is Wave 1 composed of the pipelines that must be in place before cutover?",
+            "score_full_xp": "Wave 1 contains all 14 streaming pipelines (or a clearly articulated subset with reasoning) and 2–5 additional high-SLA pipelines tied to the Chapter 1 #1 risk. Wave 1 size is 8–14 pipelines.",
+            "score_partial_xp": "Wave 1 handles the streaming risk but includes or omits pipelines in ways that stretch the 30-day window (e.g., 20+ pipelines).",
+            "score_zero_xp": "Wave 1 omits the streaming pipelines or includes bronze-SLA pipelines with no consumer impact."
+          },
+          {
+            "id": "sla_tier_alignment",
+            "xp": 30,
+            "weight_percent": 21.4,
+            "description": "Are high-SLA pipelines in earlier waves and low-SLA pipelines in later waves?",
+            "score_full_xp": "Every gold-SLA pipeline is in Wave 1 or Wave 2. Every bronze-SLA pipeline is in Wave 2 or Wave 3. No gold-SLA pipeline is deferred to Wave 3.",
+            "score_partial_xp": "One or two placements violate SLA ordering but the bulk alignment holds.",
+            "score_zero_xp": "Multiple gold-SLA pipelines in Wave 3 or multiple bronze-SLA pipelines in Wave 1."
+          },
+          {
+            "id": "consumer_count_alignment",
+            "xp": 30,
+            "weight_percent": 21.4,
+            "description": "Do pipelines with higher consumer_count sit in earlier waves?",
+            "score_full_xp": "The median consumer_count is highest in Wave 1 and lowest in Wave 3. No single pipeline with >5 consumers is deferred to Wave 3.",
+            "score_partial_xp": "General downward trend in consumer_count across waves with 1–2 outliers.",
+            "score_zero_xp": "No correlation between consumer_count and wave placement."
+          },
+          {
+            "id": "consistency_with_architecture",
+            "xp": 40,
+            "weight_percent": 28.6,
+            "description": "Does the migration plan make sense given the Chapter 2 architecture choice?",
+            "score_full_xp": "The Wave 1 rationale explicitly references the Chapter 2 architecture. If Option A was chosen, Wave 1 is capacity provisioning and tenant setup. If Option B, Wave 1 is workspace namespace work plus capacity reallocation. If Option C, Wave 1 is the GU platform workspace and shortcut configuration. Rationale fields cite Chapter 2 fields or the architecture's implications.",
+            "score_partial_xp": "The plan is internally consistent but does not explicitly tie back to Chapter 2.",
+            "score_zero_xp": "The migration plan would be identical under any Chapter 2 architecture choice — no architectural dependency is visible."
+          }
+        ],
+        "template_fields_for_rubric": [
+          {
+            "id": "wave_1_assignments",
+            "prompt": "JSON array of pipeline_id values for Wave 1 (days 1–30).",
+            "input_type": "json_array_of_pipeline_ids"
+          },
+          {
+            "id": "wave_2_assignments",
+            "prompt": "JSON array of pipeline_id values for Wave 2 (days 31–60).",
+            "input_type": "json_array_of_pipeline_ids"
+          },
+          {
+            "id": "wave_3_assignments",
+            "prompt": "JSON array of pipeline_id values for Wave 3 (days 61–90).",
+            "input_type": "json_array_of_pipeline_ids"
+          },
+          {
+            "id": "wave_1_rationale",
+            "prompt": "Why Wave 1 is this composition. Must reference Chapter 2's architecture choice.",
+            "input_type": "freeform_2_4_sentences"
+          },
+          {
+            "id": "wave_2_rationale",
+            "prompt": "Why Wave 2 is this composition.",
+            "input_type": "freeform_2_4_sentences"
+          },
+          {
+            "id": "wave_3_rationale",
+            "prompt": "What Wave 3 defers and why the deferral is safe.",
+            "input_type": "freeform_2_4_sentences"
+          }
+        ],
+        "fields": [
+          {
+            "id": "wave_1_focus",
+            "xp": 20,
+            "prompt": "What is the primary focus of Wave 1 (Days 1–30)?",
+            "input_type": "single_select",
+            "options": [
+              "All streaming pipelines + highest-SLA gold cross-country pipelines",
+              "All bronze-layer ingestion pipelines across all countries",
+              "Only the new SauleGrid and HydroAlpes onboarding pipelines",
+              "Analytics and reporting pipelines that serve the executive dashboard"
+            ],
+            "correct_answer": "All streaming pipelines + highest-SLA gold cross-country pipelines",
+            "failure_message": "Wave 1 must prioritize the pipelines at greatest capacity risk (streaming) and highest business impact (gold-SLA)."
+          },
+          {
+            "id": "wave_1_size",
+            "xp": 15,
+            "prompt": "How many pipelines should Wave 1 contain?",
+            "input_type": "single_select",
+            "options": [
+              "6–8 pipelines",
+              "8–14 pipelines",
+              "14–20 pipelines",
+              "20–30 pipelines"
+            ],
+            "correct_answer": "8–14 pipelines",
+            "failure_message": "Wave 1 must be large enough to cover streaming + critical gold-SLA pipelines but small enough to complete in 30 days."
+          },
+          {
+            "id": "wave_2_focus",
+            "xp": 20,
+            "prompt": "What is the primary focus of Wave 2 (Days 31–60)?",
+            "input_type": "single_select",
+            "options": [
+              "Remaining silver-SLA pipelines and schema migration for new countries",
+              "All streaming pipelines that were not in Wave 1",
+              "New country onboarding pipelines for SauleGrid and HydroAlpes only",
+              "Testing and validation of Wave 1 pipelines"
+            ],
+            "correct_answer": "Remaining silver-SLA pipelines and schema migration for new countries",
+            "failure_message": "Wave 2 should handle the bulk of remaining mid-priority pipelines and schema alignment work."
+          },
+          {
+            "id": "wave_2_size",
+            "xp": 15,
+            "prompt": "How many pipelines should Wave 2 contain?",
+            "input_type": "single_select",
+            "options": [
+              "10–20 pipelines",
+              "20–40 pipelines",
+              "40–60 pipelines",
+              "60–80 pipelines"
+            ],
+            "correct_answer": "40–60 pipelines",
+            "failure_message": "Wave 2 is the largest wave — it handles the bulk of engineering and silver-SLA pipelines."
+          },
+          {
+            "id": "wave_3_focus",
+            "xp": 20,
+            "prompt": "What is the primary focus of Wave 3 (Days 61–90)?",
+            "input_type": "single_select",
+            "options": [
+              "Low-SLA bronze pipelines, cleanup, and decommissioning of deprecated pipelines",
+              "All remaining streaming pipelines",
+              "Performance testing and capacity scaling validation",
+              "Governance committee handoff and documentation"
+            ],
+            "correct_answer": "Low-SLA bronze pipelines, cleanup, and decommissioning of deprecated pipelines",
+            "failure_message": "Wave 3 handles the lowest-risk, lowest-priority pipelines and cleanup work."
+          },
+          {
+            "id": "wave_3_size",
+            "xp": 15,
+            "prompt": "How many pipelines should Wave 3 contain?",
+            "input_type": "single_select",
+            "options": [
+              "4–8 pipelines",
+              "8–16 pipelines",
+              "16–30 pipelines",
+              "30–50 pipelines"
+            ],
+            "correct_answer": "8–16 pipelines",
+            "failure_message": "Wave 3 should be small — only low-SLA and decommissioning work remains."
+          },
+          {
+            "id": "consistency_with_architecture",
+            "xp": 35,
+            "prompt": "How does your migration plan account for the architecture choice from Chapter 2?",
+            "input_type": "single_select",
+            "options": [
+              "Wave 1 creates the new tenant(s) and migrates streaming pipelines first to address capacity risk",
+              "Wave 1 extends the existing tenant with new country workspaces and moves streaming pipelines to a larger capacity",
+              "Wave 1 establishes the hub-and-spoke structure, migrates streaming to a dedicated country capacity, and creates OneLake shortcuts",
+              "The migration plan is independent of the architecture choice"
+            ],
+            "failure_message": "The migration plan must be consistent with your Chapter 2 architecture choice."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Migration planning at senior scale is a prioritisation exercise, not a dependency graph exercise. Three dimensions drive the prioritisation: SLA tier (who will be affected if this pipeline is broken at cutover?), consumer count (how many teams depend on this?), and CU cost (how much capacity does this need, and when does the new capacity arrive?). Your rationale should sound like the defense you would give the CTO when he asks 'why is this in Wave 1?'"
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "Three specific anchors. First: the 14 streaming pipelines in pipeline_inventory.csv (filter layer=='stream') consume 1,802 CU-min/hour collectively — if Chapter 1 ranked streaming capacity as the #1 risk, these must be in Wave 1. Second: filter pipeline_inventory.csv for sla_tier=='gold' AND consumer_count>=5 — the resulting ~12 pipelines are Wave 1 or Wave 2, never Wave 3. Third: bronze-SLA pipelines with consumer_count<=2 are Wave 3 candidates."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "The wave sizing and composition map directly to the Chapter 2 architecture you chose. Option A (tenant-per-country): Wave 1 is tenant provisioning + capacity setup + the streaming pipelines that must land on the new streaming capacity of the new tenants. Option B (unified extension): Wave 1 is the workspace namespace revision plus capacity reallocation (move some streaming workloads to a larger SKU or second streaming capacity). Option C (hub-and-spoke): Wave 1 is the GU platform workspace, the cross-country shortcut configuration, and the streaming pipelines that route through the hub. In all three cases, bronze-SLA backfills and experimental ML pipelines are Wave 3."
+        }
+      ],
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Pipeline Inventory by SLA Tier",
+          "headers": [
+            "SLA Tier",
+            "Count",
+            "Typical Wave"
+          ],
+          "rows": [
+            [
+              "Gold (highest priority)",
+              "32",
+              "Wave 1 — must be in place before cutover"
+            ],
+            [
+              "Silver (standard)",
+              "32",
+              "Wave 2 — bulk migration after critical pipelines stable"
+            ],
+            [
+              "Bronze (lowest priority)",
+              "6",
+              "Wave 3 — cleanup and decommission"
+            ],
+            [
+              "Streaming (capacity-critical)",
+              "14",
+              "Wave 1 — addresses F32 capacity risk"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Pipeline Inventory by Country",
+          "headers": [
+            "Country",
+            "Pipelines",
+            "Key Workloads"
+          ],
+          "rows": [
+            [
+              "DE",
+              "24",
+              "Largest by volume, F128 capacity"
+            ],
+            [
+              "FR",
+              "22",
+              "Second largest, F64 capacity"
+            ],
+            [
+              "NL",
+              "14",
+              "Shares F128 with DE"
+            ],
+            [
+              "LU",
+              "8",
+              "Smallest, shares F64 with FR"
+            ],
+            [
+              "GU-shared",
+              "12",
+              "Cross-country analytics and reporting"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chapter_4",
+      "title": "Write the Governance Policy",
+      "unlock_condition": {
+        "after_chapter": 3
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": 1,
+        "uses_variable": "je_risk_1 je_risk_2 je_risk_3",
+        "fallback_dataset": null,
+        "fallback_note": "If Chapter 1 did not complete, the chapter still runs on current_governance_policy.md alone; the rubric's consistency-with-audit criterion is graded on the student's text without a comparable source."
+      },
+      "chapter_type": "template",
+      "base_xp": 140,
+      "modules_primary": [
+        5,
+        8,
+        10
+      ],
+      "modules_secondary": [
+        9
+      ],
+      "narrative_context": "Pete has asked you to revise GridUnion's governance document for the post-acquisition reality. The existing document is in current_governance_policy.md (v1.3, 2025-11-02). It is visibly a single-country document and a 3-team document. You need to identify three governance gaps that the acquisition will expose and write the policy additions that close them. Each addition must be implementable by the GU Platform team — not aspirational.",
+      "task": "Identify three governance gaps in the existing policy. For each, write a policy addition with four constrained fields: scope (which workspaces, tables, or actions the rule covers), trigger (what event activates the rule), enforcement mechanism (how the rule is actually enforced — Fabric feature, REST API, Purview policy, manual review, etc.), and owner (which team holds the accountability). Not every weakness in the existing policy is a top-three gap — the rubric rewards gaps that are (a) genuinely exposed by the acquisition and (b) addressable with the policy additions you propose.",
+      "validation_hint": "The three best-supported gaps are in §2 Data Classification (no country scope on Purview labels), §3 Schema Changes (no automated impact analysis for cross-country changes), and §4 Capacity and Cost (no capacity budget authority across capacities). Gaps in §5 Access Control or §6 Incident Response are defensible but less strongly supported by the acquisition evidence. Every policy addition must name a specific enforcement mechanism that exists in Fabric — not 'we will review this'.",
+      "grading": {
+        "type": "rubric",
+        "method": "template_plus_rubric",
+        "xp_total": 140,
+        "template_xp": 75,
+        "rubric_xp": 65,
+        "acceptable_answer_ranges": {
+          "gap_1_description_full_xp": "§2 Data Classification — the current label taxonomy (Public / Internal / Confidential / Restricted) has no country scope, which breaks down when Austrian balancing-zone data is Confidential under E-Control but Internal under BNetzA, and Lithuanian licensee-level data requires a classification the existing taxonomy does not express.",
+          "gap_2_description_full_xp": "§3 Schema Changes — the 48-hour Slack notification process does not scale to 80+ engineers across 6 countries. Incident history shows 7 schema_drift incidents already; without automated impact analysis, the acquisition's 30+ new contracts will multiply this.",
+          "gap_3_description_full_xp": "§4 Capacity and Cost — the current policy has no country-level capacity allocation. At 6 countries sharing 4 capacities, a political negotiation pattern emerges every quarter; a formal per-country CU budget and escalation path is needed.",
+          "alternative_gaps": "A student may defensibly identify §5 (no role-template governance for 17 teams) or §6 (no regulatory-incident playbook distinct from operational incidents) but the rubric's acquisition-exposure criterion will score these lower because the evidence links are weaker."
+        },
+        "template_fields": [
+          {
+            "id": "gap_1_description",
+            "xp": 5,
+            "prompt": "Identify governance gap #1. Name the section and the specific inadequacy.",
+            "input_type": "single_select",
+            "options": [
+              "§2 Data Classification — no country-scoped Purview labels for LT (VERT-LT) and AT (E-Control) regulatory data",
+              "§3 Schema Changes — no automated cross-country impact analysis when a schema change affects multiple country workspaces",
+              "§4 Capacity and Cost — no capacity budget authority across capacities; no process for cross-capacity reallocation when a new country joins",
+              "§5 Workspace Naming — no naming convention revision process for when the workspace count exceeds the 3-tier convention",
+              "§6 Incident Response — no cross-country escalation path when an incident affects shared platform tables"
+            ]
+          },
+          {
+            "id": "gap_1_policy_addition_scope",
+            "xp": 5,
+            "prompt": "Gap #1 policy addition — Scope: which workspaces, tables, or actions does this rule cover?",
+            "input_type": "single_select",
+            "options": [
+              "All workspaces and tables in the new country tenants (LT, AT)",
+              "All production tables with schema_version >= v3.0 across all countries",
+              "All capacities and their allocated workloads",
+              "All workspace-level Purview labels and their associated sensitivity classifications",
+              "All pipelines crossing country workspace boundaries via OneLake shortcuts"
+            ]
+          },
+          {
+            "id": "gap_1_policy_addition_trigger",
+            "xp": 5,
+            "prompt": "Gap #1 policy addition — Trigger: what event fires this rule?",
+            "input_type": "single_select",
+            "options": [
+              "Any new country onboarding request or capacity allocation change",
+              "Any schema change affecting tables consumed by 2+ country workspaces",
+              "Weekly capacity utilization report showing any capacity above 60% peak_cu_percent",
+              "Any new Purview label creation or classification rule change",
+              "Any pipeline deployment that creates or modifies cross-workspace OneLake shortcuts"
+            ]
+          },
+          {
+            "id": "gap_1_policy_addition_enforcement",
+            "xp": 5,
+            "prompt": "Gap #1 policy addition — Enforcement: what Fabric mechanism enforces the rule?",
+            "input_type": "single_select",
+            "options": [
+              "Purview auto-labeling policy with country-specific sensitivity rules",
+              "Fabric Deployment Pipeline pre-deployment validation gate",
+              "Capacity Metrics API alert with automatic PagerDuty escalation",
+              "Fabric Git integration PR check that blocks merges without impact analysis",
+              "Workspace admin API audit trail with monthly governance committee review"
+            ]
+          },
+          {
+            "id": "gap_1_policy_addition_owner",
+            "xp": 5,
+            "prompt": "Gap #1 policy addition — Owner: who is accountable?",
+            "input_type": "single_select",
+            "options": [
+              "Country data steward (LT or AT) with GU governance committee oversight",
+              "GU platform engineering team with country team sign-off",
+              "GU governance committee with quarterly board reporting",
+              "Capacity operations team with finance approval for reallocation",
+              "Cross-country schema working group (one rep per country team)"
+            ]
+          },
+          {
+            "id": "gap_2_description",
+            "xp": 5,
+            "prompt": "Identify governance gap #2. Name the section and the specific inadequacy.",
+            "input_type": "single_select",
+            "options": [
+              "§2 Data Classification — no country-scoped Purview labels for LT (VERT-LT) and AT (E-Control) regulatory data",
+              "§3 Schema Changes — no automated cross-country impact analysis when a schema change affects multiple country workspaces",
+              "§4 Capacity and Cost — no capacity budget authority across capacities; no process for cross-capacity reallocation when a new country joins",
+              "§5 Workspace Naming — no naming convention revision process for when the workspace count exceeds the 3-tier convention",
+              "§6 Incident Response — no cross-country escalation path when an incident affects shared platform tables"
+            ]
+          },
+          {
+            "id": "gap_2_policy_addition_scope",
+            "xp": 5,
+            "prompt": "Gap #2 policy addition — Scope: which workspaces, tables, or actions does this rule cover?",
+            "input_type": "single_select",
+            "options": [
+              "All workspaces and tables in the new country tenants (LT, AT)",
+              "All production tables with schema_version >= v3.0 across all countries",
+              "All capacities and their allocated workloads",
+              "All workspace-level Purview labels and their associated sensitivity classifications",
+              "All pipelines crossing country workspace boundaries via OneLake shortcuts"
+            ]
+          },
+          {
+            "id": "gap_2_policy_addition_trigger",
+            "xp": 5,
+            "prompt": "Gap #2 policy addition — Trigger: what event fires this rule?",
+            "input_type": "single_select",
+            "options": [
+              "Any new country onboarding request or capacity allocation change",
+              "Any schema change affecting tables consumed by 2+ country workspaces",
+              "Weekly capacity utilization report showing any capacity above 60% peak_cu_percent",
+              "Any new Purview label creation or classification rule change",
+              "Any pipeline deployment that creates or modifies cross-workspace OneLake shortcuts"
+            ]
+          },
+          {
+            "id": "gap_2_policy_addition_enforcement",
+            "xp": 5,
+            "prompt": "Gap #2 policy addition — Enforcement: what Fabric mechanism enforces the rule?",
+            "input_type": "single_select",
+            "options": [
+              "Purview auto-labeling policy with country-specific sensitivity rules",
+              "Fabric Deployment Pipeline pre-deployment validation gate",
+              "Capacity Metrics API alert with automatic PagerDuty escalation",
+              "Fabric Git integration PR check that blocks merges without impact analysis",
+              "Workspace admin API audit trail with monthly governance committee review"
+            ]
+          },
+          {
+            "id": "gap_2_policy_addition_owner",
+            "xp": 5,
+            "prompt": "Gap #2 policy addition — Owner: who is accountable?",
+            "input_type": "single_select",
+            "options": [
+              "Country data steward (LT or AT) with GU governance committee oversight",
+              "GU platform engineering team with country team sign-off",
+              "GU governance committee with quarterly board reporting",
+              "Capacity operations team with finance approval for reallocation",
+              "Cross-country schema working group (one rep per country team)"
+            ]
+          },
+          {
+            "id": "gap_3_description",
+            "xp": 5,
+            "prompt": "Identify governance gap #3. Name the section and the specific inadequacy.",
+            "input_type": "single_select",
+            "options": [
+              "§2 Data Classification — no country-scoped Purview labels for LT (VERT-LT) and AT (E-Control) regulatory data",
+              "§3 Schema Changes — no automated cross-country impact analysis when a schema change affects multiple country workspaces",
+              "§4 Capacity and Cost — no capacity budget authority across capacities; no process for cross-capacity reallocation when a new country joins",
+              "§5 Workspace Naming — no naming convention revision process for when the workspace count exceeds the 3-tier convention",
+              "§6 Incident Response — no cross-country escalation path when an incident affects shared platform tables"
+            ]
+          },
+          {
+            "id": "gap_3_policy_addition_scope",
+            "xp": 5,
+            "prompt": "Gap #3 policy addition — Scope: which workspaces, tables, or actions does this rule cover?",
+            "input_type": "single_select",
+            "options": [
+              "All workspaces and tables in the new country tenants (LT, AT)",
+              "All production tables with schema_version >= v3.0 across all countries",
+              "All capacities and their allocated workloads",
+              "All workspace-level Purview labels and their associated sensitivity classifications",
+              "All pipelines crossing country workspace boundaries via OneLake shortcuts"
+            ]
+          },
+          {
+            "id": "gap_3_policy_addition_trigger",
+            "xp": 5,
+            "prompt": "Gap #3 policy addition — Trigger: what event fires this rule?",
+            "input_type": "single_select",
+            "options": [
+              "Any new country onboarding request or capacity allocation change",
+              "Any schema change affecting tables consumed by 2+ country workspaces",
+              "Weekly capacity utilization report showing any capacity above 60% peak_cu_percent",
+              "Any new Purview label creation or classification rule change",
+              "Any pipeline deployment that creates or modifies cross-workspace OneLake shortcuts"
+            ]
+          },
+          {
+            "id": "gap_3_policy_addition_enforcement",
+            "xp": 5,
+            "prompt": "Gap #3 policy addition — Enforcement: what Fabric mechanism enforces the rule?",
+            "input_type": "single_select",
+            "options": [
+              "Purview auto-labeling policy with country-specific sensitivity rules",
+              "Fabric Deployment Pipeline pre-deployment validation gate",
+              "Capacity Metrics API alert with automatic PagerDuty escalation",
+              "Fabric Git integration PR check that blocks merges without impact analysis",
+              "Workspace admin API audit trail with monthly governance committee review"
+            ]
+          },
+          {
+            "id": "gap_3_policy_addition_owner",
+            "xp": 5,
+            "prompt": "Gap #3 policy addition — Owner: who is accountable?",
+            "input_type": "single_select",
+            "options": [
+              "Country data steward (LT or AT) with GU governance committee oversight",
+              "GU platform engineering team with country team sign-off",
+              "GU governance committee with quarterly board reporting",
+              "Capacity operations team with finance approval for reallocation",
+              "Cross-country schema working group (one rep per country team)"
+            ]
+          }
+        ],
+        "rubric_criteria": [
+          {
+            "id": "gap_acquisition_exposure",
+            "xp": 30,
+            "weight_percent": 46.2,
+            "description": "Are the three identified gaps genuinely exposed by the acquisition (rather than pre-existing weaknesses that the acquisition does not significantly worsen)?",
+            "score_full_xp": "Each of the three gaps is tied to a specific acquisition consequence (6-country scope, new regulatory regimes, ~113 projected workspaces, streaming capacity at country granularity, cross-country schema dependencies).",
+            "score_partial_xp": "Two gaps are acquisition-exposed; one is a pre-existing weakness.",
+            "score_zero_xp": "All three gaps would exist in the 4-country platform too — none are specifically acquisition-driven."
+          },
+          {
+            "id": "enforcement_concreteness",
+            "xp": 20,
+            "weight_percent": 30.8,
+            "description": "Do the enforcement mechanisms name specific, existing Fabric capabilities?",
+            "score_full_xp": "Every enforcement field names a concrete Fabric feature (Purview DLP policy, deployment pipeline gate, workspace role template, REST API automation, OneLake security rule, etc.).",
+            "score_partial_xp": "Most enforcement fields are concrete; one or two say 'platform team will review' without a specific mechanism.",
+            "score_zero_xp": "Enforcement fields are predominantly manual review or aspirational ('we will put a process in place')."
+          },
+          {
+            "id": "consistency_with_audit",
+            "xp": 15,
+            "weight_percent": 23.0,
+            "description": "Do the three gaps map to the three Chapter 1 risks?",
+            "score_full_xp": "Each of the three gaps corresponds clearly to one of Chapter 1's three risks. Gap 1 maps to Risk #1, Gap 2 to Risk #2 (or similar rotation), and the policy addition explicitly addresses the risk mechanism.",
+            "score_partial_xp": "Two of three gaps map to Chapter 1 risks.",
+            "score_zero_xp": "The gaps appear to come from a different audit than Chapter 1 — no thematic overlap with the ranked risks."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Senior governance is about making the implicit explicit and the manual automatic. Read the existing policy looking for sentences that assume a single country, a single compliance team, or a hallway conversation. Each of those assumptions is a gap at 6-country scale. The strongest policy additions have enforcement that is a Fabric feature, not a meeting."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "The existing policy has three sections that are visibly inadequate for the post-acquisition scale. §2 assumes one shared Purview taxonomy works for all countries — Austrian and Lithuanian regulators disagree. §3 relies on 48-hour Slack notifications — the incident history shows this is already failing at 4 countries. §4 has no country-level capacity allocation — 6 countries sharing 4 capacities cannot operate on implicit fair-share. Sections §5 and §6 are adequate-if-dated; they are not the strongest gap candidates."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Match each gap to a Fabric-native enforcement mechanism. For §2 (data classification): Purview DLP policies with country-scoped inheritance, applied via the Fabric REST API and reconciled nightly. For §3 (schema changes): an automated impact analysis tool that runs against the schema registry and Fabric's lineage view, called from the producer's deployment pipeline as a required gate — consumer notifications fire from the tool's output. For §4 (capacity): country-level CU budget definitions stored in a Lakehouse table, consumed by a nightly reconciliation notebook that compares actual vs budgeted per country and alerts when drift exceeds tolerance. Each is deployable in weeks, not months."
+        }
+      ],
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Current Governance Policy v1.3 (Key Sections)",
+          "content": "§2 Data Classification\nPurview auto-labeling applies sensitivity labels (Public, Internal, Confidential, Restricted) to all tables. Labels are tenant-wide with no country-specific scope. Gap: LT (VERT-LT) and AT (E-Control) regulatory data requires country-scoped classification rules that the current policy does not define.\n\n§3 Schema Changes\nSchema changes require a PR reviewed by the owning team. The policy does not mandate impact analysis across country boundaries. Gap: a schema change in a DE table consumed by FR and NL pipelines has no automated cross-country impact check.\n\n§4 Capacity and Cost\nCapacity is allocated per-SKU by the platform team. There is no budget authority or reallocation process across capacities. Gap: when a new country joins and needs capacity, there is no defined process to reallocate or provision."
+        }
+      ]
+    },
+    {
+      "id": "chapter_5",
+      "title": "The CTO Deck",
+      "unlock_condition": {
+        "after_chapter": 4
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": null,
+        "uses_variable": "all_journal_entries",
+        "fallback_dataset": null,
+        "fallback_note": "The CTO deck is the synthesis chapter. Its template fields pre-populate from the design journal entries written by Chapters 1–4. Missing entries (from incomplete earlier chapters) show [missing] placeholders; the rubric grades what the student writes but cannot score the consistency criterion without a source to compare."
+      },
+      "chapter_type": "template",
+      "base_xp": 140,
+      "modules_primary": [
+        1,
+        8,
+        9,
+        10
+      ],
+      "modules_secondary": [
+        5
+      ],
+      "narrative_context": "Day 90. Pete's calendar has a 30-minute slot on his Thursday — your window. You have the CTO deck template open, pre-populated from your design journal: the three risks from Chapter 1, the architecture choice from Chapter 2, the migration waves from Chapter 3, the governance gaps from Chapter 4. You are not rebuilding the decision. You are condensing it into a brief that Pete can sign off on and send to the board.",
+      "task": "Review the five sections of the CTO deck. Each section tests whether you can identify the correct synthesis of your earlier decisions. For each section, select the statement that is most consistent with the design journal entries from Chapters 1–4. The rubric evaluates internal consistency: picking a statement that contradicts an earlier chapter's decision loses significant XP.",
+      "validation_hint": "Before submitting, open the design journal panel on the right and read it top to bottom. Every claim in the Situation section should map to a je_risk_* entry; every claim in Options Considered and Recommendation should map to je_chosen_option and je_criteria_justification; Timeline maps to je_wave_*_pipelines; Risks maps to je_risk_ranking and je_policy_gap_*. If you need to change a decision, say so explicitly — 'on reflection, I am revising the recommendation because...'.",
+      "grading": {
+        "type": "rubric",
+        "method": "synthesis_rubric",
+        "xp_total": 140,
+        "template_fields": [
+          {
+            "id": "section_situation",
+            "xp": 28,
+            "prompt": "Situation. Which framing best reflects the three risks from your Chapter 1 audit?",
+            "input_type": "single_select",
+            "options": [
+              "GridUnion is acquiring SauleGrid (LT) and HydroAlpes (AT), closing 1 July. The platform audit identified three critical risks: F32 streaming capacity saturation within 3 months, schema contract fragmentation from two new regulatory columns, and workspace naming convention collapse at ~113 workspaces. The 90-day window starts now.",
+              "GridUnion is expanding into Lithuania and Austria. The main risk is capacity cost — the current F128 and F64 SKUs are expensive and the new countries will double the bill. Schema and workspace concerns are secondary.",
+              "The acquisition adds 2 new countries and ~35 new workspaces. The primary concern is that OneLake cross-region latency will degrade query performance for Austrian data pinned to EU-Central. Streaming and schema risks are manageable.",
+              "GridUnion needs to onboard SauleGrid and HydroAlpes within 90 days. The governance committee throughput is the bottleneck — they can only process 8 contracts per quarter. All other risks are downstream of this constraint."
+            ],
+            "correct_answer": "GridUnion is acquiring SauleGrid (LT) and HydroAlpes (AT), closing 1 July. The platform audit identified three critical risks: F32 streaming capacity saturation within 3 months, schema contract fragmentation from two new regulatory columns, and workspace naming convention collapse at ~113 workspaces. The 90-day window starts now.",
+            "failure_message": "The Situation must cite the three Chapter 1 risks (streaming capacity, schema fragmentation, workspace naming) — not distractors like latency or governance throughput."
+          },
+          {
+            "id": "section_options_considered",
+            "xp": 28,
+            "prompt": "Options Considered. Which summary correctly describes the three architectural options?",
+            "input_type": "single_select",
+            "options": [
+              "Option A (tenant-per-country) offers full regulatory isolation but slower onboarding and higher cost. Option B (unified single-tenant) offers fastest onboarding and lowest cost but requires workspace namespace revision and new security rules. Option C (hub-and-spoke) balances isolation and efficiency but adds OneLake shortcut complexity. We recommend the option selected in Chapter 2.",
+              "Option A rebuilds the platform from scratch for each country. Option B keeps everything on one tenant with no changes. Option C is a hybrid that uses Databricks for cross-country queries. We recommend Option B because it is cheapest.",
+              "All three options are equivalent in cost and speed. The choice depends entirely on the CTO's preference for centralised vs. decentralised governance. We recommend deferring the decision until after acquisition closing.",
+              "Option A uses Azure Synapse instead of Fabric. Option B migrates everything to Snowflake. Option C keeps Fabric but adds a Kafka layer. We recommend Option C for its streaming capabilities."
+            ],
+            "correct_answer": "Option A (tenant-per-country) offers full regulatory isolation but slower onboarding and higher cost. Option B (unified single-tenant) offers fastest onboarding and lowest cost but requires workspace namespace revision and new security rules. Option C (hub-and-spoke) balances isolation and efficiency but adds OneLake shortcut complexity. We recommend the option selected in Chapter 2.",
+            "failure_message": "The summary must accurately describe all three Fabric architecture options (tenant-per-country, unified single-tenant, hub-and-spoke) and name the Chapter 2 recommendation."
+          },
+          {
+            "id": "section_recommendation",
+            "xp": 28,
+            "prompt": "Recommendation. Which statement best restates the Chapter 2 choice with its justifications and trade-offs?",
+            "input_type": "single_select",
+            "options": [
+              "We recommend the architecture selected in Chapter 2, justified against all four criteria (regulatory isolation, onboarding speed, capacity cost, team autonomy) with evidence from the audit. We explicitly accept the two trade-offs identified in Chapter 2 because the benefits outweigh them for GridUnion's 90-day timeline.",
+              "We recommend rebuilding the entire platform on a new Fabric tenant, discarding the existing 4-country setup. The migration cost is high but eliminates all legacy technical debt.",
+              "We recommend deferring the architecture decision until Q3 2026 to gather more data on the actual workload from SauleGrid and HydroAlpes. The 90-day window is artificial.",
+              "We recommend Option A regardless of the Chapter 2 analysis because tenant isolation is always the safest choice for regulatory compliance."
+            ],
+            "correct_answer": "We recommend the architecture selected in Chapter 2, justified against all four criteria (regulatory isolation, onboarding speed, capacity cost, team autonomy) with evidence from the audit. We explicitly accept the two trade-offs identified in Chapter 2 because the benefits outweigh them for GridUnion's 90-day timeline.",
+            "failure_message": "The recommendation must be consistent with Chapter 2 — cite the four criteria, reference audit evidence, and acknowledge accepted trade-offs."
+          },
+          {
+            "id": "section_timeline",
+            "xp": 28,
+            "prompt": "Timeline. Which wave description is consistent with your Chapter 3 migration plan?",
+            "input_type": "single_select",
+            "options": [
+              "Wave 1 (Days 1–30): streaming pipelines and critical gold-SLA pipelines to address capacity risk first. Wave 2 (Days 31–60): remaining silver-SLA pipelines and schema migration for new countries. Wave 3 (Days 61–90): low-SLA bronze pipelines, cleanup, and decommissioning of deprecated pipelines.",
+              "Wave 1: all 80 pipelines migrated simultaneously in a big-bang cutover on Day 1. Wave 2: validation and testing. Wave 3: documentation.",
+              "Wave 1: only SauleGrid pipelines. Wave 2: only HydroAlpes pipelines. Wave 3: no changes to existing country pipelines.",
+              "Wave 1: analytics and reporting pipelines first (lowest risk). Wave 2: streaming pipelines. Wave 3: bronze ingestion. Risk increases each wave."
+            ],
+            "correct_answer": "Wave 1 (Days 1–30): streaming pipelines and critical gold-SLA pipelines to address capacity risk first. Wave 2 (Days 31–60): remaining silver-SLA pipelines and schema migration for new countries. Wave 3 (Days 61–90): low-SLA bronze pipelines, cleanup, and decommissioning of deprecated pipelines.",
+            "failure_message": "The timeline must reflect Chapter 3 wave composition: streaming+gold first, then silver-SLA bulk, then low-SLA cleanup."
+          },
+          {
+            "id": "section_risks",
+            "xp": 28,
+            "prompt": "Risks. Which residual risk summary is consistent with Chapters 1 and 4?",
+            "input_type": "single_select",
+            "options": [
+              "Top residual risk: the Chapter 1 #1-ranked risk remains active until Wave 1 completes. Three governance gaps identified in Chapter 4 require active mitigation: country-scoped data classification, cross-country schema impact analysis, and capacity budget authority. Each gap has a defined scope, trigger, enforcement mechanism, and owner.",
+              "No residual risks. The architecture decision and migration plan eliminate all risks identified in the audit. The governance policy is comprehensive.",
+              "The only residual risk is budget overrun. All technical risks were resolved in Chapters 2–4. The governance policy needs no changes.",
+              "Residual risks: OneLake latency for Austrian queries, governance committee throughput, and Purview auto-labeling accuracy. These were not addressed in Chapters 1–4."
+            ],
+            "correct_answer": "Top residual risk: the Chapter 1 #1-ranked risk remains active until Wave 1 completes. Three governance gaps identified in Chapter 4 require active mitigation: country-scoped data classification, cross-country schema impact analysis, and capacity budget authority. Each gap has a defined scope, trigger, enforcement mechanism, and owner.",
+            "failure_message": "The risks section must reference the Chapter 1 top-ranked risk and the three Chapter 4 governance gaps — not distractors."
+          }
+        ],
+        "rubric_criteria": [
+          {
+            "id": "situation_consistency",
+            "xp": 28,
+            "weight_percent": 20.0,
+            "description": "Does the Situation section cite the three Chapter 1 risks without fabrication?",
+            "score_full_xp": "All three Chapter 1 risks appear in the Situation section (directly or paraphrased). No new risks are introduced.",
+            "score_partial_xp": "Two of three risks present, or one risk is paraphrased beyond recognition.",
+            "score_zero_xp": "Situation introduces risks that were not in Chapter 1 or omits the #1-ranked risk."
+          },
+          {
+            "id": "recommendation_consistency",
+            "xp": 32,
+            "weight_percent": 22.9,
+            "description": "Does the Recommendation match the Chapter 2 choice and justifications?",
+            "score_full_xp": "Recommendation names the same option as je_chosen_option. Justifications are faithful to the four criteria answers from Chapter 2. Both trade-offs are present.",
+            "score_partial_xp": "Option matches but one justification drifts or one trade-off is dropped.",
+            "score_zero_xp": "Recommendation names a different option than Chapter 2 without acknowledging the change, OR both trade-offs are dropped, OR no justifications are evidence-backed."
+          },
+          {
+            "id": "timeline_consistency",
+            "xp": 28,
+            "weight_percent": 20.0,
+            "description": "Does the Timeline reflect the Chapter 3 wave composition?",
+            "score_full_xp": "All three waves described. Wave 1's scope is characterised accurately (streaming + highest-impact gold-SLA pipelines). Wave 3's scope is characterised as low-impact deferrals.",
+            "score_partial_xp": "Two waves described accurately; one wave summarised in ways that do not match its composition.",
+            "score_zero_xp": "Timeline summarises a plan different from Chapter 3, or skips a wave entirely."
+          },
+          {
+            "id": "risks_consistency",
+            "xp": 28,
+            "weight_percent": 20.0,
+            "description": "Does the Risks section reflect the Chapter 1 top-ranked risk and the Chapter 4 policy gaps?",
+            "score_full_xp": "#1-ranked risk called out explicitly as the residual risk most likely to bite during the 90-day window. The three governance gaps are present as residual risks with the mitigations from Chapter 4 policy additions.",
+            "score_partial_xp": "#1-ranked risk present; only two of three governance gaps carried forward.",
+            "score_zero_xp": "Risks section is generic ('regulatory risk, capacity risk, schedule risk') without citing specific Chapter 1 or Chapter 4 outputs."
+          },
+          {
+            "id": "executive_voice",
+            "xp": 24,
+            "weight_percent": 17.1,
+            "description": "Is the deck written in executive-appropriate language — decisions, not implementation details?",
+            "score_full_xp": "Every section reads as a decision or a commitment, not a technical explanation. No Fabric-product-name lists. No filenames. Numbers are scale numbers (countries, meters, workspaces), not row counts in evidence files.",
+            "score_partial_xp": "Most sections are executive-appropriate; one drifts into engineering detail.",
+            "score_zero_xp": "Deck reads like a technical design document with Fabric feature names, evidence-file references, and implementation steps."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "A CTO deck is a synthesis, not a summary. The journal entries contain every factual claim you need; your job is to condense and reframe for an audience that reads for 8 minutes. The rubric penalises inconsistency with the journal more heavily than it penalises any other failure — if you disagree with your earlier chapter, say so explicitly rather than silently changing the story."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "The five sections have hard bindings to specific journal entries. Situation binds to je_risk_1/2/3. Recommendation binds to je_chosen_option, je_criteria_justification, je_accepted_tradeoffs. Timeline binds to je_wave_1/2/3_pipelines. Risks binds to je_risk_ranking and je_policy_gap_1/2/3. Check each section against its bindings in the design journal panel before submitting."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Three common ways to lose rubric XP. First: the Recommendation switches from je_chosen_option to a different option without the phrase 'on reflection'. Second: the Timeline enumerates specific pipeline_id values rather than characterising the wave's intent ('Wave 1 handles the streaming capacity repositioning' is executive language; 'Wave 1 includes pl_de_022, pl_fr_011...' is engineering language). Third: the Risks section restates the risks in generic terms rather than naming the #1-ranked risk from Chapter 1."
+        }
+      ],
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Design Journal Summary",
+          "content": "Ch1 Risks: (A) F32 streaming capacity saturation, (B) schema contract fragmentation, (C) workspace naming collapse.\n\nCh2 Architecture: Three options evaluated — tenant-per-country, unified single-tenant, hub-and-spoke. Choice justified against regulatory isolation, onboarding speed, capacity cost, team autonomy. Two trade-offs accepted.\n\nCh3 Migration: Three waves over 90 days. Wave 1 addressed highest-risk pipelines first.\n\nCh4 Governance: Three gaps in §2 Data Classification, §3 Schema Changes, §4 Capacity and Cost. Each with scope, trigger, enforcement, owner."
+        }
+      ]
+    }
+  ],
+  "authoring_metadata": {
+    "authored_by": "StableGrid content team",
+    "authored_date": "2026-04-19",
+    "version_notes": "v1.0.0 — initial release of the Microsoft Fabric Senior-Level project capstone.",
+    "reference_project": "The Expansion Decision (Project Creation Rules §7.2), adapted to Fabric: GridUnion Continental acquires two new country operators (SauleGrid-LT, HydroAlpes-AT) and must onboard both onto its existing Fabric tenant within 90 days without rebuilding what the 4-country platform runs in production.",
+    "self_check_passed": true,
+    "self_check_notes": [
+      "§7.4 — H4 authored only for Chapter 1 (exact-match template). Chapters 2, 3, 4, 5 have exactly 3 hints (H1, H2, H3); no H4.",
+      "§7.5 — Grading split: Ch1 exact-match (7 fields × 20 = 140); Ch2 rubric (4 criteria, 40+35+35+30 = 140); Ch3 rubric (4 criteria, 40+30+30+40 = 140); Ch4 combined template+rubric (80 + 60 = 140); Ch5 synthesis rubric (5 criteria, 28+32+28+28+24 = 140). Sum = 700 XP.",
+      "§4.2 — Senior hint costs (H1 0 / H2 6 / H3 12 / H4 24 — cap -35) applied; Ch1 can incur all four, Chapters 2–5 can incur up to H3.",
+      "§11.3 — Every design-artifact chapter has a documented acceptable answer range in its rubric block.",
+      "§11.3 — The design journal pre-populates Chapter 5 meaningfully: four of the five CTO deck sections bind to Chapter 1–4 journal entries (Situation→risks, Recommendation→option+justification+tradeoffs, Timeline→waves, Risks→ranking+gaps).",
+      "§11.3 — Rubric evaluates internal consistency, not option matching. Each of Chapters 2–5 states explicitly that multiple defensible answers exist and that the rubric rewards reasoning quality.",
+      "§11.3 — Chapter 1 evidence supports all three risk selections simultaneously: capacity_metrics + incident_history for Risk A, table_catalog + incident_history for Risk B, workspace_inventory + incident_history for Risk C. Each correct selection is triangulable across at least two files.",
+      "§11.3 — Senior scale operated in briefing and evidence: 6 countries, 7M meters, 17 teams, ~113 workspaces — exceeds the §11.3 baseline of 3.2M/3 countries/8 teams for the generic senior project. Fabric Senior uses GridUnion Continental as its scenario baseline.",
+      "§2.5 — Coverage matrix maps FS1–FS10: FS1 platform architecture (Ch1/Ch2/Ch5); FS2 Catalyst/AQE internals (Ch1/Ch3); FS3 partition strategy (Ch1/Ch3); FS4 advanced joins (Ch1/Ch3); FS5 schema registries (Ch1/Ch4/Ch5); FS6 Spark execution engine (Ch1/Ch3); FS7 storage/IO (Ch1/Ch3); FS8 multi-tenant security (Ch2/Ch4/Ch5); FS9 advanced streaming (Ch1/Ch3/Ch5); FS10 enterprise governance and capacity planning (Ch1/Ch2/Ch4/Ch5). Every module is meaningfully tested in at least one chapter.",
+      "§9.1 — Dataset sizes within 50–200-row band: pipeline_inventory 80, workspace_inventory 78, table_catalog 128, capacity_metrics 24, incident_history 24, plus three narrative evidence files."
+    ]
+  }
+}

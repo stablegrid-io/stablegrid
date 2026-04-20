@@ -24,12 +24,12 @@ export const navItems: NavItem[] = [
     label: 'Learn',
     matchPrefixes: ['/theory', '/learn']
   },
-  {
-    href: '/cheat-sheets',
-    icon: Braces,
-    label: 'Cheat Sheets',
-    matchPrefixes: ['/cheat-sheets']
-  },
+  // {
+  //   href: '/cheat-sheets',
+  //   icon: Braces,
+  //   label: 'Cheat Sheets',
+  //   matchPrefixes: ['/cheat-sheets']
+  // },
   {
     href: '/progress',
     icon: TrendingUp,

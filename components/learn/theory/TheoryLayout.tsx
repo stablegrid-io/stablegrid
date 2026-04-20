@@ -25,6 +25,8 @@ import { TheorySidebar } from '@/components/learn/theory/TheorySidebar';
 import { TheoryContent } from '@/components/learn/theory/TheoryContent';
 import { TheorySessionTopbar } from '@/components/learn/theory/TheorySessionTopbar';
 import { LessonCompletionToast } from '@/components/learn/theory/LessonCompletionToast';
+import { KWhRewardToast, type KWhReward } from '@/components/learn/theory/KWhRewardToast';
+import { getLessonRewardKWh, getModuleCompleteBonus, getTrackCompleteBonus } from '@/lib/energy';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 
 const TheorySessionPicker = dynamic(
@@ -308,11 +310,19 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const [sessionPickerVisible, setSessionPickerVisible] = useState(false);
   const [progressIssue, setProgressIssue] = useState<ProgressIssueState | null>(null);
   const [progressReloadToken, setProgressReloadToken] = useState(0);
+  const [activeReward, setActiveReward] = useState<KWhReward | null>(null);
+  const rewardedLessonsRef = useRef<Set<string>>(new Set());
   const lastTouchedRouteRef = useRef<string>('');
   const syncFailCountRef = useRef(0);
   const lastTrackedChapterStartRef = useRef<string | null>(null);
   const sessionPickerInitializedRef = useRef(false);
   const addXP = useProgressStore((state) => state.addXP);
+
+  // Extract track level from URL (e.g. /learn/pyspark/theory/junior)
+  const trackLevel = useMemo(() => {
+    const m = pathname.match(/\/theory\/(\w+)/);
+    return m?.[1]?.toLowerCase() ?? 'junior';
+  }, [pathname]);
   const { methodConfigs: sessionMethodConfigs, hasHydrated: sessionDefaultsHydrated } =
     useTheorySessionPreferencesStore((state) => ({
       methodConfigs: state.methodConfigs,
@@ -512,12 +522,67 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       lastVisitedRoute: persistedRoute,
       onChapterComplete: handleChapterComplete,
       onChapterIncomplete: handleChapterIncomplete,
-      onFirstCompletionEnergyUnits: (units) =>
-        addXP(units, {
-          source: 'chapter-complete',
-          ...(completionRewardTopic ? { topic: completionRewardTopic } : {}),
-          label: `Completed ${activeChapter.title}`
-        })
+      onFirstCompletionEnergyUnits: (units) => {
+        // Module complete bonus
+        const bonus = getModuleCompleteBonus(trackLevel);
+        if (bonus > 0) {
+          addXP(bonus, {
+            source: 'chapter-complete',
+            ...(completionRewardTopic ? { topic: completionRewardTopic } : {}),
+            label: `Completed ${activeChapter.title}`
+          });
+          setActiveReward({
+            id: `module-${activeChapter.id}-${Date.now()}`,
+            tier: 'module',
+            kwh: bonus,
+            label: activeChapter.title,
+            trackLevel,
+          });
+        }
+
+        // Check track completion (all 10 modules)
+        const allModuleIds = doc.chapters.map((ch) => ch.id);
+        const willBeComplete = new Set([...completedChapterIds, activeChapter.id]);
+        if (allModuleIds.length > 0 && allModuleIds.every((id) => willBeComplete.has(id))) {
+          const trackBonus = getTrackCompleteBonus(trackLevel);
+          if (trackBonus > 0) {
+            setTimeout(() => {
+              addXP(trackBonus, {
+                source: 'track-complete',
+                ...(completionRewardTopic ? { topic: completionRewardTopic } : {}),
+                label: `All ${trackLevel} modules complete`
+              });
+              setActiveReward({
+                id: `track-${trackLevel}-${Date.now()}`,
+                tier: 'track',
+                kwh: trackBonus,
+                label: `All ${allModuleIds.length} ${trackLevel} modules complete`,
+                trackLevel,
+              });
+            }, 5500); // Show after module toast dismisses
+          }
+        }
+      },
+      onLessonRead: (lessonId) => {
+        // Lesson read reward — only once per lesson per session
+        if (rewardedLessonsRef.current.has(lessonId)) return;
+        rewardedLessonsRef.current.add(lessonId);
+        const reward = getLessonRewardKWh(trackLevel);
+        if (reward > 0) {
+          addXP(reward, {
+            source: 'lesson-read',
+            ...(completionRewardTopic ? { topic: completionRewardTopic } : {}),
+            label: `Read lesson`
+          });
+          setActiveReward({
+            id: `lesson-${lessonId}-${Date.now()}`,
+            tier: 'lesson',
+            kwh: reward,
+            label: 'Lesson complete',
+            trackLevel,
+          });
+        }
+      },
     });
 
   useEffect(() => {
@@ -1241,6 +1306,9 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           />
         ) : null}
       </AnimatePresence>
+
+      {/* kWh reward toast */}
+      <KWhRewardToast reward={activeReward} onDismiss={() => setActiveReward(null)} />
     </div>
   );
 };

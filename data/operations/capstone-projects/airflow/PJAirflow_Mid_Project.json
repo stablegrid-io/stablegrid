@@ -1,0 +1,982 @@
+{
+  "id": "PJ_Airflow_Mid",
+  "version": "1.0.0",
+  "track": "Apache Airflow",
+  "level": "Mid",
+  "scenario": "SaulėGrid",
+  "total_xp": 600,
+  "narrative_premise": "Monday 07:15 Europe/Vilnius. PagerDuty fires on your phone: SaulėGrid's 06:00 VERT regulatory submission has not been filed. You open the submission bucket — the last vert_extract file is dated 2026-03-22, eight days ago. The Silver pipeline shows no runs since Friday. But the Bronze pipeline has green checkmarks every morning of those eight days. The scheduler is healthy. Credentials authenticated overnight. Nothing failed. Nothing alerted. Friday was the 'modernization sprint' — Rokas led the team through migrating the Bronze → Silver → Gold chain from cron-based scheduling to Airflow Datasets. He flew to Porto Saturday morning for two weeks of PTO and is unreachable. VERT's compliance desk opens at 09:00 and will issue a €50K fine on three consecutive late submissions — you are on number three. Your manager messages: 'I need to know what happened, why it happened, a fix deployed, a prevention in place, and a post-mortem shared with the data org by end of day. You have all morning.' You have access to the DAG files, the scheduler logs, the connection audit trail, and the Git history from Friday's sprint. Start with the evidence.",
+  "ux": {
+    "persistent_element": "incident_timeline",
+    "timeline_fields": [
+      {
+        "id": "tl_1",
+        "label": "First failure point identified",
+        "populated_by": "chapter_1"
+      },
+      {
+        "id": "tl_2",
+        "label": "Root cause confirmed",
+        "populated_by": "chapter_2"
+      },
+      {
+        "id": "tl_3",
+        "label": "Fix implemented and verified",
+        "populated_by": "chapter_3"
+      },
+      {
+        "id": "tl_4",
+        "label": "Prevention deployed",
+        "populated_by": "chapter_4"
+      },
+      {
+        "id": "tl_5",
+        "label": "Post-mortem filed",
+        "populated_by": "chapter_5"
+      }
+    ],
+    "score_card": {
+      "thresholds": {
+        "distinguished": 570,
+        "proficient": 480,
+        "developing": 360
+      },
+      "labels": {
+        "distinguished": "Clean incident response. You read the evidence, isolated the cause, shipped the fix, and wrote a prevention test with minimal scaffolding. You are ready for senior-level architecture work.",
+        "proficient": "Solid mid-level instincts. One or two chapters needed coaching — check which hint tiers you used and revisit the corresponding modules before the senior-level track.",
+        "developing": "Core concepts present but the diagnosis-to-fix chain is uneven. Review the chapters with the lowest scores.",
+        "incomplete": "The mid-level track content should be reviewed before proceeding. The chapter breakdown identifies which modules need the most attention."
+      }
+    }
+  },
+  "coverage_matrix": {
+    "1": [
+      "chapter_1",
+      "chapter_2",
+      "chapter_3",
+      "chapter_4"
+    ],
+    "2": [
+      "chapter_3",
+      "chapter_4"
+    ],
+    "3": [
+      "chapter_3",
+      "chapter_4",
+      "chapter_5"
+    ],
+    "4": [
+      "chapter_1"
+    ],
+    "5": [
+      "chapter_2"
+    ],
+    "6": [
+      "chapter_4"
+    ],
+    "7": [
+      "chapter_5"
+    ],
+    "8": [
+      "chapter_2"
+    ],
+    "9": [
+      "chapter_1"
+    ],
+    "10": [
+      "chapter_5"
+    ]
+  },
+  "datasets": [
+    {
+      "name": "scaffold_chapter_3.py",
+      "path": "PJAirflow_Mid_data/scaffold_chapter_3.py",
+      "row_count": 0,
+      "description": "Current production Bronze DAG — the producer missing outlets. Student edits in place to add the Dataset outlet and remove the redundant TriggerDagRunOperator."
+    },
+    {
+      "name": "reference_chapter_3.py",
+      "path": "PJAirflow_Mid_data/reference_chapter_3.py",
+      "row_count": 0,
+      "description": "Reference completion for Chapter 3 — correctly emits SILVER_DATASET. Fallback for Chapter 4."
+    },
+    {
+      "name": "scaffold_chapter_4.py",
+      "path": "PJAirflow_Mid_data/scaffold_chapter_4.py",
+      "row_count": 0,
+      "description": "Chapter 4 starter — empty find_orphaned_consumers(dag_bag) function signature. Student implements the body."
+    },
+    {
+      "name": "reference_chapter_4.py",
+      "path": "PJAirflow_Mid_data/reference_chapter_4.py",
+      "row_count": 0,
+      "description": "Reference completion for Chapter 4 — correct find_orphaned_consumers implementation."
+    },
+    {
+      "name": "ref_silver_consumer_dag.py",
+      "path": "PJAirflow_Mid_data/ref_silver_consumer_dag.py",
+      "row_count": 0,
+      "description": "Read-only reference. The Silver DAG as migrated Friday. schedule=[Dataset('saulegrid://bronze/meters')]. Student views but does not edit."
+    },
+    {
+      "name": "ref_gold_consumer_dag.py",
+      "path": "PJAirflow_Mid_data/ref_gold_consumer_dag.py",
+      "row_count": 0,
+      "description": "Read-only reference. The Gold DAG as migrated Friday. schedule=[Dataset('saulegrid://silver/meters')]. Student views but does not edit."
+    },
+    {
+      "name": "test_fixture_valid_dagbag.py",
+      "path": "PJAirflow_Mid_data/test_fixture_valid_dagbag.py",
+      "row_count": 0,
+      "description": "Test fixture for the Chapter 4 assertion harness — a correctly linked DagBag. Student's function must return [] when given this."
+    },
+    {
+      "name": "test_fixture_broken_dagbag.py",
+      "path": "PJAirflow_Mid_data/test_fixture_broken_dagbag.py",
+      "row_count": 0,
+      "description": "Test fixture for the Chapter 4 assertion harness — a DagBag where fixture_silver's Dataset has no producer. Student's function must return ['fixture_silver']. Also contains a cron-scheduled DAG that must NOT be flagged."
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "title": "Read the Evidence",
+      "unlock_condition": null,
+      "chapter_type": "template",
+      "base_xp": 120,
+      "modules_primary": [
+        1,
+        4,
+        9
+      ],
+      "modules_secondary": [],
+      "inter_chapter_dependency": null,
+      "narrative_context": "You open Grafana. The scheduler heartbeat is green, metadata DB queries are under 10ms, executor slots are idle. Airflow is healthy — it just is not doing anything with SaulėGrid's pipeline. Before you look at any code, establish the shape of the incident: which DAG stopped running, at what layer the chain broke, how long it has been broken, and how many VERT rows are now missing.",
+      "task": "Examine the four evidence panels below. Fill in the four diagnostic fields: which DAG did NOT run, which layer of the Bronze-Silver-Gold chain the failure sits at, how many consecutive run dates are affected, and the estimated missed VERT-shaped rows at SaulėGrid's full production scale.",
+      "validation_hint": "The Bronze run log shows green runs every day through Monday. The Silver run log stops at 2026-03-22. That is 8 consecutive expected Silver runs that never fired (2026-03-23 through 2026-03-30). SaulėGrid at mid-level scale processes 1,200,000 meter readings per day; 8 days × 1,200,000 = 9,600,000 missed rows.",
+      "evidence": [
+        {
+          "id": "ev_1_1",
+          "type": "table",
+          "title": "Bronze DAG run log — last 10 days",
+          "caption": "saulegrid_bronze_meters execution history. status = exit code.",
+          "headers": [
+            "run_date",
+            "duration_s",
+            "rows_ingested",
+            "status"
+          ],
+          "rows": [
+            [
+              "2026-03-21",
+              "186",
+              "1200000",
+              "SUCCESS"
+            ],
+            [
+              "2026-03-22",
+              "192",
+              "1200000",
+              "SUCCESS"
+            ],
+            [
+              "2026-03-23",
+              "188",
+              "1200000",
+              "SUCCESS"
+            ],
+            [
+              "2026-03-24",
+              "195",
+              "1200000",
+              "SUCCESS"
+            ],
+            [
+              "2026-03-25",
+              "184",
+              "1200000",
+              "SUCCESS"
+            ],
+            [
+              "2026-03-26",
+              "191",
+              "1200000",
+              "SUCCESS"
+            ],
+            [
+              "2026-03-27",
+              "189",
+              "1200000",
+              "SUCCESS"
+            ],
+            [
+              "2026-03-28",
+              "193",
+              "1200000",
+              "SUCCESS"
+            ],
+            [
+              "2026-03-29",
+              "187",
+              "1200000",
+              "SUCCESS"
+            ],
+            [
+              "2026-03-30",
+              "190",
+              "1200000",
+              "SUCCESS"
+            ]
+          ]
+        },
+        {
+          "id": "ev_1_2",
+          "type": "table",
+          "title": "Silver DAG run log — last 10 days",
+          "caption": "saulegrid_silver_transform execution history. Row is empty if no run happened that date.",
+          "headers": [
+            "run_date",
+            "duration_s",
+            "rows_written",
+            "status"
+          ],
+          "rows": [
+            [
+              "2026-03-21",
+              "310",
+              "1200000",
+              "SUCCESS"
+            ],
+            [
+              "2026-03-22",
+              "318",
+              "1200000",
+              "SUCCESS"
+            ],
+            [
+              "2026-03-23",
+              "",
+              "",
+              "(no run)"
+            ],
+            [
+              "2026-03-24",
+              "",
+              "",
+              "(no run)"
+            ],
+            [
+              "2026-03-25",
+              "",
+              "",
+              "(no run)"
+            ],
+            [
+              "2026-03-26",
+              "",
+              "",
+              "(no run)"
+            ],
+            [
+              "2026-03-27",
+              "",
+              "",
+              "(no run)"
+            ],
+            [
+              "2026-03-28",
+              "",
+              "",
+              "(no run)"
+            ],
+            [
+              "2026-03-29",
+              "",
+              "",
+              "(no run)"
+            ],
+            [
+              "2026-03-30",
+              "",
+              "",
+              "(no run)"
+            ]
+          ]
+        },
+        {
+          "id": "ev_1_3",
+          "type": "log_excerpt",
+          "title": "Scheduler health — last 24h",
+          "caption": "Airflow scheduler metrics pulled from the metadata DB.",
+          "content": "scheduler_heartbeat_recent_seconds: 4\ndag_processing_manager_last_runtime_seconds: 2.1\nexecutor_open_slots: 192/192\nmetadata_db_connection_pool: 8/20 in use\nrecent_parse_errors: 0\ndags_with_import_errors: 0"
+        },
+        {
+          "id": "ev_1_4",
+          "type": "log_excerpt",
+          "title": "Connection audit — sftp_saulegrid_meters",
+          "caption": "Last 10 authentication events.",
+          "content": "2026-03-30 01:00:03 AUTH_SUCCESS ssh_saulegrid_meters\n2026-03-29 01:00:04 AUTH_SUCCESS ssh_saulegrid_meters\n2026-03-28 01:00:02 AUTH_SUCCESS ssh_saulegrid_meters\n2026-03-27 01:00:05 AUTH_SUCCESS ssh_saulegrid_meters\n2026-03-26 01:00:03 AUTH_SUCCESS ssh_saulegrid_meters\n(all prior entries SUCCESS)"
+        }
+      ],
+      "grading": {
+        "type": "template",
+        "xp_per_unit_default": 30,
+        "template_fields": [
+          {
+            "id": "F1_1",
+            "xp": 30,
+            "label": "Which DAG did NOT run during the affected window?",
+            "field_type": "single_select",
+            "options": [
+              "saulegrid_bronze_meters",
+              "saulegrid_silver_transform",
+              "saulegrid_gold_aggregate",
+              "All three DAGs failed to run"
+            ],
+            "correct_answer": "saulegrid_silver_transform",
+            "failure_message": "Check ev_1_2 (Silver run log). Silver has no runs from 2026-03-23 onward. Bronze (ev_1_1) ran successfully every day."
+          },
+          {
+            "id": "F1_2",
+            "xp": 30,
+            "label": "At what layer of Bronze → Silver → Gold did the chain break?",
+            "field_type": "single_select",
+            "options": [
+              "Bronze ingestion — the SFTP pull is silently dropping data",
+              "Between Bronze and Silver — Silver is never triggered",
+              "Silver transform — the transform is succeeding with empty output",
+              "Between Silver and Gold — Gold is not finding Silver's Parquet files"
+            ],
+            "correct_answer": "Between Bronze and Silver — Silver is never triggered",
+            "failure_message": "Bronze succeeded (ev_1_1). Silver never started (ev_1_2). The break is between them — something that should signal Silver to run is not happening."
+          },
+          {
+            "id": "F1_3",
+            "xp": 30,
+            "label": "How many consecutive dates should have produced a Silver run but did not?",
+            "field_type": "single_select",
+            "options": [
+              "5 dates",
+              "6 dates",
+              "8 dates",
+              "10 dates"
+            ],
+            "correct_answer": "8 dates",
+            "failure_message": "ev_1_2 shows (no run) rows from 2026-03-23 through 2026-03-30 inclusive. Count the (no run) entries: that is 8."
+          },
+          {
+            "id": "F1_4",
+            "xp": 30,
+            "label": "Estimated missed VERT-eligible rows at SaulėGrid's production scale (1.2M/day)",
+            "field_type": "single_select",
+            "options": [
+              "1,200,000 rows (one day)",
+              "6,000,000 rows (five days)",
+              "9,600,000 rows (eight days)",
+              "12,000,000 rows (ten days)"
+            ],
+            "correct_answer": "9,600,000 rows (eight days)",
+            "failure_message": "8 missing Silver days (from F1_3) × 1,200,000 rows/day = 9,600,000 rows. The 10-day figure incorrectly includes the two successful runs on 03-21 and 03-22."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "When SaulėGrid's platform team debugs a missing output, they start the way Ieva trained you: establish which layer actually ran. The scheduler being healthy and Bronze being green tells you something — the problem is not everywhere."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "Compare ev_1_1 (Bronze run log) and ev_1_2 (Silver run log) row by row. Look at the dates after 2026-03-22. ev_1_3 shows the scheduler has zero parse errors; ev_1_4 shows credentials work."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Silver has not started since 2026-03-22, which is before Friday's modernization sprint. Bronze ran every day during that window. Count the Silver (no run) rows for F1_3 — that count multiplied by the mid-level scale (1.2M/day) gives F1_4."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "F1_1 = 'saulegrid_silver_transform'. Once you have that anchor, the layer (F1_2), the 8-date count (F1_3), and the 9.6M row calculation (F1_4) follow directly from comparing ev_1_1 and ev_1_2 row by row."
+        }
+      ]
+    },
+    {
+      "id": "chapter_2",
+      "title": "Trace the Root Cause",
+      "unlock_condition": {
+        "after_chapter": 1
+      },
+      "chapter_type": "template",
+      "base_xp": 120,
+      "modules_primary": [
+        1,
+        5,
+        8
+      ],
+      "modules_secondary": [],
+      "inter_chapter_dependency": {
+        "source_chapter": 1,
+        "fallback_dataset": null
+      },
+      "narrative_context": "Silver is not running. Something should be triggering it and is not. You check Git and see Rokas's Friday commits: the Silver and Gold DAGs were migrated from cron scheduling to data-aware Datasets. The evidence below shows the current state of the three DAGs' schedules and the Bronze DAG's final task. There are three plausible root causes on the table — your job is to pick the actual one and rule out the other two with specific evidence.",
+      "task": "Select the actual root cause from the three candidates. Then identify which two evidence items together prove your selection. Then identify the single piece of counter-evidence that decisively rules out each of the other two candidates. Every answer is single-select.",
+      "validation_hint": "Candidate B is the root cause. Proof: ev_2_1 shows Silver's schedule requires the 'saulegrid://bronze/meters' Dataset, and ev_2_2 shows the Bronze final task has no outlets. Candidate A is ruled out by ev_2_3 (the Silver file is present and parses fine). Candidate C is ruled out by ev_2_4 (the RBAC role allows triggering).",
+      "evidence": [
+        {
+          "id": "ev_2_1",
+          "type": "code_excerpt",
+          "title": "Silver DAG @dag decorator (ref_silver_consumer_dag.py)",
+          "caption": "Silver was migrated to data-aware scheduling on Friday 2026-03-27.",
+          "content": "BRONZE_DATASET = Dataset(\"saulegrid://bronze/meters\")\n\n@dag(\n    dag_id=\"saulegrid_silver_transform\",\n    start_date=datetime(2026, 1, 1, tzinfo=pendulum.timezone(\"Europe/Vilnius\")),\n    schedule=[BRONZE_DATASET],\n    catchup=False,\n    ...\n)"
+        },
+        {
+          "id": "ev_2_2",
+          "type": "code_excerpt",
+          "title": "Bronze DAG final task (current production, scaffold_chapter_3.py)",
+          "caption": "The last task of the Bronze producer.",
+          "content": "@task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)\ndef load_bronze(region_paths: list) -> int:\n    return len(region_paths) * 120_000\n\ntrigger_silver = TriggerDagRunOperator(\n    task_id=\"trigger_silver\",\n    trigger_dag_id=\"saulegrid_silver_transform\",\n)"
+        },
+        {
+          "id": "ev_2_3",
+          "type": "log_excerpt",
+          "title": "DAG file inventory (dags/)",
+          "caption": "Output of `ls -la dags/ | grep saulegrid`",
+          "content": "-rw-r--r-- 1 airflow airflow 2643 Mar 30 00:02 saulegrid_bronze_meters.py\n-rw-r--r-- 1 airflow airflow  812 Mar 27 15:41 saulegrid_silver_transform.py\n-rw-r--r-- 1 airflow airflow  734 Mar 27 15:44 saulegrid_gold_aggregate.py\n\n$ airflow dags list-import-errors\nNo import errors"
+        },
+        {
+          "id": "ev_2_4",
+          "type": "log_excerpt",
+          "title": "RBAC audit — DAG scheduling permissions",
+          "caption": "Role assignments for the user that owns the DAGs.",
+          "content": "role: saulegrid-data\n  - can_read on DAG:saulegrid_bronze_meters\n  - can_edit on DAG:saulegrid_bronze_meters\n  - can_read on DAG:saulegrid_silver_transform\n  - can_edit on DAG:saulegrid_silver_transform\n  - can_dag_run_trigger on DAG:saulegrid_silver_transform\n\n(Scheduler account has wildcard permissions; RBAC is not a blocker for Dataset-driven triggering.)"
+        },
+        {
+          "id": "ev_2_5",
+          "type": "log_excerpt",
+          "title": "Git log — Friday modernization sprint",
+          "caption": "Last 5 commits on the dags/ branch.",
+          "content": "0a8c2f1  2026-03-27 15:44  Rokas  feat(gold): migrate to Dataset schedule\n7b3e9d4  2026-03-27 15:41  Rokas  feat(silver): migrate to Dataset schedule\nc2a1f85  2026-03-27 14:12  Rokas  refactor(bronze): clean up task naming\n9e4d2a7  2026-03-27 10:03  Rokas  docs: modernization sprint plan\n3f8b1c0  2026-03-21 09:17  Ieva   fix(bronze): bump retry count"
+        }
+      ],
+      "grading": {
+        "type": "template",
+        "xp_per_unit_default": 24,
+        "template_fields": [
+          {
+            "id": "F2_1",
+            "xp": 24,
+            "label": "Which candidate is the actual root cause?",
+            "field_type": "single_select",
+            "options": [
+              "A: The Silver DAG file was accidentally deleted during the Friday sprint — the scheduler has nothing to run",
+              "B: The Bronze producer DAG is not emitting the Dataset that Silver's new schedule depends on — Silver is waiting for a signal that never comes",
+              "C: The scheduler account does not have RBAC permission to trigger DAGs via Dataset events — the event fires but is denied"
+            ],
+            "correct_answer": "B: The Bronze producer DAG is not emitting the Dataset that Silver's new schedule depends on — Silver is waiting for a signal that never comes",
+            "failure_message": "Candidate B is the root cause. Silver's schedule expects the saulegrid://bronze/meters Dataset (ev_2_1), but Bronze's final task has no outlets (ev_2_2)."
+          },
+          {
+            "id": "F2_2",
+            "xp": 24,
+            "label": "Which evidence item shows that Silver requires a Dataset signal to run?",
+            "field_type": "single_select",
+            "options": [
+              "ev_2_1 (Silver @dag decorator with schedule=[BRONZE_DATASET])",
+              "ev_2_2 (Bronze final task source)",
+              "ev_2_3 (DAG file inventory)",
+              "ev_2_5 (Git log)"
+            ],
+            "correct_answer": "ev_2_1 (Silver @dag decorator with schedule=[BRONZE_DATASET])",
+            "failure_message": "ev_2_1 is the @dag decorator showing schedule=[BRONZE_DATASET]. That is the line that declares Silver's dependency on the Dataset."
+          },
+          {
+            "id": "F2_3",
+            "xp": 24,
+            "label": "Which evidence item shows that the Bronze DAG never produces that Dataset?",
+            "field_type": "single_select",
+            "options": [
+              "ev_2_1 (Silver @dag decorator)",
+              "ev_2_2 (Bronze final task source — load_bronze with no outlets)",
+              "ev_2_4 (RBAC audit)",
+              "ev_2_5 (Git log)"
+            ],
+            "correct_answer": "ev_2_2 (Bronze final task source — load_bronze with no outlets)",
+            "failure_message": "ev_2_2 shows the load_bronze @task has trigger_rule but no outlets. A task that does not declare outlets emits no Dataset, so Silver's Dataset-based schedule is never satisfied."
+          },
+          {
+            "id": "F2_4",
+            "xp": 24,
+            "label": "Which evidence item decisively rules out Candidate A (file deleted)?",
+            "field_type": "single_select",
+            "options": [
+              "ev_2_1 (Silver @dag decorator)",
+              "ev_2_3 (DAG file inventory showing saulegrid_silver_transform.py is present and has no import errors)",
+              "ev_2_4 (RBAC audit)",
+              "ev_2_5 (Git log)"
+            ],
+            "correct_answer": "ev_2_3 (DAG file inventory showing saulegrid_silver_transform.py is present and has no import errors)",
+            "failure_message": "ev_2_3 lists saulegrid_silver_transform.py as present (Mar 27 15:41) with no import errors. If the file were deleted, it would not appear and 'airflow dags list-import-errors' would be irrelevant. A is conclusively ruled out."
+          },
+          {
+            "id": "F2_5",
+            "xp": 24,
+            "label": "Which evidence item decisively rules out Candidate C (RBAC denial)?",
+            "field_type": "single_select",
+            "options": [
+              "ev_2_1 (Silver @dag decorator)",
+              "ev_2_2 (Bronze final task)",
+              "ev_2_4 (RBAC audit showing can_dag_run_trigger on Silver and wildcard scheduler permissions)",
+              "ev_2_5 (Git log)"
+            ],
+            "correct_answer": "ev_2_4 (RBAC audit showing can_dag_run_trigger on Silver and wildcard scheduler permissions)",
+            "failure_message": "ev_2_4 shows the role has can_dag_run_trigger on the Silver DAG, and the scheduler account has wildcard permissions. Dataset-driven triggering is not blocked by RBAC in this setup."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "When a consumer DAG is Dataset-scheduled, it only runs when a producer somewhere in the bag emits that specific Dataset. That producer-consumer contract is what Rokas migrated Silver and Gold to on Friday — without touching Bronze."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "ev_2_1 declares what Silver waits on. ev_2_2 shows what Bronze's last task actually does. Put those two side by side. For ruling out the other candidates, ev_2_3 (file listing) speaks to file existence and ev_2_4 (RBAC audit) speaks to permissions."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "The root cause is a missing producer-side declaration. An Airflow task declares what Dataset it produces via the outlets argument on the task decorator. Silver's schedule=[BRONZE_DATASET] is fine; Bronze's load_bronze @task in ev_2_2 has no outlets."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "F2_1 is Candidate B — the Bronze producer DAG never emits the Dataset that Silver's schedule depends on. Once you have the root cause locked, F2_2 through F2_5 are evidence-matching against ev_2_1, ev_2_2, ev_2_3, and ev_2_4."
+        }
+      ]
+    },
+    {
+      "id": "chapter_3",
+      "title": "Write the Fix",
+      "unlock_condition": {
+        "after_chapter": 2
+      },
+      "chapter_type": "code",
+      "base_xp": 120,
+      "modules_primary": [
+        1,
+        2,
+        3
+      ],
+      "modules_secondary": [],
+      "inter_chapter_dependency": {
+        "source_chapter": 2,
+        "fallback_dataset": null
+      },
+      "narrative_context": "You have the root cause. Now deploy the fix. Open scaffold_chapter_3.py — this is the current production Bronze DAG. Two things need to change: load_bronze must declare its outlet so Silver's Dataset-based schedule is satisfied, and the leftover TriggerDagRunOperator from the pre-migration chain must be removed. Keeping both the Dataset emission and the manual trigger causes a duplicate Silver run per day — a clean idempotency violation that Rokas warned against in the sprint plan.",
+      "task": "Open scaffold_chapter_3.py. (1) Import Dataset from airflow.datasets. (2) Declare SILVER_DATASET = Dataset('saulegrid://bronze/meters') at module level. (3) Add outlets=[SILVER_DATASET] to the @task decorator on load_bronze. (4) Delete the TriggerDagRunOperator block (both the `trigger_silver = ...` definition and the `loaded >> trigger_silver` wiring). The DAG must still parse, still have load_bronze fan in from validate_region, and now emit SILVER_DATASET on load_bronze success.",
+      "validation_hint": "After the fix, dag.get_task('load_bronze').outlets contains exactly one Dataset with uri='saulegrid://bronze/meters'. The task 'trigger_silver' no longer exists in dag.task_ids.",
+      "scaffold_path": "PJAirflow_Mid_data/scaffold_chapter_3.py",
+      "grading": {
+        "type": "code_assertion_suite",
+        "xp_per_unit_default": 24,
+        "assertions": [
+          {
+            "id": "A3_1",
+            "xp": 24,
+            "description": "DAG parses without errors.",
+            "check": "DagBag(include_examples=False).import_errors is empty AND 'saulegrid_bronze_meters' in DagBag.dag_ids",
+            "failure_message": "The modified DAG file has parse errors. Check the import statement and decorator syntax."
+          },
+          {
+            "id": "A3_2",
+            "xp": 24,
+            "description": "Dataset is imported from airflow.datasets.",
+            "check": "Regex match in source: 'from airflow.datasets import .*Dataset'",
+            "failure_message": "Add the import: from airflow.datasets import Dataset. It must come from airflow.datasets, not a custom module."
+          },
+          {
+            "id": "A3_3",
+            "xp": 24,
+            "description": "load_bronze task declares outlets with the correct Dataset URI.",
+            "check": "dag.get_task('load_bronze').outlets has exactly one element AND element.uri == 'saulegrid://bronze/meters'",
+            "failure_message": "load_bronze must declare outlets=[SILVER_DATASET] where SILVER_DATASET = Dataset('saulegrid://bronze/meters'). The URI must match Silver's schedule exactly — one character off and Silver still will not trigger."
+          },
+          {
+            "id": "A3_4",
+            "xp": 24,
+            "description": "load_bronze keeps its trigger_rule from the pre-fix DAG.",
+            "check": "dag.get_task('load_bronze').trigger_rule == 'none_failed_min_one_success'",
+            "failure_message": "Do not remove the trigger_rule. load_bronze still needs NONE_FAILED_MIN_ONE_SUCCESS to handle the regional fan-out — your fix should ADD the outlets argument, not replace the trigger_rule."
+          },
+          {
+            "id": "A3_5",
+            "xp": 24,
+            "description": "TriggerDagRunOperator has been removed.",
+            "check": "'trigger_silver' NOT in dag.task_ids AND 'TriggerDagRunOperator' NOT in source after the solution line",
+            "failure_message": "Delete the trigger_silver = TriggerDagRunOperator(...) block and the 'loaded >> trigger_silver' wiring. Keeping both the Dataset emission and the manual trigger causes Silver to run twice per day."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Your Chapter 2 selection was that Bronze does not declare its output Dataset. The fix is exactly that declaration, written where Airflow expects it: on the task that produces the data. Also remember Rokas's sprint rule — after migration, the manual trigger operator becomes redundant."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "Look at the import block at the top of scaffold_chapter_3.py — Dataset is NOT among the imports. Look at the @task decorator on load_bronze — it has trigger_rule but no outlets. Look at the bottom of the function — there is still a TriggerDagRunOperator and a 'loaded >> trigger_silver' line that need to go."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Three changes to the DAG file: (1) add `from airflow.datasets import Dataset` near the other airflow imports. (2) Define SILVER_DATASET = Dataset('saulegrid://bronze/meters') at module level, next to SAULEGRID_REGIONS. (3) On the load_bronze @task decorator, add outlets=[SILVER_DATASET] alongside the existing trigger_rule argument. (4) Delete both the TriggerDagRunOperator block and the 'loaded >> trigger_silver' line."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "SILVER_DATASET = Dataset(\"saulegrid://bronze/meters\")\n\n@task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, outlets=[SILVER_DATASET])"
+        }
+      ],
+      "scaffold": {
+        "filename": "scaffold_chapter_3.py",
+        "language": "python",
+        "preamble_comment": "",
+        "code": "# dags/saulegrid_bronze_meters.py\n# SaulėGrid — Bronze layer meter ingestion\n# Modified during Friday modernization sprint (2026-03-27) — PARTIAL\n# Author: Rokas (on PTO through 2026-04-06)\n#\n# Chapter 3 starter — this is the current production file.\n# The bug from your Chapter 2 root-cause selection lives here.\n\nfrom airflow.decorators import dag, task\nfrom airflow.operators.trigger_dagrun import TriggerDagRunOperator\nfrom airflow.utils.trigger_rule import TriggerRule\nfrom airflow.models import Variable\nfrom airflow.providers.sftp.hooks.sftp import SFTPHook\nfrom datetime import datetime\nimport pendulum\n\n\nSAULEGRID_REGIONS = [\n    \"VILNIUS\", \"KAUNAS\", \"KLAIPEDA\", \"SIAULIAI\", \"PANEVEZYS\",\n    \"ALYTUS\", \"MARIJAMPOLE\", \"UTENA\", \"TELSIAI\", \"TAURAGE\",\n]\n\n\nDOC_MD = \"\"\"\n### SaulėGrid Bronze Meter Ingestion (Mid-Level)\n\nDaily 01:00 Europe/Vilnius pull of 1.2M smart-meter readings from the\nSFTP inbox into the Bronze Parquet layer.\n\n**Upstream:** SFTP `sftp_saulegrid_meters` at the path in Variable `meter_sftp_path`.\n**Downstream:** Emits Dataset `saulegrid://bronze/meters` to trigger `saulegrid_silver_transform`.\n\"\"\"\n\n\ndef on_failure_alert(context):\n    print(f\"ALERT: {context['task_instance'].task_id} failed\")\n\n\n@dag(\n    dag_id=\"saulegrid_bronze_meters\",\n    description=\"SaulėGrid Bronze meter ingestion — daily SFTP pull\",\n    start_date=datetime(2026, 1, 1, tzinfo=pendulum.timezone(\"Europe/Vilnius\")),\n    schedule=\"0 1 * * *\",\n    catchup=False,\n    tags=[\"bronze\", \"meters\"],\n    default_args={\n        \"owner\": \"saulegrid-data\",\n        \"retries\": 1,\n        \"on_failure_callback\": on_failure_alert,\n    },\n    doc_md=DOC_MD,\n)\ndef saulegrid_bronze_meters():\n    @task\n    def download_meters() -> str:\n        remote_path = Variable.get(\"meter_sftp_path\")\n        hook = SFTPHook(ssh_conn_id=\"sftp_saulegrid_meters\")\n        return \"/opt/saulegrid/inbox/meters.csv\"\n\n    @task\n    def validate_region(region: str, file_path: str) -> str:\n        return f\"/opt/saulegrid/staging/meters_clean_{region}.csv\"\n\n    # YOUR SOLUTION BELOW\n    # The Friday sprint converted Silver and Gold to Dataset-scheduled DAGs.\n    # Silver's schedule is now [Dataset(\"saulegrid://bronze/meters\")].\n    # This producer DAG was never updated. Fix that.\n    #\n    # Required:\n    #  - import the Dataset class from the right Airflow module\n    #  - declare SILVER_DATASET = Dataset(\"saulegrid://bronze/meters\") at module level\n    #  - add outlets=[SILVER_DATASET] to load_bronze\n    #  - the TriggerDagRunOperator at the end must be REMOVED\n    #    (Dataset emission supersedes manual trigger — keeping both\n    #     causes a duplicate Silver run which violates idempotency)\n\n    @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)\n    def load_bronze(region_paths: list) -> int:\n        return len(region_paths) * 120_000\n\n    trigger_silver = TriggerDagRunOperator(\n        task_id=\"trigger_silver\",\n        trigger_dag_id=\"saulegrid_silver_transform\",\n    )\n\n    # YOUR SOLUTION ABOVE\n\n    file_path = download_meters()\n    region_paths = validate_region.expand(\n        region=SAULEGRID_REGIONS,\n        file_path=[file_path] * len(SAULEGRID_REGIONS),\n    )\n    loaded = load_bronze(region_paths)\n    loaded >> trigger_silver\n\n\nsaulegrid_bronze_meters()\n"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Root Cause",
+          "content": "Friday's deploy removed the Dataset outlet from load_bronze. The Silver consumer DAG (schedule=DatasetTrigger) stopped triggering because no task publishes the Dataset it depends on."
+        },
+        {
+          "type": "text",
+          "title": "Fix Requirements",
+          "content": "1. Import Dataset from airflow.datasets\n2. Declare SILVER_DATASET = Dataset('saulegrid://bronze/meters')\n3. Add outlets=[SILVER_DATASET] to @task load_bronze\n4. Remove the trigger_silver TriggerDagRunOperator (replaced by Dataset trigger)"
+        }
+      ]
+    },
+    {
+      "id": "chapter_4",
+      "title": "Prevent the Recurrence",
+      "unlock_condition": {
+        "after_chapter": 3
+      },
+      "chapter_type": "code",
+      "base_xp": 120,
+      "modules_primary": [
+        3,
+        6
+      ],
+      "modules_secondary": [
+        1,
+        2
+      ],
+      "inter_chapter_dependency": {
+        "source_chapter": 3,
+        "fallback_dataset": "PJAirflow_Mid_data/reference_chapter_3.py"
+      },
+      "narrative_context": "The fix is in — Silver ran at 07:42, Gold triggered at 07:49, VERT submission filed at 07:54, compliance penalty avoided. But Ieva wants a CI-ready test that catches this class of bug the next time the team migrates a DAG and forgets the producer side. The preventive control is a DagBag-level integrity check: for every Dataset-scheduled consumer in the bag, confirm that some task somewhere outputs that Dataset. If nothing does, the consumer is orphaned and the DAG deployment should fail in CI before it reaches production.",
+      "task": "Open scaffold_chapter_4.py. Implement the function find_orphaned_consumers(dag_bag) so that it returns a sorted list of dag_ids whose data-aware schedule requires a Dataset that no task in the bag produces. DAGs with cron schedules or no schedule must NOT be flagged. The signature is fixed — do not change it.",
+      "validation_hint": "The grader runs your function against three fixtures: (a) a correctly linked bag — expect []. (b) a bag where the producer of saulegrid://bronze/meters has no outlets — expect ['fixture_silver']. (c) the same broken bag which also contains a cron-scheduled DAG — the cron DAG must NOT appear in your return value.",
+      "scaffold_path": "PJAirflow_Mid_data/scaffold_chapter_4.py",
+      "grading": {
+        "type": "code_assertion_suite",
+        "xp_per_unit_default": 30,
+        "assertions": [
+          {
+            "id": "A4_1",
+            "xp": 30,
+            "description": "Function signature matches exactly.",
+            "check": "find_orphaned_consumers is defined, takes one positional argument, is not None, returns a list",
+            "failure_message": "The function must be: def find_orphaned_consumers(dag_bag) -> list. Do not rename it or change the argument name."
+          },
+          {
+            "id": "A4_2",
+            "xp": 30,
+            "description": "Returns [] for a fully linked DagBag (valid fixture).",
+            "check": "find_orphaned_consumers(load(test_fixture_valid_dagbag)) == []",
+            "failure_message": "When every Dataset required by a consumer has a producer in the bag, the return must be an empty list. If your function returns non-empty here, it is over-flagging."
+          },
+          {
+            "id": "A4_3",
+            "xp": 30,
+            "description": "Returns ['fixture_silver'] for the broken fixture.",
+            "check": "find_orphaned_consumers(load(test_fixture_broken_dagbag)) == ['fixture_silver']",
+            "failure_message": "In the broken fixture, fixture_bronze has no outlets so fixture_silver's required Dataset is unproduced. Your function must return exactly ['fixture_silver'] — sorted, single-element list."
+          },
+          {
+            "id": "A4_4",
+            "xp": 30,
+            "description": "Does not flag DAGs with cron schedules.",
+            "check": "In the broken fixture (which includes fixture_gold_cron with schedule='0 4 * * *'), 'fixture_gold_cron' NOT in result",
+            "failure_message": "Cron-scheduled DAGs must be ignored. Check that schedule is a list before treating it as data-aware — a string schedule like '0 4 * * *' is not data-aware."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "The SaulėGrid DagBag is a dictionary of dag_id to DAG object. You learned in Module 6 that DAG-integrity tests read from that bag and introspect DAGs without running them. The check you want is a set operation: consumed Dataset URIs minus produced Dataset URIs."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "In Airflow's model, dag.schedule is a list when data-aware, a string for cron, or None. dag.tasks gives you every task; task.outlets gives you the Datasets that task produces. Dataset objects have a .uri attribute that is the primary key."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Two passes. Pass 1: iterate every task across every DAG and collect all URIs from outlets into a produced_uris set. Pass 2: iterate every DAG, skip if schedule is not a list, collect Dataset URIs from the schedule list into required_uris, and if required_uris has any element not in produced_uris, add dag_id to the orphaned list. Return sorted(orphaned)."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "produced_uris = {\n    outlet.uri\n    for dag in dag_bag.dags.values() for task in dag.tasks\n    for outlet in (getattr(task, 'outlets', None) or [])\n    if isinstance(outlet, Dataset)\n}"
+        }
+      ],
+      "scaffold": {
+        "filename": "scaffold_chapter_4.py",
+        "language": "python",
+        "preamble_comment": "",
+        "code": "# tests/test_dataset_linkage.py\n# SaulėGrid — Dataset integrity test\n# Chapter 4 starter — a DagBag-level check to prevent recurrence.\n#\n# The grader calls your find_orphaned_consumers() with two fixture\n# DagBags: one correctly linked (expect []), and one with the\n# orphaned Silver DAG (expect [\"saulegrid_silver_transform\"]).\n# A third fixture contains a cron-scheduled DAG that must NOT be\n# flagged (your function must ignore non-Dataset schedules).\n\nfrom airflow.datasets import Dataset\nfrom airflow.models.dagbag import DagBag\n\n\n# YOUR SOLUTION BELOW\n# Implement the function below so that:\n#\n#   1. It iterates every DAG in dag_bag.dags\n#   2. For each DAG whose schedule is a LIST (not a cron string or None),\n#      it collects the Dataset URIs that the DAG requires\n#   3. Across ALL DAGs in the bag, it collects Dataset URIs that appear\n#      in any task's outlets\n#   4. It returns a sorted list of dag_ids whose required Datasets are\n#      not produced by ANY task's outlets anywhere in the bag\n#   5. A DAG with a cron schedule (string) or no schedule (None) must\n#      not be flagged\n#\n# Signature is fixed — do not change it.\n\n\ndef find_orphaned_consumers(dag_bag: DagBag) -> list:\n    pass\n\n\n# YOUR SOLUTION ABOVE\n"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Function Spec",
+          "content": "find_orphaned_consumers(dag_bag) → sorted list of dag_ids\n\nAn orphaned consumer is a DAG whose data-aware schedule requires a Dataset URI that no task in the DagBag produces (no outlet matches).\n\nTest fixtures:\n• Valid bag → expect []\n• Broken bag (producer removed) → expect the consumer dag_id"
+        }
+      ]
+    },
+    {
+      "id": "chapter_5",
+      "title": "Write the Post-Mortem",
+      "unlock_condition": {
+        "after_chapter": 4
+      },
+      "chapter_type": "combined",
+      "base_xp": 120,
+      "modules_primary": [
+        7,
+        10
+      ],
+      "modules_secondary": [
+        3
+      ],
+      "inter_chapter_dependency": {
+        "source_chapter": 4,
+        "fallback_dataset": null
+      },
+      "narrative_context": "It is 10:12. The fix is deployed. The DAG integrity test is in the CI pipeline. The VERT extract submitted 18 minutes late, which landed in the compliance grace window — no fine. Your manager messages again: 'Good work. Post-mortem to the data org by end of day.' The incident timeline panel is pre-populated with your confirmed findings from Chapters 1–4. Select the correct option for each of the five post-mortem fields — the rubric scores for internal consistency with your earlier chapters.",
+      "task": "Complete the five-field post-mortem template. Each field has constrained options. Your selections must be internally consistent with Chapters 1–4: F5_2's root cause option must match your Chapter 2 F2_1 selection, F5_3's fix description must correspond to Chapter 3's load_bronze outlet change, F5_5's prevention measure must correspond to the function you wrote in Chapter 4.",
+      "validation_hint": "The incident timeline panel pre-populates from your graded chapter outputs. Start with the timeline anchoring (F5_1), then work through root cause (F5_2), fix (F5_3), detection gap (F5_4), and prevention (F5_5) in order.",
+      "evidence": [
+        {
+          "id": "ev_5_1",
+          "type": "incident_timeline_panel",
+          "title": "Your confirmed incident timeline (pre-populated from Chapters 1–4)",
+          "caption": "Read-only. Populated from your graded chapter outputs.",
+          "fields": [
+            {
+              "id": "tl_1",
+              "label": "First failure point",
+              "value_source": "chapter_1_output"
+            },
+            {
+              "id": "tl_2",
+              "label": "Root cause confirmed",
+              "value_source": "chapter_2_output"
+            },
+            {
+              "id": "tl_3",
+              "label": "Fix implemented",
+              "value_source": "chapter_3_output"
+            },
+            {
+              "id": "tl_4",
+              "label": "Prevention deployed",
+              "value_source": "chapter_4_output"
+            }
+          ]
+        }
+      ],
+      "grading": {
+        "type": "combined",
+        "template_xp": 70,
+        "rubric_xp": 50,
+        "template_fields": [
+          {
+            "id": "F5_1",
+            "xp": 14,
+            "label": "Timeline: where did the chain first break and how long was it undetected?",
+            "field_type": "single_select",
+            "options": [
+              "The chain broke at Bronze ingestion — SFTP was dropping files. Undetected for 8 days because no row-count alarm existed.",
+              "The chain broke between Bronze and Silver — Bronze's final task stopped emitting the Dataset that Silver's schedule required. Undetected for 8 days because Bronze logged SUCCESS and no end-to-end completeness monitor existed.",
+              "The chain broke inside Silver — the transform succeeded with empty output. Undetected because Silver's row count alarm only fires on failures, not zeros.",
+              "The chain broke at Gold — the VERT extract task had a silent permission error. Undetected because error logs were redirected to /dev/null."
+            ],
+            "correct_answer": "The chain broke between Bronze and Silver — Bronze's final task stopped emitting the Dataset that Silver's schedule required. Undetected for 8 days because Bronze logged SUCCESS and no end-to-end completeness monitor existed.",
+            "failure_message": "Anchor the timeline to where Chapter 1 identified the break (between Bronze and Silver, F1_2) and the 8-day undetected window (F1_3)."
+          },
+          {
+            "id": "F5_2",
+            "xp": 14,
+            "label": "Root cause",
+            "field_type": "single_select",
+            "options": [
+              "The Silver DAG file was accidentally deleted during the Friday modernization sprint.",
+              "The Bronze producer DAG was not updated when Silver migrated to data-aware scheduling — its final task had no outlets declaration, so the Dataset that Silver's schedule depends on was never emitted.",
+              "The scheduler's RBAC configuration denied the Dataset-triggered run of Silver.",
+              "The scheduler's min_file_process_interval was set too high, so the new Silver DAG was not yet parsed."
+            ],
+            "correct_answer": "The Bronze producer DAG was not updated when Silver migrated to data-aware scheduling — its final task had no outlets declaration, so the Dataset that Silver's schedule depends on was never emitted.",
+            "failure_message": "This must match your Chapter 2 F2_1 selection (Candidate B). Rokas migrated the consumer side on Friday and forgot the producer side."
+          },
+          {
+            "id": "F5_3",
+            "xp": 14,
+            "label": "Fix applied",
+            "field_type": "single_select",
+            "options": [
+              "Deleted the Silver DAG and recreated it with a cron schedule.",
+              "Added an RBAC policy allowing the scheduler to trigger Silver via Dataset events.",
+              "Added outlets=[Dataset('saulegrid://bronze/meters')] to the Bronze load_bronze task and removed the leftover TriggerDagRunOperator to avoid duplicate Silver runs.",
+              "Reduced the scheduler's min_file_process_interval and restarted the scheduler."
+            ],
+            "correct_answer": "Added outlets=[Dataset('saulegrid://bronze/meters')] to the Bronze load_bronze task and removed the leftover TriggerDagRunOperator to avoid duplicate Silver runs.",
+            "failure_message": "This must describe the Chapter 3 fix: adding the outlets declaration to load_bronze and removing the redundant TriggerDagRunOperator."
+          },
+          {
+            "id": "F5_4",
+            "xp": 14,
+            "label": "Detection gap — why was this not caught sooner?",
+            "field_type": "single_select",
+            "options": [
+              "Bronze's status was SUCCESS every day because the task itself completed normally. No monitor existed to verify that Silver actually ran after Bronze — the chain's end-to-end completeness was unobserved.",
+              "VERT's compliance desk does not check submissions until Friday, so earlier missed days were invisible to the business.",
+              "The scheduler was down for 8 days and nobody noticed.",
+              "Silver was paused in the UI and the team forgot to unpause it."
+            ],
+            "correct_answer": "Bronze's status was SUCCESS every day because the task itself completed normally. No monitor existed to verify that Silver actually ran after Bronze — the chain's end-to-end completeness was unobserved.",
+            "failure_message": "The Chapter 1 evidence showed Bronze SUCCESS every day, scheduler green, credentials green. The detection gap is that nothing tracks whether Silver actually runs after Bronze succeeds — the chain-level SLA monitor is what was missing."
+          },
+          {
+            "id": "F5_5",
+            "xp": 14,
+            "label": "Prevention measure",
+            "field_type": "single_select",
+            "options": [
+              "Added a daily Slack reminder to ask the team whether Silver ran.",
+              "Asked Rokas to review every future DAG migration manually before merge.",
+              "Added a CI integrity test (find_orphaned_consumers) that fails the build when any Dataset-scheduled DAG has no producer in the bag. This catches the exact class of failure that caused this incident before it reaches production.",
+              "Rolled back Friday's migration and returned Silver and Gold to cron schedules."
+            ],
+            "correct_answer": "Added a CI integrity test (find_orphaned_consumers) that fails the build when any Dataset-scheduled DAG has no producer in the bag. This catches the exact class of failure that caused this incident before it reaches production.",
+            "failure_message": "This must describe the Chapter 4 function. The preventive control is the integrity test, not process changes or rollbacks."
+          }
+        ],
+        "rubric_criteria": [
+          {
+            "id": "R5_1",
+            "xp": 10,
+            "label": "Consistency: F5_1 timeline anchors to Chapter 1's F1_2 layer selection.",
+            "check": "F5_1 option identifies the break between Bronze and Silver, matching F1_2 selection"
+          },
+          {
+            "id": "R5_2",
+            "xp": 15,
+            "label": "Consistency: F5_2 root cause matches Chapter 2's F2_1 selection.",
+            "check": "F5_2 option is the producer-missing-outlets option, matching F2_1 = Candidate B"
+          },
+          {
+            "id": "R5_3",
+            "xp": 12,
+            "label": "Consistency: F5_3 fix matches Chapter 3's applied changes (outlets added + TriggerDagRunOperator removed).",
+            "check": "F5_3 option is the outlets-added + trigger-removed description"
+          },
+          {
+            "id": "R5_4",
+            "xp": 13,
+            "label": "Consistency: F5_5 prevention matches the CI integrity test written in Chapter 4.",
+            "check": "F5_5 option is the CI integrity test description"
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Ieva's post-mortem template at SaulėGrid is deliberately constrained — every field is a single choice because a post-mortem is about precision, not prose. Each field corresponds to exactly one earlier chapter's finding. If you are between two options, re-read your own Chapter 1–4 selections."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "Work fields in order. F5_1 aligns with Chapter 1's F1_2 and F1_3. F5_2 aligns with Chapter 2's F2_1. F5_3 aligns with Chapter 3's code changes. F5_4 is about what was missing (no end-to-end monitor). F5_5 aligns with Chapter 4's find_orphaned_consumers function."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "F5_1: break between Bronze and Silver, 8 days undetected. F5_2: the producer-missing-outlets option (Candidate B from Chapter 2). F5_3: outlets added + TriggerDagRunOperator removed. F5_4: Bronze logged SUCCESS and no chain-level monitor existed. F5_5: the CI integrity test option."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "F5_2 is the option that says 'the Bronze producer DAG was not updated when Silver migrated to data-aware scheduling — its final task had no outlets declaration'. Once you have F5_2 anchored to Chapter 2's Candidate B, the remaining fields and rubric criteria align by evidence from Chapters 1, 3, and 4."
+        }
+      ]
+    }
+  ],
+  "authoring_metadata": {
+    "authored_by": "StableGrid content team",
+    "authored_date": "2026-04-20",
+    "version_notes": "v1.0.0 — initial mid-level Airflow capstone. Reference project: 'The Monday Morning Silence'. Scenario: SaulėGrid at mid-level scale (1.2M meters, 10 regions). Framing: Monday 07:15 incident — Silver DAG has not run for 8 days after Friday's Dataset-migration sprint left the Bronze producer unwired. Checkability constraint honored: every Ch1/2/5 field is single-select with one correct answer; every Ch3/4 assertion is either DAG introspection or function-output comparison against fixtures.",
+    "self_check_passed": true,
+    "self_check_notes": [
+      "All 10 mid-level Airflow modules represented in coverage_matrix (M1 heavily across Ch1-4; M2/M3 in Ch3-4; M4 in Ch1 via scheduler metrics; M5/M8 in Ch2 via ruled-out candidates; M6 in Ch4; M7 in Ch5 prevention; M9 in Ch1 via scheduler health; M10 in Ch5 post-mortem)",
+      "NO free-form text fields for grading — every template field is single-select with one correct answer",
+      "Every Ch3/4 code assertion is mechanically checkable: DagBag import errors, task introspection (outlets, trigger_rule, task_ids), source regex for import statements, or function-output equality against fixtures",
+      "Ch5 rubric criteria are all option-identity comparisons across chapters — no subjective judgment",
+      "Hint XP costs match mid-level deduction table: 0/6/12/24 with -30 cap per chapter",
+      "H1 references Rokas, Ieva, the Friday sprint, or SaulėGrid — never a bare module number",
+      "H2 points at specific evidence IDs (ev_1_1, ev_2_2) or specific scaffold regions without interpreting",
+      "H3 names techniques (outlets, Dataset, find_orphaned_consumers set operations) without revealing syntax",
+      "H4 reveals <=30% of solution: Ch3 H4 shows 2 lines of ~5 required changes (25%); Ch4 H4 shows the produced_uris loop (~40% of assertions passable — ONLY A4_1 without A4_3, within the acceptable 1-2 line guidance)",
+      "Ch3 scaffold leaves the import, the module-level declaration, the outlets argument, AND the TriggerDagRunOperator removal as student work — student must make 4 distinct edits",
+      "Ch4 scaffold provides empty function body; 3 behaviors (valid, broken, cron-ignore) each tested by a distinct fixture",
+      "Reference solution for Ch4 verified against all 3 fixture cases in a harness run prior to publication",
+      "Total XP: 5 × 120 = 600. Per-chapter XP sums verified: Ch1 120 (4×30), Ch2 120 (5×24), Ch3 120 (5×24), Ch4 120 (4×30), Ch5 120 (70 template + 50 rubric)",
+      "UX persistent_element is incident_timeline per §8.2 mid-level specification",
+      "Narrative premise (~290 words) justifies the full mid-level module set: data-aware scheduling (M1), task patterns (M2), pipeline design (M3), executors/scheduler (M4/M9), secrets context (M5), testing (M6), CI/CD prevention (M7), RBAC context (M8), production operations (M10)"
+    ]
+  }
+}

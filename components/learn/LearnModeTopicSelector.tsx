@@ -159,9 +159,6 @@ export function LearnModeTopicSelector({
       result = result.filter((t) => topicStatuses[t.id] === topicFilter);
     }
 
-    // Hide topics with no content
-    result = result.filter((t) => (chapterCountByTopic[t.id] ?? t.chapterCount) > 0);
-
     // Sort
     result = [...result].sort((a, b) => {
       const aTotal = chapterCountByTopic[a.id] ?? a.chapterCount;

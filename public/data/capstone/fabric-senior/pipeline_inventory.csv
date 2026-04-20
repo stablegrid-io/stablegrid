@@ -1,0 +1,81 @@
+pipeline_id,country,owner_team,layer,sla_tier,consumer_count,avg_cu_minutes_per_run,schedule,data_volume_gb_per_day,workspace
+pl_de_001,DE,DE Data Eng,bronze,silver,1,10,daily,9.0,ws_de_ingest_prod
+pl_de_002,DE,DE Data Eng,bronze,silver,2,13,daily,10.3,ws_de_ingest_prod
+pl_de_003,DE,DE Data Eng,bronze,silver,3,16,daily,11.6,ws_de_ingest_prod
+pl_de_004,DE,DE Data Eng,bronze,silver,4,19,daily,12.9,ws_de_ingest_prod
+pl_de_005,DE,DE Data Eng,silver,gold,4,22,daily,4.5,ws_de_transform_prod
+pl_de_006,DE,DE Data Eng,silver,silver,2,27,daily,5.4,ws_de_transform_prod
+pl_de_007,DE,DE Data Eng,silver,silver,3,32,daily,6.3,ws_de_transform_prod
+pl_de_008,DE,DE Data Eng,silver,silver,4,37,daily,7.2,ws_de_transform_prod
+pl_de_009,DE,DE Data Eng,silver,silver,1,42,daily,8.1,ws_de_transform_prod
+pl_de_010,DE,DE Data Eng,silver,silver,2,47,daily,9.0,ws_de_transform_prod
+pl_de_011,DE,DE Data Eng,silver,silver,3,52,daily,9.9,ws_de_transform_prod
+pl_de_012,DE,DE Data Eng,silver,silver,4,57,daily,10.8,ws_de_transform_prod
+pl_de_013,DE,DE Analytics,gold,gold,4,42,daily,1.6,ws_de_warehouse_prod
+pl_de_014,DE,DE Analytics,gold,gold,5,49,daily,2.0,ws_de_warehouse_prod
+pl_de_015,DE,DE Analytics,gold,gold,6,56,daily,2.4,ws_de_warehouse_prod
+pl_de_016,DE,DE Analytics,gold,gold,7,63,daily,2.8,ws_de_warehouse_prod
+pl_de_017,DE,DE Analytics,gold,gold,8,70,daily,3.2,ws_de_warehouse_prod
+pl_de_018,DE,DE Analytics,analytics,silver,1,14,hourly,0.9,ws_de_analytics_prod
+pl_de_019,DE,DE Analytics,analytics,bronze,1,18,daily,1.2,ws_de_analytics_prod
+pl_de_020,DE,DE Analytics,analytics,bronze,2,22,daily,1.5,ws_de_analytics_prod
+pl_de_021,DE,DE Data Eng,stream,gold,4,115,continuous,2.5,ws_de_realtime_prod
+pl_de_022,DE,DE Data Eng,stream,gold,5,127,continuous,3.1,ws_de_realtime_prod
+pl_de_023,DE,DE Data Eng,stream,silver,3,139,continuous,3.7,ws_de_realtime_prod
+pl_de_024,DE,DE Data Eng,stream,silver,4,151,continuous,4.3,ws_de_realtime_prod
+pl_fr_025,FR,FR Data Eng,bronze,silver,1,10,daily,9.0,ws_fr_ingest_prod
+pl_fr_026,FR,FR Data Eng,bronze,silver,2,13,daily,10.3,ws_fr_ingest_prod
+pl_fr_027,FR,FR Data Eng,bronze,silver,3,16,daily,11.6,ws_fr_ingest_prod
+pl_fr_028,FR,FR Data Eng,bronze,silver,4,19,daily,12.9,ws_fr_ingest_prod
+pl_fr_029,FR,FR Data Eng,silver,gold,4,22,daily,4.5,ws_fr_transform_prod
+pl_fr_030,FR,FR Data Eng,silver,silver,2,27,daily,5.4,ws_fr_transform_prod
+pl_fr_031,FR,FR Data Eng,silver,silver,3,32,daily,6.3,ws_fr_transform_prod
+pl_fr_032,FR,FR Data Eng,silver,silver,4,37,daily,7.2,ws_fr_transform_prod
+pl_fr_033,FR,FR Data Eng,silver,silver,1,42,daily,8.1,ws_fr_transform_prod
+pl_fr_034,FR,FR Data Eng,silver,silver,2,47,daily,9.0,ws_fr_transform_prod
+pl_fr_035,FR,FR Data Eng,silver,silver,3,52,daily,9.9,ws_fr_transform_prod
+pl_fr_036,FR,FR Analytics,gold,gold,4,42,daily,1.6,ws_fr_warehouse_prod
+pl_fr_037,FR,FR Analytics,gold,gold,5,49,daily,2.0,ws_fr_warehouse_prod
+pl_fr_038,FR,FR Analytics,gold,gold,6,56,daily,2.4,ws_fr_warehouse_prod
+pl_fr_039,FR,FR Analytics,gold,gold,7,63,daily,2.8,ws_fr_warehouse_prod
+pl_fr_040,FR,FR Analytics,gold,gold,8,70,daily,3.2,ws_fr_warehouse_prod
+pl_fr_041,FR,FR Analytics,analytics,silver,1,14,hourly,0.9,ws_fr_analytics_prod
+pl_fr_042,FR,FR Analytics,analytics,bronze,1,18,daily,1.2,ws_fr_analytics_prod
+pl_fr_043,FR,FR Analytics,analytics,bronze,2,22,daily,1.5,ws_fr_analytics_prod
+pl_fr_044,FR,FR Data Eng,stream,gold,4,115,continuous,2.5,ws_fr_realtime_prod
+pl_fr_045,FR,FR Data Eng,stream,gold,5,127,continuous,3.1,ws_fr_realtime_prod
+pl_fr_046,FR,FR Data Eng,stream,silver,3,139,continuous,3.7,ws_fr_realtime_prod
+pl_nl_047,NL,NL Data Eng,bronze,silver,1,10,daily,9.0,ws_nl_ingest_prod
+pl_nl_048,NL,NL Data Eng,bronze,silver,2,13,daily,10.3,ws_nl_ingest_prod
+pl_nl_049,NL,NL Data Eng,bronze,silver,3,16,daily,11.6,ws_nl_ingest_prod
+pl_nl_050,NL,NL Data Eng,silver,gold,4,22,daily,4.5,ws_nl_transform_prod
+pl_nl_051,NL,NL Data Eng,silver,silver,2,27,daily,5.4,ws_nl_transform_prod
+pl_nl_052,NL,NL Data Eng,silver,silver,3,32,daily,6.3,ws_nl_transform_prod
+pl_nl_053,NL,NL Data Eng,silver,silver,4,37,daily,7.2,ws_nl_transform_prod
+pl_nl_054,NL,NL Analytics,gold,gold,4,42,daily,1.6,ws_nl_warehouse_prod
+pl_nl_055,NL,NL Analytics,gold,gold,5,49,daily,2.0,ws_nl_warehouse_prod
+pl_nl_056,NL,NL Analytics,gold,gold,6,56,daily,2.4,ws_nl_warehouse_prod
+pl_nl_057,NL,NL Analytics,analytics,silver,1,14,hourly,0.9,ws_nl_analytics_prod
+pl_nl_058,NL,NL Analytics,analytics,bronze,1,18,daily,1.2,ws_nl_analytics_prod
+pl_nl_059,NL,NL Data Eng,stream,gold,4,115,continuous,2.5,ws_nl_realtime_prod
+pl_nl_060,NL,NL Data Eng,stream,gold,5,127,continuous,3.1,ws_nl_realtime_prod
+pl_lu_061,LU,LU Data Eng,bronze,silver,1,10,daily,9.0,ws_lu_ingest_prod
+pl_lu_062,LU,LU Data Eng,bronze,silver,2,13,daily,10.3,ws_lu_ingest_prod
+pl_lu_063,LU,LU Data Eng,silver,gold,4,22,daily,4.5,ws_lu_transform_prod
+pl_lu_064,LU,LU Data Eng,silver,silver,2,27,daily,5.4,ws_lu_transform_prod
+pl_lu_065,LU,LU Analytics,gold,gold,4,42,daily,1.6,ws_lu_warehouse_prod
+pl_lu_066,LU,LU Analytics,gold,gold,5,49,daily,2.0,ws_lu_warehouse_prod
+pl_lu_067,LU,LU Analytics,analytics,silver,1,14,hourly,0.9,ws_lu_analytics_prod
+pl_lu_068,LU,LU Data Eng,stream,gold,4,115,continuous,2.5,ws_lu_realtime_prod
+pl_gu_069,GU,GU Platform,bronze,silver,1,10,daily,9.0,ws_gu_ingest_prod
+pl_gu_070,GU,GU Platform,silver,gold,4,22,daily,4.5,ws_gu_transform_prod
+pl_gu_071,GU,GU Platform,silver,silver,2,27,daily,5.4,ws_gu_transform_prod
+pl_gu_072,GU,GU ML,gold,gold,4,42,daily,1.6,ws_gu_warehouse_prod
+pl_gu_073,GU,GU ML,gold,gold,5,49,daily,2.0,ws_gu_warehouse_prod
+pl_gu_074,GU,GU ML,gold,gold,6,56,daily,2.4,ws_gu_warehouse_prod
+pl_gu_075,GU,GU ML,analytics,silver,1,14,hourly,0.9,ws_gu_analytics_prod
+pl_gu_076,GU,GU ML,analytics,bronze,1,18,daily,1.2,ws_gu_analytics_prod
+pl_gu_077,GU,GU Platform,stream,gold,4,115,continuous,2.5,ws_gu_realtime_prod
+pl_gu_078,GU,GU Platform,stream,gold,5,127,continuous,3.1,ws_gu_realtime_prod
+pl_gu_079,GU,GU Platform,stream,silver,3,139,continuous,3.7,ws_gu_realtime_prod
+pl_gu_080,GU,GU Platform,stream,silver,4,151,continuous,4.3,ws_gu_realtime_prod

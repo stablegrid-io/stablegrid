@@ -1,0 +1,5 @@
+substation_id,name,region,capacity_mw
+SUB-VIL,Vilnius Central Substation,VILNIUS,120.0
+SUB-KAU,Kaunas Industrial Hub,KAUNAS,95.0
+SUB-KLA,Klaipeda Coastal Node,KLAIPEDA,74.0
+SUB-SIA,Siauliai Regional Station,SIAULIAI,58.0

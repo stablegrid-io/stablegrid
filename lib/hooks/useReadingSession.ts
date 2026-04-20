@@ -22,6 +22,7 @@ interface UseReadingSessionOptions {
   onChapterComplete?: () => void;
   onChapterIncomplete?: () => void;
   onFirstCompletionEnergyUnits?: (units: number) => void;
+  onLessonRead?: (lessonId: string) => void;
 }
 
 type ReadingSessionRow = {
@@ -133,7 +134,8 @@ export function useReadingSession({
   lastVisitedRoute,
   onChapterComplete,
   onChapterIncomplete,
-  onFirstCompletionEnergyUnits
+  onFirstCompletionEnergyUnits,
+  onLessonRead
 }: UseReadingSessionOptions) {
   // Keep one browser client instance for the lifetime of this hook.
   const supabaseRef = useRef(createClient());
@@ -298,6 +300,7 @@ export function useReadingSession({
 
       if (newlyReadLessonIds.length > 0) {
         void persistReadLessonHistory(newlyReadLessonIds, sessionId);
+        newlyReadLessonIds.forEach((id) => onLessonRead?.(id));
       }
 
       return nextCompletedLessonIds;

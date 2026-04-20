@@ -221,7 +221,7 @@ export function ProgressDashboard({
         >
           <MetricCard label="Modules" value={`${totalModulesDone}/${totalModules}`} sub={`${overallPct}% complete`} rgb="153,247,255" />
           <MetricCard label="Time Invested" value={`${String(totalHours).padStart(2, '0')}:${String(remainingMins).padStart(2, '0')}`} sub={`${totalSessions} sessions`} rgb="191,129,255" />
-          <MetricCard label="XP" value={stats.totalXp.toLocaleString()} sub="total earned" rgb="255,201,101" />
+          <MetricCard label="kWh" value={stats.totalXp.toLocaleString()} sub="total earned" rgb="255,201,101" />
           <MetricCard label="Streak" value={`${stats.currentStreak}`} sub={stats.currentStreak === 1 ? 'day' : 'days'} rgb="255,113,108" />
         </div>
 
