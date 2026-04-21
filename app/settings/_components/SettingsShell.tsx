@@ -193,7 +193,7 @@ export function SettingsShell({
                   className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 ${
                     active
                       ? 'bg-white/[0.08] text-on-surface'
-                      : 'text-on-surface-variant/60 hover:text-on-surface-variant hover:bg-white/[0.04]'
+                      : 'text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]'
                   }`}
                 >
                   <Icon className="h-[18px] w-[18px] flex-shrink-0" />
@@ -225,7 +225,7 @@ export function SettingsShell({
                   className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 ${
                     isActive
                       ? 'bg-white/[0.08] text-on-surface'
-                      : 'text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04]'
+                      : 'text-on-surface-variant/80 hover:text-on-surface hover:bg-white/[0.04]'
                   }`}
                 >
                   <Icon className="h-[18px] w-[18px] flex-shrink-0" />

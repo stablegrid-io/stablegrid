@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 const GOOGLE_ICON = (
@@ -36,8 +37,24 @@ export function LoginForm() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* Grid background */}
-      <div className="fixed inset-0 grid-overlay pointer-events-none z-0" />
+      {/* Background image (matches landing hero) */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <Image
+          src="/landing-hero.jpg"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to bottom, rgba(10,12,14,0.55) 0%, rgba(10,12,14,0.7) 100%)',
+          }}
+        />
+      </div>
 
       <section className="relative flex min-h-screen items-center justify-center px-4 py-6 z-10">
         <div

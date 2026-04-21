@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Code2, BrainCircuit, BarChart3, Zap, Cpu, Lock, ArrowRight } from 'lucide-react';
+import { Code2, BrainCircuit, BarChart3, Zap, Cpu, ArrowRight } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 /* ── Category definitions ───────────────────────────────────────────────────── */
@@ -134,27 +134,7 @@ function CategoryCard({ category, index }: { category: Category; index: number }
           />
         </div>
 
-        {/* Badge */}
-        <div className="px-5 -mt-2">
-          {category.comingSoon ? (
-            <span
-              className="inline-flex items-center gap-1.5 font-mono text-[9px] px-2 py-0.5 uppercase rounded-full"
-              style={{ color: 'rgba(255,255,255,0.35)', border: '1px dashed rgba(255,255,255,0.1)' }}
-            >
-              <Lock className="w-2.5 h-2.5" />
-              Soon
-            </span>
-          ) : (
-            <span
-              className="inline-flex font-mono text-[9px] px-2 py-0.5 uppercase rounded-full"
-              style={{ color: `rgb(${rgb})`, border: `1px solid rgba(${rgb}, 0.25)`, backgroundColor: `rgba(${rgb}, 0.06)` }}
-            >
-              {category.questionCount} questions
-            </span>
-          )}
-        </div>
-
-        <div className="px-5 pt-4 pb-6 flex flex-col flex-1">
+        <div className="px-5 pt-5 pb-6 flex flex-col flex-1">
           {/* Title */}
           <h3
             className="text-2xl font-bold tracking-tight uppercase mb-1"

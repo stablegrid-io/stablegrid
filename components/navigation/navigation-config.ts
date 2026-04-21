@@ -2,10 +2,10 @@
 
 import {
   type LucideIcon,
-  Radar,
-  Atom,
-  Braces,
+  Home,
+  BookOpen,
   Target,
+  LayoutGrid,
   TrendingUp
 } from 'lucide-react';
 import { SubstationIcon } from './icons/SubstationIcon';
@@ -19,10 +19,10 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { href: '/home', icon: Radar, label: 'Home', matchPrefixes: ['/home', '/'] },
+  { href: '/home', icon: Home, label: 'Home', matchPrefixes: ['/home', '/'] },
   {
     href: '/learn',
-    icon: Atom,
+    icon: BookOpen,
     label: 'Learn',
     matchPrefixes: ['/theory', '/learn']
   },
@@ -40,7 +40,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: '/grid',
-    icon: SubstationIcon,
+    icon: LayoutGrid,
     label: 'Grid',
     matchPrefixes: ['/grid']
   },
@@ -75,7 +75,7 @@ export const isPracticeSessionPath = (pathname?: string | null, search?: string 
 };
 
 export const isCompactDesktopNavPath = (pathname?: string | null) =>
-  Boolean(pathname?.startsWith('/admin')) || Boolean(pathname?.startsWith('/cheat-sheets')) || isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname);
+  Boolean(pathname?.startsWith('/admin')) || Boolean(pathname?.startsWith('/cheat-sheets')) || pathname === '/theory' || isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname);
 
 export const isNavItemActive = (pathname: string | null, item: NavItem) =>
   Boolean(

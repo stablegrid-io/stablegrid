@@ -144,8 +144,8 @@ export const HomeDashboard = ({
           <div
             style={{
               ...anim(100),
-              background: '#111416',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: '#181c20',
+              border: '1px solid rgba(255,255,255,0.1)',
               borderRadius: 22,
               padding: '28px 28px 24px',
             }}

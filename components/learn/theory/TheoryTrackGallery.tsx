@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Lock } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
+import { getLearnTopicMeta } from '@/data/learn';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { summarizeTrackLessonProgress } from '@/lib/learn/theoryTrackProgress';
 import type { TheoryDoc } from '@/types/theory';
@@ -101,7 +102,7 @@ export const TheoryTrackGallery = ({
             className="font-black text-5xl lg:text-[4rem] tracking-tighter uppercase text-on-surface mb-2"
             style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards' }}
           >
-            {doc.topic.replace(/-/g, ' ')}
+            {getLearnTopicMeta(doc.topic)?.title ?? doc.topic.replace(/-/g, ' ')}
           </h1>
         </header>
 

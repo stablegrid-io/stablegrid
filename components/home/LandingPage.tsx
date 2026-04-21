@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { BookOpen, Layers, Clock, BarChart3, ArrowRight, Zap, Target, GraduationCap } from 'lucide-react';
-import WindTurbine from '@/components/home/WindTurbine';
 
 // ─── Nav on scroll ───────────────────────────────────────────────────────────
 
@@ -199,7 +198,33 @@ export const LandingPage = () => {
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
       <section className="min-h-[90vh] flex items-center px-6 relative overflow-hidden">
-        <div className="max-w-6xl mx-auto relative w-full grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-0">
+        {/* Background image */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <Image
+            src="/landing-hero.jpg"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-center"
+          />
+          {/* Left-side scrim for text legibility; preserves image on the right */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(to right, rgba(10,12,14,0.85) 0%, rgba(10,12,14,0.65) 35%, rgba(10,12,14,0.25) 65%, rgba(10,12,14,0) 100%)',
+            }}
+          />
+          <div
+            className="absolute inset-x-0 bottom-0 h-40"
+            style={{
+              background:
+                'linear-gradient(to bottom, transparent 0%, #0a0c0e 100%)',
+            }}
+          />
+        </div>
+        <div className="max-w-6xl mx-auto relative z-10 w-full grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-0">
           {/* Left column — text content */}
           <div>
             {/* Logo */}
@@ -217,6 +242,7 @@ export const LandingPage = () => {
                 fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
                 fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
                 lineHeight: 1.05,
+                textShadow: '0 2px 24px rgba(0,0,0,0.6)',
                 opacity: 0,
                 animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 80ms forwards',
               }}
@@ -230,8 +256,9 @@ export const LandingPage = () => {
             <p
               className="text-lg mb-10 max-w-lg"
               style={{
-                color: 'rgba(255,255,255,0.5)',
+                color: 'rgba(255,255,255,0.88)',
                 lineHeight: 1.7,
+                textShadow: '0 1px 12px rgba(0,0,0,0.5)',
                 opacity: 0,
                 animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 160ms forwards'
               }}
@@ -274,17 +301,20 @@ export const LandingPage = () => {
                 href="#topics"
                 className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-medium transition-all"
                 style={{
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.28)',
                   borderRadius: '14px',
-                  color: 'rgba(255,255,255,0.7)'
+                  color: 'rgba(255,255,255,0.95)',
+                  backgroundColor: 'rgba(10,12,14,0.35)',
+                  backdropFilter: 'blur(6px)',
+                  WebkitBackdropFilter: 'blur(6px)',
                 }}
                 onMouseOver={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
-                  e.currentTarget.style.color = 'rgba(255,255,255,0.95)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
+                  e.currentTarget.style.backgroundColor = 'rgba(10,12,14,0.5)';
                 }}
                 onMouseOut={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                  e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.28)';
+                  e.currentTarget.style.backgroundColor = 'rgba(10,12,14,0.35)';
                 }}
               >
                 Explore topics
@@ -298,7 +328,7 @@ export const LandingPage = () => {
             >
               <span
                 className="text-xs uppercase tracking-widest shrink-0"
-                style={{ color: 'rgba(255,255,255,0.2)', letterSpacing: '0.15em' }}
+                style={{ color: 'rgba(255,255,255,0.65)', letterSpacing: '0.15em', textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}
               >
                 Topics
               </span>
@@ -306,7 +336,7 @@ export const LandingPage = () => {
                 <div
                   key={src}
                   className="w-7 h-7 relative transition-opacity"
-                  style={{ opacity: 0.7 }}
+                  style={{ opacity: 0.95, filter: 'drop-shadow(0 1px 6px rgba(0,0,0,0.5))' }}
                 >
                   <Image
                     src={src}
@@ -317,14 +347,6 @@ export const LandingPage = () => {
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Right column — WindTurbine */}
-          <div
-            className="hidden lg:flex items-center justify-center relative"
-            style={{ opacity: 0, animation: 'fadeIn 1s cubic-bezier(.16,1,.3,1) 300ms forwards' }}
-          >
-            <WindTurbine size="custom" width={760} height={900} scale={1} background="transparent" showBeacon />
           </div>
         </div>
       </section>

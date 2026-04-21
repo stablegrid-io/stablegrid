@@ -18,7 +18,7 @@ const LANGUAGES = [
     id: 'sql',
     title: 'SQL',
     description: 'Queries, joins, window functions, aggregations.',
-    icon: '/brand/sql-logo.svg',
+    icon: '/brand/sql-logo.png',
     accentRgb: '99,179,237',
     category: 'Foundations',
     comingSoon: false,

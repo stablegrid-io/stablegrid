@@ -22,9 +22,10 @@ interface FieldReportProps {
   isNewDeployment?: boolean;
 }
 
-type PageKey = 'briefing' | 'operating' | 'horizon';
+type PageKey = 'image' | 'briefing' | 'operating' | 'horizon';
 
 const PAGES: { key: PageKey; label: string }[] = [
+  { key: 'image', label: 'Field Image' },
   { key: 'briefing', label: 'Briefing' },
   { key: 'operating', label: 'Operating Principle' },
   { key: 'horizon', label: 'Horizon' },
@@ -104,7 +105,7 @@ export function FieldReport({
           borderLeft: `3px solid ${color}`,
           borderRadius: 16,
           padding: 'clamp(28px, 4vw, 56px)',
-          maxWidth: 760,
+          maxWidth: 860,
           width: '100%',
           maxHeight: '90vh',
           display: 'flex',
@@ -210,20 +211,23 @@ export function FieldReport({
           }}
         >
           <section>
-            <h3
-              className="font-mono"
-              style={{
-                fontSize: 11,
-                letterSpacing: '0.22em',
-                color,
-                margin: '0 0 16px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-              }}
-            >
-              {page.label}
-            </h3>
+            {page.key !== 'image' && (
+              <h3
+                className="font-mono"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: '0.22em',
+                  color,
+                  margin: '0 0 16px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                }}
+              >
+                {page.label}
+              </h3>
+            )}
 
+            {page.key === 'image' && <HeroImage slug={component.slug} alt={component.name} teaser={briefing.teaser} accent={color} />}
             {page.key === 'briefing' && <Prose text={briefing.briefing} accent={color} />}
             {page.key === 'operating' &&
               briefing.operatingPrinciple.map((p, i) => (
@@ -356,6 +360,70 @@ export function FieldReport({
       `}</style>
     </div>
     </Portal>
+  );
+}
+
+function HeroImage({ slug, alt, teaser, accent }: { slug: string; alt: string; teaser: string; accent: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div style={{ margin: '0 0 18px' }}>
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: 'clamp(240px, 46vh, 460px)',
+          borderRadius: 12,
+          overflow: 'hidden',
+          background: `linear-gradient(135deg, ${accent}1f, rgba(10,12,14,0.9) 65%)`,
+          border: `1px solid ${accent}33`,
+        }}
+      >
+        {!failed && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={`/grid/components/${slug}.jpg`}
+            alt={alt}
+            onError={() => setFailed(true)}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        )}
+        {failed && (
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: accent,
+              fontFamily: 'var(--font-jetbrains-mono), ui-monospace, monospace',
+              fontSize: 12,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              fontWeight: 600,
+              opacity: 0.5,
+            }}
+          >
+            {alt}
+          </div>
+        )}
+      </div>
+      {teaser && (
+        <p
+          style={{
+            fontSize: 14,
+            lineHeight: 1.6,
+            color: TEXT_SECONDARY,
+            margin: '18px 0 0',
+            fontStyle: 'italic',
+            letterSpacing: '-0.003em',
+          }}
+        >
+          {teaser}
+        </p>
+      )}
+    </div>
   );
 }
 

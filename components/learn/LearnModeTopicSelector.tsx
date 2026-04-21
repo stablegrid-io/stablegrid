@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search } from 'lucide-react';
+import { Search, ListFilter } from 'lucide-react';
 import { getLearnTopicMeta, learnTopics } from '@/data/learn';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { CATEGORY_COLORS, type CategoryName } from '@/components/home/orbitalMapData';
@@ -49,7 +49,7 @@ const TRACK_ICON_SRC_BY_TOPIC: Record<string, string> = {
   fabric: '/brand/microsoft-fabric-track.svg',
   airflow: '/brand/apache-airflow-logo.svg',
   kafka: '/brand/apache-kafka-logo.svg',
-  sql: '/brand/sql-logo.svg',
+  sql: '/brand/sql-logo.png',
   docker: '/brand/docker-logo.svg',
   dbt: '/brand/dbt-logo.svg',
   databricks: '/brand/databricks-logo.svg',
@@ -217,143 +217,171 @@ export function LearnModeTopicSelector({
 
   return (
     <div className="min-h-screen pb-24 lg:pb-10">
-      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="relative w-full px-4 py-8 sm:px-6 lg:px-10 xl:px-14">
         {/* Page header — matches Stitch Theory Hub */}
-        <header className="mb-12 border-l-2 border-primary pl-6" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}>
+        <header className="mb-10 border-l-2 border-primary pl-6" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}>
           <h1 className="text-5xl font-extrabold tracking-tighter text-on-surface uppercase mb-2">
             Theory <span className="text-primary">Hub</span>
           </h1>
         </header>
 
-        {/* Filters */}
-        <div className="mb-10 inline-flex flex-col rounded-[22px] border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl overflow-hidden" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards' }}>
-          {/* Row 0: Search */}
-          <div className="flex items-center gap-3 px-4 py-2.5">
-            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30 w-14">
-              Search
-            </span>
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-on-surface-variant/25" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search tracks..."
-                className="h-7 w-full rounded-lg border border-white/[0.06] bg-white/[0.03] pl-8 pr-3 text-[12px] font-medium text-on-surface outline-none transition-all placeholder:text-on-surface-variant/25 focus:border-white/[0.12] focus:bg-white/[0.05]"
-              />
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8">
+          {/* Left: Filter panel */}
+          <aside
+            className="lg:sticky lg:top-20 self-start flex flex-col rounded-[22px] border border-outline-variant/30 bg-surface-container overflow-hidden lg:min-h-[calc(100dvh-8rem)]"
+            style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards' }}
+          >
+            {/* Header */}
+            <div className="border-b border-outline-variant/30 px-4 py-4">
+              <div className="text-sm font-bold text-on-surface">
+                Filter Tracks
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-[10px] text-on-surface-variant uppercase">
+                <ListFilter className="h-3.5 w-3.5" />
+                {filteredTopics.length} match{filteredTopics.length === 1 ? '' : 'es'}
+              </div>
+
+              {/* Search input */}
+              <div className="relative mt-3">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-on-surface-variant/40" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search tracks..."
+                  className="h-8 w-full rounded-lg border border-outline-variant/30 bg-surface-container-low pl-8 pr-3 text-[12px] font-medium text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/40 focus:border-outline-variant/60 focus:bg-surface-container-high"
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Divider */}
-          <div className="mx-4 h-px bg-white/[0.04]" />
+            {/* Filter list */}
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2 pt-3">
+              {/* TOPIC */}
+              <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/50">
+                Topic
+              </div>
+              <div className="mb-3 space-y-1">
+                {(['all', 'Foundations', 'Infrastructure', 'Orchestration', 'Platforms', 'Processing', 'Storage'] as const).map((theme) => {
+                  const isActive = themeFilter === theme || (theme === 'all' && themeFilter === 'all');
+                  const label = theme === 'all' ? 'All topics' : theme;
+                  return (
+                    <button
+                      key={theme}
+                      type="button"
+                      onClick={() => setThemeFilter(theme === 'all' ? 'all' : (isActive ? 'all' : theme))}
+                      className={`w-full border px-3 py-2 text-left transition-colors ${
+                        isActive
+                          ? 'border-white/[0.12] bg-white/[0.06]'
+                          : 'border-transparent hover:border-outline-variant/30 hover:bg-surface-container-high'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                            isActive
+                              ? 'bg-on-surface text-surface'
+                              : 'bg-surface-container-highest text-on-surface-variant'
+                          }`}
+                        >
+                          {null}
+                        </div>
+                        <div className={`text-sm leading-5 ${isActive ? 'font-semibold text-on-surface' : 'text-on-surface-variant'}`}>
+                          {label}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
 
-          {/* Row 1: Theme */}
-          <div className="flex items-center gap-3 px-4 py-2.5">
-            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30 w-14">
-              Topic
-            </span>
-            <div className="flex items-center gap-0.5">
-              <button
-                type="button"
-                onClick={() => setThemeFilter('all')}
-                className={`rounded-lg px-3 py-1 text-[12px] font-medium transition-all duration-200 ${
-                  themeFilter === 'all'
-                    ? 'bg-white/[0.1] text-on-surface'
-                    : 'text-on-surface-variant/40 hover:text-on-surface-variant/70 hover:bg-white/[0.04]'
-                }`}
-              >
-                All
-              </button>
-              {['Foundations', 'Infrastructure', 'Orchestration', 'Platforms', 'Processing', 'Storage'].map((theme) => {
-                const isActive = themeFilter === theme;
-                return (
-                  <button
-                    key={theme}
-                    type="button"
-                    onClick={() => setThemeFilter(isActive ? 'all' : theme)}
-                    className={`rounded-lg px-3 py-1 text-[12px] font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'bg-white/[0.1] text-on-surface'
-                        : 'text-on-surface-variant/40 hover:text-on-surface-variant/70 hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    {theme}
-                  </button>
-                );
-              })}
+              {/* STATUS */}
+              <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/50">
+                Status
+              </div>
+              <div className="mb-3 space-y-1">
+                {TOPIC_FILTERS.map((opt) => {
+                  const isActive = topicFilter === opt.id;
+                  const count = filterCounts[opt.id];
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setTopicFilter(opt.id)}
+                      className={`w-full border px-3 py-2 text-left transition-colors ${
+                        isActive
+                          ? 'border-white/[0.12] bg-white/[0.06]'
+                          : 'border-transparent hover:border-outline-variant/30 hover:bg-surface-container-high'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                            isActive
+                              ? 'bg-on-surface text-surface'
+                              : 'bg-surface-container-highest text-on-surface-variant'
+                          }`}
+                        >
+                          {null}
+                        </div>
+                        <div className="min-w-0 flex-1 flex items-center justify-between gap-2">
+                          <div className={`text-sm leading-5 ${isActive ? 'font-semibold text-on-surface' : 'text-on-surface-variant'}`}>
+                            {opt.label}
+                          </div>
+                          {count > 0 && opt.id !== 'all' && (
+                            <div className="text-[10px] text-on-surface-variant/50 tabular-nums">
+                              {count}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* SORT */}
+              <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/50">
+                Sort
+              </div>
+              <div className="space-y-1">
+                {SORT_OPTIONS.map((opt) => {
+                  const isActive = sortBy === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setSortBy(opt.id)}
+                      className={`w-full border px-3 py-2 text-left transition-colors ${
+                        isActive
+                          ? 'border-white/[0.12] bg-white/[0.06]'
+                          : 'border-transparent hover:border-outline-variant/30 hover:bg-surface-container-high'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                            isActive
+                              ? 'bg-on-surface text-surface'
+                              : 'bg-surface-container-highest text-on-surface-variant'
+                          }`}
+                        >
+                          {null}
+                        </div>
+                        <div className={`text-sm leading-5 ${isActive ? 'font-semibold text-on-surface' : 'text-on-surface-variant'}`}>
+                          {opt.label}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          </aside>
 
-          {/* Divider */}
-          <div className="mx-4 h-px bg-white/[0.04]" />
-
-          {/* Row 2: Progress */}
-          <div className="flex items-center gap-3 px-4 py-2.5">
-            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30 w-14">
-              Status
-            </span>
-            <div className="flex items-center gap-0.5">
-              {TOPIC_FILTERS.map((opt) => {
-                const isActive = topicFilter === opt.id;
-                const count = filterCounts[opt.id];
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setTopicFilter(opt.id)}
-                    className={`rounded-lg px-3 py-1 text-[12px] font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'bg-white/[0.1] text-on-surface'
-                        : 'text-on-surface-variant/40 hover:text-on-surface-variant/70 hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    {opt.label}
-                    {count > 0 && opt.id !== 'all' && (
-                      <span className={`ml-1 text-[10px] ${
-                        isActive ? 'text-on-surface-variant/50' : 'text-on-surface-variant/20'
-                      }`}>
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="mx-4 h-px bg-white/[0.04]" />
-
-          {/* Row 3: Sort */}
-          <div className="flex items-center gap-3 px-4 py-2.5">
-            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/30 w-14">
-              Sort
-            </span>
-            <div className="flex items-center gap-0.5">
-              {SORT_OPTIONS.map((opt) => {
-                const isActive = sortBy === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setSortBy(opt.id)}
-                    className={`rounded-lg px-3 py-1 text-[12px] font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'bg-white/[0.1] text-on-surface'
-                        : 'text-on-surface-variant/40 hover:text-on-surface-variant/70 hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Track cards — 3-column layout */}
+          {/* Right: Track cards */}
+          <div>
         {filteredTopics.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {filteredTopics.map((topic, index) => {
               const trackIconSrc =
                 TRACK_ICON_SRC_BY_TOPIC[topic.id] ?? '/brand/pyspark-track-star.svg';
@@ -391,38 +419,43 @@ export function LearnModeTopicSelector({
                   className="h-full"
                 >
                   <section
-                    className="bg-[#111416] relative overflow-hidden transition-all duration-300 h-full rounded-[22px]"
+                    className="bg-[#181c20] relative overflow-hidden transition-all duration-300 h-full rounded-[22px] flex flex-col"
                     style={{
                       border: `1px solid ${borderAccent}`,
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'scale(1.03)';
+                      e.currentTarget.style.transform = 'translateY(-6px)';
                       e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
                       e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.3)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.borderColor = borderAccent;
                       e.currentTarget.style.boxShadow = 'none';
                     }}
                   >
+                    {/* Top accent line */}
                     <div
-                      className="p-6 h-full flex flex-col relative"
+                      className="absolute top-0 left-0 right-0 transition-all duration-300"
+                      style={{ height: 2, background: `linear-gradient(90deg, transparent 5%, rgba(${catRgb}, 0.5), transparent 95%)` }}
+                    />
+
+                    {/* Banner with logo */}
+                    <div className="relative h-32 overflow-hidden shrink-0 flex items-center justify-center">
+                      <Image
+                        src={trackIconSrc}
+                        alt={`${getSimpleTrackName(topic.title)} logo`}
+                        width={72}
+                        height={72}
+                        className="h-16 w-16 object-contain transition-transform duration-700 group-hover:scale-110"
+                      />
+                    </div>
+
+                    <div
+                      className="px-6 pb-6 pt-5 flex flex-col relative flex-1"
                     >
-                      {/* Icon + badge */}
-                      <div className="mb-6 flex justify-between items-start">
-                        <div
-                          className="w-12 h-12 flex items-center justify-center rounded-[14px]"
-                          style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
-                        >
-                          <Image
-                            src={trackIconSrc}
-                            alt={`${getSimpleTrackName(topic.title)} logo`}
-                            width={28}
-                            height={28}
-                            className="h-7 w-7 object-contain"
-                          />
-                        </div>
+                      {/* Category badge */}
+                      <div className="mb-5">
                         <span
                           className="font-mono text-[10px] px-2 py-0.5 uppercase rounded-full"
                           style={{ color: `rgb(${catRgb})`, border: `1px solid rgba(${catRgb},0.3)`, backgroundColor: `rgba(${catRgb},0.06)` }}
@@ -546,6 +579,8 @@ export function LearnModeTopicSelector({
             )}
           </div>
         )}
+          </div>
+        </div>
 
       </div>
     </div>

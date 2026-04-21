@@ -37,6 +37,12 @@ export const Sidebar = () => {
   const [adminAccess, setAdminAccess] = useState<AdminAccessData | null>(null);
   const [hasResolvedAdminAccess, setHasResolvedAdminAccess] = useState(false);
   const xp = useProgressStore((state) => state.xp);
+  const [progressHydrated, setProgressHydrated] = useState(false);
+  useEffect(() => {
+    // Zustand persist reads localStorage synchronously before effects run,
+    // so by this point `xp` reflects the stored value (not the SSR default 0).
+    setProgressHydrated(true);
+  }, []);
   const tier = getUserTier(xp);
   const resolvedAvatarUrl = getTierProfileImage(tier);
   const tierRgb =
@@ -112,17 +118,27 @@ export const Sidebar = () => {
         {isCompact ? (
           <div
             className="relative w-10 h-10 shrink-0 overflow-hidden rounded-full ring-2"
-            style={{ ['--tw-ring-color' as string]: `rgba(${tierRgb},0.4)` }}
+            style={{
+              ['--tw-ring-color' as string]: progressHydrated ? `rgba(${tierRgb},0.4)` : 'rgba(255,255,255,0.08)',
+              backgroundColor: 'rgba(255,255,255,0.04)'
+            }}
           >
-            <Image src={resolvedAvatarUrl} alt={`${tier} avatar`} fill unoptimized className="object-cover" />
+            {progressHydrated && (
+              <Image src={resolvedAvatarUrl} alt={`${tier} avatar`} fill unoptimized className="object-cover" />
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-3">
             <div
               className="relative w-12 h-12 shrink-0 overflow-hidden rounded-full ring-2"
-              style={{ ['--tw-ring-color' as string]: `rgba(${tierRgb},0.4)` }}
+              style={{
+                ['--tw-ring-color' as string]: progressHydrated ? `rgba(${tierRgb},0.4)` : 'rgba(255,255,255,0.08)',
+                backgroundColor: 'rgba(255,255,255,0.04)'
+              }}
             >
-              <Image src={resolvedAvatarUrl} alt={`${tier} avatar`} fill unoptimized className="object-cover" />
+              {progressHydrated && (
+                <Image src={resolvedAvatarUrl} alt={`${tier} avatar`} fill unoptimized className="object-cover" />
+              )}
             </div>
             <div
               className="min-w-0 flex flex-col leading-tight"
@@ -130,16 +146,22 @@ export const Sidebar = () => {
             >
               <div
                 className="text-[11px] font-bold uppercase tracking-[0.14em]"
-                style={{ color: tierAccent }}
+                style={{ color: progressHydrated ? tierAccent : 'transparent' }}
               >
-                {tierLabel}
+                {progressHydrated ? tierLabel : '\u00A0'}
               </div>
               <div className="mt-1.5">
                 <div className="text-[8.5px] font-semibold uppercase tracking-[0.16em] text-on-surface-variant/35">
                   Total earned
                 </div>
                 <div className="text-[12px] font-semibold text-white tabular-nums leading-tight">
-                  {xp.toLocaleString()} <span className="font-medium text-white/50">kWh</span>
+                  {progressHydrated ? (
+                    <>
+                      {xp.toLocaleString()} <span className="font-medium text-white/50">kWh</span>
+                    </>
+                  ) : (
+                    <span className="text-white/30">— kWh</span>
+                  )}
                 </div>
               </div>
             </div>

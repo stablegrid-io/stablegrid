@@ -70,7 +70,7 @@ export function ShopModal({ data, purchasingSlug, onDeploy, onHoverItem, onClose
         style={{
           position: 'relative',
           width: '100%',
-          maxWidth: 1180,
+          maxWidth: 1440,
           maxHeight: '100%',
           background: PANEL_BG,
           border: `1px solid ${PANEL_BORDER}`,
@@ -196,8 +196,8 @@ export function ShopModal({ data, purchasingSlug, onDeploy, onHoverItem, onClose
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: 18,
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              gap: 20,
             }}
           >
             {filteredItems.map((item) => (

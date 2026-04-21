@@ -18,6 +18,7 @@ import {
 interface ShopCardProps {
   item: ShopItemView;
   onDeploy: (slug: string) => void;
+  onOpenBriefing?: (slug: string) => void;
   isPurchasing: boolean;
   onHoverChange?: (hovering: boolean) => void;
 }
@@ -89,7 +90,7 @@ export function ShopCard({ item, onDeploy, isPurchasing, onHoverChange }: ShopCa
         style={{
           position: 'relative',
           width: '100%',
-          height: 150,
+          height: 220,
           background: `linear-gradient(135deg, ${color}1f, rgba(10,12,14,0.9) 65%)`,
           overflow: 'hidden',
           flexShrink: 0,
