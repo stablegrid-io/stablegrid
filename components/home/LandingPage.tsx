@@ -179,9 +179,6 @@ export const LandingPage = () => {
       className="relative min-h-screen text-white"
       style={{ backgroundColor: '#0a0c0e', fontFamily: 'Inter, sans-serif' }}
     >
-      {/* Background grid */}
-      <div className="fixed inset-0 pointer-events-none z-0 grid-overlay" />
-      <div className="fixed inset-0 pointer-events-none z-0 scanline opacity-20" />
       <style>{`
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(20px); }
@@ -202,15 +199,6 @@ export const LandingPage = () => {
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
       <section className="min-h-[90vh] flex items-center px-6 relative overflow-hidden">
-        {/* Background gradient — shifted right for turbine halo */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              'radial-gradient(ellipse 60% 50% at 70% 30%, rgba(153,247,255,0.06) 0%, transparent 60%)'
-          }}
-        />
-
         <div className="max-w-6xl mx-auto relative w-full grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-0">
           {/* Left column — text content */}
           <div>
@@ -336,13 +324,6 @@ export const LandingPage = () => {
             className="hidden lg:flex items-center justify-center relative"
             style={{ opacity: 0, animation: 'fadeIn 1s cubic-bezier(.16,1,.3,1) 300ms forwards' }}
           >
-            {/* Subtle cyan glow behind turbine */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(153,247,255,0.05) 0%, transparent 70%)'
-              }}
-            />
             <WindTurbine size="custom" width={760} height={900} scale={1} background="transparent" showBeacon />
           </div>
         </div>

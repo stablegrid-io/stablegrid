@@ -239,21 +239,13 @@ export function GridPage() {
         aria-label="Actions"
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           gap: 14,
           flexWrap: 'wrap',
           paddingTop: 4,
         }}
       >
-        <p
-          className="font-mono tabular-nums"
-          style={{ fontSize: 11, color: TEXT_TERTIARY, letterSpacing: '0.1em', margin: 0 }}
-        >
-          {deployedSlugs.length} of 10 districts restored · reserve{' '}
-          <span style={{ color: BRAND_CYAN, fontWeight: 600 }}>{data.balance.toLocaleString()} kWh</span>
-        </p>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button
             type="button"

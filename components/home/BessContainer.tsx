@@ -104,9 +104,9 @@ export default function BessContainer({
             <stop offset="100%" stopColor="#13161c" />
           </linearGradient>
           <linearGradient id={`modOn-${uid}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#b5ecf6" />
-            <stop offset="55%" stopColor="#3fb0c8" />
-            <stop offset="100%" stopColor="#1a5565" />
+            <stop offset="0%" stopColor="#e4faff" />
+            <stop offset="45%" stopColor="#78e0f5" />
+            <stop offset="100%" stopColor="#2b8fae" />
           </linearGradient>
           <radialGradient id={`halo-${uid}`} cx="0.5" cy="0.5" r="0.55">
             <stop offset="0%" stopColor="#78d4e8" stopOpacity="0.24" />
@@ -117,6 +117,27 @@ export default function BessContainer({
             <feGaussianBlur stdDeviation="1.6" result="b" />
             <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
+          {/* Stronger bloom for lit cells — two-stage blur with animated halo */}
+          <filter id={`cellBloom-${uid}`} x="-75%" y="-75%" width="250%" height="250%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="1.4" result="b1">
+              <animate attributeName="stdDeviation"
+                values="1.1;1.9;1.1" dur="2.2s" repeatCount="indefinite" />
+            </feGaussianBlur>
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3.6" result="b2">
+              <animate attributeName="stdDeviation"
+                values="3.0;5.4;3.0" dur="3.0s" repeatCount="indefinite" />
+            </feGaussianBlur>
+            <feColorMatrix in="b2" type="matrix"
+              values="0 0 0 0 0.47
+                      0 0 0 0 0.87
+                      0 0 0 0 0.96
+                      0 0 0 1 0" result="b2c" />
+            <feMerge>
+              <feMergeNode in="b2c" />
+              <feMergeNode in="b1" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
           <radialGradient id={`spill-${uid}`} cx="0.5" cy="0.5" r="0.55">
             <stop offset="0%" stopColor="#78d4e8" stopOpacity="0.55" />
             <stop offset="100%" stopColor="#78d4e8" stopOpacity="0" />
@@ -124,8 +145,28 @@ export default function BessContainer({
         </defs>
 
         <style>{`
-          @keyframes bp-${uid} { 0%,100%{opacity:.75} 50%{opacity:1} }
-          .bp-${uid} { animation: bp-${uid} 2400ms ease-in-out infinite; }
+          /* Slow breathe — baseline opacity pulse */
+          @keyframes bp-${uid} { 0%,100%{opacity:.86} 50%{opacity:1} }
+          /* Surge — momentary bright spike; offset per-cell creates a travelling wave */
+          @keyframes surge-${uid} {
+            0%, 70%, 100% { opacity: .86; }
+            76% { opacity: 1; }
+            82% { opacity: .94; }
+          }
+          /* Two tempo variants so odd/even rows desync slightly */
+          .bp-${uid}-a {
+            animation:
+              bp-${uid} 2200ms ease-in-out infinite,
+              surge-${uid} 6400ms linear infinite;
+          }
+          .bp-${uid}-b {
+            animation:
+              bp-${uid} 2600ms ease-in-out infinite,
+              surge-${uid} 6400ms linear infinite;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            [class^="bp-${uid}"] { animation: none !important; opacity: 1 !important; }
+          }
         `}</style>
 
         {/* Halo — disabled */}
@@ -200,17 +241,31 @@ export default function BessContainer({
                   <polygon points={`${f_br.x},${f_br.y} ${b_br.x},${b_br.y} ${b_tr.x},${b_tr.y} ${f_tr.x},${f_tr.y}`} fill="#1a1e28" stroke="#000" strokeWidth="0.25" />
                   <polygon points={`${f_bl.x},${f_bl.y} ${f_br.x},${f_br.y} ${f_tr.x},${f_tr.y} ${f_tl.x},${f_tl.y}`} fill={`url(#modOff-${uid})`} stroke="#000" strokeWidth="0.4" />
                   <line x1={f_bl.x + 1.2} y1={(f_bl.y + f_tl.y) / 2} x2={f_br.x - 1.2} y2={(f_br.y + f_tr.y) / 2} stroke="#000" strokeOpacity="0.45" strokeWidth="0.35" />
-                  {(lit || isPartial) && (
-                    <g>
-                      <polygon
-                        points={`${f_bl.x + 0.6},${f_bl.y - 0.6} ${f_br.x - 0.6},${f_br.y - 0.6} ${f_tr.x - 0.6},${f_tr.y + 0.6} ${f_tl.x + 0.6},${f_tl.y + 0.6}`}
-                        fill={`url(#modOn-${uid})`} opacity={cellOpacity}
-                        className={lit ? `bp-${uid}` : undefined}
-                        style={lit ? { animationDelay: `${(row * 91 + col * 203) % 1800}ms` } : undefined}
-                      />
-                      {lit && <line x1={f_tl.x + 1} y1={f_tl.y + 0.8} x2={f_tr.x - 1} y2={f_tr.y + 0.8} stroke="#ffffff" strokeOpacity="0.85" strokeWidth="0.5" />}
-                    </g>
-                  )}
+                  {(lit || isPartial) && (() => {
+                    // Per-cell timing variety: breathe phase uses a chaotic offset,
+                    // surge delay is proportional to position so the wave rolls
+                    // bottom-left → top-right across the rack (6.4s cycle).
+                    const breathePhase = (row * 91 + col * 203) % 1800;
+                    const surgeDelay = -Math.round(
+                      ((col + (ROWS - 1 - row) * 0.6) / (COLS + ROWS * 0.6)) * 6400,
+                    );
+                    const tempoClass = lit
+                      ? row % 2 === 0
+                        ? `bp-${uid}-a`
+                        : `bp-${uid}-b`
+                      : undefined;
+                    return (
+                      <g filter={lit ? `url(#cellBloom-${uid})` : undefined}>
+                        <polygon
+                          points={`${f_bl.x + 0.6},${f_bl.y - 0.6} ${f_br.x - 0.6},${f_br.y - 0.6} ${f_tr.x - 0.6},${f_tr.y + 0.6} ${f_tl.x + 0.6},${f_tl.y + 0.6}`}
+                          fill={`url(#modOn-${uid})`} opacity={cellOpacity}
+                          className={tempoClass}
+                          style={lit ? { animationDelay: `${breathePhase}ms, ${surgeDelay}ms` } : undefined}
+                        />
+                        {lit && <line x1={f_tl.x + 1} y1={f_tl.y + 0.8} x2={f_tr.x - 1} y2={f_tr.y + 0.8} stroke="#ffffff" strokeOpacity="0.98" strokeWidth="0.55" />}
+                      </g>
+                    );
+                  })()}
                   {!lit && ((row + col) % 4 === 0) && (
                     <circle cx={f_br.x - 1.5} cy={(f_br.y + f_tr.y) / 2} r="0.5" fill="#ff2a2a" opacity="0.55" />
                   )}

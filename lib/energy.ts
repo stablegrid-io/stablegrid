@@ -31,6 +31,32 @@ export function getTierMultiplier(trackLevel: string): number {
   return TIER_MULTIPLIER[trackLevel] ?? 1;
 }
 
+/* ── User Tier (derived from accumulated kWh) ───────────────────────────────── */
+
+export type UserTier = 'junior' | 'mid' | 'senior';
+
+export const USER_TIER_THRESHOLDS: Record<UserTier, number> = {
+  junior: 0,
+  mid: 500,
+  senior: 2500,
+};
+
+export function getUserTier(kwh: number): UserTier {
+  if (kwh >= USER_TIER_THRESHOLDS.senior) return 'senior';
+  if (kwh >= USER_TIER_THRESHOLDS.mid) return 'mid';
+  return 'junior';
+}
+
+export function getTierProfileImage(tier: UserTier): string {
+  return `/brand/profile-${tier}.png`;
+}
+
+export function getNextTierThreshold(tier: UserTier): number | null {
+  if (tier === 'junior') return USER_TIER_THRESHOLDS.mid;
+  if (tier === 'mid') return USER_TIER_THRESHOLDS.senior;
+  return null;
+}
+
 /* ── Legacy stubs (backward compatibility) ─────────────────────────────────── */
 
 export const getChapterCompletionRewardUnits = (_totalMinutes: number): number => 0;

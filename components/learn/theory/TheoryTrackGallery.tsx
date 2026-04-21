@@ -30,8 +30,8 @@ const TIER = [
     label: 'JUNIOR', subtitle: 'FOUNDATIONAL MODULES',
     xp: '1.0X', cta: 'Start Learning',
     image: '/brand/track-junior.png',
-    imageFilter: 'brightness(0.45) contrast(1.1)',
-    imageHue: 'hue-rotate(160deg) saturate(0.6)',
+    imageFilter: '',
+    imageHue: '',
     ctaStyle: 'filled' as const,
   },
   {
@@ -39,7 +39,7 @@ const TIER = [
     label: 'MID', subtitle: 'ADVANCED SYSTEMS',
     xp: '1.5X', cta: 'Start Learning',
     image: '/brand/track-mid.png',
-    imageFilter: 'brightness(0.45) contrast(1.1)',
+    imageFilter: '',
     imageHue: '',
     ctaStyle: 'outlined' as const,
   },
@@ -48,7 +48,7 @@ const TIER = [
     label: 'SENIOR', subtitle: 'PLATFORM ARCHITECTURE',
     xp: '3.0X', cta: 'Locked',
     image: '/brand/track-senior.png',
-    imageFilter: 'brightness(0.3) saturate(0) contrast(1.1)',
+    imageFilter: '',
     imageHue: '',
     ctaStyle: 'outlined' as const,
   },
@@ -154,17 +154,6 @@ export const TheoryTrackGallery = ({
                     />
                     {/* bottom gradient */}
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, #111416 95%)' }} />
-
-                    {/* Level pill */}
-                    <div
-                      className="absolute top-4 left-4 px-3 py-1 rounded-full font-mono text-[10px] font-bold tracking-widest"
-                      style={{
-                        backgroundColor: isLocked ? 'rgba(255,255,255,0.04)' : `rgba(${tier.rgb},0.18)`,
-                        color: isLocked ? 'rgba(255,255,255,0.15)' : tier.color,
-                      }}
-                    >
-                      LEVEL{String(i + 1).padStart(2, '0')}
-                    </div>
 
                     {/* Lock overlay */}
                     {isLocked && (

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { DoorOpen, DoorClosed } from 'lucide-react';
+import { DoorOpen, DoorClosed, Zap } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
@@ -52,7 +52,7 @@ export const HomeDashboard = ({
   ).split(' ')[0];
 
   const [doorsOpen, setDoorsOpen] = useState(false);
-  const [infoPanelVisible, setInfoPanelVisible] = useState(true);
+  const [infoPanelVisible, setInfoPanelVisible] = useState(false);
 
   // Live balance: seed from server prop, refetch on mount + window focus so
   // returning from /grid after a purchase shows the updated reserve.
@@ -155,25 +155,89 @@ export const HomeDashboard = ({
               <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: 500, marginBottom: 6 }}>
                 kWh stored
               </div>
-              <div className="tabular-nums" style={{ fontSize: 38, fontWeight: 600, letterSpacing: '-0.02em', color: '#99f7ff', lineHeight: 1 }}>
+              <div className="tabular-nums text-on-surface" style={{ fontSize: 38, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1 }}>
                 {kWh}
               </div>
             </div>
 
             {/* Progress bar */}
-            <div style={{ marginBottom: 20 }}>
-              <div className="flex items-baseline justify-between" style={{ marginBottom: 6 }}>
-                <span style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: 500 }}>
-                  {remainingToFull > 0 ? `${remainingToFull.toLocaleString()} kWh to full charge` : 'Battery fully charged'}
-                </span>
-                <span className="font-mono tabular-nums" style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-                  {chargePct}%
-                </span>
-              </div>
-              <div style={{ height: 2, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
-                <div style={{ width: `${Math.max(chargePct, 1)}%`, height: '100%', borderRadius: 100, background: 'rgba(255,255,255,0.6)', transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
-              </div>
-            </div>
+            {(() => {
+              const isFull = chargePct >= 100;
+              return (
+                <div style={{ marginBottom: 20 }}>
+                  <div className="flex items-baseline justify-between" style={{ marginBottom: 6 }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        color: isFull ? 'rgba(153,247,255,0.75)' : 'rgba(255,255,255,0.25)',
+                        fontWeight: 500,
+                        transition: 'color 400ms ease',
+                      }}
+                    >
+                      {remainingToFull > 0 ? `${remainingToFull.toLocaleString()} kWh to full charge` : 'Battery fully charged'}
+                    </span>
+                    <span
+                      className="font-mono tabular-nums"
+                      style={{
+                        fontSize: 11,
+                        color: isFull ? '#99f7ff' : 'rgba(255,255,255,0.4)',
+                        transition: 'color 400ms ease',
+                      }}
+                    >
+                      {chargePct}%
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: 3,
+                      background: 'rgba(255,255,255,0.06)',
+                      borderRadius: 100,
+                      position: 'relative',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.max(chargePct, 1)}%`,
+                        height: '100%',
+                        borderRadius: 100,
+                        position: 'relative',
+                        background: isFull
+                          ? 'linear-gradient(90deg, rgba(153,247,255,0.55) 0%, #99f7ff 50%, rgba(153,247,255,0.55) 100%)'
+                          : '#99f7ff',
+                        backgroundSize: isFull ? '200% 100%' : undefined,
+                        animation: isFull
+                          ? 'kwhFlow 2.2s linear infinite, kwhPulse 1.8s ease-in-out infinite'
+                          : undefined,
+                        boxShadow: isFull
+                          ? '0 0 10px rgba(153,247,255,0.55)'
+                          : '0 0 6px rgba(153,247,255,0.35)',
+                        transition: 'width 1.5s cubic-bezier(.16,1,.3,1), box-shadow 400ms ease',
+                      }}
+                    >
+                      {isFull && (
+                        <span
+                          aria-hidden
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: 100,
+                            background:
+                              'linear-gradient(90deg, transparent 0%, transparent 35%, rgba(255,255,255,0.9) 50%, transparent 65%, transparent 100%)',
+                            backgroundSize: '220% 100%',
+                            mixBlendMode: 'screen',
+                            animation: 'kwhShimmer 1.8s linear infinite',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Actions */}
             <div className="flex items-center gap-3">
@@ -191,7 +255,7 @@ export const HomeDashboard = ({
                 Continue Learning
               </Link>
               <button
-                onClick={() => { setDoorsOpen((v) => !v); setInfoPanelVisible(true); }}
+                onClick={() => setDoorsOpen((v) => !v)}
                 className="flex items-center gap-2 font-mono uppercase transition-all hover:bg-white/[0.06] active:scale-[0.97]"
                 style={{
                   padding: '14px 16px', borderRadius: 14, fontSize: 11,
@@ -211,59 +275,90 @@ export const HomeDashboard = ({
           <div className="relative w-full" style={{ maxWidth: 600 }}>
             <BessContainer fill={batteryFill} doorsOpen={doorsOpen} kWh={availableKwh} pct={chargePct} litCells={litCells} totalCells={TOTAL_CELLS} />
 
-            {/* Info panel — visible when doors open */}
-            {doorsOpen && infoPanelVisible && (
-              <div
-                className="absolute left-1/2 -translate-x-1/2 bottom-4 z-10"
+            {/* Help button + info panel — shows on hover */}
+            <div
+              className="absolute z-10"
+              style={{
+                /* Pinned to the battery's back-top-right 3D corner — the
+                   highest visible corner of the roof. P(W, H, D) maps to
+                   ~(100.3%, 1.8%) of the wrapper. */
+                top: 'calc(1.8% - 14px)',
+                right: '-14px',
+              }}
+              onMouseEnter={() => setInfoPanelVisible(true)}
+              onMouseLeave={() => setInfoPanelVisible(false)}
+            >
+              <button
+                type="button"
+                aria-label="About this battery"
+                aria-expanded={infoPanelVisible}
+                className="transition-all active:scale-[0.95]"
                 style={{
-                  background: 'rgba(17,20,22,0.92)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: 12,
-                  padding: '14px 18px',
-                  width: 320,
-                  backdropFilter: 'blur(20px)',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background: infoPanelVisible
+                    ? 'linear-gradient(180deg, #8a8f99 0%, #5a6069 100%)'
+                    : 'linear-gradient(180deg, #7a7f88 0%, #4a4f58 100%)',
+                  border: `1px solid ${infoPanelVisible ? '#3a3f48' : '#2f343c'}`,
+                  color: infoPanelVisible ? '#1a1e25' : 'rgba(20,22,26,0.75)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.4)',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backdropFilter: 'blur(8px)',
+                  lineHeight: 1,
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>
+                <Zap className="w-3.5 h-3.5" fill="currentColor" strokeWidth={0} />
+              </button>
+
+              {infoPanelVisible && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 'calc(100% + 10px)',
+                    background: 'rgba(17,20,22,0.92)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: 12,
+                    padding: '14px 18px',
+                    width: 320,
+                    backdropFilter: 'blur(20px)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.8)', marginBottom: 10 }}>
                     BESS Energy Storage
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setInfoPanelVisible(false)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'rgba(255,255,255,0.3)', lineHeight: 1, fontSize: 14 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; }}
-                    aria-label="Close info panel"
-                  >
-                    ✕
-                  </button>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6, marginBottom: 12 }}>
+                    Your battery stores kWh earned by reading lessons, completing modules, and finishing tracks. Cells light up as you learn.
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {[
+                      { label: 'Lesson read', value: '+5 kWh', sub: '×1.5 mid · ×3 senior' },
+                      { label: 'Module complete', value: '+25 kWh', sub: '×1.5 mid · ×3 senior' },
+                      { label: 'Track complete', value: '+200 kWh', sub: '×1.5 mid · ×3 senior' },
+                    ].map((r) => (
+                      <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>{r.label}</span>
+                        <span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#ffffff' }}>{r.value}</span>
+                          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', marginLeft: 4 }}>{r.sub}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>Cells</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>{litCells}/{TOTAL_CELLS} charged</span>
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6, marginBottom: 12 }}>
-                  Your battery stores kWh earned by reading lessons, completing modules, and finishing tracks. Cells light up as you learn.
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {[
-                    { label: 'Lesson read', value: '+5 kWh', sub: '×1.5 mid · ×3 senior' },
-                    { label: 'Module complete', value: '+25 kWh', sub: '×1.5 mid · ×3 senior' },
-                    { label: 'Track complete', value: '+200 kWh', sub: '×1.5 mid · ×3 senior' },
-                  ].map((r) => (
-                    <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>{r.label}</span>
-                      <span>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: '#99f7ff' }}>{r.value}</span>
-                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', marginLeft: 4 }}>{r.sub}</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>Cells</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>{litCells}/{TOTAL_CELLS} charged</span>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -273,6 +368,26 @@ export const HomeDashboard = ({
         @keyframes homeFadeUp {
           from { opacity: 0; transform: translateY(20px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Energy flow across the bar when fully charged */
+        @keyframes kwhFlow {
+          0%   { background-position: 100% 0; }
+          100% { background-position: -100% 0; }
+        }
+        /* Subtle glow pulse */
+        @keyframes kwhPulse {
+          0%, 100% { box-shadow: 0 0 8px rgba(153, 247, 255, 0.45); }
+          50%      { box-shadow: 0 0 18px rgba(153, 247, 255, 0.85), 0 0 3px rgba(153, 247, 255, 1); }
+        }
+        /* Bright highlight sweeping across — runs offset from flow for richer motion */
+        @keyframes kwhShimmer {
+          0%   { background-position: 130% 0; }
+          100% { background-position: -130% 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [style*="kwhFlow"], [style*="kwhPulse"], [style*="kwhShimmer"] {
+            animation: none !important;
+          }
         }
       `}</style>
     </div>

@@ -39,23 +39,20 @@ export function LoginForm() {
       {/* Grid background */}
       <div className="fixed inset-0 grid-overlay pointer-events-none z-0" />
 
-      {/* Ambient glow */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-[-160px] h-[520px] w-[520px] -translate-x-1/2 opacity-20"
-        style={{ background: 'radial-gradient(circle, rgba(0,242,255,0.2), transparent 72%)' }}
-      />
-
       <section className="relative flex min-h-screen items-center justify-center px-4 py-6 z-10">
-        <div className="relative w-full max-w-[400px] rounded-[22px] bg-[#111416] border border-white/[0.06] p-8">
+        <div
+          className="relative w-full max-w-[400px] rounded-[22px] bg-[#111416] p-8"
+          style={{
+            border: '1px solid rgba(153,247,255,0.35)',
+            boxShadow: '0 0 0 1px rgba(153,247,255,0.08), 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(153,247,255,0.08)',
+          }}
+        >
 
           {/* Header */}
           <header className="mb-10 text-center">
             <h1 className="text-3xl font-bold text-on-surface tracking-tight mb-3">
               Get started
             </h1>
-            <p className="text-[13px] text-on-surface-variant/40 leading-relaxed max-w-xs mx-auto">
-              Sign in or create an account to start learning.
-            </p>
           </header>
 
           {/* Error */}
@@ -91,9 +88,9 @@ export function LoginForm() {
           {/* Footer */}
           <p className="text-center text-[11px] text-on-surface-variant/30">
             By continuing, you agree to our{' '}
-            <a href="/terms" className="text-on-surface-variant/50 hover:text-on-surface-variant transition-colors">Terms</a>
+            <a href="/terms" className="text-on-surface/85 underline underline-offset-2 decoration-on-surface/30 hover:text-on-surface hover:decoration-on-surface/60 transition-colors">Terms</a>
             {' '}and{' '}
-            <a href="/privacy" className="text-on-surface-variant/50 hover:text-on-surface-variant transition-colors">Privacy Policy</a>.
+            <a href="/privacy" className="text-on-surface/85 underline underline-offset-2 decoration-on-surface/30 hover:text-on-surface hover:decoration-on-surface/60 transition-colors">Privacy Policy</a>.
           </p>
         </div>
       </section>

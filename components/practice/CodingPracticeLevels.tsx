@@ -12,8 +12,8 @@ const TIER = [
     label: 'JUNIOR', subtitle: 'FOUNDATIONAL MODULES',
     xp: '1.0X',
     image: '/brand/track-junior.png',
-    imageFilter: 'brightness(0.45) contrast(1.1)',
-    imageHue: 'hue-rotate(160deg) saturate(0.6)',
+    imageFilter: '',
+    imageHue: '',
     questionCount: 0,
     locked: false,
     comingSoon: false,
@@ -24,7 +24,7 @@ const TIER = [
     label: 'MID', subtitle: 'ADVANCED SYSTEMS',
     xp: '1.5X',
     image: '/brand/track-mid.png',
-    imageFilter: 'brightness(0.45) contrast(1.1)',
+    imageFilter: '',
     imageHue: '',
     questionCount: 0,
     locked: false,
@@ -36,7 +36,7 @@ const TIER = [
     label: 'SENIOR', subtitle: 'PLATFORM ARCHITECTURE',
     xp: '3.0X',
     image: '/brand/track-senior.png',
-    imageFilter: 'brightness(0.3) saturate(0) contrast(1.1)',
+    imageFilter: '',
     imageHue: '',
     questionCount: 0,
     locked: true,
@@ -159,17 +159,6 @@ export function CodingPracticeLevels({ language = 'python' }: { language?: strin
                     {/* bottom gradient */}
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, #111416 95%)' }} />
 
-                    {/* Level pill */}
-                    <div
-                      className="absolute top-4 left-4 px-3 py-1 rounded-full font-mono text-[10px] font-bold tracking-widest"
-                      style={{
-                        backgroundColor: isLocked ? 'rgba(255,255,255,0.04)' : `rgba(${tier.rgb},0.18)`,
-                        color: isLocked ? 'rgba(255,255,255,0.15)' : tier.color,
-                      }}
-                    >
-                      LEVEL{String(i + 1).padStart(2, '0')}
-                    </div>
-
                     {/* Lock overlay */}
                     {isLocked && (
                       <div className="absolute inset-0 flex items-center justify-center">
@@ -206,7 +195,7 @@ export function CodingPracticeLevels({ language = 'python' }: { language?: strin
                     <div className="space-y-0 flex-1">
                       <StatRow label="Modules" value={`${String(completedModules).padStart(2, '0')} / ${String(totalModules).padStart(2, '0')}`} />
                       <StatRow label="Est. Completion" value={isLocked ? '-- : -- : --' : '00:00:00'} />
-                      <StatRow label="XP Multiplier" value={tier.xp} />
+                      <StatRow label="kWh Multiplier" value={tier.xp} />
                     </div>
 
                     {/* CTA */}

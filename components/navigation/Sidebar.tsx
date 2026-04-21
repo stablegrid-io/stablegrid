@@ -5,10 +5,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { Fingerprint, Wrench, MessageCircle } from 'lucide-react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { AdminRole } from '@/lib/admin/types';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
-import { StableGridIcon } from '@/components/brand/StableGridLogo';
+import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { getUserTier, getTierProfileImage } from '@/lib/energy';
 import {
   isNavItemActive,
   isCompactDesktopNavPath,
@@ -26,51 +26,24 @@ interface AdminAccessData {
   role: AdminRole;
 }
 
-interface ProfileAvatarResponse {
-  data?: { avatarUrl?: string | null };
-}
-
-const PROFILE_AVATAR_UPDATED_EVENT = 'stablegrid:profile-avatar-updated';
-
-const toAvatarUrl = (value: unknown) =>
-  typeof value === 'string' && value.trim().length > 0 ? value : null;
-
-const toNickname = (user: SupabaseUser | null) => {
-  if (!user) return 'Operator';
-  const metadata = user.user_metadata ?? {};
-  for (const candidate of [metadata.nickname, metadata.display_name, metadata.name, metadata.full_name]) {
-    if (typeof candidate === 'string' && candidate.trim().length > 0) return candidate.trim();
-  }
-  if (typeof user.email === 'string' && user.email.includes('@')) {
-    const localPart = user.email.split('@')[0]?.trim();
-    if (localPart) return localPart;
-  }
-  return 'Operator';
-};
-
 export const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuthStore();
   const hideNav = shouldHideNav(pathname, Boolean(user));
   const isCompact = isCompactDesktopNavPath(pathname);
-  const nickname = toNickname(user);
-
-  const profileAvatarUrlRaw = user?.user_metadata?.avatar_url;
-  const profileAvatarFallback =
-    typeof profileAvatarUrlRaw === 'string' &&
-    profileAvatarUrlRaw.trim().length > 0 &&
-    !profileAvatarUrlRaw.startsWith('data:')
-      ? profileAvatarUrlRaw
-      : null;
 
   const prefetchedRoutesRef = useRef<Set<string>>(new Set());
   const [adminAccess, setAdminAccess] = useState<AdminAccessData | null>(null);
   const [hasResolvedAdminAccess, setHasResolvedAdminAccess] = useState(false);
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
-  const [profileName, setProfileName] = useState<string | null>(null);
-  const resolvedAvatarUrl = profileAvatarUrl ?? profileAvatarFallback;
-  const displayName = profileName ?? nickname;
+  const xp = useProgressStore((state) => state.xp);
+  const tier = getUserTier(xp);
+  const resolvedAvatarUrl = getTierProfileImage(tier);
+  const tierRgb =
+    tier === 'senior' ? '255,113,108' : tier === 'mid' ? '255,201,101' : '153,247,255';
+  const tierAccent =
+    tier === 'senior' ? '#ff716c' : tier === 'mid' ? '#ffc965' : '#99f7ff';
+  const tierLabel = tier === 'senior' ? 'Senior' : tier === 'mid' ? 'Mid' : 'Junior';
 
   const prefetchRoute = useCallback(
     (route: string) => {
@@ -122,36 +95,6 @@ export const Sidebar = () => {
     return () => ac.abort();
   }, [hasResolvedAdminAccess, user?.id]);
 
-  // Avatar + profile name loading
-  useEffect(() => {
-    if (!user?.id) { setProfileAvatarUrl(null); setProfileName(null); return; }
-    const ac = new AbortController();
-    (async () => {
-      try {
-        const res = await fetch('/api/profile/avatar', { signal: ac.signal });
-        if (ac.signal.aborted || !res.ok) return;
-        const payload = (await res.json()) as ProfileAvatarResponse;
-        if (!ac.signal.aborted) {
-          setProfileAvatarUrl(toAvatarUrl(payload?.data?.avatarUrl));
-          const fullName = (payload?.data as Record<string, unknown>)?.fullName;
-          if (typeof fullName === 'string' && fullName.trim().length > 0) {
-            setProfileName(fullName.trim());
-          }
-        }
-      } catch { /* ignore */ }
-    })();
-    return () => ac.abort();
-  }, [user?.id]);
-
-  // Avatar update events
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const ce = e as CustomEvent<{ avatarUrl?: string | null }>;
-      setProfileAvatarUrl(toAvatarUrl(ce.detail?.avatarUrl));
-    };
-    window.addEventListener(PROFILE_AVATAR_UPDATED_EVENT, handler);
-    return () => window.removeEventListener(PROFILE_AVATAR_UPDATED_EVENT, handler);
-  }, []);
 
   if (hideNav) return null;
 
@@ -165,31 +108,39 @@ export const Sidebar = () => {
       }`}
     >
       {/* User section */}
-      <div className={`${isCompact ? 'px-3 py-4 flex justify-center' : 'px-4 py-5'}`}>
+      <div className={`${isCompact ? 'px-3 py-2 flex justify-center' : 'px-4 py-2'}`}>
         {isCompact ? (
-          <div className="w-9 h-9 rounded-full overflow-hidden ring-1 ring-white/10 flex-shrink-0">
-            {resolvedAvatarUrl ? (
-              <Image src={resolvedAvatarUrl} alt="Avatar" width={36} height={36} unoptimized className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-white/[0.06] flex items-center justify-center">
-                <StableGridIcon size="sm" className="w-full h-full border-0" />
-              </div>
-            )}
+          <div
+            className="relative w-10 h-10 shrink-0 overflow-hidden rounded-full ring-2"
+            style={{ ['--tw-ring-color' as string]: `rgba(${tierRgb},0.4)` }}
+          >
+            <Image src={resolvedAvatarUrl} alt={`${tier} avatar`} fill unoptimized className="object-cover" />
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden ring-1 ring-white/10 flex-shrink-0">
-              {resolvedAvatarUrl ? (
-                <Image src={resolvedAvatarUrl} alt="Avatar" width={40} height={40} unoptimized className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-white/[0.06] flex items-center justify-center">
-                  <StableGridIcon size="sm" className="w-full h-full border-0" />
-                </div>
-              )}
+            <div
+              className="relative w-12 h-12 shrink-0 overflow-hidden rounded-full ring-2"
+              style={{ ['--tw-ring-color' as string]: `rgba(${tierRgb},0.4)` }}
+            >
+              <Image src={resolvedAvatarUrl} alt={`${tier} avatar`} fill unoptimized className="object-cover" />
             </div>
-            <div className="min-w-0">
-              <div className="text-[13px] font-semibold text-on-surface truncate">
-                {displayName}
+            <div
+              className="min-w-0 flex flex-col leading-tight"
+              style={{ fontFamily: '-apple-system, "SF Pro Text", system-ui, sans-serif' }}
+            >
+              <div
+                className="text-[11px] font-bold uppercase tracking-[0.14em]"
+                style={{ color: tierAccent }}
+              >
+                {tierLabel}
+              </div>
+              <div className="mt-1.5">
+                <div className="text-[8.5px] font-semibold uppercase tracking-[0.16em] text-on-surface-variant/35">
+                  Total earned
+                </div>
+                <div className="text-[12px] font-semibold text-white tabular-nums leading-tight">
+                  {xp.toLocaleString()} <span className="font-medium text-white/50">kWh</span>
+                </div>
               </div>
             </div>
           </div>
@@ -197,10 +148,10 @@ export const Sidebar = () => {
       </div>
 
       {/* Divider */}
-      <div className={`${isCompact ? 'mx-3' : 'mx-4'} h-px bg-white/[0.06]`} />
+      <div className={`${isCompact ? 'mx-1' : 'mx-1'} mt-4 h-px bg-white/[0.06]`} />
 
       {/* Nav links */}
-      <nav className="flex-1 py-3 px-2 space-y-0.5">
+      <nav className="flex-1 pt-6 pb-3 px-2 space-y-0.5">
         {filteredItems.map((item) => {
           const Icon = item.icon;
           const isActive = isNavItemActive(pathname, item);
