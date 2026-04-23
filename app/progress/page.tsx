@@ -85,7 +85,7 @@ export default async function ProgressPage() {
 
   const userId = user.id;
 
-  const [topicProgressResult, allReadingSessionsResult, userProgressResult] =
+  const [topicProgressResult, allReadingSessionsResult, userProgressResult, moduleProgressResult] =
     await Promise.all([
       supabase
         .from('topic_progress')
@@ -96,29 +96,56 @@ export default async function ProgressPage() {
       supabase
         .from('reading_sessions')
         .select(
-          'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,completed_lesson_ids,lesson_seconds_by_id,active_seconds,is_completed'
+          'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,completed_lesson_ids,lesson_seconds_by_id,active_seconds,is_completed,session_method'
         )
         .eq('user_id', userId),
       supabase
         .from('user_progress')
         .select('xp, streak, completed_questions, topic_progress, last_activity, updated_at')
         .eq('user_id', userId)
-        .maybeSingle()
+        .maybeSingle(),
+      supabase
+        .from('module_progress')
+        .select('topic, module_id, is_completed')
+        .eq('user_id', userId)
     ]);
 
   const topicProgressRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
   const allReadingSessionRows = (allReadingSessionsResult.data ?? []) as ReadingSessionRowLike[];
   const userProgress = (userProgressResult.data ?? null) as UserProgressRow | null;
+  const moduleProgressRows = (moduleProgressResult.data ?? []) as Array<{
+    topic: Topic;
+    module_id: string | null;
+    is_completed: boolean | null;
+  }>;
 
-  // Correct topic_progress with actual reading session data (source of truth)
+  // Authoritative completed module IDs per topic (module_progress takes precedence
+  // over reading_sessions — matches /learn track gallery behavior).
+  const completedModulesByTopic: Record<string, string[]> = {};
+  moduleProgressRows.forEach((row) => {
+    if (!row.is_completed || typeof row.module_id !== 'string') return;
+    const list = completedModulesByTopic[row.topic] ?? [];
+    if (!list.includes(row.module_id)) list.push(row.module_id);
+    completedModulesByTopic[row.topic] = list;
+  });
+
+  // Correct topic_progress with actual reading session data (source of truth for time/lessons),
+  // but use module_progress as source of truth for chapter completion counts.
   const theorySummaryByTopic = buildTheorySummaryByTopic(allReadingSessionRows);
   const topicProgress = topicProgressRows.map((row) => {
     const base = mapTopicProgressRow(row);
     const summary = theorySummaryByTopic.get(row.topic);
-    if (!summary) return base;
+    const moduleCompleted = completedModulesByTopic[row.topic]?.length ?? 0;
+    const chaptersCompleted = Math.max(
+      moduleCompleted,
+      summary?.chapterCompleted ?? base.theoryChaptersCompleted
+    );
+    if (!summary) {
+      return { ...base, theoryChaptersCompleted: chaptersCompleted };
+    }
     return {
       ...base,
-      theoryChaptersCompleted: summary.chapterCompleted,
+      theoryChaptersCompleted: chaptersCompleted,
       theorySectionsRead: summary.sectionRead,
       theoryTotalMinutesRead: Math.round(summary.totalSeconds / 60),
     };
@@ -137,6 +164,7 @@ export default async function ProgressPage() {
       topicProgress={topicProgress}
       allSessions={allSessions}
       trackMetaByTopic={trackMetaByTopic}
+      completedModulesByTopic={completedModulesByTopic}
       stats={{
         totalXp: userProgress?.xp ?? 0,
         currentStreak: userProgress?.streak ?? 0,

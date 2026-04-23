@@ -1,3 +1,12 @@
+/* ── BESS capacity ──────────────────────────────────────────────────────────── */
+
+// Rated capacity of the user's battery reserve. Balance (xp − grid spending) is
+// hard-capped at this value: awards that would push balance past it are dropped
+// server-side (see sync_user_progress RPC), and read paths clamp defensively.
+export const BATTERY_CAPACITY_KWH = 5000;
+
+export const capBalance = (n: number) => Math.max(0, Math.min(BATTERY_CAPACITY_KWH, n));
+
 /* ── kWh Reward System ──────────────────────────────────────────────────────── */
 
 const TIER_MULTIPLIER: Record<string, number> = {

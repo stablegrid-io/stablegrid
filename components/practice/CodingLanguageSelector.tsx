@@ -63,7 +63,7 @@ export function CodingLanguageSelector() {
 
             const cardInner = (
               <section
-                className="bg-[#111416] relative overflow-hidden transition-all duration-300 h-full rounded-[22px]"
+                className="bg-[#181c20] relative overflow-hidden transition-all duration-300 h-full rounded-[22px]"
                 style={{
                   border: '1px solid rgba(255,255,255,0.06)',
                   opacity: 0,

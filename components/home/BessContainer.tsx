@@ -407,7 +407,7 @@ export default function BessContainer({
         >
           <div
             style={{
-              background: '#111416',
+              background: '#181c20',
               border: `1px solid ${hoveredCell.lit ? 'rgba(120,212,232,0.2)' : 'rgba(255,255,255,0.08)'}`,
               borderRadius: 10,
               padding: '8px 14px',

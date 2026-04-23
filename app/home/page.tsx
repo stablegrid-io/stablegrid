@@ -13,6 +13,9 @@ import type { Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import { buildTrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
 import { theoryDocs } from '@/data/learn/theory';
+import { GRID_COMPONENTS } from '@/lib/grid/components';
+import type { ComponentSlug } from '@/types/grid';
+import { capBalance } from '@/lib/energy';
 
 export const metadata: Metadata = {
   title: 'stableGrid.io',
@@ -396,7 +399,9 @@ export default async function HomePage() {
     topicProgressResult,
     allReadingSessionsResult,
     userProgressResult,
-    gridPurchasesResult
+    gridPurchasesResult,
+    gridStateResult,
+    completedModuleResult,
   ] =
     await Promise.all([
       supabase
@@ -419,7 +424,18 @@ export default async function HomePage() {
       supabase
         .from('user_grid_purchases')
         .select('cost_paid')
+        .eq('user_id', userId),
+      supabase
+        .from('user_grid_state')
+        .select('items_owned')
         .eq('user_id', userId)
+        .maybeSingle(),
+      supabase
+        .from('module_progress')
+        .select('id', { head: true, count: 'exact' })
+        .eq('user_id', userId)
+        .eq('is_completed', true)
+        .limit(1),
     ]);
 
   const topicProgressRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
@@ -429,7 +445,7 @@ export default async function HomePage() {
     (sum, row: { cost_paid: number | null }) => sum + (row.cost_paid ?? 0),
     0,
   );
-  const availableKwh = Math.max(0, (userProgress?.xp ?? 0) - gridSpentKwh);
+  const availableKwh = capBalance((userProgress?.xp ?? 0) - gridSpentKwh);
 
   // Derive subsets from the single reading_sessions query
   const recentSessionRows = allReadingSessionRows
@@ -543,6 +559,44 @@ export default async function HomePage() {
     }
   }
 
+  // Hero CTAs — "Continue" when the user has prior activity, "Start" otherwise.
+  const hasLearned = Boolean(latestTheorySession);
+  let learnHref = '/learn';
+  if (latestTheorySession) {
+    const chId = latestTheorySession.chapterId ?? '';
+    const prefix = chId.replace(/\d+$/, '');
+    const track = prefix.endsWith('S') ? 'senior' : prefix.endsWith('I') ? 'mid' : 'junior';
+    const params = new URLSearchParams();
+    params.set('chapter', chId);
+    const lastLessonId =
+      latestTheorySession.sectionsIdsRead?.[latestTheorySession.sectionsIdsRead.length - 1];
+    if (lastLessonId) params.set('lesson', lastLessonId);
+    learnHref = `/learn/${latestTheorySession.topic}/theory/${track}?${params.toString()}`;
+  }
+  const learnLabel = hasLearned ? 'Continue learning' : 'Start learning';
+
+  const latestPractice = resolveLatestPracticeTopic(toRecord(userProgress?.topic_progress));
+  const hasPracticed = Boolean(latestPractice);
+  const practiceHref = latestPractice ? `/practice/${latestPractice.topic}` : '/practice';
+  const practiceLabel = hasPracticed ? 'Continue practicing' : 'Start practicing';
+
+  // Grid deploy hint — cheapest unowned, affordable, unlocked component.
+  const itemsOwned = new Set<ComponentSlug>(
+    ((gridStateResult.data?.items_owned as string[] | null) ?? []) as ComponentSlug[]
+  );
+  const hasCompletedModule = (completedModuleResult.count ?? 0) > 0;
+  const affordableUnowned = [...GRID_COMPONENTS]
+    .sort((a, b) => a.costKwh - b.costKwh)
+    .find((c) => {
+      if (itemsOwned.has(c.slug)) return false;
+      if (availableKwh < c.costKwh) return false;
+      if (c.gate === 'any-module-complete' && !hasCompletedModule) return false;
+      return true;
+    });
+  const gridHint = affordableUnowned
+    ? { componentName: affordableUnowned.name, costKwh: affordableUnowned.costKwh }
+    : null;
+
   return (
     <Suspense fallback={<HomeSkeleton />}>
       <HomeDashboard
@@ -562,6 +616,11 @@ export default async function HomePage() {
           questionsCompleted,
           overallAccuracy
         }}
+        learnHref={learnHref}
+        learnLabel={learnLabel}
+        practiceHref={practiceHref}
+        practiceLabel={practiceLabel}
+        gridHint={gridHint}
       />
     </Suspense>
   );

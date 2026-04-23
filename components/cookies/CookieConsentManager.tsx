@@ -8,7 +8,6 @@ import { syncConsentRecordWithServer, writeServerConsentRecord } from '@/lib/coo
 import { COOKIE_CATEGORY_COPY } from '@/lib/cookies/cookie-config';
 import {
   COOKIE_PREFERENCES_OPEN_EVENT,
-  LANDING_INTRO_COMPLETE_EVENT,
   buildAcceptAllConsentState,
   buildRejectAllConsentState,
   compareConsentRecordFreshness,
@@ -37,7 +36,6 @@ export function CookieConsentManager() {
   const [hasSavedDecision, setHasSavedDecision] = useState(false);
   const [draftConsent, setDraftConsent] = useState<CookieConsentState>(buildRejectAllConsentState());
   const [modalOpen, setModalOpen] = useState(false);
-  const [landingIntroReady, setLandingIntroReady] = useState(pathname !== '/');
   const [bannerSeenThisSession, setBannerSeenThisSession] = useState(false);
 
   const openPreferences = useCallback(() => {
@@ -152,78 +150,9 @@ export function CookieConsentManager() {
     };
   }, [currentUserId, ready]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    if (pathname !== '/') {
-      setLandingIntroReady(true);
-      return;
-    }
-
-    setLandingIntroReady(false);
-    let pollTimeoutId: number | null = null;
-    let hardTimeoutId: number | null = null;
-    let lockObserver: MutationObserver | null = null;
-    let pollAttempts = 0;
-
-    const resolveIntroGate = () => {
-      const gridFlowSection = document.getElementById('grid-flow');
-      if (!gridFlowSection) {
-        pollAttempts += 1;
-        if (pollAttempts >= 20) {
-          setLandingIntroReady(true);
-          return;
-        }
-        pollTimeoutId = window.setTimeout(resolveIntroGate, 100);
-        return;
-      }
-
-      const introLocked = gridFlowSection.getAttribute('data-intro-lock') === 'true';
-      setLandingIntroReady(!introLocked);
-
-      if (lockObserver) {
-        lockObserver.disconnect();
-      }
-      lockObserver = new MutationObserver(() => {
-        const lockedNow = gridFlowSection.getAttribute('data-intro-lock') === 'true';
-        if (!lockedNow) {
-          setLandingIntroReady(true);
-        }
-      });
-      lockObserver.observe(gridFlowSection, {
-        attributes: true,
-        attributeFilter: ['data-intro-lock']
-      });
-    };
-
-    const handleIntroComplete = () => {
-      setLandingIntroReady(true);
-    };
-
-    hardTimeoutId = window.setTimeout(() => {
-      setLandingIntroReady(true);
-    }, 8000);
-
-    window.addEventListener(LANDING_INTRO_COMPLETE_EVENT, handleIntroComplete);
-    resolveIntroGate();
-
-    return () => {
-      window.removeEventListener(LANDING_INTRO_COMPLETE_EVENT, handleIntroComplete);
-      if (pollTimeoutId !== null) {
-        window.clearTimeout(pollTimeoutId);
-      }
-      if (hardTimeoutId !== null) {
-        window.clearTimeout(hardTimeoutId);
-      }
-      lockObserver?.disconnect();
-    };
-  }, [pathname]);
-
   const shouldUseLandingSessionPrompt = pathname === '/';
   const bannerVisible = shouldUseLandingSessionPrompt
-    ? ready && landingIntroReady && !bannerSeenThisSession
+    ? ready && !bannerSeenThisSession
     : ready && !hasSavedDecision;
 
   return (
@@ -266,7 +195,7 @@ export function CookieConsentManager() {
               <button
                 type="button"
                 onClick={() => commitConsent(buildRejectAllConsentState(), 'banner_reject_all')}
-                className="flex-1 rounded-[14px] bg-white/[0.04] px-4 py-2 text-[0.8rem] font-medium text-white/50 transition-all hover:bg-white/[0.07] hover:text-white/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex-1 rounded-[14px] bg-white/[0.08] px-4 py-2 text-[0.8rem] font-medium text-white/90 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 Reject all
               </button>

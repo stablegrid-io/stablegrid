@@ -1,5 +1,7 @@
 export type Topic = 'pyspark' | 'fabric' | 'airflow' | 'sql' | 'python-de';
 
+export type ReadingSessionMethod = 'sprint' | 'pomodoro' | 'deep-focus' | 'free-read';
+
 export interface ReadingSession {
   id: string;
   userId: string;
@@ -14,6 +16,7 @@ export interface ReadingSession {
   sectionsIdsRead: string[];
   activeSeconds: number;
   isCompleted: boolean;
+  sessionMethod: ReadingSessionMethod | null;
 }
 
 export interface ReadingHistoryEntry {

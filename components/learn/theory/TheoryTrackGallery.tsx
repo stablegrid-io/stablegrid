@@ -108,14 +108,19 @@ export const TheoryTrackGallery = ({
 
         {/* 3-column tier grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {tracks.map((track, i) => {
+          {(() => {
+            const trackStats = tracks.map((track) =>
+              summarizeTrackLessonProgress({
+                chapters: track.chapters,
+                completedChapterIds: liveCompleted,
+                chapterProgressById,
+              }),
+            );
+            return tracks.map((track, i) => {
             const tier = TIER[i] ?? TIER[0];
-            const { completedModules, progressPct } = summarizeTrackLessonProgress({
-              chapters: track.chapters,
-              completedChapterIds: liveCompleted,
-              chapterProgressById,
-            });
-            const isLocked = track.chapterCount === 0;
+            const { completedModules, progressPct } = trackStats[i];
+            const prevIncomplete = i > 0 && (trackStats[i - 1]?.progressPct ?? 0) < 100;
+            const isLocked = track.chapterCount === 0 || prevIncomplete;
             const isStarted = progressPct > 0;
             const isComplete = progressPct >= 100;
             const segments = 10;
@@ -136,7 +141,7 @@ export const TheoryTrackGallery = ({
                 <div
                   className="relative overflow-hidden h-full flex flex-col transition-all duration-500 hover:scale-[1.015] rounded-[22px]"
                   style={{
-                    background: '#111416',
+                    background: '#181c20',
                     border: `1px solid ${isLocked ? 'rgba(255,255,255,0.05)' : `rgba(${tier.rgb},0.12)`}`,
                   }}
                 >
@@ -154,7 +159,7 @@ export const TheoryTrackGallery = ({
                       }}
                     />
                     {/* bottom gradient */}
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, #111416 95%)' }} />
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, #181c20 95%)' }} />
 
                     {/* Lock overlay */}
                     {isLocked && (
@@ -193,7 +198,7 @@ export const TheoryTrackGallery = ({
                     <div className="space-y-0 flex-1">
                       <StatRow label="MODULES" value={`${String(completedModules).padStart(2, '0')} / ${String(track.chapterCount).padStart(2, '0')}`} />
                       <StatRow label="Est. Completion" value={est} />
-                      <StatRow label="XP Multiplier" value={tier.xp} />
+                      <StatRow label="kWh Multiplier" value={tier.xp} />
                     </div>
 
                     {/* CTA */}
@@ -226,7 +231,8 @@ export const TheoryTrackGallery = ({
                 </div>
               </Link>
             );
-          })}
+          });
+          })()}
         </div>
 
         {/* ── Bottom status ticker ── */}

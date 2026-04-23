@@ -52,10 +52,20 @@ export const navItems: NavItem[] = [
   },
 ];
 
+/**
+ * Pages that render their own full-bleed background imagery (hero photos, etc.)
+ * should opt out of the global grid/scanline overlays so the image isn't crosshatched.
+ * Nav still shows on these pages (unless also covered by `shouldHideNav`).
+ */
+export const hasCustomBackground = (pathname?: string | null) => {
+  if (!pathname) return false;
+  return pathname === '/home';
+};
+
 export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
   if (!pathname) return false;
-  // Hide nav on the landing page and auth pages
-  if (pathname === '/') return true;
+  // Hide nav on the landing-style marketing pages and auth pages (own header included).
+  if (pathname === '/' || pathname === '/topics') return true;
   const authPages = ['/login', '/signup', '/reset-password', '/update-password'];
   if (authPages.includes(pathname)) return true;
   // Hide nav on public pages when not authenticated
@@ -74,8 +84,14 @@ export const isPracticeSessionPath = (pathname?: string | null, search?: string 
   return false;
 };
 
-export const isCompactDesktopNavPath = (pathname?: string | null) =>
-  Boolean(pathname?.startsWith('/admin')) || Boolean(pathname?.startsWith('/cheat-sheets')) || pathname === '/theory' || isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname);
+const COMPACT_NAV_PREFIXES = ['/admin', '/cheat-sheets', '/learn', '/practice', '/grid', '/progress'];
+
+export const isCompactDesktopNavPath = (pathname?: string | null) => {
+  if (!pathname) return false;
+  if (pathname === '/theory') return true;
+  if (isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname)) return true;
+  return COMPACT_NAV_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+};
 
 export const isNavItemActive = (pathname: string | null, item: NavItem) =>
   Boolean(

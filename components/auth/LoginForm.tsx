@@ -37,8 +37,37 @@ export function LoginForm() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      <style>{`
+        @keyframes loginBgFade {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes loginCardIn {
+          from { opacity: 0; transform: translateY(18px) scale(0.985); filter: blur(6px); }
+          to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+        @keyframes loginFadeUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .login-bg        { opacity: 0; animation: loginBgFade .8s cubic-bezier(.16,1,.3,1) 0ms forwards; }
+        .login-card      { opacity: 0; animation: loginCardIn .75s cubic-bezier(.16,1,.3,1) 120ms forwards; will-change: transform, opacity, filter; }
+        .login-stagger-1 { opacity: 0; animation: loginFadeUp .55s cubic-bezier(.16,1,.3,1) 360ms forwards; }
+        .login-stagger-2 { opacity: 0; animation: loginFadeUp .55s cubic-bezier(.16,1,.3,1) 460ms forwards; }
+        .login-stagger-3 { opacity: 0; animation: loginFadeUp .55s cubic-bezier(.16,1,.3,1) 520ms forwards; }
+        .login-stagger-4 { opacity: 0; animation: loginFadeUp .55s cubic-bezier(.16,1,.3,1) 640ms forwards; }
+        @media (prefers-reduced-motion: reduce) {
+          .login-bg, .login-card, .login-stagger-1, .login-stagger-2, .login-stagger-3, .login-stagger-4 {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+            filter: none !important;
+          }
+        }
+      `}</style>
+
       {/* Background image (matches landing hero) */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
+      <div className="login-bg fixed inset-0 z-0 pointer-events-none">
         <Image
           src="/landing-hero.jpg"
           alt=""
@@ -58,15 +87,14 @@ export function LoginForm() {
 
       <section className="relative flex min-h-screen items-center justify-center px-4 py-6 z-10">
         <div
-          className="relative w-full max-w-[400px] rounded-[22px] bg-[#111416] p-8"
+          className="login-card relative w-full max-w-[400px] rounded-[22px] bg-[#181c20] p-8"
           style={{
-            border: '1px solid rgba(153,247,255,0.35)',
-            boxShadow: '0 0 0 1px rgba(153,247,255,0.08), 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(153,247,255,0.08)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
           }}
         >
 
           {/* Header */}
-          <header className="mb-10 text-center">
+          <header className="login-stagger-1 mb-10 text-center">
             <h1 className="text-3xl font-bold text-on-surface tracking-tight mb-3">
               Get started
             </h1>
@@ -82,15 +110,15 @@ export function LoginForm() {
           {/* OAuth buttons */}
           <div className="grid grid-cols-2 gap-3 mb-8">
             {([
-              { provider: 'google' as const, label: 'Google', icon: GOOGLE_ICON },
-              { provider: 'github' as const, label: 'GitHub', icon: GITHUB_ICON },
+              { provider: 'google' as const, label: 'Google', icon: GOOGLE_ICON, stagger: 'login-stagger-2' },
+              { provider: 'github' as const, label: 'GitHub', icon: GITHUB_ICON, stagger: 'login-stagger-3' },
             ]).map((item) => (
               <button
                 key={item.provider}
                 type="button"
                 onClick={() => handleOAuth(item.provider)}
                 disabled={loading !== null}
-                className="flex flex-col items-center justify-center gap-3 py-6 rounded-[14px] border border-white/[0.08] bg-white/[0.03] text-[13px] font-medium text-on-surface/70 transition-all hover:bg-white/[0.06] hover:border-white/[0.12] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${item.stagger} flex flex-col items-center justify-center gap-3 py-6 rounded-[14px] border border-white/[0.08] bg-white/[0.03] text-[13px] font-medium text-on-surface/70 transition-all hover:bg-white/[0.06] hover:border-white/[0.12] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {loading === item.provider ? (
                   <span className="h-5 w-5 animate-spin rounded-full border-2 border-on-surface/20 border-t-on-surface" />
@@ -103,7 +131,7 @@ export function LoginForm() {
           </div>
 
           {/* Footer */}
-          <p className="text-center text-[11px] text-on-surface-variant/30">
+          <p className="login-stagger-4 text-center text-[11px] text-on-surface-variant/30">
             By continuing, you agree to our{' '}
             <a href="/terms" className="text-on-surface/85 underline underline-offset-2 decoration-on-surface/30 hover:text-on-surface hover:decoration-on-surface/60 transition-colors">Terms</a>
             {' '}and{' '}

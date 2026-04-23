@@ -12,6 +12,8 @@ import { ShopModal } from './ShopModal';
 import { BriefingModal } from './BriefingModal';
 import { FieldReport } from './FieldReport';
 import { FieldArchive } from './FieldArchive';
+import { ComponentSpecSheet } from './ComponentSpecSheet';
+import { SPEC_SHEETS } from '@/lib/grid/spec-sheets';
 import { GameToast, type ToastData } from '@/components/ui/GameToast';
 import { logGridEvent } from '@/lib/grid/analytics';
 import { GRID_COMPONENTS_BY_SLUG, TOTAL_GRID_COST_KWH } from '@/lib/grid/components';
@@ -36,6 +38,7 @@ export function GridPage() {
   const [reportIsNew, setReportIsNew] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [specSlug, setSpecSlug] = useState<ComponentSlug | null>(null);
   const prevRestoredCountRef = useRef(-1);
   const viewedAnalyticsFired = useRef(false);
 
@@ -252,7 +255,7 @@ export function GridPage() {
             onClick={() => setArchiveOpen(true)}
             className="font-mono"
             style={{
-              background: 'transparent',
+              background: '#1a1e21',
               border: `1px solid ${PANEL_BORDER}`,
               color: TEXT_SECONDARY,
               fontSize: 11,
@@ -264,8 +267,8 @@ export function GridPage() {
               fontWeight: 600,
               transition: 'border-color 150ms ease, color 150ms ease, background 150ms ease',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; e.currentTarget.style.color = TEXT_PRIMARY; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = PANEL_BORDER; e.currentTarget.style.color = TEXT_SECONDARY; e.currentTarget.style.background = 'transparent'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; e.currentTarget.style.color = TEXT_PRIMARY; e.currentTarget.style.background = '#22272b'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = PANEL_BORDER; e.currentTarget.style.color = TEXT_SECONDARY; e.currentTarget.style.background = '#1a1e21'; }}
           >
             Field Archive
           </button>
@@ -275,21 +278,20 @@ export function GridPage() {
             onClick={() => setShopOpen(true)}
             className="font-mono"
             style={{
-              background: `${BRAND_CYAN}14`,
+              background: BRAND_CYAN,
               border: `1px solid ${BRAND_CYAN}`,
-              color: BRAND_CYAN,
+              color: '#06181c',
               fontSize: 11,
               letterSpacing: '0.22em',
               textTransform: 'uppercase',
               padding: '10px 22px',
               borderRadius: 8,
               cursor: 'pointer',
-              fontWeight: 600,
-              boxShadow: `0 0 20px ${BRAND_CYAN}22`,
+              fontWeight: 700,
               transition: 'background 150ms ease, transform 180ms ease',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = `${BRAND_CYAN}26`; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = `${BRAND_CYAN}14`; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#b8fbff'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = BRAND_CYAN; }}
           >
             Open Catalog
           </button>
@@ -320,8 +322,17 @@ export function GridPage() {
           data={data}
           purchasingSlug={purchasingSlug}
           onDeploy={handleDeploy}
+          onOpenDetails={(slug) => setSpecSlug(slug as ComponentSlug)}
           onHoverItem={(slug) => setFocusedSlug(slug)}
           onClose={() => setShopOpen(false)}
+          suppressEsc={Boolean(specSlug)}
+        />
+      )}
+      {specSlug && (
+        <ComponentSpecSheet
+          component={GRID_COMPONENTS_BY_SLUG[specSlug]}
+          spec={SPEC_SHEETS[specSlug]}
+          onClose={() => setSpecSlug(null)}
         />
       )}
       {briefingOpen && <BriefingModal onAcknowledge={handleAcknowledgeBriefing} />}

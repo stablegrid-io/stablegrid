@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, ListFilter } from 'lucide-react';
+import { Search, ArrowUpDown } from 'lucide-react';
 import { getLearnTopicMeta, learnTopics } from '@/data/learn';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { CATEGORY_COLORS, type CategoryName } from '@/components/home/orbitalMapData';
@@ -225,80 +225,183 @@ export function LearnModeTopicSelector({
           </h1>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8">
-          {/* Left: Filter panel */}
-          <aside
-            className="lg:sticky lg:top-20 self-start flex flex-col rounded-[22px] border border-outline-variant/30 bg-surface-container overflow-hidden lg:min-h-[calc(100dvh-8rem)]"
-            style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards' }}
+        {/* Filter toolbar — translucent material, fitted segmented groups */}
+        <section
+          aria-label="Filter tracks"
+          className="mb-10 overflow-hidden"
+          style={{
+            borderRadius: 18,
+            background: 'rgba(255,255,255,0.028)',
+            backdropFilter: 'blur(40px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(160%)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.18)',
+            opacity: 0,
+            animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards',
+          }}
+        >
+          {/* Toolbar: Search · count · divider · sort */}
+          <div
+            className="flex items-center gap-3 px-2.5 py-2.5"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
           >
-            {/* Header */}
-            <div className="border-b border-outline-variant/30 px-4 py-4">
-              <div className="text-sm font-bold text-on-surface">
-                Filter Tracks
-              </div>
-              <div className="mt-1 flex items-center gap-2 text-[10px] text-on-surface-variant uppercase">
-                <ListFilter className="h-3.5 w-3.5" />
-                {filteredTopics.length} match{filteredTopics.length === 1 ? '' : 'es'}
-              </div>
-
-              {/* Search input */}
-              <div className="relative mt-3">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-on-surface-variant/40" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search tracks..."
-                  className="h-8 w-full rounded-lg border border-outline-variant/30 bg-surface-container-low pl-8 pr-3 text-[12px] font-medium text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/40 focus:border-outline-variant/60 focus:bg-surface-container-high"
-                />
-              </div>
+            {/* Search field */}
+            <div className="relative flex-1 min-w-0">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35"
+                strokeWidth={1.75}
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search tracks"
+                className="h-9 w-full pl-9 pr-14 text-[13px] font-normal text-white outline-none transition-all placeholder:text-white/35"
+                style={{
+                  borderRadius: 10,
+                  background: 'rgba(255,255,255,0.025)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                }}
+              />
+              <kbd
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] tabular-nums text-white/40"
+                style={{
+                  padding: '2px 6px',
+                  borderRadius: 5,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                }}
+              >
+                ⌘K
+              </kbd>
             </div>
 
-            {/* Filter list */}
-            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2 pt-3">
-              {/* TOPIC */}
-              <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/50">
-                Topic
-              </div>
-              <div className="mb-3 space-y-1">
-                {(['all', 'Foundations', 'Infrastructure', 'Orchestration', 'Platforms', 'Processing', 'Storage'] as const).map((theme) => {
-                  const isActive = themeFilter === theme || (theme === 'all' && themeFilter === 'all');
-                  const label = theme === 'all' ? 'All topics' : theme;
+            {/* Count */}
+            <div className="hidden sm:flex items-baseline gap-1 shrink-0 pl-1">
+              <span className="font-mono text-[15px] tabular-nums text-white/85 leading-none">
+                {filteredTopics.length}
+              </span>
+              <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-white/35 font-semibold">
+                {filteredTopics.length === 1 ? 'track' : 'tracks'}
+              </span>
+            </div>
+
+            {/* Divider */}
+            <div
+              className="hidden md:block shrink-0 h-5 w-px"
+              style={{ background: 'rgba(255,255,255,0.08)' }}
+            />
+
+            {/* Sort — fitted segmented */}
+            <div className="hidden md:inline-flex items-center gap-1.5 shrink-0 pr-1">
+              <ArrowUpDown className="h-3.5 w-3.5 text-white/40" strokeWidth={1.75} />
+              <div
+                className="inline-flex items-center gap-px p-0.5"
+                style={{
+                  borderRadius: 9,
+                  background: 'rgba(0,0,0,0.25)',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                }}
+              >
+                {SORT_OPTIONS.map((opt) => {
+                  const isActive = sortBy === opt.id;
                   return (
                     <button
-                      key={theme}
+                      key={opt.id}
                       type="button"
-                      onClick={() => setThemeFilter(theme === 'all' ? 'all' : (isActive ? 'all' : theme))}
-                      className={`w-full border px-3 py-2 text-left transition-colors ${
-                        isActive
-                          ? 'border-white/[0.12] bg-white/[0.06]'
-                          : 'border-transparent hover:border-outline-variant/30 hover:bg-surface-container-high'
-                      }`}
+                      onClick={() => setSortBy(opt.id)}
+                      className="font-mono px-2.5 py-1 text-[9.5px] tracking-[0.16em] uppercase font-semibold whitespace-nowrap transition-all"
+                      style={{
+                        borderRadius: 7,
+                        color: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)',
+                        background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        boxShadow: isActive
+                          ? 'inset 0 0.5px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.3)'
+                          : 'none',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.8)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.45)';
+                      }}
                     >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                            isActive
-                              ? 'bg-on-surface text-surface'
-                              : 'bg-surface-container-highest text-on-surface-variant'
-                          }`}
-                        >
-                          {null}
-                        </div>
-                        <div className={`text-sm leading-5 ${isActive ? 'font-semibold text-on-surface' : 'text-on-surface-variant'}`}>
-                          {label}
-                        </div>
-                      </div>
+                      {opt.label}
                     </button>
                   );
                 })}
               </div>
+            </div>
+          </div>
 
-              {/* STATUS */}
-              <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/50">
-                Status
+          {/* Filter rows — fitted segmented groups */}
+          <div className="flex flex-col gap-1.5 p-2">
+            {/* Topic group */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <div
+                className="inline-flex flex-wrap items-center gap-px p-0.5"
+                style={{
+                  borderRadius: 9,
+                  background: 'rgba(0,0,0,0.25)',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                }}
+              >
+                {(['all', 'Foundations', 'Infrastructure', 'Orchestration', 'Platforms', 'Processing', 'Storage'] as const).map((theme) => {
+                  const isActive = themeFilter === theme || (theme === 'all' && themeFilter === 'all');
+                  const label = theme === 'all' ? 'All' : theme;
+                  const catRgb = theme === 'all' ? '255,255,255' : CATEGORY_COLORS[theme as CategoryName] ?? '153,247,255';
+                  return (
+                    <button
+                      key={theme}
+                      type="button"
+                      onClick={() => setThemeFilter(theme === 'all' ? 'all' : isActive ? 'all' : theme)}
+                      className="font-mono px-3 py-1 text-[10px] tracking-[0.16em] uppercase font-semibold whitespace-nowrap transition-all"
+                      style={{
+                        borderRadius: 7,
+                        color: isActive
+                          ? theme === 'all' ? 'rgba(255,255,255,0.95)' : `rgb(${catRgb})`
+                          : 'rgba(255,255,255,0.5)',
+                        background: isActive
+                          ? theme === 'all' ? 'rgba(255,255,255,0.1)' : `rgba(${catRgb},0.14)`
+                          : 'transparent',
+                        boxShadow: isActive
+                          ? theme === 'all'
+                            ? 'inset 0 0.5px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.3)'
+                            : `inset 0 0.5px 0 rgba(${catRgb},0.22), 0 1px 2px rgba(0,0,0,0.3)`
+                          : 'none',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.85)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.5)';
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
-              <div className="mb-3 space-y-1">
+            </div>
+
+            {/* Status group */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <div
+                className="inline-flex flex-wrap items-center gap-px p-0.5"
+                style={{
+                  borderRadius: 9,
+                  background: 'rgba(0,0,0,0.25)',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                }}
+              >
                 {TOPIC_FILTERS.map((opt) => {
                   const isActive = topicFilter === opt.id;
                   const count = filterCounts[opt.id];
@@ -307,43 +410,52 @@ export function LearnModeTopicSelector({
                       key={opt.id}
                       type="button"
                       onClick={() => setTopicFilter(opt.id)}
-                      className={`w-full border px-3 py-2 text-left transition-colors ${
-                        isActive
-                          ? 'border-white/[0.12] bg-white/[0.06]'
-                          : 'border-transparent hover:border-outline-variant/30 hover:bg-surface-container-high'
-                      }`}
+                      className="font-mono inline-flex items-center gap-1.5 px-3 py-1 text-[10px] tracking-[0.16em] uppercase font-semibold whitespace-nowrap transition-all"
+                      style={{
+                        borderRadius: 7,
+                        color: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.5)',
+                        background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        boxShadow: isActive
+                          ? 'inset 0 0.5px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.3)'
+                          : 'none',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.85)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.5)';
+                      }}
                     >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                            isActive
-                              ? 'bg-on-surface text-surface'
-                              : 'bg-surface-container-highest text-on-surface-variant'
-                          }`}
+                      {opt.label}
+                      {count > 0 && opt.id !== 'all' && (
+                        <span
+                          className="tabular-nums font-medium text-[9px] leading-none"
+                          style={{
+                            padding: '2px 5px',
+                            borderRadius: 99,
+                            background: isActive ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.06)',
+                            color: isActive ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.4)',
+                          }}
                         >
-                          {null}
-                        </div>
-                        <div className="min-w-0 flex-1 flex items-center justify-between gap-2">
-                          <div className={`text-sm leading-5 ${isActive ? 'font-semibold text-on-surface' : 'text-on-surface-variant'}`}>
-                            {opt.label}
-                          </div>
-                          {count > 0 && opt.id !== 'all' && (
-                            <div className="text-[10px] text-on-surface-variant/50 tabular-nums">
-                              {count}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                          {count}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
+            </div>
 
-              {/* SORT */}
-              <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant/50">
-                Sort
-              </div>
-              <div className="space-y-1">
+            {/* Sort — mobile fallback */}
+            <div className="md:hidden flex flex-wrap items-center gap-1.5">
+              <div
+                className="inline-flex flex-wrap items-center gap-px p-0.5"
+                style={{
+                  borderRadius: 9,
+                  background: 'rgba(0,0,0,0.25)',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                }}
+              >
                 {SORT_OPTIONS.map((opt) => {
                   const isActive = sortBy === opt.id;
                   return (
@@ -351,35 +463,27 @@ export function LearnModeTopicSelector({
                       key={opt.id}
                       type="button"
                       onClick={() => setSortBy(opt.id)}
-                      className={`w-full border px-3 py-2 text-left transition-colors ${
-                        isActive
-                          ? 'border-white/[0.12] bg-white/[0.06]'
-                          : 'border-transparent hover:border-outline-variant/30 hover:bg-surface-container-high'
-                      }`}
+                      className="font-mono px-3 py-1 text-[10px] tracking-[0.16em] uppercase font-semibold whitespace-nowrap transition-all"
+                      style={{
+                        borderRadius: 7,
+                        color: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.5)',
+                        background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        boxShadow: isActive
+                          ? 'inset 0 0.5px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.3)'
+                          : 'none',
+                      }}
                     >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                            isActive
-                              ? 'bg-on-surface text-surface'
-                              : 'bg-surface-container-highest text-on-surface-variant'
-                          }`}
-                        >
-                          {null}
-                        </div>
-                        <div className={`text-sm leading-5 ${isActive ? 'font-semibold text-on-surface' : 'text-on-surface-variant'}`}>
-                          {opt.label}
-                        </div>
-                      </div>
+                      {opt.label}
                     </button>
                   );
                 })}
               </div>
             </div>
-          </aside>
+          </div>
+        </section>
 
-          {/* Right: Track cards */}
-          <div>
+        {/* Track cards */}
+        <div>
         {filteredTopics.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {filteredTopics.map((topic, index) => {
@@ -580,7 +684,6 @@ export function LearnModeTopicSelector({
           </div>
         )}
           </div>
-        </div>
 
       </div>
     </div>

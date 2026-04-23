@@ -38,11 +38,33 @@ export const Sidebar = () => {
   const [hasResolvedAdminAccess, setHasResolvedAdminAccess] = useState(false);
   const xp = useProgressStore((state) => state.xp);
   const [progressHydrated, setProgressHydrated] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
   useEffect(() => {
     // Zustand persist reads localStorage synchronously before effects run,
     // so by this point `xp` reflects the stored value (not the SSR default 0).
     setProgressHydrated(true);
   }, []);
+
+  // Live balance = xp − grid spending. Refetch on mount + window focus so the
+  // sidebar stays in sync when returning from /grid after a purchase.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    const refetch = async () => {
+      try {
+        const r = await fetch('/api/user/balance', { cache: 'no-store' });
+        if (!r.ok || cancelled) return;
+        const json = await r.json();
+        if (typeof json?.balance === 'number') setBalance(json.balance);
+      } catch { /* keep prior value */ }
+    };
+    refetch();
+    window.addEventListener('focus', refetch);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refetch);
+    };
+  }, [user?.id]);
   const tier = getUserTier(xp);
   const resolvedAvatarUrl = getTierProfileImage(tier);
   const tierRgb =
@@ -150,19 +172,14 @@ export const Sidebar = () => {
               >
                 {progressHydrated ? tierLabel : '\u00A0'}
               </div>
-              <div className="mt-1.5">
-                <div className="text-[8.5px] font-semibold uppercase tracking-[0.16em] text-on-surface-variant/35">
-                  Total earned
-                </div>
-                <div className="text-[12px] font-semibold text-white tabular-nums leading-tight">
-                  {progressHydrated ? (
-                    <>
-                      {xp.toLocaleString()} <span className="font-medium text-white/50">kWh</span>
-                    </>
-                  ) : (
-                    <span className="text-white/30">— kWh</span>
-                  )}
-                </div>
+              <div className="mt-1.5 text-[12px] font-semibold text-white tabular-nums leading-tight">
+                {progressHydrated && balance !== null ? (
+                  <>
+                    {balance.toLocaleString()} <span className="font-medium text-white/50">kWh</span>
+                  </>
+                ) : (
+                  <span className="text-white/30">— kWh</span>
+                )}
               </div>
             </div>
           </div>

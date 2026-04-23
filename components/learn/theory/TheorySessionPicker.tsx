@@ -127,7 +127,7 @@ export const TheorySessionPicker = ({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             role="dialog"
             aria-modal="true"
-            className="relative z-10 w-full max-w-[56rem] overflow-y-auto max-h-[90vh] rounded-[22px] border border-white/[0.06] bg-[#111416] pt-8 px-5 pb-5 flex flex-col gap-4"
+            className="relative z-10 w-full max-w-[56rem] overflow-y-auto max-h-[90vh] rounded-[22px] border border-white/[0.06] bg-[#181c20] pt-8 px-5 pb-5 flex flex-col gap-4"
           >
             {/* Title */}
             <div className="mb-1">

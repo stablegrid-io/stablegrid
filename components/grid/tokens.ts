@@ -9,7 +9,7 @@ export const CATEGORY_COLOR: Record<ComponentCategory, string> = {
   command: '#f0f0f3',
 };
 
-export const PANEL_BG = '#111416';
+export const PANEL_BG = '#181c20';
 export const PANEL_BORDER = 'rgba(255,255,255,0.06)';
 export const PANEL_BORDER_HOVER = 'rgba(255,255,255,0.12)';
 export const TEXT_PRIMARY = '#f0f0f3';

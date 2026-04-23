@@ -12,6 +12,7 @@ import {
 import { sortLessonsByOrder } from '@/lib/learn/freezeTheoryDoc';
 import type { TheoryChapter } from '@/types/theory';
 import type { Topic } from '@/types/progress';
+import type { TheorySessionMethodId } from '@/lib/learn/theorySession';
 import { getChapterCompletionRewardUnits } from '@/lib/energy';
 
 interface UseReadingSessionOptions {
@@ -19,6 +20,7 @@ interface UseReadingSessionOptions {
   chapter: TheoryChapter;
   currentLessonId: string | null;
   lastVisitedRoute: string | null;
+  sessionMethod?: TheorySessionMethodId | null;
   onChapterComplete?: () => void;
   onChapterIncomplete?: () => void;
   onFirstCompletionEnergyUnits?: (units: number) => void;
@@ -41,7 +43,8 @@ const RESUME_COLUMNS = [
   'current_lesson_id',
   'completed_lesson_ids',
   'last_visited_route',
-  'lesson_seconds_by_id'
+  'lesson_seconds_by_id',
+  'session_method'
 ];
 
 const missingColumnFromError = (message: string | null | undefined, columns: string[]) =>
@@ -132,6 +135,7 @@ export function useReadingSession({
   chapter,
   currentLessonId,
   lastVisitedRoute,
+  sessionMethod,
   onChapterComplete,
   onChapterIncomplete,
   onFirstCompletionEnergyUnits,
@@ -140,6 +144,10 @@ export function useReadingSession({
   // Keep one browser client instance for the lifetime of this hook.
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
+  const sessionMethodRef = useRef<TheorySessionMethodId | null>(sessionMethod ?? null);
+  useEffect(() => {
+    sessionMethodRef.current = sessionMethod ?? null;
+  }, [sessionMethod]);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -337,6 +345,10 @@ export function useReadingSession({
 
       if (touchActiveSeconds) {
         resumePayload.active_seconds = activeSecondsRef.current;
+      }
+
+      if (sessionMethodRef.current) {
+        resumePayload.session_method = sessionMethodRef.current;
       }
 
       const { error: resumeError } = await supabase
@@ -548,6 +560,9 @@ export function useReadingSession({
           last_visited_route:
             lastVisitedRouteRef.current ?? shadowSnapshot.last_visited_route ?? null
         };
+        if (sessionMethodRef.current) {
+          createPayload.session_method = sessionMethodRef.current;
+        }
 
         let createResult = await supabase
           .from('reading_sessions')
@@ -898,6 +913,10 @@ export function useReadingSession({
       last_active_at: now,
       active_seconds: activeSecondsRef.current
     };
+
+    if (sessionMethodRef.current) {
+      updatePayload.session_method = sessionMethodRef.current;
+    }
 
     if (shouldAwardXp) {
       updatePayload.xp_awarded = true;

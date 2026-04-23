@@ -520,6 +520,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       chapter: activeChapter,
       currentLessonId: activeLessonId,
       lastVisitedRoute: persistedRoute,
+      sessionMethod: theorySession.method?.id ?? null,
       onChapterComplete: handleChapterComplete,
       onChapterIncomplete: handleChapterIncomplete,
       onFirstCompletionEnergyUnits: (units) => {

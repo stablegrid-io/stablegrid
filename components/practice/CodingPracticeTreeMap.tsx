@@ -182,7 +182,7 @@ export function CodingPracticeTreeMap({ language, level }: { language: string; l
                     <div
                       className="relative p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
                       style={{
-                        background: '#111416',
+                        background: '#181c20',
                         border: '1px solid rgba(255,255,255,0.06)',
                         borderRadius: '22px',
                       }}

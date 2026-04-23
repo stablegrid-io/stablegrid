@@ -246,8 +246,8 @@ export const TheoryTrackPath = ({
                 <div
                   className="relative p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
                   style={{
-                    background: '#111416',
-                    border: `1px solid rgba(${ta.rgb},0.15)`,
+                    background: '#181c20',
+                    border: '1px solid rgba(255,255,255,0.06)',
                     borderRadius: '22px',
                   }}
                 >
@@ -334,8 +334,8 @@ function TheoryNode({ card, idx, ta, topic }: {
           <div
             className="relative p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
             style={{
-              background: '#111416',
-              border: `1px solid ${isCompleted ? `rgba(${ta.rgb},0.25)` : 'rgba(255,255,255,0.06)'}`,
+              background: '#181c20',
+              border: '1px solid rgba(255,255,255,0.06)',
               boxShadow: isCompleted ? `0 0 30px rgba(${ta.rgb},0.08)` : 'none',
               borderRadius: '22px',
             }}
@@ -408,7 +408,7 @@ function PracticeNode({ ps, idx, ta, practiceBasePath }: {
           <div
             className="relative p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
             style={{
-              background: '#111416',
+              background: '#181c20',
               border: '1px solid rgba(255,255,255,0.06)',
               borderRadius: '22px',
             }}

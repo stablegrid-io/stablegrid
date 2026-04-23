@@ -21,23 +21,29 @@ interface ShopModalProps {
   data: GridStateResponse;
   purchasingSlug: ComponentSlug | null;
   onDeploy: (slug: string) => void;
+  onOpenDetails?: (slug: string) => void;
   onHoverItem: (slug: ComponentSlug | null) => void;
   onClose: () => void;
+  /** When true, the modal will not handle Escape — used while a child modal (e.g. FieldReport) is stacked on top. */
+  suppressEsc?: boolean;
 }
 
-export function ShopModal({ data, purchasingSlug, onDeploy, onHoverItem, onClose }: ShopModalProps) {
+export function ShopModal({ data, purchasingSlug, onDeploy, onOpenDetails, onHoverItem, onClose, suppressEsc }: ShopModalProps) {
   const [filter, setFilter] = useState<Filter>('all');
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => closeRef.current?.focus({ preventScroll: true }), 320);
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (suppressEsc) return;
+      if (e.key === 'Escape') onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => {
       window.clearTimeout(t);
       window.removeEventListener('keydown', onKey);
     };
-  }, [onClose]);
+  }, [onClose, suppressEsc]);
 
   const filteredItems = useMemo(() => {
     const items = filter === 'all' ? data.shop : data.shop.filter((i) => i.component.category === filter);
@@ -205,6 +211,7 @@ export function ShopModal({ data, purchasingSlug, onDeploy, onHoverItem, onClose
                 key={item.component.slug}
                 item={item}
                 onDeploy={onDeploy}
+                onOpenDetails={onOpenDetails}
                 isPurchasing={purchasingSlug === item.component.slug}
                 onHoverChange={(hovering) =>
                   onHoverItem(hovering ? (item.component.slug as ComponentSlug) : null)

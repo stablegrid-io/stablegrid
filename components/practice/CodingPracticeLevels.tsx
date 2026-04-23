@@ -139,7 +139,7 @@ export function CodingPracticeLevels({ language = 'python' }: { language?: strin
                 <div
                   className="relative overflow-hidden h-full flex flex-col transition-all duration-500 hover:scale-[1.015] rounded-[22px]"
                   style={{
-                    background: '#111416',
+                    background: '#181c20',
                     border: `1px solid ${isLocked ? 'rgba(255,255,255,0.05)' : `rgba(${tier.rgb},0.12)`}`,
                   }}
                 >
@@ -157,7 +157,7 @@ export function CodingPracticeLevels({ language = 'python' }: { language?: strin
                       }}
                     />
                     {/* bottom gradient */}
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, #111416 95%)' }} />
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, #181c20 95%)' }} />
 
                     {/* Lock overlay */}
                     {isLocked && (

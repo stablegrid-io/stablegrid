@@ -114,7 +114,7 @@ function ModuleToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =
       <div
         className="relative flex flex-col items-center text-center px-10 py-10"
         style={{
-          background: '#111416',
+          background: '#181c20',
           border: '1px solid rgba(153, 247, 255, 0.12)',
           borderRadius: '22px',
           boxShadow: '0 0 60px rgba(153, 247, 255, 0.06), 0 24px 80px rgba(0, 0, 0, 0.5)',
@@ -202,7 +202,7 @@ function TrackToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =>
       <div
         className="relative flex flex-col items-center text-center px-12 py-12"
         style={{
-          background: 'linear-gradient(180deg, rgba(153, 247, 255, 0.04) 0%, #111416 40%)',
+          background: 'linear-gradient(180deg, rgba(153, 247, 255, 0.04) 0%, #181c20 40%)',
           border: '1px solid rgba(153, 247, 255, 0.15)',
           borderRadius: '22px',
           boxShadow: '0 0 80px rgba(153, 247, 255, 0.08), 0 32px 100px rgba(0, 0, 0, 0.6)',

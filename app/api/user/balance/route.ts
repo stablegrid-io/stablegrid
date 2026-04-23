@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { BATTERY_CAPACITY_KWH, capBalance } from '@/lib/energy';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,5 +20,10 @@ export async function GET() {
     (s, r: { cost_paid: number | null }) => s + (r.cost_paid ?? 0),
     0,
   );
-  return NextResponse.json({ balance: Math.max(0, xp - spent), earned: xp, spent });
+  return NextResponse.json({
+    balance: capBalance(xp - spent),
+    earned: xp,
+    spent,
+    capacity: BATTERY_CAPACITY_KWH,
+  });
 }

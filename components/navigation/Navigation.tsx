@@ -8,7 +8,7 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
 import { UnifiedMiniPlayer } from '@/components/session/UnifiedMiniPlayer';
-import { isCompactDesktopNavPath, isPracticeSessionPath, shouldHideNav } from './navigation-config';
+import { hasCustomBackground, isCompactDesktopNavPath, isPracticeSessionPath, shouldHideNav } from './navigation-config';
 
 /**
  * Inner shell that reads search params — must be wrapped in Suspense
@@ -23,14 +23,15 @@ const NavigationShell = ({ children }: { children: ReactNode }) => {
   const hideNav = shouldHideNav(pathname, Boolean(user));
   const isPracticePage = isPracticeSessionPath(pathname, search);
   const isCompact = isCompactDesktopNavPath(pathname);
+  const customBackground = hasCustomBackground(pathname);
 
   const isTheoryPage = pathname.includes('/theory/') && !isPracticePage;
   const hideForFocus = focusMode && (isTheoryPage || isPracticePage);
 
   return (
     <>
-      {/* Background overlays */}
-      {!hideForFocus && (
+      {/* Background overlays — skipped on pages that provide their own full-bleed imagery (hideNav or customBackground). */}
+      {!hideForFocus && !hideNav && !customBackground && (
         <>
           <div className="fixed inset-0 grid-overlay pointer-events-none z-0" />
           <div className="fixed inset-0 scanline pointer-events-none z-0 opacity-20" />

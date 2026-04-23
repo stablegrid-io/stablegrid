@@ -11,7 +11,14 @@ import {
   summarizeTheoryProgressFromSessions,
   type TheoryProgressSessionRow
 } from '@/lib/learn/theoryProgress';
-import type { ReadingHistoryEntry, ReadingSession, Topic } from '@/types/progress';
+import type { ReadingHistoryEntry, ReadingSession, ReadingSessionMethod, Topic } from '@/types/progress';
+
+const VALID_METHODS = new Set<ReadingSessionMethod>(['sprint', 'pomodoro', 'deep-focus', 'free-read']);
+
+const toSessionMethod = (value: unknown): ReadingSessionMethod | null =>
+  typeof value === 'string' && VALID_METHODS.has(value as ReadingSessionMethod)
+    ? (value as ReadingSessionMethod)
+    : null;
 
 export interface ReadingSessionRowLike extends TheoryProgressSessionRow {
   id: string;
@@ -28,6 +35,7 @@ export interface ReadingSessionRowLike extends TheoryProgressSessionRow {
   sections_ids_read?: string[] | null;
   completed_lesson_ids?: string[] | null;
   lesson_seconds_by_id?: Record<string, unknown> | null;
+  session_method?: string | null;
 }
 
 export interface ReadingHistoryRowLike {
@@ -73,7 +81,8 @@ export const mapReadingSessionRow = (row: ReadingSessionRowLike): ReadingSession
     sectionsRead,
     sectionsIdsRead,
     activeSeconds: Number(row.active_seconds ?? 0),
-    isCompleted: row.is_completed
+    isCompleted: row.is_completed,
+    sessionMethod: toSessionMethod(row.session_method)
   };
 };
 

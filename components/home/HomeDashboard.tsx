@@ -2,14 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { DoorOpen, DoorClosed, Zap } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import type { TrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
-import BessContainer from '@/components/home/BessContainer';
-
-const BATTERY_CAPACITY_KWH = 1000;
+import { BATTERY_CAPACITY_KWH } from '@/lib/energy';
 
 /* ── Types ── */
 interface HomeDashboardProps {
@@ -28,21 +25,31 @@ interface HomeDashboardProps {
   trackMetaByTopic: TrackMetaByTopic;
   stats: { totalXp: number; currentStreak: number; questionsCompleted: number; overallAccuracy: number };
   resumeContext?: { chapterTitle: string; lessonTitle: string } | null;
+  learnHref: string;
+  learnLabel: string;
+  practiceHref: string;
+  practiceLabel: string;
+  gridHint: { componentName: string; costKwh: number } | null;
 }
 
 /* ── Dashboard ── */
 export const HomeDashboard = ({
   user,
   topicProgress: _topicProgress,
-  recentSessions,
+  recentSessions: _recentSessions,
   completedSessions: _completedSessions,
-  latestTheorySession,
+  latestTheorySession: _latestTheorySession,
   lastClockedInAt: _lastClockedInAt,
   latestTaskAction: _latestTaskAction,
   readingSignals: _readingSignals,
   trackMetaByTopic: _trackMetaByTopic,
   stats,
   resumeContext: _resumeContext,
+  learnHref,
+  learnLabel,
+  practiceHref,
+  practiceLabel,
+  gridHint,
 }: HomeDashboardProps) => {
 
   const firstName = (
@@ -50,9 +57,6 @@ export const HomeDashboard = ({
     (user.user_metadata?.name as string | undefined) ??
     user.email?.split('@')[0] ?? 'Operator'
   ).split(' ')[0];
-
-  const [doorsOpen, setDoorsOpen] = useState(false);
-  const [infoPanelVisible, setInfoPanelVisible] = useState(false);
 
   // Live balance: seed from server prop, refetch on mount + window focus so
   // returning from /grid after a purchase shows the updated reserve.
@@ -76,310 +80,392 @@ export const HomeDashboard = ({
     };
   }, []);
 
-  const batteryFill = Math.min(1, availableKwh / BATTERY_CAPACITY_KWH);
+  const capacityKwh = BATTERY_CAPACITY_KWH;
+  const batteryFill = Math.min(1, availableKwh / capacityKwh);
   const chargePct = Math.round(batteryFill * 100);
-  const remainingToFull = Math.max(0, BATTERY_CAPACITY_KWH - availableKwh);
-  const TOTAL_CELLS = 42;
-  const litCells = Math.floor(batteryFill * TOTAL_CELLS);
+  const headroomKwh = Math.max(0, capacityKwh - availableKwh);
   const kWh = availableKwh.toLocaleString();
-
-  const resumeHref = useMemo(() => {
-    const ls = latestTheorySession ?? recentSessions[0] ?? null;
-    if (!ls) return '/learn';
-    const chId = ls.chapterId ?? '';
-    const prefix = chId.replace(/\d+$/, '');
-    const track = prefix.endsWith('S') ? 'senior' : prefix.endsWith('I') ? 'mid' : 'junior';
-    const params = new URLSearchParams();
-    params.set('chapter', chId);
-    const last = ls.sectionsIdsRead?.[ls.sectionsIdsRead.length - 1];
-    if (last) params.set('lesson', last);
-    return `/learn/${ls.topic}/theory/${track}?${params.toString()}`;
-  }, [latestTheorySession, recentSessions]);
 
   const anim = (delay: number) =>
     ({ opacity: 0, animation: `homeFadeUp .7s cubic-bezier(.16,1,.3,1) ${delay}ms forwards` }) as const;
 
   const greetingLine = useMemo(() => {
     const name = <span style={{ color: '#99f7ff' }}>{firstName}</span>;
-    const lines = [
-      <>Another day, another pipeline, {name}.</>,
-      <>Your DAG won't fix itself, {name}.</>,
-      <>SELECT motivation FROM {name}.</>,
-      <>No schema drift today, {name}.</>,
-      <>Pipelines don't build themselves, {name}.</>,
-      <>Time to DROP bad habits, {name}.</>,
-      <>Let's avoid a full reshuffle, {name}.</>,
-      <>Don't let your data go stale, {name}.</>,
-      <>Zero null values in your future, {name}.</>,
-      <>Your uptime is impressive, {name}.</>,
-    ];
-    return lines[Math.floor(Date.now() / 86400000) % lines.length];
+    return <>Welcome back, {name}.</>;
   }, [firstName]);
 
   return (
-    <div className="relative overflow-hidden h-[calc(100dvh-3.5rem)]">
+    <div
+      className="relative overflow-hidden h-[calc(100dvh-3.5rem)]"
+      style={{
+        backgroundImage: 'url(/home-hero.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      {/* Soft vignette — keeps the battery visible as hero, adds contrast for text */}
       <div
-        className="relative h-full mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-center px-6 lg:px-16 xl:px-24"
-        style={{ maxWidth: 1280 }}
-      >
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(ellipse at 50% 55%, rgba(8,10,12,0.35) 0%, rgba(8,10,12,0.72) 60%, rgba(8,10,12,0.92) 100%)',
+        }}
+      />
 
-        {/* ── Left: title + operator panel ── */}
-        <div className="flex flex-col justify-center" style={{ maxWidth: 400 }}>
-          <h1
-            className="text-on-surface"
+      {/* ── Hero stack: headline · metadata · text-link ── */}
+      <div className="relative h-full mx-auto flex flex-col items-center justify-center text-center px-6">
+        <h1
+          style={{
+            opacity: 0,
+            overflow: 'hidden',
+            willChange: 'opacity, transform, max-height, filter',
+            animation: 'homeGreetingLifecycle 4.6s linear 0ms forwards',
+            fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+            fontSize: 'clamp(2.75rem, 7vw, 5.5rem)',
+            fontWeight: 600,
+            letterSpacing: '-0.035em',
+            lineHeight: 1.03,
+            color: 'rgba(255,255,255,0.97)',
+            maxWidth: '14ch',
+          }}
+        >
+          {greetingLine}
+        </h1>
+
+        <div
+          className="relative flex flex-col items-center overflow-hidden"
+          style={{
+            ...anim(180),
+            marginBottom: 40,
+            gap: 14,
+            padding: '32px 56px 28px',
+            borderRadius: 24,
+            background:
+              'radial-gradient(120% 80% at 50% -10%, rgba(153,247,255,0.08) 0%, rgba(153,247,255,0) 55%), linear-gradient(180deg, rgba(18,22,24,0.72) 0%, rgba(14,17,19,0.72) 100%)',
+            backdropFilter: 'blur(28px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(150%)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow:
+              '0 30px 80px -20px rgba(0,0,0,0.55), 0 8px 24px -8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)',
+          }}
+        >
+          {/* Top accent hairline — cyan fade, Apple-style */}
+          <span
+            aria-hidden
             style={{
-              ...anim(0),
-              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-              fontSize: 'clamp(2rem, 4vw, 2.8rem)',
-              fontWeight: 600,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.3,
-              marginBottom: 24,
+              position: 'absolute',
+              top: 0,
+              left: '10%',
+              right: '10%',
+              height: 1,
+              background:
+                'linear-gradient(90deg, transparent 0%, rgba(153,247,255,0.55) 50%, transparent 100%)',
+              pointerEvents: 'none',
             }}
-          >
-            {greetingLine}
-          </h1>
+          />
+          {/* Soft inner vignette — subtle depth */}
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 'inherit',
+              background:
+                'radial-gradient(120% 60% at 50% 110%, rgba(0,0,0,0.35) 0%, transparent 60%)',
+              pointerEvents: 'none',
+            }}
+          />
 
-          {/* Operator panel */}
+          {/* Hero stat — balance / capacity, Apple fraction style */}
           <div
+            className="flex items-baseline tabular-nums"
             style={{
-              ...anim(100),
-              background: '#181c20',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 22,
-              padding: '28px 28px 24px',
+              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+              color: 'rgba(255,255,255,0.97)',
             }}
           >
-            {/* Stats */}
-            <div className="mb-5">
-              <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: 500, marginBottom: 6 }}>
-                kWh stored
-              </div>
-              <div className="tabular-nums text-on-surface" style={{ fontSize: 38, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1 }}>
-                {kWh}
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            {(() => {
-              const isFull = chargePct >= 100;
-              return (
-                <div style={{ marginBottom: 20 }}>
-                  <div className="flex items-baseline justify-between" style={{ marginBottom: 6 }}>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        letterSpacing: '0.06em',
-                        textTransform: 'uppercase',
-                        color: isFull ? 'rgba(153,247,255,0.75)' : 'rgba(255,255,255,0.25)',
-                        fontWeight: 500,
-                        transition: 'color 400ms ease',
-                      }}
-                    >
-                      {remainingToFull > 0 ? `${remainingToFull.toLocaleString()} kWh to full charge` : 'Battery fully charged'}
-                    </span>
-                    <span
-                      className="font-mono tabular-nums"
-                      style={{
-                        fontSize: 11,
-                        color: isFull ? '#99f7ff' : 'rgba(255,255,255,0.4)',
-                        transition: 'color 400ms ease',
-                      }}
-                    >
-                      {chargePct}%
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      height: 3,
-                      background: 'rgba(255,255,255,0.06)',
-                      borderRadius: 100,
-                      position: 'relative',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${Math.max(chargePct, 1)}%`,
-                        height: '100%',
-                        borderRadius: 100,
-                        position: 'relative',
-                        background: isFull
-                          ? 'linear-gradient(90deg, rgba(153,247,255,0.55) 0%, #99f7ff 50%, rgba(153,247,255,0.55) 100%)'
-                          : '#99f7ff',
-                        backgroundSize: isFull ? '200% 100%' : undefined,
-                        animation: isFull
-                          ? 'kwhFlow 2.2s linear infinite, kwhPulse 1.8s ease-in-out infinite'
-                          : undefined,
-                        boxShadow: isFull
-                          ? '0 0 10px rgba(153,247,255,0.55)'
-                          : '0 0 6px rgba(153,247,255,0.35)',
-                        transition: 'width 1.5s cubic-bezier(.16,1,.3,1), box-shadow 400ms ease',
-                      }}
-                    >
-                      {isFull && (
-                        <span
-                          aria-hidden
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            borderRadius: 100,
-                            background:
-                              'linear-gradient(90deg, transparent 0%, transparent 35%, rgba(255,255,255,0.9) 50%, transparent 65%, transparent 100%)',
-                            backgroundSize: '220% 100%',
-                            mixBlendMode: 'screen',
-                            animation: 'kwhShimmer 1.8s linear infinite',
-                            pointerEvents: 'none',
-                          }}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Actions */}
-            <div className="flex items-center gap-3">
-              <Link
-                href={resumeHref}
-                className="flex-1 block text-center font-mono font-bold uppercase transition-all hover:bg-white/[0.08] active:scale-[0.98]"
-                style={{
-                  padding: '14px 0', borderRadius: 14, fontSize: 11,
-                  letterSpacing: '0.1em',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.8)',
-                }}
-              >
-                Continue Learning
-              </Link>
-              <button
-                onClick={() => setDoorsOpen((v) => !v)}
-                className="flex items-center gap-2 font-mono uppercase transition-all hover:bg-white/[0.06] active:scale-[0.97]"
-                style={{
-                  padding: '14px 16px', borderRadius: 14, fontSize: 11,
-                  letterSpacing: '0.1em', fontWeight: 600,
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  color: 'rgba(255,255,255,0.4)',
-                }}
-              >
-                {doorsOpen ? <DoorClosed className="w-3.5 h-3.5" /> : <DoorOpen className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Right: battery ── */}
-        <div className="hidden lg:flex items-center justify-center" style={anim(200)}>
-          <div className="relative w-full" style={{ maxWidth: 600 }}>
-            <BessContainer fill={batteryFill} doorsOpen={doorsOpen} kWh={availableKwh} pct={chargePct} litCells={litCells} totalCells={TOTAL_CELLS} />
-
-            {/* Help button + info panel — shows on hover */}
-            <div
-              className="absolute z-10"
+            <span
               style={{
-                /* Pinned to the battery's back-top-right 3D corner — the
-                   highest visible corner of the roof. P(W, H, D) maps to
-                   ~(100.3%, 1.8%) of the wrapper. */
-                top: 'calc(1.8% - 14px)',
-                right: '-14px',
+                fontSize: 'clamp(2.25rem, 3.6vw, 3rem)',
+                fontWeight: 500,
+                letterSpacing: '-0.035em',
+                lineHeight: 1,
               }}
-              onMouseEnter={() => setInfoPanelVisible(true)}
-              onMouseLeave={() => setInfoPanelVisible(false)}
             >
-              <button
-                type="button"
-                aria-label="About this battery"
-                aria-expanded={infoPanelVisible}
-                className="transition-all active:scale-[0.95]"
+              {kWh}
+            </span>
+            <span
+              aria-hidden
+              style={{
+                margin: '0 6px 0 10px',
+                fontSize: 'clamp(1.25rem, 2vw, 1.75rem)',
+                fontWeight: 300,
+                color: 'rgba(255,255,255,0.22)',
+                lineHeight: 1,
+              }}
+            >
+              /
+            </span>
+            <span
+              style={{
+                fontSize: 'clamp(1.25rem, 2vw, 1.75rem)',
+                fontWeight: 400,
+                letterSpacing: '-0.02em',
+                color: 'rgba(255,255,255,0.42)',
+                lineHeight: 1,
+              }}
+            >
+              {capacityKwh.toLocaleString()}
+            </span>
+            <span
+              style={{
+                marginLeft: 8,
+                fontSize: 14,
+                fontWeight: 400,
+                letterSpacing: '0.02em',
+                color: 'rgba(255,255,255,0.38)',
+              }}
+            >
+              kWh
+            </span>
+          </div>
+
+          {/* Sub-label: what the fraction means */}
+          <div
+            className="font-mono"
+            style={{
+              marginTop: -4,
+              fontSize: 9,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: 'rgba(255,255,255,0.22)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+            }}
+          >
+            <span>Balance</span>
+            <span style={{ color: 'rgba(255,255,255,0.12)' }}>·</span>
+            <span>Capacity</span>
+          </div>
+
+          {/* Status label — small caps, muted, cyan when full */}
+          <div
+            className="font-mono tabular-nums"
+            style={{
+              fontSize: 10,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: chargePct >= 100 ? 'rgba(153,247,255,0.7)' : 'rgba(255,255,255,0.32)',
+              transition: 'color 400ms ease',
+            }}
+          >
+            {chargePct >= 100 ? 'Battery fully charged' : `${headroomKwh.toLocaleString()} kWh to full charge`}
+          </div>
+
+          {/* Battery progress — hairline */}
+          {(() => {
+            const isFull = chargePct >= 100;
+            return (
+              <div
                 style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  background: infoPanelVisible
-                    ? 'linear-gradient(180deg, #8a8f99 0%, #5a6069 100%)'
-                    : 'linear-gradient(180deg, #7a7f88 0%, #4a4f58 100%)',
-                  border: `1px solid ${infoPanelVisible ? '#3a3f48' : '#2f343c'}`,
-                  color: infoPanelVisible ? '#1a1e25' : 'rgba(20,22,26,0.75)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.4)',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backdropFilter: 'blur(8px)',
-                  lineHeight: 1,
+                  width: 'clamp(220px, 24vw, 320px)',
+                  height: 2,
+                  background: 'rgba(255,255,255,0.08)',
+                  borderRadius: 100,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  marginTop: 2,
                 }}
               >
-                <Zap className="w-3.5 h-3.5" fill="currentColor" strokeWidth={0} />
-              </button>
-
-              {infoPanelVisible && (
                 <div
                   style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 'calc(100% + 10px)',
-                    background: 'rgba(17,20,22,0.92)',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    borderRadius: 12,
-                    padding: '14px 18px',
-                    width: 320,
-                    backdropFilter: 'blur(20px)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                    width: `${Math.max(chargePct, 1)}%`,
+                    height: '100%',
+                    borderRadius: 100,
+                    position: 'relative',
+                    background: isFull
+                      ? 'linear-gradient(90deg, rgba(153,247,255,0.5) 0%, #99f7ff 50%, rgba(153,247,255,0.5) 100%)'
+                      : '#99f7ff',
+                    backgroundSize: isFull ? '200% 100%' : undefined,
+                    animation: isFull
+                      ? 'kwhFlow 2.6s linear infinite, kwhPulse 2s ease-in-out infinite'
+                      : undefined,
+                    boxShadow: isFull
+                      ? '0 0 8px rgba(153,247,255,0.5)'
+                      : '0 0 4px rgba(153,247,255,0.3)',
+                    transition: 'width 1.5s cubic-bezier(.16,1,.3,1), box-shadow 400ms ease',
                   }}
                 >
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.8)', marginBottom: 10 }}>
-                    BESS Energy Storage
-                  </div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6, marginBottom: 12 }}>
-                    Your battery stores kWh earned by reading lessons, completing modules, and finishing tracks. Cells light up as you learn.
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {[
-                      { label: 'Lesson read', value: '+5 kWh', sub: '×1.5 mid · ×3 senior' },
-                      { label: 'Module complete', value: '+25 kWh', sub: '×1.5 mid · ×3 senior' },
-                      { label: 'Track complete', value: '+200 kWh', sub: '×1.5 mid · ×3 senior' },
-                    ].map((r) => (
-                      <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>{r.label}</span>
-                        <span>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#ffffff' }}>{r.value}</span>
-                          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', marginLeft: 4 }}>{r.sub}</span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>Cells</span>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>{litCells}/{TOTAL_CELLS} charged</span>
-                  </div>
+                  {isFull && (
+                    <span
+                      aria-hidden
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        borderRadius: 100,
+                        background:
+                          'linear-gradient(90deg, transparent 0%, transparent 35%, rgba(255,255,255,0.9) 50%, transparent 65%, transparent 100%)',
+                        backgroundSize: '220% 100%',
+                        mixBlendMode: 'screen',
+                        animation: 'kwhShimmer 2s linear infinite',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+            );
+          })()}
         </div>
 
+        <div
+          className="flex items-center justify-center flex-wrap"
+          style={{ ...anim(280), gap: 0, rowGap: 12 }}
+        >
+          <Link
+            href={learnHref}
+            className="home-hero-link"
+            style={{
+              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+              fontSize: 15,
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+              color: 'rgba(255,255,255,0.92)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 18px',
+            }}
+          >
+            <span className="home-hero-link__label">{learnLabel}</span>
+            <span
+              aria-hidden
+              className="home-hero-link__arrow"
+              style={{ display: 'inline-block', transition: 'transform 300ms cubic-bezier(.16,1,.3,1)' }}
+            >
+              ↗
+            </span>
+          </Link>
+
+          <span
+            aria-hidden
+            style={{
+              width: 1,
+              height: 14,
+              background: 'rgba(255,255,255,0.12)',
+            }}
+          />
+
+          <Link
+            href={practiceHref}
+            className="home-hero-link"
+            style={{
+              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+              fontSize: 15,
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+              color: 'rgba(255,255,255,0.92)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 18px',
+            }}
+          >
+            <span className="home-hero-link__label">{practiceLabel}</span>
+            <span
+              aria-hidden
+              className="home-hero-link__arrow"
+              style={{ display: 'inline-block', transition: 'transform 300ms cubic-bezier(.16,1,.3,1)' }}
+            >
+              ↗
+            </span>
+          </Link>
+        </div>
+
+        {gridHint && (
+          <Link
+            href="/grid"
+            className="home-hero-hint"
+            style={{
+              ...anim(420),
+              marginTop: 22,
+              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+              fontSize: 13,
+              fontWeight: 400,
+              letterSpacing: '-0.005em',
+              color: 'rgba(255,255,255,0.48)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'color 300ms cubic-bezier(.16,1,.3,1)',
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                background: '#99f7ff',
+                boxShadow: '0 0 6px rgba(153,247,255,0.7), 0 0 2px #99f7ff',
+                animation: 'hintPulse 2.4s ease-in-out infinite',
+              }}
+            />
+            <span>
+              You have enough power to deploy{' '}
+              <span style={{ color: 'rgba(255,255,255,0.82)', fontWeight: 500 }}>
+                {gridHint.componentName}
+              </span>
+            </span>
+            <span
+              aria-hidden
+              className="home-hero-hint__arrow"
+              style={{ transition: 'transform 300ms cubic-bezier(.16,1,.3,1)' }}
+            >
+              →
+            </span>
+          </Link>
+        )}
       </div>
 
       <style jsx global>{`
         @keyframes homeFadeUp {
-          from { opacity: 0; transform: translateY(20px); }
+          from { opacity: 0; transform: translateY(16px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        /* Energy flow across the bar when fully charged */
+        /* Apple-style greeting: enter (spring-out) → hold → fade+rise (ease-in) → collapse (soft ease-in-out).
+           Per-segment animation-timing-function overrides the top-level linear so each phase gets its own curve. */
+        @keyframes homeGreetingLifecycle {
+          /* Enter — rises into place with a soft blur-to-clarity, Apple spring-out */
+          0%   { opacity: 0; transform: translateY(22px); filter: blur(6px); max-height: 400px; margin-bottom: 32px; animation-timing-function: cubic-bezier(.16, 1, .3, 1); }
+          22%  { opacity: 1; transform: translateY(0);    filter: blur(0);   max-height: 400px; margin-bottom: 32px; animation-timing-function: linear; }
+          /* Hold — read time */
+          63%  { opacity: 1; transform: translateY(0);    filter: blur(0);   max-height: 400px; margin-bottom: 32px; animation-timing-function: cubic-bezier(.32, 0, .67, 0); }
+          /* Exit — accelerates upward while softening out with a touch of blur */
+          82%  { opacity: 0; transform: translateY(-14px); filter: blur(3px); max-height: 400px; margin-bottom: 32px; animation-timing-function: cubic-bezier(.32, .72, 0, 1); }
+          /* Collapse — height + margin dissolve with Apple standard easing, balance block glides up */
+          100% { opacity: 0; transform: translateY(-14px); filter: blur(3px); max-height: 0;     margin-bottom: 0;    padding: 0; border: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [style*="homeGreetingLifecycle"] {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+            max-height: 400px !important;
+            margin-bottom: 32px !important;
+          }
+        }
         @keyframes kwhFlow {
           0%   { background-position: 100% 0; }
           100% { background-position: -100% 0; }
         }
-        /* Subtle glow pulse */
         @keyframes kwhPulse {
-          0%, 100% { box-shadow: 0 0 8px rgba(153, 247, 255, 0.45); }
-          50%      { box-shadow: 0 0 18px rgba(153, 247, 255, 0.85), 0 0 3px rgba(153, 247, 255, 1); }
+          0%, 100% { box-shadow: 0 0 6px rgba(153,247,255,0.4); }
+          50%      { box-shadow: 0 0 14px rgba(153,247,255,0.8), 0 0 2px rgba(153,247,255,1); }
         }
-        /* Bright highlight sweeping across — runs offset from flow for richer motion */
         @keyframes kwhShimmer {
           0%   { background-position: 130% 0; }
           100% { background-position: -130% 0; }
@@ -388,6 +474,36 @@ export const HomeDashboard = ({
           [style*="kwhFlow"], [style*="kwhPulse"], [style*="kwhShimmer"] {
             animation: none !important;
           }
+        }
+        .home-hero-link__label {
+          position: relative;
+        }
+        .home-hero-link__label::after {
+          content: '';
+          position: absolute;
+          left: 0; right: 0; bottom: -2px;
+          height: 1px;
+          background: currentColor;
+          opacity: 0;
+          transform: translateY(2px);
+          transition: opacity 300ms cubic-bezier(.16,1,.3,1), transform 300ms cubic-bezier(.16,1,.3,1);
+        }
+        .home-hero-link:hover .home-hero-link__label::after {
+          opacity: 0.6;
+          transform: translateY(0);
+        }
+        .home-hero-link:hover .home-hero-link__arrow {
+          transform: translate(2px, -2px);
+        }
+        @keyframes hintPulse {
+          0%, 100% { opacity: 0.55; }
+          50%      { opacity: 1; }
+        }
+        .home-hero-hint:hover {
+          color: rgba(255,255,255,0.78) !important;
+        }
+        .home-hero-hint:hover .home-hero-hint__arrow {
+          transform: translateX(3px);
         }
       `}</style>
     </div>

@@ -3,7 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { BookOpen, Layers, Clock, BarChart3, ArrowRight, Zap, Target, GraduationCap } from 'lucide-react';
+import { ArrowRight, Check, Lock, Minus } from 'lucide-react';
+import { LANDING_TOPICS } from '@/lib/landing/topics';
+import { TopicCard } from '@/components/topics/TopicCard';
+import { LandingIntro } from '@/components/home/landing/LandingIntro';
+import { ComponentCatalogDemo } from '@/components/home/landing/ComponentCatalogDemo';
 
 // ─── Nav on scroll ───────────────────────────────────────────────────────────
 
@@ -33,6 +37,31 @@ function NavOnScroll() {
         <Link href="/" className="font-bold tracking-tight text-sm" style={{ color: '#99f7ff', letterSpacing: '0.08em' }}>
           STABLEGRID.IO
         </Link>
+
+        {/* Center nav links — desktop only */}
+        <div className="hidden md:flex items-center gap-6 lg:gap-7 absolute left-1/2 -translate-x-1/2">
+          {[
+            { label: 'Topics', href: '#topics' },
+            { label: 'Tiers', href: '#tiers' },
+            { label: 'Grid', href: '#grid' },
+            { label: 'Pricing', href: '#pricing' },
+          ].map(link => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-[13px] font-medium transition-colors"
+              style={{
+                color: 'rgba(255,255,255,0.55)',
+                letterSpacing: '-0.005em',
+              }}
+              onMouseOver={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.95)')}
+              onMouseOut={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
+
         <Link
           href="/login"
           className="px-5 py-2 text-sm font-semibold transition-all"
@@ -58,118 +87,6 @@ function NavOnScroll() {
   );
 }
 
-// ─── Data ────────────────────────────────────────────────────────────────────
-
-const TOPICS = [
-  {
-    name: 'PySpark',
-    modules: 10,
-    icon: '/brand/pyspark-track-star.svg',
-    accent: '#99f7ff'
-  },
-  {
-    name: 'Microsoft Fabric',
-    modules: 10,
-    icon: '/brand/microsoft-fabric-track.svg',
-    accent: '#bf81ff'
-  },
-  {
-    name: 'Apache Airflow',
-    modules: 10,
-    icon: '/brand/apache-airflow-logo.svg',
-    accent: '#ffc965'
-  },
-  {
-    name: 'SQL',
-    modules: 10,
-    icon: '/brand/sql-logo.svg',
-    accent: '#99f7ff'
-  },
-  {
-    name: 'Python',
-    modules: 10,
-    icon: '/brand/python-logo.svg',
-    accent: '#ffc965'
-  },
-  {
-    name: 'Apache Kafka',
-    modules: 10,
-    icon: '/brand/apache-kafka-logo.svg',
-    accent: '#ff716c'
-  },
-  {
-    name: 'Docker',
-    modules: 10,
-    icon: '/brand/docker-logo.svg',
-    accent: '#99f7ff'
-  },
-  {
-    name: 'dbt',
-    modules: 10,
-    icon: '/brand/dbt-logo.svg',
-    accent: '#ff716c'
-  }
-] as const;
-
-const STEPS = [
-  {
-    number: '01',
-    title: 'Choose a track',
-    description:
-      'Pick from 20+ data engineering topics, each with Junior, Mid, and Senior tiers structured for real career progression.'
-  },
-  {
-    number: '02',
-    title: 'Learn the theory',
-    description:
-      'Read structured modules with your preferred session method — Sprint, Pomodoro, or Deep Focus. Progress is saved automatically.'
-  },
-  {
-    number: '03',
-    title: 'Practice with real scenarios',
-    description:
-      'Apply your knowledge through hands-on practice sets built on real-world datasets and production-grade engineering problems.'
-  }
-] as const;
-
-const FEATURES = [
-  {
-    icon: Layers,
-    title: 'Structured learning paths',
-    description: 'Junior → Mid → Senior progression per topic. No filler — every module builds on the last.',
-    accent: '#99f7ff'
-  },
-  {
-    icon: Clock,
-    title: 'Reading sessions',
-    description: 'Sprint, Pomodoro, Deep Focus. Timed study approaches built directly into the reading view.',
-    accent: '#ffc965'
-  },
-  {
-    icon: Target,
-    title: 'Practice sets',
-    description: 'Real-world scenarios with datasets. Not toy exercises — tasks that mirror production engineering work.',
-    accent: '#bf81ff'
-  },
-  {
-    icon: BarChart3,
-    title: 'Progress tracking',
-    description: 'Activity heatmap, completion grid, and session stats so you always know where you stand.',
-    accent: '#ff716c'
-  }
-] as const;
-
-const TOPIC_ICONS = [
-  '/brand/pyspark-track-star.svg',
-  '/brand/microsoft-fabric-track.svg',
-  '/brand/apache-airflow-logo.svg',
-  '/brand/sql-logo.svg',
-  '/brand/python-logo.svg',
-  '/brand/apache-kafka-logo.svg',
-  '/brand/docker-logo.svg',
-  '/brand/dbt-logo.svg'
-];
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const LandingPage = () => {
@@ -178,27 +95,61 @@ export const LandingPage = () => {
       className="relative min-h-screen text-white"
       style={{ backgroundColor: '#0a0c0e', fontFamily: 'Inter, sans-serif' }}
     >
-      <style>{`
+      {/* Cinematic intro — plays once per session, fades into hero */}
+      <LandingIntro />
+
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(20px); }
+          from { opacity: 0; transform: translateY(16px); }
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes fadeIn {
           from { opacity: 0; }
           to   { opacity: 1; }
         }
-        @keyframes shineSwipe {
-          0%, 80% { background-position: -200% center; }
-          100%    { background-position: 200% center; }
+        .landing-hero-cta:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 10px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.12) !important;
         }
-      `}</style>
+        .landing-hero-link {
+          position: relative;
+        }
+        .landing-hero-link__label {
+          position: relative;
+        }
+        .landing-hero-link__label::after {
+          content: '';
+          position: absolute;
+          left: 0; right: 0; bottom: -2px;
+          height: 1px;
+          background: currentColor;
+          opacity: 0;
+          transform: translateY(2px);
+          transition: opacity 300ms cubic-bezier(.16,1,.3,1), transform 300ms cubic-bezier(.16,1,.3,1);
+        }
+        .landing-hero-link:hover { color: rgba(255,255,255,0.98) !important; }
+        .landing-hero-link:hover .landing-hero-link__label::after {
+          opacity: 0.65;
+          transform: translateY(0);
+        }
+        .landing-hero-link:hover .landing-hero-link__arrow {
+          transform: translate(2px, -2px);
+        }
+        .landing-hero-link:hover .landing-hero-link__arrow--chevron {
+          transform: translateX(4px);
+        }
+      `,
+        }}
+      />
 
       {/* ── Navigation (appears on scroll) ─────────────────────────────── */}
       <NavOnScroll />
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <section className="min-h-[90vh] flex items-center px-6 relative overflow-hidden">
-        {/* Background image */}
+      <section className="min-h-[100vh] flex items-center justify-center px-6 relative overflow-hidden">
+        {/* Background image — full bleed, battery as hero */}
         <div className="absolute inset-0 z-0 pointer-events-none">
           <Image
             src="/landing-hero.jpg"
@@ -208,209 +159,109 @@ export const LandingPage = () => {
             sizes="100vw"
             className="object-cover object-center"
           />
-          {/* Left-side scrim for text legibility; preserves image on the right */}
+          {/* Soft radial vignette — keeps the battery visible, adds contrast for text */}
           <div
             className="absolute inset-0"
             style={{
               background:
-                'linear-gradient(to right, rgba(10,12,14,0.85) 0%, rgba(10,12,14,0.65) 35%, rgba(10,12,14,0.25) 65%, rgba(10,12,14,0) 100%)',
+                'radial-gradient(ellipse at 50% 50%, rgba(10,12,14,0.35) 0%, rgba(10,12,14,0.72) 60%, rgba(10,12,14,0.94) 100%)',
             }}
           />
+          {/* Bottom fade into next section */}
           <div
-            className="absolute inset-x-0 bottom-0 h-40"
+            className="absolute inset-x-0 bottom-0 h-48"
             style={{
               background:
                 'linear-gradient(to bottom, transparent 0%, #0a0c0e 100%)',
             }}
           />
         </div>
-        <div className="max-w-6xl mx-auto relative z-10 w-full grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-0">
-          {/* Left column — text content */}
-          <div>
-            {/* Logo */}
-            <div
-              className="font-bold tracking-tight text-sm mb-10"
-              style={{ color: '#99f7ff', letterSpacing: '0.08em', opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 0ms forwards' }}
-            >
-              STABLEGRID.IO
-            </div>
 
-            {/* Headline */}
-            <h1
-              className="font-bold tracking-tight mb-6"
-              style={{
-                fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-                fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
-                lineHeight: 1.05,
-                textShadow: '0 2px 24px rgba(0,0,0,0.6)',
-                opacity: 0,
-                animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 80ms forwards',
-              }}
-            >
-              Understanding <span style={{ color: '#99f7ff' }}>data</span>
-              <br />
-              is your edge.
-            </h1>
-
-            {/* Subtitle */}
-            <p
-              className="text-lg mb-10 max-w-lg"
-              style={{
-                color: 'rgba(255,255,255,0.88)',
-                lineHeight: 1.7,
-                textShadow: '0 1px 12px rgba(0,0,0,0.5)',
-                opacity: 0,
-                animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 160ms forwards'
-              }}
-            >
-              Master data engineering through structured theory tracks, real-world practice sets,
-              and deep technical understanding — across PySpark, Fabric, Airflow, and more.
-            </p>
-
-            {/* CTAs */}
-            <div
-              className="flex flex-wrap gap-3 mb-16"
-              style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 240ms forwards' }}
-            >
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-semibold transition-all relative overflow-hidden"
-                style={{
-                  backgroundColor: '#f0f0f3',
-                  color: '#0a0c0e',
-                  borderRadius: '14px',
-                  boxShadow: '0 0 12px rgba(240,240,243,0.1)',
-                  backgroundImage: 'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.4) 45%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.4) 55%, transparent 70%)',
-                  backgroundSize: '250% 100%',
-                  backgroundPosition: '-200% center',
-                  animation: 'shineSwipe 5s ease-in-out infinite',
-                }}
-                onMouseOver={e => {
-                  e.currentTarget.style.boxShadow = '0 0 24px rgba(240,240,243,0.2)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseOut={e => {
-                  e.currentTarget.style.boxShadow = '0 0 12px rgba(240,240,243,0.1)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                Get started
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-              <a
-                href="#topics"
-                className="inline-flex items-center gap-2 px-7 py-3.5 text-sm font-medium transition-all"
-                style={{
-                  border: '1px solid rgba(255,255,255,0.28)',
-                  borderRadius: '14px',
-                  color: 'rgba(255,255,255,0.95)',
-                  backgroundColor: 'rgba(10,12,14,0.35)',
-                  backdropFilter: 'blur(6px)',
-                  WebkitBackdropFilter: 'blur(6px)',
-                }}
-                onMouseOver={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
-                  e.currentTarget.style.backgroundColor = 'rgba(10,12,14,0.5)';
-                }}
-                onMouseOut={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.28)';
-                  e.currentTarget.style.backgroundColor = 'rgba(10,12,14,0.35)';
-                }}
-              >
-                Explore topics
-              </a>
-            </div>
-
-            {/* Topic icon strip */}
-            <div
-              className="flex items-center gap-6 flex-wrap"
-              style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 340ms forwards' }}
-            >
-              <span
-                className="text-xs uppercase tracking-widest shrink-0"
-                style={{ color: 'rgba(255,255,255,0.65)', letterSpacing: '0.15em', textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}
-              >
-                Topics
-              </span>
-              {TOPIC_ICONS.map((src, i) => (
-                <div
-                  key={src}
-                  className="w-7 h-7 relative transition-opacity"
-                  style={{ opacity: 0.95, filter: 'drop-shadow(0 1px 6px rgba(0,0,0,0.5))' }}
-                >
-                  <Image
-                    src={src}
-                    alt=""
-                    fill
-                    className="object-contain"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Section divider */}
-      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
-
-      {/* ── How it Works ───────────────────────────────────────────────────── */}
-      <section className="py-28 lg:py-40 px-6">
-        <div className="max-w-6xl mx-auto">
-          {/* Section label */}
-          <p
-            className="text-xs uppercase tracking-widest mb-4"
+        {/* Centered hero stack */}
+        <div className="relative z-10 w-full max-w-3xl mx-auto text-center flex flex-col items-center">
+          {/* Headline */}
+          <h1
             style={{
-              color: 'rgba(255,255,255,0.25)',
-              letterSpacing: '0.18em',
+              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+              fontSize: 'clamp(3rem, 8vw, 6rem)',
+              fontWeight: 600,
+              letterSpacing: '-0.035em',
+              lineHeight: 1.03,
+              color: 'rgba(255,255,255,0.97)',
+              marginBottom: 28,
               opacity: 0,
-              animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 0ms forwards',
-              animationTimeline: 'view()',
-              animationRangeStart: 'entry 0%',
-              animationRangeEnd: 'entry 20%'
+              animation: 'fadeSlideUp .7s cubic-bezier(.16,1,.3,1) 0ms forwards',
             }}
           >
-            How it works
-          </p>
-          <h2
-            className="text-3xl lg:text-4xl font-bold tracking-tight mb-16"
-            style={{ lineHeight: 1.1 }}
-          >
-            Three steps to mastery.
-          </h2>
+            Understanding <span style={{ color: '#99f7ff' }}>data</span>
+            <br />
+            is your edge.
+          </h1>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {STEPS.map((step, i) => (
-              <div
-                key={step.number}
-                className="p-8"
-                style={{
-                  backgroundColor: '#111416',
-                  borderRadius: '22px',
-                  opacity: 0,
-                  animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${i * 80}ms forwards`
-                }}
-              >
-                <span
-                  className="block text-4xl font-bold mb-6"
-                  style={{ color: 'rgba(153,247,255,0.2)', fontVariantNumeric: 'tabular-nums' }}
-                >
-                  {step.number}
-                </span>
-                <h3 className="text-lg font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.92)' }}>
-                  {step.title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                  {step.description}
-                </p>
-              </div>
-            ))}
+          {/* Subtitle — trimmed, one idea only */}
+          <p
+            style={{
+              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+              fontSize: 'clamp(1rem, 1.4vw, 1.175rem)',
+              fontWeight: 400,
+              letterSpacing: '-0.005em',
+              lineHeight: 1.5,
+              color: 'rgba(255,255,255,0.62)',
+              maxWidth: 540,
+              marginBottom: 44,
+              opacity: 0,
+              animation: 'fadeSlideUp .7s cubic-bezier(.16,1,.3,1) 140ms forwards',
+            }}
+          >
+            Every chapter you finish powers a district. Every project ships to your CV.
+          </p>
+
+          {/* CTAs — one primary pill + one text link */}
+          <div
+            className="flex flex-wrap items-center justify-center gap-x-7 gap-y-4"
+            style={{ opacity: 0, animation: 'fadeSlideUp .7s cubic-bezier(.16,1,.3,1) 260ms forwards' }}
+          >
+            <Link
+              href="/login"
+              className="landing-hero-cta inline-flex items-center gap-2"
+              style={{
+                padding: '13px 26px',
+                backgroundColor: '#f0f0f3',
+                color: '#0a0c0e',
+                borderRadius: 999,
+                fontSize: 15,
+                fontWeight: 500,
+                letterSpacing: '-0.005em',
+                boxShadow: '0 6px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.08)',
+                transition: 'transform 200ms cubic-bezier(.16,1,.3,1), box-shadow 200ms ease',
+              }}
+            >
+              Get started
+              <ArrowRight className="w-[15px] h-[15px]" strokeWidth={2.2} />
+            </Link>
+
+            <a
+              href="#topics"
+              className="landing-hero-link inline-flex items-center gap-1.5"
+              style={{
+                fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+                fontSize: 15,
+                fontWeight: 500,
+                letterSpacing: '-0.005em',
+                color: 'rgba(255,255,255,0.8)',
+                transition: 'color 200ms ease',
+              }}
+            >
+              <span className="landing-hero-link__label">Explore topics</span>
+              <span aria-hidden className="landing-hero-link__arrow" style={{ transition: 'transform 300ms cubic-bezier(.16,1,.3,1)' }}>↗</span>
+            </a>
           </div>
         </div>
       </section>
 
       {/* Section divider */}
       <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+
 
       {/* ── Topics Showcase ────────────────────────────────────────────────── */}
       <section id="topics" className="py-28 lg:py-40 px-6">
@@ -423,64 +274,49 @@ export const LandingPage = () => {
           </p>
           <div className="flex items-end justify-between mb-12 gap-4 flex-wrap">
             <h2 className="text-3xl lg:text-4xl font-bold tracking-tight" style={{ lineHeight: 1.1 }}>
-              20+ topics.<br />
-              <span style={{ color: 'rgba(255,255,255,0.35)' }}>Three tiers each.</span>
+              The whole data<br />
+              <span style={{ color: 'rgba(255,255,255,0.35)' }}>engineering stack.</span>
             </h2>
             <p className="text-sm max-w-sm" style={{ color: 'rgba(255,255,255,0.4)', lineHeight: 1.7 }}>
-              From Junior fundamentals to Senior architecture — every track follows the same structured progression.
+              Spark, Fabric, Airflow, SQL, Kafka, dbt, Snowflake, Terraform — processing, orchestration, platforms, streaming, and governance, all under one roof.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {TOPICS.map((topic, i) => (
-              <Link
-                key={topic.name}
-                href="/login"
-                className="group relative p-5 transition-all"
-                style={{
-                  backgroundColor: '#111416',
-                  borderRadius: '22px',
-                  border: '1px solid rgba(255,255,255,0.04)',
-                  opacity: 0,
-                  animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${i * 50}ms forwards`
-                }}
-                onMouseOver={e => {
-                  e.currentTarget.style.borderColor = `${topic.accent}30`;
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseOut={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                {/* Accent top border */}
-                <div
-                  className="absolute top-0 left-6 right-6 h-px"
-                  style={{
-                    background: `linear-gradient(90deg, transparent, ${topic.accent}60, transparent)`,
-                    borderRadius: '1px'
-                  }}
-                />
-
-                <div className="w-8 h-8 relative mb-4">
-                  <Image
-                    src={topic.icon}
-                    alt={topic.name}
-                    fill
-                    className="object-contain"
-                  />
-                </div>
-                <p className="text-sm font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                  {topic.name}
-                </p>
-                <p
-                  className="text-xs uppercase tracking-widest"
-                  style={{ color: 'rgba(255,255,255,0.25)', letterSpacing: '0.12em' }}
-                >
-                  {topic.modules} modules
-                </p>
-              </Link>
+          <div
+            className="grid gap-6"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}
+          >
+            {LANDING_TOPICS.slice(0, 3).map((topic, i) => (
+              <TopicCard key={topic.name} topic={topic} index={i} />
             ))}
+          </div>
+
+          {/* Apple-style explore link — centered text + arrow that animates on hover */}
+          <div
+            className="mt-12 flex justify-center"
+            style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 380ms forwards' }}
+          >
+            <Link
+              href="/topics"
+              className="landing-hero-link inline-flex items-center gap-1.5 group"
+              style={{
+                fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+                fontSize: 15,
+                fontWeight: 500,
+                letterSpacing: '-0.005em',
+                color: 'rgba(255,255,255,0.85)',
+                transition: 'color 200ms ease',
+              }}
+            >
+              <span className="landing-hero-link__label">Explore all 20+ topics</span>
+              <span
+                aria-hidden
+                className="landing-hero-link__arrow landing-hero-link__arrow--chevron"
+                style={{ transition: 'transform 300ms cubic-bezier(.16,1,.3,1)', fontSize: 18, lineHeight: 1 }}
+              >
+                ›
+              </span>
+            </Link>
           </div>
         </div>
       </section>
@@ -489,7 +325,7 @@ export const LandingPage = () => {
       <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
 
       {/* ── Tier Showcase ────────────────────────────────────────────────── */}
-      <section className="py-28 lg:py-40 px-6">
+      <section id="tiers" className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
           <p
             className="text-xs uppercase tracking-widest mb-4"
@@ -507,122 +343,436 @@ export const LandingPage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
-              { level: 'Junior', subtitle: 'Foundational Modules', color: '#99f7ff', rgb: '153,247,255', xp: '1.0X', desc: 'Core concepts, syntax, and mental models. Build the foundation that everything else depends on.' },
-              { level: 'Mid', subtitle: 'Advanced Systems', color: '#ffc965', rgb: '255,201,101', xp: '1.5X', desc: 'Production patterns, optimization, and integration. Work with real-world complexity.' },
-              { level: 'Senior', subtitle: 'Platform Architecture', color: '#ff716c', rgb: '255,113,108', xp: '3.0X', desc: 'System design, governance, and scale. Architect solutions that teams depend on.' },
+              {
+                level: 'JUNIOR', subtitle: 'FOUNDATIONAL MODULES', color: '#99f7ff', rgb: '153,247,255',
+                image: '/brand/track-junior.png',
+                progressPct: 100, modules: '10 / 10', est: '42:40:00', xp: '1.0X', cta: 'Review Track',
+              },
+              {
+                level: 'MID', subtitle: 'ADVANCED SYSTEMS', color: '#ffc965', rgb: '255,201,101',
+                image: '/brand/track-mid.png',
+                progressPct: 1, modules: '00 / 10', est: '53:10:00', xp: '1.5X', cta: 'Continue',
+              },
+              {
+                level: 'SENIOR', subtitle: 'PLATFORM ARCHITECTURE', color: '#ff716c', rgb: '255,113,108',
+                image: '/brand/track-senior.png',
+                progressPct: 1, modules: '00 / 10', est: '66:40:00', xp: '3.0X', cta: 'Locked',
+                locked: true,
+              },
             ].map((tier, i) => (
-              <div
+              <Link
                 key={tier.level}
-                className="relative overflow-hidden flex flex-col"
+                href={tier.locked ? '#' : '/login'}
+                className={`group block ${tier.locked ? 'pointer-events-none' : ''}`}
                 style={{
-                  background: '#111416',
-                  border: `1px solid rgba(${tier.rgb},0.12)`,
-                  borderRadius: '22px',
                   opacity: 0,
                   animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${i * 100 + 200}ms forwards`,
                 }}
               >
-                {/* Top accent */}
-                <div style={{ height: '2px', background: `linear-gradient(90deg, transparent 5%, rgba(${tier.rgb},0.6), transparent 95%)` }} />
-
-                <div className="p-7 flex flex-col flex-1">
-                  {/* Level badge */}
-                  <div
-                    className="inline-flex self-start px-3 py-1 rounded-full text-[10px] font-bold tracking-widest mb-5"
-                    style={{ backgroundColor: `rgba(${tier.rgb},0.1)`, color: tier.color }}
-                  >
-                    {tier.level.toUpperCase()}
+                <div
+                  className="relative overflow-hidden h-full flex flex-col transition-transform duration-500 hover:scale-[1.015]"
+                  style={{
+                    background: '#181c20',
+                    border: `1px solid ${tier.locked ? 'rgba(255,255,255,0.05)' : `rgba(${tier.rgb},0.12)`}`,
+                    borderRadius: 22,
+                  }}
+                >
+                  {/* L-bracket corners */}
+                  <div className="absolute top-0 left-0 z-10 pointer-events-none">
+                    <div className="absolute top-0 left-0 w-4 h-px" style={{ backgroundColor: tier.locked ? 'rgba(255,255,255,0.04)' : `rgba(${tier.rgb},0.25)` }} />
+                    <div className="absolute top-0 left-0 w-px h-4" style={{ backgroundColor: tier.locked ? 'rgba(255,255,255,0.04)' : `rgba(${tier.rgb},0.25)` }} />
+                  </div>
+                  <div className="absolute bottom-0 right-0 z-10 pointer-events-none">
+                    <div className="absolute bottom-0 right-0 w-4 h-px" style={{ backgroundColor: tier.locked ? 'rgba(255,255,255,0.04)' : `rgba(${tier.rgb},0.25)` }} />
+                    <div className="absolute bottom-0 right-0 w-px h-4" style={{ backgroundColor: tier.locked ? 'rgba(255,255,255,0.04)' : `rgba(${tier.rgb},0.25)` }} />
                   </div>
 
-                  {/* Title */}
-                  <h3 className="text-2xl font-bold tracking-tight text-on-surface mb-1">
-                    {tier.level}
-                  </h3>
-                  <p className="text-[10px] tracking-[0.18em] uppercase mb-5" style={{ color: tier.color }}>
-                    {tier.subtitle}
-                  </p>
+                  {/* Banner image */}
+                  <div className="relative h-44 overflow-hidden shrink-0">
+                    <div
+                      className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
+                      style={{
+                        backgroundImage: `url(${tier.image})`,
+                        filter: tier.locked ? 'brightness(0.15) saturate(0)' : undefined,
+                      }}
+                    />
+                    {/* bottom gradient fade into card */}
+                    <div
+                      className="absolute inset-0"
+                      style={{ background: 'linear-gradient(to bottom, transparent 30%, #181c20 95%)' }}
+                    />
+                    {tier.locked && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Lock className="h-12 w-12 text-white/[0.07]" />
+                      </div>
+                    )}
+                  </div>
 
-                  {/* Description */}
-                  <p className="text-[13px] leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    {tier.desc}
-                  </p>
+                  {/* Body */}
+                  <div className={`relative flex-1 flex flex-col px-6 pb-6 pt-2 ${tier.locked ? 'opacity-35' : ''}`}>
+                    {/* Title */}
+                    <h3 className="text-[2.4rem] font-black tracking-tight leading-none mb-1" style={{ color: 'rgba(255,255,255,0.95)' }}>
+                      {tier.level}
+                    </h3>
+                    <p
+                      className="font-mono text-[10px] tracking-[0.18em] uppercase mb-8"
+                      style={{ color: tier.color }}
+                    >
+                      {tier.subtitle}
+                    </p>
 
-                  {/* Stats */}
-                  <div className="mt-auto space-y-0">
-                    <div className="flex items-center justify-between py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span className="text-[10px] tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.25)' }}>Modules</span>
-                      <span className="text-[13px] font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>10 per topic</span>
+                    {/* Progress */}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-mono text-[10px] tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.35)' }}>Progress</span>
+                      <span className="font-mono text-[13px] font-bold" style={{ color: tier.color }}>{tier.progressPct}%</span>
                     </div>
-                    <div className="flex items-center justify-between py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span className="text-[10px] tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.25)' }}>XP Multiplier</span>
-                      <span className="text-[13px] font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>{tier.xp}</span>
+                    <div
+                      className="mb-8 w-full overflow-hidden"
+                      style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}
+                    >
+                      <div
+                        style={{
+                          width: `${tier.progressPct}%`,
+                          height: '100%',
+                          background: '#fff',
+                          borderRadius: 100,
+                          opacity: 0.85,
+                          transition: 'width 1.5s cubic-bezier(.16,1,.3,1)',
+                        }}
+                      />
+                    </div>
+
+                    {/* Stat rows */}
+                    <div className="space-y-0 flex-1">
+                      {[
+                        { label: 'MODULES', value: tier.modules },
+                        { label: 'Est. Completion', value: tier.est },
+                        { label: 'kWh Multiplier', value: tier.xp },
+                      ].map((row) => (
+                        <div
+                          key={row.label}
+                          className="flex items-center justify-between py-3"
+                          style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+                        >
+                          <span className="font-mono text-[10px] tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                            {row.label}
+                          </span>
+                          <span className="font-mono text-[13px] font-semibold" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                            {row.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* CTA */}
+                    <div className="mt-6">
+                      <div
+                        className="w-full py-3.5 text-center font-mono text-[12px] font-bold tracking-[0.2em] uppercase"
+                        style={{
+                          border: `1px solid ${tier.locked ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.12)'}`,
+                          backgroundColor: tier.locked ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)',
+                          color: tier.locked ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.7)',
+                          borderRadius: 14,
+                        }}
+                      >
+                        {tier.cta}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
+        </div>
+      </section>
+
+
+      {/* Section divider */}
+      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+
+      {/* ── Grid Game ──────────────────────────────────────────────────────── */}
+      <section id="grid" className="py-28 lg:py-40 px-6">
+        <div className="max-w-6xl mx-auto">
+          <p
+            className="text-xs uppercase tracking-widest mb-4"
+            style={{ color: 'rgba(255,255,255,0.25)', letterSpacing: '0.18em' }}
+          >
+            The Grid
+          </p>
+          <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-6" style={{ lineHeight: 1.1 }}>
+            Learn. Earn.<br />
+            <span style={{ color: '#99f7ff' }}>Rebuild the grid.</span>
+          </h2>
+          <p className="text-[15px] leading-relaxed mb-16" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '560px' }}>
+            Every lesson charges your kWh reserve. Spend it in the shop to bring ten power components online across an interactive 3D map of Lithuania.
+          </p>
+
+          {/* Interactive catalog — live filters + toggleable deploy state */}
+          <ComponentCatalogDemo />
         </div>
       </section>
 
       {/* Section divider */}
       <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
 
-      {/* ── Features Grid ──────────────────────────────────────────────────── */}
-      <section className="py-28 lg:py-40 px-6">
+      {/* ── Pricing ────────────────────────────────────────────────────────── */}
+      <section id="pricing" className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
           <p
             className="text-xs uppercase tracking-widest mb-4"
             style={{ color: 'rgba(255,255,255,0.25)', letterSpacing: '0.18em' }}
           >
-            Built for depth
+            Pricing
           </p>
-          <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-16" style={{ lineHeight: 1.1 }}>
-            Everything you need.<br />
-            <span style={{ color: 'rgba(255,255,255,0.35)' }}>Nothing you don&apos;t.</span>
+          <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-6" style={{ lineHeight: 1.1 }}>
+            Start free.<br />
+            <span style={{ color: 'rgba(255,255,255,0.35)' }}>Unlock everything.</span>
           </h2>
+          <p className="text-[15px] leading-relaxed mb-16" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '520px' }}>
+            Sample any track free. Upgrade when you&apos;re ready for Mid, Senior, and the Grid.
+          </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {FEATURES.map((feature, i) => {
-              const Icon = feature.icon;
-              return (
-                <div
-                  key={feature.title}
-                  className="p-8"
-                  style={{
-                    backgroundColor: '#111416',
-                    borderRadius: '22px',
-                    border: '1px solid rgba(255,255,255,0.04)',
-                    opacity: 0,
-                    animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${i * 80}ms forwards`
-                  }}
-                >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[
+              {
+                name: 'Free',
+                price: '€0',
+                cadence: 'forever',
+                note: 'No card required',
+                cta: 'Start free',
+                highlight: false,
+                image: '/pricing-free.png',
+                accent: '153,247,255',
+                eyebrow: 'STARTER',
+                tagline: 'Sample the platform, keep your progress.',
+                features: [
+                  { included: true,  label: 'Module 1 of every Junior track' },
+                  { included: true,  label: '3 sample practice tasks' },
+                  { included: true,  label: 'Progress tracking & activity map' },
+                  { included: false, label: 'Full Junior, Mid & Senior modules' },
+                  { included: false, label: 'Complete practice library' },
+                  { included: false, label: 'Grid game — earn, shop, restore' },
+                ],
+              },
+              {
+                name: 'Monthly',
+                price: '€11.99',
+                cadence: 'per month + VAT',
+                note: 'Billed monthly, cancel anytime',
+                cta: 'Go Monthly',
+                highlight: true,
+                badge: 'Full access',
+                image: '/pricing-monthly.png',
+                accent: '255,201,101',
+                eyebrow: 'PREMIUM',
+                tagline: 'Every track, every tier, every tool.',
+                features: [
+                  { included: true, label: 'All Junior, Mid & Senior modules' },
+                  { included: true, label: 'Complete practice library' },
+                  { included: true, label: 'Grid game — earn, shop, restore' },
+                  { included: true, label: 'All tracks, all tiers' },
+                  { included: true, label: 'Session timers & reading modes' },
+                  { included: true, label: 'Cancel anytime' },
+                ],
+              },
+            ].map((plan, i) => (
+              <div
+                key={plan.name}
+                className="relative flex flex-col overflow-hidden group"
+                style={{
+                  backgroundColor: '#0f1215',
+                  borderRadius: '24px',
+                  border: plan.highlight
+                    ? `1px solid rgba(${plan.accent},0.35)`
+                    : '1px solid rgba(255,255,255,0.06)',
+                  boxShadow: plan.highlight
+                    ? `0 0 0 1px rgba(${plan.accent},0.08), 0 30px 80px rgba(0,0,0,0.55), 0 0 60px rgba(${plan.accent},0.12)`
+                    : '0 20px 60px rgba(0,0,0,0.35)',
+                  opacity: 0,
+                  animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${i * 100}ms forwards`,
+                }}
+              >
+                {/* L-bracket corners */}
+                <div className="absolute top-0 left-0 z-20 pointer-events-none">
+                  <div className="absolute top-0 left-0 w-5 h-px" style={{ backgroundColor: `rgba(${plan.accent},0.5)` }} />
+                  <div className="absolute top-0 left-0 w-px h-5" style={{ backgroundColor: `rgba(${plan.accent},0.5)` }} />
+                </div>
+                <div className="absolute bottom-0 right-0 z-20 pointer-events-none">
+                  <div className="absolute bottom-0 right-0 w-5 h-px" style={{ backgroundColor: `rgba(${plan.accent},0.5)` }} />
+                  <div className="absolute bottom-0 right-0 w-px h-5" style={{ backgroundColor: `rgba(${plan.accent},0.5)` }} />
+                </div>
+
+                {plan.highlight && plan.badge && (
                   <div
-                    className="w-10 h-10 flex items-center justify-center mb-5"
+                    className="absolute top-5 right-5 z-20 inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold tracking-widest uppercase"
                     style={{
-                      borderRadius: '12px',
-                      backgroundColor: `${feature.accent}12`,
-                      border: `1px solid ${feature.accent}25`
+                      backgroundColor: `rgba(${plan.accent},0.14)`,
+                      color: `rgb(${plan.accent})`,
+                      border: `1px solid rgba(${plan.accent},0.35)`,
+                      borderRadius: '100px',
+                      letterSpacing: '0.16em',
+                      backdropFilter: 'blur(8px)',
                     }}
                   >
-                    <Icon className="w-5 h-5" style={{ color: feature.accent }} />
+                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: `rgb(${plan.accent})` }} />
+                    {plan.badge}
                   </div>
-                  <h3
-                    className="text-base font-semibold mb-2"
-                    style={{ color: 'rgba(255,255,255,0.9)' }}
-                  >
-                    {feature.title}
-                  </h3>
-                  <p
-                    className="text-sm leading-relaxed"
-                    style={{ color: 'rgba(255,255,255,0.42)' }}
-                  >
-                    {feature.description}
-                  </p>
+                )}
+
+                {/* Hero portrait banner */}
+                <div className="relative h-32 overflow-hidden shrink-0">
+                  <div
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-[1.04]"
+                    style={{
+                      backgroundImage: `url(${plan.image})`,
+                      backgroundPosition: 'center 25%',
+                    }}
+                  />
+                  {/* accent-tinted overlay */}
+                  <div
+                    className="absolute inset-0 mix-blend-overlay opacity-40"
+                    style={{
+                      background: `radial-gradient(ellipse at center, rgba(${plan.accent},0.35) 0%, transparent 65%)`,
+                    }}
+                  />
+                  {/* bottom fade into card */}
+                  <div
+                    className="absolute inset-0"
+                    style={{ background: 'linear-gradient(to bottom, transparent 20%, #0f1215 98%)' }}
+                  />
+                  {/* vignette */}
+                  <div
+                    className="absolute inset-0"
+                    style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.5) 100%)' }}
+                  />
                 </div>
-              );
-            })}
+
+                {/* Body */}
+                <div className="relative flex-1 flex flex-col px-7 pb-7 -mt-4 z-10">
+                  {/* Name */}
+                  <h3 className="text-[1.625rem] font-bold tracking-tight mb-1 leading-none" style={{ color: 'rgba(255,255,255,0.97)' }}>
+                    {plan.name}
+                  </h3>
+                  <p className="text-[12.5px] mb-5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    {plan.tagline}
+                  </p>
+
+                  {/* Price */}
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span
+                      className="font-black tracking-tight tabular-nums"
+                      style={{
+                        fontSize: '2.25rem',
+                        letterSpacing: '-0.04em',
+                        color: 'rgba(255,255,255,0.98)',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {plan.price}
+                    </span>
+                    <span className="text-[13px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                      {plan.cadence}
+                    </span>
+                  </div>
+                  <p className="font-mono text-[9.5px] tracking-widest uppercase mb-5" style={{ color: 'rgba(255,255,255,0.3)', letterSpacing: '0.14em' }}>
+                    {plan.note}
+                  </p>
+
+                  {/* Divider */}
+                  <div className="h-px w-full mb-5" style={{ background: `linear-gradient(to right, transparent, rgba(${plan.accent},0.15), transparent)` }} />
+
+                  {/* Features */}
+                  <ul className="flex flex-col gap-2.5 mb-6 flex-1">
+                    {plan.features.map((feat) => (
+                      <li key={feat.label} className="flex items-start gap-3">
+                        {feat.included ? (
+                          <div
+                            className="flex items-center justify-center w-[18px] h-[18px] rounded-full mt-px shrink-0"
+                            style={{
+                              backgroundColor: `rgba(${plan.accent},0.14)`,
+                              border: `1px solid rgba(${plan.accent},0.3)`,
+                            }}
+                          >
+                            <Check
+                              className="w-2.5 h-2.5"
+                              style={{ color: `rgb(${plan.accent})` }}
+                              strokeWidth={3}
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="flex items-center justify-center w-[18px] h-[18px] rounded-full mt-px shrink-0"
+                            style={{
+                              backgroundColor: 'rgba(255,255,255,0.03)',
+                              border: '1px solid rgba(255,255,255,0.06)',
+                            }}
+                          >
+                            <Minus
+                              className="w-2.5 h-2.5"
+                              style={{ color: 'rgba(255,255,255,0.2)' }}
+                              strokeWidth={3}
+                            />
+                          </div>
+                        )}
+                        <span
+                          className="text-[13px] leading-snug"
+                          style={{
+                            color: feat.included
+                              ? 'rgba(255,255,255,0.82)'
+                              : 'rgba(255,255,255,0.28)',
+                          }}
+                        >
+                          {feat.label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* CTA */}
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-3.5 text-[12.5px] font-bold tracking-widest uppercase transition-all"
+                    style={{
+                      backgroundColor: plan.highlight ? `rgb(${plan.accent})` : 'rgba(255,255,255,0.06)',
+                      color: plan.highlight ? '#0a0c0e' : 'rgba(255,255,255,0.9)',
+                      border: plan.highlight ? '1px solid transparent' : '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '14px',
+                      letterSpacing: '0.18em',
+                      boxShadow: plan.highlight ? `0 8px 30px rgba(${plan.accent},0.25)` : undefined,
+                    }}
+                    onMouseOver={(e) => {
+                      if (plan.highlight) {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = `0 14px 40px rgba(${plan.accent},0.4)`;
+                      } else {
+                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (plan.highlight) {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = `0 8px 30px rgba(${plan.accent},0.25)`;
+                      } else {
+                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                      }
+                    }}
+                  >
+                    {plan.cta}
+                    <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
+
+          <p
+            className="text-center text-xs mt-10"
+            style={{ color: 'rgba(255,255,255,0.3)' }}
+          >
+            Cancel anytime. Keep your Free access forever.
+          </p>
         </div>
       </section>
 
@@ -633,61 +783,61 @@ export const LandingPage = () => {
       <section className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
           <div
-            className="text-center px-8 py-20"
+            className="relative overflow-hidden text-center px-8 py-20"
             style={{
-              backgroundColor: '#111416',
+              backgroundColor: '#181c20',
               borderRadius: '22px',
               border: '1px solid rgba(255,255,255,0.05)',
-              background: 'linear-gradient(180deg, rgba(153,247,255,0.04) 0%, #111416 60%)'
             }}
           >
-            <div
-              className="inline-flex items-center gap-2 mb-6 px-3 py-1.5 text-xs font-medium"
-              style={{
-                border: '1px solid rgba(153,247,255,0.2)',
-                borderRadius: '100px',
-                backgroundColor: 'rgba(153,247,255,0.06)',
-                color: '#99f7ff'
-              }}
-            >
-              <GraduationCap className="w-3 h-3" />
-              Free access
+            {/* Battery hero — full-bleed, centered */}
+            <div className="absolute inset-0 pointer-events-none z-0">
+              <Image
+                src="/landing-cta-battery.png"
+                alt=""
+                fill
+                sizes="(min-width: 1024px) 1024px, 100vw"
+                className="object-cover object-center"
+              />
             </div>
 
-            <h2
-              className="text-4xl lg:text-5xl font-bold tracking-tight mb-4"
-              style={{ lineHeight: 1.08 }}
-            >
-              Start learning today.
-            </h2>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 px-8 py-4 text-base font-semibold transition-all"
-              style={{
-                backgroundColor: '#f0f0f3',
-                color: '#0a0c0e',
-                borderRadius: '14px',
-                boxShadow: '0 0 12px rgba(240,240,243,0.1)'
-              }}
-              onMouseOver={e => {
-                e.currentTarget.style.boxShadow = '0 0 20px rgba(240,240,243,0.15)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseOut={e => {
-                e.currentTarget.style.boxShadow = '0 0 12px rgba(240,240,243,0.1)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              Get started
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+            {/* Content */}
+            <div className="relative z-10">
+              <h2
+                className="text-4xl lg:text-5xl font-bold tracking-tight mb-4"
+                style={{ lineHeight: 1.08 }}
+              >
+                Start learning today.
+              </h2>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-8 py-4 text-base font-semibold transition-all"
+                style={{
+                  backgroundColor: '#f0f0f3',
+                  color: '#0a0c0e',
+                  borderRadius: '14px',
+                  boxShadow: '0 0 12px rgba(240,240,243,0.1)'
+                }}
+                onMouseOver={e => {
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(240,240,243,0.15)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={e => {
+                  e.currentTarget.style.boxShadow = '0 0 12px rgba(240,240,243,0.1)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                Get started
+                <ArrowRight className="w-4 h-4" />
+              </Link>
 
-            <p
-              className="mt-4 text-xs"
-              style={{ color: 'rgba(255,255,255,0.2)' }}
-            >
-              Sign in with Google or GitHub
-            </p>
+              <p
+                className="mt-4 text-xs"
+                style={{ color: 'rgba(255,255,255,0.35)' }}
+              >
+                Sign in with Google or GitHub
+              </p>
+            </div>
           </div>
         </div>
       </section>

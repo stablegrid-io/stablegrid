@@ -97,7 +97,7 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
             </div>
 
             {/* Narrative */}
-            <div className="rounded-[18px] p-5" style={{ background: '#111416', border: `1px solid rgba(${ta.rgb},0.08)` }}>
+            <div className="rounded-[18px] p-5" style={{ background: '#181c20', border: `1px solid rgba(${ta.rgb},0.08)` }}>
               <p className="text-[14px] leading-[1.85] text-on-surface-variant/65">{chapter.narrative_context}</p>
             </div>
 
@@ -181,7 +181,7 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
 
             {/* Assertions */}
             {submitted && chapter.grading.assertions.length > 0 && (
-              <div className="rounded-[18px] p-5" style={{ background: '#111416', border: `1px solid rgba(${ta.rgb},0.08)` }}>
+              <div className="rounded-[18px] p-5" style={{ background: '#181c20', border: `1px solid rgba(${ta.rgb},0.08)` }}>
                 <p className="text-[10px] font-bold tracking-widest uppercase mb-4" style={{ color: `rgba(${ta.rgb},0.45)` }}>Grading Checks</p>
                 {chapter.grading.assertions.map((a) => (
                   <div key={a.id} className="flex items-start gap-3 py-3 border-b last:border-b-0" style={{ borderColor: `rgba(${ta.rgb},0.06)` }}>

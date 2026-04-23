@@ -18,14 +18,14 @@ import {
 interface ShopCardProps {
   item: ShopItemView;
   onDeploy: (slug: string) => void;
-  onOpenBriefing?: (slug: string) => void;
+  onOpenDetails?: (slug: string) => void;
   isPurchasing: boolean;
   onHoverChange?: (hovering: boolean) => void;
 }
 
 type CardState = 'affordable' | 'unaffordable' | 'owned' | 'locked';
 
-export function ShopCard({ item, onDeploy, isPurchasing, onHoverChange }: ShopCardProps) {
+export function ShopCard({ item, onDeploy, onOpenDetails, isPurchasing, onHoverChange }: ShopCardProps) {
   const { component, affordable, owned, locked, lockReason } = item;
   const [shake, setShake] = useState(false);
   const [hover, setHover] = useState(false);
@@ -67,10 +67,21 @@ export function ShopCard({ item, onDeploy, isPurchasing, onHoverChange }: ShopCa
     <article
       data-category={component.category}
       aria-disabled={disabled}
+      role={onOpenDetails ? 'button' : undefined}
+      tabIndex={onOpenDetails ? 0 : undefined}
+      aria-label={onOpenDetails ? `${component.name} — view spec sheet` : undefined}
       onMouseEnter={() => { setHover(true); onHoverChange?.(true); }}
       onMouseLeave={() => { setHover(false); onHoverChange?.(false); }}
       onFocus={() => onHoverChange?.(true)}
       onBlur={() => onHoverChange?.(false)}
+      onClick={() => onOpenDetails?.(component.slug)}
+      onKeyDown={(e) => {
+        if (!onOpenDetails) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpenDetails(component.slug);
+        }
+      }}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -82,6 +93,7 @@ export function ShopCard({ item, onDeploy, isPurchasing, onHoverChange }: ShopCa
         position: 'relative',
         transition: 'border-color 150ms ease, transform 220ms ease',
         opacity,
+        cursor: onOpenDetails ? 'pointer' : 'default',
         animation: shake ? 'shopCardShake 220ms ease-in-out' : undefined,
       }}
     >
@@ -296,7 +308,7 @@ export function ShopCard({ item, onDeploy, isPurchasing, onHoverChange }: ShopCa
 
           <button
             type="button"
-            onClick={handleClick}
+            onClick={(e) => { e.stopPropagation(); handleClick(); }}
             disabled={disabled}
             className="font-mono"
             style={{

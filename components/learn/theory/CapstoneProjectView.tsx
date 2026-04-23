@@ -374,7 +374,7 @@ export function CapstoneProjectView({ topic, level }: Props) {
 
         {/* Content card */}
         <div key={step} style={{ opacity: 0, animation: 'fadeSlideUp .4s cubic-bezier(.16,1,.3,1) 80ms forwards' }}>
-          <div className="relative p-8" style={{ background: '#111416', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '22px' }}>
+          <div className="relative p-8" style={{ background: '#181c20', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '22px' }}>
             <div className="absolute top-0 inset-x-0 h-[2px] rounded-t-[22px] overflow-hidden" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(255,255,255,0.15), transparent 95%)' }} />
 
             {step === 'brief' && (

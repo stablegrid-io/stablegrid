@@ -99,7 +99,7 @@ function CategoryCard({ category, index }: { category: Category; index: number }
       <div
         className="relative overflow-hidden h-full flex flex-col transition-all duration-300 cursor-pointer"
         style={{
-          background: '#111416',
+          background: '#181c20',
           border: '1px solid rgba(255,255,255,0.06)',
           borderRadius: 22,
           minHeight: 420,
@@ -125,7 +125,7 @@ function CategoryCard({ category, index }: { category: Category; index: number }
             }}
           />
           {/* Bottom fade */}
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 20%, #111416 95%)' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 20%, #181c20 95%)' }} />
 
           {/* Top accent line */}
           <div
