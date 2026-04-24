@@ -71,7 +71,7 @@ export const HeroSection = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#22b999]/30 bg-[#22b999]/10 px-3 py-1.5 text-xs font-semibold text-[#9de3b5]">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-grid-glow/30 bg-grid-glow/10 px-3 py-1.5 text-xs font-semibold text-grid-glow-bright">
             <Activity className="h-3 w-3" />
             Theory path for data engineers.
           </div>
@@ -84,11 +84,11 @@ export const HeroSection = () => {
             <br />
             keeping
             <br />
-            <span className="text-[#22b999]">a live power grid stable.</span>
+            <span className="text-grid-glow">a live power grid stable.</span>
           </h1>
 
-          <p className="mb-8 max-w-xl text-lg leading-relaxed text-[#9ab8a9]">
-            StableGrid currently focuses on one structured PySpark-first route,
+          <p className="mb-8 max-w-xl text-lg leading-relaxed text-grid-text">
+            stableGrid currently focuses on one structured PySpark-first route,
             chapter progression, and session controls. Practice, flashcards, and mission
             layers are in active build and not part of this launch.
           </p>
@@ -101,14 +101,14 @@ export const HeroSection = () => {
                   source: 'hero_primary'
                 });
               }}
-              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-[#22b999] px-6 py-3 font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
+              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-grid-glow px-6 py-3 font-medium text-grid-ink transition-colors hover:bg-grid-glow-bright"
             >
               Get started
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <a
               href="#grid-flow"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2b4f3a] px-6 py-3 font-medium text-[#9ab8a9] transition-colors hover:border-[#22b999] hover:text-[#e3efe8]"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2b4f3a] px-6 py-3 font-medium text-grid-text transition-colors hover:border-grid-glow hover:text-[#e3efe8]"
             >
               Explore 330kV grid flow
             </a>
@@ -118,17 +118,17 @@ export const HeroSection = () => {
             {PROOF_POINTS.map((point) => (
               <div
                 key={point.label}
-                className="rounded-2xl border border-[#1f3629] bg-[#0d1410]/85 px-4 py-3"
+                className="rounded-2xl border border-grid-border bg-grid-panel/85 px-4 py-3"
               >
                 <p className="text-2xl font-semibold text-[#e3efe8]">{point.value}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[#6f8f7d]">
+                <p className="mt-1 font-mono font-bold text-xs uppercase tracking-[0.16em] text-grid-text-dim">
                   {point.label}
                 </p>
               </div>
             ))}
           </div>
 
-          <p className="mt-5 text-xs text-[#6f8f7d]">
+          <p className="mt-5 text-xs text-grid-text-dim">
             Free tier available. No card needed to inspect the core route.
           </p>
         </motion.div>

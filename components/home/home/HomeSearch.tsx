@@ -256,7 +256,7 @@ export function HomeSearch({
 
     return (
       <div className="py-1">
-        <div className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+        <div className="px-4 pb-1 pt-2 text-[11px] font-mono font-bold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
           {label}
         </div>
         {list.map((item) => {
@@ -425,7 +425,7 @@ export function HomeSearch({
 
               {!query.trim() ? (
                 <div className="px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                  <p className="text-xs font-mono font-bold uppercase tracking-[0.1em] text-text-light-tertiary dark:text-text-dark-tertiary">
                     Recent searches
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">

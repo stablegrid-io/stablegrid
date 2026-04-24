@@ -74,11 +74,11 @@ export const TopicGrid = ({ topics }: TopicGridProps) => {
             className="card card-hover group p-6"
           >
             <div className="mb-4 flex items-start justify-between">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-light-muted dark:bg-dark-muted">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-light-muted dark:bg-surface-container-low">
                 <Icon className={`h-6 w-6 ${config.iconClass}`} />
               </div>
               <div className="flex flex-wrap justify-end gap-1.5">
-                <span className="rounded-full border border-light-border bg-light-surface px-2.5 py-1 text-xs font-medium text-text-light-secondary dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-secondary">
+                <span className="rounded-full border border-light-border bg-light-surface px-2.5 py-1 text-xs font-medium text-text-light-secondary dark:border-outline-variant dark:bg-surface-container dark:text-on-surface-variant">
                   {topic.chapterCount} chapters
                 </span>
                 <span
@@ -88,10 +88,10 @@ export const TopicGrid = ({ topics }: TopicGridProps) => {
                 </span>
               </div>
             </div>
-            <h3 className="mb-1 text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+            <h3 className="mb-1 text-lg font-semibold text-text-light-primary dark:text-on-surface">
               {topic.title}
             </h3>
-            <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="text-sm text-text-light-secondary dark:text-on-surface-variant">
               {topic.description}
             </p>
           </Link>

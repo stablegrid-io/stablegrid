@@ -227,7 +227,7 @@ export function PracticeHub() {
           className="mb-12 border-l-2 border-primary pl-6"
           style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}
         >
-          <h1 className="text-5xl font-extrabold tracking-tighter text-on-surface uppercase mb-2">
+          <h1 className="text-5xl font-extrabold tracking-tighter text-on-surface mb-2">
             Practice <span className="text-primary">Lab</span>
           </h1>
           <p className="text-[14px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: 480 }}>

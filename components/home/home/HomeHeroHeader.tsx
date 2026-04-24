@@ -56,7 +56,7 @@ export const HomeHeroHeader = ({
 
       <div className="relative z-10 grid gap-5 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.25fr)_320px] lg:items-start">
         <div className="max-w-4xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700 dark:border-brand-400/30 dark:bg-brand-500/10 dark:text-brand-300">
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-brand-700 dark:border-brand-400/30 dark:bg-brand-500/10 dark:text-brand-300">
             <Sparkles className="h-3.5 w-3.5" />
             {eyebrow}
           </div>
@@ -88,7 +88,7 @@ export const HomeHeroHeader = ({
             <p className="text-sm font-medium text-[#3b5849] dark:text-[#a9c3b5]">
               {primaryMeta}
             </p>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#567364] dark:text-[#83a795]">
+            <p className="text-xs font-mono font-medium uppercase tracking-[0.16em] text-[#567364] dark:text-[#83a795]">
               The route map below explains why this is next.
             </p>
           </div>
@@ -100,7 +100,7 @@ export const HomeHeroHeader = ({
               key={item.label}
               className="rounded-[1.35rem] border border-brand-200/70 bg-white/78 px-4 py-3 dark:border-brand-400/20 dark:bg-[#0f2019]/72"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#4c6a5a] dark:text-[#89b09d]">
+              <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-[#4c6a5a] dark:text-[#89b09d]">
                 {item.label}
               </p>
               <p className="mt-2 text-base font-semibold text-[#0f1d16] dark:text-[#eef9f2]">

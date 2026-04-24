@@ -320,7 +320,7 @@ export const LearningGrid = ({
       <div className="lg:hidden">
         {showRouteControls ? (
           <div className="mb-3 rounded-[1.2rem] border border-light-border bg-light-bg p-3 dark:border-dark-border dark:bg-dark-bg">
-            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-500">
+            <div className="inline-flex items-center gap-2 text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-brand-500">
               <Sparkles className="h-3.5 w-3.5" />
               Next-step map
             </div>
@@ -364,7 +364,7 @@ export const LearningGrid = ({
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="text-xl">{node.symbol ?? '•'}</span>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em]">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-[0.14em]">
                   {STATE_LABEL[node.state]}
                 </span>
               </div>
@@ -437,7 +437,7 @@ export const LearningGrid = ({
             })}
           </svg>
 
-          <div className="pointer-events-none absolute left-5 top-5 rounded-full border border-light-border bg-light-surface/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-light-tertiary dark:border-dark-border dark:bg-dark-surface/90 dark:text-text-dark-tertiary">
+          <div className="pointer-events-none absolute left-5 top-5 rounded-full border border-light-border bg-light-surface/90 px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-text-light-tertiary dark:border-dark-border dark:bg-dark-surface/90 dark:text-text-dark-tertiary">
             Next-step map
           </div>
           <div className="pointer-events-none absolute bottom-5 left-5 text-sm font-medium text-text-light-secondary dark:text-text-dark-secondary">

@@ -20,6 +20,7 @@ import {
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import { HOME_TOPIC_ORDER, getHomeTopicMeta } from '@/components/home/home/topicMeta';
 import type { TrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
+import { CharacterTierHero } from './CharacterTierHero';
 
 /* ── Types ── */
 
@@ -42,7 +43,7 @@ const TOPIC_ICON: Record<string, string> = {
 
 const APPLE_FONT = '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
 const CARD = 'rounded-[22px] bg-[#181c20] border border-white/[0.06] p-5';
-const SECTION_LABEL = 'text-[11px] font-semibold text-on-surface/75 uppercase tracking-[0.18em]';
+const SECTION_LABEL = 'text-[11px] font-mono font-bold text-on-surface/75 uppercase tracking-[0.18em]';
 const SECTION_SUBLABEL = 'text-[13px] text-on-surface-variant/75 leading-relaxed';
 
 /* ── Helpers ── */
@@ -437,10 +438,13 @@ export function ProgressDashboard({
           Home
         </Link>
 
+        {/* ── Character Tier (first section) ── */}
+        <CharacterTierHero />
+
         {/* ── Hero ── */}
         <div
           className="border-l-2 border-primary pl-6 space-y-3"
-          style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards' }}
+          style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 80ms forwards' }}
         >
           <h1
             className="text-on-surface"
@@ -657,7 +661,7 @@ export function ProgressDashboard({
             {/* Session mode distribution */}
             <div className="pb-5 mb-5 border-b border-white/[0.05]">
               <div className="flex items-baseline justify-between gap-3 mb-3">
-                <p className="text-[10px] font-semibold text-on-surface-variant/60 uppercase tracking-[0.18em]">
+                <p className="text-[10px] font-mono font-bold text-on-surface-variant/60 uppercase tracking-[0.18em]">
                   By session mode
                 </p>
                 <p className="text-[10px] text-on-surface-variant/40">
@@ -704,7 +708,7 @@ export function ProgressDashboard({
 
             {completedStats.recent.length > 0 ? (
               <>
-                <p className="text-[10px] font-semibold text-on-surface-variant/60 uppercase tracking-[0.18em] mb-3">
+                <p className="text-[10px] font-mono font-bold text-on-surface-variant/60 uppercase tracking-[0.18em] mb-3">
                   Recent completions
                 </p>
                 <ul className="divide-y divide-white/[0.04]">
@@ -853,7 +857,7 @@ function Kpi({
   return (
     <div className={CARD}>
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] font-medium text-on-surface-variant/45 uppercase tracking-[0.16em]">
+        <p className="text-[10px] font-mono font-medium text-on-surface-variant/45 uppercase tracking-[0.16em]">
           {label}
         </p>
         {TrendIcon && delta != null && (
@@ -894,7 +898,7 @@ function StatBlock({
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-[10px] font-semibold text-on-surface-variant/70 uppercase tracking-[0.18em]">
+      <p className="text-[10px] font-mono font-bold text-on-surface-variant/70 uppercase tracking-[0.18em]">
         {label}
       </p>
       <p
@@ -941,7 +945,7 @@ function ModeChip({
     >
       <div className="flex items-center gap-2 mb-1.5" style={{ color: active ? `rgba(${rgb}, 0.9)` : 'rgba(255,255,255,0.3)' }}>
         {icon}
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em]">{label}</span>
+        <span className="text-[10px] font-mono font-bold uppercase tracking-[0.16em]">{label}</span>
       </div>
       <div className="flex items-baseline justify-between gap-2">
         <span
@@ -1062,7 +1066,7 @@ function EarnedMilestone({ label, sub }: { label: string; sub: string }) {
           <div className="flex items-center gap-1.5 mb-2">
             <CheckCircle2 size={12} style={{ color: 'rgba(153,247,255,0.9)' }} />
             <span
-              className="text-[10px] font-semibold uppercase tracking-[0.18em]"
+              className="text-[10px] font-mono font-bold uppercase tracking-[0.18em]"
               style={{ color: 'rgba(153,247,255,0.85)' }}
             >
               Earned
@@ -1117,7 +1121,7 @@ function LockedMilestone({ label, sub, progress }: { label: string; sub: string;
     >
       <div className="flex items-center gap-2 mb-2">
         <Lock size={12} className="text-on-surface-variant/30" />
-        <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-on-surface-variant/30">
+        <span className="text-[10px] font-mono font-medium uppercase tracking-[0.18em] text-on-surface-variant/30">
           Locked
         </span>
       </div>

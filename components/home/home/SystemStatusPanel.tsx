@@ -23,7 +23,7 @@ export const SystemStatusPanel = ({
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#24362d] dark:text-[#e3efe8]">
+          <h2 className="text-xs font-mono font-bold uppercase tracking-[0.18em] text-[#24362d] dark:text-[#e3efe8]">
             System Status
           </h2>
           <p className="mt-1 text-sm text-[#607169] dark:text-[#97aca1]">

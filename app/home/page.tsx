@@ -402,6 +402,7 @@ export default async function HomePage() {
     gridPurchasesResult,
     gridStateResult,
     completedModuleResult,
+    profileResult,
   ] =
     await Promise.all([
       supabase
@@ -436,7 +437,15 @@ export default async function HomePage() {
         .eq('user_id', userId)
         .eq('is_completed', true)
         .limit(1),
+      supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', userId)
+        .maybeSingle(),
     ]);
+
+  const displayName =
+    ((profileResult.data as { name?: string | null } | null)?.name ?? '').trim() || null;
 
   const topicProgressRows = (topicProgressResult.data ?? []) as TopicProgressRow[];
   const allReadingSessionRows = (allReadingSessionsResult.data ?? []) as ReadingSessionRowLike[];
@@ -601,6 +610,7 @@ export default async function HomePage() {
     <Suspense fallback={<HomeSkeleton />}>
       <HomeDashboard
         user={user}
+        displayName={displayName}
         topicProgress={resolvedTopicProgress}
         recentSessions={recentSessions}
         completedSessions={completedSessions}

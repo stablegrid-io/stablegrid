@@ -161,8 +161,7 @@ export function LandingIntro() {
           e.stopPropagation();
           dismiss();
         }}
-        className="absolute right-6 top-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55 transition-colors hover:text-white"
-        style={{ fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif' }}
+        className="absolute right-6 top-6 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-white/55 transition-colors hover:text-white"
       >
         Skip →
       </button>

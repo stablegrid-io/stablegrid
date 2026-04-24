@@ -220,7 +220,7 @@ export function LearnModeTopicSelector({
       <div className="relative w-full px-4 py-8 sm:px-6 lg:px-10 xl:px-14">
         {/* Page header — matches Stitch Theory Hub */}
         <header className="mb-10 border-l-2 border-primary pl-6" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}>
-          <h1 className="text-5xl font-extrabold tracking-tighter text-on-surface uppercase mb-2">
+          <h1 className="text-5xl font-extrabold tracking-tighter text-on-surface mb-2">
             Theory <span className="text-primary">Hub</span>
           </h1>
         </header>
@@ -228,7 +228,7 @@ export function LearnModeTopicSelector({
         {/* Filter toolbar — translucent material, fitted segmented groups */}
         <section
           aria-label="Filter tracks"
-          className="mb-10 overflow-hidden"
+          className="mb-10 w-full max-w-4xl overflow-hidden"
           style={{
             borderRadius: 18,
             background: 'rgba(255,255,255,0.028)',
@@ -525,33 +525,66 @@ export function LearnModeTopicSelector({
                   <section
                     className="bg-[#181c20] relative overflow-hidden transition-all duration-300 h-full rounded-[22px] flex flex-col"
                     style={{
-                      border: `1px solid ${borderAccent}`,
+                      border: `1px solid ${hasContent ? borderAccent : 'rgba(245,158,11,0.22)'}`,
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateY(-6px)';
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+                      e.currentTarget.style.borderColor = hasContent ? 'rgba(255,255,255,0.12)' : 'rgba(245,158,11,0.38)';
                       e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.3)';
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.borderColor = borderAccent;
+                      e.currentTarget.style.borderColor = hasContent ? borderAccent : 'rgba(245,158,11,0.22)';
                       e.currentTarget.style.boxShadow = 'none';
                     }}
                   >
-                    {/* Top accent line */}
-                    <div
-                      className="absolute top-0 left-0 right-0 transition-all duration-300"
-                      style={{ height: 2, background: `linear-gradient(90deg, transparent 5%, rgba(${catRgb}, 0.5), transparent 95%)` }}
-                    />
+                    {/* Top accent: cat gradient for built tracks, caution tape for UC */}
+                    {hasContent ? (
+                      <div
+                        className="absolute top-0 left-0 right-0 transition-all duration-300 z-10"
+                        style={{ height: 2, background: `linear-gradient(90deg, transparent 5%, rgba(${catRgb}, 0.5), transparent 95%)` }}
+                      />
+                    ) : (
+                      <div
+                        className="absolute top-0 left-0 right-0 z-10"
+                        style={{
+                          height: 6,
+                          background: 'repeating-linear-gradient(45deg, #f59e0b 0 10px, #1a1305 10px 20px)',
+                        }}
+                      />
+                    )}
+
+                    {/* UNDER CONSTRUCTION corner ribbon */}
+                    {!hasContent && (
+                      <div
+                        className="absolute top-4 right-4 z-20 font-mono font-bold tracking-[0.18em] uppercase"
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: '9.5px',
+                          color: '#fbbf24',
+                          background: 'rgba(245,158,11,0.12)',
+                          border: '1px solid rgba(245,158,11,0.4)',
+                          borderRadius: 6,
+                          boxShadow: 'inset 0 0.5px 0 rgba(255,255,255,0.08)',
+                        }}
+                      >
+                        Under Construction
+                      </div>
+                    )}
 
                     {/* Banner with logo */}
-                    <div className="relative h-32 overflow-hidden shrink-0 flex items-center justify-center">
+                    <div
+                      className="relative h-32 overflow-hidden shrink-0 flex items-center justify-center"
+                      style={!hasContent ? {
+                        background: 'repeating-linear-gradient(135deg, rgba(245,158,11,0.035) 0 14px, transparent 14px 28px)',
+                      } : undefined}
+                    >
                       <Image
                         src={trackIconSrc}
                         alt={`${getSimpleTrackName(topic.title)} logo`}
                         width={72}
                         height={72}
-                        className="h-16 w-16 object-contain transition-transform duration-700 group-hover:scale-110"
+                        className={`h-16 w-16 object-contain transition-transform duration-700 group-hover:scale-110 ${!hasContent ? 'grayscale opacity-40' : ''}`}
                       />
                     </div>
 
@@ -562,17 +595,21 @@ export function LearnModeTopicSelector({
                       <div className="mb-5">
                         <span
                           className="font-mono text-[10px] px-2 py-0.5 uppercase rounded-full"
-                          style={{ color: `rgb(${catRgb})`, border: `1px solid rgba(${catRgb},0.3)`, backgroundColor: `rgba(${catRgb},0.06)` }}
+                          style={
+                            hasContent
+                              ? { color: `rgb(${catRgb})`, border: `1px solid rgba(${catRgb},0.3)`, backgroundColor: `rgba(${catRgb},0.06)` }
+                              : { color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.02)' }
+                          }
                         >
                           {meta.category}
                         </span>
                       </div>
 
                       {/* Title + description */}
-                      <h3 className="text-2xl font-bold mb-3 tracking-tight uppercase">
+                      <h3 className={`text-2xl font-bold mb-3 tracking-tight uppercase ${!hasContent ? 'text-on-surface/55' : ''}`}>
                         {getSimpleTrackName(topic.title)}
                       </h3>
-                      <p className="text-on-surface-variant text-sm font-body mb-8 leading-relaxed">
+                      <p className={`text-sm font-body mb-8 leading-relaxed ${hasContent ? 'text-on-surface-variant' : 'text-on-surface-variant/50'}`}>
                         {topic.description}
                       </p>
 
@@ -623,30 +660,32 @@ export function LearnModeTopicSelector({
                             {/* Under construction animation */}
                             <div className="mb-4">
                               <div className="flex justify-between items-end mb-2">
-                                <span className="font-mono text-[10px] text-on-surface-variant/40">
-                                  BUILD STATUS
+                                <span className="font-mono text-[10px] tracking-[0.18em] uppercase font-semibold" style={{ color: 'rgba(251,191,36,0.65)' }}>
+                                  Build Status
                                 </span>
-                                <span className="font-mono text-[10px] text-on-surface-variant/30 animate-pulse">
-                                  COMPILING...
+                                <span className="font-mono text-[10px] tracking-[0.18em] uppercase font-semibold animate-pulse" style={{ color: 'rgba(251,191,36,0.5)' }}>
+                                  Compiling…
                                 </span>
                               </div>
-                              <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-white/[0.04]">
+                              <div className="relative h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'rgba(245,158,11,0.08)' }}>
                                 <div
                                   className="absolute inset-y-0 left-0 w-1/3 rounded-full animate-[shimmer_2s_ease-in-out_infinite]"
-                                  style={{ backgroundColor: `rgba(${style.accentRgb},0.25)` }}
+                                  style={{ background: 'linear-gradient(90deg, rgba(245,158,11,0) 0%, rgba(245,158,11,0.55) 50%, rgba(245,158,11,0) 100%)' }}
                                 />
                               </div>
                             </div>
 
-                            {/* Construction CTA */}
+                            {/* Construction CTA — strong amber warning */}
                             <div
-                              className="w-full py-4 font-mono text-[10px] font-bold tracking-widest text-center uppercase opacity-40 rounded-[14px]"
+                              className="w-full py-4 font-mono text-[11px] font-bold tracking-[0.22em] text-center uppercase rounded-[14px] flex items-center justify-center gap-2"
                               style={{
-                                border: `1px dashed rgba(${style.accentRgb},0.3)`,
-                                color: `rgba(${style.accentRgb},0.5)`
+                                border: '1px dashed rgba(245,158,11,0.5)',
+                                background: 'rgba(245,158,11,0.06)',
+                                color: '#fbbf24',
                               }}
                             >
-                              Under Construction
+                              <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: '#fbbf24' }} />
+                              Coming Soon
                             </div>
                           </>
                         )}

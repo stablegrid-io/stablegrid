@@ -11,6 +11,7 @@ import { BATTERY_CAPACITY_KWH } from '@/lib/energy';
 /* ── Types ── */
 interface HomeDashboardProps {
   user: User;
+  displayName: string | null;
   topicProgress: TopicProgress[];
   recentSessions: ReadingSession[];
   completedSessions: ReadingSession[];
@@ -35,6 +36,7 @@ interface HomeDashboardProps {
 /* ── Dashboard ── */
 export const HomeDashboard = ({
   user,
+  displayName,
   topicProgress: _topicProgress,
   recentSessions: _recentSessions,
   completedSessions: _completedSessions,
@@ -53,6 +55,7 @@ export const HomeDashboard = ({
 }: HomeDashboardProps) => {
 
   const firstName = (
+    displayName ??
     (user.user_metadata?.full_name as string | undefined) ??
     (user.user_metadata?.name as string | undefined) ??
     user.email?.split('@')[0] ?? 'Operator'

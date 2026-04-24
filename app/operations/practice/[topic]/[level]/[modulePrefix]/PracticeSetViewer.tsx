@@ -36,6 +36,10 @@ const ReadingModeDropdown = dynamic(
   () => import('@/components/learn/theory/ReadingModeDropdown').then((m) => m.ReadingModeDropdown),
   { ssr: false }
 );
+const FocusModeButton = dynamic(
+  () => import('@/components/learn/theory/ReadingModeDropdown').then((m) => m.FocusModeButton),
+  { ssr: false }
+);
 
 const SplitPanelCodeTask = dynamic(
   () => import('@/components/operations/SplitPanelCodeTask').then((m) => m.SplitPanelCodeTask),
@@ -468,8 +472,9 @@ function TaskScreen({
       {/* Floating controls — visible in focus mode */}
       {focusMode && (
         <div data-reading-mode={readingMode} className="contents">
-          <div className="fixed top-3 right-3 z-50" data-reading-mode={readingMode}>
+          <div className="fixed top-3 right-3 z-50 flex items-center gap-1" data-reading-mode={readingMode}>
             <ReadingModeDropdown />
+            <FocusModeButton />
           </div>
           <button
             type="button"
@@ -1118,16 +1123,20 @@ export function PracticeSetSession({ practiceSet }: { practiceSet: PracticeSet }
             {/* Right: reading mode + start session */}
             <div className="flex items-center gap-1">
               <ReadingModeDropdown />
+              <FocusModeButton />
               {!practiceSession.hasActiveSession && !moduleId.startsWith('capstone-') && (
-                <button
-                  type="button"
-                  onClick={openSessionPicker}
-                  disabled={!sessionDefaultsHydrated}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-[14px] border border-white/[0.12] bg-white/[0.06] px-3 text-xs font-medium text-white/70 transition-all hover:bg-white/[0.1] hover:border-white/[0.18]"
-                >
-                  <Clock3 className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Start session</span>
-                </button>
+                <>
+                  <div className="mx-1 h-5 w-px bg-white/[0.12]" aria-hidden="true" />
+                  <button
+                    type="button"
+                    onClick={openSessionPicker}
+                    disabled={!sessionDefaultsHydrated}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-[14px] border border-white/[0.12] bg-white/[0.06] px-3 text-xs font-medium text-white/70 transition-all hover:bg-white/[0.1] hover:border-white/[0.18]"
+                  >
+                    <Clock3 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Start session</span>
+                  </button>
+                </>
               )}
             </div>
           </div>

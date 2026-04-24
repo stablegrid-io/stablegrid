@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Check, Lock, Zap, BookOpen, FlaskConical, Layers, Clock, Trophy } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { getTrackConceptMeta } from '@/data/learn/theory/trackConceptMeta';
+import { TrackEssentialsPanel } from '@/components/learn/theory/TrackEssentialsPanel';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import { getModuleCheckpointMeta } from '@/lib/learn/moduleCheckpoints';
@@ -161,7 +162,7 @@ export const TheoryTrackPath = ({
 
         <Link
           href={`/learn/${doc.topic}/theory`}
-          className="mb-8 inline-flex items-center gap-2 font-mono text-[11px] text-on-surface-variant/50 hover:text-on-surface-variant transition-colors uppercase tracking-widest"
+          className="mb-8 inline-flex items-center gap-2 font-mono font-medium text-[11px] text-on-surface-variant/50 hover:text-on-surface-variant transition-colors uppercase tracking-widest"
         >
           <ArrowLeft className="h-4 w-4" />
           Track Selection
@@ -176,10 +177,18 @@ export const TheoryTrackPath = ({
           <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-on-surface">
             Learning Path
           </h1>
-          <p className="mt-3 font-mono text-[12px] tracking-widest text-on-surface-variant/35 uppercase">
+          <p className="mt-3 font-mono font-medium text-[12px] tracking-widest text-on-surface-variant/35 uppercase">
             Master each node to unlock the next stage
           </p>
         </div>
+
+        {/* ── Track essentials (why this tier, concepts, outcomes) ── */}
+        <TrackEssentialsPanel
+          topic={doc.topic}
+          tier={track.slug}
+          accentColor={ta.color}
+          accentRgb={ta.rgb}
+        />
 
         {/* ── Zigzag tree map ── */}
         <div className="relative">
@@ -432,11 +441,11 @@ function PracticeNode({ ps, idx, ta, practiceBasePath }: {
             {/* Stats row */}
             <div className="flex gap-3 mb-5">
               <div className="flex-1 p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '14px' }}>
-                <span className="block font-mono text-[9px] text-on-surface-variant/30 uppercase tracking-widest mb-1">Tasks</span>
+                <span className="block font-mono font-medium text-[9px] text-on-surface-variant/30 uppercase tracking-widest mb-1">Tasks</span>
                 <span className="text-lg font-bold text-on-surface">{taskCount}</span>
               </div>
               <div className="flex-1 p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '14px' }}>
-                <span className="block font-mono text-[9px] text-on-surface-variant/30 uppercase tracking-widest mb-1">Duration</span>
+                <span className="block font-mono font-medium text-[9px] text-on-surface-variant/30 uppercase tracking-widest mb-1">Duration</span>
                 <span className="text-lg font-bold text-on-surface">{duration} min</span>
               </div>
             </div>

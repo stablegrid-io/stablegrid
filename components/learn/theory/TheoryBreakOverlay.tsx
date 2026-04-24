@@ -43,7 +43,7 @@ export const TheoryBreakOverlay = ({
       className="absolute inset-x-0 bottom-0 top-12 z-30 flex items-center justify-center bg-light-bg/96 px-6 py-10 backdrop-blur-sm dark:bg-dark-bg/96"
     >
       <div className="w-full max-w-lg rounded-[2rem] border border-light-border bg-light-surface px-8 py-10 text-center shadow-[0_24px_80px_rgba(17,17,17,0.08)] dark:border-dark-border dark:bg-dark-surface dark:shadow-none">
-        <div className="text-xs font-semibold uppercase tracking-[0.22em] text-text-light-tertiary dark:text-text-dark-tertiary">
+        <div className="text-xs font-mono font-bold uppercase tracking-[0.22em] text-text-light-tertiary dark:text-text-dark-tertiary">
           Break
         </div>
         <h2 className="mt-3 text-3xl font-semibold text-text-light-primary dark:text-text-dark-primary">
@@ -76,10 +76,10 @@ export const TheoryBreakOverlay = ({
             </svg>
 
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-text-light-tertiary dark:text-text-dark-tertiary">
+              <div className="text-[11px] font-mono font-medium uppercase tracking-[0.18em] text-text-light-tertiary dark:text-text-dark-tertiary">
                 {isPaused ? 'Paused' : 'Remaining'}
               </div>
-              <div className="mt-2 font-mono text-4xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+              <div className="mt-2 font-mono text-4xl font-bold text-text-light-primary dark:text-text-dark-primary">
                 {formatTheorySessionClock(remainingSeconds)}
               </div>
             </div>
@@ -87,7 +87,7 @@ export const TheoryBreakOverlay = ({
         </div>
 
         <div className="mt-8 rounded-2xl border border-light-border bg-light-bg px-5 py-4 text-left dark:border-dark-border dark:bg-dark-bg">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">
+          <div className="text-xs font-mono font-bold uppercase tracking-[0.16em] text-brand-500">
             Micro-tip
           </div>
           <p className="mt-2 text-sm leading-6 text-text-light-secondary dark:text-text-dark-secondary">

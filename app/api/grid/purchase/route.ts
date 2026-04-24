@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       windowSeconds: 60,
     });
   } catch (err) {
-    if (err instanceof ApiRouteError) return toApiErrorResponse(err);
+    if (err instanceof ApiRouteError) return toApiErrorResponse(err, 'Grid purchase rate limit exceeded');
     throw err;
   }
 

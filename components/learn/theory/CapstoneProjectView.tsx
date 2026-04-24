@@ -294,7 +294,7 @@ function DatasetPreview({ filename, rgb, csvBase }: { filename: string; rgb: str
           <table className="min-w-full text-[11px]">
             <thead>
               <tr style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
-                {headers.map((h) => (<th key={h} className="px-3 py-2 text-left font-semibold tracking-wide uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>{h}</th>))}
+                {headers.map((h) => (<th key={h} className="px-3 py-2 text-left font-mono font-bold tracking-wide uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>{h}</th>))}
               </tr>
             </thead>
             <tbody>
@@ -332,7 +332,7 @@ export function CapstoneProjectView({ topic, level }: Props) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-on-surface-variant/60 text-sm">Capstone project not found for {topic} / {level}.</p>
-          <Link href={backHref} className="inline-flex items-center gap-2 text-[11px] tracking-widest uppercase text-on-surface-variant/50 hover:text-on-surface-variant transition-colors"><ArrowLeft className="h-3.5 w-3.5" /> Back to track</Link>
+          <Link href={backHref} className="inline-flex items-center gap-2 text-[11px] font-mono font-medium tracking-widest uppercase text-on-surface-variant/50 hover:text-on-surface-variant transition-colors"><ArrowLeft className="h-3.5 w-3.5" /> Back to track</Link>
         </div>
       </div>
     );
@@ -357,7 +357,7 @@ export function CapstoneProjectView({ topic, level }: Props) {
         <div style={{ opacity: 0, animation: 'fadeSlideUp .4s cubic-bezier(.16,1,.3,1) forwards' }}>
           <Link href={backHref} className="inline-flex items-center gap-2 text-on-surface-variant/50 hover:text-on-surface transition-colors duration-200">
             <ArrowLeft className="h-4 w-4" />
-            <span className="text-[11px] tracking-widest uppercase">Back to Learning Path</span>
+            <span className="text-[11px] font-mono font-medium tracking-widest uppercase">Back to Learning Path</span>
           </Link>
         </div>
 
@@ -366,7 +366,7 @@ export function CapstoneProjectView({ topic, level }: Props) {
           {STEPS.map((s, i) => (
             <button key={s.id} type="button" onClick={() => setStep(s.id)} className="flex items-center gap-2 transition-all duration-200">
               <div className="w-2 h-2 rounded-full transition-all duration-300" style={{ backgroundColor: step === s.id ? ta.color : 'rgba(255,255,255,0.08)', boxShadow: step === s.id ? `0 0 6px rgba(${ta.rgb},0.4)` : 'none' }} />
-              <span className="text-[11px] font-medium tracking-widest uppercase transition-colors duration-200" style={{ color: step === s.id ? ta.color : 'rgba(255,255,255,0.2)' }}>{s.label}</span>
+              <span className="text-[11px] font-mono font-bold tracking-widest uppercase transition-colors duration-200" style={{ color: step === s.id ? ta.color : 'rgba(255,255,255,0.2)' }}>{s.label}</span>
               {i < STEPS.length - 1 && <div className="w-6 h-px" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />}
             </button>
           ))}
@@ -384,7 +384,7 @@ export function CapstoneProjectView({ topic, level }: Props) {
                   <Trophy className="h-5 w-5 shrink-0" style={{ color: 'rgba(255,255,255,0.15)' }} />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight text-on-surface mb-2">{project.track} {project.level} Capstone</h1>
-                <div className="flex items-center gap-3 mb-8"><span className="text-[11px] tracking-widest uppercase text-on-surface-variant/40">{project.total_xp} XP · {project.chapters.length} stages</span></div>
+                <div className="flex items-center gap-3 mb-8"><span className="text-[11px] font-mono font-medium tracking-widest uppercase text-on-surface-variant/40">{project.total_xp} XP · {project.chapters.length} stages</span></div>
                 <div className="h-px mb-8" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
                 <h2 className="text-sm font-semibold text-on-surface mb-3">Mission Brief</h2>
                 <p className="text-[14px] leading-[1.9] text-on-surface-variant/65">{project.narrative_premise}</p>
@@ -403,7 +403,7 @@ export function CapstoneProjectView({ topic, level }: Props) {
                     <div key={ds.name} className="pb-5 border-b last:border-b-0 last:pb-0" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                       <div className="flex items-center justify-between gap-4 mb-2">
                         <code className="text-[12px] font-semibold text-on-surface">{ds.name}</code>
-                        <span className="text-[10px] tracking-widest uppercase shrink-0" style={{ color: 'rgba(255,255,255,0.25)' }}>{ds.row_count} rows</span>
+                        <span className="text-[10px] font-mono font-medium tracking-widest uppercase shrink-0" style={{ color: 'rgba(255,255,255,0.25)' }}>{ds.row_count} rows</span>
                       </div>
                       <p className="text-[13px] leading-relaxed text-on-surface-variant/55">
                         {ds.description.split('. ').slice(0, 2).join('. ').replace(/\.?$/, '.')}
@@ -431,7 +431,7 @@ export function CapstoneProjectView({ topic, level }: Props) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-3 mb-1">
                           <p className="text-[14px] font-semibold text-on-surface">{ch.title}</p>
-                          <span className="text-[10px] tracking-widest uppercase shrink-0" style={{ color: 'rgba(255,255,255,0.25)' }}>{ch.base_xp} XP</span>
+                          <span className="text-[10px] font-mono font-medium tracking-widest uppercase shrink-0" style={{ color: 'rgba(255,255,255,0.25)' }}>{ch.base_xp} XP</span>
                         </div>
                         <p className="text-[12px] leading-relaxed text-on-surface-variant/50">{ch.narrative_context}</p>
                       </div>
@@ -445,15 +445,15 @@ export function CapstoneProjectView({ topic, level }: Props) {
 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-6" style={{ opacity: 0, animation: 'fadeSlideUp .4s cubic-bezier(.16,1,.3,1) 120ms forwards' }}>
-          <button type="button" onClick={() => canPrev && setStep(STEPS[stepIndex - 1].id)} disabled={!canPrev} className="flex items-center gap-2 px-4 py-2.5 rounded-[14px] text-[12px] font-medium tracking-widest uppercase disabled:opacity-20 disabled:cursor-default cursor-pointer" style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <button type="button" onClick={() => canPrev && setStep(STEPS[stepIndex - 1].id)} disabled={!canPrev} className="flex items-center gap-2 px-4 py-2.5 rounded-[14px] text-[12px] font-mono font-medium tracking-widest uppercase disabled:opacity-20 disabled:cursor-default cursor-pointer" style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <ArrowLeft className="h-3.5 w-3.5" /> Back
           </button>
           {isLast ? (
-            <button type="button" onClick={() => setRunning(true)} className="flex items-center gap-2 px-8 py-3 rounded-[14px] text-[12px] font-bold tracking-widest uppercase transition-all duration-300 hover:opacity-90 active:scale-[0.98] cursor-pointer" style={{ border: '1px solid rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}>
+            <button type="button" onClick={() => setRunning(true)} className="flex items-center gap-2 px-8 py-3 rounded-[14px] text-[12px] font-mono font-bold tracking-widest uppercase transition-all duration-300 hover:opacity-90 active:scale-[0.98] cursor-pointer" style={{ border: '1px solid rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}>
               Begin Project <ArrowRight className="h-3.5 w-3.5" />
             </button>
           ) : (
-            <button type="button" onClick={() => canNext && setStep(STEPS[stepIndex + 1].id)} className="flex items-center gap-2 px-6 py-2.5 rounded-[14px] text-[12px] font-bold tracking-widest uppercase cursor-pointer" style={{ border: '1px solid rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}>
+            <button type="button" onClick={() => canNext && setStep(STEPS[stepIndex + 1].id)} className="flex items-center gap-2 px-6 py-2.5 rounded-[14px] text-[12px] font-mono font-bold tracking-widest uppercase cursor-pointer" style={{ border: '1px solid rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}>
               Next <ArrowRight className="h-3.5 w-3.5" />
             </button>
           )}

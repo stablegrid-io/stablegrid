@@ -40,25 +40,47 @@ export function getTierMultiplier(trackLevel: string): number {
   return TIER_MULTIPLIER[trackLevel] ?? 1;
 }
 
-/* ── User Tier (derived from accumulated kWh) ───────────────────────────────── */
+/* ── User Tier (derived from full progression context) ──────────────────────── */
 
-export type UserTier = 'junior' | 'mid' | 'senior';
+// The real tier logic lives in lib/tiers.ts — it has to consider kWh, track
+// completions, category breadth, and full-topic mastery. The helpers below
+// are re-exports plus thin back-compat shims for callers that only know about
+// a kWh number (pre-multi-criterion world).
 
+import {
+  TIER_REQUIREMENTS,
+  getUserTier as getUserTierFromCtx,
+  getTierProfileImage as getTierProfileImageImpl,
+  type TierContext,
+  type UserTier as TierName
+} from './tiers';
+
+export type UserTier = TierName;
+
+// Legacy kWh-only thresholds, retained so existing UI that renders
+// "500 / 2,500 kWh" pills doesn't break. Source of truth is TIER_REQUIREMENTS.
 export const USER_TIER_THRESHOLDS: Record<UserTier, number> = {
   junior: 0,
-  mid: 500,
-  senior: 2500,
+  mid: TIER_REQUIREMENTS.mid.kwh,
+  senior: TIER_REQUIREMENTS.senior.kwh
 };
 
-export function getUserTier(kwh: number): UserTier {
-  if (kwh >= USER_TIER_THRESHOLDS.senior) return 'senior';
-  if (kwh >= USER_TIER_THRESHOLDS.mid) return 'mid';
-  return 'junior';
+/**
+ * Back-compat overload: callers that only have a kWh number can still call
+ * getUserTier(kwh). It resolves against a tracks-empty context, which makes
+ * the kWh gate a necessary-but-not-sufficient check — i.e., these call sites
+ * will always see 'junior' until they're upgraded to pass completedTracks.
+ * Call sites with the full context should use getUserTier(context).
+ */
+export function getUserTier(input: number | TierContext): UserTier {
+  const ctx: TierContext =
+    typeof input === 'number'
+      ? { kwh: input, completedTracks: [] }
+      : input;
+  return getUserTierFromCtx(ctx);
 }
 
-export function getTierProfileImage(tier: UserTier): string {
-  return `/brand/profile-${tier}.png`;
-}
+export const getTierProfileImage = getTierProfileImageImpl;
 
 export function getNextTierThreshold(tier: UserTier): number | null {
   if (tier === 'junior') return USER_TIER_THRESHOLDS.mid;

@@ -61,7 +61,7 @@ export const QuickStats = ({
             <div className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-white">
               {card.value}
             </div>
-            <div className="mt-1 text-xs font-medium uppercase tracking-wider text-neutral-400">
+            <div className="mt-1 text-xs font-mono font-medium uppercase tracking-wider text-neutral-400">
               {card.label}
             </div>
           </div>

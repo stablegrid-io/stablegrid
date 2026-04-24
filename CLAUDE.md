@@ -11,7 +11,6 @@
 - **Code Editor:** Monaco Editor 0.55.1
 - **Python Runtime:** Pyodide 0.25.1 (WASM)
 - **Payments:** Stripe
-- **CAPTCHA:** Cloudflare Turnstile
 - **Testing:** Vitest 1.6.1 + Playwright 1.58.2
 
 ## Commands
@@ -217,8 +216,6 @@ interface TheorySection {
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
-NEXT_PUBLIC_TURNSTILE_SITE_KEY
-TURNSTILE_SECRET_KEY
 ```
 
 ## Testing

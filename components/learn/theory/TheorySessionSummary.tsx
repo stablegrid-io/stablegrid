@@ -51,7 +51,7 @@ export const TheorySessionSummary = ({
               key={stat.label}
               className="border border-outline-variant/20 bg-surface-container-low px-4 py-4"
             >
-              <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-on-surface-variant">
+              <div className="font-mono font-medium text-[9px] uppercase tracking-[0.2em] text-on-surface-variant">
                 {stat.label}
               </div>
               <div className="mt-2 text-lg font-bold text-on-surface">
@@ -65,14 +65,14 @@ export const TheorySessionSummary = ({
           <button
             type="button"
             onClick={onDone}
-            className="border border-outline-variant/40 px-5 py-2 font-mono text-xs text-on-surface-variant uppercase tracking-widest transition-colors hover:border-primary/40 hover:text-primary"
+            className="border border-outline-variant/40 px-5 py-2 font-mono font-medium text-xs text-on-surface-variant uppercase tracking-widest transition-colors hover:border-primary/40 hover:text-primary"
           >
             Done
           </button>
           <button
             type="button"
             onClick={onNewSession}
-            className="bg-primary px-5 py-2 font-bold text-xs text-on-primary uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98]"
+            className="bg-primary px-5 py-2 font-mono font-bold text-xs text-on-primary uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98]"
           >
             New Session
           </button>

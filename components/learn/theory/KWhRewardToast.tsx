@@ -42,7 +42,7 @@ function AnimatedCounter({ target, duration = 800 }: { target: number; duration?
   return <>{value.toLocaleString()}</>;
 }
 
-/* ── Lesson Toast (subtle bottom-right) ─────────────────────────────────────── */
+/* ── Lesson Toast (ring at bottom-right) ────────────────────────────────────── */
 
 function LessonToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () => void }) {
   const dismissRef = useRef(onDismiss);
@@ -52,36 +52,86 @@ function LessonToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =
     return () => clearTimeout(t);
   }, [reward.id]);
 
+  // SVG circle geometry
+  const size = 64;
+  const stroke = 2;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+
   return (
     <div
-      className="fixed bottom-6 right-6 z-[60] flex items-center gap-3 px-5 py-3"
+      className="fixed bottom-6 right-6 z-[60] pointer-events-auto"
       style={{
-        background: 'rgba(17, 20, 22, 0.95)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(153, 247, 255, 0.15)',
-        borderRadius: '16px',
-        boxShadow: '0 0 30px rgba(153, 247, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.4)',
+        width: size,
+        height: size,
         opacity: 0,
-        transform: 'translateY(12px)',
-        animation: 'kwhSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        transform: 'translateY(12px) scale(.9)',
+        animation: 'kwhRingIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
       }}
     >
+      {/* Backdrop disc */}
       <div
-        className="flex items-center justify-center w-8 h-8 rounded-full"
-        style={{ background: 'rgba(153, 247, 255, 0.1)' }}
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: 'rgba(17, 20, 22, 0.92)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          boxShadow: '0 0 24px rgba(153, 247, 255, 0.18), 0 8px 28px rgba(0, 0, 0, 0.45)',
+        }}
+      />
+
+      {/* SVG ring */}
+      <svg
+        width={size}
+        height={size}
+        className="absolute inset-0 -rotate-90"
+        aria-hidden="true"
       >
-        <Zap className="w-4 h-4" style={{ color: '#99f7ff' }} />
-      </div>
-      <div>
+        {/* Track */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(153, 247, 255, 0.1)"
+          strokeWidth={stroke}
+        />
+        {/* Animated arc — draws from 0 to full on mount */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#99f7ff"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference}
+          style={{
+            filter: 'drop-shadow(0 0 4px rgba(153, 247, 255, 0.6))',
+            animation: `kwhRingFill 1s cubic-bezier(0.16, 1, 0.3, 1) 120ms forwards`,
+            ['--ring-target' as string]: '0',
+          }}
+        />
+      </svg>
+
+      {/* Center content */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div
-          className="text-[13px] font-semibold tabular-nums"
-          style={{ color: '#99f7ff', fontFamily: '-apple-system, "SF Pro Display", system-ui, sans-serif' }}
+          className="text-[15px] font-bold leading-none tabular-nums"
+          style={{
+            color: '#99f7ff',
+            fontFamily: '-apple-system, "SF Pro Display", system-ui, sans-serif',
+            letterSpacing: '-0.02em',
+          }}
         >
-          +<AnimatedCounter target={reward.kwh} duration={600} /> kWh
+          +<AnimatedCounter target={reward.kwh} duration={700} />
         </div>
-        <div className="text-[11px]" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-          {reward.label}
+        <div
+          className="mt-0.5 font-mono text-[7px] font-bold uppercase tracking-[0.16em]"
+          style={{ color: 'rgba(153, 247, 255, 0.75)' }}
+        >
+          kWh
         </div>
       </div>
     </div>
@@ -140,7 +190,7 @@ function ModuleToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =
 
         {/* Module title */}
         <div
-          className="text-[11px] font-medium uppercase tracking-[0.15em] mb-3"
+          className="text-[11px] font-mono font-medium uppercase tracking-[0.15em] mb-3"
           style={{ color: 'rgba(255, 255, 255, 0.3)' }}
         >
           Module Complete
@@ -228,7 +278,7 @@ function TrackToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =>
 
         {/* Title */}
         <div
-          className="text-[11px] font-medium uppercase tracking-[0.18em] mb-2"
+          className="text-[11px] font-mono font-medium uppercase tracking-[0.18em] mb-2"
           style={{ color: 'rgba(153, 247, 255, 0.6)' }}
         >
           {tierLabel} Track Complete
@@ -296,6 +346,13 @@ export function KWhRewardToast({ reward, onDismiss }: Props) {
         @keyframes kwhCardIn {
           from { opacity: 0; transform: scale(0.95); }
           to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes kwhRingIn {
+          from { opacity: 0; transform: translateY(12px) scale(.9); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes kwhRingFill {
+          to { stroke-dashoffset: 0; }
         }
       `}</style>
       {reward.tier === 'lesson' && <LessonToast reward={reward} onDismiss={handleDismiss} />}

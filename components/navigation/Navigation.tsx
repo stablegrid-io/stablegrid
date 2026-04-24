@@ -8,7 +8,14 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
 import { UnifiedMiniPlayer } from '@/components/session/UnifiedMiniPlayer';
-import { hasCustomBackground, isCompactDesktopNavPath, isPracticeSessionPath, shouldHideNav } from './navigation-config';
+import { LandingFooter } from '@/components/home/landing/LandingFooter';
+import {
+  hasCustomBackground,
+  isCompactDesktopNavPath,
+  isPracticeSessionPath,
+  shouldHideNav,
+  shouldShowLandingFooter
+} from './navigation-config';
 
 /**
  * Inner shell that reads search params — must be wrapped in Suspense
@@ -27,6 +34,7 @@ const NavigationShell = ({ children }: { children: ReactNode }) => {
 
   const isTheoryPage = pathname.includes('/theory/') && !isPracticePage;
   const hideForFocus = focusMode && (isTheoryPage || isPracticePage);
+  const showLandingFooter = !hideForFocus && shouldShowLandingFooter(pathname);
 
   return (
     <>
@@ -49,6 +57,7 @@ const NavigationShell = ({ children }: { children: ReactNode }) => {
         style={{ isolation: 'isolate' }}
       >
         {children}
+        {showLandingFooter && <LandingFooter />}
       </div>
 
       {!hideForFocus && <BottomNav />}

@@ -163,7 +163,7 @@ const syncProgressWithoutNotebookPayload = async (page: Page) => {
 };
 
 const expectHrbNotebookCriterion = async (page: Page, completedCount: number) => {
-  await page.goto('/progress', { waitUntil: 'networkidle' });
+  await page.goto('/stats', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('hrb-overview')).toBeVisible({ timeout: 20_000 });
 
   const readinessDisclosure = page.getByTestId('hrb-readiness-disclosure');

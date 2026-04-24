@@ -17,7 +17,7 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     category: 'Orchestration',
     catRgb: '255,180,60',
     description: 'Build Apache Airflow capability across orchestration foundations, DAG authoring, scheduling, monitoring, and production debugging.',
-    progressPct: 33,
+    progressPct: 0,
   },
   {
     name: 'Microsoft Fabric',
@@ -25,7 +25,7 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     category: 'Platforms',
     catRgb: '34,200,150',
     description: 'Build Microsoft Fabric capability across platform foundations, analytics workflows, governance controls, and production delivery practices.',
-    progressPct: 33,
+    progressPct: 0,
   },
   {
     name: 'PySpark',
@@ -33,7 +33,7 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     category: 'Processing',
     catRgb: '170,120,255',
     description: 'Build PySpark capability across foundations, data engineering workflows, optimization, and production-ready governance patterns.',
-    progressPct: 33,
+    progressPct: 0,
   },
   {
     name: 'SQL',

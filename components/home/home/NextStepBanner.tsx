@@ -46,7 +46,7 @@ export const NextStepBanner = ({ session }: NextStepBannerProps) => {
           {meta.icon}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#0f8a5c] dark:text-brand-300">
+          <p className="text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-[#0f8a5c] dark:text-brand-300">
             Continue learning
           </p>
           <p className="mt-2 text-xl font-semibold tracking-tight text-[#121b18] dark:text-[#f2f7f4]">

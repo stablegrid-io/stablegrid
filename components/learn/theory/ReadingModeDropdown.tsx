@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Palette, Moon, Sun, BookOpen, Tablet, Eclipse, Maximize2 } from 'lucide-react';
+import { Palette, Moon, Sun, BookOpen, Tablet, Eclipse, Maximize2, Minimize2 } from 'lucide-react';
 import { useReadingModeStore, type ReadingMode } from '@/lib/stores/useReadingModeStore';
 
 const MODE_OPTIONS: { id: ReadingMode; label: string; icon: typeof Moon }[] = [
@@ -14,7 +14,7 @@ const MODE_OPTIONS: { id: ReadingMode; label: string; icon: typeof Moon }[] = [
 ];
 
 export const ReadingModeDropdown = () => {
-  const { mode, focusMode, setMode, toggleFocus } = useReadingModeStore();
+  const { mode, setMode } = useReadingModeStore();
   const [open, setOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
@@ -61,10 +61,9 @@ export const ReadingModeDropdown = () => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white/70 transition-all duration-200 hover:scale-105 hover:text-white/90 active:scale-95"
         style={{
           backgroundColor: open ? 'var(--rm-bg-elevated)' : 'transparent',
-          color: 'var(--rm-text-secondary)',
         }}
         aria-label="Appearance settings"
         aria-expanded={open}
@@ -87,7 +86,7 @@ export const ReadingModeDropdown = () => {
         >
           <div className="px-3.5 pt-3 pb-1.5">
             <span
-              className="text-[10px] font-semibold tracking-wide uppercase"
+              className="text-[10px] font-mono font-bold tracking-wide uppercase"
               style={{ color: 'var(--rm-text-secondary)' }}
             >
               Appearance
@@ -135,42 +134,30 @@ export const ReadingModeDropdown = () => {
             })}
           </div>
 
-          <div className="mx-3 my-0.5 h-px" style={{ backgroundColor: 'var(--rm-border)' }} />
-
-          <div className="px-1.5 py-1">
-            <button
-              type="button"
-              onClick={toggleFocus}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-150"
-              style={{
-                backgroundColor: focusMode ? 'var(--rm-bg)' : 'transparent',
-                color: focusMode ? 'var(--rm-text)' : 'var(--rm-text-secondary)',
-              }}
-              role="switch"
-              aria-checked={focusMode}
-            >
-              <Maximize2 className="h-4 w-4 flex-shrink-0" />
-              <span className="text-[11px] font-medium tracking-wide">Focus Mode</span>
-              <div
-                className="ml-auto relative w-8 h-[18px] rounded-full transition-colors duration-200"
-                style={{
-                  backgroundColor: focusMode
-                    ? 'var(--rm-text-secondary)'
-                    : 'var(--rm-border)',
-                }}
-              >
-                <div
-                  className="absolute top-[2px] w-[14px] h-[14px] rounded-full shadow-sm transition-transform duration-200"
-                  style={{ backgroundColor: 'var(--rm-bg)' }}
-                  style={{
-                    transform: focusMode ? 'translateX(16px)' : 'translateX(2px)',
-                  }}
-                />
-              </div>
-            </button>
-          </div>
         </div>
       )}
     </div>
+  );
+};
+
+/* ── Focus Mode Button (standalone, sits next to ReadingModeDropdown) ───────── */
+
+export const FocusModeButton = () => {
+  const { focusMode, toggleFocus } = useReadingModeStore();
+  const Icon = focusMode ? Minimize2 : Maximize2;
+
+  return (
+    <button
+      type="button"
+      onClick={toggleFocus}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 hover:scale-105 hover:text-white/90 active:scale-95 ${
+        focusMode ? 'text-white/90' : 'text-white/70'
+      }`}
+      aria-label={focusMode ? 'Exit focus mode' : 'Enter focus mode'}
+      aria-pressed={focusMode}
+      title={focusMode ? 'Exit focus mode' : 'Focus mode'}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
   );
 };

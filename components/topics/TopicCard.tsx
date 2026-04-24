@@ -80,31 +80,38 @@ export function TopicCard({ topic, index, href = '/login' }: TopicCardProps) {
             {topic.description}
           </p>
 
-          {/* Progress + CTA */}
+          {/* Progress (only when authenticated + has real progress) + CTA */}
           <div className="mt-auto">
-            <div className="flex justify-between items-end mb-2">
-              <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                Progress
-              </span>
-              <span className="font-mono text-sm font-bold" style={{ color: '#f0f0f3' }}>
-                {topic.progressPct}%
-              </span>
-            </div>
-            <div
-              className="mb-8 w-full overflow-hidden"
-              style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}
-            >
-              <div
-                style={{
-                  width: `${topic.progressPct}%`,
-                  height: '100%',
-                  background: '#fff',
-                  borderRadius: 100,
-                  opacity: 0.85,
-                  transition: 'width 1.5s cubic-bezier(.16,1,.3,1)',
-                }}
-              />
-            </div>
+            {hasProgress ? (
+              <>
+                <div className="flex justify-between items-end mb-2">
+                  <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    Progress
+                  </span>
+                  <span className="font-mono text-sm font-bold" style={{ color: '#f0f0f3' }}>
+                    {topic.progressPct}%
+                  </span>
+                </div>
+                <div
+                  className="mb-8 w-full overflow-hidden"
+                  style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}
+                >
+                  <div
+                    style={{
+                      width: `${topic.progressPct}%`,
+                      height: '100%',
+                      background: '#fff',
+                      borderRadius: 100,
+                      opacity: 0.85,
+                      transition: 'width 1.5s cubic-bezier(.16,1,.3,1)',
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
+              /* Spacer to preserve card rhythm when progress bar is hidden */
+              <div className="mb-8" style={{ height: 25 }} aria-hidden />
+            )}
 
             <div
               className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center uppercase rounded-[14px]"
@@ -117,7 +124,7 @@ export function TopicCard({ topic, index, href = '/login' }: TopicCardProps) {
                 letterSpacing: '0.18em',
               }}
             >
-              {hasProgress ? 'Continue Track' : 'Start Track'}
+              {hasProgress ? 'Continue' : 'Start track'}
             </div>
           </div>
         </div>

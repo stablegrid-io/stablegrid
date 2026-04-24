@@ -9,7 +9,7 @@ import { useProgressStore } from '@/lib/stores/useProgressStore';
 export const useAuth = (listen: boolean = false) => {
   const router = useRouter();
   const supabase = createClient();
-  const { user, setUser, setLoading, clearAuth } = useAuthStore();
+  const { user, setUser, clearAuth } = useAuthStore();
   const { syncProgress, setUserId, resetProgress } = useProgressStore();
 
   useEffect(() => {
@@ -64,56 +64,26 @@ export const useAuth = (listen: boolean = false) => {
     setUser,
     setUserId,
     syncProgress,
-    setLoading,
     clearAuth,
     resetProgress
   ]);
 
-  const signUp = async (
-    email: string,
-    password: string,
-    name: string,
-    captchaToken: string
-  ) => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, captchaToken })
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload?.error ?? 'Failed to create account.');
-      }
-
-      return payload;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    setLoading(false);
-
-    if (error) {
-      throw error;
-    }
-
-    return data;
-  };
-
   const signInWithOAuth = async (provider: 'google' | 'github') => {
+    // Preserve the ?next= query param from the current URL so the OAuth
+    // callback can honor it (see app/auth/callback/route.ts). Only relative
+    // paths are forwarded; anything else is dropped for safety.
+    let callbackUrl = `${window.location.origin}/auth/callback`;
+    if (typeof window !== 'undefined') {
+      const next = new URLSearchParams(window.location.search).get('next');
+      if (next && /^\/[a-zA-Z0-9]/.test(next)) {
+        callbackUrl += `?next=${encodeURIComponent(next)}`;
+      }
+    }
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+        redirectTo: callbackUrl
       }
     });
 
@@ -132,34 +102,10 @@ export const useAuth = (listen: boolean = false) => {
     router.push('/login');
   };
 
-  const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/update-password`
-    });
-
-    if (error) {
-      throw error;
-    }
-  };
-
-  const updatePassword = async (newPassword: string) => {
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword
-    });
-
-    if (error) {
-      throw error;
-    }
-  };
-
   return {
     user,
     loading: useAuthStore((state) => state.loading),
-    signUp,
-    signIn,
     signInWithOAuth,
-    signOut,
-    resetPassword,
-    updatePassword
+    signOut
   };
 };

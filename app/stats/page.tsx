@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCanonicalTheoryStats } from '@/lib/learn/theoryProgress';
@@ -9,6 +10,11 @@ import {
 import type { Topic, TopicProgress } from '@/types/progress';
 import { buildTrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
 import { ProgressDashboard } from '@/components/progress/ProgressDashboard';
+
+export const metadata: Metadata = {
+  title: 'Stats',
+  description: 'Your learning stats — XP, streak, time read, and topic progress.'
+};
 
 interface TopicProgressRow {
   id: string;

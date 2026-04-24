@@ -25,17 +25,17 @@ const STEPS = [
 
 export const HowItWorksSection = () => {
   return (
-    <section id="how-it-works" className="border-t border-[#1a2a22] py-24">
+    <section id="how-it-works" className="border-t border-grid-border py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold text-[#e3efe8]" style={{ fontFamily: 'Georgia, serif' }}>
             How the theory route works
           </h2>
-          <p className="text-[#9ab8a9]">One stable route first, expansion layers after validation.</p>
+          <p className="text-grid-text">One stable route first, expansion layers after validation.</p>
         </div>
 
         <div className="relative grid grid-cols-1 gap-8 md:grid-cols-3">
-          <div className="absolute left-[calc(16.67%+1rem)] right-[calc(16.67%+1rem)] top-8 hidden h-px bg-[#1f3629] md:block" />
+          <div className="absolute left-[calc(16.67%+1rem)] right-[calc(16.67%+1rem)] top-8 hidden h-px bg-grid-border md:block" />
 
           {STEPS.map((step, index) => (
             <motion.div
@@ -45,13 +45,13 @@ export const HowItWorksSection = () => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.15 }}
             >
-              <div className="relative z-10 mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-[#22b999]/30 bg-[#22b999]/10">
-                <span className="font-mono text-lg font-bold text-[#22b999]">{step.number}</span>
+              <div className="relative z-10 mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-grid-glow/30 bg-grid-glow/10">
+                <span className="font-mono text-lg font-bold text-grid-glow">{step.number}</span>
               </div>
 
               <h3 className="mb-2 text-base font-semibold text-[#e3efe8]">{step.title}</h3>
-              <p className="mb-3 text-sm leading-relaxed text-[#9ab8a9]">{step.body}</p>
-              <p className="text-xs leading-relaxed text-[#6f8f7d]">{step.detail}</p>
+              <p className="mb-3 text-sm leading-relaxed text-grid-text">{step.body}</p>
+              <p className="text-xs leading-relaxed text-grid-text-dim">{step.detail}</p>
             </motion.div>
           ))}
         </div>

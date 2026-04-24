@@ -105,7 +105,7 @@ export function CodingPracticeLevels({ language = 'python' }: { language?: strin
         {/* Header */}
         <header className="mb-10">
           <h1
-            className="font-black text-5xl lg:text-[4rem] tracking-tighter uppercase text-on-surface mb-2"
+            className="font-black text-5xl lg:text-[4rem] tracking-tighter text-on-surface mb-2"
             style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards' }}
           >
             {langLabel}
@@ -194,7 +194,7 @@ export function CodingPracticeLevels({ language = 'python' }: { language?: strin
                     {/* Stat rows */}
                     <div className="space-y-0 flex-1">
                       <StatRow label="Modules" value={`${String(completedModules).padStart(2, '0')} / ${String(totalModules).padStart(2, '0')}`} />
-                      <StatRow label="Est. Completion" value={isLocked ? '-- : -- : --' : '00:00:00'} />
+                      <StatRow label="Duration" value="— hours total" />
                       <StatRow label="kWh Multiplier" value={tier.xp} />
                     </div>
 

@@ -227,15 +227,19 @@ export function GridPage() {
           </div>
           <div
             className="font-mono tabular-nums"
-            style={{ fontSize: 26, fontWeight: 600, color: BRAND_CYAN, letterSpacing: '-0.01em', lineHeight: 1 }}
+            style={{ fontSize: 26, fontWeight: 600, color: TEXT_PRIMARY, letterSpacing: '-0.01em', lineHeight: 1 }}
           >
             {data.balance.toLocaleString()}
-            <span style={{ fontSize: 13, color: BRAND_CYAN, marginLeft: 6, letterSpacing: '0.08em' }}>kWh</span>
+            <span style={{ fontSize: 13, color: TEXT_PRIMARY, marginLeft: 6, letterSpacing: '0.08em' }}>kWh</span>
           </div>
         </div>
       </section>
 
-      <GridMap3D deployedSlugs={deployedSlugs} focusedSlug={focusedSlug} />
+      <GridMap3D
+        deployedSlugs={deployedSlugs}
+        focusedSlug={focusedSlug}
+        onMarkerClick={(slug) => setSpecSlug(slug)}
+      />
 
       {/* Action strip — opens the shop catalog + field archive */}
       <section

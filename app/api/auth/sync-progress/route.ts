@@ -8,6 +8,7 @@ import {
 } from '@/lib/api/protection';
 import { createClient } from '@/lib/supabase/server';
 import { computeSafeXpAndStreak } from '@/lib/api/syncProgressValidation';
+import { deriveCompletedTracks } from '@/lib/tiers';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -83,17 +84,32 @@ export async function GET(request: Request) {
       })
     ]);
 
-    const { data, error } = await supabase
-      .from('user_progress')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    const [progressResult, modulesResult] = await Promise.all([
+      supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+      // Completed modules feed the track-level tier requirements in lib/tiers.ts.
+      // We only care about the ids here — the completion-count-per-track is
+      // derived client-side by deriveCompletedTracks().
+      supabase
+        .from('module_progress')
+        .select('module_id')
+        .eq('user_id', user.id)
+        .eq('is_completed', true)
+    ]);
 
-    if (error) {
-      throw new Error(error.message);
+    if (progressResult.error) {
+      throw new Error(progressResult.error.message);
     }
 
-    if (!data) {
+    const completedModuleIds = (modulesResult.data ?? [])
+      .map((row) => row.module_id)
+      .filter((id): id is string => typeof id === 'string');
+    const completedTracks = deriveCompletedTracks(completedModuleIds);
+
+    if (!progressResult.data) {
       const { data: created, error: createError } = await supabase
         .from('user_progress')
         .upsert({ user_id: user.id }, { onConflict: 'user_id' })
@@ -104,10 +120,14 @@ export async function GET(request: Request) {
         throw new Error(createError.message);
       }
 
-      return NextResponse.json({ data: created });
+      return NextResponse.json({
+        data: { ...created, completed_tracks: completedTracks }
+      });
     }
 
-    return NextResponse.json({ data });
+    return NextResponse.json({
+      data: { ...progressResult.data, completed_tracks: completedTracks }
+    });
   } catch (error) {
     return toApiErrorResponse(error, 'Failed to fetch synced progress.');
   }
@@ -177,8 +197,16 @@ export async function POST(request: Request) {
           return { body: { success: true, atomic: true }, status: 200 };
         }
 
-        // RPC not deployed yet — fall back to SELECT + UPSERT
-        if (rpcError.message.includes('sync_user_progress') || rpcError.code === '42883') {
+        // Fall back to SELECT + UPSERT when the RPC is missing (42883), the signature
+        // drifted from this handler (mentions sync_user_progress in the error), or the
+        // body has a datatype mismatch (42804). Without the 42804 branch a schema/type
+        // regression on the RPC would silently drop every progress save — see
+        // migration 20260424210000 for the incident that motivated this.
+        if (
+          rpcError.message.includes('sync_user_progress')
+          || rpcError.code === '42883'
+          || rpcError.code === '42804'
+        ) {
           const { data: existingProgress, error: existingProgressError } = await supabase
             .from('user_progress')
             .select('topic_progress,xp,streak')

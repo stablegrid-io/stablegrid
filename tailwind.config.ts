@@ -144,7 +144,17 @@ const config: Config = {
           'dark-secondary': '#8a8b8e',
           'dark-tertiary': '#5a5c5f',
           'dark-disabled': '#343638'
-        }
+        },
+        // stablegrid forest-green palette (landing page)
+        'grid-ink': '#070c0a',
+        'grid-panel': '#0f1712',
+        'grid-panel-raised': '#1a2a22',
+        'grid-border': '#1f3629',
+        'grid-border-dim': '#122824',
+        'grid-text': '#9ab8a9',
+        'grid-text-dim': '#6f8f7d',
+        'grid-glow': '#22b999',
+        'grid-glow-bright': '#3ed3b2'
       },
       boxShadow: {
         sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',

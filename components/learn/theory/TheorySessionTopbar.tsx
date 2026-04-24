@@ -59,7 +59,7 @@ export const TheorySessionTopbar = ({ session }: TheorySessionTopbarProps) => {
       {/* Method pill */}
       <div className="flex items-center gap-2 rounded-full px-3 py-1" style={{ backgroundColor: `rgba(${accent.rgb},0.08)` }}>
         <Icon className="h-3 w-3" style={{ color: accent.color }} />
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-wider" style={{ color: accent.color }}>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: accent.color }}>
           {session.method.label}
         </span>
       </div>

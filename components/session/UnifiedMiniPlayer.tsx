@@ -126,7 +126,7 @@ export function UnifiedMiniPlayer() {
         <div
           className="relative rounded-[22px] border px-4 py-3 min-w-[220px]"
           style={{
-            background: 'rgba(10,12,14,0.92)',
+            background: 'rgba(24,28,32,0.95)',
             backdropFilter: 'blur(24px) saturate(1.4)',
             WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
             borderColor: `rgba(${theory.color},0.15)`,
@@ -153,11 +153,10 @@ export function UnifiedMiniPlayer() {
           </div>
           <Link
             href={theory.route}
-            className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold transition-all hover:scale-[1.02]"
+            className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold text-white transition-all hover:scale-[1.02] hover:bg-white/[0.16]"
             style={{
-              background: `rgba(${theory.color},0.08)`,
-              border: `1px solid rgba(${theory.color},0.15)`,
-              color: `rgb(${theory.color})`,
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.22)',
             }}
           >
             <span>Resume reading</span>
@@ -179,7 +178,7 @@ export function UnifiedMiniPlayer() {
           <div
             className="relative rounded-[22px] border px-4 py-3 min-w-[220px]"
             style={{
-              background: 'rgba(10,12,14,0.92)',
+              background: 'rgba(24,28,32,0.95)',
               backdropFilter: 'blur(24px) saturate(1.4)',
               WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
               borderColor: `rgba(${accent},0.15)`,
@@ -206,11 +205,10 @@ export function UnifiedMiniPlayer() {
             </div>
             <Link
               href={practice.route}
-              className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold transition-all hover:scale-[1.02]"
+              className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold text-white transition-all hover:scale-[1.02] hover:bg-white/[0.16]"
               style={{
-                background: `rgba(${accent},0.08)`,
-                border: `1px solid rgba(${accent},0.15)`,
-                color: `rgb(${accent})`,
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.22)',
               }}
             >
               <span>{resumeLabel}</span>

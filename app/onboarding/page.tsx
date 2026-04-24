@@ -14,7 +14,20 @@ export default async function OnboardingPage() {
     redirect('/login');
   }
 
-  // Check if user has any existing activity — if so, skip onboarding
+  // Primary gate: explicit onboarding_completed flag on profiles (added by
+  // 20260424000000_profiles_onboarding_flag.sql). The activity check below is
+  // kept as an OR-fallback so users whose topic_progress/user_progress rows
+  // were pruned before the backfill ran still skip the flow.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('onboarding_completed')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profile?.onboarding_completed) {
+    redirect('/');
+  }
+
   const { data: progress } = await supabase
     .from('topic_progress')
     .select('id')
@@ -22,7 +35,6 @@ export default async function OnboardingPage() {
     .limit(1)
     .maybeSingle();
 
-  // Practice-only users may have user_progress activity before topic_progress.
   const { data: userProgress } = await supabase
     .from('user_progress')
     .select('xp,completed_questions')

@@ -301,7 +301,7 @@ describe('stripe webhook route', () => {
       user_id: 'user-1',
       stripe_customer_id: 'cus_1',
       stripe_sub_id: 'sub_1',
-      plan: 'pro',
+      plan: 'supporter',
       status: 'active',
       current_period_end: '2026-04-01T00:00:00.000Z',
       stripe_last_event_id: 'evt_newer',
@@ -325,7 +325,7 @@ describe('stripe webhook route', () => {
     await expect(response.json()).resolves.toEqual({ received: true });
 
     const subscription = state.subscriptionsByUserId.get('user-1');
-    expect(subscription?.plan).toBe('pro');
+    expect(subscription?.plan).toBe('supporter');
     expect(subscription?.status).toBe('active');
     expect(state.calls.subscriptionUpsert).toBe(0);
 
@@ -364,7 +364,7 @@ describe('stripe webhook route', () => {
     await expect(response.json()).resolves.toEqual({ received: true });
 
     const subscription = state.subscriptionsByUserId.get('user-1');
-    expect(subscription?.plan).toBe('pro');
+    expect(subscription?.plan).toBe('supporter');
     expect(subscription?.status).toBe('active');
     expect(subscription?.stripe_last_event_id).toBe('evt_new');
     expect(subscription?.stripe_last_event_created_at).toBe('2026-03-15T10:00:00.000Z');

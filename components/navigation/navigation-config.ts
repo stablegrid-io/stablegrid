@@ -5,7 +5,7 @@ import {
   Home,
   BookOpen,
   Target,
-  LayoutGrid,
+  Zap,
   TrendingUp
 } from 'lucide-react';
 import { SubstationIcon } from './icons/SubstationIcon';
@@ -40,15 +40,15 @@ export const navItems: NavItem[] = [
   },
   {
     href: '/grid',
-    icon: LayoutGrid,
+    icon: Zap,
     label: 'Grid',
     matchPrefixes: ['/grid']
   },
   {
-    href: '/progress',
+    href: '/stats',
     icon: TrendingUp,
-    label: 'Progress',
-    matchPrefixes: ['/progress']
+    label: 'Stats',
+    matchPrefixes: ['/stats']
   },
 ];
 
@@ -66,7 +66,7 @@ export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolea
   if (!pathname) return false;
   // Hide nav on the landing-style marketing pages and auth pages (own header included).
   if (pathname === '/' || pathname === '/topics') return true;
-  const authPages = ['/login', '/signup', '/reset-password', '/update-password'];
+  const authPages = ['/login', '/signup'];
   if (authPages.includes(pathname)) return true;
   // Hide nav on public pages when not authenticated
   const publicPages = ['/privacy', '/terms', '/support', '/support/report-bug'];
@@ -77,6 +77,24 @@ export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolea
 export const isTheoryLessonPath = (pathname?: string | null) =>
   Boolean(pathname && /^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname));
 
+/**
+ * Public / marketing surfaces that should render the shared landing footer.
+ * Excluded intentionally:
+ *  - `/`              (LandingPage renders LandingFooter inline)
+ *  - `/privacy`       (page renders its own inline copyright footer)
+ */
+const LANDING_FOOTER_PATHS = new Set<string>([
+  '/topics',
+  '/terms',
+  '/support',
+  '/support/report-bug'
+]);
+
+export const shouldShowLandingFooter = (pathname?: string | null) => {
+  if (!pathname) return false;
+  return LANDING_FOOTER_PATHS.has(pathname);
+};
+
 export const isPracticeSessionPath = (pathname?: string | null, search?: string | null) => {
   if (!pathname) return false;
   if (/^\/operations\/practice\/[^/]+\/[^/]+\/[^/]+(?:\/session)?(?:\/)?$/.test(pathname)) return true;
@@ -84,7 +102,7 @@ export const isPracticeSessionPath = (pathname?: string | null, search?: string 
   return false;
 };
 
-const COMPACT_NAV_PREFIXES = ['/admin', '/cheat-sheets', '/learn', '/practice', '/grid', '/progress'];
+const COMPACT_NAV_PREFIXES = ['/admin', '/cheat-sheets', '/learn', '/practice', '/grid', '/stats'];
 
 export const isCompactDesktopNavPath = (pathname?: string | null) => {
   if (!pathname) return false;

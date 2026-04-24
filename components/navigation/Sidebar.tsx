@@ -37,6 +37,7 @@ export const Sidebar = () => {
   const [adminAccess, setAdminAccess] = useState<AdminAccessData | null>(null);
   const [hasResolvedAdminAccess, setHasResolvedAdminAccess] = useState(false);
   const xp = useProgressStore((state) => state.xp);
+  const completedTracks = useProgressStore((state) => state.completedTracks);
   const [progressHydrated, setProgressHydrated] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
   useEffect(() => {
@@ -65,10 +66,8 @@ export const Sidebar = () => {
       window.removeEventListener('focus', refetch);
     };
   }, [user?.id]);
-  const tier = getUserTier(xp);
+  const tier = getUserTier({ kwh: xp, completedTracks });
   const resolvedAvatarUrl = getTierProfileImage(tier);
-  const tierRgb =
-    tier === 'senior' ? '255,113,108' : tier === 'mid' ? '255,201,101' : '153,247,255';
   const tierAccent =
     tier === 'senior' ? '#ff716c' : tier === 'mid' ? '#ffc965' : '#99f7ff';
   const tierLabel = tier === 'senior' ? 'Senior' : tier === 'mid' ? 'Mid' : 'Junior';
@@ -131,7 +130,7 @@ export const Sidebar = () => {
   return (
     <aside
       data-compact={isCompact ? 'true' : undefined}
-      className={`fixed left-0 top-0 h-full bg-[#0c0e10]/80 backdrop-blur-2xl border-r border-white/[0.06] flex-col pt-14 pb-5 z-40 hidden lg:flex transition-[width] duration-200 ${
+      className={`fixed left-0 top-0 h-full bg-surface/80 backdrop-blur-2xl border-r border-white/[0.06] flex-col pt-14 pb-5 z-40 hidden lg:flex transition-[width] duration-200 ${
         isCompact ? 'w-16' : 'w-48'
       }`}
     >
@@ -141,7 +140,7 @@ export const Sidebar = () => {
           <div
             className="relative w-10 h-10 shrink-0 overflow-hidden rounded-full ring-2"
             style={{
-              ['--tw-ring-color' as string]: progressHydrated ? `rgba(${tierRgb},0.4)` : 'rgba(255,255,255,0.08)',
+              ['--tw-ring-color' as string]: 'rgba(255,255,255,0.08)',
               backgroundColor: 'rgba(255,255,255,0.04)'
             }}
           >
@@ -154,7 +153,7 @@ export const Sidebar = () => {
             <div
               className="relative w-12 h-12 shrink-0 overflow-hidden rounded-full ring-2"
               style={{
-                ['--tw-ring-color' as string]: progressHydrated ? `rgba(${tierRgb},0.4)` : 'rgba(255,255,255,0.08)',
+                ['--tw-ring-color' as string]: 'rgba(255,255,255,0.08)',
                 backgroundColor: 'rgba(255,255,255,0.04)'
               }}
             >
@@ -201,7 +200,7 @@ export const Sidebar = () => {
               href={item.href}
               onMouseEnter={() => prefetchRoute(item.href)}
               title={isCompact ? item.label : undefined}
-              className={`group relative flex items-center ${isCompact ? 'justify-center px-0 py-2.5 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-[13px] font-medium transition-all duration-150 ${
+              className={`group relative flex items-center ${isCompact ? 'justify-center px-0 py-2.5 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-[13px] font-medium transition-all duration-150 ${
                 isActive
                   ? 'bg-white/[0.08] text-on-surface'
                   : 'text-on-surface-variant/60 hover:text-on-surface-variant hover:bg-white/[0.04]'
@@ -210,7 +209,7 @@ export const Sidebar = () => {
               <Icon className={`flex-shrink-0 ${isCompact ? 'h-5 w-5' : 'h-[18px] w-[18px]'}`} />
               {!isCompact && <span>{item.label}</span>}
               {isCompact && (
-                <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-lg bg-surface-container/95 backdrop-blur-lg border border-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-on-surface opacity-0 shadow-lg group-hover:opacity-100 transition-opacity z-50">
+                <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-[7px] bg-surface-container/95 backdrop-blur-lg border border-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-on-surface opacity-0 shadow-lg group-hover:opacity-100 transition-opacity z-50">
                   {item.label}
                 </span>
               )}
@@ -226,7 +225,7 @@ export const Sidebar = () => {
             href="/admin"
             onMouseEnter={() => prefetchRoute('/admin')}
             title={isCompact ? 'Admin' : undefined}
-            className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
+            className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
           >
             <Fingerprint className="h-[18px] w-[18px]" />
             {!isCompact && <span>Admin</span>}
@@ -236,7 +235,7 @@ export const Sidebar = () => {
           href="/settings"
           onMouseEnter={() => prefetchRoute('/settings')}
           title={isCompact ? 'Settings' : undefined}
-          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
+          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
         >
           <Wrench className="h-[18px] w-[18px]" />
           {!isCompact && <span>Settings</span>}
@@ -244,7 +243,7 @@ export const Sidebar = () => {
         <Link
           href="/support"
           title={isCompact ? 'Support' : undefined}
-          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
+          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
         >
           <MessageCircle className="h-[18px] w-[18px]" />
           {!isCompact && <span>Support</span>}

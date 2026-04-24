@@ -62,7 +62,7 @@ export const TheorySidebar = ({
       <div className="border-b border-outline-variant/30 px-4 py-4">
         <Link
           href={`/learn/${doc.topic}/theory`}
-          className="mb-3 inline-flex items-center gap-2 text-[10px] text-on-surface-variant transition-colors hover:text-on-surface uppercase tracking-wider"
+          className="mb-3 inline-flex items-center gap-2 text-[10px] font-mono font-medium text-on-surface-variant transition-colors hover:text-on-surface uppercase tracking-wider"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           All Modules
@@ -71,7 +71,7 @@ export const TheorySidebar = ({
         <div className="text-sm font-bold text-on-surface">
           {activeModule.title}
         </div>
-        <div className="mt-1 flex items-center gap-2 text-[10px] text-on-surface-variant uppercase">
+        <div className="mt-1 flex items-center gap-2 text-[10px] font-mono font-medium text-on-surface-variant uppercase">
           <Clock3 className="h-3.5 w-3.5" />
           {orderedLessons.length} lessons · {activeModule.totalMinutes} min
         </div>

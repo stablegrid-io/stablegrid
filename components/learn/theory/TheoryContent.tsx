@@ -365,7 +365,7 @@ export const TheoryContent = ({
             className={`shrink-0 inline-flex items-center gap-2 rounded-[14px] px-4 py-2 text-sm font-medium transition-colors ${
               nextModuleLocked || checkpointPending
                 ? 'cursor-not-allowed bg-light-hover text-text-light-disabled dark:bg-dark-hover dark:text-text-dark-disabled'
-                : 'bg-[#f0f0f3] text-[#0a0c0e] hover:bg-white'
+                : 'bg-on-surface text-surface hover:bg-white'
             }`}
           >
             <span className="hidden sm:inline">{nextLabel}</span>

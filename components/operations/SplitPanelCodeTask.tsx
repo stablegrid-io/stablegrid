@@ -1801,7 +1801,7 @@ sys.stderr = sys.__stderr__
                         {referenced.map(ds => (
                           <div key={ds.id} className="rounded-[14px] p-3" style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)' }}>
                             <div className="flex items-center justify-between mb-2">
-                              <code className="text-[12px] font-mono font-semibold" style={{ color: `rgb(${ACCENT})` }}>{ds.file}</code>
+                              <code className="text-[12px] font-mono font-bold" style={{ color: `rgb(${ACCENT})` }}>{ds.file}</code>
                             </div>
                             <p className="text-[11px] mb-2" style={{ color: 'var(--rm-text-secondary)' }}>{ds.description}</p>
                             {ds.schema?.columns && (

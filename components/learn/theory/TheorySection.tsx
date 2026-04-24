@@ -75,7 +75,7 @@ const RenderTable = ({ block }: { block: TableBlock }) => {
             {block.headers.map((header) => (
               <th
                 key={header}
-                className="border-b px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
+                className="border-b px-4 py-3 text-left text-xs font-mono font-bold uppercase tracking-wider"
                 style={{ backgroundColor: 'var(--rm-table-header-bg)', color: 'var(--rm-text-heading)', borderColor: 'var(--rm-border)' }}
               >
                 {header}
@@ -115,7 +115,7 @@ const RenderTable = ({ block }: { block: TableBlock }) => {
 const RenderKeyConcept = ({ block }: { block: KeyConceptBlock }) => {
   return (
     <div className="rounded-lg border-l-4 p-5" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-bg-elevated)', color: 'var(--rm-text)' }}>
-      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-brand-500">
+      <div className="mb-2 text-xs font-mono font-bold uppercase tracking-wider text-brand-500">
         Key Concept
       </div>
       <div className="mb-2 text-base font-bold" style={{ color: 'var(--rm-text-heading)' }}>
@@ -264,7 +264,7 @@ export const TheorySection = ({
       {showHeader ? (
         <>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="rounded-full bg-brand-500/10 px-2.5 py-1 font-semibold uppercase tracking-[0.12em] text-brand-500">
+            <span className="rounded-full bg-brand-500/10 px-2.5 py-1 font-mono font-bold uppercase tracking-[0.12em] text-brand-500">
               Lesson {lessonIndex + 1} of {lessonTotal}
             </span>
             <div className="flex items-center gap-3">

@@ -50,7 +50,7 @@ export function CodingLanguageSelector() {
 
         {/* Header — matches Theory Hub */}
         <header className="mb-12 border-l-2 border-primary pl-6" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}>
-          <h1 className="text-5xl font-extrabold tracking-tighter text-on-surface uppercase mb-2">
+          <h1 className="text-5xl font-extrabold tracking-tighter text-on-surface mb-2">
             Coding <span className="text-primary">Practice</span>
           </h1>
         </header>

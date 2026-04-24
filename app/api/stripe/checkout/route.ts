@@ -27,10 +27,13 @@ export async function POST(request: Request) {
     enforceRateLimit({ scope: 'stripe_checkout_ip', key: getClientIp(request), limit: 10, windowSeconds: 15 * 60 }),
   ]);
 
-  const priceId = process.env.STRIPE_PRO_PRICE_ID;
+  // Prefer the new STRIPE_SUPPORTER_PRICE_ID; fall back to the legacy
+  // STRIPE_PRO_PRICE_ID so existing deployments don't break.
+  const priceId =
+    process.env.STRIPE_SUPPORTER_PRICE_ID ?? process.env.STRIPE_PRO_PRICE_ID;
   if (!priceId) {
     return NextResponse.json(
-      { error: 'Missing STRIPE_PRO_PRICE_ID.' },
+      { error: 'Missing STRIPE_SUPPORTER_PRICE_ID.' },
       { status: 500 }
     );
   }

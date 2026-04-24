@@ -22,7 +22,7 @@ export const RecentActivityPanel = ({ items }: RecentActivityPanelProps) => {
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#4e5f57] dark:text-[#8aa496]">
+          <div className="inline-flex items-center gap-2 text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-[#4e5f57] dark:text-[#8aa496]">
             <History className="h-3.5 w-3.5" />
             Recent activity
           </div>
@@ -31,10 +31,10 @@ export const RecentActivityPanel = ({ items }: RecentActivityPanelProps) => {
           </h2>
         </div>
         <Link
-          href="/progress"
+          href="/stats"
           className="inline-flex items-center gap-2 text-sm font-medium text-[#486055] transition-colors hover:text-brand-700 dark:text-[#b0c6ba] dark:hover:text-brand-300"
         >
-          View progress
+          View stats
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

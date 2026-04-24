@@ -26,7 +26,7 @@ const MASK_GEOJSON: GeoJSON.Feature = (() => {
     [-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85],
   ];
   const innerRings: GeoJSON.Position[][] = [];
-  for (const f of (lithuaniaFc as GeoJSON.FeatureCollection).features) {
+  for (const f of (lithuaniaFc as unknown as GeoJSON.FeatureCollection).features) {
     const g = f.geometry;
     if (g.type === 'Polygon') {
       innerRings.push([...g.coordinates[0]].reverse());
@@ -44,6 +44,7 @@ const MASK_GEOJSON: GeoJSON.Feature = (() => {
 interface GridMap3DProps {
   deployedSlugs: readonly ComponentSlug[];
   focusedSlug?: ComponentSlug | null;
+  onMarkerClick?: (slug: ComponentSlug) => void;
 }
 
 interface HoverState {
@@ -56,12 +57,14 @@ const TOOLTIP_W = 260;
 const TOOLTIP_H = 230; // approximate, tall enough for worst-case copy
 const TOOLTIP_MARGIN = 12;
 
-export function GridMap3D({ deployedSlugs, focusedSlug }: GridMap3DProps) {
+export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap3DProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MaplibreMap | null>(null);
   const markersRef = useRef<Map<ComponentSlug, { root: HTMLDivElement; marker: maplibregl.Marker }>>(new Map());
   const [styleLoaded, setStyleLoaded] = useState(false);
   const [hover, setHover] = useState<HoverState | null>(null);
+  const onMarkerClickRef = useRef(onMarkerClick);
+  useEffect(() => { onMarkerClickRef.current = onMarkerClick; }, [onMarkerClick]);
 
   const deployed = useMemo(() => new Set(deployedSlugs), [deployedSlugs]);
 
@@ -120,7 +123,7 @@ export function GridMap3D({ deployedSlugs, focusedSlug }: GridMap3DProps) {
       });
     }
     if (!map.getSource(BORDER_SRC)) {
-      map.addSource(BORDER_SRC, { type: 'geojson', data: lithuaniaFc as GeoJSON.FeatureCollection });
+      map.addSource(BORDER_SRC, { type: 'geojson', data: lithuaniaFc as unknown as GeoJSON.FeatureCollection });
       // Soft outer glow
       map.addLayer({
         id: `${BORDER_LAYER}-glow`,
@@ -173,10 +176,14 @@ export function GridMap3D({ deployedSlugs, focusedSlug }: GridMap3DProps) {
       root.addEventListener('mouseleave', () => setHover((prev) => (prev?.slug === d.slug ? null : prev)));
       root.addEventListener('focus', () => updateHoverPosition(d.slug));
       root.addEventListener('blur', () => setHover((prev) => (prev?.slug === d.slug ? null : prev)));
+      root.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onMarkerClickRef.current?.(d.slug);
+      });
       root.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          updateHoverPosition(d.slug);
+          onMarkerClickRef.current?.(d.slug);
         } else if (e.key === 'Escape') {
           setHover(null);
           root.blur();

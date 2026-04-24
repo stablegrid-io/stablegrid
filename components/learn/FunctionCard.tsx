@@ -39,24 +39,24 @@ export const FunctionCard = ({
           onSelect();
         }
       }}
-      className={`group relative w-full cursor-pointer rounded-lg border px-3 py-2.5 text-left transition-all duration-150 ${
+      className={`group relative w-full cursor-pointer rounded-[10px] border px-3 py-2.5 text-left transition-all duration-150 ${
         selected
-          ? 'border-brand-300 bg-brand-50/70 dark:border-brand-700 dark:bg-brand-900/20'
-          : 'border-transparent bg-transparent hover:border-light-border hover:bg-light-bg dark:hover:border-dark-border dark:hover:bg-dark-surface'
+          ? 'border-brand-300 bg-brand-50/70 dark:border-primary/40 dark:bg-primary/10'
+          : 'border-transparent bg-transparent hover:border-light-border hover:bg-light-bg dark:hover:border-outline-variant dark:hover:bg-surface-container'
       }`}
     >
       {selected ? (
-        <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-brand-500" />
+        <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary" />
       ) : null}
 
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2">
             <code
-              className={`truncate text-[13px] font-semibold ${
+              className={`data-mono truncate text-[13px] font-bold ${
                 selected
-                  ? 'text-brand-700 dark:text-brand-300'
-                  : 'text-text-light-primary dark:text-text-dark-primary'
+                  ? 'text-brand-700 dark:text-primary'
+                  : 'text-text-light-primary dark:text-on-surface'
               }`}
             >
               {entry.name}
@@ -68,7 +68,7 @@ export const FunctionCard = ({
             ) : null}
           </div>
 
-          <p className="line-clamp-1 text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <p className="line-clamp-1 text-[11px] text-text-light-tertiary dark:text-on-surface-variant/70">
             {entry.shortDescription}
           </p>
         </div>
@@ -79,7 +79,7 @@ export const FunctionCard = ({
             aria-hidden
           />
           {bookmarked ? (
-            <span className="text-[10px] font-semibold text-brand-500">◆</span>
+            <span className="text-[10px] font-bold text-primary">◆</span>
           ) : null}
         </div>
       </div>
@@ -92,14 +92,14 @@ export const FunctionCard = ({
               event.stopPropagation();
               onToggleBookmark();
             }}
-            className={`rounded p-1 transition ${
+            className={`rounded-[7px] p-1 transition ${
               bookmarked
-                ? 'text-brand-500'
-                : 'text-text-light-tertiary hover:text-text-light-primary dark:text-text-dark-tertiary dark:hover:text-text-dark-primary'
+                ? 'text-primary'
+                : 'text-text-light-tertiary hover:text-text-light-primary dark:text-on-surface-variant/70 dark:hover:text-on-surface'
             }`}
             aria-label={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
           >
-            <Bookmark className={`h-3.5 w-3.5 ${bookmarked ? 'fill-brand-500' : ''}`} />
+            <Bookmark className={`h-3.5 w-3.5 ${bookmarked ? 'fill-primary' : ''}`} />
           </button>
           <button
             type="button"
@@ -107,10 +107,10 @@ export const FunctionCard = ({
               event.stopPropagation();
               onToggleMastered();
             }}
-            className={`rounded p-1 transition ${
+            className={`rounded-[7px] p-1 transition ${
               mastered
                 ? 'text-success-500'
-                : 'text-text-light-tertiary hover:text-text-light-primary dark:text-text-dark-tertiary dark:hover:text-text-dark-primary'
+                : 'text-text-light-tertiary hover:text-text-light-primary dark:text-on-surface-variant/70 dark:hover:text-on-surface'
             }`}
             aria-label={mastered ? 'Unmark mastered' : 'Mark mastered'}
           >
@@ -121,8 +121,8 @@ export const FunctionCard = ({
         <ChevronRight
           className={`h-3.5 w-3.5 ${
             selected
-              ? 'text-brand-500'
-              : 'text-text-light-tertiary dark:text-text-dark-tertiary'
+              ? 'text-primary'
+              : 'text-text-light-tertiary dark:text-on-surface-variant/70'
           }`}
         />
       </div>

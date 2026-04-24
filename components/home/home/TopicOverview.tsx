@@ -73,10 +73,10 @@ export const TopicOverview = ({ topicProgress }: TopicOverviewProps) => {
           </p>
         </div>
         <Link
-          href="/progress"
+          href="/stats"
           className="text-xs font-medium text-brand-700 transition-colors hover:text-brand-500 dark:text-brand-300 dark:hover:text-brand-200"
         >
-          View progress
+          View stats
         </Link>
       </div>
 
@@ -157,7 +157,7 @@ const ProgressRow = ({
   color: string;
 }) => (
   <div className="grid grid-cols-[46px_1fr_auto] items-center gap-2">
-    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6d746f] dark:text-[#7e9589]">
+    <span className="text-[10px] font-mono font-bold uppercase tracking-[0.12em] text-[#6d746f] dark:text-[#7e9589]">
       {label}
     </span>
     <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>

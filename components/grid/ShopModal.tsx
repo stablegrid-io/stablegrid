@@ -133,7 +133,7 @@ export function ShopModal({ data, purchasingSlug, onDeploy, onOpenDetails, onHov
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
             <div className="font-mono tabular-nums" style={{ fontSize: 11, color: TEXT_TERTIARY, letterSpacing: '0.1em' }}>
               {data.state.districtsRestored} of 10 deployed ·{' '}
-              <span style={{ color: BRAND_CYAN, fontWeight: 600 }}>{data.balance.toLocaleString()} kWh</span> reserve
+              <span style={{ color: TEXT_PRIMARY, fontWeight: 600 }}>{data.balance.toLocaleString()} kWh</span> reserve
             </div>
             <button
               ref={closeRef}

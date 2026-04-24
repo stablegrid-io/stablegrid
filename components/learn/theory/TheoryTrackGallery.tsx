@@ -99,7 +99,7 @@ export const TheoryTrackGallery = ({
         {/* Title block */}
         <header className="mb-10">
           <h1
-            className="font-black text-5xl lg:text-[4rem] tracking-tighter uppercase text-on-surface mb-2"
+            className="font-black text-5xl lg:text-[4rem] tracking-tighter text-on-surface mb-2"
             style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards' }}
           >
             {getLearnTopicMeta(doc.topic)?.title ?? doc.topic.replace(/-/g, ' ')}
@@ -126,9 +126,8 @@ export const TheoryTrackGallery = ({
             const segments = 10;
             const filled = Math.round((progressPct / 100) * segments);
             const totalMin = track.totalMinutes ?? 0;
-            const h = Math.floor(totalMin / 60);
-            const m = totalMin % 60;
-            const est = isLocked ? '-- : -- : --' : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+            const totalHours = Math.round(totalMin / 60);
+            const duration = isLocked || totalHours === 0 ? '— hours total' : `~${totalHours} hours total`;
             const cta = isLocked ? tier.cta : isComplete ? 'Review Track' : isStarted ? 'Continue' : tier.cta;
 
             return (
@@ -142,7 +141,15 @@ export const TheoryTrackGallery = ({
                   className="relative overflow-hidden h-full flex flex-col transition-all duration-500 hover:scale-[1.015] rounded-[22px]"
                   style={{
                     background: '#181c20',
-                    border: `1px solid ${isLocked ? 'rgba(255,255,255,0.05)' : `rgba(${tier.rgb},0.12)`}`,
+                    border: isComplete
+                      ? '1px solid transparent'
+                      : `1px solid ${isLocked ? 'rgba(255,255,255,0.05)' : `rgba(${tier.rgb},0.12)`}`,
+                    ...(isComplete
+                      ? {
+                          ['--tier-rgb' as string]: tier.rgb,
+                          animation: 'trackCompletePulse 3.2s ease-in-out infinite',
+                        }
+                      : null),
                   }}
                 >
                   {/* ── L-bracket corners ── */}
@@ -167,6 +174,37 @@ export const TheoryTrackGallery = ({
                         <Lock className="h-12 w-12 text-white/[0.07]" />
                       </div>
                     )}
+
+                    {/* Complete badge */}
+                    {isComplete && (
+                      <div
+                        className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full backdrop-blur-sm"
+                        style={{
+                          background: `rgba(${tier.rgb},0.15)`,
+                          border: `1px solid rgba(${tier.rgb},0.45)`,
+                          animation: 'trackCompleteBadgeIn .6s cubic-bezier(.16,1,.3,1) 300ms both',
+                        }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path
+                            d="M5 12.5 10 17 L19 7"
+                            stroke={tier.color}
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeDasharray="24"
+                            strokeDashoffset="24"
+                            style={{ animation: 'trackCompleteCheck .5s cubic-bezier(.16,1,.3,1) 700ms forwards' }}
+                          />
+                        </svg>
+                        <span
+                          className="font-mono font-bold text-[9px] tracking-[0.18em] uppercase"
+                          style={{ color: tier.color }}
+                        >
+                          Complete
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* ── Card body ── */}
@@ -177,7 +215,7 @@ export const TheoryTrackGallery = ({
                       {tier.label}
                     </h2>
                     <p
-                      className="font-mono text-[10px] tracking-[0.18em] uppercase mb-8"
+                      className="font-mono font-medium text-[10px] tracking-[0.18em] uppercase mb-8"
                       style={{ color: tier.color }}
                     >
                       {tier.subtitle}
@@ -185,19 +223,38 @@ export const TheoryTrackGallery = ({
 
                     {/* Progress */}
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-mono text-[10px] tracking-widest text-on-surface-variant/35 uppercase">Progress</span>
+                      <span className="font-mono font-medium text-[10px] tracking-widest text-on-surface-variant/35 uppercase">Progress</span>
                       <span className="font-mono text-[13px] font-bold" style={{ color: tier.color }}>{progressPct}%</span>
                     </div>
 
                     {/* Progress bar */}
-                    <div className="mb-8 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
-                      <div style={{ width: `${progressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
+                    <div className="mb-8 w-full overflow-hidden relative" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                      <div
+                        style={{
+                          width: `${progressPct}%`,
+                          height: '100%',
+                          background: isComplete ? tier.color : '#fff',
+                          borderRadius: 100,
+                          opacity: isComplete ? 1 : 0.85,
+                          boxShadow: isComplete ? `0 0 8px rgba(${tier.rgb},0.6)` : undefined,
+                          transition: 'width 1.5s cubic-bezier(.16,1,.3,1)',
+                        }}
+                      />
+                      {isComplete && (
+                        <div
+                          className="absolute inset-y-0 w-1/3 pointer-events-none"
+                          style={{
+                            background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent)`,
+                            animation: 'trackCompleteShine 2.4s cubic-bezier(.4,0,.2,1) infinite',
+                          }}
+                        />
+                      )}
                     </div>
 
                     {/* Stat rows */}
                     <div className="space-y-0 flex-1">
                       <StatRow label="MODULES" value={`${String(completedModules).padStart(2, '0')} / ${String(track.chapterCount).padStart(2, '0')}`} />
-                      <StatRow label="Est. Completion" value={est} />
+                      <StatRow label="Duration" value={duration} />
                       <StatRow label="kWh Multiplier" value={tier.xp} />
                     </div>
 
@@ -218,9 +275,14 @@ export const TheoryTrackGallery = ({
                         <div
                           className="w-full py-3.5 text-center font-mono text-[12px] font-bold tracking-[0.2em] uppercase rounded-[14px] transition-all duration-300"
                           style={{
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            backgroundColor: 'rgba(255,255,255,0.08)',
-                            color: 'rgba(255,255,255,0.7)',
+                            border: isComplete
+                              ? `1px solid rgba(${tier.rgb},0.4)`
+                              : '1px solid rgba(255,255,255,0.12)',
+                            backgroundColor: isComplete
+                              ? `rgba(${tier.rgb},0.12)`
+                              : 'rgba(255,255,255,0.08)',
+                            color: isComplete ? tier.color : 'rgba(255,255,255,0.7)',
+                            boxShadow: isComplete ? `0 0 20px -4px rgba(${tier.rgb},0.35)` : undefined,
                           }}
                         >
                           {cta}
@@ -249,8 +311,8 @@ function StatRow({ label, value }: { label: string; value: string }) {
       className="flex items-center justify-between py-3"
       style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
     >
-      <span className="font-mono text-[10px] tracking-widest text-on-surface-variant/35 uppercase">{label}</span>
-      <span className="font-mono text-[13px] font-semibold text-on-surface/80">{value}</span>
+      <span className="font-mono font-medium text-[10px] tracking-widest text-on-surface-variant/35 uppercase">{label}</span>
+      <span className="font-mono text-[13px] font-bold text-on-surface/80">{value}</span>
     </div>
   );
 }
@@ -294,7 +356,7 @@ function Ticker() {
 
   return (
     <div
-      className="mt-8 flex items-center gap-4 px-4 py-2.5 overflow-hidden font-mono text-[10px] tracking-widest text-on-surface-variant/25 uppercase"
+      className="mt-8 flex items-center gap-4 px-4 py-2.5 overflow-hidden font-mono font-medium text-[10px] tracking-widest text-on-surface-variant/25 uppercase"
       style={{
         border: '1px solid rgba(255,255,255,0.03)',
         background: 'rgba(255,255,255,0.01)',

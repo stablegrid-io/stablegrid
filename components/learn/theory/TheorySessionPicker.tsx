@@ -183,7 +183,7 @@ export const TheorySessionPicker = ({
                         <Icon className="h-5 w-5" style={{ color: a.hex }} />
                       </div>
                       <div className="text-right">
-                        <div className="text-[9px] uppercase mb-0.5" style={{ color: a.hex }}>{targetLabel}</div>
+                        <div className="text-[9px] font-mono font-medium uppercase mb-0.5" style={{ color: a.hex }}>{targetLabel}</div>
                         <div className="text-2xl font-light text-on-surface">{timeLabel}</div>
                       </div>
                     </div>
@@ -200,7 +200,7 @@ export const TheorySessionPicker = ({
                       {/* Session structure visualization */}
                       <div className="bg-black/40 p-2 rounded-[14px] border border-outline-variant/20">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="text-[9px] tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
+                          <span className="text-[9px] font-mono font-medium tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
                             SESSION_STRUCTURE
                           </span>
                           <span className="text-[9px]" style={{ color: a.hex }}>{totalMinutes} MIN</span>
@@ -233,12 +233,12 @@ export const TheorySessionPicker = ({
                       {/* Stats */}
                       <div className="grid grid-cols-2 gap-2">
                         <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
-                          <div className="text-[8px] text-on-surface-variant uppercase">{stats[0]}</div>
-                          <div className="text-[11px] font-bold text-on-surface uppercase">{stats[1]}</div>
+                          <div className="text-[8px] font-mono font-medium text-on-surface-variant uppercase">{stats[0]}</div>
+                          <div className="text-[11px] font-mono font-bold text-on-surface uppercase">{stats[1]}</div>
                         </div>
                         <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
-                          <div className="text-[8px] text-on-surface-variant uppercase">{stats[2]}</div>
-                          <div className="text-[11px] font-bold text-on-surface uppercase">{stats[3]}</div>
+                          <div className="text-[8px] font-mono font-medium text-on-surface-variant uppercase">{stats[2]}</div>
+                          <div className="text-[11px] font-mono font-bold text-on-surface uppercase">{stats[3]}</div>
                         </div>
                       </div>
 
@@ -253,7 +253,7 @@ export const TheorySessionPicker = ({
               <button
                 type="button"
                 onClick={() => onStart(freeReadConfig)}
-                className="border border-amber-400/30 bg-amber-400/10 px-8 py-3 rounded-[14px] text-xs font-bold text-amber-400 uppercase tracking-widest hover:bg-amber-400/20 hover:border-amber-400/50 transition-all"
+                className="border border-amber-400/30 bg-amber-400/10 px-8 py-3 rounded-[14px] text-xs font-mono font-bold text-amber-400 uppercase tracking-widest hover:bg-amber-400/20 hover:border-amber-400/50 transition-all"
               >
                 FREE READ
               </button>

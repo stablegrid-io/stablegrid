@@ -59,7 +59,7 @@ export function FirstLoopChecklist({ steps }: FirstLoopChecklistProps) {
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5f7b6b] dark:text-[#8fb8a3]">
+          <p className="text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-[#5f7b6b] dark:text-[#8fb8a3]">
             First deployment loop
           </p>
           <h2
@@ -69,12 +69,12 @@ export function FirstLoopChecklist({ steps }: FirstLoopChecklistProps) {
             Finish two chapters, then spend the reward.
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#4a6154] dark:text-[#b7cec2]">
-            StableGrid is clearest when you complete the full loop once. The primary action above
+            stableGrid is clearest when you complete the full loop once. The primary action above
             keeps moving to the next unfinished step.
           </p>
         </div>
 
-        <div className="inline-flex items-center rounded-full border border-[#d7e5db] bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#4b6657] dark:border-white/10 dark:bg-[#0d1511] dark:text-[#96b4a4]">
+        <div className="inline-flex items-center rounded-full border border-[#d7e5db] bg-white px-3 py-1 text-xs font-mono font-bold uppercase tracking-[0.16em] text-[#4b6657] dark:border-white/10 dark:bg-[#0d1511] dark:text-[#96b4a4]">
           {completedCount}/3 complete
         </div>
       </div>
@@ -97,14 +97,14 @@ export function FirstLoopChecklist({ steps }: FirstLoopChecklistProps) {
                     <p className="text-sm font-semibold text-[#101918] dark:text-[#f3f7f4]">
                       {step.title}
                     </p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[#5d7767] dark:text-[#94b0a1]">
+                    <p className="mt-1 text-xs font-mono font-medium uppercase tracking-[0.14em] text-[#5d7767] dark:text-[#94b0a1]">
                       {step.description}
                     </p>
                   </div>
                 </div>
 
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${STATUS_BADGE[step.status]}`}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.14em] ${STATUS_BADGE[step.status]}`}
                 >
                   {step.status === 'complete' ? (
                     <CheckCircle2 className="h-3.5 w-3.5" />

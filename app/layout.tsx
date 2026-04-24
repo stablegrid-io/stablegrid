@@ -1,18 +1,11 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Space_Grotesk, JetBrains_Mono, Inter } from 'next/font/google';
+import { JetBrains_Mono, Inter } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { CookieConsentManager } from '@/components/cookies/CookieConsentManager';
 import { Navigation } from '@/components/navigation/Navigation';
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-space-grotesk',
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-});
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
@@ -43,7 +36,7 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <html lang="en" className={`dark ${spaceGrotesk.variable} ${jetbrainsMono.variable} ${inter.variable}`}>
+    <html lang="en" className={`dark ${jetbrainsMono.variable} ${inter.variable}`}>
       <body className="min-h-screen font-sans text-on-surface">
         <CookieConsentManager />
         <AuthProvider>

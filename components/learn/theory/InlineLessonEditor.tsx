@@ -118,7 +118,7 @@ const actionBtnStyle: React.CSSProperties = {
 // Keep class-based versions for backward compat in places that need both
 const inputCls = 'w-full px-3 py-2 text-sm outline-none';
 const blockCardCls = 'p-4';
-const primaryBtnCls = 'px-4 py-2 text-sm font-semibold font-mono uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed';
+const primaryBtnCls = 'px-4 py-2 text-sm font-bold font-mono uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed';
 const secondaryBtnCls = 'px-4 py-2 text-sm font-medium font-mono uppercase tracking-wider';
 const actionBtnCls = 'px-2 py-1 text-xs font-mono';
 
@@ -708,7 +708,7 @@ export function InlineLessonEditor({
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {/* ---- Editor pane ---- */}
         <div>
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wider font-mono" style={{ color: 'var(--rm-text-secondary)' }}>
+          <div className="mb-3 text-xs font-bold uppercase tracking-wider font-mono" style={{ color: 'var(--rm-text-secondary)' }}>
             Editor
           </div>
 
@@ -811,12 +811,12 @@ export function InlineLessonEditor({
 
         {/* ---- Preview pane ---- */}
         <div className="hidden xl:block">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wider font-mono" style={{ color: 'var(--rm-text-secondary)' }}>
+          <div className="mb-3 text-xs font-bold uppercase tracking-wider font-mono" style={{ color: 'var(--rm-text-secondary)' }}>
             Preview
           </div>
           <div
             data-reading-mode={readingMode}
-            className="sticky top-0 max-h-[calc(100vh-8rem)] overflow-y-auto rounded-xl border p-6"
+            className="sticky top-0 max-h-[calc(100vh-8rem)] overflow-y-auto rounded-[22px] border p-6"
             style={{
               backgroundColor: 'var(--rm-bg)',
               borderColor: 'var(--rm-border)',

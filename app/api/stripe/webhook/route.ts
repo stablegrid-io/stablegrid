@@ -225,7 +225,7 @@ export async function POST(request: Request) {
           user_id: userId,
           stripe_customer_id: currentCustomerId,
           stripe_sub_id: subscription.id,
-          plan: isPaid ? 'pro' : 'free',
+          plan: isPaid ? 'supporter' : 'free',
           status,
           current_period_end: currentPeriodEnd
             ? new Date(currentPeriodEnd * 1000).toISOString()

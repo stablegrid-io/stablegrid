@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Check, Lock, Minus } from 'lucide-react';
+import { ArrowRight, Check, ChevronRight, Lock, Minus } from 'lucide-react';
 import { LANDING_TOPICS } from '@/lib/landing/topics';
 import { TopicCard } from '@/components/topics/TopicCard';
 import { LandingIntro } from '@/components/home/landing/LandingIntro';
@@ -21,8 +21,27 @@ function NavOnScroll() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Smooth-scroll for anchor links — scoped to this landing nav only so we
+  // don't need to touch global CSS (which already declares `scroll-behavior:
+  // auto !important` under `prefers-reduced-motion`). JS `scrollIntoView`
+  // respects that media query automatically.
+  const handleAnchorClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    hash: string,
+  ) => {
+    const target = document.querySelector(hash);
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Update URL without jump.
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      window.history.replaceState(null, '', hash);
+    }
+  };
+
   return (
     <nav
+      aria-label="Sections"
       className="fixed top-0 w-full z-50 border-b transition-all duration-300"
       style={{
         backgroundColor: 'rgba(10, 12, 14, 0.85)',
@@ -49,6 +68,7 @@ function NavOnScroll() {
             <a
               key={link.href}
               href={link.href}
+              onClick={(e) => handleAnchorClick(e, link.href)}
               className="text-[13px] font-medium transition-colors"
               style={{
                 color: 'rgba(255,255,255,0.55)',
@@ -64,7 +84,8 @@ function NavOnScroll() {
 
         <Link
           href="/login"
-          className="px-5 py-2 text-sm font-semibold transition-all"
+          prefetch={false}
+          className="px-4 py-2 text-sm font-semibold transition-all whitespace-nowrap"
           style={{
             backgroundColor: '#f0f0f3',
             color: '#0a0c0e',
@@ -147,6 +168,7 @@ export const LandingPage = () => {
       {/* ── Navigation (appears on scroll) ─────────────────────────────── */}
       <NavOnScroll />
 
+      <main>
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
       <section className="min-h-[100vh] flex items-center justify-center px-6 relative overflow-hidden">
         {/* Background image — full bleed, battery as hero */}
@@ -223,6 +245,7 @@ export const LandingPage = () => {
           >
             <Link
               href="/login"
+              prefetch={false}
               className="landing-hero-cta inline-flex items-center gap-2"
               style={{
                 padding: '13px 26px',
@@ -237,11 +260,20 @@ export const LandingPage = () => {
               }}
             >
               Get started
-              <ArrowRight className="w-[15px] h-[15px]" strokeWidth={2.2} />
+              <ArrowRight aria-hidden="true" className="w-[15px] h-[15px]" strokeWidth={2.2} />
             </Link>
 
             <a
               href="#topics"
+              onClick={(e) => {
+                const target = document.querySelector('#topics');
+                if (!target) return;
+                e.preventDefault();
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                if (typeof window !== 'undefined' && window.history?.replaceState) {
+                  window.history.replaceState(null, '', '#topics');
+                }
+              }}
               className="landing-hero-link inline-flex items-center gap-1.5"
               style={{
                 fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
@@ -267,7 +299,7 @@ export const LandingPage = () => {
       <section id="topics" className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
           <p
-            className="text-xs uppercase tracking-widest mb-4"
+            className="font-mono font-bold text-xs uppercase tracking-widest mb-4"
             style={{ color: 'rgba(255,255,255,0.25)', letterSpacing: '0.18em' }}
           >
             Topics
@@ -309,13 +341,12 @@ export const LandingPage = () => {
               }}
             >
               <span className="landing-hero-link__label">Explore all 20+ topics</span>
-              <span
-                aria-hidden
-                className="landing-hero-link__arrow landing-hero-link__arrow--chevron"
-                style={{ transition: 'transform 300ms cubic-bezier(.16,1,.3,1)', fontSize: 18, lineHeight: 1 }}
-              >
-                ›
-              </span>
+              <ChevronRight
+                aria-hidden="true"
+                className="landing-hero-link__arrow landing-hero-link__arrow--chevron w-4 h-4"
+                strokeWidth={2.2}
+                style={{ transition: 'transform 300ms cubic-bezier(.16,1,.3,1)' }}
+              />
             </Link>
           </div>
         </div>
@@ -327,12 +358,31 @@ export const LandingPage = () => {
       {/* ── Tier Showcase ────────────────────────────────────────────────── */}
       <section id="tiers" className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
-          <p
-            className="text-xs uppercase tracking-widest mb-4"
-            style={{ color: 'rgba(255,255,255,0.25)', letterSpacing: '0.18em' }}
-          >
-            Progression
-          </p>
+          <div className="flex items-center gap-3 mb-4">
+            <p
+              className="font-mono font-bold text-xs uppercase tracking-widest"
+              style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.18em' }}
+            >
+              Progression
+            </p>
+            <span
+              className="font-mono inline-flex items-center gap-1.5"
+              style={{
+                fontSize: 9,
+                letterSpacing: '0.22em',
+                color: '#99f7ff',
+                textTransform: 'uppercase',
+                fontWeight: 700,
+                padding: '3px 8px',
+                borderRadius: 999,
+                border: '1px solid rgba(153,247,255,0.3)',
+                background: 'rgba(153,247,255,0.08)',
+              }}
+            >
+              <span aria-hidden style={{ width: 5, height: 5, borderRadius: '50%', background: '#99f7ff' }} />
+              Preview
+            </span>
+          </div>
           <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-6" style={{ lineHeight: 1.1 }}>
             Three levels of depth.<br />
             <span style={{ color: 'rgba(255,255,255,0.35)' }}>One clear path forward.</span>
@@ -346,17 +396,17 @@ export const LandingPage = () => {
               {
                 level: 'JUNIOR', subtitle: 'FOUNDATIONAL MODULES', color: '#99f7ff', rgb: '153,247,255',
                 image: '/brand/track-junior.png',
-                progressPct: 100, modules: '10 / 10', est: '42:40:00', xp: '1.0X', cta: 'Review Track',
+                modules: '0/10', est: '~42 hours total', xp: '1.0X', cta: 'Start track',
               },
               {
                 level: 'MID', subtitle: 'ADVANCED SYSTEMS', color: '#ffc965', rgb: '255,201,101',
                 image: '/brand/track-mid.png',
-                progressPct: 1, modules: '00 / 10', est: '53:10:00', xp: '1.5X', cta: 'Continue',
+                modules: '0/10', est: '~53 hours total', xp: '1.5X', cta: 'Start track',
               },
               {
                 level: 'SENIOR', subtitle: 'PLATFORM ARCHITECTURE', color: '#ff716c', rgb: '255,113,108',
                 image: '/brand/track-senior.png',
-                progressPct: 1, modules: '00 / 10', est: '66:40:00', xp: '3.0X', cta: 'Locked',
+                modules: '0/10', est: '~66 hours total', xp: '3.0X', cta: 'Unlock at Mid',
                 locked: true,
               },
             ].map((tier, i) => (
@@ -403,7 +453,7 @@ export const LandingPage = () => {
                     />
                     {tier.locked && (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Lock className="h-12 w-12 text-white/[0.07]" />
+                        <Lock aria-hidden="true" className="h-12 w-12 text-white/[0.07]" />
                       </div>
                     )}
                   </div>
@@ -421,32 +471,11 @@ export const LandingPage = () => {
                       {tier.subtitle}
                     </p>
 
-                    {/* Progress */}
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-mono text-[10px] tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.35)' }}>Progress</span>
-                      <span className="font-mono text-[13px] font-bold" style={{ color: tier.color }}>{tier.progressPct}%</span>
-                    </div>
-                    <div
-                      className="mb-8 w-full overflow-hidden"
-                      style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}
-                    >
-                      <div
-                        style={{
-                          width: `${tier.progressPct}%`,
-                          height: '100%',
-                          background: '#fff',
-                          borderRadius: 100,
-                          opacity: 0.85,
-                          transition: 'width 1.5s cubic-bezier(.16,1,.3,1)',
-                        }}
-                      />
-                    </div>
-
                     {/* Stat rows */}
                     <div className="space-y-0 flex-1">
                       {[
                         { label: 'MODULES', value: tier.modules },
-                        { label: 'Est. Completion', value: tier.est },
+                        { label: 'Duration', value: tier.est },
                         { label: 'kWh Multiplier', value: tier.xp },
                       ].map((row) => (
                         <div
@@ -457,7 +486,7 @@ export const LandingPage = () => {
                           <span className="font-mono text-[10px] tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.35)' }}>
                             {row.label}
                           </span>
-                          <span className="font-mono text-[13px] font-semibold" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                          <span className="font-mono text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.8)' }}>
                             {row.value}
                           </span>
                         </div>
@@ -494,7 +523,7 @@ export const LandingPage = () => {
       <section id="grid" className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
           <p
-            className="text-xs uppercase tracking-widest mb-4"
+            className="font-mono font-bold text-xs uppercase tracking-widest mb-4"
             style={{ color: 'rgba(255,255,255,0.25)', letterSpacing: '0.18em' }}
           >
             The Grid
@@ -503,8 +532,14 @@ export const LandingPage = () => {
             Learn. Earn.<br />
             <span style={{ color: '#99f7ff' }}>Rebuild the grid.</span>
           </h2>
-          <p className="text-[15px] leading-relaxed mb-16" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '560px' }}>
-            Every lesson charges your kWh reserve. Spend it in the shop to bring ten power components online across an interactive 3D map of Lithuania.
+          <p className="text-[15px] leading-relaxed mb-4" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '560px' }}>
+            Every lesson charges your kWh reserve. Spend it in the shop to bring ten power components online across an interactive 3D map of a real regional grid (Lithuania).
+          </p>
+          <p
+            className="font-mono text-[11px] uppercase mb-16"
+            style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.14em' }}
+          >
+            kWh = kilowatt-hour · earned per completed lesson
           </p>
 
           {/* Interactive catalog — live filters + toggleable deploy state */}
@@ -519,17 +554,17 @@ export const LandingPage = () => {
       <section id="pricing" className="py-28 lg:py-40 px-6">
         <div className="max-w-6xl mx-auto">
           <p
-            className="text-xs uppercase tracking-widest mb-4"
+            className="font-mono font-bold text-xs uppercase tracking-widest mb-4"
             style={{ color: 'rgba(255,255,255,0.25)', letterSpacing: '0.18em' }}
           >
             Pricing
           </p>
           <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-6" style={{ lineHeight: 1.1 }}>
-            Start free.<br />
-            <span style={{ color: 'rgba(255,255,255,0.35)' }}>Unlock everything.</span>
+            Free while we&apos;re in beta.<br />
+            <span style={{ color: 'rgba(255,255,255,0.35)' }}>€2.99 if you want to back it.</span>
           </h2>
           <p className="text-[15px] leading-relaxed mb-16" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '520px' }}>
-            Sample any track free. Upgrade when you&apos;re ready for Mid, Senior, and the Grid.
+            Everyone gets the whole platform during beta. Supporters chip in so we can keep shipping — and lock in €2.99 for life.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -537,42 +572,44 @@ export const LandingPage = () => {
               {
                 name: 'Free',
                 price: '€0',
-                cadence: 'forever',
-                note: 'No card required',
+                cadence: 'during beta',
+                note: 'No card. We\u2019ll tell you before anything changes.',
                 cta: 'Start free',
+                href: '/login',
                 highlight: false,
                 image: '/pricing-free.png',
                 accent: '153,247,255',
                 eyebrow: 'STARTER',
-                tagline: 'Sample the platform, keep your progress.',
-                features: [
-                  { included: true,  label: 'Module 1 of every Junior track' },
-                  { included: true,  label: '3 sample practice tasks' },
-                  { included: true,  label: 'Progress tracking & activity map' },
-                  { included: false, label: 'Full Junior, Mid & Senior modules' },
-                  { included: false, label: 'Complete practice library' },
-                  { included: false, label: 'Grid game — earn, shop, restore' },
-                ],
-              },
-              {
-                name: 'Monthly',
-                price: '€11.99',
-                cadence: 'per month + VAT',
-                note: 'Billed monthly, cancel anytime',
-                cta: 'Go Monthly',
-                highlight: true,
-                badge: 'Full access',
-                image: '/pricing-monthly.png',
-                accent: '255,201,101',
-                eyebrow: 'PREMIUM',
-                tagline: 'Every track, every tier, every tool.',
+                tagline: 'Everything\u2019s open while we\u2019re in beta.',
                 features: [
                   { included: true, label: 'All Junior, Mid & Senior modules' },
                   { included: true, label: 'Complete practice library' },
                   { included: true, label: 'Grid game — earn, shop, restore' },
                   { included: true, label: 'All tracks, all tiers' },
                   { included: true, label: 'Session timers & reading modes' },
-                  { included: true, label: 'Cancel anytime' },
+                  { included: true, label: 'Progress tracking & activity map' },
+                ],
+              },
+              {
+                name: 'Supporter',
+                price: '€2.99',
+                cadence: 'per month · beta',
+                note: '€2.99 stays €2.99 — even after beta ends.',
+                cta: 'Back the beta',
+                href: `/login?next=${encodeURIComponent('/settings?tab=billing&auto_upgrade=1')}`,
+                highlight: true,
+                badge: 'Beta · limited',
+                image: '/pricing-monthly.png',
+                accent: '255,201,101',
+                eyebrow: 'EARLY SUPPORTER',
+                tagline: 'Back the build. Lock in your price. Keep the grid on.',
+                features: [
+                  { included: true, label: 'Everything Free gets — no limits' },
+                  { included: true, label: 'Your rate locked for life — €2.99 forever' },
+                  { included: true, label: 'Founding Supporter — you were here first' },
+                  { included: true, label: 'Your €2.99 pays servers, coffee, and shipping' },
+                  { included: true, label: 'No ads, no upsells, no dark patterns' },
+                  { included: true, label: 'Cancel anytime, keep your progress' },
                 ],
               },
             ].map((plan, i) => (
@@ -604,7 +641,7 @@ export const LandingPage = () => {
 
                 {plan.highlight && plan.badge && (
                   <div
-                    className="absolute top-5 right-5 z-20 inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold tracking-widest uppercase"
+                    className="absolute top-5 right-5 z-20 inline-flex items-center gap-1.5 px-3 py-1 font-mono text-[10px] font-bold tracking-widest uppercase"
                     style={{
                       backgroundColor: `rgba(${plan.accent},0.14)`,
                       color: `rgb(${plan.accent})`,
@@ -674,7 +711,7 @@ export const LandingPage = () => {
                       {plan.cadence}
                     </span>
                   </div>
-                  <p className="font-mono text-[9.5px] tracking-widest uppercase mb-5" style={{ color: 'rgba(255,255,255,0.3)', letterSpacing: '0.14em' }}>
+                  <p className="text-[12.5px] mb-5" style={{ color: 'rgba(255,255,255,0.6)', letterSpacing: '-0.005em', lineHeight: 1.45 }}>
                     {plan.note}
                   </p>
 
@@ -694,6 +731,7 @@ export const LandingPage = () => {
                             }}
                           >
                             <Check
+                              aria-hidden="true"
                               className="w-2.5 h-2.5"
                               style={{ color: `rgb(${plan.accent})` }}
                               strokeWidth={3}
@@ -708,6 +746,7 @@ export const LandingPage = () => {
                             }}
                           >
                             <Minus
+                              aria-hidden="true"
                               className="w-2.5 h-2.5"
                               style={{ color: 'rgba(255,255,255,0.2)' }}
                               strokeWidth={3}
@@ -730,7 +769,8 @@ export const LandingPage = () => {
 
                   {/* CTA */}
                   <Link
-                    href="/login"
+                    href={plan.href}
+                    prefetch={false}
                     className="inline-flex items-center justify-center gap-2 px-5 py-3.5 text-[12.5px] font-bold tracking-widest uppercase transition-all"
                     style={{
                       backgroundColor: plan.highlight ? `rgb(${plan.accent})` : 'rgba(255,255,255,0.06)',
@@ -760,7 +800,7 @@ export const LandingPage = () => {
                     }}
                   >
                     {plan.cta}
-                    <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    <ArrowRight aria-hidden="true" className="w-3.5 h-3.5" strokeWidth={2.5} />
                   </Link>
                 </div>
               </div>
@@ -811,6 +851,7 @@ export const LandingPage = () => {
               </h2>
               <Link
                 href="/login"
+                prefetch={false}
                 className="inline-flex items-center gap-2 px-8 py-4 text-base font-semibold transition-all"
                 style={{
                   backgroundColor: '#f0f0f3',
@@ -828,7 +869,7 @@ export const LandingPage = () => {
                 }}
               >
                 Get started
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight aria-hidden="true" className="w-4 h-4" />
               </Link>
 
               <p
@@ -841,6 +882,7 @@ export const LandingPage = () => {
           </div>
         </div>
       </section>
+      </main>
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <footer

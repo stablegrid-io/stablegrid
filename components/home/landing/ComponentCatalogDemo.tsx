@@ -48,7 +48,16 @@ const INITIAL_RESERVE_KWH = 2138;
 
 type FilterKey = 'all' | ComponentCategory;
 
-export function ComponentCatalogDemo() {
+interface ComponentCatalogDemoProps {
+  /**
+   * When true, hides all interactivity — chip filters still render for visual
+   * parity but don't update state, and deploy/undeploy buttons become inert.
+   * Used inside the onboarding flow where the catalog is a preview only.
+   */
+  readOnly?: boolean;
+}
+
+export function ComponentCatalogDemo({ readOnly = false }: ComponentCatalogDemoProps = {}) {
   const [filter, setFilter] = useState<FilterKey>('all');
   // Seed with nothing deployed — landing page shows the pre-restoration state
   // with the full budget available and every component awaiting deployment.
@@ -80,9 +89,8 @@ export function ComponentCatalogDemo() {
     return pool.slice(0, 3);
   }, [filter]);
 
-  const deployedCount = deployed.size;
-
   const toggleDeploy = (slug: ComponentSlug, cost: number) => {
+    if (readOnly) return;
     setDeployed((prev) => {
       const next = new Set(prev);
       if (next.has(slug)) {
@@ -203,24 +211,30 @@ export function ComponentCatalogDemo() {
             Deploy to restore the grid
           </h3>
         </div>
-        <div
-          className="font-mono tabular-nums"
-          style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em' }}
-        >
-          <span style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 600 }}>
-            {deployedCount}
-          </span>{' '}
-          of {totalCount} deployed ·{' '}
+        <div className="flex flex-col items-end gap-1.5">
           <span
+            className="font-mono inline-flex items-center gap-1.5"
             style={{
+              fontSize: 9,
+              letterSpacing: '0.22em',
               color: '#99f7ff',
-              fontWeight: 600,
-              transition: 'color 220ms ease'
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              padding: '3px 8px',
+              borderRadius: 999,
+              border: '1px solid rgba(153,247,255,0.3)',
+              background: 'rgba(153,247,255,0.08)',
             }}
           >
-            {reserveKwh.toLocaleString()} kWh
-          </span>{' '}
-          reserve
+            <span aria-hidden style={{ width: 5, height: 5, borderRadius: '50%', background: '#99f7ff' }} />
+            Sample dashboard
+          </span>
+          <span
+            className="font-mono"
+            style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.04em' }}
+          >
+            Earn kWh as you learn — deploy {totalCount} components across a real regional grid
+          </span>
         </div>
       </header>
 
@@ -239,7 +253,9 @@ export function ComponentCatalogDemo() {
               key={chip.key}
               type="button"
               className="chip-btn font-mono inline-flex items-center gap-2"
-              onClick={() => setFilter(chip.key)}
+              onClick={() => !readOnly && setFilter(chip.key)}
+              disabled={readOnly}
+              aria-pressed={active}
               style={{
                 padding: '6px 12px',
                 borderRadius: 999,
@@ -476,7 +492,7 @@ export function ComponentCatalogDemo() {
                     <button
                       type="button"
                       className="toggle-btn font-mono"
-                      disabled={!isDeployed && !canAfford}
+                      disabled={readOnly || (!isDeployed && !canAfford)}
                       onClick={() => toggleDeploy(c.slug, c.costKwh)}
                       style={{
                         background: isDeployed ? 'transparent' : `${color}14`,
