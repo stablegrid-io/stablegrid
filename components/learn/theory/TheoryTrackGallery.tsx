@@ -138,19 +138,23 @@ export const TheoryTrackGallery = ({
                 style={{ opacity: 0, animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${i * 80 + 120}ms forwards` }}
               >
                 <div
-                  className="relative overflow-hidden h-full flex flex-col transition-all duration-500 hover:scale-[1.015] rounded-[22px]"
-                  style={{
-                    background: '#181c20',
-                    border: isComplete
-                      ? '1px solid transparent'
-                      : `1px solid ${isLocked ? 'rgba(255,255,255,0.05)' : `rgba(${tier.rgb},0.12)`}`,
-                    ...(isComplete
-                      ? {
-                          ['--tier-rgb' as string]: tier.rgb,
-                          animation: 'trackCompletePulse 3.2s ease-in-out infinite',
+                  className={`relative overflow-hidden h-full flex flex-col transition-all duration-500 hover:scale-[1.015] rounded-[22px] ${
+                    isStarted && !isComplete && !isLocked ? 'track-active-shine' : ''
+                  }`}
+                  style={
+                    isStarted && !isComplete && !isLocked
+                      ? ({ ['--tier-rgb' as string]: tier.rgb } as CSSProperties)
+                      : {
+                          background: '#181c20',
+                          border: `1px solid ${
+                            isComplete
+                              ? `rgba(${tier.rgb},0.3)`
+                              : isLocked
+                                ? 'rgba(255,255,255,0.05)'
+                                : `rgba(${tier.rgb},0.12)`
+                          }`,
                         }
-                      : null),
-                  }}
+                  }
                 >
                   {/* ── L-bracket corners ── */}
                   <Corner pos="top-left" rgb={tier.rgb} locked={isLocked} />
@@ -282,7 +286,6 @@ export const TheoryTrackGallery = ({
                               ? `rgba(${tier.rgb},0.12)`
                               : 'rgba(255,255,255,0.08)',
                             color: isComplete ? tier.color : 'rgba(255,255,255,0.7)',
-                            boxShadow: isComplete ? `0 0 20px -4px rgba(${tier.rgb},0.35)` : undefined,
                           }}
                         >
                           {cta}

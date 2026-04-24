@@ -1,12 +1,18 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Search, ArrowUpDown } from 'lucide-react';
 import { getLearnTopicMeta, learnTopics } from '@/data/learn';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { CATEGORY_COLORS, type CategoryName } from '@/components/home/orbitalMapData';
+import { TopicLightbulbRating } from '@/components/feedback/TopicLightbulbRating';
+
+interface TopicScore {
+  average: number;
+  count: number;
+}
 
 type LearnMode = 'theory';
 type TopicFilter = 'all' | 'in-progress' | 'completed' | 'untouched' | 'under-construction';
@@ -89,7 +95,7 @@ const TRACK_META_BY_TOPIC: Record<string, { classification: string; category: st
 };
 
 const getSimpleTrackName = (title: string) => {
-  return title.replace(/\s+modules?$/i, '').trim();
+  return title.replace(/\s+(tracks?|modules?)$/i, '').trim();
 };
 
 export function LearnModeTopicSelector({
@@ -131,6 +137,22 @@ export function LearnModeTopicSelector({
   const [themeFilter, setThemeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
+  const [topicScores, setTopicScores] = useState<Record<string, TopicScore>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/feedback/topic-scores', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = (await res.json()) as { data?: Record<string, TopicScore> };
+        if (!cancelled && json.data) setTopicScores(json.data);
+      } catch {
+        // Silent — the rating row falls back to "No ratings yet".
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const topicStatuses = useMemo(() => {
     const statuses: Record<string, 'completed' | 'in-progress' | 'untouched' | 'under-construction'> = {};
@@ -627,8 +649,17 @@ export function LearnModeTopicSelector({
                             </div>
 
                             {/* Progress bar */}
-                            <div className="mb-8 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                            <div className="mb-5 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
                               <div style={{ width: `${topicProgressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
+                            </div>
+
+                            {/* Community rating */}
+                            <div className="mb-6">
+                              <TopicLightbulbRating
+                                average={topicScores[topic.id]?.average ?? null}
+                                count={topicScores[topic.id]?.count ?? 0}
+                                accentRgb={catRgb}
+                              />
                             </div>
 
                             {/* CTA */}

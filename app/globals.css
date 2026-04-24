@@ -217,6 +217,30 @@
   100% { transform: translateX(120%); }
 }
 
+/* Steady shimmer used by the currently-active tier card. Sweeps a bright
+   highlight around a tier-colored border via dual backgrounds (padding-box
+   keeps the inner fill solid; border-box is animated). */
+@keyframes trackActiveBorderShine {
+  0%   { background-position: 0 0, 0% 50%; }
+  100% { background-position: 0 0, 200% 50%; }
+}
+
+.track-active-shine {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#181c20, #181c20) padding-box,
+    linear-gradient(
+      90deg,
+      rgba(var(--tier-rgb), 0.18) 0%,
+      rgba(var(--tier-rgb), 0.9)  25%,
+      rgba(var(--tier-rgb), 0.18) 50%,
+      rgba(var(--tier-rgb), 0.9)  75%,
+      rgba(var(--tier-rgb), 0.18) 100%
+    ) border-box;
+  background-size: 100% 100%, 200% 100%;
+  animation: trackActiveBorderShine 3.6s linear infinite;
+}
+
 @keyframes trackCompleteBadgeIn {
   0% { opacity: 0; transform: translateY(-6px) scale(.92); }
   60% { opacity: 1; transform: translateY(0) scale(1.04); }

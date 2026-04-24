@@ -25,6 +25,8 @@ import { TheorySidebar } from '@/components/learn/theory/TheorySidebar';
 import { TheoryContent } from '@/components/learn/theory/TheoryContent';
 import { TheorySessionTopbar } from '@/components/learn/theory/TheorySessionTopbar';
 import { LessonCompletionToast } from '@/components/learn/theory/LessonCompletionToast';
+import { ModuleCompleteFeedback } from '@/components/feedback/ModuleCompleteFeedback';
+import { TrackCompleteFeedback } from '@/components/feedback/TrackCompleteFeedback';
 import { KWhRewardToast, type KWhReward } from '@/components/learn/theory/KWhRewardToast';
 import { getLessonRewardKWh, getModuleCompleteBonus, getTrackCompleteBonus } from '@/lib/energy';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
@@ -311,6 +313,8 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const [routeReady, setRouteReady] = useState(false);
   const [completionActionPending, setCompletionActionPending] = useState(false);
   const [showCompletionToast, setShowCompletionToast] = useState(false);
+  const [moduleFeedbackTarget, setModuleFeedbackTarget] = useState<TheoryChapter | null>(null);
+  const [showTrackFeedback, setShowTrackFeedback] = useState(false);
   const [sessionPickerVisible, setSessionPickerVisible] = useState(false);
   const [progressIssue, setProgressIssue] = useState<ProgressIssueState | null>(null);
   const [progressReloadToken, setProgressReloadToken] = useState(0);
@@ -362,10 +366,25 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     );
     setCompletionsLoaded(true);
   }, []);
-  // All modules unlocked (locking disabled)
+  // Sequential gating: module 1 is always open; module N (N>1) unlocks only
+  // when module N-1 is complete. Server is the source of truth (see
+  // app/api/learn/module-progress/route.ts), but we mirror the rule here so
+  // the UI actually reflects what the API will accept.
   const unlockedModuleIds = useMemo(() => {
-    return new Set(modules.map((module) => module.id));
-  }, [modules]);
+    const ids = new Set<string>();
+    for (let i = 0; i < modules.length; i += 1) {
+      const module = modules[i];
+      if (i === 0) {
+        ids.add(module.id);
+        continue;
+      }
+      const previous = modules[i - 1];
+      if (completedChapterIds.has(previous.id) || unlockedChapterIds.has(module.id)) {
+        ids.add(module.id);
+      }
+    }
+    return ids;
+  }, [modules, completedChapterIds, unlockedChapterIds]);
   const activeModuleIndex = modules.findIndex((module) => module.id === activeChapter.id);
   const upcomingModule =
     activeModuleIndex >= 0 && activeModuleIndex < modules.length - 1
@@ -495,6 +514,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     activeChapter.totalMinutes;
   const contentRef = useRef<HTMLDivElement | null>(null);
   const handleChapterComplete = useCallback(() => {
+    const alreadyCounted = completedChapterIds.has(activeChapter.id);
+    const nextCompletedCount = alreadyCounted
+      ? completedChapterIds.size
+      : completedChapterIds.size + 1;
     setCompletedChapterIds((prev) => new Set([...prev, activeChapter.id]));
     const currentIndex = modules.findIndex((module) => module.id === activeChapter.id);
     const nextModule =
@@ -505,7 +528,12 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       setUnlockedChapterIds((prev) => new Set([...prev, nextModule.id]));
     }
     setShowCompletionToast(true);
-  }, [activeChapter.id, modules]);
+    if (nextCompletedCount >= modules.length) {
+      setShowTrackFeedback(true);
+    } else {
+      setModuleFeedbackTarget(activeChapter);
+    }
+  }, [activeChapter, completedChapterIds, modules]);
   const handleChapterIncomplete = useCallback(() => {
     setCompletedChapterIds((prev) => {
       const next = new Set(prev);
@@ -1316,6 +1344,30 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           />
         ) : null}
       </AnimatePresence>
+
+      {/* Per-module feedback — appears alongside the completion toast */}
+      {moduleFeedbackTarget ? (
+        <ModuleCompleteFeedback
+          topic={doc.topic}
+          moduleId={moduleFeedbackTarget.id}
+          moduleTitle={moduleFeedbackTarget.title.replace(/^Module\s*\d+\s*:\s*/i, '')}
+          moduleNumber={moduleFeedbackTarget.order ?? moduleFeedbackTarget.number}
+          accentRgb={getTheoryTopicStyle(doc.topic).accentRgb}
+          onDismiss={() => setModuleFeedbackTarget(null)}
+        />
+      ) : null}
+
+      {/* Track-level feedback — celebratory modal after the last module */}
+      {showTrackFeedback ? (
+        <TrackCompleteFeedback
+          topic={doc.topic}
+          trackSlug={activeTrackSlug ?? trackLevel}
+          trackTitle={`${doc.title.replace(/\s*(Tracks|Modules)$/i, '')} — ${trackLevel}`}
+          totalModules={modules.length}
+          accentRgb={getTheoryTopicStyle(doc.topic).accentRgb}
+          onDismiss={() => setShowTrackFeedback(false)}
+        />
+      ) : null}
 
       {/* kWh reward toast */}
       <KWhRewardToast reward={activeReward} onDismiss={() => setActiveReward(null)} />

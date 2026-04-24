@@ -128,11 +128,38 @@ export const TheoryTrackPath = ({
     ?? moduleCards.find((c) => !c.isCompleted)?.module.id
     ?? null;
 
-  const cards = moduleCards.map((c) => ({
-    ...c,
-    status: (c.isCompleted ? 'completed' : c.module.id === activeId ? 'active' : 'available') as ModuleStatus,
-    progressPct: c.lessonsTotal > 0 ? Math.round((c.lessonsDone / c.lessonsTotal) * 100) : 0,
-  }));
+  // Sequential gating: module 1 is always open; module N (N>1) unlocks only
+  // when module N-1 is complete, OR when the server has already flagged it
+  // unlocked (e.g. resumed progress from a prior session).
+  const unlockedSet = new Set<string>();
+  for (let i = 0; i < moduleCards.length; i += 1) {
+    const card = moduleCards[i];
+    const serverUnlocked = Boolean(liveModuleProgressById[card.module.id]?.isUnlocked);
+    if (i === 0 || card.isCompleted || serverUnlocked) {
+      unlockedSet.add(card.module.id);
+      continue;
+    }
+    const previous = moduleCards[i - 1];
+    if (previous.isCompleted) {
+      unlockedSet.add(card.module.id);
+    }
+  }
+
+  const cards = moduleCards.map((c) => {
+    const isUnlocked = unlockedSet.has(c.module.id);
+    const status: ModuleStatus = c.isCompleted
+      ? 'completed'
+      : !isUnlocked
+        ? 'locked'
+        : c.module.id === activeId
+          ? 'active'
+          : 'available';
+    return {
+      ...c,
+      status,
+      progressPct: c.lessonsTotal > 0 ? Math.round((c.lessonsDone / c.lessonsTotal) * 100) : 0,
+    };
+  });
 
   // Build paired rows: each row has a theory card (left) + optional practice card (right)
   // Match positionally (1st theory ↔ 1st practice, 2nd ↔ 2nd, etc.) since
@@ -334,66 +361,95 @@ function TheoryNode({ card, idx, ta, topic }: {
   const desc = card.module.description || '';
   const isCompleted = card.status === 'completed';
   const isActive = card.status === 'active';
+  const isLocked = card.status === 'locked';
   const eyebrow = THEORY_EYEBROWS[idx % THEORY_EYEBROWS.length];
 
-  const ctaLabel = isCompleted ? 'Review Theory' : isActive ? 'Resume Theory' : 'Begin Theory';
+  const ctaLabel = isLocked
+    ? 'Locked — finish previous module'
+    : isCompleted
+      ? 'Review Theory'
+      : isActive
+        ? 'Resume Theory'
+        : 'Begin Theory';
+
+  const inner = (
+    <div
+      className={`relative p-7 h-full flex flex-col transition-all duration-300 ${
+        isLocked ? '' : 'group-hover:scale-[1.01]'
+      }`}
+      style={{
+        background: '#181c20',
+        border: `1px solid ${isLocked ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.06)'}`,
+        boxShadow: isCompleted ? `0 0 30px rgba(${ta.rgb},0.08)` : 'none',
+        borderRadius: '22px',
+        opacity: isLocked ? 0.55 : 1,
+      }}
+    >
+      {/* Top row: eyebrow + icon */}
+      <div className="flex items-start justify-between mb-4">
+        <span
+          className="font-mono text-[10px] font-bold tracking-widest uppercase"
+          style={{ color: isLocked ? 'rgba(255,255,255,0.2)' : ta.color }}
+        >
+          {eyebrow}
+        </span>
+        {isLocked ? (
+          <Lock className="h-5 w-5" style={{ color: 'rgba(255,255,255,0.18)' }} />
+        ) : (
+          <BookOpen className="h-5 w-5" style={{ color: isCompleted ? ta.color : 'rgba(255,255,255,0.12)' }} />
+        )}
+      </div>
+
+      {/* Title */}
+      <h3
+        className="text-xl font-bold tracking-tight mb-4"
+        style={{ color: isLocked ? 'rgba(255,255,255,0.35)' : undefined }}
+      >
+        {title}
+      </h3>
+
+      {/* Description */}
+      {desc && (
+        <p className="text-[12px] leading-relaxed text-on-surface-variant/40 mb-5 line-clamp-2">{desc}</p>
+      )}
+
+      {/* Progress bar */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <span className="font-mono text-[10px] text-on-surface-variant/35 tracking-wide">Module Progress</span>
+          <span className="font-mono text-[13px] font-bold" style={{ color: isLocked ? 'rgba(255,255,255,0.25)' : ta.color }}>{card.progressPct}%</span>
+        </div>
+        <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+          <div style={{ width: `${card.progressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
+        </div>
+      </div>
+
+      {/* CTA button */}
+      <div
+        className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
+        style={{
+          border: `1px solid ${isLocked ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.12)'}`,
+          backgroundColor: isLocked ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)',
+          color: isLocked ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.7)',
+          borderRadius: '14px',
+        }}
+      >
+        {ctaLabel}
+      </div>
+    </div>
+  );
+
+  if (isLocked) {
+    return (
+      <div className="block h-full cursor-not-allowed" aria-disabled="true">
+        {inner}
+      </div>
+    );
+  }
 
   return (
     <Link href={card.href} className="group block h-full">
-          <div
-            className="relative p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
-            style={{
-              background: '#181c20',
-              border: '1px solid rgba(255,255,255,0.06)',
-              boxShadow: isCompleted ? `0 0 30px rgba(${ta.rgb},0.08)` : 'none',
-              borderRadius: '22px',
-            }}
-          >
-            {/* Top row: eyebrow + icon */}
-            <div className="flex items-start justify-between mb-4">
-              <span
-                className="font-mono text-[10px] font-bold tracking-widest uppercase"
-                style={{ color: ta.color }}
-              >
-                {eyebrow}
-              </span>
-              <BookOpen className="h-5 w-5" style={{ color: isCompleted ? ta.color : 'rgba(255,255,255,0.12)' }} />
-            </div>
-
-            {/* Title */}
-            <h3 className="text-xl font-bold tracking-tight text-on-surface mb-4">
-              {title}
-            </h3>
-
-            {/* Description */}
-            {desc && (
-              <p className="text-[12px] leading-relaxed text-on-surface-variant/40 mb-5 line-clamp-2">{desc}</p>
-            )}
-
-            {/* Progress bar */}
-            <div className="mb-5">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-[10px] text-on-surface-variant/35 tracking-wide">Module Progress</span>
-                <span className="font-mono text-[13px] font-bold" style={{ color: ta.color }}>{card.progressPct}%</span>
-              </div>
-              <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
-                <div style={{ width: `${card.progressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
-              </div>
-            </div>
-
-            {/* CTA button */}
-            <div
-              className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
-              style={{
-                border: '1px solid rgba(255,255,255,0.12)',
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.7)',
-                borderRadius: '14px',
-              }}
-            >
-              {ctaLabel}
-            </div>
-          </div>
+      {inner}
     </Link>
   );
 }
