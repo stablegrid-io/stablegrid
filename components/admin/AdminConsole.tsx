@@ -10,7 +10,6 @@ import {
   type AdminNavSectionId
 } from '@/components/admin/AdminLeftRail';
 import { AdminAnalyticsSection } from '@/components/admin/AdminAnalyticsSection';
-import { TheoryLessonsSection } from '@/components/admin/TheoryLessonsSection';
 import {
   ADMIN_LAYOUT_CLASS,
   ADMIN_PAGE_SHELL_CLASS,
@@ -1843,13 +1842,6 @@ export function AdminConsole({
           {activeSection === 'analytics' ? (
             <AdminAnalyticsSection onMutation={handleMutation} />
           ) : null}
-          {activeSection === 'lessons' ? (
-            <TheoryLessonsSection
-              onMutation={handleMutation}
-              onOpenTaskEditor={() => void router.push('/admin/assignments')}
-            />
-          ) : null}
-          {activeSection === 'catalog' ? <CatalogSection onMutation={handleMutation} /> : null}
           {activeSection === 'assignments' ? (
             <AssignmentsSection onMutation={handleMutation} />
           ) : null}

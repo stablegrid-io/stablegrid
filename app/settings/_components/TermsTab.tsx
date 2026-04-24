@@ -4,8 +4,8 @@ export function TermsTab() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8">
       <header className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500">
-          StableGrid
+        <p className="text-xs font-mono font-bold uppercase tracking-[0.18em] text-brand-500">
+          stableGrid
         </p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           Terms of Use
@@ -15,7 +15,7 @@ export function TermsTab() {
         </p>
       </header>
 
-      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-surface-container-low p-5">
         <h2 className="text-xl font-semibold">Service scope</h2>
         <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
           Current release scope is Theory. Features outside this scope may appear in
@@ -23,7 +23,7 @@ export function TermsTab() {
         </p>
       </section>
 
-      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-surface-container-low p-5">
         <h2 className="text-xl font-semibold">Account responsibilities</h2>
         <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
           You are responsible for account security and for activity performed through your
@@ -31,7 +31,7 @@ export function TermsTab() {
         </p>
       </section>
 
-      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-surface-container-low p-5">
         <h2 className="text-xl font-semibold">Acceptable use</h2>
         <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
           Do not attempt unauthorized access, abuse APIs, or disrupt platform availability
@@ -39,7 +39,7 @@ export function TermsTab() {
         </p>
       </section>
 
-      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+      <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-surface-container-low p-5">
         <h2 className="text-xl font-semibold">Support</h2>
         <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
           Questions about these terms can be sent to{' '}

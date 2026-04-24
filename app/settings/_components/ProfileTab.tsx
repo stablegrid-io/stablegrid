@@ -1,17 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { User, UserCircle2, Zap } from 'lucide-react';
+import { User, UserCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import {
-  getUserTier,
-  getTierProfileImage,
-  getNextTierThreshold,
-  USER_TIER_THRESHOLDS,
-} from '@/lib/energy';
+import { getUserTier, getTierProfileImage } from '@/lib/energy';
 import {
   SettingsCard,
   SettingsField,
@@ -23,6 +17,7 @@ import type { ProfileRecord } from './types';
 interface ProfileTabProps {
   profile: ProfileRecord;
   userEmail: string;
+  provider: string | null;
   onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -40,94 +35,86 @@ const emitProfileAvatarUpdated = (avatarUrl: string | null) => {
   );
 };
 
-export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
+const PROVIDER_LABEL: Record<string, string> = {
+  google: 'Google',
+  github: 'GitHub',
+  email: 'Email'
+};
+
+const getInitials = (name: string, email: string) => {
+  const source = name.trim() || email.trim();
+  if (!source) return '?';
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return source.slice(0, 2).toUpperCase();
+};
+
+export function ProfileTab({ profile, userEmail, provider, onToast }: ProfileTabProps) {
   const supabase = createClient();
-  const setUser = useAuthStore((state) => state.setUser);
   const [name, setName] = useState(profile.name ?? '');
-  const [email, setEmail] = useState(userEmail);
   const [avatarUrl] = useState<string | null>(profile.avatar_url);
   const [baseline, setBaseline] = useState<{
     name: string;
-    email: string;
     avatarUrl: string | null;
   }>({
     name: profile.name ?? '',
-    email: userEmail,
     avatarUrl: profile.avatar_url
   });
   const [loading, setLoading] = useState(false);
 
+  const xp = useProgressStore((state) => state.xp);
+  const completedTracks = useProgressStore((state) => state.completedTracks);
+  const [progressHydrated, setProgressHydrated] = useState(false);
+  useEffect(() => {
+    setProgressHydrated(true);
+  }, []);
+  const tier = getUserTier({ kwh: xp, completedTracks });
+  const tierAvatar = getTierProfileImage(tier);
+  const tierLabel = tier === 'senior' ? 'Senior' : tier === 'mid' ? 'Mid' : 'Junior';
+
   const hasChanges =
     name !== baseline.name ||
-    email !== baseline.email ||
     (avatarUrl ?? '') !== (baseline.avatarUrl ?? '');
+
+  const providerLabel = provider ? PROVIDER_LABEL[provider] ?? provider : null;
+  const initials = getInitials(name, userEmail);
 
   const handleSave = async () => {
     if (!hasChanges || loading) {
       return;
     }
 
-    const nameChanged = name !== baseline.name;
-    const emailChanged = email !== baseline.email;
     const avatarChanged = (avatarUrl ?? '') !== (baseline.avatarUrl ?? '');
 
     setLoading(true);
 
     try {
-      if (nameChanged || avatarChanged) {
-        const { error: profileError } = await supabase.from('profiles').upsert(
-          {
-            id: profile.id,
-            name,
-            email,
-            avatar_url: avatarUrl
-          },
-          { onConflict: 'id' }
-        );
+      const { error: profileError } = await supabase.from('profiles').upsert(
+        {
+          id: profile.id,
+          name,
+          email: userEmail,
+          avatar_url: avatarUrl
+        },
+        { onConflict: 'id' }
+      );
 
-        if (profileError) {
-          throw profileError;
-        }
-      }
-
-      if (emailChanged) {
-        const updatePayload: {
-          email?: string;
-        } = {};
-
-        if (emailChanged) {
-          updatePayload.email = email;
-        }
-
-        const { data: authData, error: authError } = await supabase.auth.updateUser(updatePayload);
-        if (authError) {
-          throw authError;
-        }
-
-        if (authData.user) {
-          setUser(authData.user);
-        }
+      if (profileError) {
+        throw profileError;
       }
 
       if (avatarChanged) {
         emitProfileAvatarUpdated(avatarUrl);
       }
 
-      if (emailChanged) {
-        onToast(`Verification email sent to ${email}.`, 'info');
-      } else if (avatarChanged && nameChanged) {
-        onToast('Profile and picture saved.', 'success');
-      } else if (avatarChanged) {
-        onToast('Profile picture saved.', 'success');
-      } else {
-        onToast('Profile saved.', 'success');
-      }
+      onToast(
+        avatarChanged ? 'Profile and picture saved.' : 'Profile saved.',
+        'success'
+      );
 
-      setBaseline({
-        name,
-        email,
-        avatarUrl
-      });
+      setBaseline({ name, avatarUrl });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save profile.';
       onToast(message, 'error');
@@ -138,56 +125,82 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
 
   return (
     <div className="space-y-5">
-      <CharacterTierCard />
-
       <SettingsCard
         title="Personal Information"
-        description="Update your profile and contact email."
+        description="Your identity on stableGrid."
         icon={<User className="h-4 w-4" />}
       >
-        <div className="space-y-5">
-          <div className="rounded-[22px] border border-white/[0.06] bg-[#0c0e10] p-4">
-            <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
-              {name || userEmail}
-            </p>
-            <p className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-              Member since {formatMemberSince(profile.created_at)}
-            </p>
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+          <div className="flex shrink-0 flex-col items-center gap-3 sm:items-start">
+            <div
+              className="relative h-24 w-24 overflow-hidden rounded-full"
+              style={{
+                boxShadow: '0 0 0 2px rgba(255,255,255,0.08)',
+                backgroundColor: 'rgba(255,255,255,0.04)'
+              }}
+            >
+              {progressHydrated ? (
+                <Image
+                  src={tierAvatar}
+                  alt={`${tierLabel} tier`}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                  sizes="96px"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center font-mono text-xl font-bold tracking-wider text-on-surface/70">
+                  {initials}
+                </div>
+              )}
+            </div>
+            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface/70">
+              {progressHydrated ? `${tierLabel} Tier` : ' '}
+            </div>
+            {provider && provider !== 'email' && providerLabel && (
+              <div
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1"
+                title={`Signed in with ${providerLabel}`}
+              >
+                <ProviderIcon provider={provider} />
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface/70">
+                  {providerLabel}
+                </span>
+              </div>
+            )}
           </div>
 
-          <SettingsField label="Full name">
-            <SettingsInput
-              value={name}
-              onChange={setName}
-              placeholder="Your full name"
-            />
-          </SettingsField>
+          <div className="min-w-0 flex-1 space-y-4">
+            <SettingsField label="Display name">
+              <SettingsInput
+                value={name}
+                onChange={setName}
+                placeholder="Your display name"
+              />
+            </SettingsField>
 
-          <SettingsField
-            label="Email address"
-            hint={
-              email !== userEmail
-                ? 'A verification link will be sent to your new email.'
-                : undefined
-            }
-          >
-            <SettingsInput
-              type="email"
-              value={email}
-              onChange={setEmail}
-              placeholder="you@example.com"
-            />
-          </SettingsField>
+            <div className="rounded-[14px] border border-white/[0.05] bg-white/[0.02] px-3 py-2.5">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-on-surface-variant/60">
+                Email
+              </p>
+              <p className="mt-0.5 truncate text-sm text-on-surface/85">{userEmail || '—'}</p>
+              {providerLabel && (
+                <p className="mt-1 text-[11px] text-on-surface-variant/55">
+                  Managed by {providerLabel}. To change, sign in with a different account.
+                </p>
+              )}
+            </div>
 
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!hasChanges || loading}
-              className="rounded-[14px] bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition-all hover:shadow-[0_0_16px_rgba(153,247,255,0.3)] disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Saving...' : 'Save changes'}
-            </button>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!hasChanges || loading}
+                className="rounded-[14px] bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition-all hover:shadow-[0_0_16px_rgba(153,247,255,0.3)] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Saving...' : 'Save changes'}
+              </button>
+            </div>
           </div>
         </div>
       </SettingsCard>
@@ -196,130 +209,61 @@ export function ProfileTab({ profile, userEmail, onToast }: ProfileTabProps) {
         title="Account Summary"
         icon={<UserCircle2 className="h-4 w-4" />}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <SummaryCell label="Member since" value={formatMemberSince(profile.created_at)} />
-          <SummaryCell label="Email" value={userEmail || '—'} />
-          <SummaryCell label="Profile ID" value={profile.id.slice(0, 8)} />
+          <SummaryCell label="Signed in with" value={providerLabel ?? '—'} />
+          <SummaryCell label="Profile ID" value={profile.id.slice(0, 8)} mono />
         </div>
       </SettingsCard>
     </div>
   );
 }
 
-const TIER_META: Record<'junior' | 'mid' | 'senior', { label: string; accent: string; rgb: string }> = {
-  junior: { label: 'Junior', accent: '#99f7ff', rgb: '153,247,255' },
-  mid: { label: 'Mid', accent: '#ffc965', rgb: '255,201,101' },
-  senior: { label: 'Senior', accent: '#ff716c', rgb: '255,113,108' },
-};
-
-function CharacterTierCard() {
-  const xp = useProgressStore((state) => state.xp);
-  const tier = getUserTier(xp);
-  const meta = TIER_META[tier];
-  const image = getTierProfileImage(tier);
-  const nextThreshold = getNextTierThreshold(tier);
-  const currentThreshold = USER_TIER_THRESHOLDS[tier];
-  const progressPct = nextThreshold
-    ? Math.min(100, Math.round(((xp - currentThreshold) / (nextThreshold - currentThreshold)) * 100))
-    : 100;
-  const toNext = nextThreshold ? Math.max(0, nextThreshold - xp) : 0;
-
-  return (
-    <SettingsCard
-      title="Character Tier"
-      description="Your avatar evolves as you accumulate kWh from learning."
-      icon={<Zap className="h-4 w-4" />}
-    >
-      <div
-        className="rounded-[22px] border bg-[#0c0e10] p-5"
-        style={{ borderColor: `rgba(${meta.rgb},0.18)` }}
-      >
-        <div className="flex items-center gap-4">
-          <div
-            className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full ring-2"
-            style={{ ['--tw-ring-color' as string]: `rgba(${meta.rgb},0.4)` }}
-          >
-            <Image src={image} alt={`${meta.label} tier`} fill unoptimized className="object-cover" />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span
-                className="text-lg font-bold tracking-tight"
-                style={{ color: meta.accent }}
-              >
-                {meta.label}
-              </span>
-              <span className="text-[11px] uppercase tracking-[0.12em] text-text-dark-tertiary">
-                Tier
-              </span>
-            </div>
-            <p className="mt-0.5 text-sm font-semibold text-text-dark-primary">
-              {xp.toLocaleString()} <span className="text-[11px] font-medium text-text-dark-tertiary">kWh stored</span>
-            </p>
-          </div>
-        </div>
-
-        {nextThreshold ? (
-          <div className="mt-4">
-            <div className="mb-1.5 flex justify-between text-[11px] uppercase tracking-[0.12em] text-text-dark-tertiary">
-              <span>Progress to next tier</span>
-              <span>{toNext.toLocaleString()} kWh to go</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${progressPct}%`,
-                  background: `linear-gradient(90deg, ${meta.accent}, ${meta.accent}80)`,
-                }}
-              />
-            </div>
-          </div>
-        ) : (
-          <p className="mt-4 text-xs text-text-dark-tertiary">
-            Maximum tier reached.
-          </p>
-        )}
-
-        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/[0.04] pt-3">
-          {(['junior', 'mid', 'senior'] as const).map((t) => {
-            const isCurrent = t === tier;
-            const m = TIER_META[t];
-            return (
-              <div
-                key={t}
-                className="rounded-[10px] px-2 py-1.5 text-center transition-colors"
-                style={{
-                  backgroundColor: isCurrent ? `rgba(${m.rgb},0.08)` : 'transparent',
-                  border: `1px solid ${isCurrent ? `rgba(${m.rgb},0.18)` : 'rgba(255,255,255,0.04)'}`,
-                }}
-              >
-                <p
-                  className="text-[10px] font-bold uppercase tracking-[0.14em]"
-                  style={{ color: isCurrent ? m.accent : 'rgba(255,255,255,0.3)' }}
-                >
-                  {m.label}
-                </p>
-                <p className="mt-0.5 text-[10px] font-medium text-text-dark-tertiary">
-                  {USER_TIER_THRESHOLDS[t].toLocaleString()}+
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </SettingsCard>
-  );
+function ProviderIcon({ provider }: { provider: string | null }) {
+  if (provider === 'google') {
+    return (
+      <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden="true">
+        <path
+          fill="#fff"
+          fillOpacity="0.85"
+          d="M21.35 11.1H12v2.97h5.35c-.23 1.38-1.66 4.05-5.35 4.05-3.22 0-5.85-2.66-5.85-5.95s2.63-5.95 5.85-5.95c1.83 0 3.06.78 3.76 1.45l2.56-2.48C16.65 3.68 14.52 2.7 12 2.7 6.98 2.7 2.9 6.78 2.9 11.8S6.98 20.9 12 20.9c6.93 0 9.52-4.86 9.52-9.35 0-.63-.07-1.11-.17-1.45z"
+        />
+      </svg>
+    );
+  }
+  if (provider === 'github') {
+    return (
+      <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden="true">
+        <path
+          fill="#fff"
+          fillOpacity="0.85"
+          d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 007.87 10.93c.58.11.79-.25.79-.55v-2.03c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 015.77 0c2.2-1.49 3.17-1.18 3.17-1.18.62 1.58.23 2.75.11 3.04.73.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.26 5.69.41.36.77 1.06.77 2.14v3.17c0 .31.21.67.8.55A11.5 11.5 0 0023.5 12C23.5 5.73 18.27.5 12 .5z"
+        />
+      </svg>
+    );
+  }
+  return null;
 }
 
-function SummaryCell({ label, value }: { label: string; value: string }) {
+function SummaryCell({
+  label,
+  value,
+  mono = false
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
-    <div className="rounded-[14px] border border-white/[0.06] bg-[#0c0e10] px-3 py-2">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-light-tertiary dark:text-text-dark-tertiary">
+    <div className="rounded-[14px] border border-white/[0.06] bg-surface px-3 py-2">
+      <p className="text-[11px] font-mono font-bold uppercase tracking-[0.1em] text-text-light-tertiary dark:text-text-dark-tertiary">
         {label}
       </p>
-      <p className="mt-1 truncate text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+      <p
+        className={`mt-1 truncate text-sm font-medium text-text-light-primary dark:text-text-dark-primary ${
+          mono ? 'font-mono' : ''
+        }`}
+      >
         {value}
       </p>
     </div>

@@ -3,10 +3,8 @@
 import Link from 'next/link';
 import {
   BarChart3,
-  BookOpen,
   Bug,
   ClipboardList,
-  FileText,
   MessageSquare,
   Receipt,
   Shield,
@@ -20,8 +18,6 @@ import { AdminSurface } from '@/components/admin/theme';
 export type AdminNavSectionId =
   | 'analytics'
   | 'feedback'
-  | 'lessons'
-  | 'catalog'
   | 'assignments'
   | 'bugs'
   | 'orders'
@@ -39,8 +35,6 @@ export const ADMIN_SECTIONS: Array<{
   { id: 'analytics', label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { id: 'feedback', label: 'Feedback', href: '/admin/feedback', icon: MessageSquare },
   { id: 'audit', label: 'Audit', href: '/admin/audit', icon: Shield },
-  { id: 'lessons', label: 'Content Editor', href: '/admin/lessons', icon: FileText },
-  { id: 'catalog', label: 'Catalog', href: '/admin/catalog', icon: BookOpen },
   { id: 'orders', label: 'Orders', href: '/admin/orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', href: '/admin/customers', icon: Users },
   { id: 'financials', label: 'Financials', href: '/admin/financials', icon: Wallet },
@@ -50,12 +44,11 @@ export const ADMIN_SECTIONS: Array<{
 ];
 
 export const ADMIN_SECTION_GROUPS: Array<{
-  id: 'monitor' | 'content' | 'commerce' | 'workflow' | 'devtools';
+  id: 'monitor' | 'commerce' | 'workflow' | 'devtools';
   label: string;
   sections: AdminNavSectionId[];
 }> = [
   { id: 'monitor', label: 'Monitor', sections: ['analytics', 'feedback', 'audit'] },
-  { id: 'content', label: 'Content', sections: ['lessons', 'catalog'] },
   { id: 'commerce', label: 'Commerce', sections: ['orders', 'customers', 'financials'] },
   { id: 'workflow', label: 'Workflow', sections: ['assignments', 'bugs'] },
   { id: 'devtools', label: 'Dev Tools', sections: ['spending'] }

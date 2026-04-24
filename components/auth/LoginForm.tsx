@@ -25,18 +25,25 @@ export function LoginForm() {
   const [loading, setLoading] = useState<'google' | 'github' | null>(null);
 
   const handleOAuth = async (provider: 'google' | 'github') => {
+    if (loading !== null) return; // prevent double-click
     setError('');
     setLoading(provider);
     try {
+      // signInWithOAuth either throws (network/config error) or redirects away.
+      // Any thrown error here must surface to the user with a recoverable UI.
       await signInWithOAuth(provider);
-    } catch {
-      setError('Authentication failed. Please try again.');
+    } catch (err: any) {
+      const message =
+        err?.message && typeof err.message === 'string'
+          ? err.message
+          : `Could not continue with ${provider === 'google' ? 'Google' : 'GitHub'}. Please try again.`;
+      setError(message);
       setLoading(null);
     }
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <main className="relative min-h-screen overflow-hidden">
       <style>{`
         @keyframes loginBgFade {
           from { opacity: 0; }
@@ -85,7 +92,10 @@ export function LoginForm() {
         />
       </div>
 
-      <section className="relative flex min-h-screen items-center justify-center px-4 py-6 z-10">
+      <section
+        aria-labelledby="login-heading"
+        className="relative flex min-h-screen items-center justify-center px-4 py-6 z-10"
+      >
         <div
           className="login-card relative w-full max-w-[400px] rounded-[22px] bg-[#181c20] p-8"
           style={{
@@ -95,19 +105,29 @@ export function LoginForm() {
 
           {/* Header */}
           <header className="login-stagger-1 mb-10 text-center">
-            <h1 className="text-3xl font-bold text-on-surface tracking-tight mb-3">
+            <h1
+              id="login-heading"
+              className="text-3xl font-bold text-on-surface tracking-tight mb-5"
+            >
               Get started
             </h1>
+            <div className="mx-auto h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           </header>
 
           {/* Error */}
           {error && (
-            <div className="mb-5 rounded-[14px] border border-error/30 bg-error/10 px-4 py-2.5 text-[13px] text-error">
+            <div
+              role="alert"
+              aria-live="polite"
+              className="mb-5 rounded-[14px] border border-error/30 bg-error/10 px-4 py-2.5 text-[13px] text-error"
+            >
               {error}
             </div>
           )}
 
           {/* OAuth buttons */}
+          {/* NOTE: signup is OAuth-only. A legacy "Sign up free" link was removed
+              because /signup now redirects to /login (bouncing UX). */}
           <div className="grid grid-cols-2 gap-3 mb-8">
             {([
               { provider: 'google' as const, label: 'Google', icon: GOOGLE_ICON, stagger: 'login-stagger-2' },
@@ -118,10 +138,15 @@ export function LoginForm() {
                 type="button"
                 onClick={() => handleOAuth(item.provider)}
                 disabled={loading !== null}
+                aria-busy={loading === item.provider}
+                aria-label={`Continue with ${item.label}`}
                 className={`${item.stagger} flex flex-col items-center justify-center gap-3 py-6 rounded-[14px] border border-white/[0.08] bg-white/[0.03] text-[13px] font-medium text-on-surface/70 transition-all hover:bg-white/[0.06] hover:border-white/[0.12] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {loading === item.provider ? (
-                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-on-surface/20 border-t-on-surface" />
+                  <span
+                    className="h-5 w-5 animate-spin rounded-full border-2 border-on-surface/20 border-t-on-surface"
+                    aria-hidden="true"
+                  />
                 ) : (
                   item.icon
                 )}
@@ -130,15 +155,28 @@ export function LoginForm() {
             ))}
           </div>
 
-          {/* Footer */}
-          <p className="login-stagger-4 text-center text-[11px] text-on-surface-variant/30">
+          {/* Footer — WCAG AA: text-on-surface-variant (#aaabae) on #181c20 ≈ 7:1;
+              links upgraded from text-white/30 to AA-compliant color, and tap targets
+              bumped to py-2 inline-block so each link reports >= ~44px touch height. */}
+          <p className="login-stagger-4 text-center text-[12px] leading-relaxed text-on-surface-variant">
             By continuing, you agree to our{' '}
-            <a href="/terms" className="text-on-surface/85 underline underline-offset-2 decoration-on-surface/30 hover:text-on-surface hover:decoration-on-surface/60 transition-colors">Terms</a>
+            <a
+              href="/terms"
+              className="inline-block py-2 text-on-surface underline underline-offset-2 decoration-on-surface-variant hover:decoration-on-surface transition-colors"
+            >
+              Terms
+            </a>
             {' '}and{' '}
-            <a href="/privacy" className="text-on-surface/85 underline underline-offset-2 decoration-on-surface/30 hover:text-on-surface hover:decoration-on-surface/60 transition-colors">Privacy Policy</a>.
+            <a
+              href="/privacy"
+              className="inline-block py-2 text-on-surface underline underline-offset-2 decoration-on-surface-variant hover:decoration-on-surface transition-colors"
+            >
+              Privacy Policy
+            </a>
+            .
           </p>
         </div>
       </section>
-    </div>
+    </main>
   );
 }

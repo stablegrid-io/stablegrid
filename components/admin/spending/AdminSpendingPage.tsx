@@ -572,7 +572,7 @@ export function AdminSpendingPage() {
                                   </span>
                                 </td>
                                 <td className="border-b border-white/[0.04] px-4 py-3.5 text-on-surface">{entry.description}</td>
-                                <td className="whitespace-nowrap border-b border-white/[0.04] px-4 py-3.5 text-right font-mono font-semibold text-rose-400/80">
+                                <td className="whitespace-nowrap border-b border-white/[0.04] px-4 py-3.5 text-right font-mono font-bold text-rose-400/80">
                                   {fmt(Number(entry.amount))}
                                 </td>
                                 <td className="border-b border-white/[0.04] px-4 py-3.5 text-right">

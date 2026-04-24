@@ -1,22 +1,12 @@
 export type SettingsTabId =
   | 'profile'
-  | 'security'
   | 'billing'
   | 'reading'
-  | 'notifs'
   | 'danger'
   | 'privacy'
   | 'terms'
   | 'support'
   | 'bug';
-
-export interface NotificationPrefs {
-  streak_reminder: boolean;
-  weekly_digest: boolean;
-  new_content: boolean;
-  practice_reminder: boolean;
-  marketing: boolean;
-}
 
 export interface ProfileRecord {
   id: string;
@@ -24,7 +14,6 @@ export interface ProfileRecord {
   email: string | null;
   avatar_url: string | null;
   created_at: string | null;
-  notification_prefs: NotificationPrefs | null;
 }
 
 export interface SubscriptionRecord {

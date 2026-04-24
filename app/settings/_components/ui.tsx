@@ -1,8 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useState } from 'react';
-import { CheckCircle2, Eye, EyeOff, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import type { ToastPayload } from './types';
 
 export function SettingsCard({
@@ -36,7 +35,7 @@ export function SettingsCard({
         {icon ? <span className={danger ? 'text-error' : 'text-primary'}>{icon}</span> : null}
         <div>
           <h2
-            className={`text-sm font-bold uppercase tracking-wider ${
+            className={`text-sm font-mono font-bold uppercase tracking-wider ${
               danger ? 'text-error' : 'text-on-surface'
             }`}
           >
@@ -63,7 +62,7 @@ export function SettingsField({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">
+      <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant">
         {label}
       </span>
       {children}
@@ -99,44 +98,6 @@ export function SettingsInput({
   );
 }
 
-export function SettingsPasswordInput({
-  label,
-  value,
-  onChange,
-  placeholder,
-  hint
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  hint?: string;
-}) {
-  const [show, setShow] = useState(false);
-
-  return (
-    <SettingsField label={label} hint={hint}>
-      <div className="relative">
-        <input
-          type={show ? 'text' : 'password'}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
-          className="w-full rounded-[14px] bg-surface-container-low border border-outline-variant/30 px-3 py-2 pr-10 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary transition-colors"
-        />
-        <button
-          type="button"
-          onClick={() => setShow((prev) => !prev)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors"
-          aria-label={show ? 'Hide password' : 'Show password'}
-        >
-          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </button>
-      </div>
-    </SettingsField>
-  );
-}
-
 export function SettingsToggle({
   checked,
   onChange
@@ -150,7 +111,7 @@ export function SettingsToggle({
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-[22px] w-[38px] flex-shrink-0 items-center rounded-full p-[2px] transition-colors duration-200 ease-in-out ${
         checked
-          ? 'bg-[#99f7ff]'
+          ? 'bg-primary'
           : 'bg-white/[0.08]'
       }`}
       aria-pressed={checked}
@@ -203,7 +164,7 @@ export function SettingsToast({ toast }: { toast: ToastPayload | null }) {
       ? 'border-error/30 bg-error/10 text-error'
       : toast.type === 'info'
         ? 'border-primary/30 bg-primary/10 text-primary'
-        : 'border-success-500/30 bg-success-500/10 text-success-500';
+        : 'border-primary/30 bg-primary/10 text-primary';
 
   return (
     <div className="fixed right-4 top-20 z-[90]">

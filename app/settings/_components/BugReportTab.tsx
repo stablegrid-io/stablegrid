@@ -16,7 +16,7 @@ export function BugReportTab({ onBackToSupport }: BugReportTabProps) {
         </p>
       </header>
 
-      <section className="rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+      <section className="rounded-[22px] border border-white/[0.06] bg-surface-container-low p-5">
         <BugReportForm />
       </section>
 

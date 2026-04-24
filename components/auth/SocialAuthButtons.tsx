@@ -49,7 +49,7 @@ export function SocialAuthButtons({ onError }: SocialAuthButtonsProps) {
       <button
         type="button"
         onClick={() => handleOAuth('google')}
-        className="inline-flex items-center justify-center gap-2 rounded-lg border border-light-border bg-white px-3 py-2.5 text-sm font-semibold text-text-light-primary transition-all hover:border-light-active hover:bg-light-surface dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-dark-active dark:hover:bg-dark-surface"
+        className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-light-border bg-white px-3 py-2.5 text-sm font-semibold text-text-light-primary transition-all hover:border-light-active hover:bg-light-surface dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-dark-active dark:hover:bg-dark-surface"
       >
         <GoogleIcon />
         Google
@@ -57,7 +57,7 @@ export function SocialAuthButtons({ onError }: SocialAuthButtonsProps) {
       <button
         type="button"
         onClick={() => handleOAuth('github')}
-        className="inline-flex items-center justify-center gap-2 rounded-lg border border-light-border bg-white px-3 py-2.5 text-sm font-semibold text-text-light-primary transition-all hover:border-light-active hover:bg-light-surface dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-dark-active dark:hover:bg-dark-surface"
+        className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-light-border bg-white px-3 py-2.5 text-sm font-semibold text-text-light-primary transition-all hover:border-light-active hover:bg-light-surface dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-dark-active dark:hover:bg-dark-surface"
       >
         <GithubIcon />
         GitHub

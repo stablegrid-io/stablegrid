@@ -3,13 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Bug,
-  Bell,
   Cookie,
   Clock3,
   CreditCard,
   FileText,
   LifeBuoy,
-  Lock,
   LogOut,
   Shield,
   Trash2,
@@ -19,9 +17,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { openCookiePreferencesDialog } from '@/lib/cookies/cookie-consent';
 import { createClient } from '@/lib/supabase/client';
 import { ProfileTab } from './ProfileTab';
-import { SecurityTab } from './SecurityTab';
 import { BillingTab } from './BillingTab';
-import { NotificationsTab } from './NotificationsTab';
 import { ReadingSessionsTab } from './ReadingSessionsTab';
 import { DangerZoneTab } from './DangerZoneTab';
 import { PrivacyTab } from './PrivacyTab';
@@ -40,14 +36,13 @@ interface SettingsShellProps {
   profile: ProfileRecord;
   subscription: SubscriptionRecord | null;
   userEmail: string;
+  provider: string | null;
 }
 
 const TABS: Array<{ id: SettingsTabId; label: string; icon: typeof User; danger?: boolean }> = [
   { id: 'profile', label: 'Profile', icon: User },
-  { id: 'security', label: 'Security', icon: Lock },
   { id: 'billing', label: 'Billing', icon: CreditCard },
   { id: 'reading', label: 'Reading Sessions', icon: Clock3 },
-  { id: 'notifs', label: 'Notifications', icon: Bell },
   { id: 'danger', label: 'Danger Zone', icon: Trash2, danger: true }
 ];
 
@@ -64,7 +59,8 @@ function isTabId(value: string | null): value is SettingsTabId {
 export function SettingsShell({
   profile,
   subscription,
-  userEmail
+  userEmail,
+  provider
 }: SettingsShellProps) {
   const supabase = createClient();
   const router = useRouter();
@@ -125,13 +121,10 @@ export function SettingsShell({
         <ProfileTab
           profile={profile}
           userEmail={userEmail}
+          provider={provider}
           onToast={showToast}
         />
       );
-    }
-
-    if (tab === 'security') {
-      return <SecurityTab onToast={showToast} />;
     }
 
     if (tab === 'billing') {
@@ -140,10 +133,6 @@ export function SettingsShell({
 
     if (tab === 'reading') {
       return <ReadingSessionsTab onToast={showToast} />;
-    }
-
-    if (tab === 'notifs') {
-      return <NotificationsTab profile={profile} onToast={showToast} />;
     }
 
     if (tab === 'privacy') {
@@ -173,7 +162,7 @@ export function SettingsShell({
         <h1 className="text-3xl font-extrabold tracking-tighter text-on-surface uppercase">
           System <span className="text-primary">Config</span>
         </h1>
-        <p className="mt-1 text-xs text-on-surface-variant uppercase tracking-widest">
+        <p className="mt-1 text-xs font-mono font-medium text-on-surface-variant uppercase tracking-widest">
           Account · Security · Billing · Session Parameters
         </p>
       </div>
@@ -190,7 +179,7 @@ export function SettingsShell({
                   key={item.id}
                   type="button"
                   onClick={() => setTab(item.id)}
-                  className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 ${
+                  className={`flex w-full items-center gap-3 px-3 py-2 rounded-[10px] text-[13px] font-medium transition-all duration-150 ${
                     active
                       ? 'bg-white/[0.08] text-on-surface'
                       : 'text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]'
@@ -222,7 +211,7 @@ export function SettingsShell({
                   key={item.label}
                   type="button"
                   onClick={() => 'action' in item && item.action ? item.action() : setTab(item.id)}
-                  className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 ${
+                  className={`flex w-full items-center gap-3 px-3 py-2 rounded-[10px] text-[13px] font-medium transition-all duration-150 ${
                     isActive
                       ? 'bg-white/[0.08] text-on-surface'
                       : 'text-on-surface-variant/80 hover:text-on-surface hover:bg-white/[0.04]'
@@ -239,7 +228,7 @@ export function SettingsShell({
           <button
             type="button"
             onClick={onSignOut}
-            className="flex w-full items-center gap-3 px-3 py-2 mt-2 rounded-lg text-[13px] font-medium text-error/40 hover:text-error hover:bg-error/5 transition-all duration-150"
+            className="flex w-full items-center gap-3 px-3 py-2 mt-2 rounded-[10px] text-[13px] font-medium text-error/40 hover:text-error hover:bg-error/5 transition-all duration-150"
           >
             <LogOut className="h-[18px] w-[18px] flex-shrink-0" />
             <span>Sign Out</span>
