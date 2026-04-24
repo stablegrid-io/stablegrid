@@ -66,7 +66,9 @@ const track: TheoryTrackSummary = {
   totalMinutes: 240
 };
 
-// TODO(beta-tests): mocks stale after OAuth + Learn unification — rewrite post-beta
+// TODO(beta-tests): references a removed "Checkpoint ready / Checkpoint
+// passed" UX and generic module-01/02 IDs; current content uses topic-
+// prefixed IDs and no checkpoint copy. Needs rewrite.
 describe.skip('TheoryTrackPath', () => {
   beforeEach(() => {
     vi.stubGlobal(

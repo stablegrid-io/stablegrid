@@ -84,14 +84,15 @@ const makeSupabaseClient = ({
   })
 });
 
-// TODO(beta-tests): mocks stale after OAuth + Learn unification — rewrite post-beta
-describe.skip('loadServerTheoryProgress', () => {
+describe('loadServerTheoryProgress', () => {
   beforeEach(() => {
     vi.resetModules();
     createClientMock.mockReset();
   });
 
-  it('keeps completion strictly module-based when module_progress rows are sparse', async () => {
+  // TODO(beta-tests): uses generic module-01/02/03 IDs; real pyspark content
+  // uses topic-prefixed IDs (module-PS1 etc). Needs to use real IDs.
+  it.skip('keeps completion strictly module-based when module_progress rows are sparse', async () => {
     createClientMock.mockReturnValue(
       makeSupabaseClient({
         readingRows: [

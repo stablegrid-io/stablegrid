@@ -239,7 +239,10 @@ const post = async (
   );
 };
 
-// TODO(beta-tests): mocks stale after OAuth + Learn unification — rewrite post-beta
+// TODO(beta-tests): all tests use generic module-01/02 IDs; real pyspark
+// content uses topic-prefixed IDs (module-PS1, module-PS2). Each test case
+// needs its payloads + assertions updated to the real IDs, or the tests
+// should be pointed at a fixture topic whose modules genuinely use 01/02.
 describe.skip('module-progress route', () => {
   beforeEach(() => {
     vi.resetModules();

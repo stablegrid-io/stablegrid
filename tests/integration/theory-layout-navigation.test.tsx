@@ -277,7 +277,10 @@ const createModuleProgressRows = (
   }
 ];
 
-// TODO(beta-tests): mocks stale after OAuth + Learn unification — rewrite post-beta
+
+// TODO(beta-tests): assumes an older session-picker flow with a "continue
+// without session" bypass and a progress-recovery banner that no longer
+// exist. Needs rewriting for the current picker UX.
 describe.skip('TheoryLayout navigation', () => {
   beforeEach(() => {
     replaceMock.mockReset();

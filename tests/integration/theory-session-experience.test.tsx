@@ -54,7 +54,10 @@ const SessionHarness = ({
   );
 };
 
-// TODO(beta-tests): mocks stale after OAuth + Learn unification — rewrite post-beta
+
+// TODO(beta-tests): picker was a two-step browse→select→start flow; current
+// implementation is one-click-start per method card. Test needs a rewrite for
+// the simplified UX.
 describe.skip('Theory session experience', () => {
   beforeEach(() => {
     vi.useRealTimers();

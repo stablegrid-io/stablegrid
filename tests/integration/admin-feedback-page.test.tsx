@@ -66,8 +66,7 @@ const FEEDBACK_FIXTURE: FeedbackRecord[] = [
   }
 ];
 
-// TODO(beta-tests): mocks stale after OAuth + Learn unification — rewrite post-beta
-describe.skip('AdminFeedbackPage', () => {
+describe('AdminFeedbackPage', () => {
   beforeEach(() => {
     let feedback = [...FEEDBACK_FIXTURE];
 
@@ -138,10 +137,12 @@ describe.skip('AdminFeedbackPage', () => {
 
     render(<AdminFeedbackPage />);
 
-    expect(screen.getByRole('heading', { name: 'Feedback' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Sentiment, trends & insights' })
+    ).toBeInTheDocument();
     expect(await screen.findByText('Total feedback received')).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: 'Feedback trend over time' })
+      await screen.findByRole('heading', { name: 'Feedback trend over time' })
     ).toBeInTheDocument();
 
     expect(

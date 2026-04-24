@@ -54,6 +54,13 @@ const METHOD_CTA_ICONS = {
   sprint: Play, pomodoro: RefreshCw, 'deep-focus': Lock, 'free-read': BookOpen
 } satisfies Record<TheorySessionMethodId, typeof Play>;
 
+const METHOD_LABELS: Record<TheorySessionMethodId, string> = {
+  sprint: 'Sprint',
+  pomodoro: 'Pomodoro',
+  'deep-focus': 'Deep Focus',
+  'free-read': 'Free Read',
+};
+
 interface TheorySessionPickerProps {
   isOpen: boolean;
   configsByMethod: Record<TheorySessionMethodId, TheorySessionConfig>;
@@ -127,6 +134,7 @@ export const TheorySessionPicker = ({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             role="dialog"
             aria-modal="true"
+            aria-label="Session picker"
             className="relative z-10 w-full max-w-[56rem] overflow-y-auto max-h-[90vh] rounded-[22px] border border-white/[0.06] bg-[#181c20] pt-8 px-5 pb-5 flex flex-col gap-4"
           >
             {/* Title */}
@@ -167,12 +175,21 @@ export const TheorySessionPicker = ({
                 return (
                   <div
                     key={methodId}
-                    className="rounded-[22px] border p-4 flex flex-col group transition-all relative cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={METHOD_LABELS[methodId]}
+                    className="rounded-[22px] border p-4 flex flex-col group transition-all relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
                     style={{
                       borderColor: `rgba(${a.rgb},0.1)`,
                       backgroundColor: '#0c0e10',
                     }}
                     onClick={() => onStart(config)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onStart(config);
+                      }
+                    }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = `rgba(${a.rgb},0.4)`; (e.currentTarget as HTMLElement).style.boxShadow = `0 0 30px rgba(${a.rgb},0.15)`; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = `rgba(${a.rgb},0.1)`; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
                   >
