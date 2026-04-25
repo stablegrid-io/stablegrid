@@ -4,11 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Shield, Settings, HelpCircle } from 'lucide-react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { Fingerprint, Wrench, MessageCircle } from 'lucide-react';
 import type { AdminRole } from '@/lib/admin/types';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
-import { StableGridIcon } from '@/components/brand/StableGridLogo';
+import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { getUserTier, getTierProfileImage } from '@/lib/energy';
 import {
   isNavItemActive,
   isCompactDesktopNavPath,
@@ -26,51 +26,51 @@ interface AdminAccessData {
   role: AdminRole;
 }
 
-interface ProfileAvatarResponse {
-  data?: { avatarUrl?: string | null };
-}
-
-const PROFILE_AVATAR_UPDATED_EVENT = 'stablegrid:profile-avatar-updated';
-
-const toAvatarUrl = (value: unknown) =>
-  typeof value === 'string' && value.trim().length > 0 ? value : null;
-
-const toNickname = (user: SupabaseUser | null) => {
-  if (!user) return 'Operator';
-  const metadata = user.user_metadata ?? {};
-  for (const candidate of [metadata.nickname, metadata.display_name, metadata.name, metadata.full_name]) {
-    if (typeof candidate === 'string' && candidate.trim().length > 0) return candidate.trim();
-  }
-  if (typeof user.email === 'string' && user.email.includes('@')) {
-    const localPart = user.email.split('@')[0]?.trim();
-    if (localPart) return localPart;
-  }
-  return 'Operator';
-};
-
 export const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuthStore();
   const hideNav = shouldHideNav(pathname, Boolean(user));
   const isCompact = isCompactDesktopNavPath(pathname);
-  const nickname = toNickname(user);
-
-  const profileAvatarUrlRaw = user?.user_metadata?.avatar_url;
-  const profileAvatarFallback =
-    typeof profileAvatarUrlRaw === 'string' &&
-    profileAvatarUrlRaw.trim().length > 0 &&
-    !profileAvatarUrlRaw.startsWith('data:')
-      ? profileAvatarUrlRaw
-      : null;
 
   const prefetchedRoutesRef = useRef<Set<string>>(new Set());
   const [adminAccess, setAdminAccess] = useState<AdminAccessData | null>(null);
   const [hasResolvedAdminAccess, setHasResolvedAdminAccess] = useState(false);
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
-  const [profileName, setProfileName] = useState<string | null>(null);
-  const resolvedAvatarUrl = profileAvatarUrl ?? profileAvatarFallback;
-  const displayName = profileName ?? nickname;
+  const xp = useProgressStore((state) => state.xp);
+  const completedTracks = useProgressStore((state) => state.completedTracks);
+  const [progressHydrated, setProgressHydrated] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
+  useEffect(() => {
+    // Zustand persist reads localStorage synchronously before effects run,
+    // so by this point `xp` reflects the stored value (not the SSR default 0).
+    setProgressHydrated(true);
+  }, []);
+
+  // Live balance = xp − grid spending. Refetch on mount + window focus so the
+  // sidebar stays in sync when returning from /grid after a purchase.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    const refetch = async () => {
+      try {
+        const r = await fetch('/api/user/balance', { cache: 'no-store' });
+        if (!r.ok || cancelled) return;
+        const json = await r.json();
+        if (typeof json?.balance === 'number') setBalance(json.balance);
+      } catch { /* keep prior value */ }
+    };
+    refetch();
+    window.addEventListener('focus', refetch);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refetch);
+    };
+  }, [user?.id]);
+  const tier = getUserTier({ kwh: xp, completedTracks });
+  const resolvedAvatarUrl = getTierProfileImage(tier);
+  const tierAccent =
+    tier === 'senior' ? '#ff716c' : tier === 'mid' ? '#ffc965' : '#99f7ff';
+  const tierLabel = tier === 'senior' ? 'Senior' : tier === 'mid' ? 'Mid' : 'Junior';
 
   const prefetchRoute = useCallback(
     (route: string) => {
@@ -122,36 +122,6 @@ export const Sidebar = () => {
     return () => ac.abort();
   }, [hasResolvedAdminAccess, user?.id]);
 
-  // Avatar + profile name loading
-  useEffect(() => {
-    if (!user?.id) { setProfileAvatarUrl(null); setProfileName(null); return; }
-    const ac = new AbortController();
-    (async () => {
-      try {
-        const res = await fetch('/api/profile/avatar', { signal: ac.signal });
-        if (ac.signal.aborted || !res.ok) return;
-        const payload = (await res.json()) as ProfileAvatarResponse;
-        if (!ac.signal.aborted) {
-          setProfileAvatarUrl(toAvatarUrl(payload?.data?.avatarUrl));
-          const fullName = (payload?.data as Record<string, unknown>)?.fullName;
-          if (typeof fullName === 'string' && fullName.trim().length > 0) {
-            setProfileName(fullName.trim());
-          }
-        }
-      } catch { /* ignore */ }
-    })();
-    return () => ac.abort();
-  }, [user?.id]);
-
-  // Avatar update events
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const ce = e as CustomEvent<{ avatarUrl?: string | null }>;
-      setProfileAvatarUrl(toAvatarUrl(ce.detail?.avatarUrl));
-    };
-    window.addEventListener(PROFILE_AVATAR_UPDATED_EVENT, handler);
-    return () => window.removeEventListener(PROFILE_AVATAR_UPDATED_EVENT, handler);
-  }, []);
 
   if (hideNav) return null;
 
@@ -160,44 +130,66 @@ export const Sidebar = () => {
   return (
     <aside
       data-compact={isCompact ? 'true' : undefined}
-      className={`fixed left-0 top-0 h-full bg-[#0c0e10]/80 backdrop-blur-2xl border-r border-white/[0.06] flex-col pt-14 pb-5 z-40 hidden lg:flex transition-[width] duration-200 ${
+      className={`fixed left-0 top-0 h-full bg-surface/80 backdrop-blur-2xl border-r border-white/[0.06] flex-col pt-14 pb-5 z-40 hidden lg:flex transition-[width] duration-200 ${
         isCompact ? 'w-16' : 'w-48'
       }`}
     >
       {/* User section */}
-      <div className={`${isCompact ? 'px-3 py-4 flex justify-center' : 'px-4 py-5'}`}>
+      <div className={`${isCompact ? 'px-3 py-2 flex justify-center' : 'px-4 py-2'}`}>
         {isCompact ? (
-          <div className="w-9 h-9 rounded-full overflow-hidden ring-1 ring-white/10 flex-shrink-0">
-            {resolvedAvatarUrl ? (
-              <Image src={resolvedAvatarUrl} alt="Avatar" width={36} height={36} unoptimized className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-white/[0.06] flex items-center justify-center">
-                <StableGridIcon size="sm" className="w-full h-full border-0" />
-              </div>
+          <div
+            className="relative w-10 h-10 shrink-0 overflow-hidden rounded-full ring-2"
+            style={{
+              ['--tw-ring-color' as string]: 'rgba(255,255,255,0.08)',
+              backgroundColor: 'rgba(255,255,255,0.04)'
+            }}
+          >
+            {progressHydrated && (
+              <Image src={resolvedAvatarUrl} alt={`${tier} avatar`} fill unoptimized className="object-cover" />
             )}
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden ring-1 ring-white/10 flex-shrink-0">
-              {resolvedAvatarUrl ? (
-                <Image src={resolvedAvatarUrl} alt="Avatar" width={40} height={40} unoptimized className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-white/[0.06] flex items-center justify-center">
-                  <StableGridIcon size="sm" className="w-full h-full border-0" />
-                </div>
+            <div
+              className="relative w-12 h-12 shrink-0 overflow-hidden rounded-full ring-2"
+              style={{
+                ['--tw-ring-color' as string]: 'rgba(255,255,255,0.08)',
+                backgroundColor: 'rgba(255,255,255,0.04)'
+              }}
+            >
+              {progressHydrated && (
+                <Image src={resolvedAvatarUrl} alt={`${tier} avatar`} fill unoptimized className="object-cover" />
               )}
             </div>
-            <div className="min-w-0">
-              <div className="text-[13px] font-semibold text-on-surface truncate">
-                {displayName}
+            <div
+              className="min-w-0 flex flex-col leading-tight"
+              style={{ fontFamily: '-apple-system, "SF Pro Text", system-ui, sans-serif' }}
+            >
+              <div
+                className="text-[11px] font-bold uppercase tracking-[0.14em]"
+                style={{ color: progressHydrated ? tierAccent : 'transparent' }}
+              >
+                {progressHydrated ? tierLabel : '\u00A0'}
+              </div>
+              <div className="mt-1.5 text-[12px] font-semibold text-white tabular-nums leading-tight">
+                {progressHydrated && balance !== null ? (
+                  <>
+                    {balance.toLocaleString()} <span className="font-medium text-white/50">kWh</span>
+                  </>
+                ) : (
+                  <span className="text-white/30">— kWh</span>
+                )}
               </div>
             </div>
           </div>
         )}
       </div>
 
+      {/* Divider */}
+      <div className={`${isCompact ? 'mx-1' : 'mx-1'} mt-4 h-px bg-white/[0.06]`} />
+
       {/* Nav links */}
-      <nav className="flex-1 py-3 px-2 space-y-0.5">
+      <nav className="flex-1 pt-6 pb-3 px-2 space-y-0.5">
         {filteredItems.map((item) => {
           const Icon = item.icon;
           const isActive = isNavItemActive(pathname, item);
@@ -208,7 +200,7 @@ export const Sidebar = () => {
               href={item.href}
               onMouseEnter={() => prefetchRoute(item.href)}
               title={isCompact ? item.label : undefined}
-              className={`group relative flex items-center ${isCompact ? 'justify-center px-0 py-2.5 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-[13px] font-medium transition-all duration-150 ${
+              className={`group relative flex items-center ${isCompact ? 'justify-center px-0 py-2.5 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-[13px] font-medium transition-all duration-150 ${
                 isActive
                   ? 'bg-white/[0.08] text-on-surface'
                   : 'text-on-surface-variant/60 hover:text-on-surface-variant hover:bg-white/[0.04]'
@@ -217,7 +209,7 @@ export const Sidebar = () => {
               <Icon className={`flex-shrink-0 ${isCompact ? 'h-5 w-5' : 'h-[18px] w-[18px]'}`} />
               {!isCompact && <span>{item.label}</span>}
               {isCompact && (
-                <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-lg bg-surface-container/95 backdrop-blur-lg border border-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-on-surface opacity-0 shadow-lg group-hover:opacity-100 transition-opacity z-50">
+                <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-[7px] bg-surface-container/95 backdrop-blur-lg border border-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-on-surface opacity-0 shadow-lg group-hover:opacity-100 transition-opacity z-50">
                   {item.label}
                 </span>
               )}
@@ -233,9 +225,9 @@ export const Sidebar = () => {
             href="/admin"
             onMouseEnter={() => prefetchRoute('/admin')}
             title={isCompact ? 'Admin' : undefined}
-            className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
+            className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
           >
-            <Shield className="h-[18px] w-[18px]" />
+            <Fingerprint className="h-[18px] w-[18px]" />
             {!isCompact && <span>Admin</span>}
           </Link>
         )}
@@ -243,17 +235,17 @@ export const Sidebar = () => {
           href="/settings"
           onMouseEnter={() => prefetchRoute('/settings')}
           title={isCompact ? 'Settings' : undefined}
-          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
+          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
         >
-          <Settings className="h-[18px] w-[18px]" />
+          <Wrench className="h-[18px] w-[18px]" />
           {!isCompact && <span>Settings</span>}
         </Link>
         <Link
           href="/support"
           title={isCompact ? 'Support' : undefined}
-          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
+          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
         >
-          <HelpCircle className="h-[18px] w-[18px]" />
+          <MessageCircle className="h-[18px] w-[18px]" />
           {!isCompact && <span>Support</span>}
         </Link>
       </div>

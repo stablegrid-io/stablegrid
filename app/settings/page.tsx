@@ -20,7 +20,7 @@ export default async function SettingsPage() {
   const [profileResult, subscriptionResult] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, name, email, avatar_url, created_at, notification_prefs')
+      .select('id, name, email, avatar_url, created_at')
       .eq('id', user.id)
       .maybeSingle(),
     supabase
@@ -43,8 +43,7 @@ export default async function SettingsPage() {
     name: (user.user_metadata?.name as string | undefined) ?? null,
     email: user.email ?? null,
     avatar_url: metadataAvatar,
-    created_at: user.created_at ?? null,
-    notification_prefs: null
+    created_at: user.created_at ?? null
   };
 
   const profileData = profileResult.data as ProfileRecord | null;
@@ -57,12 +56,17 @@ export default async function SettingsPage() {
     : fallbackProfile;
   const subscription = (subscriptionResult.data as SubscriptionRecord | null) ?? null;
 
+  const provider: string | null =
+    (user.app_metadata?.provider as string | undefined) ??
+    (Array.isArray(user.identities) ? user.identities[0]?.provider ?? null : null);
+
   return (
     <main className="min-h-screen px-2 pb-16 pt-4 md:px-4 md:pt-6">
       <SettingsShell
         profile={profile}
         subscription={subscription}
         userEmail={user.email ?? ''}
+        provider={provider}
       />
     </main>
   );

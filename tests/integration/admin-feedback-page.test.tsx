@@ -137,10 +137,12 @@ describe('AdminFeedbackPage', () => {
 
     render(<AdminFeedbackPage />);
 
-    expect(screen.getByRole('heading', { name: 'Feedback' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Sentiment, trends & insights' })
+    ).toBeInTheDocument();
     expect(await screen.findByText('Total feedback received')).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: 'Feedback trend over time' })
+      await screen.findByRole('heading', { name: 'Feedback trend over time' })
     ).toBeInTheDocument();
 
     expect(

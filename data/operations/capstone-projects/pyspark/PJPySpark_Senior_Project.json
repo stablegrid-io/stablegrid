@@ -1,0 +1,954 @@
+{
+  "id": "PJ_PySpark_Senior",
+  "version": "1.0.0",
+  "track": "PySpark",
+  "level": "Senior",
+  "scenario": "NordGrid",
+  "total_xp": 700,
+
+  "narrative_premise": "GridUnion Continental, NordGrid's parent company, has just approved the acquisition of two additional grid operators: Kraftnett AB in Sweden and Virtaverkko Oy in Finland. Combined, the three operators will manage 3.2 million meters, 24 geographic regions across three countries, and 45 GB of daily data — more than triple NordGrid's current Norway-only footprint. The platform team has 90 days to produce an expansion architecture that onboards both operators without rebuilding what Norway already runs. You are the lead architect. The CTO has asked for three deliverables: a technical risk audit of the current platform, an architecture recommendation for multi-country onboarding, and a migration plan with governance policy. All three deliverables will be reviewed in a CTO presentation in week 13. You have the current pipeline inventory, the table catalog, and the team directory. The new operators have agreed to adopt NordGrid's existing schema standards. What they cannot agree to is a rebuild timeline longer than 90 days. Every decision you make in the next five chapters must be defensible against that constraint. The design journal on the right will track your key decisions across chapters. Chapter 5 will pre-populate from it.",
+
+  "ux": {
+    "persistent_element": "design_journal",
+    "journal_fields": [
+      { "id": "dj_1", "label": "Top 3 platform risks at 3x scale", "populated_by": "chapter_1" },
+      { "id": "dj_2", "label": "Chosen onboarding architecture + key trade-offs", "populated_by": "chapter_2" },
+      { "id": "dj_3", "label": "Migration wave rationale", "populated_by": "chapter_3" },
+      { "id": "dj_4", "label": "Governance gaps addressed", "populated_by": "chapter_4" },
+      { "id": "dj_5", "label": "CTO Deck synthesis", "populated_by": "chapter_5" }
+    ],
+    "journal_note": "The design journal is read-only while you are working on a chapter. Once a chapter is submitted, its journal entry is locked. Chapter 5 pre-populates from entries 1-4 — you refine rather than reconstruct.",
+    "score_card": {
+      "thresholds": {
+        "distinguished": 665,
+        "proficient": 560,
+        "developing": 420
+      },
+      "labels": {
+        "distinguished": "Strong architectural judgment. Your recommendations are internally consistent, evidence-driven, and appropriately scoped to 3x scale.",
+        "proficient": "Solid senior instincts. One or two chapters needed scaffolding — review your hint usage and the modules those chapters cover.",
+        "developing": "Design thinking is present but the analysis-to-recommendation chain is uneven. The chapter breakdown identifies which areas to strengthen.",
+        "incomplete": "The senior-level track content should be reviewed before proceeding. Focus on the Enterprise Operations and Extensibility phases."
+      }
+    }
+  },
+
+  "coverage_matrix": {
+    "1":  ["chapter_1"],
+    "2":  ["chapter_1", "chapter_3"],
+    "3":  ["chapter_1", "chapter_3"],
+    "4":  ["chapter_2"],
+    "5":  ["chapter_2"],
+    "6":  ["chapter_1"],
+    "7":  ["chapter_1"],
+    "8":  ["chapter_4"],
+    "9":  ["chapter_4"],
+    "10": ["chapter_3", "chapter_5"]
+  },
+
+  "datasets": [
+    {
+      "name": "pipeline_inventory.csv",
+      "path": "PJPySpark_Senior_data/pipeline_inventory.csv",
+      "row_count": 120,
+      "description": "Current NordGrid pipeline inventory — Norway only, pre-expansion. Columns: pipeline_id, team, domain, mode (batch/streaming), spark_version (3.2/3.3/3.4), sla_tier (critical/high/standard/best_effort), cost_monthly_eur, consumer_count, alert_configured (True/False), partition_col (date / date+region / date+region+domain — NONE contain 'country'), status (active/deprecated/experimental). Key counts: 100 active, 18 critical-SLA, 12 critical-SLA with alert_configured=False, 41 active on Spark 3.2, 22 with consumer_count>=10."
+    },
+    {
+      "name": "table_catalog.csv",
+      "path": "PJPySpark_Senior_data/table_catalog.csv",
+      "row_count": 60,
+      "description": "Current table catalog for all NordGrid Parquet/Delta tables. Columns: table_id, layer, format, partition_cols, row_count_millions, file_count, avg_file_size_mb, schema_version, last_stats_refresh_days, owner_team. Key patterns: ALL partition_cols contain 'date' or 'date,region' — no 'country'. 15 tables have last_stats_refresh_days > 30 (stale statistics). 11 Silver tables have avg_file_size_mb < 10 (small file problem at scale)."
+    },
+    {
+      "name": "migration_candidates.csv",
+      "path": "PJPySpark_Senior_data/migration_candidates.csv",
+      "row_count": 20,
+      "description": "Representative 20-pipeline subset of the full inventory, selected for the Chapter 3 migration wave exercise. Columns: pipeline_id, team, domain, sla_tier, consumer_count, cost_monthly_eur, mode, dependencies. Designed with clear risk gradients: 6 pipelines are clearly Wave 1 (low SLA, low consumers), 7 are clearly Wave 3 (critical SLA or consumer_count>=10), 7 are genuinely Wave 2 (require judgment). Wave 3 pipelines: PIPE-003, PIPE-012, PIPE-025, PIPE-038, PIPE-061, PIPE-079, PIPE-105."
+    },
+    {
+      "name": "team_directory.csv",
+      "path": "PJPySpark_Senior_data/team_directory.csv",
+      "row_count": 8,
+      "description": "Current 8-team engineering organisation — Norway only. Columns: team_id, team_name, country, domain, headcount, pipeline_count, budget_annual_eur. Post-expansion context: Sweden and Finland each bring 2 additional teams. The current team directory is used in Chapter 2 to evaluate team autonomy constraints and in Chapter 4 to assign policy owners."
+    }
+  ],
+
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "title": "Audit the Current State",
+      "unlock_condition": null,
+      "chapter_type": "template",
+      "base_xp": 140,
+      "modules_primary": [1, 2, 3, 6, 7],
+      "modules_secondary": [],
+
+      "narrative_context": "Before designing anything, you need to know what NordGrid is actually running. The platform team hands you two files: the pipeline inventory and the table catalog. You have seen these kinds of audits before — the purpose is not to list everything that exists, but to identify which characteristics of the current platform will become critical failure points when data volume triples and three countries replace one. You have 90 minutes to complete the audit before the architecture kickoff meeting.",
+
+      "task": "Examine the pipeline_inventory.csv and table_catalog.csv datasets. Answer the seven audit questions below. All answers are directly verifiable in the data — this is an evidence-reading task, not an estimation task. Your answers will populate the design journal and be referenced in Chapter 5.",
+
+      "validation_hint": "For numeric fields, filter the datasets as described in each question. For the risk priority field, select the risk whose evidence is most directly quantified in the data — the one for which you have the clearest count, not the one that sounds most serious.",
+
+      "evidence": [
+        {
+          "id": "ev_1_1",
+          "type": "dataset_preview",
+          "title": "pipeline_inventory.csv — first 10 rows (120 total)",
+          "caption": "Full dataset available for analysis. Key columns shown. Use the data explorer to filter and count.",
+          "headers": ["pipeline_id","team","spark_version","sla_tier","consumer_count","alert_configured","partition_col","status"],
+          "preview_rows": [
+            ["PIPE-001","ingestion","3.3","best_effort","4","True","date","active"],
+            ["PIPE-002","silver-transform","3.2","high","6","True","date,region","active"],
+            ["PIPE-003","ingestion","3.3","critical","18","True","date","active"],
+            ["PIPE-004","analytics","3.4","standard","3","True","date,region","active"],
+            ["PIPE-005","billing","3.2","standard","2","False","date","active"],
+            ["PIPE-006","compliance","3.4","high","7","True","date,region,domain","deprecated"],
+            ["PIPE-007","silver-transform","3.3","high","6","True","date,region","active"],
+            ["PIPE-008","ingestion","3.2","best_effort","1","False","date","active"],
+            ["PIPE-009","ml-features","3.4","standard","4","True","date","experimental"],
+            ["PIPE-010","billing","3.3","critical","13","False","date,region","active"]
+          ]
+        },
+        {
+          "id": "ev_1_2",
+          "type": "dataset_preview",
+          "title": "table_catalog.csv — first 8 rows (60 total)",
+          "caption": "Full dataset available. Note the partition_cols values — these determine which query patterns benefit from partition pruning at 3x scale.",
+          "headers": ["table_id","layer","partition_cols","row_count_millions","avg_file_size_mb","last_stats_refresh_days","owner_team"],
+          "preview_rows": [
+            ["TBL-001","bronze","date","12.4","34.8","8","ingestion"],
+            ["TBL-002","silver","date,region","28.1","7.3","45","silver-transform"],
+            ["TBL-003","silver","date,region","15.6","4.1","22","silver-transform"],
+            ["TBL-004","gold","date,region","4.2","112.5","12","analytics"],
+            ["TBL-005","bronze","date","8.9","52.1","3","ingestion"],
+            ["TBL-006","silver","date","31.2","9.8","67","silver-transform"],
+            ["TBL-007","platinum","date,region","2.1","88.4","19","ml-features"],
+            ["TBL-008","silver","date,region","19.4","3.2","38","billing"]
+          ]
+        }
+      ],
+
+      "grading": {
+        "type": "structured_template",
+        "xp_per_field": 20,
+        "fields": [
+          {
+            "id": "F1_1",
+            "xp": 20,
+            "label": "How many pipelines in the inventory have status = 'active'?",
+            "field_type": "numeric",
+            "correct_answer": 100,
+            "tolerance": 0,
+            "failure_message": "Filter pipeline_inventory.csv where status = 'active' and count the rows. The answer is 100."
+          },
+          {
+            "id": "F1_2",
+            "xp": 20,
+            "label": "How many active pipelines are classified as SLA tier 'critical'?",
+            "field_type": "numeric",
+            "correct_answer": 18,
+            "tolerance": 0,
+            "failure_message": "Filter for sla_tier = 'critical' across all rows (status does not need to be active for this count — all 18 critical pipelines happen to be active). Count: 18."
+          },
+          {
+            "id": "F1_3",
+            "xp": 20,
+            "label": "How many active pipelines run on Spark 3.2 — the oldest version in use?",
+            "field_type": "numeric",
+            "correct_answer": 41,
+            "tolerance": 0,
+            "failure_message": "Filter pipeline_inventory.csv where spark_version = '3.2' AND status = 'active'. Count: 41."
+          },
+          {
+            "id": "F1_4",
+            "xp": 20,
+            "label": "Which partition column is present in zero current Silver tables but will be required by every new multi-country query after the Sweden and Finland onboarding?",
+            "field_type": "single_select",
+            "options": [
+              "region — current Silver tables partition by date only, not by region",
+              "country — no table in the catalog partitions by country; every cross-country query will require a full scan of all three countries' data",
+              "domain — Silver tables are partitioned by date and region but not by domain, causing full-table scans for domain-filtered queries",
+              "layer — the medallion layer is embedded in the table path but not as a partition column, preventing layer-level pruning"
+            ],
+            "correct_answer": "country — no table in the catalog partitions by country; every cross-country query will require a full scan of all three countries' data",
+            "failure_message": "Scan all partition_cols values in table_catalog.csv. Every value contains 'date' or 'date,region' or 'date,region,domain'. None contain 'country'. After onboarding Sweden and Finland, queries scoped to one country will read all three countries' partitions — a full scan at 3x volume."
+          },
+          {
+            "id": "F1_5",
+            "xp": 20,
+            "label": "How many critical-SLA pipelines have alert_configured = False?",
+            "field_type": "numeric",
+            "correct_answer": 12,
+            "tolerance": 0,
+            "failure_message": "Filter pipeline_inventory.csv where sla_tier = 'critical' AND alert_configured = False. Count: 12. These 12 pipelines will fail silently — exactly what happened in the Saturday incident — but at contractual SLA obligations instead of best-effort."
+          },
+          {
+            "id": "F1_6",
+            "xp": 20,
+            "label": "How many pipelines have consumer_count >= 10 (high blast radius if broken)?",
+            "field_type": "numeric",
+            "correct_answer": 22,
+            "tolerance": 0,
+            "failure_message": "Filter pipeline_inventory.csv where consumer_count >= 10. Count: 22. These pipelines have the highest blast radius in a production failure — breaking one affects 10 or more downstream teams or processes."
+          },
+          {
+            "id": "F1_7",
+            "xp": 20,
+            "label": "Based on the audit data, which of these three risks is the most directly quantified and therefore the highest-confidence risk for the expansion?",
+            "field_type": "single_select",
+            "options": [
+              "Spark version fragmentation — 41 of 100 active pipelines run Spark 3.2. Upgrading all to 3.4 before onboarding 2 new operators is a prerequisite; version skew across 120 pipelines compounds maintenance cost at 3x scale.",
+              "Missing 'country' partition column — zero tables in the catalog partition by country. Every cross-country query at 3.2M meters will full-scan all partitions, degrading from the current baseline with no code changes required.",
+              "Unmonitored critical-SLA pipelines — 12 of 18 critical-SLA pipelines have no alerting. When SLA obligations become contractual across 3 countries, a silent failure on any of these 12 pipelines constitutes a contract breach."
+            ],
+            "correct_answer": "Unmonitored critical-SLA pipelines — 12 of 18 critical-SLA pipelines have no alerting. When SLA obligations become contractual across 3 countries, a silent failure on any of these 12 pipelines constitutes a contract breach.",
+            "secondary_correct_answer": "Missing 'country' partition column — zero tables in the catalog partition by country. Every cross-country query at 3.2M meters will full-scan all partitions, degrading from the current baseline with no code changes required.",
+            "distractor_rationale": "Spark version fragmentation is a real risk but it is a technical debt problem, not an expansion-blocking problem. Partition and alerting gaps directly block the expansion from working correctly on day one.",
+            "failure_message": "All three are real risks — the question asks which is most directly quantified. Both 'country partition' and 'unmonitored critical-SLA' are defensible primary answers. Version fragmentation is a maintenance burden but not an expansion blocker in the same immediate sense.",
+            "accepts_secondary": true
+          }
+        ]
+      },
+
+      "journal_contribution": {
+        "dj_1": "Risks: (1) 12/18 critical-SLA pipelines unmonitored — contract breach risk. (2) No 'country' partition in any table — full-scan at 3x scale. (3) 41/100 active pipelines on Spark 3.2 — version fragmentation. Active pipelines: 100. High-blast-radius: 22."
+      },
+
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This is a platform audit — the same evidence-reading pattern you practised in Cluster Sizing and End-to-End Pipeline Optimization. The questions are structured so each answer is directly countable from the data. Read the question carefully to know which column to filter on and which value to count."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 7,
+          "unlock_condition": "always",
+          "text": "For F1_4: scan the partition_cols column in table_catalog.csv. Look for which geographic granularity is missing. After onboarding Sweden and Finland, NordGrid will have data for 3 countries — a query like 'show me all Norway Silver readings' needs to be able to skip Sweden and Finland's partitions entirely. For F1_7: the key word is 'most directly quantified' — which risk has the clearest number attached to it in the data, and which number has the most immediate consequence for the expansion?"
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 14,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "F1_1: count rows where status='active' → 100. F1_2: count rows where sla_tier='critical' → 18. F1_3: count where spark_version='3.2' AND status='active' → 41. F1_4: the missing column is 'country' — it appears in zero partition_cols values. F1_5: count where sla_tier='critical' AND alert_configured=False → 12. F1_6: count where consumer_count>=10 → 22. F1_7: the 'unmonitored critical-SLA' answer is the primary correct answer; 'missing country partition' is also accepted."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 28,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "F1_1=100, F1_2=18, F1_3=41, F1_4='country — no table in the catalog partitions by country...', F1_5=12, F1_6=22, F1_7='Unmonitored critical-SLA pipelines...' (or the 'Missing country partition' option — both are accepted)."
+        }
+      ]
+    },
+
+    {
+      "id": "chapter_2",
+      "title": "Design the Onboarding Architecture",
+      "unlock_condition": { "after_chapter": 1 },
+      "chapter_type": "design_artifact",
+      "base_xp": 140,
+      "modules_primary": [4, 5],
+      "modules_secondary": [1, 8],
+
+      "narrative_context": "The audit is done. Now the harder question: how do you structure the platform to run three countries? The Sweden and Finland operators have different internal team structures and slightly different regional schemas, but they have agreed to adopt NordGrid's meter_id, daily_kw, date, and region column standards. The platform team has presented three architectural options to the steering group. You need to recommend one, justify it against the four named evaluation criteria, and be explicit about the trade-offs you are accepting. There is no wrong answer — there is only a defensible answer or an indefensible one.",
+
+      "task": "Study the three architectural options and their descriptions. Complete the recommendation template: select your preferred architecture, score it against all four criteria (High / Medium / Low), name two trade-offs you are accepting, and write a one-sentence constraint that your recommendation requires the new operators to meet. Your answer will be stored in the design journal and referenced in Chapter 5.",
+
+      "validation_hint": "No single option scores High on all four criteria — that is by design. A recommendation that claims High on every criterion has not engaged with the trade-offs. The rubric rewards internally consistent reasoning, not a specific choice.",
+
+      "evidence": [
+        {
+          "id": "ev_2_1",
+          "type": "table",
+          "title": "Three architectural options for multi-country onboarding",
+          "caption": "All three options assume the new operators adopt NordGrid's column schema standards. Differences are in cluster topology, schema ownership, and federation strategy.",
+          "headers": ["Option","Name","Description","Key advantage","Key risk"],
+          "rows": [
+            [
+              "A",
+              "Shared Cluster, Unified Schema",
+              "All three countries run on a single cluster. One shared Silver schema. One shared Gold layer. Norway's existing pipeline code is extended with a 'country' column and redeployed.",
+              "Fastest onboarding. Existing pipelines require minimal changes. Lowest infrastructure cost.",
+              "Schema changes affect all three countries simultaneously. A Norway-specific data quality issue can corrupt Sweden and Finland's Gold tables. No team autonomy — all schema changes require platform team approval."
+            ],
+            [
+              "B",
+              "Isolated Clusters Per Country",
+              "Norway, Sweden, and Finland each run separate Spark clusters with separate Bronze, Silver, and Gold layers. A cross-country federation view is built at the Platinum layer.",
+              "Maximum isolation. A failure in Norway cannot affect Sweden. Each country team has full schema autonomy.",
+              "3x infrastructure cost. 3x operational overhead. Federation layer must reconcile schema differences that will inevitably emerge over time. 90-day deadline is very tight for three full cluster builds."
+            ],
+            [
+              "C",
+              "Federated Execution, Shared Pipeline Code",
+              "Single shared pipeline codebase with a 'country' config parameter. Each country gets dedicated compute resources (separate executor pools, not separate clusters). Bronze and Silver schemas are shared. Gold federation view aggregates across countries.",
+              "Shared code reduces maintenance burden. Country-level compute isolation prevents resource contention. Schema is unified without full cluster separation. Fits the 90-day deadline.",
+              "Shared schema means breaking schema changes still require coordination across all three countries. Countries cannot diverge their Silver schemas independently without forking the pipeline code."
+            ]
+          ]
+        },
+        {
+          "id": "ev_2_2",
+          "type": "table",
+          "title": "Evaluation criteria (from the expansion steering brief)",
+          "caption": "These four criteria were set by the CTO and cannot be changed. Your recommendation must be scored against all four.",
+          "headers": ["Criterion","Description","Why it matters for this expansion"],
+          "rows": [
+            ["Onboarding speed","Can both operators be live within the 90-day deadline?","GridUnion contractually committed to operational integration within 90 days of acquisition close."],
+            ["Operational cost","Ongoing infrastructure and maintenance cost across all three countries.","The expansion budget is fixed. Cost overruns require CTO approval and delay other roadmap items."],
+            ["Failure isolation","Does a failure in one country's pipeline affect the other two?","Billing and compliance SLAs are per-country. A Norway outage must not trigger a Sweden SLA breach."],
+            ["Team autonomy","Can each country team make schema changes and deploy pipeline code without coordinating with the other two?","Sweden and Finland teams have existing engineers who expect to own their domain."]
+          ]
+        }
+      ],
+
+      "grading": {
+        "type": "design_artifact",
+        "rubric_xp": 140,
+        "acceptable_answers": ["A", "B", "C"],
+        "primary_recommended_answer": "C",
+        "fields": [
+          {
+            "id": "F2_1",
+            "xp": 35,
+            "label": "Which architecture option do you recommend?",
+            "field_type": "single_select",
+            "options": ["A — Shared Cluster, Unified Schema", "B — Isolated Clusters Per Country", "C — Federated Execution, Shared Pipeline Code"],
+            "correct_answer": "C — Federated Execution, Shared Pipeline Code",
+            "failure_message": "Option C is the canonical pattern for multi-country federation: shared code, dedicated compute, unified schema. However, A and B are defensible with consistent reasoning."
+          },
+          {
+            "id": "F2_2",
+            "xp": 25,
+            "label": "Score your chosen option on Onboarding Speed",
+            "field_type": "single_select",
+            "options": ["High", "Medium", "Low"],
+            "correct_answer": "High",
+            "failure_message": "Option C scores High on onboarding speed — shared code means no new cluster builds. Option B scores Low (3 cluster builds in 90 days is tight). Option A scores High."
+          },
+          {
+            "id": "F2_3",
+            "xp": 25,
+            "label": "Score your chosen option on Failure Isolation",
+            "field_type": "single_select",
+            "options": ["High", "Medium", "Low"],
+            "correct_answer": "Medium",
+            "failure_message": "Option C scores Medium — dedicated executor pools isolate compute but shared schema means a schema bug affects all countries. Option A scores Low. Option B scores High."
+          },
+          {
+            "id": "F2_4",
+            "xp": 25,
+            "label": "Score your chosen option on Team Autonomy",
+            "field_type": "single_select",
+            "options": ["High", "Medium", "Low"],
+            "correct_answer": "Medium",
+            "failure_message": "Option C scores Medium — teams own their compute but share the pipeline codebase and schema, requiring coordination. Option A scores Low. Option B scores High."
+          },
+          {
+            "id": "F2_5",
+            "xp": 30,
+            "label": "Score your chosen option on Operational Cost",
+            "field_type": "single_select",
+            "options": ["High", "Medium", "Low"],
+            "correct_answer": "Medium",
+            "failure_message": "Option C scores Medium — separate executor pools cost more than a single shared cluster (A=High) but far less than 3 full clusters (B=Low)."
+          }
+        ],
+        "rubric_criteria": [
+          {
+            "id": "R2_1",
+            "xp": 40,
+            "label": "Architecture choice is justified against all four criteria",
+            "description": "The recommendation template must include a score (High/Medium/Low) for each of the four named criteria that is internally consistent with the chosen option's description. Option A cannot score High on Failure Isolation — the shared cluster description explicitly states a Norway failure can corrupt other countries. Option B cannot score High on Onboarding Speed — the description explicitly states the 90-day deadline is tight for three cluster builds. Option C cannot score High on Team Autonomy — the description states schema changes require coordination.",
+            "acceptable_ranges": {
+              "A": {"Onboarding speed": "High", "Operational cost": "High", "Failure isolation": "Low", "Team autonomy": "Low"},
+              "B": {"Onboarding speed": "Low", "Operational cost": "Low", "Failure isolation": "High", "Team autonomy": "High"},
+              "C": {"Onboarding speed": "High", "Operational cost": "Medium", "Failure isolation": "Medium", "Team autonomy": "Medium"}
+            }
+          },
+          {
+            "id": "R2_2",
+            "xp": 35,
+            "label": "Trade-offs are specific to the chosen option, not generic",
+            "description": "Two trade-offs must be named. Each must reference a specific characteristic of the chosen option — not a generic statement like 'there will be some complexity'. For Option A, acceptable trade-offs include: accepting shared failure blast radius, accepting loss of team autonomy. For Option C, acceptable trade-offs include: accepting shared schema coordination requirement, accepting that team autonomy is constrained to compute-level not schema-level."
+          },
+          {
+            "id": "R2_3",
+            "xp": 35,
+            "label": "Recommendation is consistent with the Chapter 1 audit findings",
+            "description": "The design journal entry from Chapter 1 identified risks. The architecture recommendation must address or acknowledge the Chapter 1 risks. Specifically: if Chapter 1 identified 'missing country partition' as a top risk, the recommended architecture must address how country-level partitioning will be implemented. If 'unmonitored critical-SLA pipelines' was flagged, the architecture recommendation should note whether the chosen option improves or maintains the alerting gap.",
+            "cross_chapter_check": "chapter_1_dj_1"
+          },
+          {
+            "id": "R2_4",
+            "xp": 30,
+            "label": "Operator constraint is specific and technically meaningful",
+            "description": "The one-sentence constraint for new operators must be a technical requirement, not an organisational platitude. 'New operators must adopt NordGrid schemas' is too vague — it was already given in the premise. Acceptable examples: 'New operators must use the shared pipeline codebase with no local forks for the first 12 months' (Option C), or 'New operators must provision a separate Spark cluster to the platform team's spec within 30 days of go-live' (Option B)."
+          }
+        ]
+      },
+
+      "journal_contribution": {
+        "dj_2": "Architecture choice + criteria scores + two accepted trade-offs + operator constraint."
+      },
+
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This is a trade-off analysis task — the pattern from Lakehouse Architecture at Scale and Streaming-Batch Convergence. There is no objectively correct answer. Option C is the design the module teaches as the canonical pattern for multi-country federation, but Option A is defensible if you argue the 90-day constraint outweighs isolation concerns, and Option B is defensible if you argue that long-term autonomy justifies the cost. What the rubric rewards is whether your scores are consistent with the option descriptions."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 7,
+          "unlock_condition": "always",
+          "text": "For the criteria scores: read each option's 'Key advantage' and 'Key risk' columns carefully. The scores flow directly from those descriptions — an option that lists 'maximum isolation' as an advantage should score High on Failure Isolation; an option that lists '90-day deadline is very tight' as a risk should score Low on Onboarding Speed. For the trade-offs: name the two things you are giving up by choosing your option, using the language from the option's 'Key risk' description."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 14,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Option C scoring: Onboarding Speed=High (shared code, no new clusters), Operational Cost=Medium (separate executor pools but shared cluster), Failure Isolation=Medium (executor pools isolate compute but shared schema means a schema bug affects all), Team Autonomy=Medium (pipeline code is shared, but schema changes need coordination). Trade-offs to name: (1) schema changes require cross-country coordination, (2) team autonomy is limited to configuration, not pipeline code ownership. Constraint: Sweden and Finland must not fork the shared pipeline codebase without platform team review."
+        }
+      ]
+    },
+
+    {
+      "id": "chapter_3",
+      "title": "Plan the Migration",
+      "unlock_condition": { "after_chapter": 2 },
+      "chapter_type": "design_artifact",
+      "base_xp": 140,
+      "modules_primary": [2, 3, 10],
+      "modules_secondary": [],
+
+      "narrative_context": "Architecture decision made. Now you need to plan the migration sequence. The 20 pipelines in migration_candidates.csv are the Norway pipelines that must be adapted and re-validated before the Sweden and Finland data starts flowing through them. Not all 20 can be migrated in parallel — you need to define three waves. Wave 1 goes first (lowest risk, easiest to validate), Wave 3 goes last (highest risk, needs the most stabilisation time). The wrong wave ordering in a multi-country rollout means a billing pipeline failure in week 6 with no time to recover before the deadline.",
+
+      "task": "Assign each of the 20 pipelines in migration_candidates.csv to Wave 1, Wave 2, or Wave 3. For each wave, write a one-sentence rationale that explains the primary sorting criterion you used. Your wave assignments will be stored in the design journal. The rubric checks that your assignments align with the pipeline risk indicators in the data — sla_tier, consumer_count, and cost_monthly_eur — and that your rationale correctly names those indicators.",
+
+      "validation_hint": "The 20 pipelines contain clear anchors: PIPE-003 (critical SLA, 18 consumers, €1850/month streaming) should be Wave 3 regardless of your sorting approach. PIPE-011 (best_effort SLA, 1 consumer, €55/month) should be Wave 1. The 7 pipelines in the middle require judgment — Wave 2 is acceptable for any pipeline with sla_tier='high' or consumer_count between 5 and 9.",
+
+      "evidence": [
+        {
+          "id": "ev_3_1",
+          "type": "table",
+          "title": "migration_candidates.csv — all 20 pipelines",
+          "caption": "These 20 pipelines require schema changes to add the 'country' column and re-validation before multi-country data flows through them. Sort them into 3 migration waves based on risk.",
+          "headers": ["pipeline_id","team","domain","sla_tier","consumer_count","cost_monthly_eur","mode","dependencies"],
+          "rows": [
+            ["PIPE-003","ingestion","meters","critical","18","1850","streaming","none"],
+            ["PIPE-007","silver-transform","meters","high","6","420","batch","PIPE-001"],
+            ["PIPE-011","analytics","forecasting","best_effort","1","55","batch","none"],
+            ["PIPE-012","silver-transform","meters","critical","22","2100","batch","PIPE-003"],
+            ["PIPE-019","analytics","billing","high","8","610","batch","PIPE-007"],
+            ["PIPE-023","asset-ops","asset-mgmt","standard","3","140","batch","none"],
+            ["PIPE-025","billing","billing","critical","15","1420","streaming","PIPE-012"],
+            ["PIPE-034","silver-transform","turbines","high","5","385","batch","none"],
+            ["PIPE-038","silver-transform","meters","critical","11","980","batch","PIPE-003"],
+            ["PIPE-047","ingestion","weather","best_effort","2","72","batch","none"],
+            ["PIPE-052","billing","billing","high","9","740","streaming","PIPE-019"],
+            ["PIPE-056","analytics","ml-features","standard","4","188","batch","PIPE-023"],
+            ["PIPE-061","billing","billing","critical","13","1150","streaming","PIPE-012"],
+            ["PIPE-068","ml-features","ml-features","standard","7","295","batch","PIPE-034"],
+            ["PIPE-073","compliance","compliance","best_effort","1","48","batch","none"],
+            ["PIPE-079","compliance","compliance","critical","10","890","batch","none"],
+            ["PIPE-084","analytics","forecasting","high","6","450","batch","none"],
+            ["PIPE-091","platform","asset-mgmt","standard","2","165","batch","none"],
+            ["PIPE-099","compliance","compliance","high","5","410","batch","PIPE-007"],
+            ["PIPE-105","platform","meters","critical","20","2350","streaming","PIPE-003,PIPE-012"]
+          ]
+        }
+      ],
+
+      "grading": {
+        "type": "design_artifact",
+        "rubric_xp": 140,
+        "fields": [
+          {
+            "id": "F3_1",
+            "xp": 20,
+            "label": "Assign PIPE-003 (critical SLA, 18 consumers, streaming) to a wave",
+            "field_type": "single_select",
+            "options": ["Wave 1", "Wave 2", "Wave 3"],
+            "correct_answer": "Wave 3",
+            "failure_message": "PIPE-003 is critical SLA with 18 consumers — it must be Wave 3 (highest risk, migrated last)."
+          },
+          {
+            "id": "F3_2",
+            "xp": 20,
+            "label": "Assign PIPE-011 (best_effort SLA, 1 consumer, batch) to a wave",
+            "field_type": "single_select",
+            "options": ["Wave 1", "Wave 2", "Wave 3"],
+            "correct_answer": "Wave 1",
+            "failure_message": "PIPE-011 is best_effort SLA with 1 consumer — it's clearly low-risk, Wave 1."
+          },
+          {
+            "id": "F3_3",
+            "xp": 20,
+            "label": "Assign PIPE-105 (critical SLA, 20 consumers, streaming) to a wave",
+            "field_type": "single_select",
+            "options": ["Wave 1", "Wave 2", "Wave 3"],
+            "correct_answer": "Wave 3",
+            "failure_message": "PIPE-105 is the highest-risk pipeline in the set — critical SLA, 20 consumers, €2350/month. Must be Wave 3."
+          },
+          {
+            "id": "F3_4",
+            "xp": 20,
+            "label": "Assign PIPE-052 (high SLA, 9 consumers, streaming) to a wave",
+            "field_type": "single_select",
+            "options": ["Wave 1", "Wave 2", "Wave 3"],
+            "correct_answer": "Wave 2",
+            "failure_message": "PIPE-052 has high SLA and 9 consumers — too risky for Wave 1, but not critical SLA, so Wave 2."
+          },
+          {
+            "id": "F3_5",
+            "xp": 20,
+            "label": "Assign PIPE-079 (critical SLA, 10 consumers, batch) to a wave",
+            "field_type": "single_select",
+            "options": ["Wave 1", "Wave 2", "Wave 3"],
+            "correct_answer": "Wave 3",
+            "failure_message": "PIPE-079 is critical SLA with 10 consumers — must be Wave 3. A common mistake is placing it in Wave 2 because it has no dependencies."
+          },
+          {
+            "id": "F3_6",
+            "xp": 20,
+            "label": "What is the primary sorting criterion for wave assignment?",
+            "field_type": "single_select",
+            "options": [
+              "sla_tier — critical pipelines go last, best_effort go first",
+              "cost_monthly_eur — most expensive pipelines go last",
+              "mode — streaming pipelines are harder to migrate than batch",
+              "team — pipelines should be grouped by team for coordination"
+            ],
+            "correct_answer": "sla_tier — critical pipelines go last, best_effort go first",
+            "failure_message": "The primary sorting criterion is sla_tier: critical-SLA pipelines have contractual obligations and must be the last to migrate (Wave 3). consumer_count and cost are secondary."
+          }
+        ],
+        "wave_definitions": {
+          "wave_1_must_include": ["PIPE-011","PIPE-023","PIPE-047","PIPE-056","PIPE-073","PIPE-091"],
+          "wave_3_must_include": ["PIPE-003","PIPE-012","PIPE-025","PIPE-038","PIPE-061","PIPE-079","PIPE-105"],
+          "wave_2_remainder": ["PIPE-007","PIPE-019","PIPE-034","PIPE-052","PIPE-068","PIPE-084","PIPE-099"],
+          "notes": "PIPE-068 (standard SLA, consumer_count=7) is defensible in either Wave 1 or Wave 2. PIPE-079 (critical SLA, consumer_count=10) must be Wave 3. All critical SLA pipelines must be Wave 3."
+        },
+        "rubric_criteria": [
+          {
+            "id": "R3_1",
+            "xp": 50,
+            "label": "Wave 1 assignments are low-risk pipelines",
+            "description": "All 6 clearly low-risk pipelines (best_effort or standard SLA, consumer_count < 5, no critical dependencies) must be in Wave 1. Additional pipelines may be included in Wave 1 if the student's rationale justifies them, but assigning any critical-SLA pipeline to Wave 1 is a hard failure.",
+            "hard_failure_condition": "Any pipeline with sla_tier='critical' assigned to Wave 1"
+          },
+          {
+            "id": "R3_2",
+            "xp": 50,
+            "label": "Wave 3 assignments are high-risk pipelines",
+            "description": "All 7 clearly high-risk pipelines (critical SLA or consumer_count >= 10) must be in Wave 3. A student who assigns any critical-SLA pipeline to Wave 1 or Wave 2 has failed this criterion. PIPE-079 (critical SLA, no dependencies) is sometimes placed in Wave 2 by mistake — it must be Wave 3.",
+            "hard_failure_condition": "Any pipeline with sla_tier='critical' or consumer_count>=10 assigned to Wave 1 or Wave 2"
+          },
+          {
+            "id": "R3_3",
+            "xp": 40,
+            "label": "Wave rationale correctly names the primary sorting criteria",
+            "description": "The three wave rationale sentences must reference at least two of the three primary sorting indicators: sla_tier, consumer_count, and cost_monthly_eur. A rationale that says 'Wave 1 is low-risk pipelines' without naming which characteristics define low-risk does not satisfy this criterion. The criteria names must appear in the text."
+          }
+        ]
+      },
+
+      "journal_contribution": {
+        "dj_3": "Wave assignments for 20 migration candidate pipelines. Wave rationale: primary sorting criteria named."
+      },
+
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This is a migration planning task — the pattern from End-to-End Pipeline Optimization and Platform Migration. The key principle is that you migrate the riskiest pipelines last, not first. Risk is multi-dimensional: a pipeline is high-risk if it has a contractual SLA obligation (critical tier), many downstream dependents (high consumer_count), or high replacement cost if it fails (high cost_monthly_eur). Sort the 20 pipelines by those three dimensions and your wave boundaries will become clear."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 7,
+          "unlock_condition": "always",
+          "text": "Start from the extremes, not the middle. Look at the evidence table and identify the two anchors: the pipeline that is clearly the safest to migrate first (lowest SLA, fewest consumers, lowest cost — that is PIPE-011 or PIPE-073) and the pipeline that is clearly the riskiest to migrate (highest SLA, most consumers, highest cost — that is PIPE-105 or PIPE-012). Every other pipeline slots between those two anchors. Any pipeline with sla_tier='critical' belongs in Wave 3."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 14,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Wave 1 (6 pipelines): PIPE-011, PIPE-023, PIPE-047, PIPE-056, PIPE-073, PIPE-091 — all have sla_tier=best_effort or standard AND consumer_count < 5. Wave 3 (7 pipelines): PIPE-003, PIPE-012, PIPE-025, PIPE-038, PIPE-061, PIPE-079, PIPE-105 — all have sla_tier=critical or consumer_count>=10. Wave 2 (7 pipelines): everything else. Rationale: sort by sla_tier priority (critical last), then consumer_count (highest last), then cost (highest last)."
+        }
+      ]
+    },
+
+    {
+      "id": "chapter_4",
+      "title": "Write the Governance Policy",
+      "unlock_condition": { "after_chapter": 3 },
+      "chapter_type": "template",
+      "base_xp": 140,
+      "modules_primary": [8, 9],
+      "modules_secondary": [],
+
+      "narrative_context": "Architecture chosen. Migration waves planned. But the expansion will fail operationally even if it succeeds technically unless there is a governance policy that tells eight engineering teams — and eventually the Sweden and Finland teams — how to make schema changes, who owns each pipeline's SLA obligations, and what happens when a critical-SLA pipeline fails without alerting. NordGrid's current governance policy is a 200-word document written two years ago for a single-country, single-team context. You need to identify its three most critical gaps and write structured additions that would close them.",
+
+      "task": "Read NordGrid's current governance policy below. Identify three gaps that are critical for the multi-country expansion. For each gap, complete four fields: the scope of the policy rule, the trigger condition that activates it, the enforcement mechanism, and the team that owns it. Multiple gap choices are defensible — the rubric checks that your three selections are genuine policy holes and that your additions are internally consistent and complete.",
+
+      "validation_hint": "A genuine policy gap is something that the current document is completely silent about — not something it addresses weakly. The current policy says nothing about cross-country schema changes, nothing about alerting requirements for critical-SLA pipelines, and nothing about what constitutes a pipeline SLA breach. Those are the three highest-priority gaps for an expansion that introduces contractual SLAs.",
+
+      "evidence": [
+        {
+          "id": "ev_4_1",
+          "type": "policy_document",
+          "title": "NordGrid Data Platform Governance Policy — current version (v1.0, authored 2024)",
+          "caption": "This is the complete current policy. It was written for a single-team, single-country context and has not been updated for the mid-level scale changes, let alone the expansion.",
+          "sections": [
+            {
+              "section": "1. Pipeline Ownership",
+              "text": "Every pipeline in the platform must have a designated owner — an engineer whose name appears in the pipeline metadata. The owner is responsible for responding to pipeline failures within 4 hours during business hours. Pipelines without a named owner will not be approved for production deployment."
+            },
+            {
+              "section": "2. Schema Changes",
+              "text": "Schema changes to Bronze and Silver tables must be reviewed by the platform team before deployment. The review covers backwards compatibility only. New columns are always permitted. Column removals require a 2-week deprecation notice posted in the #data-platform Slack channel."
+            },
+            {
+              "section": "3. Data Retention",
+              "text": "Bronze data is retained for 90 days. Silver data is retained for 1 year. Gold data is retained for 5 years. Retention periods may not be shortened without CTO approval."
+            },
+            {
+              "section": "4. Production Access",
+              "text": "Write access to production tables requires approval from the platform team lead. Read access to Gold and Platinum tables is open to all engineering teams. Read access to Silver tables requires a documented use case submitted to the platform team."
+            },
+            {
+              "section": "5. Incident Response",
+              "text": "Pipeline failures must be reported in #incidents within 30 minutes of detection. Post-mortem documents must be filed within 48 hours of resolution for any failure that affects Gold or higher layers."
+            }
+          ]
+        },
+        {
+          "id": "ev_4_2",
+          "type": "table",
+          "title": "Candidate governance gaps for the expansion",
+          "caption": "Seven potential gaps are listed. Select the three most critical for multi-country operation. The rubric accepts multiple valid combinations — choose the three you can most specifically address.",
+          "headers": ["Gap ID","Description","Why it matters for expansion"],
+          "rows": [
+            ["G1","No alerting requirement for critical-SLA pipelines","12 of 18 critical-SLA pipelines have no alerting. The current policy mandates a 4-hour response window but does not require that failures be detected automatically. With contractual SLAs across 3 countries, manual detection is not acceptable."],
+            ["G2","No cross-country schema change process","The current schema change policy was written for single-country operation. It does not specify who approves schema changes that affect all three countries, what coordination is required between country teams, or what constitutes a breaking change at the federation layer."],
+            ["G3","No definition of what constitutes an SLA breach","The current policy defines response time (4 hours) but not what 'SLA breach' means in terms of data completeness, latency, or row count accuracy. With contractual SLAs, a breach triggers financial penalties — the policy must define the measurement."],
+            ["G4","No cost allocation between country teams","With three country teams sharing a cluster, compute costs are not attributed. A Sweden team that runs a poorly-optimised scan consumes compute budget from Norway and Finland with no visibility or accountability."],
+            ["G5","No pipeline deprecation process","12 of 120 pipelines are already deprecated but the policy has no deprecation procedure — no grace period, no consumer notification, no data retention during deprecation. At 3x scale, an ungoverned deprecation of a billing pipeline can create compliance gaps."],
+            ["G6","No DR (disaster recovery) policy","The current policy has no RPO/RTO targets, no cross-region backup requirement, and no failover procedure. With 3 countries and contractual SLAs, a full-cluster failure must have a documented recovery path."],
+            ["G7","No new operator onboarding checklist","There is no process for onboarding a new operator. The expansion requires onboarding two operators simultaneously — without a checklist, the platform team will improvise, producing inconsistent results between Sweden and Finland."]
+          ]
+        }
+      ],
+
+      "grading": {
+        "type": "template",
+        "rubric_xp": 140,
+        "fields": [
+          {
+            "id": "F4_1",
+            "xp": 30,
+            "label": "Select your first governance gap (must be one of the most critical)",
+            "field_type": "single_select",
+            "options": ["G1 — No alerting requirement for critical-SLA pipelines", "G2 — No cross-country schema change process", "G3 — No definition of SLA breach", "G4 — No cost allocation", "G5 — No deprecation process", "G6 — No DR policy", "G7 — No onboarding checklist"],
+            "correct_answer": "G1 — No alerting requirement for critical-SLA pipelines",
+            "failure_message": "G1 is directly evidenced by Chapter 1: 12 of 18 critical-SLA pipelines have alert_configured=False. With contractual SLAs across 3 countries, this is the most urgent gap."
+          },
+          {
+            "id": "F4_2",
+            "xp": 30,
+            "label": "Select your second governance gap (must be one of the most critical)",
+            "field_type": "single_select",
+            "options": ["G1 — No alerting requirement for critical-SLA pipelines", "G2 — No cross-country schema change process", "G3 — No definition of SLA breach", "G4 — No cost allocation", "G5 — No deprecation process", "G6 — No DR policy", "G7 — No onboarding checklist"],
+            "correct_answer": "G2 — No cross-country schema change process",
+            "failure_message": "G2 is directly evidenced by Chapter 2: the architecture requires cross-country coordination, but the current policy has no process for schema changes that affect multiple countries."
+          },
+          {
+            "id": "F4_3",
+            "xp": 20,
+            "label": "Select your third governance gap",
+            "field_type": "single_select",
+            "options": ["G3 — No definition of SLA breach", "G4 — No cost allocation", "G5 — No deprecation process", "G6 — No DR policy", "G7 — No onboarding checklist"],
+            "correct_answer": "G3 — No definition of SLA breach",
+            "failure_message": "G3, G4, G5, G6, and G7 are all valid third choices. G3 is recommended because contractual SLAs require a measurable definition of breach."
+          },
+          {
+            "id": "F4_4",
+            "xp": 30,
+            "label": "For G1 (alerting), what should the enforcement mechanism be?",
+            "field_type": "single_select",
+            "options": [
+              "Deployment pipeline rejects any critical-SLA pipeline without alert_configured=True",
+              "Quarterly audit identifies non-compliant pipelines and sends reminder emails",
+              "Team leads are responsible for self-auditing their pipelines",
+              "PagerDuty automatically enables alerting for all pipelines"
+            ],
+            "correct_answer": "Deployment pipeline rejects any critical-SLA pipeline without alert_configured=True",
+            "failure_message": "The enforcement mechanism must be automated and blocking — a deployment gate that prevents non-compliant pipelines from reaching production. Manual audits and reminders are not sufficient for contractual SLAs."
+          },
+          {
+            "id": "F4_5",
+            "xp": 30,
+            "label": "For G2 (cross-country schema changes), who should own the approval process?",
+            "field_type": "single_select",
+            "options": [
+              "The platform team approves all cross-country schema changes",
+              "Each country team approves their own schema changes independently",
+              "The CTO personally reviews all schema changes",
+              "Schema changes are approved by automated CI/CD tests only"
+            ],
+            "correct_answer": "The platform team approves all cross-country schema changes",
+            "failure_message": "Cross-country schema changes affect the federation layer — they require centralised review by the platform team to ensure compatibility across all three countries."
+          }
+        ],
+        "valid_gap_combinations": [
+          ["G1","G2","G3"],
+          ["G1","G2","G6"],
+          ["G1","G3","G6"],
+          ["G2","G3","G6"],
+          ["G1","G2","G4"],
+          ["G1","G2","G5"],
+          ["G1","G3","G4"],
+          ["G2","G3","G4"]
+        ],
+        "minimum_required_gaps": ["G1","G2"],
+        "note": "G1 and G2 must both be selected — they are the two most directly evidenced by the audit data (Chapter 1 showed 12 unmonitored critical-SLA pipelines; the architecture in Chapter 2 requires cross-country coordination). G3, G4, G5, G6, and G7 are all valid third choices.",
+        "rubric_criteria": [
+          {
+            "id": "R4_1",
+            "xp": 50,
+            "label": "At least 2 of the 3 selected gaps are directly evidenced by the audit data",
+            "description": "G1 is directly evidenced: Chapter 1 showed 12/18 critical-SLA pipelines have alert_configured=False. G2 is directly evidenced: Chapter 2 required designing a cross-country architecture, making the absence of a cross-country schema change policy a concrete gap. Any combination that includes both G1 and G2 satisfies this criterion.",
+            "requires_both": ["G1", "G2"]
+          },
+          {
+            "id": "R4_2",
+            "xp": 50,
+            "label": "Each policy addition has all four required fields: scope, trigger, enforcement mechanism, and owner",
+            "description": "A policy addition that says 'critical-SLA pipelines must have alerting' without specifying the trigger condition (when must alerting be configured — before deployment? retroactively?), the enforcement mechanism (what blocks deployment if alerting is absent?), and the owner (which team enforces this?) is incomplete. All four fields must be present and internally consistent for each of the three additions."
+          },
+          {
+            "id": "R4_3",
+            "xp": 40,
+            "label": "Policy additions are consistent with the Chapter 2 architecture choice",
+            "description": "The governance policy must be compatible with the architecture chosen in Chapter 2. If the student chose Option A (shared cluster), the cross-country schema change policy should be centralised. If the student chose Option C (federated execution), the schema change policy should reflect that country teams have limited but non-zero autonomy. The design journal entry for Chapter 2 is used to check this alignment.",
+            "cross_chapter_check": "chapter_2_dj_2"
+          }
+        ]
+      },
+
+      "journal_contribution": {
+        "dj_4": "Three governance gaps selected + policy additions (scope, trigger, enforcement, owner) for each."
+      },
+
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This is a governance policy design task — the pattern from Multi-Tenant Cluster Governance and Disaster Recovery. The key discipline is reading the current policy carefully to find what it is completely silent about, not what it says weakly. A gap is an absence, not a deficiency. Then for each gap, think about the four-field structure: what does the rule apply to (scope), what event activates it (trigger), how is it enforced technically or procedurally (enforcement), and which team is accountable (owner)."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 7,
+          "unlock_condition": "always",
+          "text": "For gap selection: cross-reference the candidate gap table against the current policy sections. Gap G1 (alerting requirement) — check if Section 5 (Incident Response) says anything about automatic detection. It does not. Gap G2 (cross-country schema changes) — check if Section 2 (Schema Changes) mentions multiple countries. It does not. Those two are the most directly evidenced by your Chapter 1 audit findings. For the third gap, choose the one you can most completely fill in all four fields."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 14,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Recommended gaps: G1, G2, and G3. G1 policy addition: Scope=all critical-SLA pipelines, Trigger=before production deployment or within 30 days for existing pipelines, Enforcement=platform CI/CD gate that blocks deployment if alert_configured=False, Owner=platform team. G2 policy addition: Scope=schema changes to any shared Bronze/Silver table, Trigger=any column addition/removal/rename, Enforcement=pull request must have approval from all three country platform leads, Owner=platform team. G3: define SLA breach as >1% missing rows OR >30 minute data latency at the Silver layer."
+        }
+      ]
+    },
+
+    {
+      "id": "chapter_5",
+      "title": "The CTO Deck",
+      "unlock_condition": { "after_chapter": 4 },
+      "chapter_type": "combined",
+      "base_xp": 140,
+      "modules_primary": [4, 5, 8, 9, 10],
+      "modules_secondary": [],
+
+      "narrative_context": "It is Wednesday of week 3. The CTO presentation is in two days. You need to consolidate everything from the past four chapters into a five-section executive brief. The design journal panel shows your confirmed decisions. The brief is not a new analysis — it is a synthesis. The CTO has seen detailed technical documents. What they need is a clear statement of what you found, what you chose, how you will execute it, and what could go wrong. The brief will be read by three people who were not in the technical discussions: the CTO, the CFO, and the acquisition integration lead from GridUnion.",
+
+      "task": "Complete the five-section CTO Deck template. Each section has constrained options that map to your earlier chapter decisions. The rubric checks that the five sections form a coherent, internally consistent brief — not that you chose a specific option. A brief that describes Option C as the architecture choice but then describes a Wave 1 that includes critical-SLA pipelines is internally inconsistent, regardless of whether Option C is the right answer.",
+
+      "validation_hint": "The design journal on the left is pre-populated from Chapters 1–4. Start with the Situation section, which draws from Chapter 1. Work through in order. Section 5 (Risks) should acknowledge the trade-offs you named in Chapter 2 — they are the most credible risks because they are the ones you already know you are accepting.",
+
+      "evidence": [
+        {
+          "id": "ev_5_1",
+          "type": "design_journal_panel",
+          "title": "Your design journal — pre-populated from Chapters 1–4",
+          "caption": "Read-only. Use these entries to anchor each section of the CTO Deck.",
+          "fields": [
+            { "id": "dj_1", "label": "Top 3 platform risks at 3x scale", "value_source": "chapter_1_output" },
+            { "id": "dj_2", "label": "Architecture choice + trade-offs", "value_source": "chapter_2_output" },
+            { "id": "dj_3", "label": "Migration wave rationale", "value_source": "chapter_3_output" },
+            { "id": "dj_4", "label": "Governance gaps addressed", "value_source": "chapter_4_output" }
+          ]
+        }
+      ],
+
+      "grading": {
+        "type": "combined",
+        "template_xp": 70,
+        "rubric_xp": 70,
+        "template_fields": [
+          {
+            "id": "F5_1",
+            "xp": 14,
+            "label": "Section 1 — Situation: What is the platform's current state and what makes this expansion technically non-trivial?",
+            "field_type": "single_select",
+            "options": [
+              "NordGrid currently operates 120 pipelines serving 500,000 meters in Norway. The expansion triples data volume to 3.2M meters across 3 countries. The current platform was designed for single-country operation with no cross-country partitioning, no contractual SLA monitoring, and Spark version fragmentation across 41% of active pipelines.",
+              "NordGrid is a mature data platform that has been running reliably for several years. The expansion to Sweden and Finland is straightforward because both operators have agreed to adopt NordGrid's schema standards.",
+              "The expansion represents a significant growth opportunity for GridUnion. The platform team has the technical expertise to deliver the onboarding within the 90-day deadline without major architectural changes.",
+              "NordGrid's 120-pipeline platform is well-governed with clear SLA policies and uniform Spark versions. The primary challenge is the data volume increase from 1.5 GB/day to 45 GB/day."
+            ],
+            "correct_answer": "NordGrid currently operates 120 pipelines serving 500,000 meters in Norway. The expansion triples data volume to 3.2M meters across 3 countries. The current platform was designed for single-country operation with no cross-country partitioning, no contractual SLA monitoring, and Spark version fragmentation across 41% of active pipelines.",
+            "failure_message": "Section 1 should accurately reflect the Chapter 1 audit findings: the platform has 100 active pipelines (120 total), 12 unmonitored critical-SLA pipelines, no country-level partitioning, and 41% on the oldest Spark version. Options 2, 3, and 4 misrepresent the audit findings."
+          },
+          {
+            "id": "F5_2",
+            "xp": 14,
+            "label": "Section 2 — Options Considered: Which description best characterises the three architectural options you evaluated?",
+            "field_type": "single_select",
+            "options": [
+              "Three options were evaluated: (A) shared cluster with unified schemas — fastest but lowest isolation; (B) isolated clusters per country — highest isolation but 3x cost and potentially outside the 90-day deadline; (C) federated execution with shared pipeline code — balances onboarding speed, cost, and moderate isolation. Each option was scored against four CTO-mandated criteria.",
+              "Two options were evaluated: a shared cluster approach and an isolated cluster approach. The federated option was dismissed early as too complex for the 90-day timeline.",
+              "Four options were evaluated including a cloud migration scenario. The on-premises federated option was selected as most cost-effective.",
+              "The options were evaluated primarily on cost. The shared cluster option was selected as the most economical given the fixed expansion budget."
+            ],
+            "correct_answer": "Three options were evaluated: (A) shared cluster with unified schemas — fastest but lowest isolation; (B) isolated clusters per country — highest isolation but 3x cost and potentially outside the 90-day deadline; (C) federated execution with shared pipeline code — balances onboarding speed, cost, and moderate isolation. Each option was scored against four CTO-mandated criteria.",
+            "failure_message": "Section 2 should accurately describe all three options from Chapter 2 evidence. The option descriptions must be factually consistent with the evidence table — Option B was described as potentially outside the 90-day deadline, not dismissed as too complex."
+          },
+          {
+            "id": "F5_3",
+            "xp": 14,
+            "label": "Section 3 — Recommendation: Which statement best captures a defensible recommendation?",
+            "field_type": "multi_select",
+            "accepts_any_architecture": true,
+            "options": [
+              "Recommendation: Option C (Federated Execution, Shared Pipeline Code). Rationale: meets the 90-day deadline, shares maintenance burden across a single codebase, and provides compute-level isolation without the cost and complexity of three separate clusters. Accepted trade-off: schema changes require coordination across all three country teams.",
+              "Recommendation: Option A (Shared Cluster, Unified Schema). Rationale: the 90-day constraint is non-negotiable, and Option A is the only option that can be implemented within that timeline with certainty. Accepted trade-off: a failure in Norway's pipeline code can affect Sweden and Finland's data quality simultaneously.",
+              "Recommendation: Option B (Isolated Clusters Per Country). Rationale: contractual SLAs across three countries require maximum isolation. A Norway billing pipeline failure must never trigger a Sweden SLA breach. Accepted trade-off: 3x infrastructure cost and a likely extension of the 90-day deadline, subject to CTO approval.",
+              "Recommendation: Delay the expansion by 6 months to address the 12 unmonitored critical-SLA pipelines and the missing country partitioning before onboarding the new operators."
+            ],
+            "correct_answers": [
+              "Recommendation: Option C (Federated Execution, Shared Pipeline Code). Rationale: meets the 90-day deadline, shares maintenance burden across a single codebase, and provides compute-level isolation without the cost and complexity of three separate clusters. Accepted trade-off: schema changes require coordination across all three country teams.",
+              "Recommendation: Option A (Shared Cluster, Unified Schema). Rationale: the 90-day constraint is non-negotiable, and Option A is the only option that can be implemented within that timeline with certainty. Accepted trade-off: a failure in Norway's pipeline code can affect Sweden and Finland's data quality simultaneously.",
+              "Recommendation: Option B (Isolated Clusters Per Country). Rationale: contractual SLAs across three countries require maximum isolation. A Norway billing pipeline failure must never trigger a Sweden SLA breach. Accepted trade-off: 3x infrastructure cost and a likely extension of the 90-day deadline, subject to CTO approval."
+            ],
+            "failure_message": "Options A, B, and C are all defensible recommendations. The fourth option (delay by 6 months) is not — the CTO brief must address the 90-day constraint that was given as a non-negotiable. Select the recommendation that matches the architecture you chose in Chapter 2."
+          },
+          {
+            "id": "F5_4",
+            "xp": 14,
+            "label": "Section 4 — Implementation Timeline: Which migration timeline is consistent with the three-wave plan from Chapter 3?",
+            "field_type": "single_select",
+            "options": [
+              "Three-wave migration over 90 days. Wave 1 (weeks 1–3): 6 low-risk pipelines — best_effort/standard SLA, fewer than 5 consumers. Wave 2 (weeks 4–7): 7 medium-risk pipelines — high SLA or consumer_count 5–9. Wave 3 (weeks 8–13): 7 high-risk pipelines — critical SLA or consumer_count >= 10. Go-live for both operators at week 13 after Wave 3 validation.",
+              "Big-bang migration in week 1: all 20 pipelines migrated simultaneously to minimise the parallel-run period. Sweden and Finland go live in week 2.",
+              "Sequential migration over 6 months: one pipeline per week to minimise risk. Sweden and Finland go live only after all 120 pipelines (not just the 20 candidates) are validated.",
+              "Two-wave migration: low-risk pipelines in week 1, everything else in week 4. No distinction between high and critical SLA pipelines in the second wave."
+            ],
+            "correct_answer": "Three-wave migration over 90 days. Wave 1 (weeks 1–3): 6 low-risk pipelines — best_effort/standard SLA, fewer than 5 consumers. Wave 2 (weeks 4–7): 7 medium-risk pipelines — high SLA or consumer_count 5–9. Wave 3 (weeks 8–13): 7 high-risk pipelines — critical SLA or consumer_count >= 10. Go-live for both operators at week 13 after Wave 3 validation.",
+            "failure_message": "Section 4 must describe the three-wave structure from Chapter 3. The wave definitions (low-risk first, critical-SLA last) must appear in the timeline description. The other options contradict the Chapter 3 findings: big-bang migration ignores risk differentiation; 6-month migration violates the 90-day constraint; two-wave migration collapses the critical-SLA distinction."
+          },
+          {
+            "id": "F5_5",
+            "xp": 14,
+            "label": "Section 5 — Top Risks: Which risk statement is most internally consistent with the Chapter 2 trade-offs and Chapter 4 governance gaps?",
+            "field_type": "single_select",
+            "options": [
+              "Risk 1: The 12 unmonitored critical-SLA pipelines may cause silent failures during Wave 3 before the new alerting policy (Chapter 4, Gap G1) is enforced — mitigation: enforce alert_configured=True for all Wave 3 pipelines before they are migrated. Risk 2: The chosen architecture's shared schema creates a coordination dependency — a schema change approved by Norway may break the Sweden federation layer — mitigation: enforce the cross-country schema change policy (Chapter 4, Gap G2) before Wave 2 begins.",
+              "Risk 1: Sweden and Finland may not meet the 90-day deadline. Risk 2: The expansion budget may be exceeded.",
+              "Risk 1: Spark version fragmentation may cause compatibility failures. Risk 2: The team_directory does not include Sweden and Finland teams yet, so ownership gaps will exist on day one.",
+              "Risk 1: The CTO may change the onboarding deadline. Risk 2: Regulatory requirements in Sweden and Finland may differ from Norway."
+            ],
+            "correct_answer": "Risk 1: The 12 unmonitored critical-SLA pipelines may cause silent failures during Wave 3 before the new alerting policy (Chapter 4, Gap G1) is enforced — mitigation: enforce alert_configured=True for all Wave 3 pipelines before they are migrated. Risk 2: The chosen architecture's shared schema creates a coordination dependency — a schema change approved by Norway may break the Sweden federation layer — mitigation: enforce the cross-country schema change policy (Chapter 4, Gap G2) before Wave 2 begins.",
+            "failure_message": "Section 5 risks should flow directly from earlier chapter findings. Risk 1 connects Chapter 1 (12 unmonitored critical-SLA pipelines) to Chapter 4 (G1 policy gap) to Chapter 3 (Wave 3 is where those pipelines appear). Risk 2 connects Chapter 2 (the trade-off of shared schema) to Chapter 4 (G2 policy gap). Options 2, 3, and 4 name real concerns but do not connect to the evidence developed across the project."
+          }
+        ],
+        "rubric": {
+          "description": "Assesses internal consistency across all five sections and alignment with the design journal. A CTO deck is coherent when the situation, recommendation, timeline, and risks tell the same story. Inconsistency — for example, recommending Option C in Section 3 but describing an isolated-cluster timeline in Section 4 — fails the rubric even if each section individually sounds reasonable.",
+          "criteria": [
+            {
+              "id": "R5_1",
+              "xp": 25,
+              "label": "Section 3 recommendation is consistent with the architecture chosen in Chapter 2",
+              "description": "The architecture option named in Section 3 must match the design journal entry from Chapter 2. A student who chose Option A in Chapter 2 but recommends Option C in Section 3 without explanation is inconsistent. The rubric does not penalise any specific architectural choice — it penalises unexplained contradiction between the design journal and the CTO Deck.",
+              "cross_chapter_check": "chapter_2_dj_2"
+            },
+            {
+              "id": "R5_2",
+              "xp": 25,
+              "label": "Section 4 timeline is consistent with the wave structure from Chapter 3",
+              "description": "The timeline must reflect a three-wave structure where Wave 3 contains critical-SLA pipelines. A student who chose different wave boundaries in Chapter 3 may have a slightly different Section 4 — that is acceptable as long as the wave structure is three-level and critical-SLA pipelines appear in the last wave.",
+              "cross_chapter_check": "chapter_3_dj_3"
+            },
+            {
+              "id": "R5_3",
+              "xp": 20,
+              "label": "Section 5 risks reference governance gaps identified in Chapter 4",
+              "description": "At least one of the two risks in Section 5 must reference a governance gap from Chapter 4. The connection should be explicit: the risk must name the gap (e.g., 'before the alerting policy is enforced') and connect it to a specific migration wave or architectural consequence.",
+              "cross_chapter_check": "chapter_4_dj_4"
+            }
+          ]
+        }
+      },
+
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "The CTO Deck is not new analysis — everything is in the design journal on the left. You are translating four chapters of technical work into executive language. Work through the five sections in order: Section 1 from Chapter 1 findings, Section 2 from the Chapter 2 evidence table, Section 3 from your Chapter 2 choice, Section 4 from your Chapter 3 wave structure, Section 5 from your Chapter 2 trade-offs and Chapter 4 governance gaps."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 7,
+          "unlock_condition": "always",
+          "text": "For Section 3: pick the option that matches what you chose in Chapter 2. All three are accepted. For Section 5: look at your design journal entry for Chapter 2 (the trade-offs you named) and Chapter 4 (the governance gaps you selected). The risks in Section 5 should be the trade-offs from Chapter 2 combined with the gaps from Chapter 4 — that is the only combination that is internally consistent with the rest of the brief."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 14,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "F5_1: the first option (120 pipelines, 3 risks from audit). F5_2: the first option (three options, scored against four criteria). F5_3: match your Chapter 2 choice — all three architecture options are accepted. F5_4: the first option (three waves over 90 days, critical-SLA last). F5_5: the first option (G1 alerting risk + G2 schema coordination risk, both connected to specific waves)."
+        }
+      ]
+    }
+  ],
+
+  "authoring_metadata": {
+    "authored_by": "StableGrid content team",
+    "authored_date": "2026-04-12",
+    "version_notes": "v1.0.0 — initial release",
+    "self_check_passed": true,
+    "self_check_notes": [
+      "Chapters 2-5 have exactly 3 hints (H1-H3). Chapter 1 has 4 hints (H1-H4) — only chapter with exact-match fields.",
+      "No write-the-code chapters — all 5 are template, design_artifact, or combined.",
+      "Total XP: 5 × 140 = 700.",
+      "Coverage matrix verified: all 10 senior modules covered across the 5 chapters.",
+      "Chapter 1 fields are all directly verifiable from the CSV data: counts 100, 18, 41, 12, 22; partition 'country'; and F1_7 accepts two answers.",
+      "pipeline_inventory.csv: 120 rows, active=100, critical=18, critical_no_alert=12, spark_3.2_active=41, consumer>=10=22, no 'country' in partition_col.",
+      "table_catalog.csv: 60 rows, 15 stale (>30d), 11 small-file silver, no 'country' in partition_cols.",
+      "migration_candidates.csv: 20 rows, 6 clear Wave 1, 7 clear Wave 3, 7 genuine Wave 2. All critical-SLA pipelines are in Wave 3 set.",
+      "team_directory.csv: 8 rows, all Norway (pre-expansion context is explicit).",
+      "Chapter 2 rubric: evaluates internal consistency of criteria scores vs option descriptions. No single 'correct' architecture — all three are defensible.",
+      "Chapter 3 rubric: hard failure if any critical-SLA pipeline assigned to Wave 1 or Wave 2.",
+      "Chapter 4 rubric: G1 and G2 must both be selected. Third gap is open choice.",
+      "Chapter 5 rubric: evaluates cross-chapter consistency, not option matching. F5_3 accepts all three architecture options.",
+      "Design journal pre-populates Chapter 5 Sections 1, 3, 4, and 5 from earlier chapters.",
+      "Project operates at senior scale: 3.2M meters, 3 countries, 8 teams referenced throughout."
+    ]
+  }
+}

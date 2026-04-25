@@ -373,7 +373,7 @@ export const TheoryCategorySelector = ({
           <div className="mx-auto max-w-6xl">
             <header className="mb-10 max-w-3xl">
               <p
-                className={`mb-2 text-xs font-medium uppercase tracking-[0.24em] ${topicStyle.accentTextClass}`}
+                className={`mb-2 text-xs font-mono font-bold uppercase tracking-[0.24em] ${topicStyle.accentTextClass}`}
               >
                 Theory
               </p>
@@ -387,7 +387,7 @@ export const TheoryCategorySelector = ({
 
             <section className="rounded-[28px] border border-light-border bg-light-surface p-8 dark:border-dark-border dark:bg-dark-surface">
               <span
-                className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${topicStyle.badgeClass}`}
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.18em] ${topicStyle.badgeClass}`}
               >
                 Empty Category
               </span>
@@ -420,7 +420,7 @@ export const TheoryCategorySelector = ({
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-6xl">
           <header className="mb-10">
-            <p className="mb-2 text-xs font-medium uppercase tracking-[0.24em] text-brand-500">
+            <p className="mb-2 text-xs font-mono font-bold uppercase tracking-[0.24em] text-brand-500">
               Theory
             </p>
             <h1 className="mb-2 text-3xl font-bold text-text-light-primary dark:text-text-dark-primary">
@@ -438,11 +438,8 @@ export const TheoryCategorySelector = ({
                 {completedLessons}/{totalLessons} lessons read
               </span>
             </div>
-            <div className="mt-2 h-1 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-              <div
-                className="h-full rounded-full bg-brand-500 transition-all duration-500"
-                style={{ width: `${overallProgressPct}%` }}
-              />
+            <div className="mt-2 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+              <div style={{ width: `${overallProgressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
             </div>
             <p className="mt-3 text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
               Browse the PySpark curriculum as a gallery of themed tracks, then open any
@@ -453,7 +450,7 @@ export const TheoryCategorySelector = ({
           <section>
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="text-xs font-medium uppercase tracking-[0.22em] text-brand-500">
+                <p className="text-xs font-mono font-bold uppercase tracking-[0.22em] text-brand-500">
                   Category Gallery
                 </p>
                 <h2 className="mt-2 text-xl font-semibold text-text-light-primary dark:text-text-dark-primary">
@@ -492,7 +489,7 @@ export const TheoryCategorySelector = ({
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <span
-                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${style.chipClass}`}
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.18em] ${style.chipClass}`}
                           >
                             <Icon className="h-3.5 w-3.5" />
                             Category {String(index + 1).padStart(2, '0')}
@@ -527,11 +524,8 @@ export const TheoryCategorySelector = ({
                         </span>
                       </div>
 
-                      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-light-border dark:bg-dark-border">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${style.progressClass}`}
-                          style={{ width: `${progressPct}%` }}
-                        />
+                      <div className="mt-4 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                        <div style={{ width: `${progressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">

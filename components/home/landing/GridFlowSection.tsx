@@ -143,7 +143,7 @@ const LIGHT_STORY_STEP_VISUAL_STYLE: StoryStepVisualStyle = {
 
 const DEFAULT_DARK_STORY_STEP_VISUAL_STYLE: StoryStepVisualStyle = {
   halo: 'bg-[radial-gradient(circle_at_18%_24%,rgba(148,162,155,0.12),transparent_0,transparent_42%),linear-gradient(180deg,rgba(0,0,0,0.3),rgba(0,0,0,0))]',
-  stepChip: 'border-[#5c6763]/70 bg-[#121715] text-[#d8e1dd]',
+  stepChip: 'border-[#5c6763]/70 bg-grid-panel text-[#d8e1dd]',
   eyebrow: 'text-[#a8b3ae]',
   divider: 'bg-[linear-gradient(90deg,rgba(173,186,180,0.48),rgba(173,186,180,0))]'
 };
@@ -151,7 +151,7 @@ const DEFAULT_DARK_STORY_STEP_VISUAL_STYLE: StoryStepVisualStyle = {
 const DARK_STORY_STEP_VISUAL_STYLE_BY_STEP: Record<string, StoryStepVisualStyle> = {
   '01': {
     halo: 'bg-[radial-gradient(circle_at_18%_24%,rgba(179,193,187,0.16),transparent_0,transparent_44%),linear-gradient(180deg,rgba(0,0,0,0.34),rgba(0,0,0,0))]',
-    stepChip: 'border-[#6e7c76]/85 bg-[#121917] text-[#e3ece7]',
+    stepChip: 'border-[#6e7c76]/85 bg-grid-panel text-[#e3ece7]',
     eyebrow: 'text-[#b4c2bc]',
     divider: 'bg-[linear-gradient(90deg,rgba(180,195,188,0.6),rgba(180,195,188,0))]'
   },
@@ -412,34 +412,34 @@ function StepSnapshot({
   const sqlPalette = isAlertSnippet ? ALERT_SQL_CODE_PALETTE : DEFAULT_SQL_CODE_PALETTE;
   const codeShellClass = isAlertSnippet
     ? 'overflow-hidden rounded-xl border border-white/20 bg-[linear-gradient(170deg,rgba(22,15,15,0.96),rgba(14,10,10,0.95))]'
-    : 'overflow-hidden rounded-xl border border-white/20 bg-[#070c0a]/96';
+    : 'overflow-hidden rounded-xl border border-white/20 bg-grid-ink/96';
   const codeHeaderClass = isAlertSnippet
     ? 'flex items-center justify-between border-b border-white/15 px-3 py-2'
     : 'flex items-center justify-between border-b border-white/15 px-3 py-2';
   const codeLabelClass = isAlertSnippet
-    ? 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d7cccc]'
-    : 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c5d0cb]';
+    ? 'font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#d7cccc]'
+    : 'font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#c5d0cb]';
   const codeChipClass = isAlertSnippet
-    ? 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#ddd4d4]'
-    : 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#d2dbd7]';
+    ? 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#ddd4d4]'
+    : 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#d2dbd7]';
   const lineNumberClass = isAlertSnippet
     ? 'select-none text-right text-[10px] text-[#9f9797]'
     : 'select-none text-right text-[10px] text-[#9ca8a2]';
   const briefingShellClass = isAmberTone
     ? 'overflow-hidden rounded-xl border border-white/20 bg-[linear-gradient(165deg,rgba(15,11,8,0.98),rgba(11,9,7,0.96))]'
-    : 'overflow-hidden rounded-xl border border-white/20 bg-[#070c0a]/96';
+    : 'overflow-hidden rounded-xl border border-white/20 bg-grid-ink/96';
   const briefingHeaderClass = isAmberTone
     ? 'flex items-center justify-between gap-2 border-b border-white/15 px-3 py-2'
     : 'flex items-center justify-between gap-2 border-b border-white/15 px-3 py-2';
   const briefingLabelClass = isAmberTone
-    ? 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d9d0c6]'
-    : 'text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c8d1cc]';
+    ? 'font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#d9d0c6]'
+    : 'font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#c8d1cc]';
   const briefingRegionClass = isAmberTone
-    ? 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#ddd4ca]'
-    : 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#d6dfdb]';
+    ? 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-[#ddd4ca]'
+    : 'rounded-full border border-white/18 bg-white/[0.07] px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-[#d6dfdb]';
   const briefingSectionClass = isAmberTone
-    ? 'text-[10px] font-semibold uppercase tracking-[0.15em] text-[#c8c0b8]'
-    : 'text-[10px] font-semibold uppercase tracking-[0.15em] text-[#b5c0ba]';
+    ? 'font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[#c8c0b8]'
+    : 'font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[#b5c0ba]';
   const briefingTextClass = isAmberTone
     ? 'text-[11px] leading-5 text-[#d9d1ca]'
     : 'text-[11px] leading-5 text-[#d3ddd8]';
@@ -458,7 +458,7 @@ function StepSnapshot({
 
           <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
-              <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ced8d4]">
+              <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[#ced8d4]">
                 <span aria-hidden="true">⚡</span>
                 {missionListing.missionId}
               </span>
@@ -467,7 +467,7 @@ function StepSnapshot({
                 <h3 className="text-[1.7rem] font-semibold uppercase tracking-[0.02em] text-[#edf3f0] sm:text-[2.35rem] sm:leading-[0.95]">
                   {missionListing.title}
                 </h3>
-                <span className="rounded-full border border-white/20 bg-white/[0.08] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#d2dbd7]">
+                <span className="rounded-full border border-white/20 bg-white/[0.08] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#d2dbd7]">
                   {missionListing.difficulty}
                 </span>
               </div>
@@ -485,7 +485,7 @@ function StepSnapshot({
 
             <aside className="w-full max-w-[18rem] rounded-3xl border border-white/16 bg-[linear-gradient(165deg,rgba(8,10,11,0.97),rgba(9,11,12,0.95))] p-4">
               <div className="mb-2 flex items-center justify-between gap-3">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#aab5b0]">
+                <span className="font-mono text-xs font-bold uppercase tracking-[0.18em] text-[#aab5b0]">
                   {missionListing.statusLabel}
                 </span>
                 <span className="text-[1.85rem] font-semibold leading-none text-[#ebf1ee]">
@@ -528,7 +528,7 @@ function StepSnapshot({
   return (
     <div className={`mt-5 origin-top scale-[0.88] overflow-hidden rounded-[1.2rem] border shadow-[0_18px_45px_rgba(0,0,0,0.38)] [filter:saturate(0)] ${tone.shell}`}>
       <div className="flex items-center justify-between gap-3 border-b border-white/15 px-4 py-3">
-        <span className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${tone.label}`}>
+        <span className={`font-mono text-[10px] font-bold uppercase tracking-[0.22em] ${tone.label}`}>
           {snapshot.label}
         </span>
         <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${tone.badge}`}>
@@ -560,35 +560,35 @@ function StepSnapshot({
             <div className="border-b border-white/15 px-3 py-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#b6c1bc]">
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#b6c1bc]">
                     Live operation
                   </p>
                   <p className="mt-1 text-sm font-semibold text-[#ecf2ef]">
                     Grid stabilizer challenge
                   </p>
                 </div>
-                <span className="rounded-full border border-white/20 bg-white/[0.07] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#ccd6d2]">
+                <span className="rounded-full border border-white/20 bg-white/[0.07] px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[#ccd6d2]">
                   Combo x2
                 </span>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <div className="rounded-lg border border-white/15 bg-white/[0.04] px-2 py-1.5">
-                  <p className="text-[9px] uppercase tracking-[0.14em] text-[#a4b0ab]">Score</p>
+                  <p className="font-mono font-bold text-[9px] uppercase tracking-[0.14em] text-[#a4b0ab]">Score</p>
                   <p className="mt-1 text-sm font-semibold text-[#e5ece8]">2,480</p>
                 </div>
                 <div className="rounded-lg border border-white/15 bg-white/[0.04] px-2 py-1.5">
-                  <p className="text-[9px] uppercase tracking-[0.14em] text-[#a4b0ab]">Risk</p>
+                  <p className="font-mono font-bold text-[9px] uppercase tracking-[0.14em] text-[#a4b0ab]">Risk</p>
                   <p className="mt-1 text-sm font-semibold text-[#d4dcd8]">High</p>
                 </div>
                 <div className="rounded-lg border border-white/15 bg-white/[0.04] px-2 py-1.5">
-                  <p className="text-[9px] uppercase tracking-[0.14em] text-[#a4b0ab]">Time left</p>
+                  <p className="font-mono font-bold text-[9px] uppercase tracking-[0.14em] text-[#a4b0ab]">Time left</p>
                   <p className="mt-1 text-sm font-semibold text-[#dfe7e3]">02:40</p>
                 </div>
               </div>
             </div>
             <div className="space-y-3 px-3 py-3">
               <div className="space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#b4beb9]">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-[#b4beb9]">
                   Active objectives
                 </p>
                 {snapshot.highlights.map((item, index) => (
@@ -612,12 +612,12 @@ function StepSnapshot({
                 <ControlCenterModelPreviewLazy className="h-40 border-0" />
               </div>
               <div className="rounded-lg border border-white/15 bg-white/[0.04] px-2.5 py-2">
-                <div className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#a7b3ae]">
+                <div className="flex items-center justify-between gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#a7b3ae]">
                   <span>Stability meter</span>
                   <span>78%</span>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-[#99a4a0] via-[#b5bfbb] to-[#d1d9d5]" />
+                <div className="mt-2 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                  <div style={{ width: '78%', height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85 }} />
                 </div>
               </div>
             </div>
@@ -642,7 +642,7 @@ function StepSnapshot({
                     : 'border-white/22 bg-[#5f6663] text-[#eef2ef] shadow-[0_0_0_10px_rgba(122,132,127,0.16)]';
                   const card = (
                     <article className={`rounded-xl border px-2.5 py-2.5 sm:px-3 sm:py-3 ${cardClass}`}>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#9ea9a4]">
+                      <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#9ea9a4]">
                         {module.label}
                       </p>
                       <h4 className="mt-1 text-sm font-semibold leading-5 text-[#e7eeea] sm:text-base sm:leading-6">
@@ -650,7 +650,7 @@ function StepSnapshot({
                       </h4>
                       <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-[#aeb9b4]">
                         <span>{module.meta}</span>
-                        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] ${badgeClass}`}>
+                        <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.08em] ${badgeClass}`}>
                           {module.checkpoint}
                         </span>
                       </div>
@@ -677,14 +677,14 @@ function StepSnapshot({
           </div>
         ) : null}
         {progressionSnapshot ? (
-          <div className="overflow-hidden rounded-xl border border-white/20 bg-[#070c0a]/96 p-3">
+          <div className="overflow-hidden rounded-xl border border-white/20 bg-grid-ink/96 p-3">
             <div className="flex items-start gap-3">
               <div
                 className="relative h-24 w-24 shrink-0 rounded-full p-2"
                 style={progressionRingStyle}
               >
                 <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-[#0a0f0d] text-center">
-                  <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#afbbb6]">
+                  <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#afbbb6]">
                     Readiness
                   </span>
                   <span className="mt-1 text-[1.35rem] font-semibold leading-none text-[#edf3f0]">
@@ -693,7 +693,7 @@ function StepSnapshot({
                 </div>
               </div>
               <div className="flex-1 pt-1">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#aeb9b4]">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#aeb9b4]">
                   Promotion target
                 </p>
                 <p className="mt-1 text-lg font-semibold leading-6 text-[#eaf1ed]">
@@ -704,7 +704,7 @@ function StepSnapshot({
                 </p>
               </div>
             </div>
-            <div className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/22 bg-[#d4ddd9] px-4 py-2.5 text-sm font-semibold text-[#101614]">
+            <div className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/22 bg-[#d4ddd9] px-4 py-2.5 text-sm font-semibold text-grid-panel">
               {progressionSnapshot.ctaLabel}
               <ArrowRight className="h-4 w-4" />
             </div>
@@ -793,8 +793,8 @@ function StepSnapshot({
         ) : null}
         {progressionSnapshot ? null : (
           <div className="flex items-center gap-3 pt-1">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-              <div className={`h-full w-2/3 rounded-full bg-gradient-to-r ${tone.bar}`} />
+            <div className="flex-1 overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+              <div style={{ width: '66%', height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85 }} />
             </div>
             <span className={`text-[11px] font-semibold ${tone.action}`}>{snapshot.actionLabel}</span>
           </div>
@@ -822,7 +822,7 @@ function PrimaryCta({
 
   return (
     <Link
-      href="/signup"
+      href="/login"
       onClick={() => {
         void trackProductEvent('landing_cta', { source });
       }}
@@ -830,7 +830,7 @@ function PrimaryCta({
         emphasized
           ? emphasizedClass
           : isLightMode
-            ? 'border border-[#7f8f87]/45 bg-white/85 text-[#25302c] hover:border-[#6f7d76] hover:bg-white'
+            ? 'border border-[#7f8f87]/45 bg-white/85 text-grid-panel-raised hover:border-[#6f7d76] hover:bg-white'
             : 'border border-white/24 bg-black/28 text-[#e4ece8] hover:border-white/34 hover:bg-black/40'
       }`}
     >
@@ -857,10 +857,10 @@ function IntroCountdownWatch({
         }`}
       >
         <Clock3 className="h-3.5 w-3.5" />
-        <span className="font-mono text-[13px] font-semibold tabular-nums">
+        <span className="font-mono text-[13px] font-bold tabular-nums">
           {Math.max(0, secondsRemaining).toFixed(1)}
         </span>
-        <span className={`text-[10px] uppercase tracking-[0.12em] ${isLightMode ? 'text-[#5b6f66]' : 'text-[#9eb2a9]'}`}>
+        <span className={`text-[10px] uppercase tracking-[0.12em] ${isLightMode ? 'text-[#5b6f66]' : 'text-grid-text'}`}>
           s
         </span>
       </div>
@@ -915,7 +915,7 @@ function IntroBrandedTitle({
   return (
     <h1
       className={`mt-1 max-w-[10.6ch] text-[clamp(2.8rem,6.4vw,5.6rem)] font-semibold leading-[0.92] tracking-[-0.045em] ${
-        isLightMode ? 'text-[#13221a]' : 'text-[#f3f6f3]'
+        isLightMode ? 'text-grid-panel-raised' : 'text-[#f3f6f3]'
       }`}
       style={{ fontFamily: HERO_DISPLAY_FONT_FAMILY }}
     >
@@ -972,7 +972,7 @@ function IntroChapter({
         <div className="relative">
           <IntroBrandedTitle title={chapter.title} isLightMode={isLightMode} />
           {chapter.ctaHint ? (
-            <p className={`mt-4 max-w-[23rem] text-xs leading-6 ${isLightMode ? 'text-[#5f7a6c]' : 'text-[#9cb8aa]'}`}>
+            <p className={`mt-4 max-w-[23rem] text-xs leading-6 ${isLightMode ? 'text-[#5f7a6c]' : 'text-grid-text'}`}>
               {chapter.ctaHint}
             </p>
           ) : null}
@@ -1074,14 +1074,14 @@ function GridExperienceSection({
               {stepLabel}
             </span>
             <p
-              className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${stepVisualStyle.eyebrow}`}
+              className={`font-mono text-[10px] font-bold uppercase tracking-[0.2em] ${stepVisualStyle.eyebrow}`}
             >
               {eyebrow}
             </p>
           </div>
           <h2
             className={`mt-3 text-[clamp(1.3rem,2.1vw,1.95rem)] font-semibold leading-[1.05] tracking-[-0.035em] ${
-              isLightMode ? 'text-[#13221a]' : 'text-[#f2f7f3]'
+              isLightMode ? 'text-grid-panel-raised' : 'text-[#f2f7f3]'
             }`}
           >
             {title}
@@ -1260,7 +1260,7 @@ function TheoryTrackGallery({ isLightMode }: { isLightMode: boolean }) {
                 <div className="relative">
                   <div className="flex items-center justify-between">
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                      className={`rounded-full px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] ${
                         track.locked
                           ? 'border border-[#454f58] bg-[#1a2129] text-[#9aa6b1]'
                           : 'border border-[#4f5b66] bg-[#232b33] text-[#c5ced6]'
@@ -1268,7 +1268,7 @@ function TheoryTrackGallery({ isLightMode }: { isLightMode: boolean }) {
                     >
                       {track.badge}
                     </span>
-                    {track.locked ? <Lock className="h-4 w-4 text-[#94a79a]" /> : null}
+                    {track.locked ? <Lock className="h-4 w-4 text-grid-text" /> : null}
                   </div>
 
                   <div className="relative mt-4 rounded-xl border border-[#2f3840] bg-[#0e1318] p-4">
@@ -1289,7 +1289,7 @@ function TheoryTrackGallery({ isLightMode }: { isLightMode: boolean }) {
                     {track.description}
                   </p>
                   <p
-                    className={`relative mt-3 text-xs font-semibold uppercase tracking-[0.12em] ${
+                    className={`relative mt-3 font-mono text-xs font-bold uppercase tracking-[0.12em] ${
                       track.locked
                         ? isLightMode
                           ? 'text-[#6f7882]'
@@ -1475,11 +1475,11 @@ function MissionBriefingCard({ isLightMode }: { isLightMode: boolean }) {
     }
   > = {
     mint: {
-      shell: 'border-[#2a4f45] bg-[#0f1514] hover:border-[#35675a]',
-      badge: 'border border-[#2f6b5e] bg-[#15302b] text-[#bce8dc]',
-      iconShell: 'border-[#2f6b5e]/85 bg-[#122824]',
-      iconColor: 'text-[#3ed3b2]',
-      dot: 'bg-[#3ed3b2]',
+      shell: 'border-[#2a4f45] bg-grid-panel hover:border-[#35675a]',
+      badge: 'border border-[#2f6b5e] bg-grid-panel-raised text-[#bce8dc]',
+      iconShell: 'border-[#2f6b5e]/85 bg-grid-panel-raised',
+      iconColor: 'text-grid-glow-bright',
+      dot: 'bg-grid-glow-bright',
       glow: 'bg-[radial-gradient(circle_at_16%_14%,rgba(62,211,178,0.12),transparent_38%)]'
     },
     amber: {
@@ -1550,7 +1550,7 @@ function MissionBriefingCard({ isLightMode }: { isLightMode: boolean }) {
                   <div className="relative">
                     <div className="flex items-center justify-between">
                       <span
-                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${tone.badge}`}
+                        className={`rounded-full px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] ${tone.badge}`}
                       >
                         Task
                       </span>
@@ -1584,7 +1584,7 @@ function MissionBriefingCard({ isLightMode }: { isLightMode: boolean }) {
                       {task.description}
                     </p>
                     <p
-                      className={`relative mt-3 text-xs font-semibold uppercase tracking-[0.12em] ${
+                      className={`relative mt-3 font-mono text-xs font-bold uppercase tracking-[0.12em] ${
                         isLightMode ? 'text-[#2f3f4c]' : 'text-[#c5ced6]'
                       }`}
                     >
@@ -1819,10 +1819,10 @@ function GridItemDeckCarousel({ isLightMode }: { isLightMode: boolean }) {
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,rgba(65,130,212,0.14),transparent_42%)]" />
                 <div className="relative">
                   <div className="flex items-center justify-between">
-                    <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${isLightMode ? 'text-[#4c6073]' : 'text-[#8ea6c2]'}`}>
+                    <p className={`font-mono text-[11px] font-bold uppercase tracking-[0.16em] ${isLightMode ? 'text-[#4c6073]' : 'text-[#8ea6c2]'}`}>
                       {item.category}
                     </p>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3b5b84] bg-[#152335] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#b9cee8]">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3b5b84] bg-[#152335] px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#b9cee8]">
                       <Info className="h-3.5 w-3.5" />
                       Details
                     </span>
@@ -1836,7 +1836,7 @@ function GridItemDeckCarousel({ isLightMode }: { isLightMode: boolean }) {
                   </p>
 
                   <div className="mt-3 rounded-xl border border-[#2f4e72] bg-[#102033] px-4 py-3">
-                    <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${isLightMode ? 'text-[#4d6378]' : 'text-[#9db5d2]'}`}>
+                    <p className={`font-mono text-[11px] font-bold uppercase tracking-[0.14em] ${isLightMode ? 'text-[#4d6378]' : 'text-[#9db5d2]'}`}>
                       Unlocks
                     </p>
                     <p className={`mt-1 text-[10.5px] font-semibold leading-5 ${isLightMode ? 'text-[#26425f]' : 'text-[#d9e7ff]'}`}>
@@ -1848,7 +1848,7 @@ function GridItemDeckCarousel({ isLightMode }: { isLightMode: boolean }) {
                     {renderPreview(item.preview, item.title)}
                   </div>
 
-                  <div className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-[#2f6b5e]/70 bg-[#122924] px-4 py-2 text-[11px] font-semibold text-[#56baa3]">
+                  <div className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-[#2f6b5e]/70 bg-grid-panel-raised px-4 py-2 text-[11px] font-semibold text-grid-text-dim">
                     <Zap className="h-4 w-4" />
                     Infrastructure active
                   </div>
@@ -1941,12 +1941,12 @@ function ChapterContent({
           </div>
           <div className="relative z-10 w-full">
             {chapter.eyebrow ? (
-              <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${isLightMode ? 'text-[#5f7a6c]' : 'text-[#a5bfb3]'}`}>
+              <p className={`font-mono text-[10px] font-bold uppercase tracking-[0.18em] ${isLightMode ? 'text-[#5f7a6c]' : 'text-[#a5bfb3]'}`}>
                 {chapter.eyebrow}
               </p>
             ) : null}
             <h2
-              className={`${chapter.eyebrow ? 'mt-3' : ''} text-[clamp(2rem,5.9vw,3.5rem)] font-semibold leading-[1.02] tracking-[-0.035em] ${isLightMode ? 'text-[#13221a]' : 'text-[#f3f7f4]'}`}
+              className={`${chapter.eyebrow ? 'mt-3' : ''} text-[clamp(2rem,5.9vw,3.5rem)] font-semibold leading-[1.02] tracking-[-0.035em] ${isLightMode ? 'text-grid-panel-raised' : 'text-[#f3f7f4]'}`}
               style={{ fontFamily: HERO_DISPLAY_FONT_FAMILY }}
             >
               {chapter.title}
@@ -1961,7 +1961,7 @@ function ChapterContent({
                 href="/not-sure-yet"
                 className={`pointer-events-auto inline-flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-medium transition-colors ${
                   isLightMode
-                    ? 'border-[#7f8f87]/45 bg-white/85 text-[#25302c] hover:border-[#6f7d76] hover:bg-white'
+                    ? 'border-[#7f8f87]/45 bg-white/85 text-grid-panel-raised hover:border-[#6f7d76] hover:bg-white'
                     : 'border-white/24 bg-black/28 text-[#e4ece8] hover:border-white/34 hover:bg-black/40'
                 }`}
               >
@@ -2555,7 +2555,7 @@ export const GridFlowSection = () => {
       ) : null}
       <div
         className={`sticky top-16 h-[calc(100vh-4rem)] overflow-hidden border-y ${
-          isLightMode ? 'border-[#c7d9cf]' : 'border-[#183025]'
+          isLightMode ? 'border-[#c7d9cf]' : 'border-grid-border-dim'
         }`}
       >
         <div className="pointer-events-none absolute inset-0">

@@ -7,6 +7,8 @@ import {
   runIdempotentJsonRequest
 } from '@/lib/api/protection';
 import { createClient } from '@/lib/supabase/server';
+import { computeSafeXpAndStreak } from '@/lib/api/syncProgressValidation';
+import { deriveCompletedTracks } from '@/lib/tiers';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -82,17 +84,32 @@ export async function GET(request: Request) {
       })
     ]);
 
-    const { data, error } = await supabase
-      .from('user_progress')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    const [progressResult, modulesResult] = await Promise.all([
+      supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+      // Completed modules feed the track-level tier requirements in lib/tiers.ts.
+      // We only care about the ids here — the completion-count-per-track is
+      // derived client-side by deriveCompletedTracks().
+      supabase
+        .from('module_progress')
+        .select('module_id')
+        .eq('user_id', user.id)
+        .eq('is_completed', true)
+    ]);
 
-    if (error) {
-      throw new Error(error.message);
+    if (progressResult.error) {
+      throw new Error(progressResult.error.message);
     }
 
-    if (!data) {
+    const completedModuleIds = (modulesResult.data ?? [])
+      .map((row) => row.module_id)
+      .filter((id): id is string => typeof id === 'string');
+    const completedTracks = deriveCompletedTracks(completedModuleIds);
+
+    if (!progressResult.data) {
       const { data: created, error: createError } = await supabase
         .from('user_progress')
         .upsert({ user_id: user.id }, { onConflict: 'user_id' })
@@ -103,10 +120,14 @@ export async function GET(request: Request) {
         throw new Error(createError.message);
       }
 
-      return NextResponse.json({ data: created });
+      return NextResponse.json({
+        data: { ...created, completed_tracks: completedTracks }
+      });
     }
 
-    return NextResponse.json({ data });
+    return NextResponse.json({
+      data: { ...progressResult.data, completed_tracks: completedTracks }
+    });
   } catch (error) {
     return toApiErrorResponse(error, 'Failed to fetch synced progress.');
   }
@@ -154,52 +175,80 @@ export async function POST(request: Request) {
         topicProgress: payload.topicProgress
       },
       execute: async () => {
-        const { data: existingProgress, error: existingProgressError } = await supabase
-          .from('user_progress')
-          .select('topic_progress,xp,streak')
-          .eq('user_id', user.id)
-          .maybeSingle<{ topic_progress: JsonRecord | null; xp: number | null; streak: number | null }>();
+        // Atomic read-then-write via Supabase RPC to prevent TOCTOU race conditions.
+        // Falls back to the original SELECT+UPSERT pattern if the RPC doesn't exist yet.
+        const nowIso = new Date().toISOString();
 
-        if (existingProgressError) {
-          throw new Error(existingProgressError.message);
+        const { data: rpcResult, error: rpcError } = await supabase.rpc(
+          'sync_user_progress',
+          {
+            p_user_id: user.id,
+            p_client_xp: payload.xp,
+            p_client_streak: payload.streak,
+            p_max_xp_increase: 500,
+            p_max_streak: 365,
+            p_completed_questions: payload.completedQuestions,
+            p_topic_progress: payload.topicProgress,
+            p_now: nowIso,
+          },
+        );
+
+        if (!rpcError) {
+          return { body: { success: true, atomic: true }, status: 200 };
         }
 
-        // Server-side XP/streak validation: only allow bounded increases per sync
-        // Prevents client-side manipulation of raw XP/streak values
-        const existingXp = Math.max(0, Number(existingProgress?.xp ?? 0));
-        const existingStreak = Math.max(0, Number(existingProgress?.streak ?? 0));
-        const MAX_XP_INCREASE_PER_SYNC = 500;
-        const MAX_STREAK = 365;
-        const safeXp = Math.max(existingXp, Math.min(payload.xp, existingXp + MAX_XP_INCREASE_PER_SYNC));
-        const safeStreak = Math.max(existingStreak, Math.min(Math.max(payload.streak, 0), MAX_STREAK));
+        // Fall back to SELECT + UPSERT when the RPC is missing (42883), the signature
+        // drifted from this handler (mentions sync_user_progress in the error), or the
+        // body has a datatype mismatch (42804). Without the 42804 branch a schema/type
+        // regression on the RPC would silently drop every progress save — see
+        // migration 20260424210000 for the incident that motivated this.
+        if (
+          rpcError.message.includes('sync_user_progress')
+          || rpcError.code === '42883'
+          || rpcError.code === '42804'
+        ) {
+          const { data: existingProgress, error: existingProgressError } = await supabase
+            .from('user_progress')
+            .select('topic_progress,xp,streak')
+            .eq('user_id', user.id)
+            .maybeSingle<{ topic_progress: JsonRecord | null; xp: number | null; streak: number | null }>();
 
-        const topicProgress = {
-          ...toRecord(existingProgress?.topic_progress),
-          ...payload.topicProgress
-        };
+          if (existingProgressError) {
+            throw new Error(existingProgressError.message);
+          }
 
-        const updatePayload: Record<string, unknown> = {
-          user_id: user.id,
-          xp: safeXp,
-          streak: safeStreak,
-          completed_questions: payload.completedQuestions,
-          topic_progress: topicProgress,
-          last_activity: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
+          const existingXp = Math.max(0, Number(existingProgress?.xp ?? 0));
+          const existingStreak = Math.max(0, Number(existingProgress?.streak ?? 0));
+          const { safeXp, safeStreak } = computeSafeXpAndStreak(
+            existingXp, existingStreak, payload.xp, payload.streak,
+          );
 
-        const { error } = await supabase.from('user_progress').upsert(updatePayload, {
-          onConflict: 'user_id'
-        });
+          const topicProgress = {
+            ...toRecord(existingProgress?.topic_progress),
+            ...payload.topicProgress
+          };
 
-        if (error) {
-          throw new Error(error.message);
+          const { error } = await supabase.from('user_progress').upsert(
+            {
+              user_id: user.id,
+              xp: safeXp,
+              streak: safeStreak,
+              completed_questions: payload.completedQuestions,
+              topic_progress: topicProgress,
+              last_activity: nowIso,
+              updated_at: nowIso,
+            },
+            { onConflict: 'user_id' },
+          );
+
+          if (error) {
+            throw new Error(error.message);
+          }
+
+          return { body: { success: true, atomic: false }, status: 200 };
         }
 
-        return {
-          body: { success: true },
-          status: 200
-        };
+        throw new Error(rpcError.message);
       }
     });
 

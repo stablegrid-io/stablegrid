@@ -50,7 +50,7 @@ export const LessonCompletionToast = ({
       className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[min(28rem,calc(100vw-2rem))]"
     >
       <div
-        className="relative overflow-hidden rounded-2xl border backdrop-blur-2xl"
+        className="relative overflow-hidden rounded-[22px] border backdrop-blur-2xl"
         style={{
           background: 'rgba(10,12,14,0.92)',
           borderColor: `rgba(${accentRgb},0.2)`,
@@ -77,7 +77,7 @@ export const LessonCompletionToast = ({
             <div className="flex h-5 w-5 items-center justify-center rounded-full" style={{ background: `rgba(${accentRgb},0.2)` }}>
               <Check className="h-3 w-3" style={{ color: `rgb(${accentRgb})` }} />
             </div>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.15em]" style={{ color: `rgb(${accentRgb})` }}>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.15em]" style={{ color: `rgb(${accentRgb})` }}>
               {isTrackComplete ? 'Track Complete' : 'Module Complete'}
             </span>
           </div>
@@ -93,16 +93,8 @@ export const LessonCompletionToast = ({
               <span className="text-[10px] text-white/30">{completedModules}/{totalModules} modules</span>
               <span className="text-[11px] font-bold" style={{ color: `rgb(${accentRgb})` }}>{progressPct}%</span>
             </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: `rgba(${accentRgb},0.08)` }}>
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${barWidth}%`,
-                  background: `linear-gradient(90deg, rgba(${accentRgb},0.5), rgba(${accentRgb},0.9))`,
-                  boxShadow: `0 0 8px rgba(${accentRgb},0.3)`,
-                  transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-                }}
-              />
+            <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+              <div style={{ width: `${barWidth}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
             </div>
           </div>
 
@@ -111,7 +103,7 @@ export const LessonCompletionToast = ({
             <button
               type="button"
               onClick={onGoToNext}
-              className="mt-3 w-full flex items-center justify-between rounded-xl py-2.5 px-4 text-[12px] font-semibold transition-all duration-300 hover:scale-[1.01]"
+              className="mt-3 w-full flex items-center justify-between rounded-[14px] py-2.5 px-4 text-[12px] font-semibold transition-all duration-300 hover:scale-[1.01]"
               style={{
                 background: `rgba(${accentRgb},0.1)`,
                 border: `1px solid rgba(${accentRgb},0.2)`,

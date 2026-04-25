@@ -572,7 +572,7 @@ export function AdminSpendingPage() {
                                   </span>
                                 </td>
                                 <td className="border-b border-white/[0.04] px-4 py-3.5 text-on-surface">{entry.description}</td>
-                                <td className="whitespace-nowrap border-b border-white/[0.04] px-4 py-3.5 text-right font-mono font-semibold text-rose-400/80">
+                                <td className="whitespace-nowrap border-b border-white/[0.04] px-4 py-3.5 text-right font-mono font-bold text-rose-400/80">
                                   {fmt(Number(entry.amount))}
                                 </td>
                                 <td className="border-b border-white/[0.04] px-4 py-3.5 text-right">
@@ -640,11 +640,8 @@ export function AdminSpendingPage() {
                               {fmt(total)}
                             </span>
                           </div>
-                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.04]">
-                            <div
-                              className="h-full rounded-full bg-rose-400/50 transition-all duration-500"
-                              style={{ width: `${pct}%` }}
-                            />
+                          <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                            <div style={{ width: `${pct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
                           </div>
                         </div>
                       );

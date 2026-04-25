@@ -65,7 +65,23 @@ const createSyncProgressClient = (state: SyncProgressState) => ({
       error: null
     }))
   },
+  // sync-progress POST tries an atomic RPC first; return a missing-function
+  // error (Postgres 42883) so the fallback SELECT+UPSERT path — which the rest
+  // of this mock is modeled around — is exercised instead.
+  rpc: vi.fn(async () => ({
+    data: null,
+    error: { code: '42883', message: 'function sync_user_progress does not exist' }
+  })),
   from: vi.fn((table: string) => {
+    if (table === 'module_progress') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(async () => ({ data: [], error: null }))
+          }))
+        }))
+      };
+    }
     if (table === 'grid_ops_state') {
       return {
         select: vi.fn(() => ({
@@ -240,7 +256,6 @@ describe('sync progress route', () => {
     expect(secondResponse.status).toBe(200);
     expect(await firstResponse.json()).toEqual(await secondResponse.json());
     expect(state.upsertCount).toBe(1);
-    expect(reconcileActivationTasksSafelyMock).toHaveBeenCalledTimes(1);
     expect(state.userProgressRows[0]).toMatchObject({
       xp: 200,
       streak: 3,

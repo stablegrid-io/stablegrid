@@ -1,0 +1,9 @@
+team_id,team_name,country,domain,headcount,pipeline_count,budget_annual_eur
+TM-01,ingestion,Norway,meters+turbines,4,28,980000
+TM-02,silver-transform,Norway,all-domains,5,32,1200000
+TM-03,analytics,Norway,forecasting+ml,6,22,1050000
+TM-04,billing,Norway,billing,3,15,720000
+TM-05,compliance,Norway,compliance+audit,3,10,560000
+TM-06,ml-features,Norway,ml-features,4,8,890000
+TM-07,asset-ops,Norway,asset-mgmt,3,5,480000
+TM-08,platform,Norway,platform-infra,5,0,1100000

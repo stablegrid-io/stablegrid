@@ -1,0 +1,62 @@
+{
+  "moduleId": "module-PS1",
+  "topic": "pyspark",
+  "track": "junior",
+  "title": "Why Spark Exists",
+  "lessonCount": 10,
+  "estimatedMinutes": 245,
+  "sections": [
+    {
+      "type": "concepts",
+      "title": "Core Concepts",
+      "items": [
+        "Single machines hit three physical walls: disk throughput (read speed), memory capacity (RAM), and compute throughput (CPU cores). No software optimization can exceed these physical limits.",
+        "The cluster solution divides work across many machines — each with its own disk, memory, and CPU. The pattern is always: divide the data, execute in parallel, combine the results.",
+        "Spark keeps intermediate data in memory between steps, eliminating the disk round-trips that made Hadoop MapReduce slow — up to 100x faster for multi-step pipelines.",
+        "Every Spark application has one Driver (plans and coordinates work) and one or more Executors (do the actual data processing). Your Python code runs only on the driver.",
+        "Data is split into Partitions — smaller chunks distributed across executors. Parallelism = number of partitions processed simultaneously across available cores.",
+        "The medallion architecture organises data into Bronze (raw, untouched), Silver (cleaned, typed, validated), and Gold (aggregated, business-ready) layers.",
+        "PySpark is a thin Python wrapper. DataFrame operations run inside the JVM on executors — not in Python — making PySpark nearly as fast as Scala Spark.",
+        "A Spark job follows four phases: plan building → Catalyst optimisation → stage/task creation → distributed execution. One action triggers one job."
+      ]
+    },
+    {
+      "type": "patterns",
+      "title": "Key Patterns",
+      "items": [
+        {
+          "label": "NordGrid Silver pipeline (read → filter → cast → join → write)",
+          "code": "meters = spark.read.csv('bronze/meters/2026-03-22.csv', header=True)\nmeters = meters.filter(col('meter_id').isNotNull())\nmeters = meters.filter(col('daily_kw').cast('double') > 0)\nmeters = meters.withColumn('daily_kw', col('daily_kw').cast('double'))\nsubs   = spark.read.csv('bronze/substations.csv', header=True)\nmeters = meters.join(subs, 'substation_id', 'left')\nmeters.write.mode('overwrite').parquet('silver/meters/2026-03-22/')"
+        },
+        {
+          "label": "Scaling out beats scaling up for large data",
+          "code": "# 8 x 64 GB machines  =  512 GB total RAM\n# 8 x 8 cores         =   64 cores processing in parallel\n# 8 x 500 MB/s disks  =  4 GB/s read throughput\n# Cost grows linearly; capacity has no hard ceiling"
+        },
+        {
+          "label": "Job → Stage → Task hierarchy (Spark UI vocabulary)",
+          "code": "# 1 action  → 1 job\n# 1 job     → 1+ stages  (split at shuffle boundaries)\n# 1 stage   → 1+ tasks   (1 task per partition)\n# 'Stage 2: 200 tasks; slowest task 3 min' = join bottleneck"
+        }
+      ]
+    },
+    {
+      "type": "warnings",
+      "title": "Watch Out",
+      "items": [
+        "Scaling out is not free — a cluster introduces network latency, machine failures, and coordination complexity. Organisations accept this cost because a 35-minute pipeline that must finish in 5 has no alternative.",
+        "The bottleneck is not Python being slow. Physical limits (disk speed, RAM size, core count) are the real ceiling — rewriting in a faster language does not change them.",
+        "Python UDFs (User-Defined Functions) force data to cross the JVM-Python boundary for every row — dramatically slower than built-in DataFrame operations. Use built-in functions whenever possible.",
+        "Local mode does not reflect cluster performance for shuffle-heavy operations (joins, aggregations). A join that takes 2 seconds locally may take 30 seconds on the cluster due to network data movement."
+      ]
+    },
+    {
+      "type": "insights",
+      "title": "Insights",
+      "items": [
+        "Bigger hardware has diminishing returns and hard limits. A single 1 TB RAM server costs ~10x more than ten 128 GB machines combined — and it still cannot process 2 TB in memory.",
+        "Catalyst — Spark's query optimiser — rewrites your plan automatically before execution: combining filters, pushing predicates earlier, and broadcasting small tables. Often more effective than manual optimisation.",
+        "Bronze is the audit trail. Never transform data in-place at the Bronze layer — if a downstream pipeline produces wrong numbers, raw Bronze data is the only way to diagnose what arrived from the source.",
+        "A job's vocabulary (job → stage → task) is what you read in the Spark UI. 'The join stage has 200 tasks and the slowest took 3 minutes' tells an engineer exactly where the bottleneck is."
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { TheoryLayout } from '@/components/learn/theory/TheoryLayout';
 import { TheoryTrackPath } from '@/components/learn/theory/TheoryTrackPath';
+import { CapstoneProjectView } from '@/components/learn/theory/CapstoneProjectView';
 import { learnTopics } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
 import { getPracticeSets, getPracticeSet } from '@/data/operations/practice-sets';
@@ -29,6 +30,7 @@ interface LearnTopicTheoryCategoryPageProps {
     chapter?: string | string[];
     lesson?: string | string[];
     practice?: string | string[];
+    capstone?: string | string[];
   };
 }
 
@@ -70,6 +72,18 @@ export default async function LearnTopicTheoryCategoryPage({
   const track = getTheoryTrackBySlug(doc, categoryParam);
   if (track) {
     const trackDoc = getTheoryTrackDocBySlug(doc, categoryParam) ?? doc;
+
+    // Capstone project view (?capstone=true)
+    const requestedCapstone =
+      typeof searchParams?.capstone === 'string'
+        ? searchParams.capstone
+        : Array.isArray(searchParams?.capstone)
+          ? searchParams.capstone[0]
+          : null;
+
+    if (requestedCapstone) {
+      return <CapstoneProjectView topic={params.topic} level={categoryParam} />;
+    }
 
     // Practice session view (?practice=module-XX)
     const requestedPractice =

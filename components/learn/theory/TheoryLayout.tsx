@@ -25,6 +25,10 @@ import { TheorySidebar } from '@/components/learn/theory/TheorySidebar';
 import { TheoryContent } from '@/components/learn/theory/TheoryContent';
 import { TheorySessionTopbar } from '@/components/learn/theory/TheorySessionTopbar';
 import { LessonCompletionToast } from '@/components/learn/theory/LessonCompletionToast';
+import { ModuleCompleteFeedback } from '@/components/feedback/ModuleCompleteFeedback';
+import { TrackCompleteFeedback } from '@/components/feedback/TrackCompleteFeedback';
+import { KWhRewardToast, type KWhReward } from '@/components/learn/theory/KWhRewardToast';
+import { getLessonRewardKWh, getModuleCompleteBonus, getTrackCompleteBonus } from '@/lib/energy';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 
 const TheorySessionPicker = dynamic(
@@ -51,6 +55,10 @@ import { useAdminStatus } from '@/lib/hooks/useAdminStatus';
 import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
 const ReadingModeDropdown = dynamic(
   () => import('@/components/learn/theory/ReadingModeDropdown').then((m) => m.ReadingModeDropdown),
+  { ssr: false }
+);
+const FocusModeButton = dynamic(
+  () => import('@/components/learn/theory/ReadingModeDropdown').then((m) => m.FocusModeButton),
   { ssr: false }
 );
 
@@ -145,7 +153,7 @@ const ModuleProgressRail = ({
 
   return (
     <div
-      className="flex items-center gap-3 rounded-xl px-4 py-3 mx-auto my-6 w-fit"
+      className="flex items-center gap-3 rounded-full px-4 py-3 mx-auto my-6 w-fit"
       data-reading-mode={readingMode}
       style={{
         background: 'var(--rm-bg-elevated, rgba(255,255,255,0.03))',
@@ -192,7 +200,7 @@ const ModuleProgressRail = ({
       </div>
 
       {/* Count */}
-      <span className="font-mono text-[10px] font-semibold tabular-nums whitespace-nowrap" style={{ color: 'var(--rm-accent, rgb(var(--color-primary)))' }}>
+      <span className="font-mono text-[10px] font-bold tabular-nums whitespace-nowrap" style={{ color: 'var(--rm-accent, rgb(var(--color-primary)))' }}>
         {completedCount}/{total}
       </span>
     </div>
@@ -305,14 +313,24 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const [routeReady, setRouteReady] = useState(false);
   const [completionActionPending, setCompletionActionPending] = useState(false);
   const [showCompletionToast, setShowCompletionToast] = useState(false);
+  const [moduleFeedbackTarget, setModuleFeedbackTarget] = useState<TheoryChapter | null>(null);
+  const [showTrackFeedback, setShowTrackFeedback] = useState(false);
   const [sessionPickerVisible, setSessionPickerVisible] = useState(false);
   const [progressIssue, setProgressIssue] = useState<ProgressIssueState | null>(null);
   const [progressReloadToken, setProgressReloadToken] = useState(0);
+  const [activeReward, setActiveReward] = useState<KWhReward | null>(null);
+  const rewardedLessonsRef = useRef<Set<string>>(new Set());
   const lastTouchedRouteRef = useRef<string>('');
   const syncFailCountRef = useRef(0);
   const lastTrackedChapterStartRef = useRef<string | null>(null);
   const sessionPickerInitializedRef = useRef(false);
   const addXP = useProgressStore((state) => state.addXP);
+
+  // Extract track level from URL (e.g. /learn/pyspark/theory/junior)
+  const trackLevel = useMemo(() => {
+    const m = pathname.match(/\/theory\/(\w+)/);
+    return m?.[1]?.toLowerCase() ?? 'junior';
+  }, [pathname]);
   const { methodConfigs: sessionMethodConfigs, hasHydrated: sessionDefaultsHydrated } =
     useTheorySessionPreferencesStore((state) => ({
       methodConfigs: state.methodConfigs,
@@ -348,10 +366,25 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     );
     setCompletionsLoaded(true);
   }, []);
-  // All modules unlocked (locking disabled)
+  // Sequential gating: module 1 is always open; module N (N>1) unlocks only
+  // when module N-1 is complete. Server is the source of truth (see
+  // app/api/learn/module-progress/route.ts), but we mirror the rule here so
+  // the UI actually reflects what the API will accept.
   const unlockedModuleIds = useMemo(() => {
-    return new Set(modules.map((module) => module.id));
-  }, [modules]);
+    const ids = new Set<string>();
+    for (let i = 0; i < modules.length; i += 1) {
+      const module = modules[i];
+      if (i === 0) {
+        ids.add(module.id);
+        continue;
+      }
+      const previous = modules[i - 1];
+      if (completedChapterIds.has(previous.id) || unlockedChapterIds.has(module.id)) {
+        ids.add(module.id);
+      }
+    }
+    return ids;
+  }, [modules, completedChapterIds, unlockedChapterIds]);
   const activeModuleIndex = modules.findIndex((module) => module.id === activeChapter.id);
   const upcomingModule =
     activeModuleIndex >= 0 && activeModuleIndex < modules.length - 1
@@ -481,6 +514,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     activeChapter.totalMinutes;
   const contentRef = useRef<HTMLDivElement | null>(null);
   const handleChapterComplete = useCallback(() => {
+    const alreadyCounted = completedChapterIds.has(activeChapter.id);
+    const nextCompletedCount = alreadyCounted
+      ? completedChapterIds.size
+      : completedChapterIds.size + 1;
     setCompletedChapterIds((prev) => new Set([...prev, activeChapter.id]));
     const currentIndex = modules.findIndex((module) => module.id === activeChapter.id);
     const nextModule =
@@ -491,7 +528,12 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       setUnlockedChapterIds((prev) => new Set([...prev, nextModule.id]));
     }
     setShowCompletionToast(true);
-  }, [activeChapter.id, modules]);
+    if (nextCompletedCount >= modules.length) {
+      setShowTrackFeedback(true);
+    } else {
+      setModuleFeedbackTarget(activeChapter);
+    }
+  }, [activeChapter, completedChapterIds, modules]);
   const handleChapterIncomplete = useCallback(() => {
     setCompletedChapterIds((prev) => {
       const next = new Set(prev);
@@ -510,14 +552,70 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       chapter: activeChapter,
       currentLessonId: activeLessonId,
       lastVisitedRoute: persistedRoute,
+      sessionMethod: theorySession.method?.id ?? null,
       onChapterComplete: handleChapterComplete,
       onChapterIncomplete: handleChapterIncomplete,
-      onFirstCompletionEnergyUnits: (units) =>
-        addXP(units, {
-          source: 'chapter-complete',
-          ...(completionRewardTopic ? { topic: completionRewardTopic } : {}),
-          label: `Completed ${activeChapter.title}`
-        })
+      onFirstCompletionEnergyUnits: (units) => {
+        // Module complete bonus
+        const bonus = getModuleCompleteBonus(trackLevel);
+        if (bonus > 0) {
+          addXP(bonus, {
+            source: 'chapter-complete',
+            ...(completionRewardTopic ? { topic: completionRewardTopic } : {}),
+            label: `Completed ${activeChapter.title}`
+          });
+          setActiveReward({
+            id: `module-${activeChapter.id}-${Date.now()}`,
+            tier: 'module',
+            kwh: bonus,
+            label: activeChapter.title,
+            trackLevel,
+          });
+        }
+
+        // Check track completion (all 10 modules)
+        const allModuleIds = doc.chapters.map((ch) => ch.id);
+        const willBeComplete = new Set([...completedChapterIds, activeChapter.id]);
+        if (allModuleIds.length > 0 && allModuleIds.every((id) => willBeComplete.has(id))) {
+          const trackBonus = getTrackCompleteBonus(trackLevel);
+          if (trackBonus > 0) {
+            setTimeout(() => {
+              addXP(trackBonus, {
+                source: 'track-complete',
+                ...(completionRewardTopic ? { topic: completionRewardTopic } : {}),
+                label: `All ${trackLevel} modules complete`
+              });
+              setActiveReward({
+                id: `track-${trackLevel}-${Date.now()}`,
+                tier: 'track',
+                kwh: trackBonus,
+                label: `All ${allModuleIds.length} ${trackLevel} modules complete`,
+                trackLevel,
+              });
+            }, 5500); // Show after module toast dismisses
+          }
+        }
+      },
+      onLessonRead: (lessonId) => {
+        // Lesson read reward — only once per lesson per session
+        if (rewardedLessonsRef.current.has(lessonId)) return;
+        rewardedLessonsRef.current.add(lessonId);
+        const reward = getLessonRewardKWh(trackLevel);
+        if (reward > 0) {
+          addXP(reward, {
+            source: 'lesson-read',
+            ...(completionRewardTopic ? { topic: completionRewardTopic } : {}),
+            label: `Read lesson`
+          });
+          setActiveReward({
+            id: `lesson-${lessonId}-${Date.now()}`,
+            tier: 'lesson',
+            kwh: reward,
+            label: 'Lesson complete',
+            trackLevel,
+          });
+        }
+      },
     });
 
   useEffect(() => {
@@ -1015,8 +1113,9 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       {/* Floating controls — visible in focus mode */}
       {focusMode && (
         <div data-reading-mode={readingMode} className="contents">
-          <div className="fixed top-3 right-3 z-50" data-reading-mode={readingMode}>
+          <div className="fixed top-3 right-3 z-50 flex items-center gap-1" data-reading-mode={readingMode}>
             <ReadingModeDropdown />
+            <FocusModeButton />
           </div>
           <button
             type="button"
@@ -1037,7 +1136,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
                 color: 'var(--rm-text-secondary)',
               }}
             >ESC</kbd>
-            <span className="font-mono text-[10px] tracking-widest uppercase">Exit Focus</span>
+            <span className="font-mono font-medium text-[10px] tracking-widest uppercase">Exit Focus</span>
           </button>
         </div>
       )}
@@ -1083,16 +1182,20 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         {/* Right group: tools */}
         <div className="flex items-center gap-1">
           <ReadingModeDropdown />
+          <FocusModeButton />
           {!theorySession.hasActiveSession && (
-            <button
-              type="button"
-              onClick={openSessionPicker}
-              disabled={!sessionDefaultsHydrated}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/8 px-3 text-xs font-medium text-primary transition-all hover:bg-primary/15 hover:border-primary/30"
-            >
-              <Clock3 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Start session</span>
-            </button>
+            <>
+              <div className="mx-1 h-5 w-px bg-white/[0.12]" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={openSessionPicker}
+                disabled={!sessionDefaultsHydrated}
+                className="inline-flex h-8 items-center gap-1.5 rounded-[14px] border border-white/[0.12] bg-white/[0.06] px-3 text-xs font-medium text-white/70 transition-all hover:bg-white/[0.1] hover:border-white/[0.18]"
+              >
+                <Clock3 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Start session</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1241,6 +1344,33 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           />
         ) : null}
       </AnimatePresence>
+
+      {/* Per-module feedback — appears alongside the completion toast */}
+      {moduleFeedbackTarget ? (
+        <ModuleCompleteFeedback
+          topic={doc.topic}
+          moduleId={moduleFeedbackTarget.id}
+          moduleTitle={moduleFeedbackTarget.title.replace(/^Module\s*\d+\s*:\s*/i, '')}
+          moduleNumber={moduleFeedbackTarget.order ?? moduleFeedbackTarget.number}
+          accentRgb={getTheoryTopicStyle(doc.topic).accentRgb}
+          onDismiss={() => setModuleFeedbackTarget(null)}
+        />
+      ) : null}
+
+      {/* Track-level feedback — celebratory modal after the last module */}
+      {showTrackFeedback ? (
+        <TrackCompleteFeedback
+          topic={doc.topic}
+          trackSlug={activeTrackSlug ?? trackLevel}
+          trackTitle={`${doc.title.replace(/\s*(Tracks|Modules)$/i, '')} — ${trackLevel}`}
+          totalModules={modules.length}
+          accentRgb={getTheoryTopicStyle(doc.topic).accentRgb}
+          onDismiss={() => setShowTrackFeedback(false)}
+        />
+      ) : null}
+
+      {/* kWh reward toast */}
+      <KWhRewardToast reward={activeReward} onDismiss={() => setActiveReward(null)} />
     </div>
   );
 };

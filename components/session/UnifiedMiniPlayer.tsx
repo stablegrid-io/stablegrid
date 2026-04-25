@@ -126,7 +126,7 @@ export function UnifiedMiniPlayer() {
         <div
           className="relative rounded-[22px] border px-4 py-3 min-w-[220px]"
           style={{
-            background: 'rgba(10,12,14,0.92)',
+            background: 'rgba(24,28,32,0.95)',
             backdropFilter: 'blur(24px) saturate(1.4)',
             WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
             borderColor: `rgba(${theory.color},0.15)`,
@@ -153,11 +153,10 @@ export function UnifiedMiniPlayer() {
           </div>
           <Link
             href={theory.route}
-            className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold transition-all hover:scale-[1.02]"
+            className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold text-white transition-all hover:scale-[1.02] hover:bg-white/[0.16]"
             style={{
-              background: `rgba(${theory.color},0.08)`,
-              border: `1px solid rgba(${theory.color},0.15)`,
-              color: `rgb(${theory.color})`,
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.22)',
             }}
           >
             <span>Resume reading</span>
@@ -168,12 +167,18 @@ export function UnifiedMiniPlayer() {
 
       {/* Practice session card */}
       {showPractice && practice && (() => {
-        const accent = '245,158,11';
+        const isCapstone = practice.modulePrefix.startsWith('capstone-');
+        const route = practice.route.toLowerCase();
+        const accent = route.includes('/senior') ? '255,113,108'
+          : route.includes('/mid') ? '255,201,101'
+          : '153,247,255';
+        const sessionLabel = isCapstone ? 'Project' : 'Practice';
+        const resumeLabel = isCapstone ? 'Resume project' : 'Resume practice';
         return (
           <div
             className="relative rounded-[22px] border px-4 py-3 min-w-[220px]"
             style={{
-              background: 'rgba(10,12,14,0.92)',
+              background: 'rgba(24,28,32,0.95)',
               backdropFilter: 'blur(24px) saturate(1.4)',
               WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
               borderColor: `rgba(${accent},0.15)`,
@@ -193,21 +198,20 @@ export function UnifiedMiniPlayer() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: `rgb(${accent})` }}>
-                  Practice — {practice.modulePrefix}
+                  {sessionLabel} — {practice.modulePrefix}
                 </p>
                 <p className="text-[9px] text-white/25">Task {practice.taskIndex + 1}/{practice.totalTasks}</p>
               </div>
             </div>
             <Link
               href={practice.route}
-              className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold transition-all hover:scale-[1.02]"
+              className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold text-white transition-all hover:scale-[1.02] hover:bg-white/[0.16]"
               style={{
-                background: `rgba(${accent},0.08)`,
-                border: `1px solid rgba(${accent},0.15)`,
-                color: `rgb(${accent})`,
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.22)',
               }}
             >
-              <span>Resume practice</span>
+              <span>{resumeLabel}</span>
               <ArrowRight className="h-2.5 w-2.5" />
             </Link>
           </div>

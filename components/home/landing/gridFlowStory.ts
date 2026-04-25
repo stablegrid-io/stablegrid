@@ -90,7 +90,7 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
     variant: 'intro',
     align: 'left',
     ctaSource: 'grid_flow_primary',
-    ctaLabel: 'Start free',
+    ctaLabel: 'Get started',
     scene: {
       stageBeat: 0.18,
       diagramOffsetX: -18,
@@ -274,7 +274,7 @@ export const GRID_FLOW_CHAPTERS: GridFlowChapter[] = [
     variant: 'final',
     align: 'center',
     ctaSource: 'grid_flow_final',
-    ctaLabel: 'Start free',
+    ctaLabel: 'Get started',
     scene: {
       stageBeat: 4.12,
       diagramOffsetX: 6,

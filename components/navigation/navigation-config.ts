@@ -2,14 +2,17 @@
 
 import {
   type LucideIcon,
-  BarChart3,
+  Home,
   BookOpen,
-  Home
+  Target,
+  Zap,
+  TrendingUp
 } from 'lucide-react';
+import { SubstationIcon } from './icons/SubstationIcon';
 
 export interface NavItem {
   href: string;
-  icon: LucideIcon;
+  icon: LucideIcon | typeof SubstationIcon;
   label: string;
   matchPrefixes?: string[];
   disabled?: boolean;
@@ -23,25 +26,74 @@ export const navItems: NavItem[] = [
     label: 'Learn',
     matchPrefixes: ['/theory', '/learn']
   },
+  // {
+  //   href: '/cheat-sheets',
+  //   icon: Braces,
+  //   label: 'Cheat Sheets',
+  //   matchPrefixes: ['/cheat-sheets']
+  // },
   {
-    href: '/progress',
-    icon: BarChart3,
-    label: 'Progress',
-    matchPrefixes: ['/progress']
+    href: '/practice',
+    icon: Target,
+    label: 'Practice',
+    matchPrefixes: ['/practice']
+  },
+  {
+    href: '/grid',
+    icon: Zap,
+    label: 'Grid',
+    matchPrefixes: ['/grid']
+  },
+  {
+    href: '/stats',
+    icon: TrendingUp,
+    label: 'Stats',
+    matchPrefixes: ['/stats']
   },
 ];
 
-export const shouldHideNav = (pathname?: string | null, _isAuthenticated?: boolean) => {
+/**
+ * Pages that render their own full-bleed background imagery (hero photos, etc.)
+ * should opt out of the global grid/scanline overlays so the image isn't crosshatched.
+ * Nav still shows on these pages (unless also covered by `shouldHideNav`).
+ */
+export const hasCustomBackground = (pathname?: string | null) => {
   if (!pathname) return false;
-  // Hide nav on the landing page and auth pages
-  if (pathname === '/') return true;
-  const authPages = ['/login', '/signup', '/reset-password', '/update-password'];
+  return pathname === '/home';
+};
+
+export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
+  if (!pathname) return false;
+  // Hide nav on the landing-style marketing pages and auth pages (own header included).
+  if (pathname === '/' || pathname === '/topics') return true;
+  const authPages = ['/login', '/signup'];
   if (authPages.includes(pathname)) return true;
+  // Hide nav on public pages when not authenticated
+  const publicPages = ['/privacy', '/terms', '/support', '/support/report-bug'];
+  if (!isAuthenticated && publicPages.includes(pathname)) return true;
   return false;
 };
 
 export const isTheoryLessonPath = (pathname?: string | null) =>
   Boolean(pathname && /^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname));
+
+/**
+ * Public / marketing surfaces that should render the shared landing footer.
+ * Excluded intentionally:
+ *  - `/`              (LandingPage renders LandingFooter inline)
+ *  - `/privacy`       (page renders its own inline copyright footer)
+ */
+const LANDING_FOOTER_PATHS = new Set<string>([
+  '/topics',
+  '/terms',
+  '/support',
+  '/support/report-bug'
+]);
+
+export const shouldShowLandingFooter = (pathname?: string | null) => {
+  if (!pathname) return false;
+  return LANDING_FOOTER_PATHS.has(pathname);
+};
 
 export const isPracticeSessionPath = (pathname?: string | null, search?: string | null) => {
   if (!pathname) return false;
@@ -50,8 +102,14 @@ export const isPracticeSessionPath = (pathname?: string | null, search?: string 
   return false;
 };
 
-export const isCompactDesktopNavPath = (pathname?: string | null) =>
-  Boolean(pathname?.startsWith('/admin')) || isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname);
+const COMPACT_NAV_PREFIXES = ['/admin', '/cheat-sheets', '/learn', '/practice', '/grid', '/stats'];
+
+export const isCompactDesktopNavPath = (pathname?: string | null) => {
+  if (!pathname) return false;
+  if (pathname === '/theory') return true;
+  if (isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname)) return true;
+  return COMPACT_NAV_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+};
 
 export const isNavItemActive = (pathname: string | null, item: NavItem) =>
   Boolean(

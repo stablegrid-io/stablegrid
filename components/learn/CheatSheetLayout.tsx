@@ -239,46 +239,46 @@ export const CheatSheetLayout = ({ data }: CheatSheetLayoutProps) => {
   }, []);
 
   return (
-    <div className="h-[calc(100dvh-4rem)] overflow-y-auto bg-light-bg dark:bg-dark-bg lg:h-[100dvh]">
+    <div className="h-[calc(100dvh-4rem)] overflow-y-auto bg-light-bg dark:bg-surface lg:h-[100dvh]">
       <div className="mx-auto max-w-[1280px] px-4 py-6 lg:px-6">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div>
             <Link
               href={`/learn/${data.topic}/theory`}
-              className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-text-light-tertiary transition-colors hover:text-text-light-primary dark:text-text-dark-tertiary dark:hover:text-text-dark-primary"
+              className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-text-light-tertiary transition-colors hover:text-text-light-primary dark:text-on-surface-variant/70 dark:hover:text-on-surface"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to topic
             </Link>
             <div className="mb-2 flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-500">
+              <span className="font-mono font-bold uppercase tracking-[0.18em] text-[10px] text-primary">
                 Cheat Sheet
               </span>
-              <span className="h-2.5 w-px bg-light-border dark:bg-dark-border" />
-              <span className="text-[10px] font-medium text-text-light-tertiary dark:text-text-dark-tertiary">
+              <span className="h-2.5 w-px bg-light-border dark:bg-outline-variant" />
+              <span className="text-[10px] font-medium text-text-light-tertiary dark:text-on-surface-variant/70">
                 {data.version ?? 'Reference'}
               </span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-text-light-primary dark:text-text-dark-primary">
+            <h1 className="text-2xl font-bold tracking-tight text-text-light-primary dark:text-on-surface">
               {data.title}
             </h1>
-            <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="mt-1 text-sm text-text-light-secondary dark:text-on-surface-variant">
               {totalFunctions} functions · {allSections.length} categories · click a function
               for syntax and examples
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-1 rounded-full border border-light-border bg-light-surface p-1 dark:border-dark-border dark:bg-dark-surface">
+            <div className="inline-flex items-center gap-1 rounded-full border border-light-border bg-light-surface p-1 dark:border-outline-variant dark:bg-surface-container">
               {(['all', 'b', 'i', 'a'] as LevelFilter[]).map((level) => (
                 <button
                   key={level}
                   type="button"
                   onClick={() => setLevelFilter(level)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
                     levelFilter === level
-                      ? 'bg-brand-500 text-white'
-                      : 'text-text-light-secondary hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:text-text-dark-primary'
+                      ? 'bg-primary text-white'
+                      : 'text-text-light-secondary hover:text-text-light-primary dark:text-on-surface-variant dark:hover:text-on-surface'
                   }`}
                 >
                   {LEVEL_LABEL[level]}
@@ -286,19 +286,19 @@ export const CheatSheetLayout = ({ data }: CheatSheetLayoutProps) => {
               ))}
             </div>
 
-            <div className="flex w-[240px] items-center gap-2 rounded-lg border border-light-border bg-light-surface px-3 py-2 dark:border-dark-border dark:bg-dark-surface">
-              <Search className="h-4 w-4 text-text-light-tertiary dark:text-text-dark-tertiary" />
+            <div className="flex w-[240px] items-center gap-2 rounded-[10px] border border-light-border bg-light-surface px-3 py-2 dark:border-outline-variant dark:bg-surface-container">
+              <Search className="h-4 w-4 text-text-light-tertiary dark:text-on-surface-variant/70" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search functions..."
-                className="w-full border-none bg-transparent p-0 text-sm text-text-light-primary placeholder:text-text-light-tertiary focus:outline-none focus:ring-0 dark:text-text-dark-primary dark:placeholder:text-text-dark-tertiary"
+                className="w-full border-none bg-transparent p-0 text-sm text-text-light-primary placeholder:text-text-light-tertiary focus:outline-none focus:ring-0 dark:text-on-surface dark:placeholder:text-on-surface-variant/70"
               />
               {query ? (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
-                  className="text-text-light-tertiary transition-colors hover:text-text-light-primary dark:text-text-dark-tertiary dark:hover:text-text-dark-primary"
+                  className="text-text-light-tertiary transition-colors hover:text-text-light-primary dark:text-on-surface-variant/70 dark:hover:text-on-surface"
                   aria-label="Clear search"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -308,7 +308,7 @@ export const CheatSheetLayout = ({ data }: CheatSheetLayoutProps) => {
           </div>
         </div>
 
-        <div className="mb-5 flex flex-wrap items-center gap-4 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+        <div className="mb-5 flex flex-wrap items-center gap-4 text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
           {Object.entries(LEVEL_META).map(([level, meta]) => (
             <span key={level} className="inline-flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: meta.dot }} />
@@ -329,9 +329,9 @@ export const CheatSheetLayout = ({ data }: CheatSheetLayoutProps) => {
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-light-border bg-light-surface p-12 text-center dark:border-dark-border dark:bg-dark-surface">
+          <div className="rounded-[14px] border border-light-border bg-light-surface p-12 text-center dark:border-outline-variant dark:bg-surface-container">
             <p className="mb-2 text-2xl">🔍</p>
-            <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="text-sm text-text-light-secondary dark:text-on-surface-variant">
               No functions match this filter.
             </p>
           </div>
@@ -357,7 +357,7 @@ interface SectionCardProps {
 const SectionCard = memo(function SectionCard({ section, onSelect }: SectionCardProps) {
   return (
     <article
-      className="mb-4 break-inside-avoid overflow-hidden rounded-xl border bg-light-surface/90 dark:bg-dark-surface/80"
+      className="mb-4 break-inside-avoid overflow-hidden rounded-[14px] border bg-light-surface/90 dark:bg-surface-container/80"
       style={{ borderColor: `rgba(${section.rgb},0.28)` }}
     >
       <header
@@ -365,7 +365,7 @@ const SectionCard = memo(function SectionCard({ section, onSelect }: SectionCard
         style={{ borderBottomColor: `rgba(${section.rgb},0.2)` }}
       >
         <div
-          className="flex h-7 w-7 items-center justify-center rounded-md border text-xs"
+          className="flex h-7 w-7 items-center justify-center rounded-[7px] border text-xs"
           style={{
             backgroundColor: `rgba(${section.rgb},0.12)`,
             borderColor: `rgba(${section.rgb},0.25)`
@@ -375,18 +375,18 @@ const SectionCard = memo(function SectionCard({ section, onSelect }: SectionCard
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
+          <p className="truncate text-sm font-semibold text-text-light-primary dark:text-on-surface">
             {section.title}
           </p>
           {section.description ? (
-            <p className="truncate text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+            <p className="truncate text-[11px] text-text-light-tertiary dark:text-on-surface-variant/70">
               {section.description}
             </p>
           ) : null}
         </div>
 
         <span
-          className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+          className="rounded-full px-2 py-0.5 text-[10px] font-bold"
           style={{
             color: section.color,
             backgroundColor: `rgba(${section.rgb},0.14)`
@@ -426,7 +426,7 @@ const FunctionRow = memo(function FunctionRow({ fn, section, onSelect }: Functio
     <button
       type="button"
       onClick={handleClick}
-      className="group mb-1 flex w-full items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-left transition-colors hover:bg-light-bg dark:hover:bg-dark-bg"
+      className="group mb-1 flex w-full items-center gap-2 rounded-[7px] border border-transparent px-2 py-1.5 text-left transition-colors hover:bg-light-bg dark:hover:bg-surface"
       onMouseEnter={(event) => {
         event.currentTarget.style.backgroundColor = `rgba(${section.rgb},0.08)`;
         event.currentTarget.style.borderColor = `rgba(${section.rgb},0.2)`;
@@ -440,10 +440,10 @@ const FunctionRow = memo(function FunctionRow({ fn, section, onSelect }: Functio
         className="mt-0.5 h-1.5 w-1.5 flex-shrink-0 rounded-full"
         style={{ backgroundColor: LEVEL_META[level].dot }}
       />
-      <code className="data-mono flex-shrink-0 text-[11px] font-semibold text-text-light-primary dark:text-text-dark-primary">
+      <code className="data-mono flex-shrink-0 text-[11px] font-bold text-text-light-primary dark:text-on-surface">
         {fn.name}
       </code>
-      <span className="truncate text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+      <span className="truncate text-[11px] text-text-light-tertiary dark:text-on-surface-variant/70">
         {fn.shortDescription}
       </span>
       <ArrowRight
@@ -485,33 +485,33 @@ const FunctionDrawer = memo(function FunctionDrawer({ fn, section, onClose }: Fu
         aria-label="Close details"
       />
 
-      <aside className="fixed right-0 top-0 z-50 h-full w-full max-w-[620px] border-l border-light-border bg-light-bg shadow-2xl dark:border-dark-border dark:bg-[#0c0f17] xl:max-w-[680px]">
+      <aside className="fixed right-0 top-0 z-50 h-full w-full max-w-[620px] border-l border-light-border bg-light-bg shadow-2xl dark:border-outline-variant dark:bg-surface xl:max-w-[680px]">
         <div
           className="h-0.5"
           style={{ background: `linear-gradient(90deg, ${section.color}, transparent)` }}
         />
 
         <div className="flex h-full flex-col">
-          <header className="border-b border-light-border px-5 py-5 dark:border-dark-border">
-            <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em]">
+          <header className="border-b border-light-border px-5 py-5 dark:border-outline-variant">
+            <div className="mb-2 flex items-center gap-2 font-mono font-bold uppercase tracking-[0.14em] text-[10px]">
               <span style={{ color: section.color }}>{section.title}</span>
-              <span className="h-2 w-px bg-light-border dark:bg-dark-border" />
+              <span className="h-2 w-px bg-light-border dark:bg-outline-variant" />
               <span style={{ color: LEVEL_META[level].dot }}>{LEVEL_META[level].label}</span>
             </div>
 
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="data-mono text-xl font-bold text-text-light-primary dark:text-text-dark-primary">
+                <h2 className="data-mono text-xl font-bold text-text-light-primary dark:text-on-surface">
                   {fn.name}
                 </h2>
-                <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+                <p className="mt-1 text-sm text-text-light-secondary dark:text-on-surface-variant">
                   {fn.shortDescription}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-md border border-light-border p-1.5 text-text-light-tertiary transition-colors hover:text-text-light-primary dark:border-dark-border dark:text-text-dark-tertiary dark:hover:text-text-dark-primary"
+                className="rounded-[7px] border border-light-border p-1.5 text-text-light-tertiary transition-colors hover:text-text-light-primary dark:border-outline-variant dark:text-on-surface-variant/70 dark:hover:text-on-surface"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />
@@ -521,7 +521,7 @@ const FunctionDrawer = memo(function FunctionDrawer({ fn, section, onClose }: Fu
 
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
             <section>
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+              <p className="mb-2 font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-text-light-tertiary dark:text-on-surface-variant/70">
                 Syntax
               </p>
               <CodeBlock code={fn.syntax} label="Syntax" />
@@ -529,7 +529,7 @@ const FunctionDrawer = memo(function FunctionDrawer({ fn, section, onClose }: Fu
 
             {primaryExample ? (
               <section>
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                <p className="mb-2 font-mono font-bold uppercase tracking-[0.14em] text-[10px] text-text-light-tertiary dark:text-on-surface-variant/70">
                   Example
                 </p>
                 <CodeBlock
@@ -541,23 +541,23 @@ const FunctionDrawer = memo(function FunctionDrawer({ fn, section, onClose }: Fu
             ) : null}
 
             <section
-              className="rounded-lg border p-3"
+              className="rounded-[10px] border p-3"
               style={{
                 borderColor: `rgba(${section.rgb},0.2)`,
                 backgroundColor: `rgba(${section.rgb},0.08)`
               }}
             >
-              <p className="text-sm leading-relaxed text-text-light-secondary dark:text-text-dark-secondary">
+              <p className="text-sm leading-relaxed text-text-light-secondary dark:text-on-surface-variant">
                 {primaryNote}
               </p>
             </section>
           </div>
 
-          <footer className="border-t border-light-border px-5 py-4 dark:border-dark-border">
+          <footer className="border-t border-light-border px-5 py-4 dark:border-outline-variant">
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] border px-3 py-2 text-sm font-bold transition-colors"
               style={{
                 borderColor: `rgba(${section.rgb},0.3)`,
                 color: section.color,

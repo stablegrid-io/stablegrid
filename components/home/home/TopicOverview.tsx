@@ -73,10 +73,10 @@ export const TopicOverview = ({ topicProgress }: TopicOverviewProps) => {
           </p>
         </div>
         <Link
-          href="/progress"
+          href="/stats"
           className="text-xs font-medium text-brand-700 transition-colors hover:text-brand-500 dark:text-brand-300 dark:hover:text-brand-200"
         >
-          View progress
+          View stats
         </Link>
       </div>
 
@@ -157,14 +157,11 @@ const ProgressRow = ({
   color: string;
 }) => (
   <div className="grid grid-cols-[46px_1fr_auto] items-center gap-2">
-    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6d746f] dark:text-[#7e9589]">
+    <span className="text-[10px] font-mono font-bold uppercase tracking-[0.12em] text-[#6d746f] dark:text-[#7e9589]">
       {label}
     </span>
-    <div className="h-1.5 overflow-hidden rounded-full bg-[#ece4d8] dark:bg-white/8">
-      <div
-        className="h-full rounded-full transition-all"
-        style={{ width: `${percentage}%`, backgroundColor: color }}
-      />
+    <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+      <div style={{ width: `${percentage}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
     </div>
     <span className="text-[10px] text-[#6d746f] dark:text-[#7e9589]">{value}</span>
   </div>

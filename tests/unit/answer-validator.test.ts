@@ -39,4 +39,35 @@ describe('validateAnswer', () => {
     expect(validateAnswer(question, 'equi   join')).toBe(true);
     expect(validateAnswer(question, 'left join')).toBe(false);
   });
+
+  it('handles numeric correctAnswer', () => {
+    const question: Question = { ...baseQuestion, correctAnswer: '42' };
+    expect(validateAnswer(question, '42')).toBe(true);
+    expect(validateAnswer(question, '43')).toBe(false);
+  });
+
+  it('returns false for answers containing only punctuation', () => {
+    expect(validateAnswer(baseQuestion, '!!!')).toBe(false);
+    expect(validateAnswer(baseQuestion, '...')).toBe(false);
+  });
+
+  it('matches alternate answers when correctAnswer does not match', () => {
+    const question: Question = {
+      ...baseQuestion,
+      correctAnswer: 'primary answer',
+      alternateAnswers: ['alternate one', 'alternate two'],
+    };
+    expect(validateAnswer(question, 'alternate two')).toBe(true);
+    expect(validateAnswer(question, 'alternate three')).toBe(false);
+  });
+
+  it('handles special SQL characters in answers', () => {
+    const question: Question = { ...baseQuestion, correctAnswer: 'SELECT *' };
+    expect(validateAnswer(question, 'select *')).toBe(true);
+    expect(validateAnswer(question, 'SELECT   *')).toBe(true);
+  });
+
+  it('handles answer with leading/trailing whitespace', () => {
+    expect(validateAnswer(baseQuestion, '  GROUP BY  ')).toBe(true);
+  });
 });

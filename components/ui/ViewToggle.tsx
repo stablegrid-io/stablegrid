@@ -11,7 +11,7 @@ interface ViewToggleProps {
 
 export function ViewToggle({ view, onChange }: ViewToggleProps) {
   return (
-    <div className="inline-flex rounded-xl border border-light-border bg-light-bg dark:border-dark-border dark:bg-dark-bg">
+    <div className="inline-flex rounded-[14px] border border-light-border bg-light-bg dark:border-dark-border dark:bg-dark-bg">
       <button
         type="button"
         onClick={() => onChange('gallery')}

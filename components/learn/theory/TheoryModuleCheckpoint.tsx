@@ -177,16 +177,16 @@ export const TheoryModuleCheckpoint = ({
 
   if (sessionFinished) {
     return (
-      <section className="mt-8 rounded-3xl border border-light-border bg-light-surface p-6 dark:border-dark-border dark:bg-dark-surface">
+      <section className="mt-8 rounded-[22px] border border-light-border bg-light-surface p-6 dark:border-outline-variant dark:bg-surface-container">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500">
+            <p className="font-mono font-bold uppercase tracking-[0.18em] text-xs text-primary">
               Module Checkpoint
             </p>
-            <h2 className="mt-2 text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+            <h2 className="mt-2 text-2xl font-semibold text-text-light-primary dark:text-on-surface">
               {correctAnswers >= requiredCorrect ? 'Checkpoint passed' : 'Checkpoint failed'}
             </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-on-surface-variant">
               You answered {correctAnswers} of {questions.length} flashcards within the
               timed checkpoint.
             </p>
@@ -202,21 +202,21 @@ export const TheoryModuleCheckpoint = ({
               </p>
             ) : null}
             {isCompleted || moduleSaveSucceeded ? (
-              <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-brand-500">
+              <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-primary">
                 <CheckCircle2 className="h-4 w-4" />
                 Module marked complete.
               </p>
             ) : null}
           </div>
 
-          <div className="rounded-2xl border border-light-border bg-light-bg px-4 py-3 text-right dark:border-dark-border dark:bg-dark-bg">
-            <div className="text-xs uppercase tracking-[0.16em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <div className="rounded-[14px] border border-light-border bg-light-bg px-4 py-3 text-right dark:border-outline-variant dark:bg-surface">
+            <div className="font-mono font-bold uppercase tracking-[0.16em] text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
               Result
             </div>
-            <div className="mt-2 text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+            <div className="mt-2 text-2xl font-semibold text-text-light-primary dark:text-on-surface">
               {Math.round((correctAnswers / questions.length) * 100)}%
             </div>
-            <div className="mt-1 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+            <div className="mt-1 text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
               Pass at {requiredCorrect}/{questions.length}
             </div>
           </div>
@@ -231,7 +231,7 @@ export const TheoryModuleCheckpoint = ({
                 setModuleSaveSucceeded(didSaveModule);
               }}
               disabled={isCompleting}
-              className="inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-wait disabled:opacity-60 dark:bg-text-dark-primary dark:text-dark-bg dark:hover:bg-neutral-200"
+              className="inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-wait disabled:opacity-60 dark:bg-on-surface dark:text-surface dark:hover:bg-neutral-200"
             >
               Save completion
             </button>
@@ -239,7 +239,7 @@ export const TheoryModuleCheckpoint = ({
           <button
             type="button"
             onClick={resetRun}
-            className="inline-flex items-center gap-2 rounded-full border border-light-border px-5 py-2.5 text-sm font-medium text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-text-dark-primary dark:hover:text-text-dark-primary"
+            className="inline-flex items-center gap-2 rounded-full border border-light-border px-5 py-2.5 text-sm font-medium text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-outline-variant dark:text-on-surface-variant dark:hover:border-on-surface dark:hover:text-on-surface"
           >
             <TimerReset className="h-4 w-4" />
             Retake checkpoint
@@ -260,23 +260,23 @@ export const TheoryModuleCheckpoint = ({
 
   if (!canStart) {
     return (
-      <section className="mt-8 rounded-3xl border border-light-border bg-light-surface p-6 dark:border-dark-border dark:bg-dark-surface">
-        <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-light-border bg-light-bg dark:border-dark-border dark:bg-dark-bg">
-          <Lock className="h-5 w-5 text-text-light-secondary dark:text-text-dark-secondary" />
+      <section className="mt-8 rounded-[22px] border border-light-border bg-light-surface p-6 dark:border-outline-variant dark:bg-surface-container">
+        <div className="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-light-border bg-light-bg dark:border-outline-variant dark:bg-surface">
+          <Lock className="h-5 w-5 text-text-light-secondary dark:text-on-surface-variant" />
         </div>
-        <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-brand-500">
+        <p className="mt-5 font-mono font-bold uppercase tracking-[0.18em] text-xs text-primary">
           Module Checkpoint
         </p>
-        <h2 className="mt-2 text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+        <h2 className="mt-2 text-2xl font-semibold text-text-light-primary dark:text-on-surface">
           Finish the module before the timed flashcards unlock
         </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-on-surface-variant">
           Spend at least {MIN_LESSON_READ_SECONDS} seconds reading every lesson in this
           module first. Once the full module qualifies as read, you will answer{' '}
           {questions.length} flashcards with {MODULE_CHECKPOINT_TIME_LIMIT_SECONDS}
           seconds per card.
         </p>
-        <div className="mt-5 inline-flex rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-xs font-medium text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+        <div className="mt-5 inline-flex rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-xs font-medium text-text-light-secondary dark:border-outline-variant dark:bg-surface dark:text-on-surface-variant">
           {isProgressLoaded
             ? `${lessonsReadCount}/${lessonCount} lessons read`
             : 'Syncing lesson reads...'}
@@ -287,25 +287,25 @@ export const TheoryModuleCheckpoint = ({
 
   if (!hasStarted || !currentQuestion) {
     return (
-      <section className="mt-8 rounded-3xl border border-light-border bg-light-surface p-6 dark:border-dark-border dark:bg-dark-surface">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500">
+      <section className="mt-8 rounded-[22px] border border-light-border bg-light-surface p-6 dark:border-outline-variant dark:bg-surface-container">
+        <p className="font-mono font-bold uppercase tracking-[0.18em] text-xs text-primary">
           Module Checkpoint
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 dark:border-dark-border dark:bg-dark-bg">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
+          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 dark:border-outline-variant dark:bg-surface">
             {questions.length} flashcards
           </span>
-          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 dark:border-dark-border dark:bg-dark-bg">
+          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 dark:border-outline-variant dark:bg-surface">
             {MODULE_CHECKPOINT_TIME_LIMIT_SECONDS} sec each
           </span>
-          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 dark:border-dark-border dark:bg-dark-bg">
+          <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 dark:border-outline-variant dark:bg-surface">
             Pass {requiredCorrect}/{questions.length}
           </span>
         </div>
-        <h2 className="mt-4 text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+        <h2 className="mt-4 text-2xl font-semibold text-text-light-primary dark:text-on-surface">
           Finish the module with a timed flashcard checkpoint
         </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-on-surface-variant">
           This checkpoint is now the completion gate for the module. Finish the
           flashcards below to mark the module complete and unlock the next one.
         </p>
@@ -317,12 +317,12 @@ export const TheoryModuleCheckpoint = ({
               setHasStarted(true);
               setTimeLeft(MODULE_CHECKPOINT_TIME_LIMIT_SECONDS);
             }}
-            className="inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 dark:bg-text-dark-primary dark:text-dark-bg dark:hover:bg-neutral-200"
+            className="inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 dark:bg-on-surface dark:text-surface dark:hover:bg-neutral-200"
           >
             Start checkpoint
           </button>
           {isCompleted ? (
-            <span className="inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/10 px-4 py-2 text-sm font-medium text-brand-500">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
               <CheckCircle2 className="h-4 w-4" />
               Already completed
             </span>
@@ -333,30 +333,30 @@ export const TheoryModuleCheckpoint = ({
   }
 
   return (
-    <section className="mt-8 rounded-3xl border border-light-border bg-light-surface p-6 dark:border-dark-border dark:bg-dark-surface">
+    <section className="mt-8 rounded-[22px] border border-light-border bg-light-surface p-6 dark:border-outline-variant dark:bg-surface-container">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500">
+          <p className="font-mono font-bold uppercase tracking-[0.18em] text-xs text-primary">
             Module Checkpoint
           </p>
-          <h2 className="mt-2 text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+          <h2 className="mt-2 text-2xl font-semibold text-text-light-primary dark:text-on-surface">
             Flashcard {currentIndex + 1} of {questions.length}
           </h2>
         </div>
 
-        <div className="rounded-2xl border border-light-border bg-light-bg px-4 py-3 dark:border-dark-border dark:bg-dark-bg">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-text-light-tertiary dark:text-text-dark-tertiary">
+        <div className="rounded-[14px] border border-light-border bg-light-bg px-4 py-3 dark:border-outline-variant dark:bg-surface">
+          <div className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-text-light-tertiary dark:text-on-surface-variant/70">
             Time left
           </div>
-          <div className="mt-1 flex items-center gap-2 text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
-            <Clock3 className="h-4 w-4 text-brand-500" />
+          <div className="mt-1 flex items-center gap-2 text-lg font-semibold text-text-light-primary dark:text-on-surface">
+            <Clock3 className="h-4 w-4 text-primary" />
             {timeLeft}s
           </div>
         </div>
       </div>
 
-      <div className="mt-6 rounded-3xl border border-light-border bg-light-bg p-5 dark:border-dark-border dark:bg-dark-bg">
-        <p className="text-base leading-8 text-text-light-primary dark:text-text-dark-primary">
+      <div className="mt-6 rounded-[22px] border border-light-border bg-light-bg p-5 dark:border-outline-variant dark:bg-surface">
+        <p className="text-base leading-8 text-text-light-primary dark:text-on-surface">
           {currentQuestion.question}
         </p>
 
@@ -371,23 +371,23 @@ export const TheoryModuleCheckpoint = ({
       </div>
 
       {showFeedback ? (
-        <div className="mt-5 rounded-3xl border border-light-border bg-light-bg p-5 dark:border-dark-border dark:bg-dark-bg">
+        <div className="mt-5 rounded-[22px] border border-light-border bg-light-bg p-5 dark:border-outline-variant dark:bg-surface">
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] ${
+              className={`inline-flex rounded-full px-3 py-1 font-mono font-bold uppercase tracking-[0.12em] text-xs ${
                 isCorrect
-                  ? 'bg-brand-500/10 text-brand-500'
-                  : 'bg-light-hover text-text-light-secondary dark:bg-dark-hover dark:text-text-dark-secondary'
+                  ? 'bg-primary/10 text-primary'
+                  : 'bg-light-hover text-text-light-secondary dark:bg-surface-container-high dark:text-on-surface-variant'
               }`}
             >
               {isCorrect ? 'Correct' : timedOut ? 'Time up' : 'Incorrect'}
             </span>
           </div>
-          <p className="mt-3 text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+          <p className="mt-3 text-sm leading-7 text-text-light-secondary dark:text-on-surface-variant">
             {currentQuestion.explanation}
           </p>
           {!isCorrect ? (
-            <p className="mt-3 text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+            <p className="mt-3 text-sm font-medium text-text-light-primary dark:text-on-surface">
               Correct answer: {Array.isArray(currentQuestion.correctAnswer)
                 ? currentQuestion.correctAnswer[0]
                 : currentQuestion.correctAnswer}
@@ -400,7 +400,7 @@ export const TheoryModuleCheckpoint = ({
               void handleAdvance();
             }}
             disabled={isCompleting}
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-wait disabled:opacity-60 dark:bg-text-dark-primary dark:text-dark-bg dark:hover:bg-neutral-200"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-wait disabled:opacity-60 dark:bg-on-surface dark:text-surface dark:hover:bg-neutral-200"
           >
             {currentIndex === questions.length - 1
               ? correctAnswers >= requiredCorrect
@@ -415,14 +415,14 @@ export const TheoryModuleCheckpoint = ({
             type="button"
             onClick={() => handleResolveAnswer(selectedAnswer, false)}
             disabled={!selectedAnswer || isCompleting}
-            className="inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-text-dark-primary dark:text-dark-bg dark:hover:bg-neutral-200"
+            className="inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-on-surface dark:text-surface dark:hover:bg-neutral-200"
           >
             Submit answer
           </button>
           <button
             type="button"
             onClick={resetRun}
-            className="inline-flex items-center gap-2 rounded-full border border-light-border px-5 py-2.5 text-sm font-medium text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-text-dark-primary dark:hover:text-text-dark-primary"
+            className="inline-flex items-center gap-2 rounded-full border border-light-border px-5 py-2.5 text-sm font-medium text-text-light-secondary transition-colors hover:border-text-light-primary hover:text-text-light-primary dark:border-outline-variant dark:text-on-surface-variant dark:hover:border-on-surface dark:hover:text-on-surface"
           >
             Restart checkpoint
           </button>

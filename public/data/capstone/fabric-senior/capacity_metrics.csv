@@ -1,0 +1,25 @@
+week_start,capacity_name,sku,workload_description,peak_cu_percent,p95_cu_percent,throttling_events,weekly_growth_pct
+2026-02-23,cap_f128_de_nl_eng,F128,DE+NL data engineering (largest ingest/transform volumes),58.5,54.5,0,0.4
+2026-03-02,cap_f128_de_nl_eng,F128,DE+NL data engineering (largest ingest/transform volumes),58.4,54.2,0,0.4
+2026-03-09,cap_f128_de_nl_eng,F128,DE+NL data engineering (largest ingest/transform volumes),59.8,55.4,0,0.4
+2026-03-16,cap_f128_de_nl_eng,F128,DE+NL data engineering (largest ingest/transform volumes),59.3,54.7,0,0.4
+2026-03-23,cap_f128_de_nl_eng,F128,DE+NL data engineering (largest ingest/transform volumes),60.3,55.5,0,0.4
+2026-03-30,cap_f128_de_nl_eng,F128,DE+NL data engineering (largest ingest/transform volumes),60.4,55.4,0,0.4
+2026-02-23,cap_f64_fr_lu_eng,F64,FR+LU data engineering,46.8,42.8,0,0.3
+2026-03-02,cap_f64_fr_lu_eng,F64,FR+LU data engineering,46.6,42.4,0,0.3
+2026-03-09,cap_f64_fr_lu_eng,F64,FR+LU data engineering,47.9,43.5,0,0.3
+2026-03-16,cap_f64_fr_lu_eng,F64,FR+LU data engineering,47.3,42.7,0,0.3
+2026-03-23,cap_f64_fr_lu_eng,F64,FR+LU data engineering,48.2,43.4,0,0.3
+2026-03-30,cap_f64_fr_lu_eng,F64,FR+LU data engineering,48.2,43.2,0,0.3
+2026-02-23,cap_f64_analytics,F64,Cross-country analytics + Gold Warehouse,53.1,49.1,0,0.7
+2026-03-02,cap_f64_analytics,F64,Cross-country analytics + Gold Warehouse,53.3,49.1,0,0.7
+2026-03-09,cap_f64_analytics,F64,Cross-country analytics + Gold Warehouse,55.0,50.6,1,0.7
+2026-03-16,cap_f64_analytics,F64,Cross-country analytics + Gold Warehouse,54.8,50.2,0,0.7
+2026-03-23,cap_f64_analytics,F64,Cross-country analytics + Gold Warehouse,56.1,51.3,0,0.7
+2026-03-30,cap_f64_analytics,F64,Cross-country analytics + Gold Warehouse,56.5,51.5,1,0.7
+2026-02-23,cap_f32_streaming,F32,Eventstreams + Eventhouse + Real-Time Dashboards,52.7,48.7,0,1.1
+2026-03-02,cap_f32_streaming,F32,Eventstreams + Eventhouse + Real-Time Dashboards,53.3,49.1,0,1.1
+2026-03-09,cap_f32_streaming,F32,Eventstreams + Eventhouse + Real-Time Dashboards,55.4,51.0,1,1.1
+2026-03-16,cap_f32_streaming,F32,Eventstreams + Eventhouse + Real-Time Dashboards,55.6,51.0,0,1.1
+2026-03-23,cap_f32_streaming,F32,Eventstreams + Eventhouse + Real-Time Dashboards,57.3,52.5,2,1.1
+2026-03-30,cap_f32_streaming,F32,Eventstreams + Eventhouse + Real-Time Dashboards,58.1,53.1,1,1.1

@@ -69,7 +69,7 @@ export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProp
             <div className="space-y-5">
               {featureList.map((feature) => (
                 <div key={feature.title} className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg border border-brand-500/20 bg-brand-500/10 text-base">
+                  <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-[10px] border border-brand-500/20 bg-brand-500/10 text-base">
                     {feature.icon}
                   </div>
                   <div>
@@ -96,7 +96,7 @@ export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProp
         <section className="flex items-center justify-center px-5 py-10 sm:px-8 lg:px-14">
           <div className="w-full max-w-md">
             <header className="mb-8">
-              <p className="data-mono mb-2 text-[11px] uppercase tracking-[0.22em] text-brand-500">
+              <p className="data-mono mb-2 text-[11px] font-mono font-bold uppercase tracking-[0.22em] text-brand-500">
                 stableGrid.io Access
               </p>
               <h1 className="mb-2 text-3xl font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">

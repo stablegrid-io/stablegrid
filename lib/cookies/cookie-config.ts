@@ -58,7 +58,7 @@ export const COOKIE_SERVICE_REGISTRY: CookieServiceConfig[] = [
   {
     id: 'stablegrid-consent-memory',
     name: 'Consent memory',
-    provider: 'StableGrid',
+    provider: 'stableGrid',
     category: 'necessary',
     purpose: 'Stores cookie choices and timestamp so the site can honor your decision.',
     expiry: '180 days',
@@ -70,7 +70,7 @@ export const COOKIE_SERVICE_REGISTRY: CookieServiceConfig[] = [
   {
     id: 'stablegrid-product-analytics',
     name: 'Product analytics',
-    provider: 'StableGrid',
+    provider: 'stableGrid',
     category: 'analytics',
     purpose: 'Measures feature usage and page flow to improve product reliability.',
     expiry: '365 days',
@@ -88,7 +88,7 @@ export const COOKIE_SERVICE_REGISTRY: CookieServiceConfig[] = [
   {
     id: 'stablegrid-theme-preference',
     name: 'Theme preference',
-    provider: 'StableGrid',
+    provider: 'stableGrid',
     category: 'preferences',
     purpose: 'Remembers light or dark mode preference.',
     expiry: 'Until cleared',

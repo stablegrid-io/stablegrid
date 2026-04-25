@@ -23,7 +23,7 @@ export const IncomingAlertsPanel = ({ alerts }: IncomingAlertsPanelProps) => {
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#24362d] dark:text-[#e3efe8]">
+          <h2 className="text-sm font-mono font-bold uppercase tracking-[0.18em] text-[#24362d] dark:text-[#e3efe8]">
             Incoming Alerts
           </h2>
           <p className="mt-1 text-xs text-[#627068] dark:text-[#8aa496]">

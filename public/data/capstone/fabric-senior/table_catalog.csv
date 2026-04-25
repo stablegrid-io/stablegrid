@@ -1,0 +1,129 @@
+table_fqn,workspace,country,layer,owning_team,row_count_millions,size_gb,schema_version,contract_status,last_schema_change,dependent_pipeline_count
+lh_de_silver.meters_0,ws_de_transform_prod,DE,silver,DE Data Eng,2.4,45,3.0.0,ACTIVE,2025-08-04,3
+lh_de_silver.substations_1,ws_de_transform_prod,DE,silver,DE Data Eng,3.6,62,3.0.0,ACTIVE,2025-08-04,4
+lh_de_silver.turbines_2,ws_de_transform_prod,DE,silver,DE Data Eng,6.3,110,3.0.0,ACTIVE,2025-08-04,5
+lh_de_silver.billing_3,ws_de_transform_prod,DE,silver,DE Data Eng,0.9,18,3.0.0,ACTIVE,2025-08-04,6
+lh_de_silver.quality_4,ws_de_transform_prod,DE,silver,DE Data Eng,1.5,28,3.0.0,ACTIVE,2025-08-04,7
+lh_de_silver.consumption_5,ws_de_transform_prod,DE,silver,DE Data Eng,4.8,78,3.0.0,ACTIVE,2025-08-04,8
+lh_de_silver.regulatory_6,ws_de_transform_prod,DE,silver,DE Data Eng,2.7,52,3.0.0,ACTIVE,2025-08-04,9
+lh_de_silver.meters_0,ws_de_transform_prod,DE,silver,DE Data Eng,2.4,45,3.1.0,ACTIVE,2025-11-17,3
+lh_de_silver.substations_1,ws_de_transform_prod,DE,silver,DE Data Eng,3.6,62,3.1.0,ACTIVE,2025-11-17,4
+lh_de_silver.turbines_2,ws_de_transform_prod,DE,silver,DE Data Eng,6.3,110,3.1.0,ACTIVE,2025-11-17,5
+lh_de_silver.billing_3,ws_de_transform_prod,DE,silver,DE Data Eng,0.9,18,3.1.0,ACTIVE,2025-11-17,6
+lh_de_silver.quality_4,ws_de_transform_prod,DE,silver,DE Data Eng,1.5,28,3.1.0,ACTIVE,2025-11-17,7
+lh_de_silver.consumption_5,ws_de_transform_prod,DE,silver,DE Data Eng,4.8,78,3.1.0,ACTIVE,2025-11-17,8
+lh_de_silver.regulatory_6,ws_de_transform_prod,DE,silver,DE Data Eng,2.7,52,3.1.0,ACTIVE,2025-11-17,9
+lh_de_silver.meters_0,ws_de_transform_prod,DE,silver,DE Data Eng,2.4,45,3.2.0,ACTIVE,2026-01-25,3
+lh_de_silver.substations_1,ws_de_transform_prod,DE,silver,DE Data Eng,3.6,62,3.2.0,ACTIVE,2026-01-25,4
+lh_de_silver.turbines_2,ws_de_transform_prod,DE,silver,DE Data Eng,6.3,110,3.2.0,ACTIVE,2026-01-25,5
+lh_de_silver.billing_3,ws_de_transform_prod,DE,silver,DE Data Eng,0.9,18,3.2.0,ACTIVE,2026-01-25,6
+lh_de_silver.quality_4,ws_de_transform_prod,DE,silver,DE Data Eng,1.5,28,3.2.0,ACTIVE,2026-01-25,7
+lh_de_silver.consumption_5,ws_de_transform_prod,DE,silver,DE Data Eng,4.8,78,3.2.0,ACTIVE,2026-01-25,8
+lh_de_silver.regulatory_6,ws_de_transform_prod,DE,silver,DE Data Eng,2.7,52,3.2.0,ACTIVE,2026-01-25,9
+lh_de_silver.meters_0,ws_de_transform_prod,DE,silver,DE Data Eng,2.4,45,3.3.0,ACTIVE,2026-03-09,3
+lh_de_silver.substations_1,ws_de_transform_prod,DE,silver,DE Data Eng,3.6,62,3.3.0,ACTIVE,2026-03-09,4
+lh_de_silver.turbines_2,ws_de_transform_prod,DE,silver,DE Data Eng,6.3,110,3.3.0,ACTIVE,2026-03-09,5
+lh_de_silver.billing_3,ws_de_transform_prod,DE,silver,DE Data Eng,0.9,18,3.3.0,ACTIVE,2026-03-09,6
+lh_de_silver.quality_4,ws_de_transform_prod,DE,silver,DE Data Eng,1.5,28,3.3.0,ACTIVE,2026-03-09,7
+lh_de_silver.consumption_5,ws_de_transform_prod,DE,silver,DE Data Eng,4.8,78,3.3.0,ACTIVE,2026-03-09,8
+lh_de_silver.regulatory_6,ws_de_transform_prod,DE,silver,DE Data Eng,2.7,52,3.3.0,ACTIVE,2026-03-09,9
+lh_de_silver.meters_0,ws_de_transform_prod,DE,silver,DE Data Eng,2.4,45,3.3.1,SUPERSEDED,2026-03-21,0
+lh_de_silver.substations_1,ws_de_transform_prod,DE,silver,DE Data Eng,3.6,62,3.3.1,SUPERSEDED,2026-03-21,1
+lh_de_silver.turbines_2,ws_de_transform_prod,DE,silver,DE Data Eng,6.3,110,3.3.1,SUPERSEDED,2026-03-21,0
+lh_de_silver.billing_3,ws_de_transform_prod,DE,silver,DE Data Eng,0.9,18,3.3.1,SUPERSEDED,2026-03-21,1
+lh_de_silver.quality_4,ws_de_transform_prod,DE,silver,DE Data Eng,1.5,28,3.3.1,SUPERSEDED,2026-03-21,0
+lh_de_silver.consumption_5,ws_de_transform_prod,DE,silver,DE Data Eng,4.8,78,3.3.1,SUPERSEDED,2026-03-21,1
+lh_de_silver.regulatory_6,ws_de_transform_prod,DE,silver,DE Data Eng,2.7,52,3.3.1,SUPERSEDED,2026-03-21,0
+lh_de_gold.meters_0,ws_de_warehouse_prod,DE,gold,DE Analytics,0.96,18.0,2.4.0,ACTIVE,2025-10-19,3
+lh_de_gold.substations_1,ws_de_warehouse_prod,DE,gold,DE Analytics,1.44,24.8,2.4.0,ACTIVE,2025-10-19,4
+lh_de_gold.turbines_2,ws_de_warehouse_prod,DE,gold,DE Analytics,2.52,44.0,2.4.0,ACTIVE,2025-10-19,5
+lh_de_gold.billing_3,ws_de_warehouse_prod,DE,gold,DE Analytics,0.36,7.2,2.4.0,ACTIVE,2025-10-19,6
+lh_de_gold.quality_4,ws_de_warehouse_prod,DE,gold,DE Analytics,0.6,11.200000000000001,2.4.0,ACTIVE,2025-10-19,7
+lh_de_gold.meters_0,ws_de_warehouse_prod,DE,gold,DE Analytics,0.96,18.0,2.5.0,ACTIVE,2026-01-30,3
+lh_de_gold.substations_1,ws_de_warehouse_prod,DE,gold,DE Analytics,1.44,24.8,2.5.0,ACTIVE,2026-01-30,4
+lh_de_gold.turbines_2,ws_de_warehouse_prod,DE,gold,DE Analytics,2.52,44.0,2.5.0,ACTIVE,2026-01-30,5
+lh_de_gold.billing_3,ws_de_warehouse_prod,DE,gold,DE Analytics,0.36,7.2,2.5.0,ACTIVE,2026-01-30,6
+lh_de_gold.quality_4,ws_de_warehouse_prod,DE,gold,DE Analytics,0.6,11.200000000000001,2.5.0,ACTIVE,2026-01-30,7
+lh_fr_silver.meters_0,ws_fr_transform_prod,FR,silver,FR Data Eng,2.4,45,2.3.0,ACTIVE,2025-06-11,3
+lh_fr_silver.substations_1,ws_fr_transform_prod,FR,silver,FR Data Eng,3.6,62,2.3.0,ACTIVE,2025-06-11,4
+lh_fr_silver.turbines_2,ws_fr_transform_prod,FR,silver,FR Data Eng,6.3,110,2.3.0,ACTIVE,2025-06-11,5
+lh_fr_silver.billing_3,ws_fr_transform_prod,FR,silver,FR Data Eng,0.9,18,2.3.0,ACTIVE,2025-06-11,6
+lh_fr_silver.quality_4,ws_fr_transform_prod,FR,silver,FR Data Eng,1.5,28,2.3.0,ACTIVE,2025-06-11,7
+lh_fr_silver.consumption_5,ws_fr_transform_prod,FR,silver,FR Data Eng,4.8,78,2.3.0,ACTIVE,2025-06-11,8
+lh_fr_silver.regulatory_6,ws_fr_transform_prod,FR,silver,FR Data Eng,2.7,52,2.3.0,ACTIVE,2025-06-11,9
+lh_fr_silver.meters_0,ws_fr_transform_prod,FR,silver,FR Data Eng,2.4,45,2.4.0,DEPRECATED,2025-10-19,1
+lh_fr_silver.substations_1,ws_fr_transform_prod,FR,silver,FR Data Eng,3.6,62,2.4.0,DEPRECATED,2025-10-19,2
+lh_fr_silver.turbines_2,ws_fr_transform_prod,FR,silver,FR Data Eng,6.3,110,2.4.0,DEPRECATED,2025-10-19,3
+lh_fr_silver.billing_3,ws_fr_transform_prod,FR,silver,FR Data Eng,0.9,18,2.4.0,DEPRECATED,2025-10-19,4
+lh_fr_silver.quality_4,ws_fr_transform_prod,FR,silver,FR Data Eng,1.5,28,2.4.0,DEPRECATED,2025-10-19,1
+lh_fr_silver.consumption_5,ws_fr_transform_prod,FR,silver,FR Data Eng,4.8,78,2.4.0,DEPRECATED,2025-10-19,2
+lh_fr_silver.regulatory_6,ws_fr_transform_prod,FR,silver,FR Data Eng,2.7,52,2.4.0,DEPRECATED,2025-10-19,3
+lh_fr_silver.meters_0,ws_fr_transform_prod,FR,silver,FR Data Eng,2.4,45,3.0.0-RC,ACTIVE,2026-02-28,3
+lh_fr_silver.substations_1,ws_fr_transform_prod,FR,silver,FR Data Eng,3.6,62,3.0.0-RC,ACTIVE,2026-02-28,4
+lh_fr_silver.turbines_2,ws_fr_transform_prod,FR,silver,FR Data Eng,6.3,110,3.0.0-RC,ACTIVE,2026-02-28,5
+lh_fr_silver.billing_3,ws_fr_transform_prod,FR,silver,FR Data Eng,0.9,18,3.0.0-RC,ACTIVE,2026-02-28,6
+lh_fr_silver.quality_4,ws_fr_transform_prod,FR,silver,FR Data Eng,1.5,28,3.0.0-RC,ACTIVE,2026-02-28,7
+lh_fr_silver.consumption_5,ws_fr_transform_prod,FR,silver,FR Data Eng,4.8,78,3.0.0-RC,ACTIVE,2026-02-28,8
+lh_fr_silver.regulatory_6,ws_fr_transform_prod,FR,silver,FR Data Eng,2.7,52,3.0.0-RC,ACTIVE,2026-02-28,9
+lh_fr_gold.meters_0,ws_fr_warehouse_prod,FR,gold,FR Analytics,0.96,18.0,2.2.0,ACTIVE,2025-04-22,3
+lh_fr_gold.substations_1,ws_fr_warehouse_prod,FR,gold,FR Analytics,1.44,24.8,2.2.0,ACTIVE,2025-04-22,4
+lh_fr_gold.turbines_2,ws_fr_warehouse_prod,FR,gold,FR Analytics,2.52,44.0,2.2.0,ACTIVE,2025-04-22,5
+lh_fr_gold.billing_3,ws_fr_warehouse_prod,FR,gold,FR Analytics,0.36,7.2,2.2.0,ACTIVE,2025-04-22,6
+lh_fr_gold.quality_4,ws_fr_warehouse_prod,FR,gold,FR Analytics,0.6,11.200000000000001,2.2.0,ACTIVE,2025-04-22,7
+lh_nl_silver.meters_0,ws_nl_transform_prod,NL,silver,NL Data Eng,2.4,45,1.8.0,SUPERSEDED,2025-01-18,0
+lh_nl_silver.substations_1,ws_nl_transform_prod,NL,silver,NL Data Eng,3.6,62,1.8.0,SUPERSEDED,2025-01-18,1
+lh_nl_silver.turbines_2,ws_nl_transform_prod,NL,silver,NL Data Eng,6.3,110,1.8.0,SUPERSEDED,2025-01-18,0
+lh_nl_silver.billing_3,ws_nl_transform_prod,NL,silver,NL Data Eng,0.9,18,1.8.0,SUPERSEDED,2025-01-18,1
+lh_nl_silver.quality_4,ws_nl_transform_prod,NL,silver,NL Data Eng,1.5,28,1.8.0,SUPERSEDED,2025-01-18,0
+lh_nl_silver.consumption_5,ws_nl_transform_prod,NL,silver,NL Data Eng,4.8,78,1.8.0,SUPERSEDED,2025-01-18,1
+lh_nl_silver.regulatory_6,ws_nl_transform_prod,NL,silver,NL Data Eng,2.7,52,1.8.0,SUPERSEDED,2025-01-18,0
+lh_nl_silver.meters_0,ws_nl_transform_prod,NL,silver,NL Data Eng,2.4,45,1.9.0,DEPRECATED,2025-06-03,1
+lh_nl_silver.substations_1,ws_nl_transform_prod,NL,silver,NL Data Eng,3.6,62,1.9.0,DEPRECATED,2025-06-03,2
+lh_nl_silver.turbines_2,ws_nl_transform_prod,NL,silver,NL Data Eng,6.3,110,1.9.0,DEPRECATED,2025-06-03,3
+lh_nl_silver.billing_3,ws_nl_transform_prod,NL,silver,NL Data Eng,0.9,18,1.9.0,DEPRECATED,2025-06-03,4
+lh_nl_silver.quality_4,ws_nl_transform_prod,NL,silver,NL Data Eng,1.5,28,1.9.0,DEPRECATED,2025-06-03,1
+lh_nl_silver.consumption_5,ws_nl_transform_prod,NL,silver,NL Data Eng,4.8,78,1.9.0,DEPRECATED,2025-06-03,2
+lh_nl_silver.regulatory_6,ws_nl_transform_prod,NL,silver,NL Data Eng,2.7,52,1.9.0,DEPRECATED,2025-06-03,3
+lh_nl_silver.meters_0,ws_nl_transform_prod,NL,silver,NL Data Eng,2.4,45,2.0.0,ACTIVE,2025-09-29,3
+lh_nl_silver.substations_1,ws_nl_transform_prod,NL,silver,NL Data Eng,3.6,62,2.0.0,ACTIVE,2025-09-29,4
+lh_nl_silver.turbines_2,ws_nl_transform_prod,NL,silver,NL Data Eng,6.3,110,2.0.0,ACTIVE,2025-09-29,5
+lh_nl_silver.billing_3,ws_nl_transform_prod,NL,silver,NL Data Eng,0.9,18,2.0.0,ACTIVE,2025-09-29,6
+lh_nl_silver.quality_4,ws_nl_transform_prod,NL,silver,NL Data Eng,1.5,28,2.0.0,ACTIVE,2025-09-29,7
+lh_nl_silver.consumption_5,ws_nl_transform_prod,NL,silver,NL Data Eng,4.8,78,2.0.0,ACTIVE,2025-09-29,8
+lh_nl_silver.regulatory_6,ws_nl_transform_prod,NL,silver,NL Data Eng,2.7,52,2.0.0,ACTIVE,2025-09-29,9
+lh_nl_gold.meters_0,ws_nl_warehouse_prod,NL,gold,NL Analytics,0.96,18.0,2.0.0,ACTIVE,2025-09-29,3
+lh_nl_gold.substations_1,ws_nl_warehouse_prod,NL,gold,NL Analytics,1.44,24.8,2.0.0,ACTIVE,2025-09-29,4
+lh_nl_gold.turbines_2,ws_nl_warehouse_prod,NL,gold,NL Analytics,2.52,44.0,2.0.0,ACTIVE,2025-09-29,5
+lh_nl_gold.billing_3,ws_nl_warehouse_prod,NL,gold,NL Analytics,0.36,7.2,2.0.0,ACTIVE,2025-09-29,6
+lh_nl_gold.quality_4,ws_nl_warehouse_prod,NL,gold,NL Analytics,0.6,11.200000000000001,2.0.0,ACTIVE,2025-09-29,7
+lh_lu_silver.meters_0,ws_lu_transform_prod,LU,silver,LU Data Eng,2.4,45,1.5.0,DEPRECATED,2025-05-17,1
+lh_lu_silver.substations_1,ws_lu_transform_prod,LU,silver,LU Data Eng,3.6,62,1.5.0,DEPRECATED,2025-05-17,2
+lh_lu_silver.turbines_2,ws_lu_transform_prod,LU,silver,LU Data Eng,6.3,110,1.5.0,DEPRECATED,2025-05-17,3
+lh_lu_silver.billing_3,ws_lu_transform_prod,LU,silver,LU Data Eng,0.9,18,1.5.0,DEPRECATED,2025-05-17,4
+lh_lu_silver.quality_4,ws_lu_transform_prod,LU,silver,LU Data Eng,1.5,28,1.5.0,DEPRECATED,2025-05-17,1
+lh_lu_silver.consumption_5,ws_lu_transform_prod,LU,silver,LU Data Eng,4.8,78,1.5.0,DEPRECATED,2025-05-17,2
+lh_lu_silver.regulatory_6,ws_lu_transform_prod,LU,silver,LU Data Eng,2.7,52,1.5.0,DEPRECATED,2025-05-17,3
+lh_lu_silver.meters_0,ws_lu_transform_prod,LU,silver,LU Data Eng,2.4,45,1.6.0,ACTIVE,2025-11-06,3
+lh_lu_silver.substations_1,ws_lu_transform_prod,LU,silver,LU Data Eng,3.6,62,1.6.0,ACTIVE,2025-11-06,4
+lh_lu_silver.turbines_2,ws_lu_transform_prod,LU,silver,LU Data Eng,6.3,110,1.6.0,ACTIVE,2025-11-06,5
+lh_lu_silver.billing_3,ws_lu_transform_prod,LU,silver,LU Data Eng,0.9,18,1.6.0,ACTIVE,2025-11-06,6
+lh_lu_silver.quality_4,ws_lu_transform_prod,LU,silver,LU Data Eng,1.5,28,1.6.0,ACTIVE,2025-11-06,7
+lh_lu_silver.consumption_5,ws_lu_transform_prod,LU,silver,LU Data Eng,4.8,78,1.6.0,ACTIVE,2025-11-06,8
+lh_lu_silver.regulatory_6,ws_lu_transform_prod,LU,silver,LU Data Eng,2.7,52,1.6.0,ACTIVE,2025-11-06,9
+lh_lu_gold.meters_0,ws_lu_warehouse_prod,LU,gold,LU Analytics,0.96,18.0,1.4.0,ACTIVE,2025-03-08,3
+lh_lu_gold.substations_1,ws_lu_warehouse_prod,LU,gold,LU Analytics,1.44,24.8,1.4.0,ACTIVE,2025-03-08,4
+lh_lu_gold.turbines_2,ws_lu_warehouse_prod,LU,gold,LU Analytics,2.52,44.0,1.4.0,ACTIVE,2025-03-08,5
+lh_lu_gold.billing_3,ws_lu_warehouse_prod,LU,gold,LU Analytics,0.36,7.2,1.4.0,ACTIVE,2025-03-08,6
+lh_lu_gold.quality_4,ws_lu_warehouse_prod,LU,gold,LU Analytics,0.6,11.200000000000001,1.4.0,ACTIVE,2025-03-08,7
+lh_gu_platform.meters_0,ws_gu_platform_prod,GU,platform,GU Data Eng,0.96,18.0,1.0.0,SUPERSEDED,2025-02-10,0
+lh_gu_platform.substations_1,ws_gu_platform_prod,GU,platform,GU Data Eng,1.44,24.8,1.0.0,SUPERSEDED,2025-02-10,1
+lh_gu_platform.turbines_2,ws_gu_platform_prod,GU,platform,GU Data Eng,2.52,44.0,1.0.0,SUPERSEDED,2025-02-10,0
+lh_gu_platform.billing_3,ws_gu_platform_prod,GU,platform,GU Data Eng,0.36,7.2,1.0.0,SUPERSEDED,2025-02-10,1
+lh_gu_platform.meters_0,ws_gu_platform_prod,GU,platform,GU Data Eng,0.96,18.0,1.1.0,ACTIVE,2025-04-14,3
+lh_gu_platform.substations_1,ws_gu_platform_prod,GU,platform,GU Data Eng,1.44,24.8,1.1.0,ACTIVE,2025-04-14,4
+lh_gu_platform.turbines_2,ws_gu_platform_prod,GU,platform,GU Data Eng,2.52,44.0,1.1.0,ACTIVE,2025-04-14,5
+lh_gu_platform.billing_3,ws_gu_platform_prod,GU,platform,GU Data Eng,0.36,7.2,1.1.0,ACTIVE,2025-04-14,6
+lh_gu_platform.meters_0,ws_gu_platform_prod,GU,platform,GU Data Eng,0.96,18.0,1.2.0,ACTIVE,2025-07-22,3
+lh_gu_platform.substations_1,ws_gu_platform_prod,GU,platform,GU Data Eng,1.44,24.8,1.2.0,ACTIVE,2025-07-22,4
+lh_gu_platform.turbines_2,ws_gu_platform_prod,GU,platform,GU Data Eng,2.52,44.0,1.2.0,ACTIVE,2025-07-22,5
+lh_gu_platform.billing_3,ws_gu_platform_prod,GU,platform,GU Data Eng,0.36,7.2,1.2.0,ACTIVE,2025-07-22,6

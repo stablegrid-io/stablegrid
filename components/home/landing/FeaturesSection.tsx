@@ -53,10 +53,10 @@ const FEATURES = [
 
 export const FeaturesSection = () => {
   return (
-    <section id="features" className="border-t border-[#1a2a22] py-24">
+    <section id="features" className="border-t border-grid-border py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-16 text-center">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7fb99a]">
+          <p className="mb-3 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-grid-text-dim">
             What you can use today
           </p>
           <h2
@@ -65,7 +65,7 @@ export const FeaturesSection = () => {
           >
             Theory ships one clear route.
           </h2>
-          <p className="mx-auto max-w-2xl text-[#9ab8a9]">
+          <p className="mx-auto max-w-2xl text-grid-text">
             The current release focuses on reliable theory progression and study sessions.
             Additional learning modes will be enabled after this scope is fully complete.
           </p>
@@ -81,7 +81,7 @@ export const FeaturesSection = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="flex flex-col rounded-xl border border-[#1f3629] bg-[#0d1410] p-6 transition-colors hover:border-[#2b4f3a]"
+                className="flex flex-col rounded-xl border border-grid-border bg-grid-panel p-6 transition-colors hover:border-[#2b4f3a]"
               >
                 <div
                   className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg"
@@ -94,7 +94,7 @@ export const FeaturesSection = () => {
                 </div>
 
                 <div
-                  className="mb-2 text-xs font-semibold uppercase tracking-widest"
+                  className="mb-2 font-mono text-xs font-bold uppercase tracking-widest"
                   style={{ color: feature.color }}
                 >
                   {feature.label}
@@ -103,11 +103,11 @@ export const FeaturesSection = () => {
                   {feature.metric}
                 </p>
                 <h3 className="mb-3 text-base font-semibold text-[#e3efe8]">{feature.headline}</h3>
-                <p className="mb-5 text-sm leading-relaxed text-[#9ab8a9]">{feature.description}</p>
+                <p className="mb-5 text-sm leading-relaxed text-grid-text">{feature.description}</p>
 
                 <div className="mb-5 flex-1 space-y-2">
                   {feature.preview.map((item) => (
-                    <div key={item} className="flex items-start gap-2 text-xs text-[#9ab8a9]">
+                    <div key={item} className="flex items-start gap-2 text-xs text-grid-text">
                       <span
                         className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full"
                         style={{ backgroundColor: feature.color }}
@@ -117,13 +117,13 @@ export const FeaturesSection = () => {
                   ))}
                 </div>
 
-                <div className="border-t border-[#1f3629] pt-4 text-xs text-[#6f8f7d]">{feature.footer}</div>
+                <div className="border-t border-grid-border pt-4 text-xs text-grid-text-dim">{feature.footer}</div>
               </motion.div>
             );
           })}
         </div>
 
-        <div className="mt-8 rounded-2xl border border-[#1f3629] bg-[#0d1410] px-5 py-4 text-sm text-[#9ab8a9]">
+        <div className="mt-8 rounded-2xl border border-grid-border bg-grid-panel px-5 py-4 text-sm text-grid-text">
           Start simple: open the route, finish one chapter, and keep a steady reading rhythm.
           Practice and mission layers are intentionally staged for later rollout.
         </div>

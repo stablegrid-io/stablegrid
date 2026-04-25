@@ -1,0 +1,784 @@
+{
+  "id": "PJ_Airflow_Junior",
+  "version": "1.0.0",
+  "track": "Apache Airflow",
+  "level": "Junior",
+  "scenario": "SaulėGrid",
+  "total_xp": 500,
+  "narrative_premise": "It is 15:40 on Friday. Monday at 08:00 Europe/Vilnius, SaulėGrid must begin daily automated submissions to VERT, the Lithuanian energy regulator, under the new prosumer compliance regulation. Miss the first submission and the compliance clock resets — Ieva will have to file manual affidavits every day for six weeks while a re-audit runs. Matas, the senior data engineer, is on medical leave and unreachable. Ieva drops three half-built DAG files into your branch with one Slack message: 'This is the whole pipeline. It's supposed to run Bronze → Silver → Gold every morning and write the VERT-shaped Gold output by 04:30. The Bronze DAG won't even parse. Nothing is wired. Please. By Monday.' You have the weekend. The pipeline is your only job until it runs end-to-end on a schedule, with proper connections, documentation, and without manual babysitting. You are about to inherit every concept you have learned in this track — DAG registration, operators, TaskFlow, dependencies, scheduling, connections, UI discipline, and cross-DAG orchestration — and apply all of them to one pipeline before Monday morning.",
+  "ux": {
+    "persistent_element": "pipeline_progress_bar",
+    "stages": [
+      {
+        "id": "stage_1",
+        "label": "DAG registered",
+        "populated_by": "chapter_1"
+      },
+      {
+        "id": "stage_2",
+        "label": "Tasks in place",
+        "populated_by": "chapter_2"
+      },
+      {
+        "id": "stage_3",
+        "label": "TaskFlow + schedule",
+        "populated_by": "chapter_3"
+      },
+      {
+        "id": "stage_4",
+        "label": "Dependency graph wired",
+        "populated_by": "chapter_4"
+      },
+      {
+        "id": "stage_5",
+        "label": "Bronze → Silver → Gold chain live",
+        "populated_by": "chapter_5"
+      }
+    ],
+    "score_card": {
+      "thresholds": {
+        "distinguished": 475,
+        "proficient": 400,
+        "developing": 300
+      },
+      "labels": {
+        "distinguished": "You built the whole pipeline with confidence and minimal scaffolding. VERT submissions will run on schedule Monday morning without your intervention.",
+        "proficient": "Solid junior-level Airflow work. One or two chapters needed coaching — check which hint tiers you used and revisit the corresponding modules before the mid-level track.",
+        "developing": "The core pipeline is there but integration is uneven. Review the chapters with the lowest scores before attempting the mid-level project.",
+        "incomplete": "The junior-level track content should be reviewed before proceeding. The chapter breakdown identifies which modules need attention."
+      }
+    }
+  },
+  "coverage_matrix": {
+    "1": [
+      "chapter_1",
+      "chapter_5"
+    ],
+    "2": [
+      "chapter_1",
+      "chapter_5"
+    ],
+    "3": [
+      "chapter_1",
+      "chapter_2"
+    ],
+    "4": [
+      "chapter_2"
+    ],
+    "5": [
+      "chapter_3",
+      "chapter_4",
+      "chapter_5"
+    ],
+    "6": [
+      "chapter_4",
+      "chapter_5"
+    ],
+    "7": [
+      "chapter_1",
+      "chapter_3"
+    ],
+    "8": [
+      "chapter_5"
+    ],
+    "9": [
+      "chapter_1",
+      "chapter_2",
+      "chapter_5"
+    ],
+    "10": [
+      "chapter_5"
+    ]
+  },
+  "datasets": [
+    {
+      "name": "meter_readings_sample.csv",
+      "path": "PJAirflow_Junior_data/meter_readings_sample.csv",
+      "row_count": 25,
+      "description": "Raw meter readings as pulled from SaulėGrid's SFTP inbox. 20 valid rows (5 per region) plus 5 intentional defects: negative non-prosumer kW, null daily_kw, null meter_id, out-of-range kW (99999.9), and an unknown region code. Columns: meter_id, daily_kw, date, region, customer_type, generation_kw."
+    },
+    {
+      "name": "substation_ref.csv",
+      "path": "PJAirflow_Junior_data/substation_ref.csv",
+      "row_count": 4,
+      "description": "Substation dimension table — one row per SaulėGrid region. Columns: substation_id, name, region, capacity_mw."
+    },
+    {
+      "name": "weather_forecast_sample.csv",
+      "path": "PJAirflow_Junior_data/weather_forecast_sample.csv",
+      "row_count": 8,
+      "description": "Mock weather API response (two stations per region). Columns: station_id, region, temp_c, irradiance_wm2, cloud_cover_pct, forecast_ts (ISO-8601 Europe/Vilnius)."
+    },
+    {
+      "name": "vert_tariffs.csv",
+      "path": "PJAirflow_Junior_data/vert_tariffs.csv",
+      "row_count": 6,
+      "description": "VERT feed-in tariff rates by customer type and effective date. Columns: effective_date, customer_type, feed_in_tariff_eur, net_metering_balance_cap."
+    },
+    {
+      "name": "expected_bronze_output.csv",
+      "path": "PJAirflow_Junior_data/expected_bronze_output.csv",
+      "row_count": 20,
+      "description": "Reference Bronze output — what the validation + load tasks should produce from meter_readings_sample.csv. Used by assertions and as a fallback for later chapters if earlier work failed."
+    },
+    {
+      "name": "scaffold_chapter_1.py",
+      "path": "PJAirflow_Junior_data/scaffold_chapter_1.py",
+      "row_count": 0,
+      "description": "Starter scaffold for Chapter 1 — broken @dag() that will not parse. The student fills in the decorator parameters and invokes the DAG function."
+    },
+    {
+      "name": "scaffold_chapter_2.py",
+      "path": "PJAirflow_Junior_data/scaffold_chapter_2.py",
+      "row_count": 0,
+      "description": "Starter scaffold for Chapter 2 — DAG parses; student adds the three Bronze tasks without setting dependencies."
+    },
+    {
+      "name": "scaffold_chapter_3.py",
+      "path": "PJAirflow_Junior_data/scaffold_chapter_3.py",
+      "row_count": 0,
+      "description": "Starter scaffold for Chapter 3 — classic PythonOperator tasks + @daily preset; student converts to @task and replaces with cron."
+    },
+    {
+      "name": "scaffold_chapter_4.py",
+      "path": "PJAirflow_Junior_data/scaffold_chapter_4.py",
+      "row_count": 0,
+      "description": "Starter scaffold for Chapter 4 — tasks defined but unwired; student builds the fan-out/fan-in dependency graph with correct trigger rule."
+    },
+    {
+      "name": "scaffold_chapter_5_bronze.py",
+      "path": "PJAirflow_Junior_data/scaffold_chapter_5_bronze.py",
+      "row_count": 0,
+      "description": "Starter scaffold for Chapter 5 (Bronze DAG) — placeholder credentials, no doc_md, no downstream trigger; student adds Hook/Variable/doc_md/TriggerDagRunOperator."
+    },
+    {
+      "name": "scaffold_chapter_5_gold.py",
+      "path": "PJAirflow_Junior_data/scaffold_chapter_5_gold.py",
+      "row_count": 0,
+      "description": "Starter scaffold for Chapter 5 (Gold DAG) — no sensor; student adds an ExternalTaskSensor waiting on the Silver DAG."
+    },
+    {
+      "name": "reference_chapter_1.py",
+      "path": "PJAirflow_Junior_data/reference_chapter_1.py",
+      "row_count": 0,
+      "description": "Reference completion for Chapter 1. Loaded by Chapter 2's scaffold as a fallback if the student's Chapter 1 DAG is unusable."
+    },
+    {
+      "name": "reference_chapter_2.py",
+      "path": "PJAirflow_Junior_data/reference_chapter_2.py",
+      "row_count": 0,
+      "description": "Reference completion for Chapter 2. Fallback for Chapter 3."
+    },
+    {
+      "name": "reference_chapter_3.py",
+      "path": "PJAirflow_Junior_data/reference_chapter_3.py",
+      "row_count": 0,
+      "description": "Reference completion for Chapter 3. Fallback for Chapter 4."
+    },
+    {
+      "name": "reference_chapter_4.py",
+      "path": "PJAirflow_Junior_data/reference_chapter_4.py",
+      "row_count": 0,
+      "description": "Reference completion for Chapter 4. Fallback for Chapter 5 Bronze edits."
+    },
+    {
+      "name": "reference_chapter_5_bronze.py",
+      "path": "PJAirflow_Junior_data/reference_chapter_5_bronze.py",
+      "row_count": 0,
+      "description": "Reference completion for Chapter 5 Bronze DAG."
+    },
+    {
+      "name": "reference_chapter_5_gold.py",
+      "path": "PJAirflow_Junior_data/reference_chapter_5_gold.py",
+      "row_count": 0,
+      "description": "Reference completion for Chapter 5 Gold DAG."
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "title": "Register the Broken DAG",
+      "unlock_condition": null,
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        1,
+        2
+      ],
+      "modules_secondary": [
+        3,
+        7,
+        9
+      ],
+      "inter_chapter_dependency": null,
+      "narrative_context": "You open dags/bronze_meters.py — Matas's half-finished file. The scheduler log is filling up with 'DagBag failed to import dags/bronze_meters.py' every thirty seconds. Until this file parses and registers, nothing downstream matters. You cannot add tasks to a DAG that does not exist. Get the DAG on the scheduler's radar first.",
+      "task": "Open scaffold_chapter_1.py and fix the @dag decorator so the DAG registers. It must have dag_id='saulegrid_bronze_meters', a SaulėGrid-flavoured description, start_date=datetime(2026, 1, 1), schedule='@daily' (you will refine this in Chapter 3), catchup=False, tags including both 'bronze' and 'meters', and default_args with owner='saulegrid-data'. Then invoke the decorated function at module level so Airflow actually picks it up.",
+      "validation_hint": "When the DAG registers correctly, running `airflow dags list` shows 'saulegrid_bronze_meters' with the is_paused column populated and no parse errors in the scheduler log.",
+      "scaffold_path": "PJAirflow_Junior_data/scaffold_chapter_1.py",
+      "grading": {
+        "type": "code_assertion_suite",
+        "xp_per_unit_default": 25,
+        "assertions": [
+          {
+            "id": "A1_1",
+            "xp": 25,
+            "description": "DAG file parses without errors and is registered in the DagBag.",
+            "check": "DagBag(include_examples=False).import_errors is empty AND 'saulegrid_bronze_meters' in DagBag.dag_ids",
+            "failure_message": "The DAG file still has parse errors. Check the scheduler logs for the exact import failure."
+          },
+          {
+            "id": "A1_2",
+            "xp": 25,
+            "description": "DAG has dag_id='saulegrid_bronze_meters' and catchup=False.",
+            "check": "dag.dag_id == 'saulegrid_bronze_meters' AND dag.catchup is False",
+            "failure_message": "The dag_id must be exactly 'saulegrid_bronze_meters' and catchup must be explicitly False (SaulėGrid does not backfill historical meter data)."
+          },
+          {
+            "id": "A1_3",
+            "xp": 25,
+            "description": "Tags include both 'bronze' and 'meters'.",
+            "check": "'bronze' in dag.tags AND 'meters' in dag.tags",
+            "failure_message": "Both tags are required. Ieva filters the DAG list by layer (bronze/silver/gold) and by domain (meters/weather/tariffs)."
+          },
+          {
+            "id": "A1_4",
+            "xp": 25,
+            "description": "default_args.owner == 'saulegrid-data' AND start_date year == 2026.",
+            "check": "dag.default_args['owner'] == 'saulegrid-data' AND dag.start_date.year == 2026",
+            "failure_message": "Owner must be 'saulegrid-data' (matches the team naming in the course) and start_date must be in 2026. Check datetime(2026, 1, 1)."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Remember when you learned about what actually registers a DAG — SaulėGrid's scheduler only sees DAGs that are complete Python objects at module load time, not just function definitions. Ieva's first DAG caught exactly this bug."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "Look at the bottom of scaffold_chapter_1.py. The @dag decorator wraps the function, but the function itself never runs at import. The decorated function has to be invoked."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Two things are needed: (1) the @dag decorator needs its parameters — dag_id, description, start_date, schedule, catchup, tags, default_args. (2) The bronze_meters() function must be called at module level so the decorator actually produces a DAG object for the scheduler to find."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "@dag(dag_id='saulegrid_bronze_meters', ...)\ndef bronze_meters():\n    pass\n\nbronze_meters()"
+        }
+      ],
+      "scaffold": {
+        "filename": "scaffold_chapter_1.py",
+        "language": "python",
+        "preamble_comment": "",
+        "code": "# dags/bronze_meters.py\n# SaulėGrid — Bronze layer meter ingestion\n# Author: Matas — on leave until 2026-04-07. Half-finished.\n#\n# Ieva found this file in the dags/ folder. The scheduler log shows:\n#   ERROR - DagBag failed to import dags/bronze_meters.py\n# Get this file parsing and registering before doing anything else.\n\nfrom airflow.decorators import dag\nfrom datetime import datetime\n\n\n# YOUR SOLUTION BELOW\n# Make this file parse as a valid Airflow DAG that registers in the scheduler.\n# All requirements are in the Chapter 1 task specification.\n\n@dag()\ndef bronze_meters():\n    pass\n\n# YOUR SOLUTION ABOVE\n"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Required @dag Decorator",
+          "content": "dag_id='saulegrid_bronze_meters'\nschedule='@daily'\nstart_date=datetime(2026, 1, 1)\ncatchup=False\ntags=['saulegrid', 'bronze']"
+        }
+      ]
+    },
+    {
+      "id": "chapter_2",
+      "title": "Fill In the Tasks",
+      "unlock_condition": {
+        "after_chapter": 1
+      },
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        3,
+        4
+      ],
+      "modules_secondary": [
+        9
+      ],
+      "inter_chapter_dependency": {
+        "source_chapter": 1,
+        "fallback_dataset": "PJAirflow_Junior_data/reference_chapter_1.py"
+      },
+      "narrative_context": "The DAG registers now. Refresh the SaulėGrid Airflow UI and 'saulegrid_bronze_meters' appears in the DAG list — but click into the Graph View and it is empty. A DAG with no tasks cannot do anything. Matas's ingestion function and loader are already defined in the scaffold; you just need to put them in the DAG as operators.",
+      "task": "Open scaffold_chapter_2.py and add three tasks inside the bronze_meters() function body. (1) A BashOperator with task_id='download_meters' and bash_command='bash /opt/saulegrid/scripts/sftp_download.sh meters'. (2) A PythonOperator with task_id='validate_meters' that uses python_callable=validate_meters. (3) A PythonOperator with task_id='load_bronze' that uses python_callable=load_bronze. Do not set dependencies yet — that belongs to Chapter 4.",
+      "validation_hint": "After this chapter, the Graph View in the UI shows three unconnected green boxes. They will be wired up in Chapter 4.",
+      "scaffold_path": "PJAirflow_Junior_data/scaffold_chapter_2.py",
+      "grading": {
+        "type": "code_assertion_suite",
+        "xp_per_unit_default": 20,
+        "assertions": [
+          {
+            "id": "A2_1",
+            "xp": 20,
+            "description": "DAG has exactly 3 tasks.",
+            "check": "len(dag.tasks) == 3",
+            "failure_message": "Expected exactly three tasks: download_meters, validate_meters, load_bronze."
+          },
+          {
+            "id": "A2_2",
+            "xp": 20,
+            "description": "Task 'download_meters' is a BashOperator.",
+            "check": "dag.get_task('download_meters').__class__.__name__ == 'BashOperator' AND 'sftp_download.sh' in dag.get_task('download_meters').bash_command",
+            "failure_message": "download_meters must be a BashOperator whose bash_command invokes the SFTP download script."
+          },
+          {
+            "id": "A2_3",
+            "xp": 20,
+            "description": "Task 'validate_meters' is a PythonOperator calling validate_meters.",
+            "check": "dag.get_task('validate_meters').__class__.__name__ == 'PythonOperator' AND dag.get_task('validate_meters').python_callable.__name__ == 'validate_meters'",
+            "failure_message": "validate_meters must be a PythonOperator whose python_callable is the validate_meters function defined at module level."
+          },
+          {
+            "id": "A2_4",
+            "xp": 20,
+            "description": "Task 'load_bronze' is a PythonOperator calling load_bronze.",
+            "check": "dag.get_task('load_bronze').__class__.__name__ == 'PythonOperator' AND dag.get_task('load_bronze').python_callable.__name__ == 'load_bronze'",
+            "failure_message": "load_bronze must be a PythonOperator whose python_callable is the load_bronze function defined at module level."
+          },
+          {
+            "id": "A2_5",
+            "xp": 20,
+            "description": "All three task_ids match the required names exactly.",
+            "check": "set(dag.task_ids) == {'download_meters', 'validate_meters', 'load_bronze'}",
+            "failure_message": "Task ids must be exactly download_meters, validate_meters, and load_bronze — no variations."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Matas taught Ieva early on that tasks come in two flavours for SaulėGrid: shell commands (for the SFTP script) and Python callables (for anything data-shaped). You need both here."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "In scaffold_chapter_2.py, validate_meters and load_bronze are already defined as module-level functions. That means you do not need to write the logic — only wrap them as tasks inside the DAG body."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Three operators are needed: BashOperator for the shell script, PythonOperator for each of the two Python functions. The BashOperator takes bash_command; the PythonOperator takes python_callable. Do not chain them with >> yet — that is Chapter 4."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "download_meters = BashOperator(task_id='download_meters', bash_command='bash /opt/saulegrid/scripts/sftp_download.sh meters')"
+        }
+      ],
+      "scaffold": {
+        "filename": "scaffold_chapter_2.py",
+        "language": "python",
+        "preamble_comment": "",
+        "code": "# dags/bronze_meters.py\n# SaulėGrid — Bronze layer meter ingestion\n# Chapter 2 starter — the DAG now parses (see your Chapter 1 work)\n# but the pipeline has no tasks. Add them.\n\nfrom airflow.decorators import dag\nfrom airflow.operators.bash import BashOperator\nfrom airflow.operators.python import PythonOperator\nfrom datetime import datetime\n\n\ndef validate_meters(**context):\n    \"\"\"Validate the downloaded meter file.\n\n    Reads the CSV at /opt/saulegrid/inbox/meters.csv, drops rows where\n    meter_id is null, daily_kw is outside the range [-20, 2000], or the\n    region is not one of VILNIUS, KAUNAS, KLAIPEDA, SIAULIAI. Writes\n    the cleaned CSV to /opt/saulegrid/staging/meters_clean.csv.\n    \"\"\"\n    # Implementation already written by Matas — do not modify.\n    pass\n\n\ndef load_bronze(**context):\n    \"\"\"Load the validated CSV into the Bronze Parquet layer.\n\n    Reads /opt/saulegrid/staging/meters_clean.csv and writes to\n    /opt/saulegrid/bronze/meters/date=YYYY-MM-DD/meters.parquet.\n    \"\"\"\n    # Implementation already written by Matas — do not modify.\n    pass\n\n\n@dag(\n    dag_id=\"saulegrid_bronze_meters\",\n    description=\"SaulėGrid Bronze meter ingestion — daily SFTP pull\",\n    start_date=datetime(2026, 1, 1),\n    schedule=\"@daily\",\n    catchup=False,\n    tags=[\"bronze\", \"meters\"],\n    default_args={\"owner\": \"saulegrid-data\", \"retries\": 1},\n)\ndef bronze_meters():\n    # YOUR SOLUTION BELOW\n    # Add three tasks to this DAG. Do NOT set dependencies yet\n    # (dependencies are Chapter 4). Leave the tasks unlinked.\n    #\n    # Requirements are in the Chapter 2 task specification.\n\n    pass\n\n    # YOUR SOLUTION ABOVE\n\n\nbronze_meters()\n"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Three Tasks to Add",
+          "headers": [
+            "task_id",
+            "Operator",
+            "Key Config"
+          ],
+          "rows": [
+            [
+              "download_meters",
+              "BashOperator",
+              "bash_command='bash /opt/saulegrid/scripts/sftp_download.sh'"
+            ],
+            [
+              "validate_meters",
+              "PythonOperator",
+              "python_callable=validate_meters_fn, takes file_path, returns cleaned path"
+            ],
+            [
+              "load_bronze",
+              "PythonOperator",
+              "python_callable=load_bronze_fn, takes cleaned path, loads to Bronze table"
+            ]
+          ]
+        },
+        {
+          "type": "text",
+          "title": "Expected Graph",
+          "content": "Three unconnected green boxes in Graph View. Dependencies are wired in Chapter 4."
+        }
+      ]
+    },
+    {
+      "id": "chapter_3",
+      "title": "Modernize with TaskFlow",
+      "unlock_condition": {
+        "after_chapter": 2
+      },
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        5,
+        7
+      ],
+      "modules_secondary": [
+        4
+      ],
+      "inter_chapter_dependency": {
+        "source_chapter": 2,
+        "fallback_dataset": "PJAirflow_Junior_data/reference_chapter_2.py"
+      },
+      "narrative_context": "You have three working tasks, but the two Python ones are in Matas's old 2019 style — PythonOperator with python_callable, no data passing, no type hints, no explicit contract between validation and loading. The SaulėGrid team moved to TaskFlow last quarter and every new DAG is supposed to use it. While you are in the file, fix the schedule: '@daily' runs at midnight UTC, and SaulėGrid's ops policy is that Bronze ingestion runs at 01:00 Europe/Vilnius local time so the SFTP file has actually arrived.",
+      "task": "Open scaffold_chapter_3.py. (1) Replace the two PythonOperator tasks with @task-decorated functions. validate_meters should take a file_path: str and return a cleaned path as str. load_bronze should take the cleaned path from validate_meters and return the number of rows written as int. (2) Replace schedule='@daily' with the cron expression for 01:00 Europe/Vilnius local time every day. The start_date in the scaffold is already timezone-aware; do not change it.",
+      "validation_hint": "The correct cron for 01:00 daily is '0 1 * * *'. Because start_date uses pendulum.timezone('Europe/Vilnius'), Airflow will schedule the DAG at 01:00 local Vilnius time rather than UTC.",
+      "scaffold_path": "PJAirflow_Junior_data/scaffold_chapter_3.py",
+      "grading": {
+        "type": "code_assertion_suite",
+        "xp_per_unit_default": 20,
+        "assertions": [
+          {
+            "id": "A3_1",
+            "xp": 20,
+            "description": "DAG uses @task decorator for validate_meters and load_bronze.",
+            "check": "'validate_meters' in dag.task_ids AND dag.get_task('validate_meters').__class__.__name__.startswith('_PythonDecorated') OR 'decorator' in str(type(dag.get_task('validate_meters'))).lower()",
+            "failure_message": "validate_meters must be defined with the @task decorator, not as a PythonOperator."
+          },
+          {
+            "id": "A3_2",
+            "xp": 20,
+            "description": "validate_meters @task takes a file_path parameter and returns a string.",
+            "check": "inspect.signature(validate_meters_callable).parameters contains 'file_path' AND return type annotation is str",
+            "failure_message": "validate_meters must be def validate_meters(file_path: str) -> str. The type hints are required so SaulėGrid's linting passes."
+          },
+          {
+            "id": "A3_3",
+            "xp": 20,
+            "description": "load_bronze @task takes a path parameter and returns an int.",
+            "check": "inspect.signature(load_bronze_callable).parameters takes one positional argument AND return type annotation is int",
+            "failure_message": "load_bronze must take the cleaned path from validate_meters as a parameter and return the row count as int."
+          },
+          {
+            "id": "A3_4",
+            "xp": 20,
+            "description": "DAG schedule is the cron expression '0 1 * * *'.",
+            "check": "dag.schedule_interval == '0 1 * * *' OR dag.timetable expresses 01:00 daily",
+            "failure_message": "Schedule must be '0 1 * * *' (01:00 daily). '@daily' runs at midnight UTC and is not SaulėGrid's operational window."
+          },
+          {
+            "id": "A3_5",
+            "xp": 20,
+            "description": "start_date is timezone-aware with Europe/Vilnius.",
+            "check": "dag.start_date.tzinfo is not None AND 'Vilnius' in str(dag.start_date.tzinfo)",
+            "failure_message": "Do not remove the Europe/Vilnius timezone from start_date. SaulėGrid's scheduling depends on local time, not UTC."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Remember how Ieva's team rewrote SaulėGrid's Silver DAG to remove the explicit XCom pushes — the new style lets one task's return value become the next task's argument automatically. That is what you want here."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "The scaffold's schedule parameter says '@daily'. Airflow's preset table shows '@daily' expands to midnight UTC. The operator notes from the course said SaulėGrid runs Bronze at 01:00 Europe/Vilnius."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Use the @task decorator (import it from airflow.decorators). Annotate parameter and return types: file_path: str, returning str for validate_meters; the path parameter and returning int for load_bronze. For the schedule, write the cron expression directly instead of the preset."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "schedule=\"0 1 * * *\",\n\n@task\ndef validate_meters(file_path: str) -> str:"
+        }
+      ],
+      "scaffold": {
+        "filename": "scaffold_chapter_3.py",
+        "language": "python",
+        "preamble_comment": "",
+        "code": "# dags/bronze_meters.py\n# SaulėGrid — Bronze layer meter ingestion\n# Chapter 3 starter — tasks exist (Chapter 2) but use the verbose\n# classic style. Rewrite validation and loading with TaskFlow so\n# the data passing is explicit, and fix the schedule to match\n# SaulėGrid's operational window.\n\nfrom airflow.decorators import dag, task\nfrom airflow.operators.bash import BashOperator\nfrom datetime import datetime\nimport pendulum\n\n\n@dag(\n    dag_id=\"saulegrid_bronze_meters\",\n    description=\"SaulėGrid Bronze meter ingestion — daily SFTP pull\",\n    start_date=datetime(2026, 1, 1, tzinfo=pendulum.timezone(\"Europe/Vilnius\")),\n    schedule=\"@daily\",  # YOUR SOLUTION: replace with an exact cron expression\n    catchup=False,\n    tags=[\"bronze\", \"meters\"],\n    default_args={\"owner\": \"saulegrid-data\", \"retries\": 1},\n)\ndef bronze_meters():\n    download_meters = BashOperator(\n        task_id=\"download_meters\",\n        bash_command=\"bash /opt/saulegrid/scripts/sftp_download.sh meters\",\n    )\n\n    # YOUR SOLUTION BELOW\n    # Replace the Chapter 2 PythonOperator tasks with two @task functions:\n    #\n    # 1. A @task named validate_meters that takes a file_path (str) and\n    #    returns the cleaned file path (str).\n    #\n    # 2. A @task named load_bronze that takes the cleaned path from\n    #    validate_meters and returns the number of rows written (int).\n    #\n    # Also update the DAG schedule above to run once daily at 01:00\n    # Europe/Vilnius local time. The current \"@daily\" preset runs at\n    # midnight UTC, which is not what SaulėGrid wants.\n\n    pass\n\n    # YOUR SOLUTION ABOVE\n\n\nbronze_meters()\n"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "TaskFlow Conversion",
+          "content": "Replace PythonOperator tasks with @task-decorated functions:\n• validate_meters(file_path: str) → returns cleaned path (str)\n• load_bronze(cleaned_path: str) → loads to Bronze table\n\nUpdate schedule from '@daily' to cron '0 1 * * *'.\nUse pendulum.timezone('Europe/Vilnius') for start_date."
+        }
+      ]
+    },
+    {
+      "id": "chapter_4",
+      "title": "Build the Dependency Graph",
+      "unlock_condition": {
+        "after_chapter": 3
+      },
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        6
+      ],
+      "modules_secondary": [
+        5
+      ],
+      "inter_chapter_dependency": {
+        "source_chapter": 3,
+        "fallback_dataset": "PJAirflow_Junior_data/reference_chapter_3.py"
+      },
+      "narrative_context": "The Graph View still shows three unwired tasks sitting next to each other. Worse, validation is one sequential task — it processes all four SaulėGrid regions in series. At Bronze-layer scale that is not catastrophic, but Ieva wants the validation parallelised by region so that if KAUNAS's substation feed is late, VILNIUS, KLAIPEDA, and SIAULIAI can still complete and feed into Silver. You need to fan the validation out per region and then fan back in to a single load_bronze task — and you need to choose a trigger rule that lets load_bronze run even if one region's validator fails.",
+      "task": "Open scaffold_chapter_4.py. (1) Use Airflow's dynamic task mapping (.expand) to create four parallel validate_region tasks — one per region in SAULEGRID_REGIONS. (2) Wire download_meters upstream of all four regional validators. (3) Wire load_bronze downstream of all four, consuming the list of per-region cleaned paths. (4) Set load_bronze's trigger_rule to TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS so that it still runs with three regions' data if one region fails.",
+      "validation_hint": "When correctly wired, load_bronze has exactly four upstream tasks (one validate_region task per region), and its trigger_rule is NONE_FAILED_MIN_ONE_SUCCESS. In the Graph View you should see a diamond shape: download_meters at the top, four validators in the middle row, load_bronze at the bottom.",
+      "scaffold_path": "PJAirflow_Junior_data/scaffold_chapter_4.py",
+      "grading": {
+        "type": "code_assertion_suite",
+        "xp_per_unit_default": 25,
+        "assertions": [
+          {
+            "id": "A4_1",
+            "xp": 25,
+            "description": "download_meters is upstream of all four regional validators.",
+            "check": "all validate_region mapped instances have download_meters in their upstream_task_ids",
+            "failure_message": "download_meters must run before any validate_region task — use download_meters >> <validate_region mapped output>."
+          },
+          {
+            "id": "A4_2",
+            "xp": 25,
+            "description": "validate_region is mapped across all 4 SaulėGrid regions.",
+            "check": "validate_region task has 4 mapped instances with region values {VILNIUS, KAUNAS, KLAIPEDA, SIAULIAI}",
+            "failure_message": "validate_region must be expanded across all four SaulėGrid regions. Use .expand(region=SAULEGRID_REGIONS)."
+          },
+          {
+            "id": "A4_3",
+            "xp": 25,
+            "description": "load_bronze has all four mapped validate_region tasks as upstream.",
+            "check": "validate_region task id in load_bronze.upstream_task_ids AND load_bronze consumes the mapped output as a list",
+            "failure_message": "load_bronze must fan in from the mapped validate_region output. Pass the mapped XComArg directly to load_bronze."
+          },
+          {
+            "id": "A4_4",
+            "xp": 25,
+            "description": "load_bronze trigger_rule is NONE_FAILED_MIN_ONE_SUCCESS.",
+            "check": "dag.get_task('load_bronze').trigger_rule == 'none_failed_min_one_success'",
+            "failure_message": "load_bronze must have trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS so it runs even if one region's validator fails."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Matas used the same fan-out pattern when SaulėGrid split meter validation per-region last quarter — one upstream task, parallel work per region, one downstream consumer. The course covered the exact operator that creates these mapped instances."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "The SAULEGRID_REGIONS list is already defined at the top of scaffold_chapter_4.py. The validate_region function already takes region as its first parameter. Those two pieces combine to create the four parallel tasks."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Use Airflow's dynamic task mapping method .expand() on validate_region with region=SAULEGRID_REGIONS. That single call creates the four mapped tasks. For the trigger rule, use TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS — it permits exactly what Ieva asked for."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "region_paths = validate_region.expand(region=SAULEGRID_REGIONS, file_path=[file_path]*len(SAULEGRID_REGIONS))\ndownload_meters >> region_paths"
+        }
+      ],
+      "scaffold": {
+        "filename": "scaffold_chapter_4.py",
+        "language": "python",
+        "preamble_comment": "",
+        "code": "# dags/bronze_meters.py\n# SaulėGrid — Bronze layer meter ingestion\n# Chapter 4 starter — the tasks exist, but they have NO dependencies\n# set yet. Nothing knows it has to run in any particular order.\n# Fix that, and make the validation fan out per region.\n\nfrom airflow.decorators import dag, task\nfrom airflow.operators.bash import BashOperator\nfrom airflow.utils.trigger_rule import TriggerRule\nfrom datetime import datetime\nimport pendulum\n\n\nSAULEGRID_REGIONS = [\"VILNIUS\", \"KAUNAS\", \"KLAIPEDA\", \"SIAULIAI\"]\n\n\n@dag(\n    dag_id=\"saulegrid_bronze_meters\",\n    description=\"SaulėGrid Bronze meter ingestion — daily SFTP pull\",\n    start_date=datetime(2026, 1, 1, tzinfo=pendulum.timezone(\"Europe/Vilnius\")),\n    schedule=\"0 1 * * *\",\n    catchup=False,\n    tags=[\"bronze\", \"meters\"],\n    default_args={\"owner\": \"saulegrid-data\", \"retries\": 1},\n)\ndef bronze_meters():\n    download_meters = BashOperator(\n        task_id=\"download_meters\",\n        bash_command=\"bash /opt/saulegrid/scripts/sftp_download.sh meters\",\n    )\n\n    @task\n    def validate_region(region: str, file_path: str) -> str:\n        return f\"/opt/saulegrid/staging/meters_clean_{region}.csv\"\n\n    @task\n    def load_bronze(region_paths: list) -> int:\n        return len(region_paths) * 5\n\n    # YOUR SOLUTION BELOW\n    # 1. Expand validate_region into FOUR parallel tasks — one per\n    #    SaulėGrid region (VILNIUS, KAUNAS, KLAIPEDA, SIAULIAI).\n    #    All four must run in parallel after download_meters.\n    # 2. Wire load_bronze to fan in from all four regional validators.\n    # 3. Configure load_bronze so that if one region's validation\n    #    fails, it still runs with the surviving regions' outputs.\n    #    (Hint: the right trigger_rule lives in TriggerRule.)\n\n    pass\n\n    # YOUR SOLUTION ABOVE\n\n\nbronze_meters()\n"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dynamic Task Mapping",
+          "content": "SAULEGRID_REGIONS = ['NORTH', 'SOUTH', 'EAST', 'WEST']\n\nUse .expand() to create 4 parallel validate_region tasks.\nWire: download_meters → [4× validate_region] → load_bronze\n\nload_bronze.trigger_rule = NONE_FAILED_MIN_ONE_SUCCESS"
+        },
+        {
+          "type": "table",
+          "title": "Expected Dependencies",
+          "headers": [
+            "Task",
+            "Upstream",
+            "Downstream"
+          ],
+          "rows": [
+            [
+              "download_meters",
+              "—",
+              "4× validate_region"
+            ],
+            [
+              "validate_region (×4)",
+              "download_meters",
+              "load_bronze"
+            ],
+            [
+              "load_bronze",
+              "4× validate_region",
+              "—"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chapter_5",
+      "title": "Integrate, Chain and Ship",
+      "unlock_condition": {
+        "after_chapter": 4
+      },
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        8,
+        9,
+        10
+      ],
+      "modules_secondary": [
+        1,
+        2,
+        5,
+        6
+      ],
+      "inter_chapter_dependency": {
+        "source_chapter": 4,
+        "fallback_dataset": "PJAirflow_Junior_data/reference_chapter_4.py"
+      },
+      "narrative_context": "Bronze runs on its own now — but the credentials in the download task are a hardcoded placeholder string, Silver never knows Bronze finished, Gold runs on its own schedule and sometimes starts before Silver completes, and there is no documentation on the DAG for the on-call engineer reading the UI at 03:00. Before Monday's VERT deadline, you need to do four things: wire in the real SFTP connection and path variable, add doc_md for the on-call view, trigger the Silver DAG at the end of Bronze, and make Gold wait for Silver to actually finish before aggregating. That is everything the mid-level track assumes you already know.",
+      "task": "This chapter spans two files. (1) In scaffold_chapter_5_bronze.py: add doc_md=DOC_MD and on_failure_callback=on_failure_alert to the DAG; replace the placeholder block in download_meters with Variable.get('meter_sftp_path') and SFTPHook(ssh_conn_id='sftp_saulegrid_meters'); append a TriggerDagRunOperator(task_id='trigger_silver', trigger_dag_id='saulegrid_silver_transform') after load_bronze. (2) In scaffold_chapter_5_gold.py: add an ExternalTaskSensor(task_id='wait_for_silver', external_dag_id='saulegrid_silver_transform', external_task_id=None) as the first task, upstream of aggregate_regions.",
+      "validation_hint": "When everything is wired correctly, the Airflow UI shows a doc_md card on the Bronze DAG page, clicking Graph View shows trigger_silver as the last task, and Gold's graph shows wait_for_silver as the first task.",
+      "scaffold_path": "PJAirflow_Junior_data/scaffold_chapter_5_bronze.py",
+      "secondary_scaffold_path": "PJAirflow_Junior_data/scaffold_chapter_5_gold.py",
+      "grading": {
+        "type": "code_assertion_suite",
+        "xp_per_unit_default": 20,
+        "assertions": [
+          {
+            "id": "A5_1",
+            "xp": 20,
+            "description": "Bronze DAG uses SFTPHook with conn_id='sftp_saulegrid_meters'.",
+            "check": "source of download_meters function contains SFTPHook(ssh_conn_id='sftp_saulegrid_meters')",
+            "failure_message": "The download_meters task must instantiate SFTPHook with ssh_conn_id='sftp_saulegrid_meters'. This is the SaulėGrid connection id from the course."
+          },
+          {
+            "id": "A5_2",
+            "xp": 20,
+            "description": "Bronze DAG reads Airflow Variable 'meter_sftp_path'.",
+            "check": "source of download_meters function contains Variable.get('meter_sftp_path')",
+            "failure_message": "Replace the hardcoded remote_path string with Variable.get('meter_sftp_path'). Hardcoded paths in DAG code fail the SaulėGrid code review policy."
+          },
+          {
+            "id": "A5_3",
+            "xp": 20,
+            "description": "Bronze DAG has doc_md set containing 'SaulėGrid' and 'Bronze'.",
+            "check": "dag.doc_md is not None AND 'SaulėGrid' in dag.doc_md AND 'Bronze' in dag.doc_md",
+            "failure_message": "The DAG must have doc_md defined (see DOC_MD in the scaffold). It must mention SaulėGrid and the Bronze layer so the on-call engineer can find context in the UI."
+          },
+          {
+            "id": "A5_4",
+            "xp": 20,
+            "description": "Bronze DAG ends with TriggerDagRunOperator targeting saulegrid_silver_transform.",
+            "check": "dag.get_task('trigger_silver').__class__.__name__ == 'TriggerDagRunOperator' AND dag.get_task('trigger_silver').trigger_dag_id == 'saulegrid_silver_transform' AND load_bronze is upstream of trigger_silver",
+            "failure_message": "Add a TriggerDagRunOperator with task_id='trigger_silver', trigger_dag_id='saulegrid_silver_transform', placed downstream of load_bronze."
+          },
+          {
+            "id": "A5_5",
+            "xp": 20,
+            "description": "Gold DAG starts with ExternalTaskSensor waiting on saulegrid_silver_transform.",
+            "check": "gold_dag.get_task('wait_for_silver').__class__.__name__ == 'ExternalTaskSensor' AND gold_dag.get_task('wait_for_silver').external_dag_id == 'saulegrid_silver_transform' AND wait_for_silver is upstream of aggregate_regions",
+            "failure_message": "In the Gold DAG, add ExternalTaskSensor(task_id='wait_for_silver', external_dag_id='saulegrid_silver_transform', external_task_id=None) as the first task, upstream of aggregate_regions."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Remember Matas's rule: no secrets, no paths, no DAG ids in DAG code itself. Connection info lives in Connections, path strings live in Variables, and cross-DAG relationships are expressed with operators. Also, the on-call engineer at 03:00 only has the UI — they need doc_md."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "In scaffold_chapter_5_bronze.py, the placeholder block inside download_meters has a hardcoded remote_path string and no SFTP client. The @dag decorator has no doc_md or on_failure_callback argument. The DAG body ends after load_bronze — nothing triggers Silver. In scaffold_chapter_5_gold.py, the gold_aggregate() body starts directly with aggregate_regions — no sensor guards it."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Inside download_meters use Variable.get('meter_sftp_path') and SFTPHook(ssh_conn_id='sftp_saulegrid_meters'). Pass doc_md=DOC_MD and on_failure_callback=on_failure_alert (via default_args) to @dag. Append TriggerDagRunOperator(task_id='trigger_silver', trigger_dag_id='saulegrid_silver_transform') and wire it with load_bronze >> trigger_silver. In Gold, add ExternalTaskSensor(task_id='wait_for_silver', external_dag_id='saulegrid_silver_transform', external_task_id=None) upstream of aggregate_regions."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "trigger_silver = TriggerDagRunOperator(task_id='trigger_silver', trigger_dag_id='saulegrid_silver_transform')"
+        }
+      ],
+      "scaffold": {
+        "filename": "scaffold_chapter_5_bronze.py",
+        "language": "python",
+        "preamble_comment": "",
+        "code": "# dags/bronze_meters.py\n# SaulėGrid — Bronze layer meter ingestion\n# Chapter 5 starter — the DAG runs, but nothing downstream knows\n# Bronze has finished, credentials are hardcoded in a placeholder,\n# and there is no documentation for the on-call engineer. Polish it.\n\nfrom airflow.decorators import dag, task\nfrom airflow.operators.bash import BashOperator\nfrom airflow.operators.trigger_dagrun import TriggerDagRunOperator\nfrom airflow.utils.trigger_rule import TriggerRule\nfrom airflow.models import Variable\nfrom airflow.providers.sftp.hooks.sftp import SFTPHook\nfrom datetime import datetime\nimport pendulum\n\n\nSAULEGRID_REGIONS = [\"VILNIUS\", \"KAUNAS\", \"KLAIPEDA\", \"SIAULIAI\"]\n\n\ndef on_failure_alert(context):\n    \"\"\"Placeholder failure callback — Matas wired this up.\"\"\"\n    print(f\"ALERT: {context['task_instance'].task_id} failed\")\n\n\n@dag(\n    dag_id=\"saulegrid_bronze_meters\",\n    description=\"SaulėGrid Bronze meter ingestion — daily SFTP pull\",\n    start_date=datetime(2026, 1, 1, tzinfo=pendulum.timezone(\"Europe/Vilnius\")),\n    schedule=\"0 1 * * *\",\n    catchup=False,\n    tags=[\"bronze\", \"meters\"],\n    default_args={\"owner\": \"saulegrid-data\", \"retries\": 1},\n    # YOUR SOLUTION PART A: add doc_md and on_failure_callback here.\n)\ndef bronze_meters():\n    @task\n    def download_meters() -> str:\n        # YOUR SOLUTION PART B (inside this function):\n        # Replace the placeholder block with real integration:\n        #   - Look up the SFTP path using Airflow Variable \"meter_sftp_path\"\n        #   - Use SFTPHook with conn_id=\"sftp_saulegrid_meters\"\n        # For grading, the variable lookup and the hook instantiation\n        # must both appear in this function.\n\n        # --- placeholder block to replace ---\n        remote_path = \"/placeholder/meters.csv\"\n        # -------------------------------------\n\n        return remote_path\n\n    @task\n    def validate_region(region: str, file_path: str) -> str:\n        return f\"/opt/saulegrid/staging/meters_clean_{region}.csv\"\n\n    @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)\n    def load_bronze(region_paths: list) -> int:\n        return len(region_paths) * 5\n\n    # YOUR SOLUTION PART C:\n    # After load_bronze completes, kick off the downstream Silver DAG.\n    # Add a TriggerDagRunOperator with:\n    #   - task_id=\"trigger_silver\"\n    #   - trigger_dag_id set to the Silver DAG's id\n    #\n    # Wire the dependency graph so that:\n    #   download_meters -> validate_region (fan-out x4) -> load_bronze -> trigger_silver\n\n    file_path = download_meters()\n    region_paths = validate_region.expand(\n        region=SAULEGRID_REGIONS,\n        file_path=[file_path] * len(SAULEGRID_REGIONS),\n    )\n    load_bronze(region_paths)\n\n    # YOUR SOLUTION ABOVE\n\n\nbronze_meters()\n"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Bronze DAG Additions",
+          "content": "• doc_md=DOC_MD on the DAG\n• on_failure_callback=on_failure_alert\n• Use Variable.get('sftp_host') in download_meters\n• Add trigger_silver TriggerDagRunOperator as last task"
+        },
+        {
+          "type": "text",
+          "title": "Gold DAG (scaffold_chapter_5_gold.py)",
+          "content": "Separate DAG: saulegrid_gold_billing\n• Reads Silver table\n• Aggregates by region + month\n• Writes to Gold billing table\n• Triggered by trigger_silver from Bronze DAG"
+        }
+      ]
+    }
+  ],
+  "authoring_metadata": {
+    "authored_by": "StableGrid content team",
+    "authored_date": "2026-04-20",
+    "version_notes": "v1.0.0 — initial junior-level Airflow capstone. Reference project: 'Pipeline Before Monday'. Scenario: SaulėGrid. Framing: VERT regulator deadline Monday morning, student inherits Matas's half-built Bronze→Silver→Gold DAG chain.",
+    "self_check_passed": true,
+    "self_check_notes": [
+      "All 10 Airflow junior modules represented in coverage_matrix (M1–M10 each appear in ≥1 chapter)",
+      "Every chapter uses SaulėGrid scenario data with correct column names (meter_id, daily_kw, region, etc.)",
+      "Chapter specifications are unambiguous: each required name (dag_id, task_id, conn_id, variable key, external_dag_id) is fully specified",
+      "Every code chapter has a starter scaffold path, a test dataset path, and an assertion suite with explicit xp per assertion",
+      "Every chapter has exactly 4 hints (H1–H4) with xp costs 0/5/10/20 matching junior-level deduction table",
+      "H1 references SaulėGrid/Matas/Ieva/regions — never a bare module number",
+      "H2 points at specific scaffold blocks or parameters without interpreting them",
+      "H3 names techniques (TriggerRule, @task, .expand, SFTPHook) without revealing syntax",
+      "H4 reveals ≤30% of solution in every chapter (see PJAirflow_Junior_hints_audit.md)",
+      "Inter-chapter dependencies are explicit with fallback reference DAGs (reference_chapter_N.py) for Chapters 2–5",
+      "XP sums correctly: 5 chapters × 100 XP = 500 total. Assertion XP matches base_xp in every chapter.",
+      "UX persistent element is pipeline_progress_bar per Project Creation Rules §8.2 for junior level",
+      "Narrative premise (~280 words) justifies why all 10 modules' knowledge is needed by Monday morning"
+    ]
+  }
+}

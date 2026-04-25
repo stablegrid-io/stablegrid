@@ -13,9 +13,9 @@ const config: Config = {
         sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
         serif: ['Georgia', 'serif'],
         mono: ['var(--font-jetbrains-mono)', 'JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
-        headline: ['var(--font-space-grotesk)', 'Space Grotesk', 'system-ui', 'sans-serif'],
+        headline: ['-apple-system', 'SF Pro Display', 'Helvetica Neue', 'system-ui', 'sans-serif'],
         body: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
-        label: ['var(--font-space-grotesk)', 'Space Grotesk', 'system-ui', 'sans-serif'],
+        label: ['-apple-system', 'SF Pro Display', 'Helvetica Neue', 'system-ui', 'sans-serif'],
         'data-mono': ['var(--font-jetbrains-mono)', 'JetBrains Mono', 'ui-monospace', 'monospace']
       },
       colors: {
@@ -144,7 +144,17 @@ const config: Config = {
           'dark-secondary': '#8a8b8e',
           'dark-tertiary': '#5a5c5f',
           'dark-disabled': '#343638'
-        }
+        },
+        // stablegrid forest-green palette (landing page)
+        'grid-ink': '#070c0a',
+        'grid-panel': '#0f1712',
+        'grid-panel-raised': '#1a2a22',
+        'grid-border': '#1f3629',
+        'grid-border-dim': '#122824',
+        'grid-text': '#9ab8a9',
+        'grid-text-dim': '#6f8f7d',
+        'grid-glow': '#22b999',
+        'grid-glow-bright': '#3ed3b2'
       },
       boxShadow: {
         sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',

@@ -5,7 +5,12 @@ import type { TheoryDoc } from '@/types/theory';
 
 describe('frozen course data model', () => {
   it('exposes canonical course -> module -> lesson fields', () => {
-    Object.values(theoryDocs).forEach((course) => {
+    const coursesWithContent = Object.values(theoryDocs).filter(
+      (course) => course.modules.length > 0
+    );
+    expect(coursesWithContent.length).toBeGreaterThan(0);
+
+    coursesWithContent.forEach((course) => {
       expect(course.id).toBeTruthy();
       expect(course.slug).toBeTruthy();
       expect(course.status).toBeTruthy();

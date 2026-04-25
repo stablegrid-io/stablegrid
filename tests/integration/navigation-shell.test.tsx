@@ -2,11 +2,13 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Navigation } from '@/components/navigation/Navigation';
 
-let currentPathname = '/';
+let currentPathname = '/home';
 let currentUser: { id: string } | null = { id: 'user-1' };
 
 vi.mock('next/navigation', () => ({
-  usePathname: () => currentPathname
+  usePathname: () => currentPathname,
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn(), forward: vi.fn(), prefetch: vi.fn() })
 }));
 
 vi.mock('@/lib/stores/useAuthStore', () => ({
@@ -41,7 +43,7 @@ describe('Navigation shell', () => {
     );
 
     const shell = screen.getByTestId('navigation-shell-content');
-    expect(shell.className).toContain('lg:pl-64');
+    expect(shell.className).toContain('lg:ml-48');
     expect(shell.className).toContain('pt-14');
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('top-bar')).toBeInTheDocument();
@@ -58,6 +60,6 @@ describe('Navigation shell', () => {
     );
 
     const shell = screen.getByTestId('navigation-shell-content');
-    expect(shell.className).not.toContain('lg:pl-64');
+    expect(shell.className).not.toContain('lg:ml-48');
   });
 });

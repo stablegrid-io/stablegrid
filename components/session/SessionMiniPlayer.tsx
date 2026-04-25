@@ -124,7 +124,7 @@ export const SessionMiniPlayer = () => {
 
   return (
     <div
-      className={`fixed bottom-6 right-6 z-50 w-[280px] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0d0f11]/90 shadow-[0_8px_30px_rgba(0,0,0,0.4)] backdrop-blur-2xl transition-all duration-300 ${
+      className={`fixed bottom-6 right-6 z-50 w-[280px] overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#0d0f11]/90 shadow-[0_8px_30px_rgba(0,0,0,0.4)] backdrop-blur-2xl transition-all duration-300 ${
         visible
           ? 'translate-y-0 opacity-100'
           : 'translate-y-3 opacity-0'
@@ -139,7 +139,7 @@ export const SessionMiniPlayer = () => {
         >
           <Icon className="h-3 w-3" style={{ color: accent.color }} />
           <span
-            className="font-mono text-[10px] font-semibold uppercase tracking-wider"
+            className="font-mono text-[10px] font-bold uppercase tracking-wider"
             style={{ color: accent.color }}
           >
             {method.label}

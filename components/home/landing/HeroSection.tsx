@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight, Activity } from 'lucide-react';
 import { trackProductEvent } from '@/lib/analytics/productAnalytics';
+import WindTurbine from '@/components/home/WindTurbine';
 
 const HERO_SNIPPET = `-- Chapter excerpt: Evening Peak Dispatch
 WITH hourly_load AS (
@@ -70,7 +71,7 @@ export const HeroSection = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#22b999]/30 bg-[#22b999]/10 px-3 py-1.5 text-xs font-semibold text-[#9de3b5]">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-grid-glow/30 bg-grid-glow/10 px-3 py-1.5 text-xs font-semibold text-grid-glow-bright">
             <Activity className="h-3 w-3" />
             Theory path for data engineers.
           </div>
@@ -83,31 +84,31 @@ export const HeroSection = () => {
             <br />
             keeping
             <br />
-            <span className="text-[#22b999]">a live power grid stable.</span>
+            <span className="text-grid-glow">a live power grid stable.</span>
           </h1>
 
-          <p className="mb-8 max-w-xl text-lg leading-relaxed text-[#9ab8a9]">
-            StableGrid currently focuses on one structured PySpark-first route,
+          <p className="mb-8 max-w-xl text-lg leading-relaxed text-grid-text">
+            stableGrid currently focuses on one structured PySpark-first route,
             chapter progression, and session controls. Practice, flashcards, and mission
             layers are in active build and not part of this launch.
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/signup"
+              href="/login"
               onClick={() => {
                 void trackProductEvent('landing_cta', {
                   source: 'hero_primary'
                 });
               }}
-              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-[#22b999] px-6 py-3 font-medium text-[#08110b] transition-colors hover:bg-[#6fe89a]"
+              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-grid-glow px-6 py-3 font-medium text-grid-ink transition-colors hover:bg-grid-glow-bright"
             >
-              Start free
+              Get started
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <a
               href="#grid-flow"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2b4f3a] px-6 py-3 font-medium text-[#9ab8a9] transition-colors hover:border-[#22b999] hover:text-[#e3efe8]"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2b4f3a] px-6 py-3 font-medium text-grid-text transition-colors hover:border-grid-glow hover:text-[#e3efe8]"
             >
               Explore 330kV grid flow
             </a>
@@ -117,17 +118,17 @@ export const HeroSection = () => {
             {PROOF_POINTS.map((point) => (
               <div
                 key={point.label}
-                className="rounded-2xl border border-[#1f3629] bg-[#0d1410]/85 px-4 py-3"
+                className="rounded-2xl border border-grid-border bg-grid-panel/85 px-4 py-3"
               >
                 <p className="text-2xl font-semibold text-[#e3efe8]">{point.value}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[#6f8f7d]">
+                <p className="mt-1 font-mono font-bold text-xs uppercase tracking-[0.16em] text-grid-text-dim">
                   {point.label}
                 </p>
               </div>
             ))}
           </div>
 
-          <p className="mt-5 text-xs text-[#6f8f7d]">
+          <p className="mt-5 text-xs text-grid-text-dim">
             Free tier available. No card needed to inspect the core route.
           </p>
         </motion.div>
@@ -136,54 +137,9 @@ export const HeroSection = () => {
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="space-y-4"
+          className="hidden lg:flex items-center justify-center"
         >
-          <div className="overflow-hidden rounded-xl border border-[#2b4f3a]/60 bg-[#0d1410] shadow-2xl shadow-black/50">
-            <div className="flex items-center gap-2 border-b border-[#2b4f3a]/50 bg-[#0a120d] px-4 py-3">
-              <div className="h-3 w-3 rounded-full bg-[#f87171]" />
-              <div className="h-3 w-3 rounded-full bg-[#f0a032]" />
-              <div className="h-3 w-3 rounded-full bg-[#22b999]" />
-              <span className="ml-3 font-mono text-xs text-[#7fb99a]">
-                Theory chapter excerpt - Evening Peak Dispatch
-              </span>
-            </div>
-
-            <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] p-5 font-mono text-xs leading-relaxed text-[#d5ecdf]">
-              <code>{HERO_SNIPPET}</code>
-            </pre>
-
-            <div className="flex items-center gap-3 border-t border-[#2b4f3a]/50 px-4 py-3">
-              <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#173223]">
-                <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-[#22b999] to-[#64a0dc]" />
-              </div>
-              <span className="font-mono text-xs text-[#7fb99a]">Module progress checkpoint</span>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-[#1f3629] bg-[#0d1410]/92 p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7fb99a]">
-              First session
-            </p>
-            <h2
-              className="mt-3 text-2xl font-semibold tracking-tight text-[#e3efe8]"
-              style={{ fontFamily: 'Georgia, serif' }}
-            >
-              First session plan.
-            </h2>
-            <div className="mt-4 space-y-3">
-              {FIRST_SESSION_STEPS.map((step, index) => (
-                <div
-                  key={step}
-                  className="flex items-start gap-3 rounded-2xl border border-[#1f3629] bg-[#0a120d] px-4 py-3"
-                >
-                  <span className="mt-0.5 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-[#2b4f3a] text-xs font-semibold text-[#9de3b5]">
-                    {index + 1}
-                  </span>
-                  <p className="text-sm leading-6 text-[#9ab8a9]">{step}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <WindTurbine size="main" background="transparent" />
         </motion.div>
       </div>
     </section>

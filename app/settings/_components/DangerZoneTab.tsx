@@ -134,7 +134,7 @@ export function DangerZoneTab({ onToast }: DangerZoneTabProps) {
         icon={<Trash2 className="h-4 w-4" />}
         danger
       >
-        <div className="flex items-start gap-3 rounded-xl border border-error-200 bg-error-50/40 p-3 dark:border-error-900/30 dark:bg-error-900/10">
+        <div className="flex items-start gap-3 rounded-[14px] border border-error-200 bg-error-50/40 p-3 dark:border-error-900/30 dark:bg-error-900/10">
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-error-500" />
           <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
             This permanently deletes your account and all associated data. This action
@@ -164,7 +164,7 @@ export function DangerZoneTab({ onToast }: DangerZoneTabProps) {
               {REASONS.map((option) => (
                 <label
                   key={option}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/[0.06] px-3 py-2 text-sm"
+                  className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-white/[0.06] px-3 py-2 text-sm"
                 >
                   <input
                     type="radio"
@@ -199,7 +199,7 @@ export function DangerZoneTab({ onToast }: DangerZoneTabProps) {
             </h3>
             <p className="mt-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
               Type{' '}
-              <code className="rounded bg-[#0c0e10] px-1.5 py-0.5 text-xs">
+              <code className="rounded bg-surface px-1.5 py-0.5 text-xs">
                 delete my account
               </code>{' '}
               to permanently delete your account.

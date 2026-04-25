@@ -114,7 +114,7 @@ const BatteryCell = ({ category, topics, index }: {
           <div className="p-4 min-h-[170px] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[11px] font-bold uppercase tracking-widest"
+              <h3 className="font-mono text-[11px] font-bold uppercase tracking-widest"
                 style={{ color: hasContent ? `rgba(${catColor},0.7)` : 'rgba(255,255,255,0.2)' }}>
                 {category}
               </h3>
@@ -124,7 +124,7 @@ const BatteryCell = ({ category, topics, index }: {
                   <span className="text-[10px] font-normal" style={{ color: `rgba(${catColor},0.5)` }}>%</span>
                 </span>
               ) : (
-                <span className="text-[9px] uppercase tracking-widest text-white/15 font-semibold">Pending</span>
+                <span className="font-mono text-[9px] uppercase tracking-widest text-white/15 font-bold">Pending</span>
               )}
             </div>
 
@@ -197,7 +197,7 @@ const BatteryCell = ({ category, topics, index }: {
 
           <div className="p-4 min-h-[170px] flex flex-col">
             {/* Header */}
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] mb-3"
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.15em] mb-3"
               style={{ color: `rgba(${catColor},0.7)` }}>
               {category}
             </p>
@@ -226,7 +226,7 @@ const BatteryCell = ({ category, topics, index }: {
                     : 'none',
                 }}
               >
-                <span className="text-[10px] text-white/25 tracking-widest uppercase">Total</span>
+                <span className="font-mono font-bold text-[10px] text-white/25 tracking-widest uppercase">Total</span>
                 <span className="text-[11px] font-bold tabular-nums" style={{ color: `rgb(${catColor})` }}>
                   {grandDone}<span className="text-white/20 font-normal">/{grandTotal} modules</span>
                 </span>

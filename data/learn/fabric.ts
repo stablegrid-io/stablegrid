@@ -2,9 +2,9 @@ import type { CheatSheet } from '@/types/learn';
 
 export const fabricData: CheatSheet = {
   topic: 'fabric',
-  title: 'Microsoft Fabric Modules',
+  title: 'Microsoft Fabric Tracks',
   description:
-    'Build Microsoft Fabric capability across platform foundations, analytics workflows, governance controls, and production delivery practices.',
+    "Microsoft's unified analytics stack — OneLake, Lakehouse, Pipelines, and Direct Lake from first workspace to enterprise governance.",
   version: 'Preview v1',
   categories: [],
   functions: []

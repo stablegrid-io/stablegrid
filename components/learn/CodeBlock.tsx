@@ -304,7 +304,7 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
                   <span className="select-none text-right text-[11px] leading-7" style={{ color: 'var(--rm-code-comment)' }}>
                     {index + 1}
                   </span>
-                  <span className="block whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[13px] leading-7 tracking-[0.01em] text-slate-900 dark:text-slate-200">
+                  <span className="block whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[13px] leading-7 tracking-[0.01em]" style={{ color: 'var(--rm-code-text)' }}>
                     {highlightRegex
                       ? highlightLine(line, highlightRegex, `line-${index}`)
                       : line}

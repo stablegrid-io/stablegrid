@@ -3,6 +3,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { PracticeTopic } from '@/lib/types';
+import type { TrackId } from '@/lib/tiers';
+import { parseTrackId } from '@/lib/tiers';
 import { createPayloadRequestKey } from '@/lib/api/requestKeys';
 import {
   DEFAULT_DEPLOYED_NODE_IDS,
@@ -13,6 +15,21 @@ import {
   getGridStabilityPct as computeGridStabilityPct,
   kwhToUnits
 } from '@/lib/energy';
+
+const sanitizeCompletedTracks = (value: unknown): TrackId[] => {
+  if (!Array.isArray(value)) return [];
+  const out: TrackId[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== 'string') continue;
+    if (seen.has(item)) continue;
+    const parsed = parseTrackId(item);
+    if (!parsed) continue;
+    seen.add(item);
+    out.push(item as TrackId);
+  }
+  return out;
+};
 
 const sanitizeDeployedNodeIds = (value: unknown): string[] => {
   if (!Array.isArray(value)) {
@@ -53,6 +70,8 @@ type EnergyEventSource =
   | 'flashcard-correct'
   | 'streak-milestone'
   | 'chapter-complete'
+  | 'lesson-read'
+  | 'track-complete'
   | 'mission'
   | 'infrastructure-deploy'
   | 'manual';
@@ -74,6 +93,12 @@ interface ProgressState {
   lastDeployedNodeId: string | null;
   revision: number;
   topicProgress: Record<PracticeTopic, TopicStats>;
+  /**
+   * Track-level completion ids, e.g. ['pyspark-junior', 'sql-junior'].
+   * Computed server-side from module_progress and hydrated via syncProgress.
+   * Consumed by the tier system (see lib/tiers.ts) to gate Mid/Senior.
+   */
+  completedTracks: TrackId[];
   dailyXP: Record<string, number>;
   dailyQuestions: Record<string, number>;
   questionHistory: QuestionAttempt[];
@@ -119,6 +144,7 @@ export const useProgressStore = create<ProgressState>()(
       lastDeployedNodeId: null,
       revision: 0,
       topicProgress: defaultTopicStats,
+      completedTracks: [],
       dailyXP: {},
       dailyQuestions: {},
       questionHistory: [],
@@ -335,6 +361,7 @@ export const useProgressStore = create<ProgressState>()(
                   ...defaultTopicStats,
                   ...(data.topic_progress ?? {})
                 },
+                completedTracks: sanitizeCompletedTracks(data.completed_tracks),
                 lastSynced: new Date().toISOString()
               };
             });
@@ -384,6 +411,7 @@ export const useProgressStore = create<ProgressState>()(
           lastDeployedNodeId: null,
           revision: state.revision + 1,
           topicProgress: defaultTopicStats,
+          completedTracks: [],
           dailyXP: {},
           dailyQuestions: {},
           questionHistory: [],
@@ -402,6 +430,7 @@ export const useProgressStore = create<ProgressState>()(
         deployedNodeIds: state.deployedNodeIds,
         lastDeployedNodeId: state.lastDeployedNodeId,
         topicProgress: state.topicProgress,
+        completedTracks: state.completedTracks,
         dailyXP: state.dailyXP,
         dailyQuestions: state.dailyQuestions,
         questionHistory: state.questionHistory,
@@ -411,8 +440,3 @@ export const useProgressStore = create<ProgressState>()(
   )
 );
 
-// ── Convenience derived selector ──────────────────────────────────────────────
-// Reads live XP from the store and returns the full level progress object.
-// Re-renders only when xp changes.
-import { getLevelProgress } from '@/lib/energy';
-export const useCharacterLevel = () => getLevelProgress(useProgressStore((s) => s.xp));

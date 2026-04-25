@@ -46,7 +46,7 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
   if (!method.isTimed) {
     return (
       <div className="rounded-[14px] border border-outline-variant/20 bg-surface-container-low p-4">
-        <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-on-surface-variant">
+        <div className="flex items-center justify-between text-[9px] font-mono font-medium uppercase tracking-widest text-on-surface-variant">
           <span>RHYTHM</span>
           <span>No timer</span>
         </div>
@@ -60,7 +60,7 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
 
   return (
     <div className="rounded-[14px] border border-outline-variant/20 bg-surface-container-low p-4">
-      <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-on-surface-variant">
+      <div className="flex items-center justify-between text-[9px] font-mono font-medium uppercase tracking-widest text-on-surface-variant">
         <span>RHYTHM</span>
         <span>{formatTheorySessionDuration(totalMinutes * 60)}</span>
       </div>
@@ -92,7 +92,7 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
 
 const MetaPill = ({ label, value }: { label: string; value: string }) => (
   <div className="inline-flex items-center gap-2 rounded-full border border-outline-variant/20 bg-surface-container px-3 py-1.5 text-[10px]">
-    <span className="text-on-surface-variant uppercase tracking-widest">{label}</span>
+    <span className="text-on-surface-variant font-mono font-medium uppercase tracking-widest">{label}</span>
     <span className="font-bold text-on-surface">{value}</span>
   </div>
 );
@@ -133,7 +133,7 @@ const MethodSelectorCard = ({
           <Icon className="h-4 w-4" style={{ color: accent.color }} />
         </div>
         <div className="min-w-0">
-          <div className="text-xs font-bold uppercase tracking-widest text-on-surface">
+          <div className="text-xs font-mono font-bold uppercase tracking-widest text-on-surface">
             {method.label}
           </div>
           <div className="mt-0.5 text-[9px] text-on-surface-variant">
@@ -168,7 +168,7 @@ const AdjustableRow = ({
   <div className="rounded-[14px] border border-outline-variant/20 bg-surface-container-low p-4">
     <div className="flex items-center justify-between gap-4">
       <div>
-        <div className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">
+        <div className="text-[9px] font-mono font-bold uppercase tracking-widest text-on-surface-variant">
           {label}
         </div>
         <div className="mt-2 text-xl font-bold text-on-surface">
@@ -213,7 +213,7 @@ const StaticRow = ({
   hint: string;
 }) => (
   <div className="rounded-[14px] border border-outline-variant/20 bg-surface-container-low p-4">
-    <div className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">
+    <div className="text-[9px] font-mono font-bold uppercase tracking-widest text-on-surface-variant">
       {label}
     </div>
     <div className="mt-2 text-xl font-bold text-on-surface">
@@ -296,7 +296,7 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
                 <ActiveIcon className="h-5 w-5" style={{ color: activeAccent.color }} />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-on-surface uppercase tracking-wider">
+                <h3 className="text-xl font-mono font-bold text-on-surface uppercase tracking-wider">
                   {activeMethod.label}
                 </h3>
                 <p className="mt-1 max-w-2xl text-[10px] leading-relaxed text-on-surface-variant">
@@ -311,7 +311,7 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
                 resetMethodConfig(activeMethod.id);
                 onToast(`${activeMethod.label} reset to its default timing.`, 'info');
               }}
-              className="inline-flex items-center gap-1.5 self-start rounded-[14px] border border-outline-variant/30 px-3 py-1.5 text-[10px] font-medium text-on-surface-variant uppercase tracking-widest transition-colors hover:border-primary/40 hover:text-primary"
+              className="inline-flex items-center gap-1.5 self-start rounded-[14px] border border-outline-variant/30 px-3 py-1.5 text-[10px] font-mono font-medium text-on-surface-variant uppercase tracking-widest transition-colors hover:border-primary/40 hover:text-primary"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Reset

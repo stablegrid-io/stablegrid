@@ -54,6 +54,13 @@ const METHOD_CTA_ICONS = {
   sprint: Play, pomodoro: RefreshCw, 'deep-focus': Lock, 'free-read': BookOpen
 } satisfies Record<TheorySessionMethodId, typeof Play>;
 
+const METHOD_LABELS: Record<TheorySessionMethodId, string> = {
+  sprint: 'Sprint',
+  pomodoro: 'Pomodoro',
+  'deep-focus': 'Deep Focus',
+  'free-read': 'Free Read',
+};
+
 interface TheorySessionPickerProps {
   isOpen: boolean;
   configsByMethod: Record<TheorySessionMethodId, TheorySessionConfig>;
@@ -127,12 +134,13 @@ export const TheorySessionPicker = ({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             role="dialog"
             aria-modal="true"
-            className="relative z-10 w-full max-w-[56rem] overflow-y-auto max-h-[90vh] border border-outline-variant/30 bg-surface pt-8 px-5 pb-5 flex flex-col gap-4"
+            aria-label="Session picker"
+            className="relative z-10 w-full max-w-[56rem] overflow-y-auto max-h-[90vh] rounded-[22px] border border-white/[0.06] bg-[#181c20] pt-8 px-5 pb-5 flex flex-col gap-4"
           >
             {/* Title */}
             <div className="mb-1">
               <h2 className="text-2xl font-bold text-on-surface tracking-tight">Pick Your Learning Approach</h2>
-              <p className="font-mono text-xs text-on-surface-variant mt-1">Structured sessions improve retention by up to 40% and sustain deeper focus.</p>
+              <p className="text-xs text-on-surface-variant mt-1">Structured sessions improve retention by up to 40% and sustain deeper focus.</p>
             </div>
 
             {/* Close */}
@@ -140,7 +148,7 @@ export const TheorySessionPicker = ({
               ref={closeButtonRef}
               type="button"
               onClick={onDismiss}
-              className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center text-on-surface-variant hover:text-primary transition-colors z-20"
+              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.04] text-on-surface-variant hover:text-primary hover:bg-white/[0.08] transition-colors z-20"
             >
               <X className="h-4 w-4" />
             </button>
@@ -167,25 +175,32 @@ export const TheorySessionPicker = ({
                 return (
                   <div
                     key={methodId}
-                    className="glass-panel border p-4 flex flex-col group transition-all relative cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={METHOD_LABELS[methodId]}
+                    className="rounded-[22px] border p-4 flex flex-col group transition-all relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
                     style={{
                       borderColor: `rgba(${a.rgb},0.1)`,
+                      backgroundColor: '#0c0e10',
                     }}
                     onClick={() => onStart(config)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onStart(config);
+                      }
+                    }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = `rgba(${a.rgb},0.4)`; (e.currentTarget as HTMLElement).style.boxShadow = `0 0 30px rgba(${a.rgb},0.15)`; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = `rgba(${a.rgb},0.1)`; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
                   >
-                    {/* L-bracket corners */}
-                    <div className="absolute top-0 left-0 w-3 h-3 border-t border-l" style={{ borderColor: `rgba(${a.rgb},0.3)` }} />
-                    <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r" style={{ borderColor: `rgba(${a.rgb},0.3)` }} />
 
                     {/* Icon + time */}
                     <div className="flex justify-between items-start mb-3">
-                      <div className="p-2 border" style={{ backgroundColor: `rgba(${a.rgb},0.1)`, borderColor: `rgba(${a.rgb},0.2)` }}>
+                      <div className="p-2 rounded-[10px] border" style={{ backgroundColor: `rgba(${a.rgb},0.1)`, borderColor: `rgba(${a.rgb},0.2)` }}>
                         <Icon className="h-5 w-5" style={{ color: a.hex }} />
                       </div>
                       <div className="text-right">
-                        <div className="font-mono text-[9px] uppercase mb-0.5" style={{ color: a.hex }}>{targetLabel}</div>
+                        <div className="text-[9px] font-mono font-medium uppercase mb-0.5" style={{ color: a.hex }}>{targetLabel}</div>
                         <div className="text-2xl font-light text-on-surface">{timeLabel}</div>
                       </div>
                     </div>
@@ -194,18 +209,18 @@ export const TheorySessionPicker = ({
                     <h2 className="text-lg font-black tracking-tight text-on-surface mb-1">
                       {METHOD_NEURAL_LABELS[methodId]}
                     </h2>
-                    <p className="font-mono text-[11px] text-on-surface-variant leading-relaxed mb-3 min-h-[2.5rem]">
+                    <p className="text-[11px] text-on-surface-variant leading-relaxed mb-3 min-h-[2.5rem]">
                       {METHOD_DESCRIPTIONS[methodId]}
                     </p>
 
                     <div className="space-y-3 mt-auto">
                       {/* Session structure visualization */}
-                      <div className="bg-black/40 p-2 border border-outline-variant/20">
+                      <div className="bg-black/40 p-2 rounded-[14px] border border-outline-variant/20">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
+                          <span className="text-[9px] font-mono font-medium tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
                             SESSION_STRUCTURE
                           </span>
-                          <span className="font-mono text-[9px]" style={{ color: a.hex }}>{totalMinutes} MIN</span>
+                          <span className="text-[9px]" style={{ color: a.hex }}>{totalMinutes} MIN</span>
                         </div>
                         <div className="flex gap-0.5 h-2">
                           {methodId === 'sprint' ? (
@@ -235,12 +250,12 @@ export const TheorySessionPicker = ({
                       {/* Stats */}
                       <div className="grid grid-cols-2 gap-2">
                         <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
-                          <div className="font-mono text-[8px] text-on-surface-variant uppercase">{stats[0]}</div>
-                          <div className="text-[11px] font-bold text-on-surface uppercase">{stats[1]}</div>
+                          <div className="text-[8px] font-mono font-medium text-on-surface-variant uppercase">{stats[0]}</div>
+                          <div className="text-[11px] font-mono font-bold text-on-surface uppercase">{stats[1]}</div>
                         </div>
                         <div className="border-l pl-2" style={{ borderColor: `rgba(${a.rgb},0.3)` }}>
-                          <div className="font-mono text-[8px] text-on-surface-variant uppercase">{stats[2]}</div>
-                          <div className="text-[11px] font-bold text-on-surface uppercase">{stats[3]}</div>
+                          <div className="text-[8px] font-mono font-medium text-on-surface-variant uppercase">{stats[2]}</div>
+                          <div className="text-[11px] font-mono font-bold text-on-surface uppercase">{stats[3]}</div>
                         </div>
                       </div>
 
@@ -255,7 +270,7 @@ export const TheorySessionPicker = ({
               <button
                 type="button"
                 onClick={() => onStart(freeReadConfig)}
-                className="border border-amber-400/30 bg-amber-400/10 px-8 py-3 rounded-xl font-mono text-xs font-bold text-amber-400 uppercase tracking-widest hover:bg-amber-400/20 hover:border-amber-400/50 transition-all"
+                className="border border-amber-400/30 bg-amber-400/10 px-8 py-3 rounded-[14px] text-xs font-mono font-bold text-amber-400 uppercase tracking-widest hover:bg-amber-400/20 hover:border-amber-400/50 transition-all"
               >
                 FREE READ
               </button>

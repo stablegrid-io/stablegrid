@@ -1,0 +1,728 @@
+{
+  "id": "PJ_PySpark_Mid",
+  "version": "1.0.0",
+  "track": "PySpark",
+  "level": "Mid",
+  "scenario": "NordGrid",
+  "total_xp": 600,
+
+  "narrative_premise": "It is 07:30 on a Saturday. A PagerDuty alert fires on your phone: NordGrid's daily Silver pipeline completed six hours ago — but the Gold regional summary for 2026-03-07 is missing all data for the NORTH region. The billing team's weekly aggregation runs at 10:00. If you cannot identify the root cause, fix the pipeline, and re-run Silver before then, 300,000 NORTH meters will be missing from this week's billing cycle. Your manager sends one Slack message: 'I need to know what happened, why it happened, and a fix deployed before the billing run. You have two and a half hours.' You have access to the cluster, the execution plans, the run logs, and the pipeline code. Start with the evidence.",
+
+  "ux": {
+    "persistent_element": "incident_timeline",
+    "timeline_fields": [
+      { "id": "tl_1", "label": "First failure point identified", "populated_by": "chapter_1" },
+      { "id": "tl_2", "label": "Root cause confirmed", "populated_by": "chapter_2" },
+      { "id": "tl_3", "label": "Fix implemented and verified", "populated_by": "chapter_3" },
+      { "id": "tl_4", "label": "Prevention measure deployed", "populated_by": "chapter_4" },
+      { "id": "tl_5", "label": "Post-mortem filed", "populated_by": "chapter_5" }
+    ],
+    "score_card": {
+      "thresholds": { "distinguished": 570, "proficient": 480, "developing": 360 },
+      "labels": {
+        "distinguished": "Strong incident response. You diagnosed the root cause, wrote a working fix, and prevented recurrence with minimal scaffolding.",
+        "proficient": "Solid mid-level instincts. One or two chapters needed coaching — check which hint tiers you used and review the corresponding modules.",
+        "developing": "Core concepts are present but the diagnosis-to-fix chain is uneven. Review the chapters with the lowest scores.",
+        "incomplete": "The mid-level track content should be reviewed before proceeding. The chapter breakdown identifies which areas need the most attention."
+      }
+    }
+  },
+
+  "coverage_matrix": {
+    "1":  ["chapter_1", "chapter_2"],
+    "2":  ["chapter_2", "chapter_3"],
+    "3":  ["chapter_2", "chapter_3"],
+    "4":  ["chapter_1"],
+    "5":  ["chapter_5"],
+    "6":  ["chapter_4"],
+    "7":  ["chapter_1", "chapter_2"],
+    "8":  ["chapter_3"],
+    "9":  ["chapter_3"],
+    "10": ["chapter_5"]
+  },
+
+  "datasets": [
+    {
+      "name": "bronze_readings.csv",
+      "path": "PJPySpark_Mid_data/bronze_readings.csv",
+      "row_count": 80,
+      "description": "Cleaned Bronze readings for 2026-03-07. 20 rows per region (NORTH, SOUTH, EAST, WEST), all valid. Columns: meter_id, daily_kw (double), date, region, substation_id, customer_type. Input to the broken Silver pipeline in Chapter 3. A correct fix produces 80 Silver rows."
+    },
+    {
+      "name": "substation_ref_mid.csv",
+      "path": "PJPySpark_Mid_data/substation_ref_mid.csv",
+      "row_count": 4,
+      "description": "Substation reference at mid-level scale, one row per main region. Columns: substation_id, name, region, capacity_mw. Used in the Chapter 3 join."
+    },
+    {
+      "name": "dq_test_input.csv",
+      "path": "PJPySpark_Mid_data/dq_test_input.csv",
+      "row_count": 30,
+      "description": "Injected-fault Silver table for Chapter 4. 10 rows each for SOUTH, EAST, WEST. NORTH is deliberately absent. Used to test that the student's DQ function detects the missing region. Schema matches Silver output: meter_id, daily_kw, date, region, year, month, tier, substation_name, customer_type, is_valid."
+    },
+    {
+      "name": "silver_reference_mid.csv",
+      "path": "PJPySpark_Mid_data/silver_reference_mid.csv",
+      "row_count": 80,
+      "description": "Pre-computed correct Silver output. Fallback for Chapter 5 if Chapter 3 was not completed. 20 rows per region. Schema: meter_id, daily_kw, date, region, year, month, tier, substation_name, customer_type, is_valid."
+    }
+  ],
+
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "title": "Read the Evidence",
+      "unlock_condition": null,
+      "chapter_type": "template",
+      "base_xp": 120,
+      "modules_primary": [4, 7],
+      "modules_secondary": [1],
+
+      "narrative_context": "You pull up the pipeline monitoring dashboard. The Silver pipeline for 2026-03-07 shows status SUCCESS and a runtime of 183 seconds — normal. But the Gold summary is missing the NORTH region entirely. The pipeline did not fail. It produced wrong output silently. Before looking at any code, you need to establish what happened: which layer is affected, how long the data has been missing, and how large the impact is at production scale.",
+
+      "task": "Examine the two evidence tables below. Fill in the four diagnostic fields: which pipeline layer first shows the missing NORTH data, how many consecutive run dates show the problem, which region is affected, and the estimated production-scale row loss for one run date.",
+
+      "validation_hint": "The run log shows silver_rows = 840 for six days then a drop to 630 on 2026-03-07. The difference is 210 rows — exactly one region's share of 840 total rows at 25% per region. At full NordGrid scale: 1,200,000 × 25% = 300,000.",
+
+      "evidence": [
+        {
+          "id": "ev_1_1",
+          "type": "table",
+          "title": "Pipeline run log — last 7 days",
+          "caption": "Silver pipeline execution history. bronze_rows = ingested. silver_rows = written to Silver Parquet. status reflects exit code, not data completeness.",
+          "headers": ["run_date", "duration_s", "bronze_rows", "silver_rows", "status"],
+          "rows": [
+            ["2026-03-01", "187", "840", "840", "SUCCESS"],
+            ["2026-03-02", "192", "840", "840", "SUCCESS"],
+            ["2026-03-03", "188", "840", "840", "SUCCESS"],
+            ["2026-03-04", "195", "840", "840", "SUCCESS"],
+            ["2026-03-05", "184", "840", "840", "SUCCESS"],
+            ["2026-03-06", "191", "840", "840", "SUCCESS"],
+            ["2026-03-07", "183", "840", "630", "SUCCESS"]
+          ]
+        },
+        {
+          "id": "ev_1_2",
+          "type": "table",
+          "title": "Silver row count by region — 2026-03-07",
+          "caption": "Rows partitioned by region in the Silver output for the affected run date. At full NordGrid scale (1.2M meters), NORTH accounts for approximately 25% of readings.",
+          "headers": ["region", "silver_row_count", "expected_row_count", "delta"],
+          "rows": [
+            ["EAST",  "210", "210", "0"],
+            ["NORTH", "0",   "210", "-210"],
+            ["SOUTH", "210", "210", "0"],
+            ["WEST",  "210", "210", "0"]
+          ]
+        }
+      ],
+
+      "grading": {
+        "type": "structured_template",
+        "xp_per_field": 30,
+        "fields": [
+          {
+            "id": "F1_1",
+            "xp": 30,
+            "label": "Which pipeline layer first shows the missing NORTH data?",
+            "field_type": "single_select",
+            "options": [
+              "Bronze — NORTH meter files were not ingested on 2026-03-07",
+              "Silver — NORTH rows are present in Bronze but absent from Silver",
+              "Gold — NORTH rows are present in Silver but missing from the Gold summary",
+              "Platinum — data loss occurred at the ML feature layer"
+            ],
+            "correct_answer": "Silver — NORTH rows are present in Bronze but absent from Silver",
+            "failure_message": "Compare bronze_rows and silver_rows in the run log. On 2026-03-07 bronze_rows = 840 (unchanged) but silver_rows = 630. Bronze was fully ingested. The loss happened during Bronze-to-Silver transformation."
+          },
+          {
+            "id": "F1_2",
+            "xp": 30,
+            "label": "How many consecutive run dates show the problem?",
+            "field_type": "numeric",
+            "correct_answer": 1,
+            "tolerance": 0,
+            "failure_message": "Count dates where silver_rows differs from bronze_rows. Only 2026-03-07 shows a discrepancy. All six prior dates show 840/840."
+          },
+          {
+            "id": "F1_3",
+            "xp": 30,
+            "label": "Which region is completely missing from Silver?",
+            "field_type": "single_select",
+            "options": ["NORTH", "SOUTH", "EAST", "WEST"],
+            "correct_answer": "NORTH",
+            "failure_message": "The second evidence table shows Silver row counts by region. NORTH has 0 rows on 2026-03-07, with delta = -210."
+          },
+          {
+            "id": "F1_4",
+            "xp": 30,
+            "label": "At production scale (1.2M meters, 25% NORTH share), how many rows are missing for this single run date?",
+            "field_type": "numeric",
+            "correct_answer": 300000,
+            "tolerance": 0,
+            "failure_message": "1,200,000 × 25% = 300,000 NORTH meter readings missing for one day."
+          }
+        ]
+      },
+
+      "timeline_contribution": {
+        "tl_1": "Silver layer. 1 run date affected (2026-03-07). NORTH region. 300,000 rows missing at production scale."
+      },
+
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This is a pipeline layer diagnosis problem — the kind of evidence reading you practised when NordGrid's team traced data loss across Bronze, Silver, and Gold. The two tables tell a connected story: one shows when the problem started, the other shows which region was affected. Read them together before filling any field."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "In the run log, compare bronze_rows to silver_rows on each date. On six dates they match. On one they do not — that is your failure date and failure layer. In the region breakdown table, find the row where delta is negative. That region is your answer to F1_3."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Bronze rows = 840 on 2026-03-07 (unchanged). Silver rows = 630. Loss = 840 − 630 = 210 rows. The region breakdown shows NORTH with delta = -210. Failure layer = Silver. Run dates affected = 1. For production estimate: 1,200,000 × 0.25 = 300,000."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "F1_1 = Silver (bronze_rows unchanged). F1_2 = 1 (only 2026-03-07 shows the discrepancy). F1_3 = NORTH (delta = -210). F1_4 = 300000 (1,200,000 × 25%)."
+        }
+      ]
+    },
+
+    {
+      "id": "chapter_2",
+      "title": "Trace the Root Cause",
+      "unlock_condition": { "after_chapter": 1 },
+      "chapter_type": "template",
+      "base_xp": 120,
+      "modules_primary": [1, 2, 3],
+      "modules_secondary": [7],
+
+      "narrative_context": "You know Silver is the failure layer and NORTH is the affected region. Now you need to know why. The pipeline completed successfully — no exception, no timeout, no alert at runtime. This means the failure is silent: the pipeline ran to completion but produced wrong output. You have the execution plan and counter-evidence for three candidate root causes. One is correct. The other two are plausible but the evidence rules them out.",
+
+      "task": "Study the execution plan and the three candidate causes with their evidence. Fill in all five template fields: identify the root cause, cite two pieces of evidence that support it, and explain why each of the other two candidates can be ruled out.",
+
+      "validation_hint": "The execution plan is the primary evidence. Find the specific node that explains why NORTH rows are absent. The row count arithmetic from Chapter 1 (exactly 210 rows missing = exactly one region's share) is your second piece of evidence — it narrows the cause to a region-level filter, not a join operation or schema issue.",
+
+      "evidence": [
+        {
+          "id": "ev_2_1",
+          "type": "execution_plan",
+          "title": "Execution plan — Silver transformation pipeline (2026-03-07)",
+          "caption": "Output of df_silver.explain(True). The physical plan shows the operations Spark actually executed. Read bottom to top.",
+          "content": "== Physical Plan ==\n*(3) Sort [region#12 ASC NULLS FIRST, date#13 ASC NULLS FIRST], true, 0\n+- Exchange rangepartitioning(region#12 ASC NULLS FIRST, date#13 ASC NULLS FIRST, 8), ENSURE_REQUIREMENTS, [id=#91]\n   +- *(2) Project [meter_id#10, daily_kw#11, date#13, region#12, year#14, month#15, tier#16, substation_name#22, customer_type#18, is_valid#23]\n      +- *(2) BroadcastHashJoin [substation_id#19], [substation_id#25], Inner, BuildRight, false\n         :- *(2) Filter (isnotnull(region#12) AND region#12 IN (SOUTH,EAST,WEST))\n         :  +- *(1) ColumnarToRow\n         :     +- FileScan parquet [meter_id#10,...,region#12,...] Batched: true, DataFilters: [isnotnull(region#12), region#12 IN (SOUTH,EAST,WEST)], Format: Parquet, Location: InMemoryFileIndex[bronze/meter_readings/date=2026-03-07], PushedFilters: [IsNotNull(region), In(region, [SOUTH,EAST,WEST])]\n         +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [id=#86]\n            +- *(1) Filter isnotnull(substation_id#25)\n               +- *(1) ColumnarToRow\n                  +- FileScan parquet [substation_id#25,name#22,...] Batched: true, Format: Parquet"
+        },
+        {
+          "id": "ev_2_2",
+          "type": "table",
+          "title": "Three candidate root causes with supporting and counter-evidence",
+          "caption": "Three engineers proposed three candidates in the #incidents Slack channel. Each has supporting arguments and counter-evidence in the logs.",
+          "headers": ["Candidate", "Description", "Supporting argument", "Counter-evidence"],
+          "rows": [
+            [
+              "A",
+              "Broadcast join timeout — the substation reference join timed out, causing NORTH rows to be silently dropped before they could be written to Silver",
+              "The BroadcastHashJoin node is visible in the plan. Broadcast joins can fail if the broadcast table exceeds the threshold.",
+              "Pipeline completed with status SUCCESS in 183 seconds (consistent with prior runs). No timeout exception in error.log. BroadcastHashJoin completed in 0.3s per stage metrics."
+            ],
+            [
+              "B",
+              "Partition filter excludes NORTH — a Filter node in the Silver transformation explicitly restricts output to SOUTH, EAST, and WEST",
+              "The execution plan shows a Filter node. A misconfigured filter could silently exclude an entire region.",
+              ""
+            ],
+            [
+              "C",
+              "Schema evolution mismatch — the Bronze Parquet files for 2026-03-07 introduced a new column in NORTH meter records, causing incompatibility that nullified those rows and triggered a downstream null filter",
+              "Schema changes in Parquet can cause silent data loss if the reader schema does not match.",
+              "Bronze printSchema shows identical column types across all 840 ingested rows regardless of region. A schema mismatch would either crash the pipeline or affect all regions equally, not only NORTH."
+            ]
+          ]
+        }
+      ],
+
+      "grading": {
+        "type": "structured_template",
+        "xp_per_field": 24,
+        "fields": [
+          {
+            "id": "F2_1",
+            "xp": 24,
+            "label": "Which candidate is the root cause?",
+            "field_type": "single_select",
+            "options": [
+              "A — Broadcast join timeout caused NORTH rows to be silently dropped",
+              "B — A Filter node in the Silver transformation explicitly excludes NORTH",
+              "C — Schema evolution mismatch in Bronze Parquet nullified NORTH records"
+            ],
+            "correct_answer": "B — A Filter node in the Silver transformation explicitly excludes NORTH",
+            "failure_message": "Look at the Filter node in the execution plan: 'region#12 IN (SOUTH,EAST,WEST)'. This is the only node that explains why exactly NORTH rows are absent. Candidates A and C both have explicit counter-evidence in the table."
+          },
+          {
+            "id": "F2_2",
+            "xp": 24,
+            "label": "First piece of evidence supporting the root cause",
+            "field_type": "single_select",
+            "options": [
+              "The Filter node in the execution plan shows: region#12 IN (SOUTH,EAST,WEST) — NORTH is not listed",
+              "The BroadcastHashJoin node completed in 0.3 seconds with no timeout",
+              "Silver row count dropped by exactly 210 rows — matching one region's share of 840 total (840 ÷ 4 = 210)",
+              "Bronze printSchema shows consistent column types across all 840 rows",
+              "The pipeline completed with status SUCCESS in 183 seconds"
+            ],
+            "correct_answer": "The Filter node in the execution plan shows: region#12 IN (SOUTH,EAST,WEST) — NORTH is not listed",
+            "failure_message": "The strongest direct evidence is in the execution plan. The Filter node explicitly lists the regions that pass: SOUTH, EAST, WEST. NORTH is not listed — it is filtered out by name."
+          },
+          {
+            "id": "F2_3",
+            "xp": 24,
+            "label": "Second piece of evidence supporting the root cause",
+            "field_type": "single_select",
+            "options": [
+              "The Filter node in the execution plan shows: region#12 IN (SOUTH,EAST,WEST) — NORTH is not listed",
+              "The BroadcastHashJoin node completed in 0.3 seconds with no timeout",
+              "Silver row count dropped by exactly 210 rows — matching one region's share of 840 total (840 ÷ 4 = 210)",
+              "Bronze printSchema shows consistent column types across all 840 rows",
+              "The pipeline completed with status SUCCESS in 183 seconds"
+            ],
+            "correct_answer": "Silver row count dropped by exactly 210 rows — matching one region's share of 840 total (840 ÷ 4 = 210)",
+            "failure_message": "The arithmetic from Chapter 1 is your second evidence: exactly 210 rows missing = exactly one region's share. A join timeout or schema mismatch would not produce a loss this arithmetically precise. Only a region-name filter produces this exact pattern."
+          },
+          {
+            "id": "F2_4",
+            "xp": 24,
+            "label": "Why can Candidate A (broadcast join timeout) be ruled out?",
+            "field_type": "single_select",
+            "options": [
+              "A broadcast join timeout raises a SparkException and fails the pipeline — it does not silently drop rows. The pipeline completed SUCCESS in 183s and BroadcastHashJoin completed in 0.3s.",
+              "Broadcast joins never fail on reference tables smaller than 100 MB, and the substation reference is only 4 rows.",
+              "The substation_id column has no nulls in Bronze, so a join key mismatch is impossible.",
+              "AQE would automatically switch to SortMergeJoin if the broadcast threshold was exceeded."
+            ],
+            "correct_answer": "A broadcast join timeout raises a SparkException and fails the pipeline — it does not silently drop rows. The pipeline completed SUCCESS in 183s and BroadcastHashJoin completed in 0.3s.",
+            "failure_message": "The counter-evidence for A: the pipeline completed successfully with no exception, and BroadcastHashJoin stage metrics show 0.3 seconds. A timeout would fail the pipeline entirely — it cannot silently drop rows."
+          },
+          {
+            "id": "F2_5",
+            "xp": 24,
+            "label": "Why can Candidate C (schema evolution mismatch) be ruled out?",
+            "field_type": "single_select",
+            "options": [
+              "A schema mismatch in Parquet affects all rows with the incompatible column equally, regardless of region. It would either crash the pipeline or drop rows across all regions — not selectively remove only NORTH.",
+              "Schema evolution is only possible in Delta Lake tables, not in plain Parquet files.",
+              "The Bronze ingestion pipeline always validates schema before writing, so a mismatch is impossible.",
+              "Schema changes are logged in the Spark UI Environment tab — no schema change entry appears for 2026-03-07."
+            ],
+            "correct_answer": "A schema mismatch in Parquet affects all rows with the incompatible column equally, regardless of region. It would either crash the pipeline or drop rows across all regions — not selectively remove only NORTH.",
+            "failure_message": "The counter-evidence for C is its non-selectivity: a schema mismatch affects all rows with the incompatible column, not just one region. SOUTH, EAST, and WEST would also show drops."
+          }
+        ]
+      },
+
+      "timeline_contribution": {
+        "tl_2": "Root cause: Filter node in silver_transform.py explicitly excludes NORTH with region.isin(['SOUTH','EAST','WEST']). Confirmed by execution plan (Filter node) and arithmetic (210 missing rows = exactly 1 region's share)."
+      },
+
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This is an execution plan reading problem combined with counter-evidence analysis — the pattern from the Execution Plans and Join Performance modules. The plan shows you exactly what Spark executed. Find the node that would explain why exactly 210 rows — and only NORTH rows — are missing."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "In the execution plan, read the Filter node — second node from the bottom on the left branch, above the FileScan. Look at the IN list. Note which value is absent from the list. That absent value is the root cause. Then read the counter-evidence column in the candidate table for candidates A and C."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "The Filter node reads: region#12 IN (SOUTH,EAST,WEST). NORTH is not in the list — every NORTH row is filtered out. This is Candidate B. To rule out A: a join timeout raises SparkException — SUCCESS status and 0.3s BroadcastHashJoin rule it out. To rule out C: a schema mismatch affects all regions equally, not just NORTH."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "F2_1 = Candidate B. F2_2 = The Filter node shows region#12 IN (SOUTH,EAST,WEST) — NORTH not listed. F2_3 = Silver row count dropped by exactly 210 rows (840 ÷ 4 = 210). F2_4 = Broadcast join timeout raises SparkException — pipeline would not complete SUCCESS. F2_5 = Schema mismatch affects all regions equally — SOUTH/EAST/WEST would also show drops."
+        }
+      ]
+    },
+
+    {
+      "id": "chapter_3",
+      "title": "Write the Fix",
+      "unlock_condition": { "after_chapter": 2 },
+      "chapter_type": "code",
+      "base_xp": 120,
+      "modules_primary": [2, 3, 8, 9],
+      "modules_secondary": [],
+
+      "narrative_context": "Root cause confirmed: a region filter in the Silver transformation explicitly excludes NORTH. You pull up silver_transform.py and find it on line 14 of the function body. The filter was added in a commit on 2026-03-06 — someone added it for debugging and never removed it. You need to fix the function, run it against the Bronze data for 2026-03-07, and verify that all four regions are present in the output before the billing run.",
+
+      "task": "The transformation function below contains the bug. Fix it so that df_silver contains all rows from df_bronze — all four regions. The corrected output must have 80 rows, the correct column set in the correct order, and all tier values correctly assigned. Do not add additional filters, change the join logic, alter the tier thresholds, or modify the column selection.",
+
+      "validation_hint": "After the fix, df_silver.count() should return 80. df_silver.filter(col('region') == 'NORTH').count() should return 20. Run df_silver.groupBy('region').count().orderBy('region').show() to verify 20 rows per region.",
+
+      "scaffold": {
+        "filename": "silver_transform.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 3 — Write the Fix\n# The bug is in the transform_bronze_to_silver function below.\n# Fix it so all four regions appear in the Silver output.",
+        "code": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, year, month, when, lit\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-silver-fix') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\ndf_bronze     = spark.read.csv('data/bronze_readings.csv',    header=True, inferSchema=True)\ndf_substation = spark.read.csv('data/substation_ref_mid.csv', header=True, inferSchema=True)\n\n\ndef transform_bronze_to_silver(df_bronze, df_substation):\n    \"\"\"Transform Bronze meter readings into the Silver schema.\n    Expected output: 80 rows, 20 per region (NORTH/SOUTH/EAST/WEST)\n    Columns: meter_id, daily_kw, date, region, year, month,\n             tier, substation_name, customer_type, is_valid\n    \"\"\"\n    return (\n        df_bronze\n        .filter(col('region').isin(['SOUTH', 'EAST', 'WEST']))   # BUG: NORTH is excluded\n        .withColumn('year',  year(col('date')))\n        .withColumn('month', month(col('date')))\n        .withColumn('tier',\n            when(col('daily_kw') < 500,  'low')\n            .when(col('daily_kw') < 2000, 'medium')\n            .when(col('daily_kw') < 4000, 'high')\n            .otherwise('critical')\n        )\n        .join(\n            df_substation.select(col('substation_id'), col('name').alias('substation_name')),\n            on='substation_id',\n            how='left'\n        )\n        .withColumn('is_valid', lit(True))\n        .select('meter_id', 'daily_kw', 'date', 'region',\n                'year', 'month', 'tier', 'substation_name',\n                'customer_type', 'is_valid')\n    )\n\n\n# YOUR SOLUTION BELOW\n# ─────────────────────────────────────────────────────────────────────\n# Fix the bug inside the function, then call it and assign to df_silver.\n\n\n\n# ─────────────────────────────────────────────────────────────────────\n# YOUR SOLUTION ABOVE\n\nprint(f'Total rows : {df_silver.count()}')\nprint(f'NORTH rows : {df_silver.filter(col(\"region\") == \"NORTH\").count()}')\ndf_silver.groupBy('region').count().orderBy('region').show()"
+      },
+
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 24,
+        "assertions": [
+          {
+            "id": "A3_1",
+            "xp": 24,
+            "description": "df_silver has exactly 80 rows",
+            "check": "assert df_silver.count() == 80",
+            "failure_message": "Expected 80 rows. The fix is to remove the .filter(col('region').isin([...])) line entirely. Do not add a new isin filter that includes NORTH."
+          },
+          {
+            "id": "A3_2",
+            "xp": 24,
+            "description": "NORTH region has exactly 20 rows",
+            "check": "assert df_silver.filter(col('region') == 'NORTH').count() == 20",
+            "failure_message": "NORTH rows are still missing or wrong count. Remove the isin filter — do not replace it with one that includes NORTH."
+          },
+          {
+            "id": "A3_3",
+            "xp": 24,
+            "description": "Column names and order match the Silver schema contract",
+            "check": "expected = ['meter_id','daily_kw','date','region','year','month','tier','substation_name','customer_type','is_valid']\nassert df_silver.columns == expected, f'Got: {df_silver.columns}'",
+            "failure_message": "Column names or order do not match. Expected: meter_id, daily_kw, date, region, year, month, tier, substation_name, customer_type, is_valid."
+          },
+          {
+            "id": "A3_4",
+            "xp": 24,
+            "description": "Tier values are correct for NORTH rows",
+            "check": "north = df_silver.filter(col('region') == 'NORTH')\nbad = north.filter(\n    ((col('daily_kw') < 500) & (col('tier') != 'low')) |\n    ((col('daily_kw') >= 500) & (col('daily_kw') < 2000) & (col('tier') != 'medium')) |\n    ((col('daily_kw') >= 2000) & (col('daily_kw') < 4000) & (col('tier') != 'high')) |\n    ((col('daily_kw') >= 4000) & (col('tier') != 'critical'))\n).count()\nassert bad == 0",
+            "failure_message": "Some NORTH rows have wrong tier values. Thresholds: low < 500, medium 500–1999, high 2000–3999, critical ≥ 4000. Make sure you did not modify the when/otherwise chain."
+          },
+          {
+            "id": "A3_5",
+            "xp": 24,
+            "description": "substation_name is non-null for all NORTH rows",
+            "check": "null_sub = df_silver.filter((col('region') == 'NORTH') & col('substation_name').isNull()).count()\nassert null_sub == 0",
+            "failure_message": "Some NORTH rows have null substation_name. All NORTH meters have substation_id = SUB-N which maps to 'Northern Grid Hub' in substation_ref_mid.csv."
+          }
+        ]
+      },
+
+      "timeline_contribution": {
+        "tl_3": "Fix applied: removed region.isin(['SOUTH','EAST','WEST']) filter. Silver re-run produced 80 rows, all 4 regions present. NORTH rows: 20. Verified."
+      },
+
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "You identified the bug in Chapter 2: the region filter on one line inside the function. The fix is minimal — one line. The join, the tier logic, and the select are all correct. Only the filter is wrong."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "The function is defined above your solution section. Fix the bug inside the function body, then in your solution section call transform_bronze_to_silver(df_bronze, df_substation) and assign the result to df_silver."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Remove the line .filter(col('region').isin(['SOUTH', 'EAST', 'WEST'])) from the function. Do not replace it with anything. Then write: df_silver = transform_bronze_to_silver(df_bronze, df_substation)"
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Delete this line from inside the function:\n.filter(col('region').isin(['SOUTH', 'EAST', 'WEST']))\n\nThen in your solution section:\ndf_silver = transform_bronze_to_silver(df_bronze, df_substation)"
+        }
+      ]
+    },
+
+    {
+      "id": "chapter_4",
+      "title": "Prevent the Recurrence",
+      "unlock_condition": { "after_chapter": 3 },
+      "chapter_type": "code",
+      "base_xp": 120,
+      "modules_primary": [6],
+      "modules_secondary": [7],
+
+      "narrative_context": "The fix is deployed and Silver is re-running. But the real failure here was not the filter bug — bugs happen. The real failure was that the pipeline produced wrong output for six hours without triggering any alert. Silver completed with status SUCCESS despite missing 25% of its data. If a data quality check had existed, the problem would have been caught before Gold was written. Your job now is to write that check so a silent region-level data loss can never go undetected again.",
+
+      "task": "Write a function called check_region_coverage(df, expected_regions) that takes a Silver DataFrame and a list of expected region names, and returns a list of any regions missing from the DataFrame. An empty list means all regions are present. A non-empty list means the Silver output is incomplete. Test it against dq_test_input (which is missing NORTH) and against a complete Silver table.",
+
+      "validation_hint": "check_region_coverage(df_dq_test, ['NORTH','SOUTH','EAST','WEST']) should return a list containing 'NORTH'. check_region_coverage(df_silver_complete, ['NORTH','SOUTH','EAST','WEST']) should return [].",
+
+      "scaffold": {
+        "filename": "dq_checks.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 4 — Prevent the Recurrence",
+        "code": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-dq-checks') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\ndf_dq_test         = spark.read.csv('data/dq_test_input.csv',        header=True, inferSchema=True)\ndf_silver_complete = spark.read.csv('data/silver_reference_mid.csv', header=True, inferSchema=True)\n\nEXPECTED_REGIONS = ['NORTH', 'SOUTH', 'EAST', 'WEST']\n\n\n# YOUR SOLUTION BELOW\n# ─────────────────────────────────────────────────────────────────────\n\ndef check_region_coverage(df, expected_regions):\n    \"\"\"Return a list of regions from expected_regions that are absent\n    in the 'region' column of df. Empty list = all regions present.\n    \"\"\"\n    pass  # replace with your implementation\n\n\n# ─────────────────────────────────────────────────────────────────────\n# YOUR SOLUTION ABOVE\n\nprint(f'Missing (faulty Silver)   : {sorted(check_region_coverage(df_dq_test,        EXPECTED_REGIONS))}')\nprint(f'Missing (complete Silver) : {sorted(check_region_coverage(df_silver_complete, EXPECTED_REGIONS))}')"
+      },
+
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 30,
+        "assertions": [
+          {
+            "id": "A4_1",
+            "xp": 30,
+            "description": "Function is defined and callable with 2 parameters",
+            "check": "import inspect\nassert callable(check_region_coverage)\nassert len(inspect.signature(check_region_coverage).parameters) == 2",
+            "failure_message": "check_region_coverage must be defined as a function with exactly two parameters: df and expected_regions."
+          },
+          {
+            "id": "A4_2",
+            "xp": 30,
+            "description": "Returns a list containing only 'NORTH' when called on dq_test_input",
+            "check": "result = check_region_coverage(df_dq_test, ['NORTH','SOUTH','EAST','WEST'])\nassert isinstance(result, list)\nassert 'NORTH' in result\nassert 'SOUTH' not in result and 'EAST' not in result and 'WEST' not in result",
+            "failure_message": "When called on dq_test_input (no NORTH rows), should return a list containing only 'NORTH'. Check that you subtract actual from expected, not the other way around."
+          },
+          {
+            "id": "A4_3",
+            "xp": 30,
+            "description": "Returns empty list when called on a complete Silver table",
+            "check": "result_complete = check_region_coverage(df_silver_complete, ['NORTH','SOUTH','EAST','WEST'])\nassert result_complete == [] or set(result_complete) == set()",
+            "failure_message": "When called on a Silver table with all four regions, should return []. If it returns something else, your set difference may be inverted."
+          },
+          {
+            "id": "A4_4",
+            "xp": 30,
+            "description": "Handles an empty DataFrame without crashing and reports all regions missing",
+            "check": "from pyspark.sql.types import StructType, StructField, StringType, DoubleType\nschema = StructType([StructField('meter_id', StringType()), StructField('daily_kw', DoubleType()), StructField('region', StringType())])\ndf_empty = spark.createDataFrame([], schema)\ntry:\n    result_empty = check_region_coverage(df_empty, ['NORTH','SOUTH','EAST','WEST'])\n    assert set(result_empty) == {'NORTH','SOUTH','EAST','WEST'}\nexcept Exception as e:\n    assert False, f'Crashed on empty DataFrame: {e}'",
+            "failure_message": "Function crashed or returned wrong result on empty DataFrame. An empty DataFrame has no regions, so all 4 expected regions should be reported missing."
+          }
+        ]
+      },
+
+      "timeline_contribution": {
+        "tl_4": "Prevention deployed: check_region_coverage() added after Silver write. Tested against injected fault (correctly detected NORTH missing) and complete Silver (no false positive)."
+      },
+
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This is a data quality check implementation — the pattern from the Pipeline Testing and Data Quality module. The function compares what regions are in the DataFrame against what regions are expected, and returns the difference. Think about how to get the set of distinct region values from a PySpark DataFrame."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "To get distinct region values: df.select('region').distinct().collect() returns a list of Row objects. Convert to a Python set with {r[0] for r in df.select('region').distinct().collect()}. Then use Python set difference to find which expected regions are not in the actual set."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Pattern: actual_regions = {r[0] for r in df.select('region').distinct().collect()}. Return list(set(expected_regions) - actual_regions). set(expected_regions) minus actual_regions gives you the missing ones."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "def check_region_coverage(df, expected_regions):\n    actual = {r[0] for r in df.select('region').distinct().collect()}\n    return list(set(expected_regions) - actual)"
+        }
+      ]
+    },
+
+    {
+      "id": "chapter_5",
+      "title": "Write the Post-Mortem",
+      "unlock_condition": { "after_chapter": 4 },
+      "chapter_type": "combined",
+      "base_xp": 120,
+      "modules_primary": [5, 10],
+      "modules_secondary": [],
+
+      "narrative_context": "It is 09:47. Silver has re-run with 80 rows. Gold has been re-generated. The DQ check is committed. The billing team confirms their aggregation ran correctly at 10:00. Your manager sends another message: 'Nice work. Now write up the post-mortem before end of day. We share these with the whole data org.' The incident timeline panel shows your confirmed findings from all four chapters. Turn them into a structured post-mortem any engineer can understand without having been there.",
+
+      "task": "Complete the five-field post-mortem template. Each field has constrained options — select the one that most accurately reflects what the evidence showed. The post-mortem is assessed for internal consistency: root cause must align with Chapter 2, fix must align with Chapter 3, prevention measure must align with Chapter 4.",
+
+      "validation_hint": "The incident timeline panel pre-populates from your earlier findings. Start with the timeline field to anchor your language, then work through root cause, fix, detection gap, and prevention in order.",
+
+      "evidence": [
+        {
+          "id": "ev_5_1",
+          "type": "incident_timeline_panel",
+          "title": "Your confirmed incident timeline (pre-populated from Chapters 1–4)",
+          "caption": "Read-only. Populated from your graded chapter outputs.",
+          "fields": [
+            { "id": "tl_1", "label": "First failure point", "value_source": "chapter_1_output" },
+            { "id": "tl_2", "label": "Root cause confirmed", "value_source": "chapter_2_output" },
+            { "id": "tl_3", "label": "Fix implemented", "value_source": "chapter_3_output" },
+            { "id": "tl_4", "label": "Prevention deployed", "value_source": "chapter_4_output" }
+          ]
+        }
+      ],
+
+      "grading": {
+        "type": "combined",
+        "template_xp": 70,
+        "rubric_xp": 50,
+        "template_fields": [
+          {
+            "id": "F5_1",
+            "xp": 14,
+            "label": "Timeline: when did the data loss begin and how long did it go undetected?",
+            "field_type": "single_select",
+            "options": [
+              "Data loss began at Bronze ingestion on 2026-03-07. It went undetected for 6 hours because no row count validation existed at the Bronze layer.",
+              "Data loss began when the Silver pipeline applied its Filter node at approximately 01:22 on 2026-03-07. It went undetected for approximately 6 hours because the pipeline completed with status SUCCESS and no region completeness check existed on the Silver output.",
+              "Data loss began when the Gold aggregation ran at approximately 07:30 and found no NORTH rows in Silver.",
+              "Data loss began when the debugging filter was committed on 2026-03-06. It went undetected because no CI/CD test runs the Silver pipeline against all four regions."
+            ],
+            "correct_answer": "Data loss began when the Silver pipeline applied its Filter node at approximately 01:22 on 2026-03-07. It went undetected for approximately 6 hours because the pipeline completed with status SUCCESS and no region completeness check existed on the Silver output.",
+            "failure_message": "The timeline should be anchored to the Silver layer (Chapter 1 finding) and note that SUCCESS status gave no alert (Chapter 1 evidence: pipeline completed normally despite dropping 25% of data)."
+          },
+          {
+            "id": "F5_2",
+            "xp": 14,
+            "label": "Root cause",
+            "field_type": "single_select",
+            "options": [
+              "A broadcast join threshold misconfiguration caused the substation reference join to silently drop NORTH rows.",
+              "A hardcoded region filter — col('region').isin(['SOUTH','EAST','WEST']) — was added to silver_transform.py on 2026-03-06 for debugging purposes and was never removed, causing all NORTH meter readings to be excluded from Silver.",
+              "A schema evolution mismatch between the 2026-03-07 Bronze Parquet files and the Silver reader schema caused NORTH records to be silently nullified.",
+              "Catalyst optimizer predicate pushdown incorrectly applied a Gold-layer filter to the Silver read, causing NORTH rows to be pruned."
+            ],
+            "correct_answer": "A hardcoded region filter — col('region').isin(['SOUTH','EAST','WEST']) — was added to silver_transform.py on 2026-03-06 for debugging purposes and was never removed, causing all NORTH meter readings to be excluded from Silver.",
+            "failure_message": "The root cause you confirmed in Chapter 2 was the Filter node: region.isin(['SOUTH','EAST','WEST']). The post-mortem root cause should reflect that finding."
+          },
+          {
+            "id": "F5_3",
+            "xp": 14,
+            "label": "Fix applied",
+            "field_type": "single_select",
+            "options": [
+              "Increased the Spark broadcast join threshold to prevent fallback to sort-merge under memory pressure.",
+              "Removed the col('region').isin(['SOUTH','EAST','WEST']) filter from transform_bronze_to_silver() in silver_transform.py. Silver was re-run for 2026-03-07, producing 80 rows with all four regions present.",
+              "Added mergeSchema=True to the Bronze Parquet reader to handle future schema evolution.",
+              "Disabled Catalyst predicate pushdown for the Silver pipeline."
+            ],
+            "correct_answer": "Removed the col('region').isin(['SOUTH','EAST','WEST']) filter from transform_bronze_to_silver() in silver_transform.py. Silver was re-run for 2026-03-07, producing 80 rows with all four regions present.",
+            "failure_message": "The fix you implemented in Chapter 3 was removing the isin filter. The post-mortem fix should describe that action and its verified outcome."
+          },
+          {
+            "id": "F5_4",
+            "xp": 14,
+            "label": "Detection gap: why did the pipeline complete successfully despite missing 25% of its data?",
+            "field_type": "single_select",
+            "options": [
+              "YARN only tracks job success based on exit code — it does not monitor data completeness.",
+              "The pipeline had no row count validation or region completeness check on its Silver output. Status SUCCESS reflects that all Spark tasks completed without exception — it does not validate that output is correct or complete.",
+              "The PagerDuty integration was misconfigured and was not monitoring Silver pipeline output metrics.",
+              "The incident occurred on a Saturday when the on-call rotation was reduced."
+            ],
+            "correct_answer": "The pipeline had no row count validation or region completeness check on its Silver output. Status SUCCESS reflects that all Spark tasks completed without exception — it does not validate that output is correct or complete.",
+            "failure_message": "The detection gap is a process gap, not a tooling gap. Spark's exit code reflects task completion, not data correctness. The missing check was a region completeness assertion — which you implemented in Chapter 4."
+          },
+          {
+            "id": "F5_5",
+            "xp": 14,
+            "label": "Prevention measure",
+            "field_type": "single_select",
+            "options": [
+              "Increase broadcast join threshold and add YARN-level data completeness monitoring.",
+              "Add schema validation before the Silver write that fails the pipeline if Bronze and Silver schemas diverge.",
+              "Add a check_region_coverage() data quality function after the Silver write that returns missing regions and blocks the Gold write if the result is non-empty.",
+              "Require two-engineer code review for all pipeline changes to prevent debugging filters from reaching production."
+            ],
+            "correct_answer": "Add a check_region_coverage() data quality function after the Silver write that returns missing regions and blocks the Gold write if the result is non-empty.",
+            "failure_message": "The prevention measure you implemented in Chapter 4 was check_region_coverage(). The post-mortem should describe the technical control you added — the function that detects missing regions and gates the Gold write."
+          }
+        ],
+        "rubric": {
+          "description": "Assesses internal consistency across all five fields. A coherent post-mortem describes the same incident in every field. An inconsistent one correctly identifies the filter bug as root cause in F5_2 but then describes a broadcast join fix in F5_3.",
+          "criteria": [
+            {
+              "id": "R5_1",
+              "xp": 20,
+              "label": "Root cause + Fix alignment",
+              "description": "F5_3 (fix) must address the root cause in F5_2. Filter bug → remove filter. Not: filter bug → increase broadcast threshold.",
+              "passes_if": "F5_2 correct AND F5_3 correct"
+            },
+            {
+              "id": "R5_2",
+              "xp": 15,
+              "label": "Detection gap + Prevention alignment",
+              "description": "F5_5 (prevention) must address the detection gap in F5_4. Missing region check → add check_region_coverage. Not: missing region check → add schema validation.",
+              "passes_if": "F5_4 correct AND F5_5 correct"
+            },
+            {
+              "id": "R5_3",
+              "xp": 15,
+              "label": "Timeline + failure layer alignment",
+              "description": "F5_1 must identify Silver as the failure layer and note approximately 6 hours of undetected loss — consistent with the Chapter 1 finding.",
+              "passes_if": "F5_1 correct"
+            }
+          ]
+        }
+      },
+
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "The post-mortem is not new analysis — everything is already in the incident timeline panel from your Chapter 1–4 findings. You are translating confirmed evidence into the structured format. Start with the timeline field, which maps directly to your Chapter 1 finding."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 6,
+          "unlock_condition": "always",
+          "text": "Work through fields in order. F5_1: Chapter 1 failure layer + detection gap. F5_2: Chapter 2 root cause. F5_3: Chapter 3 fix. F5_4: why SUCCESS status didn't alert. F5_5: Chapter 4 function purpose."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 12,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "F5_1: Silver failed, undetected 6 hours, SUCCESS gave no alert. F5_2: hardcoded isin filter excluded NORTH. F5_3: removed isin filter, 80 rows confirmed. F5_4: no region completeness check — SUCCESS means tasks completed, not output is correct. F5_5: check_region_coverage() blocks Gold write if any region is missing."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 24,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "F5_1 = 'Data loss began when the Silver pipeline applied its Filter node...'. F5_2 = 'A hardcoded region filter...'. F5_3 = 'Removed the col(region).isin(...)...'. F5_4 = 'The pipeline had no row count validation or region completeness check...'. F5_5 = 'Add a check_region_coverage() data quality function...'."
+        }
+      ]
+    }
+  ],
+
+  "authoring_metadata": {
+    "authored_by": "StableGrid content team",
+    "authored_date": "2026-04-12",
+    "version_notes": "v1.0.0 — initial release",
+    "self_check_passed": true,
+    "self_check_notes": [
+      "All 10 mid-level modules represented in coverage_matrix",
+      "Evidence tables consistent: 840/630 run log rows match 210-per-region regional breakdown",
+      "Candidate A and C counter-evidence is specific and decisive — not just 'it is unlikely'",
+      "F2_2 and F2_3 have different correct answers (execution plan vs arithmetic)",
+      "H2 for each template chapter names a specific node or column, never a general area",
+      "H4 for template chapters reveals exactly one field answer",
+      "Chapter 5 rubric evaluates cross-chapter consistency only — no single field can pass rubric alone",
+      "dq_test_input.csv has 0 NORTH rows — assertion A4_2 checks 'NORTH' in result only",
+      "silver_reference_mid.csv (80 rows) available as fallback for Chapter 5"
+    ]
+  }
+}

@@ -63,13 +63,8 @@ export const DailyPracticeCard = ({
           }`}
         />
 
-        <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-[#e7ddd0] dark:bg-white/8">
-          <div
-            className={`h-full rounded-full transition-all duration-700 ${
-              done ? 'bg-amber-500' : 'bg-brand-500'
-            }`}
-            style={{ width: `${pct}%` }}
-          />
+        <div className="mb-5 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+          <div style={{ width: `${pct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
         </div>
 
         {weakestTopic && !done ? (

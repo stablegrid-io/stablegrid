@@ -1,0 +1,25 @@
+date,type,severity,country,root_cause_brief,relates_to_risk
+2026-03-28,throttling,S1,GU,F32 streaming capacity hit 100% during SCADA spike; Eventstream lag 12 min,risk_A
+2026-03-21,throttling,S2,GU,F32 streaming at 96% for 40 min; 4 Real-Time Dashboards stale,risk_A
+2026-03-14,throttling,S2,GU,F32 streaming at 95%; KQL query backlog accumulated,risk_A
+2026-03-07,schema_drift,S1,FR,DE silver_meters v3.2→v3.3 additive change broke FR regulatory submission (column count check),risk_B
+2026-02-25,schema_drift,S2,NL,DE silver_billing v2.4→v2.5 type-widening broke NL analytics dashboard,risk_B
+2026-02-10,schema_drift,S2,DE,FR silver_meters v2.3→v2.4 renamed column broke DE cross-country billing,risk_B
+2026-03-25,workspace,S2,GU,Engineer provisioned 3 duplicate workspaces trying to find ws_de_transform_staging,risk_C
+2026-03-18,workspace,S3,LU,"LU engineer assumed ws_lu_stream_prod existed; re-created it, caused 1-day data fork",risk_C
+2026-03-10,capacity_other,S2,GU,F64 analytics peaked 74% (throttling); 2 analytics teams onboarded same week,
+2026-02-15,pipeline_failure,S2,FR,Bronze → Silver MERGE lost 5k FR-3 rows; resolved in 2h,
+2026-02-01,security,S3,DE,Purview label drift on 4 silver tables; 1-day remediation,
+2026-01-20,schema_drift,S3,FR,Minor v2.3.0 additive caught by contract test; 0 consumer impact,risk_B
+2026-01-15,workspace,S3,DE,New engineer spent 45min finding the correct ingest workspace,risk_C
+2025-12-18,throttling,S2,GU,F32 streaming 92% during end-of-year volume spike,risk_A
+2025-12-05,schema_drift,S2,NL,NL silver v1.9→v2.0 breaking change; 90-day migration window completed on time,risk_B
+2025-11-22,pipeline_failure,S1,DE,Data quality gate caught 3% null rate; manual re-run,
+2025-11-10,capacity_other,S3,GU,F128 engineering peaked 68% — within tolerance,
+2025-10-28,schema_drift,S2,LU,LU silver v1.5→v1.6 type-widening; mergeSchema worked,risk_B
+2025-10-15,workspace,S3,NL,Duplicate ws_nl_warehouse_dev created; governance later archived one,risk_C
+2025-09-30,throttling,S2,GU,F32 streaming 89% during morning SCADA peak,risk_A
+2025-09-14,security,S2,DE,RLS policy drift caught by nightly reconciliation,
+2025-08-28,pipeline_failure,S2,FR,Copy activity SFTP timeout; retry succeeded,
+2025-08-10,schema_drift,S3,DE,DE silver v3.0→v3.1 additive; contract tests passed,risk_B
+2025-07-22,workspace,S3,GU,Engineer flagged that 80+ workspaces have become unnavigable,risk_C

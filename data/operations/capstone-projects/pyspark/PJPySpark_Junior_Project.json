@@ -1,0 +1,610 @@
+{
+  "id": "PJ_PySpark_Junior",
+  "version": "1.0.0",
+  "track": "PySpark",
+  "level": "Junior",
+  "scenario": "NordGrid",
+  "total_xp": 500,
+  "narrative_premise": "It is 08:45 on a Monday morning. You have just joined NordGrid Energy's data engineering team as a junior engineer. Your predecessor left last Friday \u2014 abruptly, with no handover notes. Your team lead drops a message in Slack: 'The daily meter pipeline hasn't run since Thursday. The billing team needs the Gold summary by 14:00 or we miss the weekly aggregation window. The code is in the repo. Good luck.' You open the repository and find a folder called daily_meter_pipeline/. It contains five Python files, each with a comment at the top: '# TODO: not finished'. Your job is to finish what was started. Each file is one stage of the Bronze-to-Gold pipeline. The previous engineer got part of each stage right \u2014 the imports are there, the variable names are consistent, and the data files are waiting. What is missing is the actual implementation. Work through the files in order. The output of each stage feeds the next. By the end, NordGrid will have its Silver and Gold tables, the billing team will have their numbers, and you will have built your first complete PySpark pipeline from scratch.",
+  "ux": {
+    "persistent_element": "pipeline_progress_bar",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "Session",
+        "icon": "spark"
+      },
+      {
+        "stage": 2,
+        "label": "Bronze",
+        "icon": "raw"
+      },
+      {
+        "stage": 3,
+        "label": "Silver",
+        "icon": "clean"
+      },
+      {
+        "stage": 4,
+        "label": "Gold",
+        "icon": "aggregate"
+      },
+      {
+        "stage": 5,
+        "label": "Ship",
+        "icon": "write"
+      }
+    ],
+    "score_card": {
+      "thresholds": {
+        "distinguished": 475,
+        "proficient": 400,
+        "developing": 300
+      },
+      "labels": {
+        "distinguished": "Strong pipeline instincts. You completed every stage correctly with minimal scaffolding.",
+        "proficient": "Solid track knowledge. One or two stages needed some coaching \u2014 review the hint usage breakdown to see where.",
+        "developing": "Core concepts are there but integration across stages is uneven. Check the chapter breakdown and revisit the modules with the lowest scores.",
+        "incomplete": "The track content should be reviewed before moving to the mid-level. Use the score card to identify which modules to focus on."
+      }
+    }
+  },
+  "coverage_matrix": {
+    "1": [
+      "chapter_1"
+    ],
+    "2": [
+      "chapter_1"
+    ],
+    "3": [
+      "chapter_2"
+    ],
+    "4": [
+      "chapter_2",
+      "chapter_3"
+    ],
+    "5": [
+      "chapter_3"
+    ],
+    "6": [
+      "chapter_4"
+    ],
+    "7": [
+      "chapter_3"
+    ],
+    "8": [
+      "chapter_5"
+    ],
+    "9": [
+      "chapter_3",
+      "chapter_4"
+    ],
+    "10": [
+      "chapter_5"
+    ]
+  },
+  "datasets": [
+    {
+      "name": "meter_readings_bronze.csv",
+      "path": "PJPySpark_Junior_data/meter_readings_bronze.csv",
+      "row_count": 25,
+      "description": "Raw meter readings as they arrive from the source system. Contains deliberate data quality defects: 3 rows with null kwh_reading, 2 rows with negative kwh_reading (-45.0 and -120.0), 1 row with kwh_reading above the 10000 kW ceiling (12500.0), 1 duplicate row (M-001 repeated with same reading_date), and 1 row with a genuinely invalid rgn_code (NRTH). One additional row has rgn_code lowercase (\"west\") which is valid after upper(trim()) and is intentionally kept \u2014 it tests that the student normalises before filtering, not after. Total defects removed: 8. Valid rows after all cleaning: 17. Column names match the source system: mtr_id, kwh_reading (string), reading_date (string), rgn_code."
+    },
+    {
+      "name": "substation_ref.csv",
+      "path": "PJPySpark_Junior_data/substation_ref.csv",
+      "row_count": 4,
+      "description": "Static reference table mapping substation IDs to names and capacity. One row per substation, one per region (NORTH, SOUTH, EAST, WEST). Columns: substation_id, name, region, capacity_mw. Used in Chapter 3 to enrich the Silver table."
+    },
+    {
+      "name": "meter_substation_map.csv",
+      "path": "PJPySpark_Junior_data/meter_substation_map.csv",
+      "row_count": 22,
+      "description": "Mapping table linking meter IDs to their substation. Not all meters in the bronze file appear here \u2014 3 meter_ids are deliberately absent to test left-join null handling. Columns: meter_id, substation_id."
+    },
+    {
+      "name": "silver_reference.csv",
+      "path": "PJPySpark_Junior_data/silver_reference.csv",
+      "row_count": 17,
+      "description": "Pre-built reference Silver table used as fallback for Chapter 4 and Chapter 5 if Chapter 3 output is not available. Same schema as the expected Chapter 3 output: meter_id, daily_kw (double), date (date), region, year (int), month (int), tier, substation_name, capacity_mw."
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "title": "Start the Engine",
+      "unlock_condition": null,
+      "inter_chapter_dependency": null,
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        2
+      ],
+      "modules_secondary": [
+        1
+      ],
+      "narrative_context": "The first file in the repo is session.py. It is supposed to create the SparkSession and load the three raw source files into DataFrames. The previous engineer wrote the imports and the file paths but left the session creation and the reads unfinished. You can see the variable names they intended: spark, df_readings, df_substation, df_meter_map. The three CSV files are sitting in the data/bronze/ directory. Your job: create a working SparkSession and load all three files correctly.",
+      "task": "Complete session.py. Create a SparkSession named 'nordgrid-daily-pipeline' with spark.sql.shuffle.partitions set to '8'. Load meter_readings_bronze.csv, substation_ref.csv, and meter_substation_map.csv using spark.read.csv with header=True. Assign the results to df_readings, df_substation, and df_meter_map. Do not set a master \u2014 the session should use the environment default.",
+      "validation_hint": "After running your solution, df_readings.count() should return 25, df_substation.count() should return 4, and df_meter_map.count() should return 22.",
+      "scaffold": {
+        "filename": "session.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 1 \u2014 Start the Engine\n# NordGrid daily meter pipeline \u2014 session and data loading\n# The previous engineer set up the imports and paths. Finish the rest.",
+        "code": "from pyspark.sql import SparkSession\n\n# Paths to the raw Bronze source files\nPATH_READINGS   = 'meter_readings_bronze.csv'\nPATH_SUBSTATION = 'substation_ref.csv'\nPATH_METER_MAP  = 'meter_substation_map.csv'\n\n# YOUR SOLUTION BELOW\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n\n\n\n\n\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n# YOUR SOLUTION ABOVE\n\n# Validation \u2014 do not modify\nprint(f'Session app name : {spark.conf.get(\"spark.app.name\")}')\nprint(f'Shuffle partitions: {spark.conf.get(\"spark.sql.shuffle.partitions\")}')\nprint(f'df_readings rows  : {df_readings.count()}')\nprint(f'df_substation rows: {df_substation.count()}')\nprint(f'df_meter_map rows : {df_meter_map.count()}')"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 20,
+        "assertions": [
+          {
+            "id": "A1_1",
+            "xp": 20,
+            "description": "SparkSession exists and is active",
+            "check": "assert spark is not None and spark.sparkContext.isActive",
+            "failure_message": "No active SparkSession found. Make sure you called SparkSession.builder...getOrCreate() and assigned the result to 'spark'."
+          },
+          {
+            "id": "A1_2",
+            "xp": 20,
+            "description": "App name is 'nordgrid-daily-pipeline'",
+            "check": "assert spark.conf.get('spark.app.name') == 'nordgrid-daily-pipeline'",
+            "failure_message": "The app name is not 'nordgrid-daily-pipeline'. Check your .appName() call \u2014 the string must match exactly."
+          },
+          {
+            "id": "A1_3",
+            "xp": 20,
+            "description": "shuffle.partitions set to '8'",
+            "check": "assert spark.conf.get('spark.sql.shuffle.partitions') == '8'",
+            "failure_message": "spark.sql.shuffle.partitions is not '8'. Add .config('spark.sql.shuffle.partitions', '8') to the builder chain."
+          },
+          {
+            "id": "A1_4",
+            "xp": 20,
+            "description": "df_readings loaded with 25 rows and expected columns",
+            "check": "assert df_readings.count() == 25 and set(['mtr_id','kwh_reading','reading_date','rgn_code']).issubset(set(df_readings.columns))",
+            "failure_message": "df_readings doesn't look right. Expected 25 rows and columns mtr_id, kwh_reading, reading_date, rgn_code. Make sure you're reading meter_readings_bronze.csv with header=True."
+          },
+          {
+            "id": "A1_5",
+            "xp": 20,
+            "description": "df_substation and df_meter_map loaded with correct row counts",
+            "check": "assert df_substation.count() == 4 and df_meter_map.count() == 22",
+            "failure_message": "df_substation should have 4 rows and df_meter_map should have 22 rows. Check your file paths and that both reads use header=True."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This is a SparkSession creation and DataFrameReader problem \u2014 the same pattern NordGrid uses at the top of every production pipeline. Think about the builder chain you learned: which method sets the app name, which sets config properties, and which one must always be the last call."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "Look at the validation print statements at the bottom of the scaffold \u2014 they reference spark.conf.get('spark.app.name') and spark.conf.get('spark.sql.shuffle.partitions'). Both of those values are set on the builder. The three read calls each need the same reader method: spark.read.csv() with header=True."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Use SparkSession.builder.appName('nordgrid-daily-pipeline').config('spark.sql.shuffle.partitions', '8').getOrCreate() and assign it to spark. Then use spark.read.csv(PATH_READINGS, header=True) for each of the three files, assigning to df_readings, df_substation, and df_meter_map."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Complete solution:\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-daily-pipeline') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv(PATH_READINGS, header=True)\ndf_substation = spark.read.csv(PATH_SUBSTATION, header=True)\ndf_meter_map = spark.read.csv(PATH_METER_MAP, header=True)"
+        }
+      ]
+    },
+    {
+      "id": "chapter_2",
+      "title": "Read the Damage",
+      "unlock_condition": {
+        "after_chapter": 1
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": 1,
+        "uses_variable": "df_readings",
+        "fallback_note": "If Chapter 1 was not completed, df_readings is loaded from meter_readings_bronze.csv automatically."
+      },
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        3,
+        4
+      ],
+      "modules_secondary": [],
+      "narrative_context": "Now that the session is up and the files are loaded, you can see what you are working with. You run df_readings.show() and immediately spot the problem: the data is a mess. There are nulls where there should be numbers, region codes that do not match any of the four valid regions, readings that are physically impossible (negative energy, consumption over 10,000 kW on a residential meter), and at least one row that appears twice. The previous engineer left a comment: '# TODO: clean this before Silver.' Your job is to build the cleaning pipeline that produces a valid Bronze DataFrame \u2014 clean enough to feed the transformation stage.",
+      "task": "Starting from df_readings, produce df_bronze: a cleaned DataFrame containing only valid rows. Valid means: kwh_reading is not null and casts to a positive double less than 10,000; rgn_code, when uppercased and trimmed, is one of NORTH, SOUTH, EAST, WEST; and there are no duplicate (mtr_id, reading_date) pairs. Do not rename or cast any columns yet \u2014 that happens in Chapter 3. Just filter and deduplicate.",
+      "validation_hint": "df_bronze.count() should return 17. If you get a different number, check your filter conditions one by one \u2014 print the count after each filter to isolate which condition is removing unexpected rows.",
+      "scaffold": {
+        "filename": "bronze_clean.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 2 \u2014 Read the Damage\n# Clean the raw readings DataFrame. Output: df_bronze with only valid rows.",
+        "code": "from pyspark.sql.functions import col, upper, trim\n\n# Inspect first \u2014 always a good idea\ndf_readings.printSchema()\ndf_readings.show(truncate=False)\n\n# YOUR SOLUTION BELOW\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n# Build df_bronze from df_readings. Apply all cleaning steps.\n# Do NOT rename or cast columns yet.\n\n\n\n\n\n\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n# YOUR SOLUTION ABOVE\n\n# Validation\nprint(f'Clean rows: {df_bronze.count()}')\ndf_bronze.show(truncate=False)"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 20,
+        "assertions": [
+          {
+            "id": "A2_1",
+            "xp": 20,
+            "description": "df_bronze has exactly 17 rows",
+            "check": "assert df_bronze.count() == 17",
+            "failure_message": "Expected 17 rows after cleaning. You may be over-filtering or under-filtering. Try printing the count after each individual filter to find which step is off."
+          },
+          {
+            "id": "A2_2",
+            "xp": 20,
+            "description": "No null kwh_reading values remain",
+            "check": "assert df_bronze.filter(col('kwh_reading').isNull()).count() == 0",
+            "failure_message": "There are still null kwh_reading values in df_bronze. Add a filter to remove rows where kwh_reading is null before or after the cast check."
+          },
+          {
+            "id": "A2_3",
+            "xp": 20,
+            "description": "No kwh_reading values outside the valid range (0 < value < 10000)",
+            "check": "assert df_bronze.filter((col('kwh_reading').cast('double') <= 0) | (col('kwh_reading').cast('double') >= 10000)).count() == 0",
+            "failure_message": "Some kwh_reading values are still outside the valid range (must be > 0 and < 10000). Check your filter conditions \u2014 you need both a lower bound and an upper bound."
+          },
+          {
+            "id": "A2_4",
+            "xp": 20,
+            "description": "Only valid region codes remain (NORTH, SOUTH, EAST, WEST after upper/trim)",
+            "check": "from pyspark.sql.functions import upper, trim\nvalid = {'NORTH','SOUTH','EAST','WEST'}\nactual = {r[0] for r in df_bronze.select(upper(trim(col('rgn_code')))).distinct().collect()}\nassert actual.issubset(valid), f'Invalid regions found: {actual - valid}'",
+            "failure_message": "There are still non-standard region codes in df_bronze. Apply upper() and trim() to rgn_code when filtering \u2014 the raw data contains lowercase and typo variants."
+          },
+          {
+            "id": "A2_5",
+            "xp": 20,
+            "description": "No duplicate (mtr_id, reading_date) pairs",
+            "check": "from pyspark.sql.functions import count as cnt\ndupes = df_bronze.groupBy('mtr_id','reading_date').agg(cnt('*').alias('n')).filter(col('n') > 1).count()\nassert dupes == 0",
+            "failure_message": "There is at least one duplicate (mtr_id, reading_date) pair in df_bronze. Use dropDuplicates(['mtr_id', 'reading_date']) to remove them."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This is a filtering and deduplication problem \u2014 the same techniques NordGrid uses every morning when it validates incoming meter data before letting it through to Silver. Think about what you learned in Module 4: filter() for row removal, how to chain multiple conditions, and dropDuplicates() for exact duplicate removal."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "Look at the raw data with df_readings.show(truncate=False). The kwh_reading column is a string \u2014 it needs to be cast to double before you can compare it numerically. The rgn_code column has lowercase and typo variants \u2014 upper() and trim() from pyspark.sql.functions will normalize them before the filter. The duplicate has the same mtr_id and the same reading_date."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Chain four operations: filter out null kwh_reading values using isNotNull(), filter where kwh_reading cast to double is greater than 0 and less than 10000, filter where upper(trim(col('rgn_code'))) is in the set ['NORTH','SOUTH','EAST','WEST'] using isin(), then call dropDuplicates(['mtr_id','reading_date'])."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Complete solution:\n\ndf_bronze = (\n    df_readings\n    .filter(col('kwh_reading').isNotNull())\n    .filter((col('kwh_reading').cast('double') > 0) & (col('kwh_reading').cast('double') < 10000))\n    .filter(upper(trim(col('rgn_code'))).isin('NORTH', 'SOUTH', 'EAST', 'WEST'))\n    .dropDuplicates(['mtr_id', 'reading_date'])\n)"
+        }
+      ]
+    },
+    {
+      "id": "chapter_3",
+      "title": "Enrich the Silver",
+      "unlock_condition": {
+        "after_chapter": 2
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": 2,
+        "uses_variable": "df_bronze",
+        "fallback_note": "If Chapter 2 output is unavailable, df_bronze is loaded from silver_reference.csv pre-cast to match the expected bronze schema."
+      },
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        5,
+        7
+      ],
+      "modules_secondary": [
+        4,
+        9
+      ],
+      "narrative_context": "The cleaned Bronze DataFrame is ready. Now comes the transformation stage \u2014 this is where raw, string-typed data becomes the typed, enriched Silver table that downstream pipelines depend on. The previous engineer left notes here too: they knew the Silver schema (they named all the output columns) but never finished the actual transformations. You need to: cast the raw strings to their proper types, standardize the region code, derive the year and month columns, categorize each reading into a consumption tier, and join in the substation name from the reference table.",
+      "task": "Transform df_bronze into df_silver. The output must have exactly these columns in this order: meter_id (string, renamed from mtr_id), daily_kw (double, cast from kwh_reading), date (date, cast from reading_date), region (string, upper+trimmed from rgn_code), year (int, extracted from date), month (int, extracted from date), tier (string: 'low' for daily_kw < 500, 'medium' for 500\u20131999, 'high' for 2000\u20133999, 'critical' for 4000+), substation_name (string, joined from substation_ref via meter_substation_map \u2014 null is acceptable for unmatched meters). Use a left join so unmatched meters are kept.",
+      "validation_hint": "df_silver.count() should return 17. df_silver.columns should be exactly ['meter_id', 'daily_kw', 'date', 'region', 'year', 'month', 'tier', 'substation_name']. Run df_silver.filter(col('substation_name').isNull()).count() \u2014 you should get 3 (the three meters not in the mapping table).",
+      "scaffold": {
+        "filename": "silver_transform.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 3 \u2014 Enrich the Silver\n# Transform df_bronze into the typed, enriched Silver DataFrame.",
+        "code": "from pyspark.sql.functions import (\n    col, upper, trim, cast,\n    year, month,\n    when\n)\n\n# df_bronze, df_substation, df_meter_map are provided from earlier stages\n\n# YOUR SOLUTION BELOW\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n# Step 1: Cast, rename, and add derived columns to produce an\n#         intermediate DataFrame before the join.\n\n\n\n# Step 2: Join the meter-substation mapping, then the substation ref.\n#         Use left joins so unmatched meters are kept.\n\n\n\n# Step 3: Select exactly the 8 required output columns in the right order.\n\n\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n# YOUR SOLUTION ABOVE\n\n# Validation\nprint(f'Silver columns : {df_silver.columns}')\nprint(f'Silver row count: {df_silver.count()}')\nprint(f'Null substation_name: {df_silver.filter(col(\"substation_name\").isNull()).count()}')\ndf_silver.show()"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 20,
+        "assertions": [
+          {
+            "id": "A3_1",
+            "xp": 20,
+            "description": "df_silver has exactly 17 rows and exactly 8 columns in correct order",
+            "check": "assert df_silver.count() == 17 and df_silver.columns == ['meter_id','daily_kw','date','region','year','month','tier','substation_name']",
+            "failure_message": "Either the row count is not 17 or the column names/order don't match. Expected exactly: ['meter_id', 'daily_kw', 'date', 'region', 'year', 'month', 'tier', 'substation_name']."
+          },
+          {
+            "id": "A3_2",
+            "xp": 20,
+            "description": "Correct column types: daily_kw is DoubleType, date is DateType, year and month are IntegerType",
+            "check": "schema_map = {f.name: f.dataType.simpleString() for f in df_silver.schema.fields}\nassert schema_map['daily_kw'] == 'double'\nassert schema_map['date'] == 'date'\nassert schema_map['year'] == 'int'\nassert schema_map['month'] == 'int'",
+            "failure_message": "One or more column types are wrong. daily_kw must be double, date must be date, year and month must be int. Use .cast('double'), .cast('date'), and the year()/month() functions from pyspark.sql.functions."
+          },
+          {
+            "id": "A3_3",
+            "xp": 20,
+            "description": "Tier values are correct and only 'low', 'medium', 'high', 'critical'",
+            "check": "valid_tiers = {'low','medium','high','critical'}\nactual_tiers = {r[0] for r in df_silver.select('tier').distinct().collect()}\nassert actual_tiers.issubset(valid_tiers)\nlow_count = df_silver.filter((col('daily_kw') < 500) & (col('tier') != 'low')).count()\nassert low_count == 0, 'Some rows with daily_kw < 500 are not tier low'",
+            "failure_message": "Tier values are incorrect. Check your when().otherwise() chain: low for daily_kw < 500, medium for 500\u20131999, high for 2000\u20133999, critical for 4000 and above."
+          },
+          {
+            "id": "A3_4",
+            "xp": 20,
+            "description": "Left join preserved all 17 rows \u2014 unmatched meters have null substation_name",
+            "check": "assert df_silver.count() == 17\nnull_count = df_silver.filter(col('substation_name').isNull()).count()\nassert null_count == 3, f'Expected 3 null substation_name values (unmatched meters), got {null_count}'",
+            "failure_message": "The join lost rows or has the wrong null count. Use a left join (how='left') on the meter_substation_map first, then join that result to substation_ref. 3 meters have no mapping and should have null substation_name."
+          },
+          {
+            "id": "A3_5",
+            "xp": 20,
+            "description": "Region is uppercase and trimmed; year and month match the date column",
+            "check": "from pyspark.sql.functions import upper, trim, year as yr, month as mo\nbad_region = df_silver.filter(col('region') != upper(trim(col('region')))).count()\nassert bad_region == 0\nbad_year = df_silver.filter(col('year') != yr(col('date'))).count()\nassert bad_year == 0\nbad_month = df_silver.filter(col('month') != mo(col('date'))).count()\nassert bad_month == 0",
+            "failure_message": "Region values are not consistently uppercased/trimmed, or year/month values don't match the date column. Use upper(trim(...)) for region and the year()/month() functions to extract from the date column."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This chapter combines two different Module topics: column transformations (Module 5) and joins (Module 7). The transformation part gives df_bronze proper types and derived columns. The join part brings in the substation name. Think about the order: transform first, then join \u2014 it is easier to join on a properly typed and named column."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "The join path has two hops: first join df_bronze to df_meter_map on meter_id to get the substation_id, then join that result to df_substation on substation_id to get the substation name. Both joins should be left joins. After both joins, use select() to pick and order the final 8 columns. The substation_name comes from the name column of df_substation \u2014 you will need to alias it."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "For the transformation step: use withColumn to add daily_kw (cast kwh_reading to double), date (cast reading_date to date), region (upper+trim of rgn_code), year (year() of date), month (month() of date), and tier (when/otherwise chain). For the join: df_intermediate.join(df_meter_map, df_intermediate.meter_id == df_meter_map.meter_id, how='left'), then join result to df_substation on substation_id. Alias df_substation's name column as substation_name in the final select."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Complete solution:\n\ndf_transformed = (\n    df_bronze\n    .withColumn('meter_id', col('mtr_id'))\n    .withColumn('daily_kw', col('kwh_reading').cast('double'))\n    .withColumn('date', col('reading_date').cast('date'))\n    .withColumn('region', upper(trim(col('rgn_code'))))\n    .withColumn('year', year(col('date')))\n    .withColumn('month', month(col('date')))\n    .withColumn('tier', when(col('daily_kw') < 500, 'low')\n                            .when(col('daily_kw') < 2000, 'medium')\n                            .when(col('daily_kw') < 4000, 'high')\n                            .otherwise('critical'))\n)\n\ndf_joined = df_transformed.join(\n    df_meter_map,\n    df_transformed.meter_id == df_meter_map.meter_id,\n    how='left'\n).join(\n    df_substation,\n    'substation_id',\n    how='left'\n)\n\ndf_silver = df_joined.select(\n    df_transformed.meter_id,\n    'daily_kw', 'date', 'region', 'year', 'month', 'tier',\n    col('name').alias('substation_name')\n)"
+        }
+      ]
+    },
+    {
+      "id": "chapter_4",
+      "title": "Aggregate for Gold",
+      "unlock_condition": {
+        "after_chapter": 3
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": 3,
+        "uses_variable": "df_silver",
+        "fallback_dataset": "PJPySpark_Junior_data/silver_reference.csv",
+        "fallback_note": "If df_silver is unavailable, it is loaded from silver_reference.csv and cast to the correct schema automatically."
+      },
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        6
+      ],
+      "modules_secondary": [
+        9
+      ],
+      "narrative_context": "The Silver table is ready. The billing team does not need row-level data \u2014 they need regional summaries by month. That is the Gold table: one row per region per month, with total consumption, average consumption, and reading count. The previous engineer knew this \u2014 they left a comment listing the exact columns the billing team expects: region, month, total_kw, avg_kw, reading_count. They just never wrote the groupBy.",
+      "task": "Aggregate df_silver into df_gold. Group by region and month. Compute total_kw as the sum of daily_kw rounded to 1 decimal place, avg_kw as the average of daily_kw rounded to 1 decimal place, and reading_count as the count of rows. The output must have exactly these 5 columns: region, month, total_kw, avg_kw, reading_count. Include all rows from df_silver \u2014 do not pre-filter.",
+      "validation_hint": "With 17 Silver rows spread across 4 regions and the dates in the test data, df_gold.count() should return 4 (one row per region \u2014 all readings are from the same month). Run df_gold.show() to verify the numbers look reasonable: total_kw should be the sum of all daily_kw values in that region.",
+      "scaffold": {
+        "filename": "gold_aggregate.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 4 \u2014 Aggregate for Gold\n# Produce the regional monthly summary that the billing team needs.",
+        "code": "from pyspark.sql.functions import col, sum as spark_sum, avg, count, round as spark_round\n\n# df_silver is provided from earlier stages\n\n# YOUR SOLUTION BELOW\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n\n\n\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n# YOUR SOLUTION ABOVE\n\n# Validation\nprint(f'Gold columns   : {df_gold.columns}')\nprint(f'Gold row count : {df_gold.count()}')\ndf_gold.orderBy('region').show()"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 25,
+        "assertions": [
+          {
+            "id": "A4_1",
+            "xp": 25,
+            "description": "df_gold has exactly 5 columns in correct order",
+            "check": "assert df_gold.columns == ['region','month','total_kw','avg_kw','reading_count']",
+            "failure_message": "Column names or order are wrong. Expected exactly: ['region', 'month', 'total_kw', 'avg_kw', 'reading_count']. Use .alias() to rename the aggregation results."
+          },
+          {
+            "id": "A4_2",
+            "xp": 25,
+            "description": "Correct row count: one row per (region, month) combination",
+            "check": "assert df_gold.count() == 4",
+            "failure_message": "Expected 4 rows (one per region). Make sure you are grouping by both 'region' and 'month' and not adding any pre-filters that would reduce the groups."
+          },
+          {
+            "id": "A4_3",
+            "xp": 25,
+            "description": "total_kw and avg_kw are rounded to 1 decimal place",
+            "check": "from pyspark.sql.functions import round as r\nfrom pyspark.sql.types import DoubleType\nassert df_gold.schema['total_kw'].dataType == DoubleType() or str(df_gold.schema['total_kw'].dataType) == 'DoubleType()'\nfor row in df_gold.collect():\n    assert row['total_kw'] == round(row['total_kw'], 1), 'total_kw not rounded to 1dp'\n    assert row['avg_kw'] == round(row['avg_kw'], 1), 'avg_kw not rounded to 1dp'",
+            "failure_message": "total_kw or avg_kw are not rounded to 1 decimal place. Wrap your sum() and avg() calls with round(expr, 1) from pyspark.sql.functions."
+          },
+          {
+            "id": "A4_4",
+            "xp": 25,
+            "description": "reading_count matches actual per-region row counts in Silver",
+            "check": "gold_map = {r['region']: r['reading_count'] for r in df_gold.collect()}\nfrom pyspark.sql.functions import count as cnt\nsilver_map = {r['region']: r['n'] for r in df_silver.groupBy('region').agg(cnt('*').alias('n')).collect()}\nassert gold_map == silver_map, f'reading_count mismatch: gold={gold_map}, silver={silver_map}'",
+            "failure_message": "The reading_count values in df_gold don't match the actual row counts per region in df_silver. Use count('*') or count('meter_id') \u2014 they should give the same result here since all meter_id values are non-null."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This is a groupBy and aggregation problem \u2014 the central topic of Module 6. You need to summarize rows by group, which is exactly what you learned when NordGrid needed to compute regional consumption summaries. The output has one row per region per month."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "Look at the imports already in the scaffold: spark_sum, avg, count, and spark_round are all there. The round function takes two arguments: the expression and the number of decimal places. The groupBy takes both 'region' and 'month'. Every aggregation expression needs an alias \u2014 otherwise you get column names like 'round(sum(daily_kw), 1)' which does not match the expected output."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Use df_silver.groupBy('region', 'month').agg(...) with three expressions inside agg(): spark_round(spark_sum('daily_kw'), 1).alias('total_kw'), spark_round(avg('daily_kw'), 1).alias('avg_kw'), and count('*').alias('reading_count')."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Complete solution:\n\ndf_gold = df_silver.groupBy('region', 'month').agg(\n    spark_round(spark_sum('daily_kw'), 1).alias('total_kw'),\n    spark_round(avg('daily_kw'), 1).alias('avg_kw'),\n    count('*').alias('reading_count')\n)"
+        }
+      ]
+    },
+    {
+      "id": "chapter_5",
+      "title": "Ship It",
+      "unlock_condition": {
+        "after_chapter": 4
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": 4,
+        "uses_variable": "df_silver",
+        "fallback_dataset": "PJPySpark_Junior_data/silver_reference.csv",
+        "fallback_note": "If df_silver and df_gold are unavailable they are rebuilt from the reference dataset automatically."
+      },
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        8,
+        10
+      ],
+      "modules_secondary": [
+        3
+      ],
+      "narrative_context": "It is 13:30. The billing run window closes at 14:00. You have a Silver DataFrame and a Gold DataFrame sitting in memory. They need to be on disk and queryable in the next 30 minutes. The previous engineer left the final file: ship.py. It has the output paths and a SQL validation query at the bottom. The actual write calls and the temp view registration are missing. This is the final stage \u2014 write the data, prove it is correct with a SQL query, and the pipeline is done.",
+      "task": "Write df_silver to output/silver/meters/ as Parquet, partitioned by region, using mode overwrite. Write df_gold to output/gold/monthly_summary/ as a single Parquet file using coalesce(1) and mode overwrite. Then: read the Silver Parquet back from disk, register it as a temporary view named 'silver_meters', and run the SQL validation query already written at the bottom of the scaffold. Assign the query result to df_validation.",
+      "validation_hint": "After the write calls, check that the output/silver/meters/ directory contains subdirectories named region=NORTH, region=SOUTH, region=EAST, region=WEST. df_validation should have 4 rows and the same region/month structure as df_gold.",
+      "scaffold": {
+        "filename": "ship.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 5 \u2014 Ship It\n# Write Silver and Gold to disk. Register the Silver view. Run the validation query.",
+        "code": "# Output paths\nSILVER_PATH = 'output/silver/meters/'\nGOLD_PATH   = 'output/gold/monthly_summary/'\n\n# df_silver and df_gold are provided from earlier stages\n\n# YOUR SOLUTION BELOW\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n# 1. Write df_silver as Parquet, partitioned by region, mode overwrite\n\n\n# 2. Write df_gold as a single Parquet file, mode overwrite\n\n\n# 3. Read Silver back from disk, register as temp view 'silver_meters'\n\n\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n# YOUR SOLUTION ABOVE\n\n# Validation query \u2014 do not modify\ndf_validation = spark.sql(\"\"\"\n    SELECT\n        region,\n        month,\n        ROUND(SUM(daily_kw), 1) AS total_kw,\n        COUNT(*)                 AS reading_count\n    FROM silver_meters\n    GROUP BY region, month\n    ORDER BY region\n\"\"\")\n\nprint('Pipeline complete. Validation result:')\ndf_validation.show()\n\nspark.stop()"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 20,
+        "assertions": [
+          {
+            "id": "A5_1",
+            "xp": 20,
+            "description": "Silver Parquet is partitioned by region (4 partition directories exist)",
+            "check": "import os\nparts = [d for d in os.listdir('output/silver/meters/') if d.startswith('region=')]\nassert len(parts) == 4, f'Expected 4 region= partition directories, found {len(parts)}: {parts}'",
+            "failure_message": "Silver output is not partitioned by region. Use .partitionBy('region') in the write call."
+          },
+          {
+            "id": "A5_2",
+            "xp": 20,
+            "description": "Silver Parquet on disk has correct row count (17)",
+            "check": "df_check = spark.read.parquet('output/silver/meters/')\nassert df_check.count() == 17, f'Expected 17 rows in Silver Parquet, got {df_check.count()}'",
+            "failure_message": "Reading Silver Parquet back from disk returned the wrong row count. Make sure you wrote df_silver (17 rows) and used mode('overwrite')."
+          },
+          {
+            "id": "A5_3",
+            "xp": 20,
+            "description": "Gold Parquet on disk has exactly 4 rows",
+            "check": "df_gold_check = spark.read.parquet('output/gold/monthly_summary/')\nassert df_gold_check.count() == 4, f'Expected 4 rows in Gold Parquet, got {df_gold_check.count()}'",
+            "failure_message": "Reading Gold Parquet back from disk returned the wrong row count. Make sure you wrote df_gold (4 rows) with coalesce(1) and mode('overwrite')."
+          },
+          {
+            "id": "A5_4",
+            "xp": 20,
+            "description": "Temp view 'silver_meters' is registered and queryable",
+            "check": "tables = [t.name for t in spark.catalog.listTables()]\nassert 'silver_meters' in tables, 'Temp view silver_meters not found. Use createOrReplaceTempView(\"silver_meters\").'",
+            "failure_message": "The temp view 'silver_meters' is not registered. Read the Silver Parquet back from disk and call .createOrReplaceTempView('silver_meters')."
+          },
+          {
+            "id": "A5_5",
+            "xp": 20,
+            "description": "df_validation has 4 rows and correct region values",
+            "check": "assert df_validation.count() == 4\nregions = {r['region'] for r in df_validation.collect()}\nassert regions == {'NORTH','SOUTH','EAST','WEST'}, f'Expected NORTH/SOUTH/EAST/WEST, got {regions}'",
+            "failure_message": "df_validation should have 4 rows (one per region). If the view is registered correctly, the SQL query at the bottom of the scaffold will produce this result automatically \u2014 make sure you didn't modify the query."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This chapter brings together file writing (Module 8) and the SQL interface (Module 10). Writing Silver uses partitioned Parquet \u2014 the same pattern NordGrid uses in production to allow region-filtered reads to skip irrelevant files. Writing Gold uses coalesce(1) because the billing team expects a single file. The temp view is how NordGrid bridges the DataFrame API and SQL queries."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "For the Silver write, you need three chained calls on df_silver.write: .mode('overwrite'), .partitionBy('region'), and .parquet(SILVER_PATH). For Gold, chain coalesce(1) on df_gold first, then .write.mode('overwrite').parquet(GOLD_PATH). For the temp view: read Silver back with spark.read.parquet(SILVER_PATH), then call .createOrReplaceTempView('silver_meters') on the result."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Write Silver: df_silver.write.mode('overwrite').partitionBy('region').parquet(SILVER_PATH). Write Gold: df_gold.coalesce(1).write.mode('overwrite').parquet(GOLD_PATH). Read back and register view: spark.read.parquet(SILVER_PATH).createOrReplaceTempView('silver_meters')."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Complete solution:\n\ndf_silver.write.mode('overwrite').partitionBy('region').parquet(SILVER_PATH)\ndf_gold.coalesce(1).write.mode('overwrite').parquet(GOLD_PATH)\nspark.read.parquet(SILVER_PATH).createOrReplaceTempView('silver_meters')"
+        }
+      ]
+    }
+  ],
+  "dataset_readme": {
+    "path": "PJPySpark_Junior_data/README.md",
+    "content": "# PJPySpark Junior Project \u2014 Dataset README\n\n## meter_readings_bronze.csv (25 rows)\nRaw source data. Intentional defects:\n- 3 rows with null kwh_reading\n- 2 rows with kwh_reading = '-45.0' (negative)\n- 2 rows with kwh_reading = '12500.0' (above 10000 ceiling)\n- 1 duplicate: same mtr_id + reading_date as another row\n- 2 rows with non-standard rgn_code: 'north' (lowercase), 'NRTH' (typo)\nValid rows after all cleaning: 17.\n\n## substation_ref.csv (4 rows)\nOne row per region. Columns: substation_id, name, region, capacity_mw.\nAll four regions present: NORTH, SOUTH, EAST, WEST.\n\n## meter_substation_map.csv (22 rows)\nLinks meter_id to substation_id. 22 of the 25 raw meter_ids are present.\n3 meter_ids from the bronze file are absent \u2014 intentional, to test left join null handling.\nAfter cleaning (17 valid rows), 3 of those 17 valid meters have no substation mapping.\n\n## silver_reference.csv (17 rows)\nPre-built reference Silver output. Used as fallback for Chapters 4 and 5.\nSchema: meter_id (string), daily_kw (double), date (date), region (string),\nyear (int), month (int), tier (string), substation_name (string, nullable).\nAll values consistent with what a correct Chapter 3 solution produces."
+  },
+  "authoring_metadata": {
+    "authored_by": "StableGrid content team",
+    "authored_date": "2026-04-12",
+    "version_notes": "v1.0.0 \u2014 initial release",
+    "self_check_passed": true,
+    "self_check_notes": [
+      "All 5 chapters use NordGrid scenario data with correct column names (mtr_id, kwh_reading, reading_date, rgn_code, substation_id, etc.)",
+      "Coverage matrix verified: all 10 modules appear in at least one chapter",
+      "17 valid rows after all Chapter 2 cleaning steps confirmed by manual trace",
+      "Inter-chapter fallback datasets authored and verified for schema consistency",
+      "All hint tiers independently usable \u2014 verified by reading each in isolation",
+      "H4 reveals at most 1 of 5 assertions worth (20% of chapter XP)",
+      "No hint contains syntax that directly passes an assertion without student work",
+      "Senior H4 restriction does not apply \u2014 all chapters are code tasks"
+    ]
+  }
+}

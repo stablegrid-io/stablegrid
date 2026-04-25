@@ -1,0 +1,151 @@
+{
+  "run_id": "pl_daily_meter-20260418-0200",
+  "pipeline": "pl_daily_meter",
+  "workspace": "ws_nordgrid_silver_prod",
+  "processing_date": "2026-04-18",
+  "schedule_trigger": "trg_daily_0200",
+  "overall_status": "Succeeded",
+  "started_utc": "2026-04-18T02:00:02Z",
+  "ended_utc": "2026-04-18T02:08:41Z",
+  "sla_deadline_utc": "2026-04-18T03:00:00Z",
+  "baseline_rows_per_region": {
+    "NORTH-1": 100412, "NORTH-2": 99868, "NORTH-3": 100105,
+    "SOUTH-1": 100220, "SOUTH-2":  99940, "SOUTH-3": 100333,
+    "EAST-1":   99812, "EAST-2": 100087, "EAST-3":  99756,
+    "WEST-1":  100004, "WEST-2": 100188, "WEST-3":  99699
+  },
+  "activities": [
+    {
+      "name": "Copy Meter CSV",
+      "type": "Copy",
+      "status": "Succeeded",
+      "started_utc": "2026-04-18T02:00:02Z",
+      "ended_utc": "2026-04-18T02:02:47Z",
+      "duration_seconds": 165,
+      "rows_read": 1200824,
+      "rows_written": 1200824,
+      "output_path": "Files/bronze/meter_readings_bronze.csv",
+      "retries_used": 0
+    },
+    {
+      "name": "Refresh Substation Dataflow",
+      "type": "Dataflow",
+      "status": "Succeeded",
+      "started_utc": "2026-04-18T02:00:02Z",
+      "ended_utc": "2026-04-18T02:01:55Z",
+      "duration_seconds": 113,
+      "rows_written": 12
+    },
+    {
+      "name": "Lookup Bronze Row Count",
+      "type": "Lookup",
+      "status": "Succeeded",
+      "started_utc": "2026-04-18T02:02:48Z",
+      "ended_utc": "2026-04-18T02:02:51Z",
+      "duration_seconds": 3,
+      "output": {"count": 1200824}
+    },
+    {
+      "name": "If Bronze Has Rows",
+      "type": "IfCondition",
+      "status": "Succeeded",
+      "branch_taken": "True",
+      "started_utc": "2026-04-18T02:02:51Z",
+      "ended_utc": "2026-04-18T02:02:52Z",
+      "duration_seconds": 1
+    },
+    {
+      "name": "ForEach Process Each Region",
+      "type": "ForEach",
+      "status": "Succeeded",
+      "is_sequential": false,
+      "batch_count": 4,
+      "items_count": 12,
+      "started_utc": "2026-04-18T02:02:53Z",
+      "ended_utc": "2026-04-18T02:06:19Z",
+      "duration_seconds": 206,
+      "iterations": [
+        {"item":"NORTH-1","status":"Succeeded","duration_seconds":198,"rows_read":100412,"rows_written":100412},
+        {"item":"NORTH-2","status":"Succeeded","duration_seconds":0.8,"rows_read":99868,"rows_written":0,
+         "note":"Notebook completed in 0.8s with 0 rows written. No error raised."},
+        {"item":"NORTH-3","status":"Succeeded","duration_seconds":195,"rows_read":100105,"rows_written":100105},
+        {"item":"SOUTH-1","status":"Succeeded","duration_seconds":201,"rows_read":100220,"rows_written":100220},
+        {"item":"SOUTH-2","status":"Succeeded","duration_seconds":197,"rows_read":99940, "rows_written":99940},
+        {"item":"SOUTH-3","status":"Succeeded","duration_seconds":200,"rows_read":100333,"rows_written":100333},
+        {"item":"EAST-1", "status":"Succeeded","duration_seconds":193,"rows_read":99812, "rows_written":99812},
+        {"item":"EAST-2", "status":"Succeeded","duration_seconds":199,"rows_read":100087,"rows_written":100087},
+        {"item":"EAST-3", "status":"Succeeded","duration_seconds":194,"rows_read":99756, "rows_written":99754,
+         "note":"2 rows filtered — 1 null daily_kw, 1 daily_kw < 0 — within expected range"},
+        {"item":"WEST-1", "status":"Succeeded","duration_seconds":196,"rows_read":100004,"rows_written":100003,
+         "note":"1 row filtered — 1 daily_kw < 0 — within expected range"},
+        {"item":"WEST-2", "status":"Succeeded","duration_seconds":200,"rows_read":100188,"rows_written":100188},
+        {"item":"WEST-3", "status":"Succeeded","duration_seconds":202,"rows_read":99699, "rows_written":99699}
+      ]
+    },
+    {
+      "name": "Invoke pl_gold_aggregate",
+      "type": "InvokePipeline",
+      "status": "Succeeded",
+      "started_utc": "2026-04-18T02:06:20Z",
+      "ended_utc": "2026-04-18T02:08:38Z",
+      "duration_seconds": 138,
+      "note": "Gold refresh (DELETE current month + INSERT from silver_meters) completed. 11 regions aggregated for 2026-04."
+    },
+    {
+      "name": "Write pipeline_metrics",
+      "type": "Script",
+      "status": "Succeeded",
+      "started_utc": "2026-04-18T02:08:38Z",
+      "ended_utc": "2026-04-18T02:08:40Z",
+      "duration_seconds": 2
+    },
+    {
+      "name": "Slack Success Notification",
+      "type": "Web",
+      "status": "Succeeded",
+      "started_utc": "2026-04-18T02:08:40Z",
+      "ended_utc": "2026-04-18T02:08:41Z",
+      "duration_seconds": 1,
+      "message_posted": "pl_daily_meter 2026-04-18 completed. 12 regions processed, 1,200,559 rows written."
+    }
+  ],
+  "recent_deployments": [
+    {
+      "pr_number": 847,
+      "author": "charlie.okafor@nordgrid.example",
+      "merged_utc": "2026-04-17T22:14:03Z",
+      "title": "feat(silver): add tariff_code quality filter (SCHEMA-0419)",
+      "files_changed": ["notebooks/nb_transform_meters/nordgrid_transforms.py"],
+      "description": "Adds a non-null check on tariff_code following the Module 2 schema-evolution playbook. The vendor populated tariff_code across all 12 regional exports last week so we can now enforce NOT NULL at Silver.",
+      "review_status": "Approved (1 reviewer) — CI tests: passed. No schema-drift test present for the new filter.",
+      "staging_validation": "Ran against 1% sample of 2026-04-16 data. Staging sample did not include NORTH-2 rows."
+    },
+    {
+      "pr_number": 844,
+      "author": "lin.hartley@nordgrid.example",
+      "merged_utc": "2026-04-15T09:32:10Z",
+      "title": "chore(capacity): bump ForEach batchCount 4 -> 4 (no change)",
+      "files_changed": ["pipelines/pl_daily_meter.jsonc"],
+      "description": "No-op documentation commit."
+    },
+    {
+      "pr_number": 842,
+      "author": "mae.thornton@nordgrid.example",
+      "merged_utc": "2026-04-12T14:05:22Z",
+      "title": "fix(eventstream): SCADA turbine ingest topic rename",
+      "files_changed": ["eventstreams/es_scada_turbines.json"],
+      "description": "Unrelated — SCADA/Eventstream pipeline only. Does not touch pl_daily_meter."
+    }
+  ],
+  "capacity_metrics": {
+    "capacity_name": "cap_nordgrid_prod_f64",
+    "sku": "F64",
+    "peak_cu_percent": 41,
+    "throttling_events": 0
+  },
+  "morning_dashboard_indicators": {
+    "checked_utc": "2026-04-18T06:40:17Z",
+    "checked_by": "alex.rivera@nordgrid.example (central analytics)",
+    "observation": "monthly_billing view returns 11 rows for 2026-04 (expected 12). NORTH-2 row absent. All other regions show today's totals."
+  }
+}

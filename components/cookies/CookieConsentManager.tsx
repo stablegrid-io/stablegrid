@@ -8,7 +8,6 @@ import { syncConsentRecordWithServer, writeServerConsentRecord } from '@/lib/coo
 import { COOKIE_CATEGORY_COPY } from '@/lib/cookies/cookie-config';
 import {
   COOKIE_PREFERENCES_OPEN_EVENT,
-  LANDING_INTRO_COMPLETE_EVENT,
   buildAcceptAllConsentState,
   buildRejectAllConsentState,
   compareConsentRecordFreshness,
@@ -29,15 +28,19 @@ const OPTIONAL_CATEGORIES: Array<Exclude<keyof CookieConsentState, 'necessary'>>
 ];
 const COOKIE_BANNER_SESSION_KEY = 'stablegrid-cookie-banner-seen-session';
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function CookieConsentManager() {
   const pathname = usePathname();
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const consentRef = useRef<CookieConsentState>(buildRejectAllConsentState());
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [ready, setReady] = useState(false);
   const [hasSavedDecision, setHasSavedDecision] = useState(false);
   const [draftConsent, setDraftConsent] = useState<CookieConsentState>(buildRejectAllConsentState());
   const [modalOpen, setModalOpen] = useState(false);
-  const [landingIntroReady, setLandingIntroReady] = useState(pathname !== '/');
   const [bannerSeenThisSession, setBannerSeenThisSession] = useState(false);
 
   const openPreferences = useCallback(() => {
@@ -152,78 +155,70 @@ export function CookieConsentManager() {
     };
   }, [currentUserId, ready]);
 
+  // Focus management for modal: save prior focus on open, trap focus inside,
+  // restore focus to the opener on close.
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (!modalOpen) {
+      const previouslyFocused = previousFocusRef.current;
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+        previouslyFocused.focus();
+      }
+      previousFocusRef.current = null;
       return;
     }
 
-    if (pathname !== '/') {
-      setLandingIntroReady(true);
+    previousFocusRef.current = (document.activeElement as HTMLElement | null) ?? null;
+
+    const dialog = dialogRef.current;
+    if (!dialog) {
       return;
     }
 
-    setLandingIntroReady(false);
-    let pollTimeoutId: number | null = null;
-    let hardTimeoutId: number | null = null;
-    let lockObserver: MutationObserver | null = null;
-    let pollAttempts = 0;
+    const getFocusable = () =>
+      Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+        (el) => !el.hasAttribute('disabled') && el.tabIndex !== -1
+      );
 
-    const resolveIntroGate = () => {
-      const gridFlowSection = document.getElementById('grid-flow');
-      if (!gridFlowSection) {
-        pollAttempts += 1;
-        if (pollAttempts >= 20) {
-          setLandingIntroReady(true);
-          return;
-        }
-        pollTimeoutId = window.setTimeout(resolveIntroGate, 100);
+    const focusable = getFocusable();
+    if (focusable.length > 0) {
+      focusable[0].focus();
+    } else {
+      dialog.focus();
+    }
+
+    const handleTrapKeydown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') {
         return;
       }
-
-      const introLocked = gridFlowSection.getAttribute('data-intro-lock') === 'true';
-      setLandingIntroReady(!introLocked);
-
-      if (lockObserver) {
-        lockObserver.disconnect();
+      const items = getFocusable();
+      if (items.length === 0) {
+        event.preventDefault();
+        return;
       }
-      lockObserver = new MutationObserver(() => {
-        const lockedNow = gridFlowSection.getAttribute('data-intro-lock') === 'true';
-        if (!lockedNow) {
-          setLandingIntroReady(true);
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey) {
+        if (active === first || !dialog.contains(active)) {
+          event.preventDefault();
+          last.focus();
         }
-      });
-      lockObserver.observe(gridFlowSection, {
-        attributes: true,
-        attributeFilter: ['data-intro-lock']
-      });
+      } else if (active === last || !dialog.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
-    const handleIntroComplete = () => {
-      setLandingIntroReady(true);
-    };
-
-    hardTimeoutId = window.setTimeout(() => {
-      setLandingIntroReady(true);
-    }, 8000);
-
-    window.addEventListener(LANDING_INTRO_COMPLETE_EVENT, handleIntroComplete);
-    resolveIntroGate();
-
+    document.addEventListener('keydown', handleTrapKeydown);
     return () => {
-      window.removeEventListener(LANDING_INTRO_COMPLETE_EVENT, handleIntroComplete);
-      if (pollTimeoutId !== null) {
-        window.clearTimeout(pollTimeoutId);
-      }
-      if (hardTimeoutId !== null) {
-        window.clearTimeout(hardTimeoutId);
-      }
-      lockObserver?.disconnect();
+      document.removeEventListener('keydown', handleTrapKeydown);
     };
-  }, [pathname]);
+  }, [modalOpen]);
 
   const shouldUseLandingSessionPrompt = pathname === '/';
   const bannerVisible = shouldUseLandingSessionPrompt
-    ? ready && landingIntroReady && !bannerSeenThisSession
+    ? ready && !bannerSeenThisSession
     : ready && !hasSavedDecision;
 
   return (
@@ -232,11 +227,11 @@ export function CookieConsentManager() {
       {bannerVisible ? (
         <section
           aria-label="Cookie consent"
-          className="fixed bottom-6 left-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-white/[0.08] bg-[#0d0f11]/90 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:left-auto sm:right-5 sm:translate-x-0"
+          className="fixed bottom-5 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-[22px] border border-white/[0.08] bg-[#0d0f11]/90 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:bottom-6 sm:right-5"
         >
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-start gap-3 mb-4">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.04]">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.04]">
                 <Shield className="h-4 w-4 text-white/50" />
               </div>
               <div>
@@ -259,21 +254,21 @@ export function CookieConsentManager() {
               <button
                 type="button"
                 onClick={() => commitConsent(buildAcceptAllConsentState(), 'banner_accept_all')}
-                className="flex-1 rounded-xl bg-white/[0.08] px-4 py-2 text-[0.8rem] font-medium text-white/90 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex-1 rounded-[14px] bg-white/[0.08] px-4 py-2.5 text-[0.8rem] font-medium text-white/90 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 Accept all
               </button>
               <button
                 type="button"
                 onClick={() => commitConsent(buildRejectAllConsentState(), 'banner_reject_all')}
-                className="flex-1 rounded-xl bg-white/[0.04] px-4 py-2 text-[0.8rem] font-medium text-white/50 transition-all hover:bg-white/[0.07] hover:text-white/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex-1 rounded-[14px] bg-white/[0.08] px-4 py-2.5 text-[0.8rem] font-medium text-white/90 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 Reject all
               </button>
               <button
                 type="button"
                 onClick={openPreferences}
-                className="rounded-xl px-3 py-2 text-[0.8rem] font-medium text-white/30 transition-all hover:text-white/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="rounded-[14px] px-3 py-2.5 text-[0.8rem] font-medium text-white/70 transition-all hover:text-white/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 Manage
               </button>
@@ -293,15 +288,17 @@ export function CookieConsentManager() {
           />
 
           <section
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="cookie-preferences-title"
-            className="relative z-10 w-[calc(100vw-1.5rem)] max-w-[34rem] max-h-[85vh] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#0d0f11]/95 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
+            tabIndex={-1}
+            className="relative z-10 w-[calc(100vw-1.5rem)] max-w-[34rem] max-h-[85vh] overflow-y-auto rounded-[22px] border border-white/[0.08] bg-[#0d0f11]/95 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl focus-visible:outline-none"
           >
             {/* Header */}
             <header className="flex items-center justify-between px-5 pt-5 pb-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.04]">
+                <div className="flex h-9 w-9 items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.04]">
                   <Shield className="h-4.5 w-4.5 text-white/50" />
                 </div>
                 <div>
@@ -318,7 +315,7 @@ export function CookieConsentManager() {
                 type="button"
                 aria-label="Close"
                 onClick={() => setModalOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-white/25 transition-colors hover:bg-white/[0.06] hover:text-white/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex h-8 w-8 items-center justify-center rounded-[14px] text-white/25 transition-colors hover:bg-white/[0.06] hover:text-white/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -337,7 +334,7 @@ export function CookieConsentManager() {
                     role="switch"
                     aria-checked="true"
                     disabled
-                    className="relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full p-[2px] bg-[#99f7ff] transition"
+                    className="relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full p-[2px] bg-primary transition"
                   >
                     <span className="inline-block h-[18px] w-[18px] translate-x-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-transform" />
                     <span className="sr-only">Necessary cookies always active</span>
@@ -381,7 +378,7 @@ export function CookieConsentManager() {
                         }}
                         className={`relative inline-flex h-[22px] w-[38px] shrink-0 cursor-pointer items-center rounded-full p-[2px] transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                           draftConsent[category]
-                            ? 'bg-[#99f7ff]'
+                            ? 'bg-primary'
                             : 'bg-white/[0.08]'
                         }`}
                       >
@@ -417,7 +414,7 @@ export function CookieConsentManager() {
             <footer className="flex items-center justify-between gap-3 px-5 py-4">
               <Link
                 href="/privacy#cookie-policy"
-                className="text-[0.75rem] text-white/25 underline underline-offset-2 transition-colors hover:text-white/45"
+                className="text-[0.75rem] text-white/60 underline underline-offset-2 transition-colors hover:text-white/80"
               >
                 Cookie policy
               </Link>
@@ -428,14 +425,14 @@ export function CookieConsentManager() {
                     setDraftConsent(buildRejectAllConsentState());
                     commitConsent(buildRejectAllConsentState(), 'preferences_reject_all');
                   }}
-                  className="rounded-xl px-3.5 py-2 text-[0.8rem] font-medium text-white/35 transition-all hover:bg-white/[0.04] hover:text-white/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                  className="rounded-[14px] px-3.5 py-2.5 text-[0.8rem] font-medium text-white/65 transition-all hover:bg-white/[0.04] hover:text-white/85 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 >
                   Reject all
                 </button>
                 <button
                   type="button"
                   onClick={() => commitConsent(draftConsent, 'preferences_save')}
-                  className="rounded-xl bg-white/[0.08] px-5 py-2 text-[0.8rem] font-medium text-white/85 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                  className="rounded-[14px] bg-white/[0.08] px-5 py-2.5 text-[0.8rem] font-medium text-white/85 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 >
                   Save preferences
                 </button>

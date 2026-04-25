@@ -7,10 +7,19 @@ import { createMiddlewareClient } from '@/lib/supabase/middleware';
 const MAINTENANCE_MODE = false;
 
 const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/update-password'];
-const PROTECTED_ROUTES = ['/home', '/hub', '/missions', '/practice', '/workspace', '/onboarding', '/operations', '/theory', '/learn', '/settings', '/progress'];
+const PROTECTED_ROUTES = ['/home', '/hub', '/missions', '/practice', '/workspace', '/onboarding', '/operations', '/theory', '/learn', '/settings', '/stats'];
 const ADMIN_ROUTES = ['/admin'];
 
+/* ── Admin membership cache (5-minute TTL) ── */
+const ADMIN_CACHE_TTL_MS = 5 * 60 * 1000;
+const adminCache = new Map<string, { isAdmin: boolean; expiresAt: number }>();
+
 const hasAdminMembership = async (userId: string) => {
+  const cached = adminCache.get(userId);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.isAdmin;
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -37,7 +46,19 @@ const hasAdminMembership = async (userId: string) => {
   }
 
   const data = (await response.json()) as Array<{ user_id: string }>;
-  return Array.isArray(data) && data.length > 0;
+  const isAdmin = Array.isArray(data) && data.length > 0;
+
+  adminCache.set(userId, { isAdmin, expiresAt: Date.now() + ADMIN_CACHE_TTL_MS });
+
+  // Evict stale entries to prevent unbounded growth
+  if (adminCache.size > 200) {
+    const now = Date.now();
+    for (const [key, entry] of adminCache) {
+      if (now >= entry.expiresAt) adminCache.delete(key);
+    }
+  }
+
+  return isAdmin;
 };
 
 export async function middleware(request: NextRequest) {

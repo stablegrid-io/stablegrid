@@ -9,6 +9,8 @@ const PRACTICE_SETS_DIR = path.join(
   'practice-sets',
 );
 
+const CAPSTONE_DIR = path.join(process.cwd(), 'public', 'data', 'capstone');
+
 const MAX_PREVIEW_ROWS = 20;
 
 /**
@@ -57,10 +59,41 @@ export async function GET(request: NextRequest) {
       // Try alternative path: PS3_data_readings.csv → PS3_data/readings.csv
       const altFile = file.replace(/^([A-Z0-9]+_data)_/, '$1/');
       const altResolved = path.resolve(PRACTICE_SETS_DIR, topic, altFile);
-      if (!altResolved.startsWith(normalizedBase + path.sep)) {
-        throw new Error('ENOENT');
+      if (altResolved.startsWith(normalizedBase + path.sep)) {
+        try {
+          raw = await fs.readFile(altResolved, 'utf-8');
+        } catch {
+          raw = '';
+        }
+      } else {
+        raw = '';
       }
-      raw = await fs.readFile(altResolved, 'utf-8');
+
+      // Fallback: try capstone directories (e.g. public/data/capstone/pyspark-junior/)
+      if (!raw) {
+        const normalizedCapstone = path.resolve(CAPSTONE_DIR);
+        const capstoneGlobs = [
+          path.resolve(CAPSTONE_DIR, `${topic}-junior`, file),
+          path.resolve(CAPSTONE_DIR, `${topic}-mid`, file),
+          path.resolve(CAPSTONE_DIR, `${topic}-senior`, file),
+        ];
+        let found = false;
+        for (const cp of capstoneGlobs) {
+          if (!cp.startsWith(normalizedCapstone + path.sep)) continue;
+          try {
+            raw = await fs.readFile(cp, 'utf-8');
+            found = true;
+            break;
+          } catch {
+            /* try next */
+          }
+        }
+        if (!found) {
+          const err = new Error('ENOENT') as NodeJS.ErrnoException;
+          err.code = 'ENOENT';
+          throw err;
+        }
+      }
     }
     // Handle JSON files
     if (file.endsWith('.json')) {

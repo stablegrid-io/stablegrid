@@ -251,7 +251,7 @@ export const TheoryLessonIntro = ({
 
   return (
     <section className="mb-10 border-b pb-8" style={{ borderColor: 'var(--rm-border)' }}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[0.72rem] font-medium uppercase tracking-[0.18em]" style={{ color: 'var(--rm-text-secondary)' }}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[0.72rem] font-mono font-medium uppercase tracking-[0.18em]" style={{ color: 'var(--rm-text-secondary)' }}>
         <span>Module {chapter.order ?? chapter.number}</span>
         <span className="opacity-35">•</span>
         <span>Lesson {lessonIndex + 1} of {lessonTotal}</span>

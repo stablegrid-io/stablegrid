@@ -1,0 +1,802 @@
+{
+  "id": "PJ_Fabric_Junior",
+  "version": "1.0.0",
+  "track": "Fabric",
+  "level": "Junior",
+  "scenario": "NordGrid",
+  "total_xp": 500,
+  "narrative_premise": "It is 08:30 on a Monday morning. You have just joined NordGrid Energy's data platform team as a junior Fabric engineer. Your predecessor resigned on Friday — abrupt, no handover. Your team lead pings you in Teams: 'The daily meter pipeline has not run since Thursday. Silver is stale, the analysts are flying blind, and the billing team's Gold table is missing Thursday and Friday. We need the pipeline back online by 14:00 or we miss this week's billing window. Everything is in ws_nordgrid_silver — the Lakehouse lh_meter_readings, the notebook nb_transform_meters, the pipeline pl_daily_meter — and the Warehouse dw_nordgrid_analytics is in ws_nordgrid_gold. Good luck.' You open the workspace and find the previous engineer's work exactly as they left it: the notebook has the StructType imports at the top but no schemas and no reads; the cleaning cell is empty; the Silver write is commented out with a TODO; the pipeline JSON has the Copy activity wired to the SFTP source and a Dataflow already refreshing the substation reference, but the Notebook activity and the daily schedule are stubbed; and the Warehouse's monthly_billing table is there, empty, with a gold_refresh.sql file open in the SQL editor that holds one comment and nothing else. Your job: work through the abandoned artefacts in order, get the Bronze files into a managed Delta table, wire the pipeline so it runs tomorrow morning on its own, and refresh the Gold aggregates in the Warehouse. By 14:00, NordGrid needs its Silver table live, its pipeline scheduled, and the monthly billing numbers visible in the reporting view. Start with the notebook.",
+  "ux": {
+    "persistent_element": "pipeline_progress_bar",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "Lakehouse",
+        "icon": "lakehouse"
+      },
+      {
+        "stage": 2,
+        "label": "Bronze",
+        "icon": "bronze"
+      },
+      {
+        "stage": 3,
+        "label": "Silver",
+        "icon": "silver"
+      },
+      {
+        "stage": 4,
+        "label": "Pipeline",
+        "icon": "pipeline"
+      },
+      {
+        "stage": 5,
+        "label": "Warehouse",
+        "icon": "warehouse"
+      }
+    ],
+    "score_card": {
+      "thresholds": {
+        "distinguished": 475,
+        "proficient": 400,
+        "developing": 300
+      },
+      "labels": {
+        "distinguished": "You moved fluently between notebook PySpark, pipeline JSON, and Warehouse T-SQL. Every stage completed with minimal scaffolding.",
+        "proficient": "Solid Fabric fundamentals. One or two stages needed coaching — the hint usage breakdown shows where.",
+        "developing": "You built a working pipeline but integration across Lakehouse, pipeline, and Warehouse is uneven. Check the chapter breakdown and revisit the modules with the lowest scores.",
+        "incomplete": "Review the track content before moving to the mid-level. The score card identifies which Fabric items need more time."
+      }
+    }
+  },
+  "coverage_matrix": {
+    "1": [
+      "chapter_1"
+    ],
+    "2": [
+      "chapter_1",
+      "chapter_4"
+    ],
+    "3": [
+      "chapter_1"
+    ],
+    "4": [
+      "chapter_1",
+      "chapter_3"
+    ],
+    "5": [
+      "chapter_1",
+      "chapter_2",
+      "chapter_3"
+    ],
+    "6": [
+      "chapter_2",
+      "chapter_3"
+    ],
+    "7": [
+      "chapter_4"
+    ],
+    "8": [
+      "chapter_4"
+    ],
+    "9": [
+      "chapter_5"
+    ],
+    "10": [
+      "chapter_3",
+      "chapter_5"
+    ]
+  },
+  "datasets": [
+    {
+      "name": "meter_readings_bronze.csv",
+      "path": "PJFabric_Junior_data/Files/bronze/meter_readings_bronze.csv",
+      "row_count": 25,
+      "description": "Raw daily meter export, staged as it would land in the Files section of the Bronze Lakehouse. Column names match the source system, not the Silver schema: mtr_id, kwh_reading (string), reading_date (string), rgn_code. Contains 8 deliberate defects removed by Chapter 2: 3 null kwh_reading, 2 negative kwh_reading (-45.0, -120.0), 1 above-ceiling value (12500.0), 1 duplicate row (M-001 repeated on the same reading_date), and 1 invalid rgn_code ('NRTH'). One additional row has rgn_code 'west' lowercase — intentionally kept so that the normalisation step (upper+trim) is exercised. Valid rows after cleaning: 17."
+    },
+    {
+      "name": "substation_ref.csv",
+      "path": "PJFabric_Junior_data/Files/bronze/substation_ref.csv",
+      "row_count": 4,
+      "description": "Static substation dimension staged in the Bronze Files section. One row per region: NORTH (Northern Grid Hub), SOUTH (Southern Power Centre), EAST (Eastern Distribution Node), WEST (Western Relay Station). Columns: substation_id, name, region, capacity_mw. Used in Chapter 1 (loaded as a DataFrame) and Chapter 3 (joined on substation_id to attach substation_name)."
+    },
+    {
+      "name": "meter_substation_map.csv",
+      "path": "PJFabric_Junior_data/Files/bronze/meter_substation_map.csv",
+      "row_count": 22,
+      "description": "Lookup linking meter_id to substation_id. 3 of the 17 valid meters (M-015, M-016, M-017) are intentionally absent from this map — after a left join in Chapter 3 these three rows must have a null substation_name. Additional defect meter_ids that Chapter 2 removes (M-018 through M-024) are present here too; they never produce join matches because the rows are cleaned away upstream. Columns: meter_id, substation_id."
+    },
+    {
+      "name": "bronze_clean_reference.csv",
+      "path": "PJFabric_Junior_data/fallback/bronze_clean_reference.csv",
+      "row_count": 17,
+      "description": "Pre-computed output of a correct Chapter 2 solution. Schema: mtr_id (string), kwh_reading (double), reading_date (string), rgn_code (string). Derived by applying the canonical Chapter 2 cleaning rules to meter_readings_bronze.csv. Used as the Chapter 3 fallback if df_bronze_clean is unavailable because Chapter 2 did not complete successfully."
+    },
+    {
+      "name": "silver_reference.csv",
+      "path": "PJFabric_Junior_data/fallback/silver_reference.csv",
+      "row_count": 17,
+      "description": "Pre-built reference Silver output. Schema: meter_id (string), daily_kw (double), date (date), region (string), year (int), month (int), tier (string), substation_name (string, nullable). Tier thresholds: low <500, medium [500,2000), high [2000,4000), critical ≥4000. Null substation_name on exactly 3 rows (M-015, M-016, M-017). Used as the Chapter 5 fallback to register a temporary silver_meters table for students whose Chapter 3 did not produce the managed Delta table. Expected Gold aggregates: EAST total_kw=4790.0/avg_kw=1197.5/reading_count=4; NORTH 8521.5/1704.3/5; SOUTH 8890.5/2222.6/4; WEST 6410.0/1602.5/4."
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter_1",
+      "title": "Attach the Lakehouse, Load the Files",
+      "unlock_condition": null,
+      "inter_chapter_dependency": null,
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        4,
+        5
+      ],
+      "modules_secondary": [
+        1,
+        2,
+        3
+      ],
+      "narrative_context": "The workspace opens to nb_transform_meters, already attached to lh_meter_readings. The Lakehouse explorer on the left shows Files/bronze/ containing meter_readings_bronze.csv, substation_ref.csv, and meter_substation_map.csv — the three inputs your predecessor staged last Tuesday. Cell 1 of the notebook has the StructType and StringType/DoubleType imports at the top and three variable stubs (df_readings, df_substation, df_meter_map = None) with a comment beside each one: '# TODO: explicit schema + read'. Nothing else.",
+      "task": "Complete Cell 1. Define one explicit StructType schema per file and read each CSV from the attached Lakehouse using shorthand Files/bronze/ paths with header=True. Keep the source column names as they appear in the raw files — mtr_id, kwh_reading, reading_date, rgn_code for readings; substation_id, name, region, capacity_mw for substations; meter_id, substation_id for the map. kwh_reading must be loaded as StringType at this stage (casting happens in Chapter 2). Assign the results to df_readings, df_substation, df_meter_map. Do not use inferSchema.",
+      "validation_hint": "After running the cell, df_readings.count() should return 25, df_substation.count() should return 4, df_meter_map.count() should return 22, and df_readings.schema['kwh_reading'].dataType.simpleString() should be 'string'.",
+      "scaffold": {
+        "filename": "nb_transform_meters_cell1.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 1 — Attach the Lakehouse, Load the Files\n# Notebook nb_transform_meters, Cell 1 — read the three Bronze CSVs into DataFrames.\n# The attached Lakehouse is lh_meter_readings. Use shorthand paths like 'Files/bronze/...'.\n# The previous engineer left the imports and the variable names. Finish the rest.",
+        "code": "from pyspark.sql.types import StructType, StructField, StringType, DoubleType\n\n# Three variable stubs the rest of the notebook expects:\ndf_readings    = None\ndf_substation  = None\ndf_meter_map   = None\n\n# YOUR SOLUTION BELOW\n# ─────────────────────────────────────────────────────────────────────\n\n\n\n\n\n\n\n\n\n\n# ─────────────────────────────────────────────────────────────────────\n# YOUR SOLUTION ABOVE\n\n# Validation — do not modify\nprint(f'df_readings   rows: {df_readings.count()},   columns: {df_readings.columns}')\nprint(f'df_substation rows: {df_substation.count()}, columns: {df_substation.columns}')\nprint(f'df_meter_map  rows: {df_meter_map.count()},  columns: {df_meter_map.columns}')\nprint(f'kwh_reading dtype: {df_readings.schema[\"kwh_reading\"].dataType.simpleString()}')"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 25,
+        "assertions": [
+          {
+            "id": "A1_1",
+            "xp": 25,
+            "description": "All three DataFrames are loaded with the correct row counts (25 / 4 / 22)",
+            "check": "assert df_readings is not None and df_substation is not None and df_meter_map is not None, 'One of df_readings, df_substation, df_meter_map is still None.'\nassert df_readings.count() == 25, f'df_readings should have 25 rows, got {df_readings.count()}.'\nassert df_substation.count() == 4, f'df_substation should have 4 rows, got {df_substation.count()}.'\nassert df_meter_map.count() == 22, f'df_meter_map should have 22 rows, got {df_meter_map.count()}.'",
+            "failure_message": "One or more DataFrames were not loaded with the expected row count. Check the file paths (Files/bronze/…) and that header=True was set."
+          },
+          {
+            "id": "A1_2",
+            "xp": 25,
+            "description": "df_readings uses the raw source column names and kwh_reading is StringType",
+            "check": "assert df_readings.columns == ['mtr_id','kwh_reading','reading_date','rgn_code'], f\"df_readings columns are wrong: {df_readings.columns}\"\nassert df_readings.schema['kwh_reading'].dataType.simpleString() == 'string', 'kwh_reading must be loaded as StringType at this stage — the cast belongs in Chapter 2.'",
+            "failure_message": "df_readings either has the wrong column names or a wrong dtype for kwh_reading. Keep the source column names (mtr_id, kwh_reading, reading_date, rgn_code) and declare kwh_reading as StringType() — do not cast to double yet."
+          },
+          {
+            "id": "A1_3",
+            "xp": 25,
+            "description": "df_substation has the expected schema with capacity_mw as DoubleType",
+            "check": "assert df_substation.columns == ['substation_id','name','region','capacity_mw'], f\"df_substation columns are wrong: {df_substation.columns}\"\nassert df_substation.schema['capacity_mw'].dataType.simpleString() == 'double', 'capacity_mw in the substation reference must be DoubleType.'",
+            "failure_message": "df_substation columns or capacity_mw dtype are incorrect. Expected columns ['substation_id','name','region','capacity_mw'] with capacity_mw as DoubleType()."
+          },
+          {
+            "id": "A1_4",
+            "xp": 25,
+            "description": "df_meter_map schema is correct and no DataFrame was loaded with inferSchema",
+            "check": "assert df_meter_map.columns == ['meter_id','substation_id'], f\"df_meter_map columns are wrong: {df_meter_map.columns}\"\nfor name, df in [('df_readings', df_readings), ('df_substation', df_substation), ('df_meter_map', df_meter_map)]:\n    for f in df.schema.fields:\n        assert f.nullable in (True, False), f'{name} schema was not declared explicitly.'\nassert df_readings.schema['reading_date'].dataType.simpleString() == 'string', 'reading_date must be StringType at Bronze load time; it is cast to DateType in Chapter 3.'",
+            "failure_message": "df_meter_map schema is wrong or the reads used inferSchema. Pass an explicit StructType to every spark.read.csv call, including for the meter/substation map."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "NordGrid's Bronze Lakehouse organises raw meter exports in the Files section, and nb_transform_meters is already attached to it. You covered how to read a file from the attached Lakehouse in a Fabric notebook and why an explicit schema matters before anything touches Silver."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "The dataset README documents the three raw column sets: mtr_id/kwh_reading/reading_date/rgn_code for the readings file, substation_id/name/region/capacity_mw for the substation reference, and meter_id/substation_id for the map. The StructType and StringType/DoubleType imports are already at the top of the cell. kwh_reading is a string in the source export."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Build one StructType per file from StructField entries, one per column, with explicit types. Then call spark.read.csv using the shorthand path 'Files/bronze/<filename>.csv', header=True, and the schema parameter pointing at the StructType you built. Assign each resulting DataFrame to the pre-declared variable — do not create new variable names."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Here are the first two meaningful lines of your solution. Finish the remaining two reads the same way.\n\nschema_readings = StructType([\n    StructField('mtr_id', StringType()),\n    StructField('kwh_reading', StringType()),\n    StructField('reading_date', StringType()),\n    StructField('rgn_code', StringType()),\n])\ndf_readings = spark.read.csv('Files/bronze/meter_readings_bronze.csv', header=True, schema=schema_readings)"
+        }
+      ],
+      "evidence": [
+        {
+          "type": "table",
+          "title": "meter_readings_bronze.csv (25 rows)",
+          "headers": [
+            "Column",
+            "Type",
+            "Notes"
+          ],
+          "rows": [
+            [
+              "mtr_id",
+              "string",
+              "Meter identifier"
+            ],
+            [
+              "kwh_reading",
+              "string",
+              "Must load as StringType — cast in Ch2"
+            ],
+            [
+              "reading_date",
+              "string",
+              "Date string"
+            ],
+            [
+              "rgn_code",
+              "string",
+              "NORTH, SOUTH, EAST, WEST (one lowercase \"west\")"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "substation_ref.csv (4 rows)",
+          "headers": [
+            "Column",
+            "Type"
+          ],
+          "rows": [
+            [
+              "substation_id",
+              "string"
+            ],
+            [
+              "name",
+              "string"
+            ],
+            [
+              "region",
+              "string"
+            ],
+            [
+              "capacity_mw",
+              "DoubleType"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "meter_substation_map.csv (22 rows)",
+          "headers": [
+            "Column",
+            "Type"
+          ],
+          "rows": [
+            [
+              "meter_id",
+              "string"
+            ],
+            [
+              "substation_id",
+              "string"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chapter_2",
+      "title": "Clean the Bronze",
+      "unlock_condition": {
+        "after_chapter": 1
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": 1,
+        "uses_variable": "df_readings",
+        "fallback_dataset": "PJFabric_Junior_data/Files/bronze/meter_readings_bronze.csv",
+        "fallback_note": "If df_readings is unavailable because Chapter 1 did not complete, the scaffold re-reads meter_readings_bronze.csv with the canonical Bronze schema so Chapter 2 is still attemptable."
+      },
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        6
+      ],
+      "modules_secondary": [
+        4,
+        5
+      ],
+      "narrative_context": "df_readings holds 25 raw rows, exactly as the SFTP export delivered them. You have seen this file before — missing readings, a couple of negative values, one impossible spike, a duplicate, a region typo, and a lowercase 'west' that is valid after normalisation. Cell 2 of the notebook has one comment and nothing else: '# TODO: filter out everything the DQ rules reject, including the lowercase region code that should normalise to WEST'. Before anything touches Silver, df_readings has to become df_bronze_clean.",
+      "task": "Produce df_bronze_clean from df_readings. Cast kwh_reading to DoubleType. Normalise rgn_code with upper(trim(...)) so that 'west' becomes 'WEST'. Drop rows where kwh_reading is null, where kwh_reading is less than or equal to 0, where kwh_reading is greater than or equal to 10000, and where the normalised rgn_code is not in {NORTH, SOUTH, EAST, WEST}. Deduplicate on the (mtr_id, reading_date) pair. Keep the Bronze source column names — do not rename to the Silver schema yet.",
+      "validation_hint": "df_bronze_clean.count() should return 17, every kwh_reading should be strictly positive and strictly less than 10000, and every rgn_code should be one of NORTH, SOUTH, EAST, or WEST.",
+      "scaffold": {
+        "filename": "nb_transform_meters_cell2.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 2 — Clean the Bronze\n# Notebook nb_transform_meters, Cell 2 — quality-filter df_readings into df_bronze_clean.\n# df_readings is available from Chapter 1 (or rebuilt from the fallback CSV).",
+        "code": "from pyspark.sql.functions import col, upper, trim\n\n# df_readings is the Bronze DataFrame from Chapter 1.\n\n# YOUR SOLUTION BELOW\n# ─────────────────────────────────────────────────────────────────────\n\n\n\n\n\n\n\n# ─────────────────────────────────────────────────────────────────────\n# YOUR SOLUTION ABOVE\n\n# Validation — do not modify\nprint(f'df_bronze_clean rows   : {df_bronze_clean.count()}')\nprint(f'regions present        : {sorted([r[0] for r in df_bronze_clean.select(\"rgn_code\").distinct().collect()])}')\nprint(f'kwh_reading dtype      : {df_bronze_clean.schema[\"kwh_reading\"].dataType.simpleString()}')\ndf_bronze_clean.orderBy('mtr_id').show(25, truncate=False)"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 20,
+        "assertions": [
+          {
+            "id": "A2_1",
+            "xp": 20,
+            "description": "df_bronze_clean has exactly 17 rows after all filters",
+            "check": "assert df_bronze_clean.count() == 17, f'Expected 17 valid rows after cleaning, got {df_bronze_clean.count()}.'",
+            "failure_message": "Row count is wrong. The raw file has 25 rows, of which 8 are defects: 3 nulls, 2 negatives, 1 above-ceiling, 1 duplicate, 1 invalid region code. The lowercase 'west' row stays in."
+          },
+          {
+            "id": "A2_2",
+            "xp": 20,
+            "description": "No null kwh_reading remains",
+            "check": "from pyspark.sql.functions import col as _col\nassert df_bronze_clean.filter(_col('kwh_reading').isNull()).count() == 0, 'Null kwh_reading values are still present.'",
+            "failure_message": "Null kwh_reading rows are still in df_bronze_clean. Apply an isNotNull() filter on kwh_reading."
+          },
+          {
+            "id": "A2_3",
+            "xp": 20,
+            "description": "Every kwh_reading is a double strictly greater than 0 and strictly less than 10000",
+            "check": "assert df_bronze_clean.schema['kwh_reading'].dataType.simpleString() == 'double', 'kwh_reading must be cast to double.'\nfrom pyspark.sql.functions import col as _col\nassert df_bronze_clean.filter((_col('kwh_reading') <= 0) | (_col('kwh_reading') >= 10000)).count() == 0, 'Out-of-range kwh_reading values are still present.'",
+            "failure_message": "kwh_reading is either not cast to double or contains values outside the (0, 10000) range. Cast first, then filter on the cast column."
+          },
+          {
+            "id": "A2_4",
+            "xp": 20,
+            "description": "rgn_code contains only NORTH, SOUTH, EAST, WEST after normalisation",
+            "check": "regions = {r[0] for r in df_bronze_clean.select('rgn_code').distinct().collect()}\nassert regions.issubset({'NORTH','SOUTH','EAST','WEST'}), f'Unexpected region codes: {regions}.'\nassert 'WEST' in regions, \"WEST is missing — the lowercase 'west' row must survive after upper(trim()).\"",
+            "failure_message": "rgn_code still contains values outside {NORTH, SOUTH, EAST, WEST} or lost WEST entirely. Apply upper(trim(...)) to rgn_code before the isin filter."
+          },
+          {
+            "id": "A2_5",
+            "xp": 20,
+            "description": "No duplicate (mtr_id, reading_date) pair remains",
+            "check": "from pyspark.sql.functions import count as _count\ndup = df_bronze_clean.groupBy('mtr_id','reading_date').agg(_count('*').alias('n')).filter('n > 1').count()\nassert dup == 0, f'Found {dup} duplicate (mtr_id, reading_date) pairs.'",
+            "failure_message": "Duplicate (mtr_id, reading_date) pairs are still present. Call dropDuplicates(['mtr_id','reading_date'])."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Bronze-to-Silver is where NordGrid's notebook enforces data quality. You covered the transformations that turn a raw export into something engineers and analysts can trust — casting, filtering out-of-range values, normalising codes, and removing duplicates — in the module on transforming data in notebooks."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "Look at the defects the dataset README documents: three nulls, two negatives (-45.0, -120.0), one above-ceiling value (12500.0), one duplicate row, one invalid rgn_code ('NRTH'), and a lowercase 'west' that must survive. The cast must happen before the range filter; the normalisation must happen before the region-membership filter."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Chain the transformations: first .withColumn('kwh_reading', col('kwh_reading').cast('double')), then .withColumn('rgn_code', upper(trim(col('rgn_code')))), then a single .filter(...) with the positive-and-below-ceiling condition combined with isin for the four valid region codes and isNotNull for kwh_reading, then .dropDuplicates(['mtr_id','reading_date'])."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Here is the start of the chain. Finish the filter condition and the dedupe call.\n\ndf_bronze_clean = (\n    df_readings\n      .withColumn('kwh_reading', col('kwh_reading').cast('double'))\n      .withColumn('rgn_code', upper(trim(col('rgn_code'))))\n# .filter(...) — kwh_reading not null, > 0, < 10000, and rgn_code in the valid set\n# .dropDuplicates([...])\n)"
+        }
+      ],
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Cleaning Rules",
+          "content": "From 25 raw rows, remove:\n• 3 null kwh_reading\n• 2 negative kwh_reading (-45.0, -120.0)\n• 1 above-ceiling (12500.0)\n• 1 duplicate (M-001 same reading_date)\n• 1 invalid rgn_code ('NRTH')\n\nNormalise rgn_code: upper(trim(...)). After cleaning: 17 valid rows."
+        }
+      ]
+    },
+    {
+      "id": "chapter_3",
+      "title": "Build the Silver Delta Table",
+      "unlock_condition": {
+        "after_chapter": 2
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": 2,
+        "uses_variable": "df_bronze_clean",
+        "fallback_dataset": "PJFabric_Junior_data/fallback/bronze_clean_reference.csv",
+        "fallback_note": "If df_bronze_clean is unavailable, the scaffold rebuilds it from bronze_clean_reference.csv with the expected Bronze-clean schema (17 rows) so Chapter 3 can still be attempted."
+      },
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        5,
+        6,
+        10
+      ],
+      "modules_secondary": [
+        4
+      ],
+      "narrative_context": "The analytics team expects a table called silver_meters in the Tables section of lh_meter_readings with an exact schema: meter_id, daily_kw, date, region, year, month, tier, substation_name. The SQL analytics endpoint auto-exposes whatever Delta table the notebook writes. The tier thresholds your predecessor left in a Slack message: low is daily_kw < 500, medium is 500 to 1999, high is 2000 to 3999, critical is 4000 and above. Three of the 17 meters have no substation mapping — their substation_name stays null.",
+      "task": "From df_bronze_clean, build df_silver with the Silver schema, then persist it as a managed Delta table. Rename mtr_id→meter_id, kwh_reading→daily_kw, reading_date→date, rgn_code→region. Cast date to DateType. Add year and month as integer columns derived from date, and tier as a string column using the thresholds above. Left-join df_meter_map on meter_id, then left-join df_substation on substation_id to attach the substation's name column as substation_name. Keep only these eight columns, in this order: meter_id, daily_kw, date, region, year, month, tier, substation_name. Write df_silver with mode 'overwrite' using saveAsTable('silver_meters') so that it lands as a managed Delta table in the attached Lakehouse Tables section.",
+      "validation_hint": "spark.read.table('silver_meters') should return 17 rows. Exactly 3 rows should have a null substation_name, and the tier column should contain only the four values low, medium, high, critical.",
+      "scaffold": {
+        "filename": "nb_transform_meters_cell3.py",
+        "language": "python",
+        "preamble_comment": "# Chapter 3 — Build the Silver Delta Table\n# Notebook nb_transform_meters, Cell 3 — enrich df_bronze_clean and write silver_meters.\n# df_bronze_clean is from Chapter 2 (or rebuilt from the fallback CSV).\n# df_meter_map and df_substation are from Chapter 1 — still in scope.",
+        "code": "from pyspark.sql.functions import col, year as year_of, month as month_of, to_date, when\n\n# df_bronze_clean is the cleaned Bronze DataFrame from Chapter 2.\n# df_meter_map and df_substation are the lookup DataFrames from Chapter 1.\n\n# YOUR SOLUTION BELOW\n# ─────────────────────────────────────────────────────────────────────\n\n\n\n\n\n\n\n\n\n\n\n# ─────────────────────────────────────────────────────────────────────\n# YOUR SOLUTION ABOVE\n\n# Validation — do not modify\nprint(f'df_silver columns : {df_silver.columns}')\nprint(f'df_silver rows    : {df_silver.count()}')\ndf_check = spark.read.table('silver_meters')\nprint(f'silver_meters rows on read-back: {df_check.count()}')\ndf_check.orderBy('meter_id').show(20, truncate=False)"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 20,
+        "assertions": [
+          {
+            "id": "A3_1",
+            "xp": 20,
+            "description": "df_silver has exactly the 8 Silver columns in the required order",
+            "check": "expected = ['meter_id','daily_kw','date','region','year','month','tier','substation_name']\nassert df_silver.columns == expected, f'Silver columns or order are wrong. Expected {expected}, got {df_silver.columns}.'",
+            "failure_message": "df_silver must have exactly these 8 columns in this order: meter_id, daily_kw, date, region, year, month, tier, substation_name. Use a final .select(...) to lock the column order."
+          },
+          {
+            "id": "A3_2",
+            "xp": 20,
+            "description": "df_silver has 17 rows and date is DateType",
+            "check": "assert df_silver.count() == 17, f'df_silver should have 17 rows, got {df_silver.count()}.'\nassert df_silver.schema['date'].dataType.simpleString() == 'date', 'date must be cast to DateType.'",
+            "failure_message": "Either the row count dropped (check the join — it must be LEFT, not INNER, so meters without a mapping are kept) or date was not cast to DateType."
+          },
+          {
+            "id": "A3_3",
+            "xp": 20,
+            "description": "Exactly 3 rows have a null substation_name (the unmapped meters)",
+            "check": "from pyspark.sql.functions import col as _col\nnull_subs = df_silver.filter(_col('substation_name').isNull()).count()\nassert null_subs == 3, f'Expected 3 rows with null substation_name, got {null_subs}.'",
+            "failure_message": "Null count on substation_name is wrong. Use LEFT joins so the three meters with no mapping (M-015, M-016, M-017) stay in the DataFrame with a null substation_name."
+          },
+          {
+            "id": "A3_4",
+            "xp": 20,
+            "description": "The tier column contains only the four valid values",
+            "check": "tiers = {r[0] for r in df_silver.select('tier').distinct().collect()}\nassert tiers.issubset({'low','medium','high','critical'}), f'Unexpected tier values: {tiers}.'\nassert tiers == {'low','medium','high','critical'}, f'Not all four tier buckets are populated: {tiers}.'",
+            "failure_message": "tier column contains unexpected or missing values. Use when(...)...otherwise(...) with thresholds: <500 low, <2000 medium, <4000 high, else critical."
+          },
+          {
+            "id": "A3_5",
+            "xp": 20,
+            "description": "silver_meters is a readable managed Delta table in the attached Lakehouse",
+            "check": "tables = [t.name.lower() for t in spark.catalog.listTables()]\nassert 'silver_meters' in tables, \"silver_meters is not registered in the attached Lakehouse's Tables section.\"\ndf_read = spark.read.table('silver_meters')\nassert df_read.count() == 17, f'silver_meters on read-back should have 17 rows, got {df_read.count()}.'",
+            "failure_message": "silver_meters is not persisted as a managed table. Use df_silver.write.mode('overwrite').format('delta').saveAsTable('silver_meters')."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "This is the step where the cleaned Bronze DataFrame becomes a table every Fabric engine can query — the notebook, the SQL analytics endpoint, Power BI Direct Lake. You covered how NordGrid promotes validated data into the Tables section and how to attach reference data to a fact row when building the enriched readings."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "The substation reference has one row per region with a 'name' column that becomes the Silver substation_name. The meter-to-substation map covers 14 of the 17 valid meters — M-015, M-016, and M-017 have no mapping and their substation_name must remain null after the join. The tier thresholds use strict less-than boundaries: 500 and 2000 go to medium, 2000 and 4000 go to high."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Use .withColumnRenamed or a .select with aliases for the column renames. Use to_date(col('date')) for the date cast. Build tier with a chain of when(col('daily_kw') < 500, 'low').when(col('daily_kw') < 2000, 'medium').when(col('daily_kw') < 4000, 'high').otherwise('critical'). Join is df.join(df_meter_map, 'meter_id', 'left').join(df_substation, 'substation_id', 'left'). Finish with .select(...) to lock the 8-column order, then df_silver.write.mode('overwrite').format('delta').saveAsTable('silver_meters')."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Here are the first two meaningful lines. Continue with the remaining renames, the date cast, the year/month/tier columns, both left joins, the final .select, and the saveAsTable write.\n\ndf_silver = (\n    df_bronze_clean\n      .withColumnRenamed('mtr_id', 'meter_id')\n      .withColumnRenamed('kwh_reading', 'daily_kw')\n# … continue renames, add date/year/month/tier, join df_meter_map then df_substation,\n# … select the 8 columns in order, then .write…saveAsTable('silver_meters')"
+        }
+      ],
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Silver Schema",
+          "headers": [
+            "Column",
+            "Type",
+            "Source"
+          ],
+          "rows": [
+            [
+              "meter_id",
+              "string",
+              "mtr_id renamed"
+            ],
+            [
+              "daily_kw",
+              "double",
+              "kwh_reading cast"
+            ],
+            [
+              "date",
+              "date",
+              "reading_date cast"
+            ],
+            [
+              "region",
+              "string",
+              "rgn_code normalised"
+            ],
+            [
+              "year",
+              "int",
+              "extracted from date"
+            ],
+            [
+              "month",
+              "int",
+              "extracted from date"
+            ],
+            [
+              "tier",
+              "string",
+              "low/medium/high/critical"
+            ],
+            [
+              "substation_name",
+              "string (nullable)",
+              "joined via map + ref"
+            ]
+          ]
+        },
+        {
+          "type": "text",
+          "title": "Tier Thresholds",
+          "content": "low: <500 | medium: 500–1999 | high: 2000–3999 | critical: ≥4000"
+        }
+      ]
+    },
+    {
+      "id": "chapter_4",
+      "title": "Wire the Daily Pipeline",
+      "unlock_condition": {
+        "after_chapter": 3
+      },
+      "inter_chapter_dependency": null,
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        7,
+        8
+      ],
+      "modules_secondary": [
+        2
+      ],
+      "narrative_context": "The Silver notebook works on demand. Tomorrow morning at 02:00 UTC the pipeline has to run on its own, right after the SFTP export lands at 01:30. pl_daily_meter is open in the canvas. The Copy activity ('Copy Meter CSV') is already wired from the SFTP source to Files/bronze/meter_readings_bronze.csv, and a Dataflow Gen2 activity ('Refresh Substation Dataflow') that refreshes substation_ref runs in parallel every morning. The empty slots: a Notebook activity to run nb_transform_meters after the Copy succeeds, and the schedule trigger. Your predecessor left the raw pipeline JSON (JSON-with-comments) with TODO markers beside the stubs.",
+      "task": "Complete the pipeline JSON. Add a Notebook activity named 'nb_transform_meters_run' that references the notebook nb_transform_meters in workspace ws_nordgrid_silver with lh_meter_readings attached as the default Lakehouse. Make it depend on 'Copy Meter CSV' with condition 'Succeeded'. Pass the pipeline parameter processing_date into the notebook's processing_date parameter using the expression @pipeline().parameters.processing_date. Define the pipeline parameter processing_date as a string with default expression @formatDateTime(utcNow(), 'yyyy-MM-dd'). Add a schedule trigger named 'trg_daily_0200' that recurs every day at 02:00:00 UTC, enabled, with no end date. Do not add any other activities, parameters, or triggers, and do not modify the existing Copy or Dataflow activities.",
+      "validation_hint": "After your edits, the JSONC should parse, activities should contain exactly three entries with names {'Copy Meter CSV', 'Refresh Substation Dataflow', 'nb_transform_meters_run'}, the Notebook activity's dependsOn should be [{'activity':'Copy Meter CSV','conditions':['Succeeded']}], and triggers[0].recurrence should specify frequency='Day', interval=1, and startTime='02:00:00' UTC.",
+      "scaffold": {
+        "filename": "pl_daily_meter.jsonc",
+        "language": "jsonc",
+        "preamble_comment": "// Chapter 4 — Wire the Daily Pipeline\n// pl_daily_meter pipeline definition (JSON with comments).\n// The Copy activity and the Dataflow activity are complete — do not modify them.\n// Fill in the Notebook activity, the processing_date parameter, and the trg_daily_0200 schedule trigger.",
+        "code": "{\n  \"name\": \"pl_daily_meter\",\n  \"workspace\": \"ws_nordgrid_silver\",\n  \"parameters\": {\n    // YOUR SOLUTION BELOW — declare the processing_date parameter here\n\n    // YOUR SOLUTION ABOVE\n  },\n  \"activities\": [\n    {\n      \"name\": \"Copy Meter CSV\",\n      \"type\": \"Copy\",\n      \"inputs\": [{ \"connectionRef\": \"sftp_nordgrid_meters\", \"path\": \"/exports/meters/readings.csv\" }],\n      \"outputs\": [{ \"lakehouse\": \"lh_meter_readings\", \"path\": \"Files/bronze/meter_readings_bronze.csv\" }],\n      \"format\": \"DelimitedText\",\n      \"policy\": { \"retry\": 2, \"retryIntervalInSeconds\": 300 }\n    },\n    {\n      \"name\": \"Refresh Substation Dataflow\",\n      \"type\": \"Dataflow\",\n      \"dataflowRef\": \"df_refresh_substation\",\n      \"workspace\": \"ws_nordgrid_silver\",\n      \"dependsOn\": []\n    }\n    // YOUR SOLUTION BELOW — add the Notebook activity 'nb_transform_meters_run' as the next array element\n\n    // YOUR SOLUTION ABOVE\n  ],\n  \"triggers\": [\n    // YOUR SOLUTION BELOW — add the schedule trigger 'trg_daily_0200' here\n\n    // YOUR SOLUTION ABOVE\n  ]\n}"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 25,
+        "assertions": [
+          {
+            "id": "A4_1",
+            "xp": 25,
+            "description": "The JSONC parses and contains exactly 3 activities including the two pre-existing ones, unchanged",
+            "check": "import json, re\nraw = open(scaffold_path).read()\nstripped = re.sub(r'//.*', '', raw)\npl = json.loads(stripped)\nnames = [a['name'] for a in pl['activities']]\nassert len(pl['activities']) == 3, f'Expected 3 activities, got {len(pl[\"activities\"])}: {names}.'\nassert set(names) == {'Copy Meter CSV','Refresh Substation Dataflow','nb_transform_meters_run'}, f'Activity set is wrong: {names}.'\ncopy = next(a for a in pl['activities'] if a['name'] == 'Copy Meter CSV')\nassert copy['type'] == 'Copy' and copy['outputs'][0]['lakehouse'] == 'lh_meter_readings', 'Copy activity was modified.'\ndf = next(a for a in pl['activities'] if a['name'] == 'Refresh Substation Dataflow')\nassert df['type'] == 'Dataflow' and df.get('dependsOn', []) == [], 'Dataflow activity was modified or made dependent on another activity.'",
+            "failure_message": "Pipeline JSON is malformed or the wrong number of activities are present. Keep both pre-existing activities untouched and add exactly one new activity named 'nb_transform_meters_run'."
+          },
+          {
+            "id": "A4_2",
+            "xp": 25,
+            "description": "Notebook activity is correctly wired to the Copy activity with the right notebook and Lakehouse references",
+            "check": "import json, re\npl = json.loads(re.sub(r'//.*', '', open(scaffold_path).read()))\nnb = next(a for a in pl['activities'] if a['name'] == 'nb_transform_meters_run')\nassert nb['type'] == 'Notebook', 'Activity type must be Notebook.'\nassert nb.get('dependsOn') == [{'activity':'Copy Meter CSV','conditions':['Succeeded']}], f\"dependsOn is wrong: {nb.get('dependsOn')}.\"\nassert nb.get('notebook',{}).get('name') == 'nb_transform_meters', 'Notebook reference name must be nb_transform_meters.'\nassert nb.get('notebook',{}).get('workspace') == 'ws_nordgrid_silver', 'Notebook workspace must be ws_nordgrid_silver.'\nlh = nb.get('linkedSettings',{}).get('lakehouse') or nb.get('lakehouse')\nassert lh == 'lh_meter_readings', 'Default Lakehouse must be lh_meter_readings.'",
+            "failure_message": "Notebook activity is not wired correctly. It must be of type 'Notebook', depend on 'Copy Meter CSV' with 'Succeeded', reference notebook nb_transform_meters in ws_nordgrid_silver, and attach lh_meter_readings as the default Lakehouse."
+          },
+          {
+            "id": "A4_3",
+            "xp": 25,
+            "description": "processing_date parameter is defined and passed through to the notebook",
+            "check": "import json, re\npl = json.loads(re.sub(r'//.*', '', open(scaffold_path).read()))\nparams = pl.get('parameters', {})\nassert 'processing_date' in params, 'Pipeline parameter processing_date is missing.'\np = params['processing_date']\nassert p.get('type','').lower() == 'string', 'processing_date parameter type must be string.'\nassert \"formatDateTime(utcNow(), 'yyyy-MM-dd')\" in (p.get('defaultValue','') or ''), \"processing_date default must use the expression @formatDateTime(utcNow(), 'yyyy-MM-dd').\"\nnb = next(a for a in pl['activities'] if a['name'] == 'nb_transform_meters_run')\nnb_params = nb.get('parameters', {}) or nb.get('notebook',{}).get('parameters', {})\nassert 'processing_date' in nb_params, 'Notebook activity must override the processing_date parameter.'\nval = nb_params['processing_date'] if isinstance(nb_params['processing_date'], str) else nb_params['processing_date'].get('value','')\nassert '@pipeline().parameters.processing_date' in val, \"Notebook's processing_date must be bound to @pipeline().parameters.processing_date.\"",
+            "failure_message": "processing_date is not correctly defined or not threaded through. Declare it at pipeline scope with the @formatDateTime default, and pass @pipeline().parameters.processing_date into the notebook's parameters."
+          },
+          {
+            "id": "A4_4",
+            "xp": 25,
+            "description": "The schedule trigger trg_daily_0200 fires daily at 02:00 UTC",
+            "check": "import json, re\npl = json.loads(re.sub(r'//.*', '', open(scaffold_path).read()))\ntrgs = pl.get('triggers', [])\nassert len(trgs) == 1, f'Expected exactly 1 trigger, got {len(trgs)}.'\nt = trgs[0]\nassert t.get('name') == 'trg_daily_0200', f'Trigger name must be trg_daily_0200, got {t.get(\"name\")}.'\nrec = t.get('recurrence', {})\nassert rec.get('frequency') == 'Day', \"Trigger frequency must be 'Day'.\"\nassert int(rec.get('interval', 0)) == 1, 'Trigger interval must be 1.'\nstart = rec.get('startTime','')\nassert '02:00:00' in start, f'Trigger startTime must include 02:00:00, got {start!r}.'\nassert (rec.get('timeZone') or '').upper() in ('UTC','Z') or start.endswith('Z'), 'Trigger must fire in UTC.'\nassert t.get('enabled', True) is True, 'Trigger must be enabled.'",
+            "failure_message": "Schedule trigger is missing or misconfigured. Add trg_daily_0200 with recurrence.frequency='Day', interval=1, startTime at 02:00:00 UTC, and enabled=true."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "The Copy activity gets the Bronze file into OneLake. The Silver notebook turns it into a Delta table. The pipeline is what makes this run at 02:00 every day without an engineer pressing Run, and Notebook vs Dataflow is the classic NordGrid choice: time-series data goes through the Notebook, reference data goes through the Dataflow. You covered both the Notebook activity and the scheduling model in the orchestration module."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "In the scaffold, the Copy activity is complete and named 'Copy Meter CSV'. The Dataflow activity 'Refresh Substation Dataflow' already runs in parallel with no dependsOn — it must stay that way. The parameters block is empty, the triggers array is empty, and three // YOUR SOLUTION comment blocks mark the exact places to edit. Pipeline expressions are prefixed with @."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Add a parameters.processing_date entry of type 'string' with defaultValue \"@formatDateTime(utcNow(), 'yyyy-MM-dd')\". Append the Notebook activity after the Dataflow entry with type='Notebook', notebook.name='nb_transform_meters', notebook.workspace='ws_nordgrid_silver', linkedSettings.lakehouse='lh_meter_readings', dependsOn=[{activity:'Copy Meter CSV', conditions:['Succeeded']}], and parameters.processing_date='@pipeline().parameters.processing_date'. Add a trigger with type='ScheduleTrigger', name='trg_daily_0200', enabled=true, and recurrence.frequency='Day', interval=1, startTime with time 02:00:00 and timeZone 'UTC'."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Here is the Notebook activity skeleton. Fill in the Lakehouse reference and the parameter pass-through, then write the parameters block and the schedule trigger in the other two solution areas.\n\n{\n  \"name\": \"nb_transform_meters_run\",\n  \"type\": \"Notebook\",\n  \"dependsOn\": [{ \"activity\": \"Copy Meter CSV\", \"conditions\": [\"Succeeded\"] }],\n  \"notebook\": { \"name\": \"nb_transform_meters\", \"workspace\": \"ws_nordgrid_silver\" },\n  \"linkedSettings\": { \"lakehouse\": /* … */ },\n  \"parameters\": { \"processing_date\": /* … */ }\n}"
+        }
+      ],
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Pipeline Structure",
+          "content": "pl_daily_meter pipeline activities:\n1. Copy — SFTP source (already wired)\n2. Dataflow — substation reference refresh (already wired)\n3. Notebook — nb_transform_meters (you wire this)\n4. Schedule — daily trigger (you configure this)"
+        }
+      ]
+    },
+    {
+      "id": "chapter_5",
+      "title": "Ship the Gold via T-SQL",
+      "unlock_condition": {
+        "after_chapter": 4
+      },
+      "inter_chapter_dependency": {
+        "source_chapter": 3,
+        "uses_variable": "silver_meters",
+        "fallback_dataset": "PJFabric_Junior_data/fallback/silver_reference.csv",
+        "fallback_note": "If the silver_meters Delta table is not available because Chapter 3 did not complete, the scaffold loads silver_reference.csv into the attached Lakehouse and registers it as the managed table lh_meter_readings.dbo.silver_meters for the duration of this chapter."
+      },
+      "chapter_type": "code",
+      "base_xp": 100,
+      "modules_primary": [
+        9,
+        10
+      ],
+      "modules_secondary": [
+        4
+      ],
+      "narrative_context": "It is 13:20. The billing team's dashboard reads one specific table: dw_nordgrid_analytics.dbo.monthly_billing with columns (year, month, region, total_kw, avg_kw, reading_count). The Warehouse is open in the SQL editor. The table is there — empty — and a file gold_refresh.sql is open beside it with one comment: '-- TODO: refresh monthly_billing from silver_meters with today's aggregation'. Silver lives in lh_meter_readings (the Lakehouse); Gold lives in dw_nordgrid_analytics (the Warehouse). The refresh runs every morning and must be idempotent: if it runs twice, the Gold table still has four rows, not eight.",
+      "task": "Write T-SQL in gold_refresh.sql that does three things in order. First, DELETE FROM dw_nordgrid_analytics.dbo.monthly_billing the rows for the current month and year of the incoming Silver data (use the MAX(year) and MAX(month) from the Silver table to pick the current period). Second, INSERT INTO dw_nordgrid_analytics.dbo.monthly_billing (year, month, region, total_kw, avg_kw, reading_count) fresh rows computed by aggregating from the three-part name lh_meter_readings.dbo.silver_meters, grouping by year, month, and region, with total_kw=ROUND(SUM(daily_kw),1), avg_kw=ROUND(AVG(daily_kw),1), reading_count=COUNT(*). Third, run CREATE OR ALTER VIEW dw_nordgrid_analytics.dbo.v_monthly_billing AS SELECT year, month, region, total_kw, avg_kw, reading_count FROM dw_nordgrid_analytics.dbo.monthly_billing so that analysts query a stable view rather than the underlying table.",
+      "validation_hint": "After executing gold_refresh.sql once, SELECT COUNT(*) FROM dw_nordgrid_analytics.dbo.monthly_billing should return 4, one row per region (NORTH, SOUTH, EAST, WEST). Executing gold_refresh.sql a second time should still return 4.",
+      "scaffold": {
+        "filename": "gold_refresh.sql",
+        "language": "sql",
+        "preamble_comment": "-- Chapter 5 — Ship the Gold via T-SQL\n-- Execute in the dw_nordgrid_analytics Warehouse SQL editor.\n-- Silver lives in the Lakehouse lh_meter_readings; Gold lives in this Warehouse.\n-- Write the idempotent refresh (DELETE + INSERT) and the consumer view.",
+        "code": "-- YOUR SOLUTION BELOW\n-- ─────────────────────────────────────────────────────────────────────\n\n\n\n\n\n\n\n\n\n\n\n\n\n-- ─────────────────────────────────────────────────────────────────────\n-- YOUR SOLUTION ABOVE\n\n-- Validation helper — the runner executes this block after your solution.\n-- SELECT * FROM dw_nordgrid_analytics.dbo.v_monthly_billing ORDER BY region;"
+      },
+      "grading": {
+        "type": "code_validation",
+        "method": "assertion_suite",
+        "xp_per_assertion": 20,
+        "assertions": [
+          {
+            "id": "A5_1",
+            "xp": 20,
+            "description": "After one refresh, monthly_billing has exactly 4 rows — one per region",
+            "check": "rows = warehouse.sql('SELECT region FROM dw_nordgrid_analytics.dbo.monthly_billing').collect()\nassert len(rows) == 4, f'Expected 4 rows in monthly_billing, got {len(rows)}.'\nregions = sorted(r[0] for r in rows)\nassert regions == ['EAST','NORTH','SOUTH','WEST'], f'Expected the four NordGrid regions exactly once each, got {regions}.'",
+            "failure_message": "monthly_billing does not have one row per region. Group by region (and by year and month), and make sure no row is filtered out — all 17 Silver rows belong to the same year+month."
+          },
+          {
+            "id": "A5_2",
+            "xp": 20,
+            "description": "Aggregated totals match the expected Gold values from Silver",
+            "check": "expected = {'EAST':(4790.0,1197.5,4), 'NORTH':(8521.5,1704.3,5), 'SOUTH':(8890.5,2222.6,4), 'WEST':(6410.0,1602.5,4)}\nrows = warehouse.sql('SELECT region, total_kw, avg_kw, reading_count FROM dw_nordgrid_analytics.dbo.monthly_billing').collect()\nfor r in rows:\n    region, total, avg, cnt = r[0], float(r[1]), float(r[2]), int(r[3])\n    e_total, e_avg, e_cnt = expected[region]\n    assert abs(total - e_total) < 0.05, f'{region} total_kw expected {e_total}, got {total}.'\n    assert abs(avg - e_avg) < 0.05, f'{region} avg_kw expected {e_avg}, got {avg}.'\n    assert cnt == e_cnt, f'{region} reading_count expected {e_cnt}, got {cnt}.'",
+            "failure_message": "One or more aggregated values are wrong. Use ROUND(SUM(daily_kw),1) for total_kw and ROUND(AVG(daily_kw),1) for avg_kw, and include every row in the Silver table — do not add extra filters."
+          },
+          {
+            "id": "A5_3",
+            "xp": 20,
+            "description": "The cross-database three-part name is used to read from the Silver Lakehouse",
+            "check": "sql_text = open(scaffold_path).read().lower()\nassert 'lh_meter_readings.dbo.silver_meters' in sql_text, 'The INSERT source must be the three-part name lh_meter_readings.dbo.silver_meters.'\nassert 'insert into' in sql_text and 'dw_nordgrid_analytics.dbo.monthly_billing' in sql_text, 'The INSERT must target dw_nordgrid_analytics.dbo.monthly_billing.'",
+            "failure_message": "Silver is not being read via the three-part name. The Warehouse query must reference lh_meter_readings.dbo.silver_meters — that is how a Warehouse reads a Lakehouse table without copying data."
+          },
+          {
+            "id": "A5_4",
+            "xp": 20,
+            "description": "v_monthly_billing is a queryable view on the Warehouse",
+            "check": "rows = warehouse.sql('SELECT region, reading_count FROM dw_nordgrid_analytics.dbo.v_monthly_billing ORDER BY region').collect()\nassert len(rows) == 4, f'v_monthly_billing should return 4 rows, got {len(rows)}.'\nassert [r[0] for r in rows] == ['EAST','NORTH','SOUTH','WEST'], 'v_monthly_billing rows are not ordered/filtered correctly.'",
+            "failure_message": "v_monthly_billing is missing or returns unexpected rows. Create it with CREATE OR ALTER VIEW dw_nordgrid_analytics.dbo.v_monthly_billing AS SELECT … FROM dw_nordgrid_analytics.dbo.monthly_billing."
+          },
+          {
+            "id": "A5_5",
+            "xp": 20,
+            "description": "The refresh is idempotent — running gold_refresh.sql twice still leaves 4 rows",
+            "check": "warehouse.execute_file(scaffold_path)  # second execution\nrows = warehouse.sql('SELECT COUNT(*) FROM dw_nordgrid_analytics.dbo.monthly_billing').collect()\nassert int(rows[0][0]) == 4, f'After a second refresh monthly_billing should still have 4 rows, got {rows[0][0]}. The DELETE before INSERT must remove the current period first.'",
+            "failure_message": "Refresh is not idempotent. A DELETE FROM dw_nordgrid_analytics.dbo.monthly_billing WHERE year = ... AND month = ... must run before the INSERT so the same period cannot be inserted twice."
+          }
+        ]
+      },
+      "hints": [
+        {
+          "tier": "H1",
+          "xp_cost": 0,
+          "unlock_condition": "always",
+          "text": "Gold in NordGrid's Fabric architecture lives in the Warehouse because it needs T-SQL writes. You have learned how the Warehouse differs from the read-only SQL analytics endpoint and how a Warehouse query reads a Lakehouse table without copying data."
+        },
+        {
+          "tier": "H2",
+          "xp_cost": 5,
+          "unlock_condition": "always",
+          "text": "The Silver table is in lh_meter_readings and the Gold table is in dw_nordgrid_analytics — two different Fabric items. The dashboard contract says the refresh must be idempotent. The four expected rows sum to the per-region totals documented in the dataset README, and every row in the sample falls in the same year+month so the GROUP BY collapses to exactly four rows."
+        },
+        {
+          "tier": "H3",
+          "xp_cost": 10,
+          "unlock_condition": "after_1_failed_attempt",
+          "text": "Start with DELETE FROM dw_nordgrid_analytics.dbo.monthly_billing WHERE year = (SELECT MAX(year) FROM lh_meter_readings.dbo.silver_meters) AND month = (SELECT MAX(month) FROM lh_meter_readings.dbo.silver_meters). Follow with INSERT INTO dw_nordgrid_analytics.dbo.monthly_billing (year, month, region, total_kw, avg_kw, reading_count) SELECT year, month, region, ROUND(SUM(daily_kw),1), ROUND(AVG(daily_kw),1), COUNT(*) FROM lh_meter_readings.dbo.silver_meters GROUP BY year, month, region. Finish with CREATE OR ALTER VIEW dw_nordgrid_analytics.dbo.v_monthly_billing AS SELECT … FROM dw_nordgrid_analytics.dbo.monthly_billing."
+        },
+        {
+          "tier": "H4",
+          "xp_cost": 20,
+          "unlock_condition": "after_2_failed_attempts",
+          "text": "Here is the opening of the refresh. Continue with the INSERT INTO … SELECT … GROUP BY and then the CREATE OR ALTER VIEW.\n\n-- Idempotent refresh: delete the target month, then insert.\nDELETE FROM dw_nordgrid_analytics.dbo.monthly_billing\nWHERE year  = (SELECT MAX(year)  FROM lh_meter_readings.dbo.silver_meters)\n  AND month = (SELECT MAX(month) FROM lh_meter_readings.dbo.silver_meters);\n\nINSERT INTO dw_nordgrid_analytics.dbo.monthly_billing (year, month, region, total_kw, avg_kw, reading_count)\n-- … SELECT year, month, region, ROUND(SUM(daily_kw),1), ROUND(AVG(daily_kw),1), COUNT(*) FROM … GROUP BY …"
+        }
+      ],
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Expected Gold Aggregates (monthly_billing)",
+          "headers": [
+            "region",
+            "total_kw",
+            "avg_kw",
+            "reading_count"
+          ],
+          "rows": [
+            [
+              "EAST",
+              "4790.0",
+              "1197.5",
+              "4"
+            ],
+            [
+              "NORTH",
+              "8521.5",
+              "1704.3",
+              "5"
+            ],
+            [
+              "SOUTH",
+              "8890.5",
+              "2222.6",
+              "4"
+            ],
+            [
+              "WEST",
+              "6410.0",
+              "1602.5",
+              "4"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "authoring_metadata": {
+    "authored_by": "StableGrid content team",
+    "authored_date": "2026-04-19",
+    "version_notes": "v1.0.0 — initial release of the Microsoft Fabric Junior-Level project capstone.",
+    "reference_project": "Pipeline Day One (Project Creation Rules §5.2), adapted from PySpark to Microsoft Fabric (Lakehouse notebook, Data Factory pipeline, Warehouse T-SQL).",
+    "self_check_passed": true,
+    "self_check_notes": [
+      "§11.1 — Every chapter uses NordGrid scenario data with correct Bronze/Silver/Gold column names; no generic placeholder data.",
+      "§11.1 — Task specifications are unambiguous: column lists, order, rounding, dtypes, and idempotency all pinned down in the task text.",
+      "§11.1 — Inter-chapter fallbacks authored: Ch2 falls back to meter_readings_bronze.csv, Ch3 to bronze_clean_reference.csv, Ch5 to silver_reference.csv registered as silver_meters.",
+      "§11.1 — Pipeline progress bar has 5 stages matching the 5 chapters (Lakehouse, Bronze, Silver, Pipeline, Warehouse).",
+      "§11.1 — Every chapter is solvable using only Junior-track theory content (F1–F10); no external knowledge required.",
+      "§11.1 — Chapter 5 synthesises prior stages: the Warehouse query consumes the Silver Delta table from Chapter 3 via three-part cross-database naming.",
+      "§5.4 — XP distribution matches spec: Ch1 4×25, Ch2 5×20, Ch3 5×20, Ch4 4×25, Ch5 5×20; total 500 XP.",
+      "§4.2–4.3 — Hint costs and unlock conditions match the Junior row of the hint table (H1 0 / H2 5 / H3 10 / H4 20; H3 after 1 failed attempt, H4 after 2).",
+      "§4.4 — Every chapter has exactly 4 hints; each hint is independently usable and scenario-specific; H3 names the technique without code; H4 reveals roughly 20–30% of the solution.",
+      "§2.5 — Coverage matrix maps every module F1–F10 to at least one chapter; F8 (Dataflows Gen2) covered via the pre-existing Dataflow activity the student must preserve in Ch4."
+    ]
+  }
+}
