@@ -268,7 +268,7 @@ export const LandingPage = () => {
               animation: 'fadeSlideUp .7s cubic-bezier(.16,1,.3,1) 140ms forwards',
             }}
           >
-            Ed-tech for analysts and engineers who'd rather understand a query plan than collect another certificate.
+            Ed-tech for analysts and engineers who&rsquo;d rather understand a query plan than collect another certificate.
           </p>
 
           {/* CTAs — one primary pill + one text link */}
