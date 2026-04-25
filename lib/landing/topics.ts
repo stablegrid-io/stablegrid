@@ -7,6 +7,11 @@ export interface LandingTopic {
   category: string;
   catRgb: string;
   description: string;
+  levels: {
+    junior: string;
+    mid: string;
+    senior: string;
+  };
   progressPct: number;
 }
 
@@ -17,6 +22,11 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     category: 'Orchestration',
     catRgb: '255,180,60',
     description: 'Build Apache Airflow capability across orchestration foundations, DAG authoring, scheduling, monitoring, and production debugging.',
+    levels: {
+      junior: 'DAG authoring, operators, scheduling basics',
+      mid: 'Dynamic DAGs, sensors, XComs, monitoring',
+      senior: 'Scaling executors, multi-tenant, debugging at depth',
+    },
     progressPct: 0,
   },
   {
@@ -25,6 +35,11 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     category: 'Platforms',
     catRgb: '34,200,150',
     description: 'Build Microsoft Fabric capability across platform foundations, analytics workflows, governance controls, and production delivery practices.',
+    levels: {
+      junior: 'Workspaces, lakehouses, notebooks, data flows',
+      mid: 'Production pipelines, governance, lineage',
+      senior: 'Architecture, capacity planning, deployment patterns',
+    },
     progressPct: 0,
   },
   {
@@ -33,6 +48,11 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     category: 'Processing',
     catRgb: '170,120,255',
     description: 'Build PySpark capability across foundations, data engineering workflows, optimization, and production-ready governance patterns.',
+    levels: {
+      junior: 'DataFrames, transformations, joins, basics',
+      mid: 'Window functions, partitioning, UDFs, broadcast',
+      senior: 'Catalyst, AQE, skew handling, production tuning',
+    },
     progressPct: 0,
   },
   {
@@ -41,6 +61,11 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     category: 'Foundations',
     catRgb: '200,210,220',
     description: 'Build SQL capability across query foundations, window functions, performance tuning, and production data modeling patterns.',
+    levels: {
+      junior: 'Joins, aggregations, subqueries, basic windows',
+      mid: 'Advanced windows, CTEs, indexing, optimization',
+      senior: 'Query planning, partitioning, performance tuning',
+    },
     progressPct: 0,
   },
   {
@@ -49,30 +74,11 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     category: 'Foundations',
     catRgb: '200,210,220',
     description: 'Build Python capability across language foundations, async patterns, packaging, and production-ready data engineering practices.',
-    progressPct: 0,
-  },
-  {
-    name: 'Apache Kafka',
-    icon: '/brand/apache-kafka-logo.svg',
-    category: 'Orchestration',
-    catRgb: '255,180,60',
-    description: 'Build Apache Kafka capability across streaming foundations, producer/consumer design, schemas, and production resilience.',
-    progressPct: 0,
-  },
-  {
-    name: 'Docker',
-    icon: '/brand/docker-logo.svg',
-    category: 'Infrastructure',
-    catRgb: '100,180,255',
-    description: 'Build Docker capability across container foundations, image optimization, networking, and production orchestration patterns.',
-    progressPct: 0,
-  },
-  {
-    name: 'dbt',
-    icon: '/brand/dbt-logo.svg',
-    category: 'Processing',
-    catRgb: '170,120,255',
-    description: 'Build dbt capability across modeling foundations, testing, materialization strategies, and production analytics workflows.',
+    levels: {
+      junior: 'Data structures, I/O, pandas basics',
+      mid: 'Async, typing, packaging, testing pipelines',
+      senior: 'Memory profiling, performance, production patterns',
+    },
     progressPct: 0,
   },
 ];

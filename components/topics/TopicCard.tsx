@@ -72,13 +72,32 @@ export function TopicCard({ topic, index, href = '/login' }: TopicCardProps) {
             </span>
           </div>
 
-          {/* Title + description */}
-          <h3 className="text-2xl font-bold mb-3 tracking-tight uppercase" style={{ color: 'rgba(255,255,255,0.95)' }}>
+          {/* Title + per-level breakdown */}
+          <h3 className="text-2xl font-bold mb-4 tracking-tight uppercase" style={{ color: 'rgba(255,255,255,0.95)' }}>
             {topic.name}
           </h3>
-          <p className="text-sm mb-8 leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-            {topic.description}
-          </p>
+          <ul className="mb-8 flex flex-col gap-2.5">
+            {(['junior', 'mid', 'senior'] as const).map((level) => (
+              <li key={level} className="flex items-baseline gap-3">
+                <span
+                  className="font-mono text-[10px] font-bold uppercase tabular-nums shrink-0"
+                  style={{
+                    color: 'rgba(255,255,255,0.42)',
+                    letterSpacing: '0.14em',
+                    width: 44,
+                  }}
+                >
+                  {level}
+                </span>
+                <span
+                  className="text-[13px] leading-snug"
+                  style={{ color: 'rgba(255,255,255,0.7)' }}
+                >
+                  {topic.levels[level]}
+                </span>
+              </li>
+            ))}
+          </ul>
 
           {/* Progress (only when authenticated + has real progress) + CTA */}
           <div className="mt-auto">

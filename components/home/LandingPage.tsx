@@ -339,11 +339,11 @@ export const LandingPage = () => {
           </p>
           <div className="flex items-end justify-between mb-12 gap-4 flex-wrap">
             <h2 className="text-3xl lg:text-4xl font-bold tracking-tight" style={{ lineHeight: 1.1 }}>
-              The whole data<br />
-              <span style={{ color: 'rgba(255,255,255,0.35)' }}>engineering stack.</span>
+              Five tracks.<br />
+              <span style={{ color: 'rgba(255,255,255,0.35)' }}>Junior to Senior.</span>
             </h2>
             <p className="text-sm max-w-sm" style={{ color: 'rgba(255,255,255,0.4)', lineHeight: 1.7 }}>
-              Spark, Fabric, Airflow, SQL, Kafka, dbt, Snowflake, Terraform — processing, orchestration, platforms, streaming, and governance, all under one roof.
+              PySpark, Microsoft Fabric, Airflow, SQL, Python — each track takes you from foundations to production-ready depth.
             </p>
           </div>
 
@@ -373,7 +373,7 @@ export const LandingPage = () => {
                 transition: 'color 200ms ease',
               }}
             >
-              <span className="landing-hero-link__label">Explore all 20+ topics</span>
+              <span className="landing-hero-link__label">Explore all 5 topics</span>
               <ChevronRight
                 aria-hidden="true"
                 className="landing-hero-link__arrow landing-hero-link__arrow--chevron w-4 h-4"
