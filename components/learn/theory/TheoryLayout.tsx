@@ -373,14 +373,14 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const unlockedModuleIds = useMemo(() => {
     const ids = new Set<string>();
     for (let i = 0; i < modules.length; i += 1) {
-      const module = modules[i];
+      const mod = modules[i];
       if (i === 0) {
-        ids.add(module.id);
+        ids.add(mod.id);
         continue;
       }
       const previous = modules[i - 1];
-      if (completedChapterIds.has(previous.id) || unlockedChapterIds.has(module.id)) {
-        ids.add(module.id);
+      if (completedChapterIds.has(previous.id) || unlockedChapterIds.has(mod.id)) {
+        ids.add(mod.id);
       }
     }
     return ids;
