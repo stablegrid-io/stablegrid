@@ -439,8 +439,7 @@ export const LandingPage = () => {
               {
                 level: 'SENIOR', subtitle: 'PLATFORM ARCHITECTURE', color: '#ff716c', rgb: '255,113,108',
                 image: '/brand/track-senior.png',
-                modules: '0/10', est: '~66 hours total', xp: '3.0X', cta: 'Unlock at Mid',
-                locked: true,
+                modules: '0/10', est: '~66 hours total', xp: '3.0X', cta: 'Start track',
               },
             ].map((tier, i) => (
               <Link
