@@ -421,17 +421,17 @@ export const LandingPage = () => {
               {
                 level: 'JUNIOR', subtitle: 'FOUNDATIONAL MODULES', color: '#99f7ff', rgb: '153,247,255',
                 image: '/brand/track-junior.png',
-                modules: '0/10', est: '~42 hours total', xp: '1.0X', cta: 'Start track',
+                modules: '0/10', est: '~42 hours total', xp: '1.0X', cta: 'Start track', locked: false,
               },
               {
                 level: 'MID', subtitle: 'ADVANCED SYSTEMS', color: '#ffc965', rgb: '255,201,101',
                 image: '/brand/track-mid.png',
-                modules: '0/10', est: '~53 hours total', xp: '1.5X', cta: 'Start track',
+                modules: '0/10', est: '~53 hours total', xp: '1.5X', cta: 'Start track', locked: false,
               },
               {
                 level: 'SENIOR', subtitle: 'PLATFORM ARCHITECTURE', color: '#ff716c', rgb: '255,113,108',
                 image: '/brand/track-senior.png',
-                modules: '0/10', est: '~66 hours total', xp: '3.0X', cta: 'Start track',
+                modules: '0/10', est: '~66 hours total', xp: '3.0X', cta: 'Start track', locked: false,
               },
             ].map((tier, i) => (
               <Link
