@@ -887,8 +887,6 @@ function EconomyStep({ active }: { active: boolean }) {
   }, [active]);
 
   const fillRatio = count / BATTERY_CAPACITY;
-  const CELLS = 10;
-  const filledCells = Math.round(fillRatio * CELLS);
 
   return (
     <div>
@@ -909,7 +907,7 @@ function EconomyStep({ active }: { active: boolean }) {
                 fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
                 fontWeight: 800,
                 letterSpacing: '-0.04em',
-                color: '#99f7ff',
+                color: 'rgba(255,255,255,0.97)',
                 lineHeight: 1
               }}
             >
@@ -920,7 +918,7 @@ function EconomyStep({ active }: { active: boolean }) {
               style={{
                 fontSize: 14,
                 letterSpacing: '0.18em',
-                color: 'rgba(255,255,255,0.4)',
+                color: 'rgba(255,255,255,0.95)',
                 textTransform: 'uppercase',
                 fontWeight: 700
               }}
@@ -942,48 +940,31 @@ function EconomyStep({ active }: { active: boolean }) {
             Battery Energy Storage System
           </p>
 
-          {/* Cell row battery */}
+          {/* Apple-style progress bar */}
           <div
-            className="mt-7 flex items-center gap-2"
+            className="mt-7"
             role="img"
             aria-label={`Battery filling to ${count.toLocaleString()} kilowatt hours of ${BATTERY_CAPACITY.toLocaleString()}`}
           >
             <div
-              className="flex gap-1.5 p-2"
               style={{
-                flex: 1,
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 8
+                width: '100%',
+                height: 6,
+                borderRadius: 999,
+                background: 'rgba(255,255,255,0.08)',
+                overflow: 'hidden'
               }}
             >
-              {Array.from({ length: CELLS }).map((_, idx) => {
-                const filled = idx < filledCells;
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      flex: 1,
-                      height: 28,
-                      borderRadius: 3,
-                      background: filled ? '#99f7ff' : 'rgba(255,255,255,0.06)',
-                      boxShadow: filled
-                        ? '0 0 12px rgba(153,247,255,0.45)'
-                        : 'inset 0 0 0 1px rgba(255,255,255,0.04)',
-                      transition: 'background 220ms ease, box-shadow 220ms ease'
-                    }}
-                  />
-                );
-              })}
+              <div
+                style={{
+                  width: `${Math.max(0, Math.min(1, fillRatio)) * 100}%`,
+                  height: '100%',
+                  borderRadius: 999,
+                  background: '#99f7ff',
+                  transition: 'width 600ms cubic-bezier(0.16, 1, 0.3, 1)'
+                }}
+              />
             </div>
-            {/* Battery tab */}
-            <div
-              style={{
-                width: 5,
-                height: 18,
-                borderRadius: 2,
-                background: 'rgba(255,255,255,0.18)'
-              }}
-            />
           </div>
         </SurfaceCard>
 
@@ -1015,7 +996,7 @@ function EconomyStep({ active }: { active: boolean }) {
                   style={{
                     fontSize: 16,
                     fontWeight: 700,
-                    color: '#99f7ff',
+                    color: 'rgba(255,255,255,0.97)',
                     letterSpacing: '-0.01em'
                   }}
                 >

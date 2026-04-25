@@ -120,7 +120,7 @@ function LessonToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =
         <div
           className="text-[15px] font-bold leading-none tabular-nums"
           style={{
-            color: '#99f7ff',
+            color: 'rgba(255,255,255,0.97)',
             fontFamily: '-apple-system, "SF Pro Display", system-ui, sans-serif',
             letterSpacing: '-0.02em',
           }}
@@ -129,7 +129,7 @@ function LessonToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =
         </div>
         <div
           className="mt-0.5 font-mono text-[7px] font-bold uppercase tracking-[0.16em]"
-          style={{ color: 'rgba(153, 247, 255, 0.75)' }}
+          style={{ color: 'rgba(255,255,255,0.95)' }}
         >
           kWh
         </div>
@@ -200,7 +200,7 @@ function ModuleToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =
         <div
           className="text-4xl font-bold tabular-nums mb-2"
           style={{
-            color: '#99f7ff',
+            color: 'rgba(255,255,255,0.97)',
             fontFamily: '-apple-system, "SF Pro Display", system-ui, sans-serif',
             letterSpacing: '-0.02em',
           }}

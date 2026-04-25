@@ -92,10 +92,37 @@ export const HomeDashboard = ({
   const anim = (delay: number) =>
     ({ opacity: 0, animation: `homeFadeUp .7s cubic-bezier(.16,1,.3,1) ${delay}ms forwards` }) as const;
 
+  const [defaultVariantIdx] = useState(() => Math.floor(Math.random() * 5));
+
   const greetingLine = useMemo(() => {
     const name = <span style={{ color: '#99f7ff' }}>{firstName}</span>;
-    return <>Welcome back, {name}.</>;
-  }, [firstName]);
+    const streak = stats.currentStreak;
+    const lifetime = stats.totalXp;
+
+    // Streak — most specific signal
+    if (streak >= 3) return <>Day {streak}, {name}.</>;
+
+    // Tier proximity — within the last 1,000 kWh before an unlock
+    if (lifetime >= 9000 && lifetime < 10000) {
+      return <>{(10000 - lifetime).toLocaleString()} kWh from Mid, {name}.</>;
+    }
+    if (lifetime >= 29000 && lifetime < 30000) {
+      return <>{(30000 - lifetime).toLocaleString()} kWh from Senior, {name}.</>;
+    }
+
+    // First-time vibe
+    if (lifetime < 100) return <>Welcome, {name}.</>;
+
+    // Default — random per page load, stable within session
+    const variants = [
+      <>Welcome back, {name}.</>,
+      <>Back at it, {name}.</>,
+      <>Good to see you, {name}.</>,
+      <>Right where you left off, {name}.</>,
+      <>Ready when you are, {name}.</>,
+    ];
+    return variants[defaultVariantIdx];
+  }, [firstName, stats.currentStreak, stats.totalXp, defaultVariantIdx]);
 
   return (
     <div

@@ -174,7 +174,7 @@ export const Sidebar = () => {
               <div className="mt-1.5 text-[12px] font-semibold text-white tabular-nums leading-tight">
                 {progressHydrated && balance !== null ? (
                   <>
-                    {balance.toLocaleString()} <span className="font-medium text-white/50">kWh</span>
+                    {balance.toLocaleString()} <span className="font-medium text-white">kWh</span>
                   </>
                 ) : (
                   <span className="text-white/30">— kWh</span>

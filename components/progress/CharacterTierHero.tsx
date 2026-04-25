@@ -62,8 +62,8 @@ export function CharacterTierHero() {
       style={{
         background: '#0f1215',
         borderRadius: 24,
-        border: `1px solid rgba(${accentRgb},0.28)`,
-        boxShadow: `0 0 0 1px rgba(${accentRgb},0.06), 0 30px 80px rgba(0,0,0,0.55), 0 0 80px rgba(${accentRgb},0.1)`,
+        border: '1px solid rgba(255,255,255,0.06)',
+        boxShadow: '0 30px 80px rgba(0,0,0,0.55)',
         opacity: 0,
         animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards'
       }}
@@ -356,7 +356,7 @@ function StatPill({ label, value }: { label: string; value: string }) {
         style={{
           fontSize: 13,
           fontWeight: 700,
-          color: 'rgba(255,255,255,0.92)',
+          color: 'rgba(255,255,255,0.97)',
           letterSpacing: '-0.01em'
         }}
       >
@@ -367,7 +367,7 @@ function StatPill({ label, value }: { label: string; value: string }) {
         style={{
           fontSize: 10,
           letterSpacing: '0.16em',
-          color: 'rgba(255,255,255,0.4)',
+          color: 'rgba(255,255,255,0.95)',
           textTransform: 'uppercase',
           fontWeight: 700
         }}
