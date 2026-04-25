@@ -268,7 +268,7 @@ export const LandingPage = () => {
               animation: 'fadeSlideUp .7s cubic-bezier(.16,1,.3,1) 140ms forwards',
             }}
           >
-            Every chapter you finish powers a district. Every project ships to your CV.
+            Ed-tech for analysts and engineers who'd rather understand a query plan than collect another certificate.
           </p>
 
           {/* CTAs — one primary pill + one text link */}
@@ -296,17 +296,9 @@ export const LandingPage = () => {
               <ArrowRight aria-hidden="true" className="w-[15px] h-[15px]" strokeWidth={2.2} />
             </Link>
 
-            <a
-              href="#topics"
-              onClick={(e) => {
-                const target = document.querySelector('#topics');
-                if (!target) return;
-                e.preventDefault();
-                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                if (typeof window !== 'undefined' && window.history?.replaceState) {
-                  window.history.replaceState(null, '', '#topics');
-                }
-              }}
+            <Link
+              href="/topics"
+              prefetch={false}
               className="landing-hero-link inline-flex items-center gap-1.5"
               style={{
                 fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
@@ -319,7 +311,7 @@ export const LandingPage = () => {
             >
               <span className="landing-hero-link__label">Explore topics</span>
               <span aria-hidden className="landing-hero-link__arrow" style={{ transition: 'transform 300ms cubic-bezier(.16,1,.3,1)' }}>↗</span>
-            </a>
+            </Link>
           </div>
         </div>
       </section>

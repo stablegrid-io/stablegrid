@@ -15,8 +15,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const FADE_MS = 900;
 const PLAYBACK_RATE = 1.5;
-// Trim the final 1.6s — the tail of the clip doesn't represent the final state.
-const END_TRIM_SECONDS = 1.6;
+const END_TRIM_SECONDS = 0;
 const SESSION_KEY = 'stablegrid-landing-intro-seen';
 
 export function LandingIntro() {
