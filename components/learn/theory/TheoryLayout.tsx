@@ -26,6 +26,7 @@ import { TheoryContent } from '@/components/learn/theory/TheoryContent';
 import { TheorySessionTopbar } from '@/components/learn/theory/TheorySessionTopbar';
 import { LessonCompletionToast } from '@/components/learn/theory/LessonCompletionToast';
 import { SessionStartedToast } from '@/components/learn/theory/SessionStartedToast';
+import { SessionEndedToast } from '@/components/learn/theory/SessionEndedToast';
 import { ModuleCompleteFeedback } from '@/components/feedback/ModuleCompleteFeedback';
 import { TrackCompleteFeedback } from '@/components/feedback/TrackCompleteFeedback';
 import { KWhRewardToast, type KWhReward } from '@/components/learn/theory/KWhRewardToast';
@@ -314,6 +315,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   );
   const [routeReady, setRouteReady] = useState(false);
   const [sessionStartedInfo, setSessionStartedInfo] = useState<{ methodId: string; focusMinutes: number; breakMinutes: number } | null>(null);
+  const [sessionEndedInfo, setSessionEndedInfo] = useState<{ methodId: string; focusElapsedSeconds: number; plannedFocusMinutes: number } | null>(null);
   const [completionActionPending, setCompletionActionPending] = useState(false);
   const [showCompletionToast, setShowCompletionToast] = useState(false);
   const [moduleFeedbackTarget, setModuleFeedbackTarget] = useState<TheoryChapter | null>(null);
@@ -346,9 +348,48 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const theorySession = useTheorySessionTimer('global');
   const startTheorySession = theorySession.start;
 
+  const userInitiatedStopRef = useRef(false);
+
+  const handleStopEarly = useCallback(() => {
+    const cfg = theorySession.config;
+    if (cfg) {
+      userInitiatedStopRef.current = true;
+      setSessionEndedInfo({
+        methodId: cfg.methodId,
+        focusElapsedSeconds: theorySession.focusElapsedSeconds,
+        plannedFocusMinutes: cfg.focusMinutes * cfg.rounds,
+      });
+    }
+    // Once the user has run a session this mount, the picker should not
+    // auto-open again — they'll start the next one explicitly.
+    sessionPickerInitializedRef.current = true;
+    setFocus(false);
+    theorySession.stop();
+  }, [theorySession, setFocus]);
+
+  const wrappedTheorySession = useMemo(
+    () => ({ ...theorySession, stop: handleStopEarly }),
+    [theorySession, handleStopEarly]
+  );
+
   // Auto-reset session when it completes (no overlay needed)
   useEffect(() => {
     if (theorySession.phase === 'complete') {
+      // Natural completion (timer reached the end) — fire the congrats toast.
+      // Early stop already populated sessionEndedInfo via handleStopEarly.
+      if (!userInitiatedStopRef.current && theorySession.config) {
+        const cfg = theorySession.config;
+        setSessionEndedInfo({
+          methodId: cfg.methodId,
+          focusElapsedSeconds: theorySession.focusElapsedSeconds,
+          plannedFocusMinutes: cfg.focusMinutes * cfg.rounds,
+        });
+        setFocus(false);
+      }
+      // Don't auto-reopen the picker after a session ends — the user will
+      // start the next one explicitly via the toolbar.
+      sessionPickerInitializedRef.current = true;
+      userInitiatedStopRef.current = false;
       theorySession.reset();
     }
   }, [theorySession.phase]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1114,42 +1155,14 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     >
 
 
-      {/* Floating controls — visible in focus mode */}
-      {focusMode && (
-        <div data-reading-mode={readingMode} className="contents">
-          <div className="fixed top-3 right-3 z-50 flex items-center gap-1" data-reading-mode={readingMode}>
-            <ReadingModeDropdown />
-            <FocusModeButton />
-          </div>
-          <button
-            type="button"
-            onClick={toggleFocus}
-            data-reading-mode={readingMode}
-            className="fixed top-3 left-3 z-50 flex items-center gap-2 px-3 py-1.5 backdrop-blur transition-opacity opacity-40 hover:opacity-100"
-            style={{
-              backgroundColor: 'var(--rm-bg-elevated)',
-              border: '1px solid var(--rm-border)',
-              color: 'var(--rm-text-secondary)',
-            }}
-          >
-            <kbd
-              className="font-mono text-[10px] tracking-widest px-1.5 py-0.5"
-              style={{
-                border: '1px solid var(--rm-border)',
-                backgroundColor: 'var(--rm-bg)',
-                color: 'var(--rm-text-secondary)',
-              }}
-            >ESC</kbd>
-            <span className="font-mono font-medium text-[10px] tracking-widest uppercase">Exit Focus</span>
-          </button>
-        </div>
-      )}
-
-      <div className="flex h-12 flex-shrink-0 items-center border-b border-outline-variant/20 bg-surface/95 backdrop-blur-md px-4 sticky top-0 z-40" data-hide-on-focus>
+      <div className="flex h-12 flex-shrink-0 items-center border-b border-outline-variant/20 bg-surface/95 backdrop-blur-md px-4 sticky top-0 z-40">
         {/* Left group: navigation */}
         <div className="flex items-center gap-1.5">
           <Link
             href={`/learn/${doc.topic}/theory/${activeTrackSlug ?? 'all'}`}
+            onClick={() => {
+              if (focusMode) setFocus(false);
+            }}
             className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
@@ -1171,7 +1184,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         {/* Center: context info or session */}
         <div className="flex-1 flex items-center justify-center">
           {theorySession.hasActiveSession ? (
-            <TheorySessionTopbar session={theorySession} />
+            <TheorySessionTopbar session={wrappedTheorySession} />
           ) : (
             <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide">
               M{activeChapter.order ?? activeChapter.number}
@@ -1224,7 +1237,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
           id="theory-sidebar"
-          data-hide-on-focus
           className={`absolute inset-y-0 left-0 z-50 w-[min(18.25rem,calc(100vw-1rem))] border-r border-outline-variant/30 bg-surface-container/96 shadow-2xl backdrop-blur transition-transform duration-300 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
@@ -1363,6 +1375,18 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             focusMinutes={sessionStartedInfo.focusMinutes}
             breakMinutes={sessionStartedInfo.breakMinutes}
             onDismiss={() => setSessionStartedInfo(null)}
+          />
+        ) : null}
+      </AnimatePresence>
+
+      {/* Session ended toast — appears when user manually stops a session */}
+      <AnimatePresence>
+        {sessionEndedInfo ? (
+          <SessionEndedToast
+            methodId={sessionEndedInfo.methodId}
+            focusElapsedSeconds={sessionEndedInfo.focusElapsedSeconds}
+            plannedFocusMinutes={sessionEndedInfo.plannedFocusMinutes}
+            onDismiss={() => setSessionEndedInfo(null)}
           />
         ) : null}
       </AnimatePresence>
