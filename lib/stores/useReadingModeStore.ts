@@ -9,6 +9,20 @@ interface ReadingModeState {
   hasHydrated: boolean;
   setMode: (mode: ReadingMode) => void;
   toggleFocus: () => void;
+  setFocus: (value: boolean) => void;
+}
+
+function applyFullscreen(enable: boolean) {
+  if (typeof document === 'undefined') return;
+  try {
+    if (enable && !document.fullscreenElement) {
+      void document.documentElement.requestFullscreen?.();
+    } else if (!enable && document.fullscreenElement) {
+      void document.exitFullscreen?.();
+    }
+  } catch {
+    /* ignore — fullscreen may be blocked by browser */
+  }
 }
 
 export const useReadingModeStore = create<ReadingModeState>()(
@@ -21,18 +35,15 @@ export const useReadingModeStore = create<ReadingModeState>()(
       toggleFocus: () => {
         set((state) => {
           const next = !state.focusMode;
-          if (typeof document !== 'undefined') {
-            try {
-              if (next && !document.fullscreenElement) {
-                void document.documentElement.requestFullscreen?.();
-              } else if (!next && document.fullscreenElement) {
-                void document.exitFullscreen?.();
-              }
-            } catch {
-              /* ignore — fullscreen may be blocked by browser */
-            }
-          }
+          applyFullscreen(next);
           return { focusMode: next };
+        });
+      },
+      setFocus: (value) => {
+        set((state) => {
+          if (state.focusMode === value) return state;
+          applyFullscreen(value);
+          return { focusMode: value };
         });
       },
     }),

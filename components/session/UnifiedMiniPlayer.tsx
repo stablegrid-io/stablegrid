@@ -24,7 +24,7 @@ const METHOD_CONFIG: Record<string, { label: string; icon: typeof Zap; color: st
   sprint: { label: 'Sprint', icon: Zap, color: '153,247,255' },
   pomodoro: { label: 'Pomodoro', icon: Clock3, color: '255,113,108' },
   'deep-focus': { label: 'Deep Focus', icon: Brain, color: '191,129,255' },
-  'free-read': { label: 'Free Read', icon: BookOpen, color: '255,201,101' },
+  'free-read': { label: 'Free Read', icon: BookOpen, color: '255,255,255' },
 };
 
 function readTheorySession(): { active: boolean; method: string; label: string; icon: typeof Zap; color: string; time: string; route: string; paused: boolean } | null {

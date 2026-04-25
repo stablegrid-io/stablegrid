@@ -270,7 +270,7 @@ export const TheorySessionPicker = ({
               <button
                 type="button"
                 onClick={() => onStart(freeReadConfig)}
-                className="border border-amber-400/30 bg-amber-400/10 px-8 py-3 rounded-[14px] text-xs font-mono font-bold text-amber-400 uppercase tracking-widest hover:bg-amber-400/20 hover:border-amber-400/50 transition-all"
+                className="border border-white/30 bg-white/10 px-8 py-3 rounded-[14px] text-xs font-mono font-bold text-white uppercase tracking-widest hover:bg-white/20 hover:border-white/50 transition-all"
               >
                 FREE READ
               </button>

@@ -25,6 +25,7 @@ import { TheorySidebar } from '@/components/learn/theory/TheorySidebar';
 import { TheoryContent } from '@/components/learn/theory/TheoryContent';
 import { TheorySessionTopbar } from '@/components/learn/theory/TheorySessionTopbar';
 import { LessonCompletionToast } from '@/components/learn/theory/LessonCompletionToast';
+import { SessionStartedToast } from '@/components/learn/theory/SessionStartedToast';
 import { ModuleCompleteFeedback } from '@/components/feedback/ModuleCompleteFeedback';
 import { TrackCompleteFeedback } from '@/components/feedback/TrackCompleteFeedback';
 import { KWhRewardToast, type KWhReward } from '@/components/learn/theory/KWhRewardToast';
@@ -273,6 +274,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const readingMode = useReadingModeStore((s) => s.mode);
   const focusMode = useReadingModeStore((s) => s.focusMode);
   const toggleFocus = useReadingModeStore((s) => s.toggleFocus);
+  const setFocus = useReadingModeStore((s) => s.setFocus);
 
   // ESC to exit focus mode
   useEffect(() => {
@@ -311,6 +313,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     undefined
   );
   const [routeReady, setRouteReady] = useState(false);
+  const [sessionStartedInfo, setSessionStartedInfo] = useState<{ methodId: string; focusMinutes: number; breakMinutes: number } | null>(null);
   const [completionActionPending, setCompletionActionPending] = useState(false);
   const [showCompletionToast, setShowCompletionToast] = useState(false);
   const [moduleFeedbackTarget, setModuleFeedbackTarget] = useState<TheoryChapter | null>(null);
@@ -1006,15 +1009,16 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       !routeReady ||
       !sessionDefaultsHydrated ||
       !theorySession.hasHydrated ||
-      theorySession.hasActiveSession
+      theorySession.hasActiveSession ||
+      sessionPickerInitializedRef.current
     ) {
       return;
     }
 
-    // Session picker no longer auto-opens — user clicks "Session" in toolbar
     sessionPickerInitializedRef.current = true;
+    openSessionPicker();
   }, [
-    hasDismissedSessionPicker,
+    openSessionPicker,
     routeReady,
     sessionDefaultsHydrated,
     theorySession.hasHydrated,
@@ -1285,6 +1289,12 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             markSessionPickerDismissed();
             setSessionPickerVisible(false);
             startTheorySession(config);
+            setFocus(true);
+            setSessionStartedInfo({
+              methodId: config.methodId,
+              focusMinutes: config.focusMinutes,
+              breakMinutes: config.breakMinutes,
+            });
           }}
           onOpenSettings={() => {
             markSessionPickerDismissed();
@@ -1341,6 +1351,18 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             }
             onDismiss={() => setShowCompletionToast(false)}
             accentRgb={getTheoryTopicStyle(doc.topic).accentRgb}
+          />
+        ) : null}
+      </AnimatePresence>
+
+      {/* Session started toast — appears right after picking a learning approach */}
+      <AnimatePresence>
+        {sessionStartedInfo ? (
+          <SessionStartedToast
+            methodId={sessionStartedInfo.methodId}
+            focusMinutes={sessionStartedInfo.focusMinutes}
+            breakMinutes={sessionStartedInfo.breakMinutes}
+            onDismiss={() => setSessionStartedInfo(null)}
           />
         ) : null}
       </AnimatePresence>
