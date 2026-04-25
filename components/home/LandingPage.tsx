@@ -201,6 +201,39 @@ export const LandingPage = () => {
 
         {/* Centered hero stack */}
         <div className="relative z-10 w-full max-w-3xl mx-auto text-center flex flex-col items-center">
+          {/* Beta pill */}
+          <div
+            className="inline-flex items-center gap-2"
+            style={{
+              padding: '6px 14px',
+              marginBottom: 24,
+              borderRadius: 999,
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: '0.02em',
+              color: 'rgba(255,255,255,0.72)',
+              opacity: 0,
+              animation: 'fadeSlideUp .6s cubic-bezier(.16,1,.3,1) 0ms forwards',
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: '#99f7ff',
+                boxShadow: '0 0 8px rgba(153,247,255,0.55)',
+              }}
+            />
+            <span>Beta · Free for early users</span>
+          </div>
+
           {/* Headline */}
           <h1
             style={{
@@ -212,7 +245,7 @@ export const LandingPage = () => {
               color: 'rgba(255,255,255,0.97)',
               marginBottom: 28,
               opacity: 0,
-              animation: 'fadeSlideUp .7s cubic-bezier(.16,1,.3,1) 0ms forwards',
+              animation: 'fadeSlideUp .7s cubic-bezier(.16,1,.3,1) 80ms forwards',
             }}
           >
             Understanding <span style={{ color: '#99f7ff' }}>data</span>
