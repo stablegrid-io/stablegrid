@@ -11,6 +11,103 @@ import { ComponentCatalogDemo } from '@/components/home/landing/ComponentCatalog
 
 // ─── Nav on scroll ───────────────────────────────────────────────────────────
 
+const FAQS: { q: string; a: string }[] = [
+  {
+    q: 'What is stablegrid.io?',
+    a: "An ed-tech platform for analysts and data engineers who'd rather understand a query plan than collect another certificate. Deep theory, real projects, no shortcuts.",
+  },
+  {
+    q: 'Who is it for?',
+    a: 'Working analysts, junior engineers, and self-taught learners moving toward data engineering or analytics. Three tiers — Junior (foundations), Mid (advanced systems), Senior (platform architecture).',
+  },
+  {
+    q: 'What will I learn?',
+    a: 'PySpark, Microsoft Fabric, SQL, data modeling, ETL, performance tuning. Each track is ~42–66 hours of deep theory paired with hands-on practice sets.',
+  },
+  {
+    q: 'What does it cost?',
+    a: 'Free during beta. After launch, supporters pay €2.99/month — locked in for life.',
+  },
+  {
+    q: 'How is this different from DataCamp or Coursera?',
+    a: "We don't sell certificates. We teach you to read query plans, build pipelines, and understand systems. The output is a portfolio, not a paper credential.",
+  },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section id="faq" className="py-28 lg:py-40 px-6">
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-x-16 gap-y-12">
+        {/* Left — heading + intro */}
+        <div>
+          <p
+            className="font-mono font-bold text-xs uppercase tracking-widest mb-4"
+            style={{ color: 'rgba(255,255,255,0.25)', letterSpacing: '0.18em' }}
+          >
+            FAQ
+          </p>
+          <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-6" style={{ lineHeight: 1.1 }}>
+            Let&rsquo;s clear<br />
+            <span style={{ color: 'rgba(255,255,255,0.35)' }}>things up.</span>
+          </h2>
+          <p className="text-[15px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: 460 }}>
+            A few honest answers about what stablegrid is, who it&rsquo;s for, and what you&rsquo;ll actually walk away with.
+          </p>
+        </div>
+
+        {/* Right — accordion */}
+        <ul className="space-y-0">
+          {FAQS.map((item, i) => {
+            const isOpen = openIndex === i;
+            return (
+              <li
+                key={item.q}
+                style={{ borderTop: i === 0 ? '1px solid rgba(255,255,255,0.08)' : undefined, borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenIndex(isOpen ? null : i)}
+                  aria-expanded={isOpen}
+                  className="w-full flex items-center justify-between gap-6 py-5 text-left transition-colors"
+                  style={{ color: 'rgba(255,255,255,0.92)' }}
+                >
+                  <span className="text-[17px] lg:text-[18px] font-semibold tracking-tight">{item.q}</span>
+                  <span
+                    aria-hidden
+                    className="shrink-0 flex items-center justify-center w-6 h-6"
+                    style={{
+                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 280ms cubic-bezier(.16,1,.3,1)',
+                      color: isOpen ? '#99f7ff' : 'rgba(255,255,255,0.5)',
+                    }}
+                  >
+                    <ChevronRight className="w-4 h-4 rotate-90" strokeWidth={2.2} />
+                  </span>
+                </button>
+                <div
+                  className="grid transition-[grid-template-rows] duration-300 ease-out"
+                  style={{ gridTemplateRows: isOpen ? '1fr' : '0fr' }}
+                >
+                  <div className="overflow-hidden">
+                    <p
+                      className="pb-5 pr-10 text-[15px] leading-relaxed"
+                      style={{ color: 'rgba(255,255,255,0.55)' }}
+                    >
+                      {item.a}
+                    </p>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 function NavOnScroll() {
   const [visible, setVisible] = useState(false);
 
@@ -839,6 +936,12 @@ export const LandingPage = () => {
           </p>
         </div>
       </section>
+
+      {/* Section divider */}
+      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+
+      {/* ── FAQ ────────────────────────────────────────────────────────────── */}
+      <FaqSection />
 
       {/* Section divider */}
       <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
