@@ -23,11 +23,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'stableGrid',
   description:
-    'Premium data engineering learning platform — master PySpark, Fabric, Airflow, SQL, and more through structured theory tracks.',
-  icons: {
-    icon: '/icon.svg',
-    shortcut: '/icon.svg'
-  }
+    'Premium data engineering learning platform — master PySpark, Fabric, Airflow, SQL, and more through structured theory tracks.'
 };
 
 export default function RootLayout({
