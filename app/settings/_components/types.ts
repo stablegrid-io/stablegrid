@@ -5,8 +5,7 @@ export type SettingsTabId =
   | 'danger'
   | 'privacy'
   | 'terms'
-  | 'support'
-  | 'bug';
+  | 'support';
 
 export interface ProfileRecord {
   id: string;

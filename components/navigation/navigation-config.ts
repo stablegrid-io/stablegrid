@@ -69,7 +69,7 @@ export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolea
   const authPages = ['/login', '/signup'];
   if (authPages.includes(pathname)) return true;
   // Hide nav on public pages when not authenticated
-  const publicPages = ['/privacy', '/terms', '/support', '/support/report-bug'];
+  const publicPages = ['/privacy', '/terms', '/support'];
   if (!isAuthenticated && publicPages.includes(pathname)) return true;
   return false;
 };
@@ -86,8 +86,7 @@ export const isTheoryLessonPath = (pathname?: string | null) =>
 const LANDING_FOOTER_PATHS = new Set<string>([
   '/topics',
   '/terms',
-  '/support',
-  '/support/report-bug'
+  '/support'
 ]);
 
 export const shouldShowLandingFooter = (pathname?: string | null) => {

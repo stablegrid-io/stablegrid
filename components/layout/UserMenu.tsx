@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { Bug, CreditCard, LifeBuoy, LogOut, Settings } from 'lucide-react';
-import { usePathname } from 'next/navigation';
+import { CreditCard, LifeBuoy, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 
@@ -151,7 +150,6 @@ export function UserMenu({
 }) {
   const { user, signOut } = useAuth();
   const { getAvailableBudgetUnits } = useProgressStore();
-  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [shiftSummary, setShiftSummary] = useState<ShiftSummaryData | null>(null);
   const [isShiftSummaryLoading, setIsShiftSummaryLoading] = useState(false);
@@ -383,18 +381,6 @@ export function UserMenu({
               >
                 <LifeBuoy className="h-4 w-4" />
                 Support
-              </Link>
-              <Link
-                href={
-                  pathname
-                    ? `/support/report-bug?from=${encodeURIComponent(pathname)}`
-                    : '/support/report-bug'
-                }
-                onClick={handleCloseMenu}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-text-light-secondary transition-colors hover:bg-light-hover hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:bg-dark-hover dark:hover:text-text-dark-primary"
-              >
-                <Bug className="h-4 w-4" />
-                Report a bug
               </Link>
               <div
                 role="separator"

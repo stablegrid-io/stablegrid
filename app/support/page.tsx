@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Support · stableGrid',
@@ -51,12 +50,6 @@ export default function SupportPage() {
             Include route URL, timestamp, expected behavior, actual behavior, and screenshots.
             For account-specific problems include your login email.
           </p>
-          <Link
-            href="/support/report-bug"
-            className="inline-flex items-center rounded-[14px] border border-primary/40 bg-primary px-3 py-2 text-sm font-semibold text-[#0a0c0e] transition hover:bg-primary/90"
-          >
-            Report a bug
-          </Link>
         </section>
 
         <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Bug,
   Cookie,
   Clock3,
   CreditCard,
@@ -23,7 +22,6 @@ import { DangerZoneTab } from './DangerZoneTab';
 import { PrivacyTab } from './PrivacyTab';
 import { TermsTab } from './TermsTab';
 import { SupportTab } from './SupportTab';
-import { BugReportTab } from './BugReportTab';
 import { SettingsToast } from './ui';
 import type {
   ProfileRecord,
@@ -46,7 +44,7 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: typeof User; danger?
   { id: 'danger', label: 'Danger Zone', icon: Trash2, danger: true }
 ];
 
-const EXTRA_TAB_IDS: SettingsTabId[] = ['privacy', 'terms', 'support', 'bug'];
+const EXTRA_TAB_IDS: SettingsTabId[] = ['privacy', 'terms', 'support'];
 
 function isTabId(value: string | null): value is SettingsTabId {
   if (!value) {
@@ -144,11 +142,7 @@ export function SettingsShell({
     }
 
     if (tab === 'support') {
-      return <SupportTab onReportBug={() => setTab('bug')} />;
-    }
-
-    if (tab === 'bug') {
-      return <BugReportTab onBackToSupport={() => setTab('support')} />;
+      return <SupportTab />;
     }
 
     return <DangerZoneTab onToast={showToast} />;
@@ -202,7 +196,6 @@ export function SettingsShell({
               { id: 'cookies' as SettingsTabId, label: 'Cookies', icon: Cookie, action: openCookiePreferencesDialog },
               { id: 'terms' as SettingsTabId, label: 'Terms', icon: FileText },
               { id: 'support' as SettingsTabId, label: 'Support', icon: LifeBuoy },
-              { id: 'bug' as SettingsTabId, label: 'Report Bug', icon: Bug },
             ] as const).map((item) => {
               const Icon = item.icon;
               const isActive = tab === item.id;

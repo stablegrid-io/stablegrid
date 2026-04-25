@@ -1,10 +1,6 @@
 'use client';
 
-interface SupportTabProps {
-  onReportBug: () => void;
-}
-
-export function SupportTab({ onReportBug }: SupportTabProps) {
+export function SupportTab() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8">
       <header className="space-y-3">
@@ -40,13 +36,6 @@ export function SupportTab({ onReportBug }: SupportTabProps) {
           Include route URL, timestamp, expected behavior, actual behavior, and screenshots.
           For account-specific problems include your login email.
         </p>
-        <button
-          type="button"
-          onClick={onReportBug}
-          className="inline-flex items-center rounded-[14px] border border-brand-500/40 bg-brand-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 dark:border-brand-400/50 dark:bg-brand-400 dark:text-slate-900 dark:hover:bg-brand-300"
-        >
-          Report a bug
-        </button>
       </section>
 
       <section className="space-y-3 rounded-[22px] border border-light-border bg-surface-container-low p-5 dark:border-dark-border ">
