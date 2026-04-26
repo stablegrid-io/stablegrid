@@ -404,10 +404,15 @@ export function LearnModeTopicSelector({
   return (
     <div className="min-h-screen pb-24 lg:pb-10">
       <div className="relative w-full px-4 py-8 sm:px-6 lg:px-10 xl:px-14">
-        <header className="mb-10 border-b border-white/[0.08] pb-4" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}>
+        <header className="mb-10 border-b border-white/[0.08] pb-5" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}>
           <h1 className="text-5xl font-bold tracking-tight text-on-surface">
             Theory Hub
           </h1>
+          <p className="mt-3 max-w-2xl text-base leading-relaxed text-on-surface/60">
+            Each track reads like a single company&rsquo;s story — onboarding at a fictional team, shipping
+            real features, and inheriting the messy decisions someone made two quarters ago. You learn the
+            tools the way you&rsquo;d actually use them on the job, not as isolated drills.
+          </p>
         </header>
 
         {/* Filter toolbar — search + dropdowns */}

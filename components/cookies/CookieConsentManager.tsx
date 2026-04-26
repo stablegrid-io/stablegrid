@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Shield, X } from 'lucide-react';
+import { Cookie, X } from 'lucide-react';
 import { syncConsentRecordWithServer, writeServerConsentRecord } from '@/lib/cookies/cookie-consent-sync';
 import { COOKIE_CATEGORY_COPY } from '@/lib/cookies/cookie-config';
 import {
@@ -232,7 +232,7 @@ export function CookieConsentManager() {
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-start gap-3 mb-4">
               <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.04]">
-                <Shield className="h-4 w-4 text-white/50" />
+                <Cookie className="h-4 w-4 text-white/50" />
               </div>
               <div>
                 <h2 className="text-[0.9rem] font-semibold tracking-tight text-white/90">
@@ -299,7 +299,7 @@ export function CookieConsentManager() {
             <header className="flex items-center justify-between px-5 pt-5 pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.04]">
-                  <Shield className="h-4.5 w-4.5 text-white/50" />
+                  <Cookie className="h-4.5 w-4.5 text-white/50" />
                 </div>
                 <div>
                   <h2

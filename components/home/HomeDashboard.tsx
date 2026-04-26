@@ -134,13 +134,14 @@ export const HomeDashboard = ({
         backgroundRepeat: 'no-repeat',
       }}
     >
-      {/* Soft vignette — keeps the battery visible as hero, adds contrast for text */}
+      {/* Bottom fade — darkens the gravel/foreground band so the hero stack reads cleanly */}
       <div
         aria-hidden
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-x-0 bottom-0 pointer-events-none"
         style={{
+          height: '38%',
           background:
-            'radial-gradient(ellipse at 50% 55%, rgba(8,10,12,0.35) 0%, rgba(8,10,12,0.72) 60%, rgba(8,10,12,0.92) 100%)',
+            'linear-gradient(to bottom, rgba(8,10,12,0) 0%, rgba(8,10,12,0.55) 55%, rgba(8,10,12,0.92) 100%)',
         }}
       />
 
