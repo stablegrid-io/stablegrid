@@ -65,6 +65,11 @@ interface TaskState {
   answers: Record<string, FieldAnswer>;
   checked: boolean;
   allCorrect: boolean;
+  // Code tasks have no machine-verifiable answer fields, so we surface a
+  // neutral "submitted, self-review" state instead of falsely marking the
+  // task correct. Keeping it optional preserves backward compatibility
+  // with sessionStorage snapshots from before this flag existed.
+  selfReview?: boolean;
 }
 
 interface SessionState {
@@ -158,13 +163,16 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
       const newAnswers: Record<string, FieldAnswer> = { ...ts.answers };
       let allCorrect = true;
 
-      // Code tasks: self-checked, mark as reviewed
+      // Code tasks have no validatable fields — we can't claim correctness.
+      // Mark as submitted for self-review instead so the UI shows a neutral
+      // badge rather than a false "correct" state.
       if (task.type === 'write_the_code' && fields.length === 0) {
         const codeVal = ts.answers['__code']?.value ?? '';
-        newAnswers['__code'] = { value: codeVal, result: true };
+        newAnswers['__code'] = { value: codeVal, result: null };
         ts.answers = newAnswers;
         ts.checked = true;
-        ts.allCorrect = true;
+        ts.allCorrect = false;
+        ts.selfReview = true;
         newStates[idx] = ts;
         return { ...state, taskStates: newStates };
       }
@@ -235,6 +243,7 @@ function ProgressDots({
         const isCurrent = i === current;
         const isChecked = ts?.checked;
         const isCorrect = ts?.allCorrect;
+        const isSelfReview = ts?.selfReview;
 
         // Allow navigating to any task
         const canNavigate = true;
@@ -243,7 +252,12 @@ function ProgressDots({
         let border: string;
         let size: string;
 
-        if (isChecked && isCorrect) {
+        if (isChecked && isSelfReview) {
+          // Code task — submitted but not machine-validated. Neutral, not green.
+          bg = 'rgba(255,255,255,0.35)';
+          border = 'transparent';
+          size = 'w-2.5 h-2.5';
+        } else if (isChecked && isCorrect) {
           bg = `rgb(${GREEN})`;
           border = 'transparent';
           size = 'w-2.5 h-2.5';
@@ -712,6 +726,7 @@ function ResultsBreakdownRow({
 
   const correctFields = fields.filter((f) => taskState.answers[f.id]?.result === true).length;
   const totalFields = fields.length;
+  const isSelfReview = Boolean(taskState.selfReview);
 
   return (
     <div
@@ -729,12 +744,16 @@ function ResultsBreakdownRow({
         <div
           className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0"
           style={{
-            background: taskState.allCorrect
-              ? `rgba(${GREEN},0.08)`
-              : `rgba(${RED},0.08)`,
+            background: isSelfReview
+              ? 'rgba(255,255,255,0.06)'
+              : taskState.allCorrect
+                ? `rgba(${GREEN},0.08)`
+                : `rgba(${RED},0.08)`,
           }}
         >
-          {taskState.allCorrect ? (
+          {isSelfReview ? (
+            <Eye className="h-3.5 w-3.5" style={{ color: 'rgba(255,255,255,0.5)' }} />
+          ) : taskState.allCorrect ? (
             <Check className="h-3.5 w-3.5" style={{ color: `rgb(${GREEN})` }} />
           ) : (
             <X className="h-3.5 w-3.5" style={{ color: `rgb(${RED})` }} />
@@ -746,7 +765,9 @@ function ResultsBreakdownRow({
             Task {index + 1}: {task.title}
           </div>
           <div className="text-[11px] text-white/25 mt-0.5">
-            {correctFields}/{totalFields} fields correct
+            {isSelfReview
+              ? 'Submitted — review your output'
+              : `${correctFields}/${totalFields} fields correct`}
           </div>
         </div>
 
@@ -815,16 +836,33 @@ function ResultsScreen({
 }) {
   const tasks = practiceSet.tasks as PracticeTask[];
 
-  const { totalCorrectFields, totalFields, tasksFullyCorrect } = useMemo(() => {
+  const {
+    totalCorrectFields,
+    totalFields,
+    tasksFullyCorrect,
+    verifiedTaskCount,
+    selfReviewTaskCount,
+  } = useMemo(() => {
     let correctF = 0;
     let totalF = 0;
     let fullyCorrect = 0;
+    let verifiedTasks = 0;
+    let selfReviewTasks = 0;
 
     for (let i = 0; i < tasks.length; i++) {
       const fields = tasks[i].template?.fields ?? [];
       const ts = state.taskStates[i];
-      let taskAllCorrect = fields.length > 0;
 
+      // Code tasks (no fields) are submitted for self-review and excluded
+      // from the validated-task denominator so the score isn't dragged
+      // down by tasks we never tried to grade.
+      if (fields.length === 0) {
+        if (ts?.selfReview) selfReviewTasks++;
+        continue;
+      }
+
+      verifiedTasks++;
+      let taskAllCorrect = true;
       for (const field of fields) {
         totalF++;
         if (ts.answers[field.id]?.result === true) {
@@ -833,11 +871,16 @@ function ResultsScreen({
           taskAllCorrect = false;
         }
       }
-
       if (taskAllCorrect) fullyCorrect++;
     }
 
-    return { totalCorrectFields: correctF, totalFields: totalF, tasksFullyCorrect: fullyCorrect };
+    return {
+      totalCorrectFields: correctF,
+      totalFields: totalF,
+      tasksFullyCorrect: fullyCorrect,
+      verifiedTaskCount: verifiedTasks,
+      selfReviewTaskCount: selfReviewTasks,
+    };
   }, [tasks, state.taskStates]);
 
   const scorePercent = totalFields > 0 ? Math.round((totalCorrectFields / totalFields) * 100) : 0;
@@ -888,7 +931,10 @@ function ResultsScreen({
           {totalCorrectFields} of {totalFields} fields correct
         </p>
         <p className="text-[13px] text-white/25">
-          {tasksFullyCorrect} of {tasks.length} tasks fully correct
+          {tasksFullyCorrect} of {verifiedTaskCount} tasks fully correct
+          {selfReviewTaskCount > 0 && (
+            <> · {selfReviewTaskCount} code task{selfReviewTaskCount === 1 ? '' : 's'} for self-review</>
+          )}
         </p>
 
         {/* Encouragement text */}
