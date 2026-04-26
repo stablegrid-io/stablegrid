@@ -4,7 +4,8 @@ import { SettingsShell } from './_components/SettingsShell';
 import type { ProfileRecord, SubscriptionRecord } from './_components/types';
 
 export const metadata = {
-  title: 'stablegrid.io'
+  title: 'Settings',
+  robots: { index: false, follow: false }
 };
 
 export default async function SettingsPage() {

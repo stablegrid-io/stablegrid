@@ -3,8 +3,9 @@ import type { Metadata } from 'next';
 import { TheoryLayout } from '@/components/learn/theory/TheoryLayout';
 import { TheoryTrackPath } from '@/components/learn/theory/TheoryTrackPath';
 import { CapstoneProjectView } from '@/components/learn/theory/CapstoneProjectView';
-import { learnTopics } from '@/data/learn';
+import { learnTopics, getLearnTopicMeta } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
+import { BreadcrumbJsonLd } from '@/lib/seo/jsonLd';
 import { getPracticeSets, getPracticeSet } from '@/data/operations/practice-sets';
 import { PracticeSetSession } from '@/app/operations/practice/[topic]/[level]/[modulePrefix]/PracticeSetViewer';
 import {
@@ -128,16 +129,33 @@ export default async function LearnTopicTheoryCategoryPage({
       matchLevels.includes(s.metadata?.trackLevel ?? '')
     );
 
+    const topicMeta = getLearnTopicMeta(params.topic);
     return (
-      <TheoryTrackPath
-        doc={trackDoc}
-        track={track}
-        completedChapterIds={completedChapterIds}
-        chapterProgressById={chapterProgressById}
-        moduleProgressById={moduleProgressById}
-        practiceSets={[]}
-        practiceBasePath={`/learn/${params.topic}/theory/${categoryParam}`}
-      />
+      <>
+        <BreadcrumbJsonLd
+          items={[
+            { name: 'Home', url: '/' },
+            { name: 'Topics', url: '/topics' },
+            {
+              name: topicMeta?.title ?? doc.title,
+              url: `/learn/${params.topic}/theory`,
+            },
+            {
+              name: track.title ?? track.label,
+              url: `/learn/${params.topic}/theory/${categoryParam}`,
+            },
+          ]}
+        />
+        <TheoryTrackPath
+          doc={trackDoc}
+          track={track}
+          completedChapterIds={completedChapterIds}
+          chapterProgressById={chapterProgressById}
+          moduleProgressById={moduleProgressById}
+          practiceSets={[]}
+          practiceBasePath={`/learn/${params.topic}/theory/${categoryParam}`}
+        />
+      </>
     );
   }
 
@@ -196,22 +214,42 @@ export function generateStaticParams() {
 }
 
 export function generateMetadata({
-  params
+  params,
+  searchParams
 }: LearnTopicTheoryCategoryPageProps): Metadata {
   const doc = theoryDocs[params.topic];
   if (!doc) {
     return {
-      title: 'stablegrid.io',
+      title: 'Topic',
       description: 'Module-based theory documentation.'
     };
   }
 
+  const isSession = Boolean(
+    searchParams?.chapter || searchParams?.lesson || searchParams?.practice || searchParams?.capstone
+  );
+  const sessionRobots = isSession
+    ? ({ index: false, follow: true } as const)
+    : undefined;
+
+  const topicMeta = getLearnTopicMeta(params.topic);
+  const topicTitle = topicMeta?.title ?? doc.title;
   const categoryParam = params.category.toLowerCase();
   const track = getTheoryTrackBySlug(doc, categoryParam);
+
   if (track) {
+    const trackName = track.title ?? track.label;
+    const canonical = `/learn/${params.topic}/theory/${categoryParam}`;
     return {
-      title: 'stablegrid.io',
-      description: track.description
+      title: `${topicTitle} — ${trackName}`,
+      description: track.description,
+      alternates: { canonical },
+      ...(sessionRobots ? { robots: sessionRobots } : {}),
+      openGraph: {
+        title: `${topicTitle} — ${trackName}`,
+        description: track.description,
+        url: `https://stablegrid.io${canonical}`,
+      },
     };
   }
 
@@ -223,7 +261,9 @@ export function generateMetadata({
   );
 
   return {
-    title: 'stablegrid.io',
-    description: categoryMeta.description
+    title: `${topicTitle} — ${categoryMeta.label}`,
+    description: categoryMeta.description,
+    alternates: { canonical: `/learn/${params.topic}/theory/${categoryParam}` },
+    ...(sessionRobots ? { robots: sessionRobots } : {}),
   };
 }

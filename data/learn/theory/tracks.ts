@@ -66,7 +66,7 @@ interface TheoryTrackConfig {
   sourceDoc: TheoryDoc;
 }
 
-const TOPIC_TRACK_CONFIGS: Record<string, TheoryTrackConfig[]> = {
+export const TOPIC_TRACK_CONFIGS: Record<string, TheoryTrackConfig[]> = {
   pyspark: [
     {
       slug: 'junior',

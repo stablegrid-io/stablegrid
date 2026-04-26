@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import { OperationsHub } from './OperationsHub';
 
 export const metadata: Metadata = {
-  title: 'Operations | stablegrid',
-  description: 'Practice sets and missions to reinforce your data engineering skills.'
+  title: 'Operations',
+  description: 'Practice sets and missions to reinforce your data engineering skills.',
+  robots: { index: false, follow: false }
 };
 
 export default function OperationsPage() {

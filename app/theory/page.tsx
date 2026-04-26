@@ -5,8 +5,10 @@ import { learnTopics } from '@/data/learn';
 import { loadServerTheoryProgress } from '@/lib/learn/serverTheoryProgress';
 
 export const metadata: Metadata = {
-  title: 'Theory Hub | stablegrid',
-  description: 'Select a topic, then open theory categories and chapters.'
+  title: 'Theory Hub',
+  description:
+    'Pick a track and dive into structured theory across PySpark, Fabric, Airflow, SQL, and Python — Junior to Senior.',
+  alternates: { canonical: '/theory' }
 };
 
 function TheoryHubSkeleton() {

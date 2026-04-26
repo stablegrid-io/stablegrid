@@ -13,7 +13,8 @@ import { ProgressDashboard } from '@/components/progress/ProgressDashboard';
 
 export const metadata: Metadata = {
   title: 'Stats',
-  description: 'Your learning stats — XP, streak, time read, and topic progress.'
+  description: 'Your learning stats — XP, streak, time read, and topic progress.',
+  robots: { index: false, follow: false }
 };
 
 interface TopicProgressRow {

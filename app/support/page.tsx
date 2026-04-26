@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Support · stablegrid',
-  description: 'Support and contact paths for stablegrid users.'
+  title: 'Support',
+  description: 'Get help with StableGrid — contact, FAQs, and account support.',
+  alternates: { canonical: '/support' }
 };
 
 export default function SupportPage() {

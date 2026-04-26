@@ -7,8 +7,9 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Terms · stablegrid',
-  description: 'Terms of use for stablegrid.'
+  title: 'Terms of Service',
+  description: 'Terms of use for StableGrid.',
+  alternates: { canonical: '/terms' }
 };
 
 export default function TermsPage() {

@@ -10,8 +10,9 @@ import { ArrowLeft } from 'lucide-react';
 import { COOKIE_CATEGORY_COPY, COOKIE_SERVICE_REGISTRY } from '@/lib/cookies/cookie-config';
 
 export const metadata: Metadata = {
-  title: 'Privacy · stablegrid',
-  description: 'How stablegrid collects, uses, and protects user data.'
+  title: 'Privacy Policy',
+  description: 'How StableGrid collects, uses, and protects user data.',
+  alternates: { canonical: '/privacy' }
 };
 
 const policyCategories = [

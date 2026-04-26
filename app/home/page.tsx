@@ -18,8 +18,9 @@ import type { ComponentSlug } from '@/types/grid';
 import { capBalance } from '@/lib/energy';
 
 export const metadata: Metadata = {
-  title: 'stablegrid.io',
-  description: 'Adaptive data engineering learning paths, operations drills, and career progression.'
+  title: 'Dashboard',
+  description: 'Adaptive data engineering learning paths, operations drills, and career progression.',
+  robots: { index: false, follow: false }
 };
 
 const HomeDashboard = dynamic(() =>
