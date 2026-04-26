@@ -56,6 +56,25 @@ const RED = '239,68,68';
 
 type Phase = 'start' | 'session' | 'results';
 
+export interface CheckpointModeConfig {
+  passingScorePercent: number;
+  /** Called once per results-phase entry with the computed score. */
+  onResultsComputed: (result: {
+    correct: number;
+    total: number;
+    percent: number;
+    passed: boolean;
+  }) => void;
+  /** Where the "Back / Continue" CTAs should return to. */
+  returnHref: string;
+  /** Label shown above the score (e.g. "Module Checkpoint"). */
+  resultsHeading?: string;
+  /** Label shown in the session topbar (e.g. "Module 01 · Checkpoint"). */
+  topbarLabel?: string;
+  /** Optional retry hook — the wrapper uses it to re-shuffle questions on retry. */
+  onRetry?: () => void;
+}
+
 interface FieldAnswer {
   value: string;
   result: boolean | null;
@@ -266,7 +285,10 @@ function ProgressDots({
           border = 'transparent';
           size = 'w-2.5 h-2.5';
         } else if (isCurrent) {
-          bg = `rgb(${ACCENT})`;
+          // Main accent for the active dot — uses the theme's heading color
+          // so it stays high-contrast (white in dark themes, near-black in
+          // light themes).
+          bg = 'var(--rm-text-heading, #ffffff)';
           border = 'transparent';
           size = 'w-3 h-3';
         } else {
@@ -321,6 +343,9 @@ async function persistPracticeCompletion(practiceSet: PracticeSet) {
   const topic = practiceSet.topic;
   const trackSlug = resolvePracticeTrackSlug(practiceSet.metadata?.trackLevel);
   if (!moduleId || !topic || !trackSlug) return;
+  // Checkpoints aren't practice sets — they don't have server-side module rows.
+  // Their pass state is recorded client-side via useCheckpointStore.
+  if (moduleId.startsWith('checkpoint-')) return;
 
   try {
     await fetch('/api/learn/module-progress', {
@@ -477,10 +502,12 @@ function TaskScreen({
   practiceSet,
   state,
   dispatch,
+  checkpointMode,
 }: {
   practiceSet: PracticeSet;
   state: SessionState;
   dispatch: React.Dispatch<SessionAction>;
+  checkpointMode?: CheckpointModeConfig;
 }) {
   const tasks = practiceSet.tasks as PracticeTask[];
   const task = tasks[state.currentTaskIndex];
@@ -491,6 +518,11 @@ function TaskScreen({
   const readingMode = useReadingModeStore((s) => s.mode);
   const focusMode = useReadingModeStore((s) => s.focusMode);
   const exitSession = useContext(FocusWrapperContext);
+  // In checkpoint mode the proper top bar handles exit + reading mode + focus
+  // toggle, so the focus-mode `fixed inset-0` overlay (which covers the top
+  // bar) and floating ESC button must be skipped — otherwise the user loses
+  // the contextual top bar (Module 01 · Checkpoint · Question X of N).
+  const useFixedFocusOverlay = focusMode && !checkpointMode;
 
   const isCodeTask = !!(task as any).starterScaffold;
   const allFieldsFilled = isCodeTask
@@ -534,13 +566,13 @@ function TaskScreen({
   return (
     <div
       data-reading-mode={readingMode}
-      className={focusMode ? 'fixed inset-0 z-40 overflow-y-auto' : ''}
+      className={useFixedFocusOverlay ? 'fixed inset-0 z-40 overflow-y-auto' : ''}
       style={{ backgroundColor: 'var(--rm-bg, transparent)' }}
     >
-    <div className={`relative mx-auto w-[85%] py-8 lg:py-12 ${focusMode ? 'min-h-screen' : ''}`}>
+    <div className={`relative mx-auto w-[85%] py-8 lg:py-12 ${useFixedFocusOverlay ? 'min-h-screen' : ''}`}>
 
       {/* Floating controls — visible in focus mode */}
-      {focusMode && (
+      {useFixedFocusOverlay && (
         <div data-reading-mode={readingMode} className="contents">
           <div className="fixed top-3 right-3 z-50 flex items-center gap-1" data-reading-mode={readingMode}>
             <ReadingModeDropdown />
@@ -651,7 +683,11 @@ function TaskScreen({
               <button
                 onClick={handlePrev}
                 className="rounded-[14px] px-5 py-3 text-[13px] font-medium transition-all duration-200 cursor-pointer flex items-center gap-2"
-                style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+                style={{
+                  backgroundColor: 'var(--rm-bg-elevated)',
+                  border: '1px solid var(--rm-border)',
+                  color: 'var(--rm-text-secondary)',
+                }}
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Previous
@@ -661,32 +697,35 @@ function TaskScreen({
             {/* Spacer */}
             <div className="flex-1" />
 
-            {/* Non-code: Check Answer (before checked) */}
+            {/* Non-code: Check Answer (before checked).
+                Primary action — uses text-heading as bg + bg as fg so the
+                pill auto-inverts across every reading mode (solid + readable
+                in both dark and light themes). */}
             {!isCodeTask && !state.isReview && !taskState.checked && (
               <button
                 onClick={handleCheck}
                 disabled={!allFieldsFilled}
                 className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{
-                  background: allFieldsFilled ? 'rgba(255,255,255,0.12)' : 'var(--rm-bg-elevated)',
-                  border: `1px solid ${allFieldsFilled ? 'rgba(255,255,255,0.2)' : 'var(--rm-border)'}`,
-                  color: allFieldsFilled ? '#ffffff' : 'var(--rm-text-secondary)',
+                  background: allFieldsFilled ? 'var(--rm-text-heading)' : 'var(--rm-bg-elevated)',
+                  border: `1px solid ${allFieldsFilled ? 'var(--rm-text-heading)' : 'var(--rm-border)'}`,
+                  color: allFieldsFilled ? 'var(--rm-bg)' : 'var(--rm-text-secondary)',
                 }}
               >
                 Check Answer
               </button>
             )}
 
-            {/* Continue / See Results */}
+            {/* Continue / See Results — same primary-action pattern. */}
             {(isCodeTask || taskState.checked || state.isReview) && (
               !isLast ? (
                 <button
                   onClick={handleNext}
                   className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                   style={{
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    color: 'rgba(255,255,255,0.8)',
+                    background: 'var(--rm-text-heading)',
+                    border: '1px solid var(--rm-text-heading)',
+                    color: 'var(--rm-bg)',
                   }}
                 >
                   Continue
@@ -697,9 +736,9 @@ function TaskScreen({
                   onClick={handleNext}
                   className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                   style={{
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    color: 'rgba(255,255,255,0.8)',
+                    background: 'var(--rm-text-heading)',
+                    border: '1px solid var(--rm-text-heading)',
+                    color: 'var(--rm-bg)',
                   }}
                 >
                   See Results
@@ -857,10 +896,12 @@ function ResultsScreen({
   practiceSet,
   state,
   dispatch,
+  checkpointMode,
 }: {
   practiceSet: PracticeSet;
   state: SessionState;
   dispatch: React.Dispatch<SessionAction>;
+  checkpointMode?: CheckpointModeConfig;
 }) {
   const tasks = practiceSet.tasks as PracticeTask[];
 
@@ -912,7 +953,25 @@ function ResultsScreen({
   }, [tasks, state.taskStates]);
 
   const scorePercent = totalFields > 0 ? Math.round((totalCorrectFields / totalFields) * 100) : 0;
-  const isGoodScore = scorePercent >= 70;
+  const passingThreshold = checkpointMode?.passingScorePercent ?? 70;
+  const isGoodScore = scorePercent >= passingThreshold;
+  const isCheckpoint = Boolean(checkpointMode);
+  const checkpointPassed = isCheckpoint && isGoodScore;
+  const checkpointFailed = isCheckpoint && !isGoodScore;
+
+  // Fire the checkpoint callback exactly once per results-phase entry.
+  useEffect(() => {
+    if (!checkpointMode) return;
+    checkpointMode.onResultsComputed({
+      correct: totalCorrectFields,
+      total: totalFields,
+      percent: scorePercent,
+      passed: scorePercent >= checkpointMode.passingScorePercent,
+    });
+    // We intentionally only fire on results-phase entry; recomputing on every
+    // taskState change would double-record attempts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="relative mx-auto max-w-5xl px-6 py-16 sm:px-8 lg:py-24">
@@ -943,7 +1002,11 @@ function ResultsScreen({
 
         {/* Message */}
         <p className="text-[13px] text-white/30 mb-3 uppercase tracking-[0.12em] font-medium">
-          Practice Complete
+          {isCheckpoint
+            ? checkpointPassed
+              ? `${checkpointMode?.resultsHeading ?? 'Checkpoint'} Passed`
+              : `${checkpointMode?.resultsHeading ?? 'Checkpoint'} — Try Again`
+            : 'Practice Complete'}
         </p>
 
         {/* Large score */}
@@ -967,30 +1030,52 @@ function ResultsScreen({
 
         {/* Encouragement text */}
         <p className="text-[14px] text-white/35 mt-6 max-w-md mx-auto">
-          {scorePercent === 100
-            ? 'Perfect score. Every field correct.'
-            : scorePercent >= 80
-              ? 'Strong performance. Review the few you missed to lock in your understanding.'
-              : scorePercent >= 60
-                ? 'Solid foundation. Review the missed questions and try again for a higher score.'
-                : 'Good start. Take time to review the explanations, then give it another attempt.'}
+          {isCheckpoint
+            ? checkpointPassed
+              ? `You cleared the ${passingThreshold}% threshold. The next module is now unlocked.`
+              : `You need ${passingThreshold}% to unlock the next module. Review the missed questions, then try again — questions are reshuffled on each attempt.`
+            : scorePercent === 100
+              ? 'Perfect score. Every field correct.'
+              : scorePercent >= 80
+                ? 'Strong performance. Review the few you missed to lock in your understanding.'
+                : scorePercent >= 60
+                  ? 'Solid foundation. Review the missed questions and try again for a higher score.'
+                  : 'Good start. Take time to review the explanations, then give it another attempt.'}
         </p>
 
         {/* Action buttons — primary "Continue" returns to the track map where
             the just-completed module is now marked done and the next one
-            unlocked. */}
+            unlocked. In checkpoint mode, only show the "continue" CTA on pass;
+            on fail the retry button below becomes the primary call to action. */}
         <div className="flex flex-col gap-3 mt-10 max-w-md mx-auto">
-          <Link
-            href={buildTrackMapPath(practiceSet)}
-            className="rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
-            style={{
-              background: 'rgba(255,255,255,0.92)',
-              color: '#0a0c0e',
-            }}
-          >
-            Continue to track
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+          {checkpointFailed ? (
+            <button
+              onClick={() => {
+                dispatch({ type: 'RESET', taskCount: tasks.length });
+                checkpointMode?.onRetry?.();
+              }}
+              className="rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+              style={{
+                background: 'rgba(255,255,255,0.92)',
+                color: '#0a0c0e',
+              }}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Retry checkpoint
+            </button>
+          ) : (
+            <Link
+              href={checkpointMode?.returnHref ?? buildTrackMapPath(practiceSet)}
+              className="rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+              style={{
+                background: 'rgba(255,255,255,0.92)',
+                color: '#0a0c0e',
+              }}
+            >
+              Continue to track
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-3">
             <button
@@ -1123,7 +1208,13 @@ export function PracticeSetBrief({ practiceSet }: { practiceSet: PracticeSet }) 
 
 // ── Session Viewer (task + results — rendered at /[modulePrefix]/session) ─────
 
-export function PracticeSetSession({ practiceSet }: { practiceSet: PracticeSet }) {
+export function PracticeSetSession({
+  practiceSet,
+  checkpointMode,
+}: {
+  practiceSet: PracticeSet;
+  checkpointMode?: CheckpointModeConfig;
+}) {
   const tasks = practiceSet.tasks as PracticeTask[];
   const pathname = usePathname();
   const moduleId = practiceSet.metadata?.moduleId ?? '';
@@ -1143,6 +1234,7 @@ export function PracticeSetSession({ practiceSet }: { practiceSet: PracticeSet }
   const [hydrated, setHydrated] = useState(false);
   const [sessionPickerVisible, setSessionPickerVisible] = useState(false);
   const focusMode = useReadingModeStore((s) => s.focusMode);
+  const readingMode = useReadingModeStore((s) => s.mode);
 
   // Reuse the reading session timer with a separate scope so practice sessions
   // (Sprint / Pomodoro / Deep Focus / Free Practice) run independently of reading.
@@ -1199,9 +1291,12 @@ export function PracticeSetSession({ practiceSet }: { practiceSet: PracticeSet }
     >
       {state.phase === 'session' && (
         <>
-          {/* Top bar — mirrors the reading session top bar */}
+          {/* Top bar — mirrors the reading session top bar.
+              In checkpoint mode we deliberately keep this visible inside focus
+              mode (no `data-hide-on-focus`) and hide the Pomodoro/Sprint
+              picker, since a graded checkpoint has its own pacing. */}
           <div
-            data-hide-on-focus
+            {...(checkpointMode ? {} : { 'data-hide-on-focus': true })}
             className="flex h-12 flex-shrink-0 items-center border-b border-outline-variant/20 bg-surface/95 backdrop-blur-md px-4 sticky top-0 z-40"
           >
             {/* Left: back to tree map */}
@@ -1226,10 +1321,10 @@ export function PracticeSetSession({ practiceSet }: { practiceSet: PracticeSet }
                 <TheorySessionTopbar session={practiceSession} />
               ) : (
                 <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide">
-                  {moduleNumber}
+                  {checkpointMode?.topbarLabel ?? moduleNumber}
                   <span className="mx-1.5 text-outline-variant/50">·</span>
                   <span className="text-on-surface/80">
-                    Task {state.currentTaskIndex + 1} of {tasks.length}
+                    {checkpointMode ? 'Question' : 'Task'} {state.currentTaskIndex + 1} of {tasks.length}
                   </span>
                 </span>
               )}
@@ -1239,7 +1334,7 @@ export function PracticeSetSession({ practiceSet }: { practiceSet: PracticeSet }
             <div className="flex items-center gap-1">
               <ReadingModeDropdown />
               <FocusModeButton />
-              {!practiceSession.hasActiveSession && !moduleId.startsWith('capstone-') && (
+              {!practiceSession.hasActiveSession && !moduleId.startsWith('capstone-') && !checkpointMode && (
                 <>
                   <div className="mx-1 h-5 w-px bg-white/[0.12]" aria-hidden="true" />
                   <button
@@ -1256,12 +1351,17 @@ export function PracticeSetSession({ practiceSet }: { practiceSet: PracticeSet }
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div
+            className="flex-1 overflow-y-auto"
+            data-reading-mode={readingMode}
+            style={{ backgroundColor: 'var(--rm-bg)' }}
+          >
             <FocusWrapper briefPath={treeMapPath}>
               <TaskScreen
                 practiceSet={practiceSet}
                 state={state}
                 dispatch={dispatch}
+                checkpointMode={checkpointMode}
               />
             </FocusWrapper>
           </div>
@@ -1269,11 +1369,16 @@ export function PracticeSetSession({ practiceSet }: { practiceSet: PracticeSet }
       )}
 
       {state.phase === 'results' && (
-        <div className="flex-1 overflow-y-auto">
+        <div
+          className="flex-1 overflow-y-auto"
+          data-reading-mode={readingMode}
+          style={{ backgroundColor: 'var(--rm-bg)' }}
+        >
           <ResultsScreen
             practiceSet={practiceSet}
             state={state}
             dispatch={dispatch}
+            checkpointMode={checkpointMode}
           />
         </div>
       )}

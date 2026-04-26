@@ -1,14 +1,16 @@
 'use client';
 
-import type { CSSProperties } from 'react';
+import { Fragment, type CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowUpRight, Check, Lock, Zap, BookOpen, FlaskConical, Layers, Clock, Trophy } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Lock, Target, Zap, BookOpen, FlaskConical, Layers, Clock, Trophy } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { getTrackConceptMeta } from '@/data/learn/theory/trackConceptMeta';
 import { getTrackEssentials } from '@/data/learn/trackEssentials';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import { getModuleCheckpointMeta } from '@/lib/learn/moduleCheckpoints';
+import { CHECKPOINT_PASS_RATIO } from '@/lib/learn/moduleCheckpointGate';
+import { buildCheckpointKey, useCheckpointStore } from '@/lib/stores/useCheckpointStore';
 import {
   clampLessonProgress,
   summarizeTrackLessonProgress
@@ -34,6 +36,7 @@ interface TheoryTrackPathProps {
 }
 
 type ModuleStatus = 'completed' | 'active' | 'available' | 'locked';
+type CheckpointStatus = 'locked' | 'ready' | 'passed';
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 
@@ -96,6 +99,9 @@ export const TheoryTrackPath = ({
     initialCompletedChapterIds: completedChapterIds,
     initialModuleProgressById: moduleProgressById,
   });
+  const checkpointResults = useCheckpointStore((s) => s.results);
+  const isCheckpointPassed = (moduleId: string) =>
+    Boolean(checkpointResults[buildCheckpointKey(doc.topic, moduleId)]?.passed);
 
   const modules = sortModulesByOrder(track.chapters);
   const ta = getTrackAccent(track.slug);
@@ -109,15 +115,28 @@ export const TheoryTrackPath = ({
   const moduleCards = modules.map((module) => {
     const mp = liveModuleProgressById[module.id];
     const cp = chapterProgressById[module.id];
-    const isCompleted = mp ? mp.isCompleted : completedSet.has(module.id);
-    const lessonsDone = clampLessonProgress(cp, module.sections.length, isCompleted);
+    const lessonsAllRead = mp ? mp.isCompleted : completedSet.has(module.id);
+    const lessonsDone = clampLessonProgress(cp, module.sections.length, lessonsAllRead);
+    const checkpointPassed = isCheckpointPassed(module.id);
+    // A module is only fully done once both lessons are read AND the
+    // checkpoint has been passed at the configured threshold.
+    const isCompleted = lessonsAllRead && checkpointPassed;
     const hasAny = Boolean(lessonsDone > 0 || mp?.currentLessonId || mp?.lastVisitedRoute || cp?.currentLessonId || cp?.lastVisitedRoute);
     const href = buildModuleHref({
       topic: doc.topic, trackSlug: track.slug, chapterId: module.id,
       currentLessonId: mp?.currentLessonId ?? cp?.currentLessonId ?? null,
       lastVisitedRoute: mp?.lastVisitedRoute ?? cp?.lastVisitedRoute ?? null,
     });
-    return { module, lessonsDone, lessonsTotal: module.sections.length, isCompleted, hasAny, href };
+    return {
+      module,
+      lessonsDone,
+      lessonsTotal: module.sections.length,
+      lessonsAllRead,
+      checkpointPassed,
+      isCompleted,
+      hasAny,
+      href,
+    };
   });
 
   const activeId =
@@ -129,13 +148,13 @@ export const TheoryTrackPath = ({
     ?? null;
 
   // Sequential gating: module 1 is always open; module N (N>1) unlocks only
-  // when module N-1 is complete, OR when the server has already flagged it
-  // unlocked (e.g. resumed progress from a prior session).
+  // when module N-1 is fully done (lessons read AND checkpoint passed).
+  // Already-accessed modules stay accessible so users can review even if
+  // the checkpoint hasn't been cleared yet.
   const unlockedSet = new Set<string>();
   for (let i = 0; i < moduleCards.length; i += 1) {
     const card = moduleCards[i];
-    const serverUnlocked = Boolean(liveModuleProgressById[card.module.id]?.isUnlocked);
-    if (i === 0 || card.isCompleted || serverUnlocked) {
+    if (i === 0 || card.lessonsAllRead || card.hasAny) {
       unlockedSet.add(card.module.id);
       continue;
     }
@@ -154,9 +173,15 @@ export const TheoryTrackPath = ({
         : c.module.id === activeId
           ? 'active'
           : 'available';
+    const checkpointStatus: CheckpointStatus = c.checkpointPassed
+      ? 'passed'
+      : c.lessonsAllRead
+        ? 'ready'
+        : 'locked';
     return {
       ...c,
       status,
+      checkpointStatus,
       progressPct: c.lessonsTotal > 0 ? Math.round((c.lessonsDone / c.lessonsTotal) * 100) : 0,
     };
   });
@@ -239,28 +264,44 @@ export const TheoryTrackPath = ({
             const isActive = card.status === 'active';
 
             return (
-              <div
-                key={card.module.id}
-                className="relative flex items-center mb-16 md:mb-20"
-                style={{ opacity: 0, animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${stagger}ms forwards` }}
-              >
-                {/* Center connector dot */}
-                <div className="absolute left-1/2 -translate-x-1/2 z-20 hidden md:flex items-center justify-center">
-                  <div
-                    className="w-4 h-4 rounded-full"
-                    style={{
-                      backgroundColor: isCompleted ? ta.color : '#0c0e10',
-                      border: `2px solid ${isCompleted ? ta.color : isActive ? ta.color : 'rgba(255,255,255,0.12)'}`,
-                      boxShadow: isCompleted ? `0 0 12px rgba(${ta.rgb},0.6)` : isActive ? `0 0 8px rgba(${ta.rgb},0.3)` : 'none',
-                    }}
-                  />
+              <Fragment key={card.module.id}>
+                <div
+                  className="relative flex items-center mb-6 md:mb-8"
+                  style={{ opacity: 0, animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${stagger}ms forwards` }}
+                >
+                  {/* Center connector dot */}
+                  <div className="absolute left-1/2 -translate-x-1/2 z-20 hidden md:flex items-center justify-center">
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{
+                        backgroundColor: isCompleted ? ta.color : '#0c0e10',
+                        border: `2px solid ${isCompleted ? ta.color : isActive ? ta.color : 'rgba(255,255,255,0.12)'}`,
+                        boxShadow: isCompleted ? `0 0 12px rgba(${ta.rgb},0.6)` : isActive ? `0 0 8px rgba(${ta.rgb},0.3)` : 'none',
+                      }}
+                    />
+                  </div>
+
+                  {/* Card — alternating left/right */}
+                  <div className={`w-full md:w-[calc(50%-32px)] ${isLeft ? 'md:mr-auto' : 'md:ml-auto'}`}>
+                    <TheoryNode card={card} idx={i} ta={ta} topic={doc.topic} />
+                  </div>
                 </div>
 
-                {/* Card — alternating left/right */}
-                <div className={`w-full md:w-[calc(50%-32px)] ${isLeft ? 'md:mr-auto' : 'md:ml-auto'}`}>
-                  <TheoryNode card={card} idx={i} ta={ta} topic={doc.topic} />
+                {/* Checkpoint mini-node — sits on the connector line, smaller than module card */}
+                <div
+                  className="relative flex justify-center mb-12 md:mb-14"
+                  style={{ opacity: 0, animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${stagger + 35}ms forwards` }}
+                >
+                  <CheckpointMiniNode
+                    moduleNumber={card.module.number}
+                    chapterId={card.module.id}
+                    status={card.checkpointStatus}
+                    ta={ta}
+                    topic={doc.topic}
+                    trackSlug={track.slug}
+                  />
                 </div>
-              </div>
+              </Fragment>
             );
           })}
 
@@ -541,6 +582,76 @@ function PracticeNode({ ps, idx, ta, practiceBasePath }: {
               Engage Lab
             </div>
           </div>
+    </Link>
+  );
+}
+
+/* ── Checkpoint Mini Node ───────────────────────────────────────────────────── */
+
+function CheckpointMiniNode({
+  moduleNumber, chapterId, status, ta, topic, trackSlug,
+}: {
+  moduleNumber: number;
+  chapterId: string;
+  status: CheckpointStatus;
+  ta: { color: string; rgb: string };
+  topic: string;
+  trackSlug: string;
+}) {
+  const passThresholdLabel = `${Math.round(CHECKPOINT_PASS_RATIO * 100)}%`;
+  const moduleNumberLabel = String(moduleNumber).padStart(2, '0');
+
+  if (status === 'locked') {
+    return (
+      <div
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-full"
+        style={{
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.05)',
+        }}
+        title="Finish the module's lessons to unlock the checkpoint."
+      >
+        <Lock className="h-3 w-3" style={{ color: 'rgba(255,255,255,0.18)' }} />
+        <span className="font-mono text-[10px] font-bold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.22)' }}>
+          Checkpoint · M{moduleNumberLabel}
+        </span>
+      </div>
+    );
+  }
+
+  if (status === 'passed') {
+    return (
+      <div
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-full"
+        style={{
+          background: `rgba(${ta.rgb},0.08)`,
+          border: `1px solid rgba(${ta.rgb},0.22)`,
+          boxShadow: `0 0 12px rgba(${ta.rgb},0.12)`,
+        }}
+      >
+        <Check className="h-3 w-3" style={{ color: ta.color }} />
+        <span className="font-mono text-[10px] font-bold tracking-widest uppercase" style={{ color: ta.color }}>
+          Checkpoint passed · M{moduleNumberLabel}
+        </span>
+      </div>
+    );
+  }
+
+  // ready
+  return (
+    <Link
+      href={`/learn/${topic}/theory/${trackSlug}?checkpoint=${chapterId}`}
+      className="group inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 hover:bg-white/[0.1]"
+      style={{
+        background: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.16)',
+      }}
+    >
+      <Target className="h-3 w-3" style={{ color: 'rgba(255,255,255,0.7)' }} />
+      <span className="font-mono text-[10px] font-bold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.78)' }}>
+        Checkpoint ready · Pass {passThresholdLabel}
+      </span>
+      <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5" style={{ color: 'rgba(255,255,255,0.7)' }} />
     </Link>
   );
 }

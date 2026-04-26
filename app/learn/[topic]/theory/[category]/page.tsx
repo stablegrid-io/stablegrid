@@ -17,6 +17,7 @@ const TRACK_LEVEL_ACCENT: Record<string, { color: string; rgb: string }> = {
 };
 import { getPracticeSets, getPracticeSet } from '@/data/operations/practice-sets';
 import { PracticeSetSession } from '@/app/operations/practice/[topic]/[level]/[modulePrefix]/PracticeSetViewer';
+import { ModuleCheckpointSession } from '@/components/learn/theory/ModuleCheckpointSession';
 import {
   filterTheoryDocByCategory,
   getChapterCategorySlug,
@@ -42,6 +43,7 @@ interface LearnTopicTheoryCategoryPageProps {
     practice?: string | string[];
     capstone?: string | string[];
     essentials?: string | string[];
+    checkpoint?: string | string[];
   };
 }
 
@@ -111,6 +113,29 @@ export default async function LearnTopicTheoryCategoryPage({
         notFound();
       }
       return <PracticeSetSession practiceSet={practiceSet} />;
+    }
+
+    // Module checkpoint view (?checkpoint=module-XX)
+    const requestedCheckpoint =
+      typeof searchParams?.checkpoint === 'string'
+        ? searchParams.checkpoint
+        : Array.isArray(searchParams?.checkpoint)
+          ? searchParams.checkpoint[0]
+          : null;
+
+    if (requestedCheckpoint) {
+      const chapter = trackDoc.chapters.find((c) => c.id === requestedCheckpoint);
+      if (!chapter) {
+        notFound();
+      }
+      return (
+        <ModuleCheckpointSession
+          topic={params.topic}
+          trackSlug={categoryParam}
+          chapter={chapter}
+          returnHref={`/learn/${params.topic}/theory/${categoryParam}`}
+        />
+      );
     }
 
     const requestedChapter =

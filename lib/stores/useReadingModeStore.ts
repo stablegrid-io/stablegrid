@@ -16,9 +16,14 @@ function applyFullscreen(enable: boolean) {
   if (typeof document === 'undefined') return;
   try {
     if (enable && !document.fullscreenElement) {
-      void document.documentElement.requestFullscreen?.();
+      // requestFullscreen returns a Promise that REJECTS (not throws) when
+      // the call is missing a user gesture — so a sync try/catch isn't
+      // enough; we must also swallow the async rejection.
+      const result = document.documentElement.requestFullscreen?.();
+      result?.catch(() => { /* permissions check failed — focus CSS still applies */ });
     } else if (!enable && document.fullscreenElement) {
-      void document.exitFullscreen?.();
+      const result = document.exitFullscreen?.();
+      result?.catch(() => { /* ignore */ });
     }
   } catch {
     /* ignore — fullscreen may be blocked by browser */

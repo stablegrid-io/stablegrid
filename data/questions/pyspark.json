@@ -1320,6 +1320,229 @@
         "career",
         "distributed-systems"
       ]
+    },
+    {
+      "id": "pyspark-m01-l01-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "In 'When Data Outgrows One Machine', which physical resource is described as 'Wall 1' — typically the first bottleneck a single-machine pipeline hits?",
+      "options": [
+        "Disk throughput — bytes can only enter and leave through one fixed-rate door",
+        "Network latency between the laptop and the cloud",
+        "The number of CPU cores available to the operating system",
+        "The Python interpreter's instruction speed"
+      ],
+      "correctAnswer": "Disk throughput — bytes can only enter and leave through one fixed-rate door",
+      "explanation": "The lesson uses the warehouse-door analogy: data must be read from disk into memory before any transformation, and modern SSDs cap at roughly 500 MB/s, so that read step is usually the first wall a growing pipeline hits.",
+      "xpReward": 80,
+      "tags": [
+        "module-01",
+        "module-01-lesson-01",
+        "single-machine",
+        "bottlenecks"
+      ]
+    },
+    {
+      "id": "pyspark-m01-l02-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 02 frames distributed computing as three fundamental steps. Which option is NOT one of those three steps?",
+      "options": [
+        "Divide the data into pieces",
+        "Execute the work in parallel",
+        "Combine the results",
+        "Compress the data before transferring it"
+      ],
+      "correctAnswer": "Compress the data before transferring it",
+      "explanation": "The three fundamental steps are: divide the data, execute in parallel, and combine the results. Compression is an optional optimization, not a foundational step of distributed computing.",
+      "xpReward": 80,
+      "tags": [
+        "module-01",
+        "module-01-lesson-02",
+        "cluster",
+        "distributed-computing"
+      ]
+    },
+    {
+      "id": "pyspark-m01-l03-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "According to 'What Spark Is', why did Spark replace Hadoop MapReduce as the dominant engine for iterative workloads?",
+      "options": [
+        "It removed an unnecessary bottleneck — writing intermediate data to disk between transformations",
+        "It introduced a fundamentally new distributed-computing concept MapReduce lacked",
+        "It eliminated the need for any cluster manager",
+        "It moved all computation onto GPUs"
+      ],
+      "correctAnswer": "It removed an unnecessary bottleneck — writing intermediate data to disk between transformations",
+      "explanation": "The 'Why Spark won' callout is explicit: Spark did not invent a new concept — it removed MapReduce's mandatory disk write between stages, which is why iterative workloads got dramatically faster.",
+      "xpReward": 80,
+      "tags": [
+        "module-01",
+        "module-01-lesson-03",
+        "spark",
+        "mapreduce"
+      ]
+    },
+    {
+      "id": "pyspark-m01-l04-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "In a Spark application, what does the driver actually hold?",
+      "options": [
+        "All row-level data — the driver streams every record through itself",
+        "The execution plan, metadata, and control logic — but not the actual rows",
+        "Only the cluster manager's session token",
+        "A full copy of every executor's memory, kept in sync"
+      ],
+      "correctAnswer": "The execution plan, metadata, and control logic — but not the actual rows",
+      "explanation": "Lesson 04 calls the driver 'small and smart': it holds the plan, metadata, and coordination logic only. The actual data lives on executors; the driver only sees small results that come back from actions.",
+      "xpReward": 40,
+      "tags": [
+        "module-01",
+        "module-01-lesson-04",
+        "driver",
+        "executors",
+        "architecture"
+      ]
+    },
+    {
+      "id": "pyspark-m01-l05-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How do partitions relate to Spark's parallelism?",
+      "options": [
+        "Each partition becomes a separate Spark application",
+        "They set the upper limit on tasks that can run at the same time — one task per partition",
+        "Partition count must always equal the number of rows in the dataset",
+        "Spark always uses exactly one partition per executor regardless of data size"
+      ],
+      "correctAnswer": "They set the upper limit on tasks that can run at the same time — one task per partition",
+      "explanation": "Each partition is one unit of parallel work. With 8 partitions and 8 cores, all 8 tasks run simultaneously; with more partitions than cores, cores simply pick up the next task as they finish, so partitions cap concurrency.",
+      "xpReward": 80,
+      "tags": [
+        "module-01",
+        "module-01-lesson-05",
+        "partitions",
+        "parallelism"
+      ]
+    },
+    {
+      "id": "pyspark-m01-l06-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "How does NordGrid divide its operational territory in this course?",
+      "options": [
+        "By substation type — wind, solar, and hybrid",
+        "Into four geographic regions: NORTH, SOUTH, EAST, and WEST",
+        "By voltage level — low, medium, and high tension",
+        "Into eight pricing zones based on demand"
+      ],
+      "correctAnswer": "Into four geographic regions: NORTH, SOUTH, EAST, and WEST",
+      "explanation": "Lesson 06 sets up the canonical NordGrid scenario used throughout the course: four geographic regions (NORTH/SOUTH/EAST/WEST), each with its own substations, smart meters, and turbines.",
+      "xpReward": 40,
+      "tags": [
+        "module-01",
+        "module-01-lesson-06",
+        "nordgrid",
+        "scenario"
+      ]
+    },
+    {
+      "id": "pyspark-m01-l07-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the primary reason the Bronze layer keeps data untransformed?",
+      "options": [
+        "Bronze is never queried, so transformations would be wasted effort",
+        "Debuggability — when something goes wrong downstream, the team can replay against the original raw data",
+        "Bronze must always fit inside a single partition",
+        "Storage costs are lower for raw CSV than for Parquet"
+      ],
+      "correctAnswer": "Debuggability — when something goes wrong downstream, the team can replay against the original raw data",
+      "explanation": "Lesson 07 makes this explicit: keeping raw data untouched in Bronze gives the team a reliable rollback point — they can always reprocess from source when a Silver or Gold output looks wrong.",
+      "xpReward": 80,
+      "tags": [
+        "module-01",
+        "module-01-lesson-07",
+        "medallion",
+        "bronze-silver-gold"
+      ]
+    },
+    {
+      "id": "pyspark-m01-l08-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "When you call `df.filter(col('daily_kw') > 0)` in PySpark, where does the row-level filtering actually execute?",
+      "options": [
+        "In the Python interpreter on the driver, row by row",
+        "Inside the JVM where Spark's engine lives — Py4J bridges the Python call into a Java method call",
+        "Inside the operating-system kernel, before bytes reach Python",
+        "On the cluster manager (YARN or Kubernetes) before tasks are scheduled"
+      ],
+      "correctAnswer": "Inside the JVM where Spark's engine lives — Py4J bridges the Python call into a Java method call",
+      "explanation": "PySpark DataFrame operations are translated through Py4J into JVM method calls; the actual row-level work runs inside Spark's JVM engine. That is why DataFrame ops in PySpark are nearly as fast as Scala — only Python UDFs round-trip back into Python.",
+      "xpReward": 120,
+      "tags": [
+        "module-01",
+        "module-01-lesson-08",
+        "pyspark",
+        "py4j",
+        "jvm"
+      ]
+    },
+    {
+      "id": "pyspark-m01-l09-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "In Spark vocabulary, what is a *stage*?",
+      "options": [
+        "A separate Spark application running side-by-side",
+        "The amount of memory each executor reserves",
+        "A group of transformations that can run without shuffling data between executors — boundaries occur at shuffles",
+        "Another name for a single task"
+      ],
+      "correctAnswer": "A group of transformations that can run without shuffling data between executors — boundaries occur at shuffles",
+      "explanation": "Lesson 09 defines a stage as the largest set of transformations executable in parallel without moving data between executors. A shuffle (groupBy, join, repartition) ends one stage and begins the next.",
+      "xpReward": 120,
+      "tags": [
+        "module-01",
+        "module-01-lesson-09",
+        "stages",
+        "tasks",
+        "shuffle"
+      ]
+    },
+    {
+      "id": "pyspark-m01-l10-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is local mode useful for — and what is its main limitation?",
+      "options": [
+        "It scales to thousands of machines automatically; the only limit is regional pricing",
+        "It runs the driver and executors as threads in one process — great for development, but it cannot simulate cross-machine network behaviour",
+        "It replaces the Catalyst optimizer with a simpler version",
+        "It runs only on cloud GPUs and cannot use CPU"
+      ],
+      "correctAnswer": "It runs the driver and executors as threads in one process — great for development, but it cannot simulate cross-machine network behaviour",
+      "explanation": "Local mode is the standard dev/test setup: driver + executors as threads in a single process. It is fast to spin up, but shuffles in local mode skip the real network, so true cluster network effects only show up in distributed deployments.",
+      "xpReward": 40,
+      "tags": [
+        "module-01",
+        "module-01-lesson-10",
+        "local-mode",
+        "cluster"
+      ]
     }
   ]
 }

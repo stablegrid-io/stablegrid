@@ -885,11 +885,13 @@ function FieldRenderer({
               borderStyle = `1px solid rgba(${RED_RGB},0.3)`;
               iconElement = <X className="h-4 w-4 shrink-0" style={{ color: `rgb(${RED_RGB})` }} />;
             } else if (selected) {
+              // Selected (pre-check) — white indicator with bg-color check
+              // so it auto-inverts in light reading modes too.
               borderStyle = '1px solid var(--rm-border)';
               iconElement = (
                 <div className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center"
-                  style={{ background: `rgb(${ACCENT})` }}>
-                  <Check className="h-2.5 w-2.5 text-black" />
+                  style={{ background: 'var(--rm-text-heading, #ffffff)' }}>
+                  <Check className="h-2.5 w-2.5" style={{ color: 'var(--rm-bg, #000000)' }} />
                 </div>
               );
             }
@@ -2348,7 +2350,7 @@ sys.stderr = sys.__stderr__
               <div className="flex items-center gap-2">
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: `rgb(${ACCENT})` }}
+                  style={{ backgroundColor: 'var(--rm-text-heading, #ffffff)' }}
                 />
                 <span
                   className="text-[11px] font-medium uppercase tracking-[0.1em]"
