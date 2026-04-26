@@ -2097,6 +2097,2101 @@
         "module-AF10-lesson-10",
         "airflow-junior"
       ]
+    },
+    {
+      "id": "airflow-AFI1-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid's 12 cron-based DAGs use 90-minute time buffers between layers. What is the fundamental flaw in this scheduling approach?",
+      "options": [
+        "The 'when' is encoded as a timing assumption rather than as an explicit data dependency",
+        "Cron expressions cannot express sub-hour schedules so the chain has unavoidable lag",
+        "The scheduler cannot run more than three cron-scheduled DAGs in the same five-minute window",
+        "Cron silently shifts every schedule by exactly one minute on each daylight-savings transition"
+      ],
+      "correctAnswer": "The 'when' is encoded as a timing assumption rather than as an explicit data dependency",
+      "explanation": "Lesson 1: time buffers assume processing duration is predictable. When Bronze runs 40 minutes late, every downstream DAG processes incomplete data because the scheduler never sees the dependency.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI1",
+        "module-AFI1-lesson-01",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI1-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is an Airflow Dataset, and how do producers and consumers connect through one?",
+      "options": [
+        "A logical URI that producing tasks declare via outlets and consuming DAGs reference via schedule",
+        "A physical S3 bucket that Airflow creates automatically when the first producer task is registered",
+        "An on-disk Parquet file Airflow writes after each task and reads back into the next task's executor",
+        "A scheduler-side cache of the most recent task return value tagged with a producer DAG identifier"
+      ],
+      "correctAnswer": "A logical URI that producing tasks declare via outlets and consuming DAGs reference via schedule",
+      "explanation": "Lesson 2: Dataset is just a URI. Producers say outlets=[ds], consumers say schedule=[ds]. The scheduler tracks the link between them.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI1",
+        "module-AFI1-lesson-02",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI1-l03-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "If a Gold DAG has `schedule=[silver_meters, silver_generation]`, when does it trigger?",
+      "options": [
+        "When BOTH datasets are updated — the scheduler waits for AND across all listed datasets",
+        "When EITHER dataset is updated — the scheduler triggers on the first update it observes",
+        "When the FIRST dataset listed is updated — the second is documentation for human readers only",
+        "When MOST datasets are updated — the scheduler accepts a quorum of two-thirds to fire the run"
+      ],
+      "correctAnswer": "When BOTH datasets are updated — the scheduler waits for AND across all listed datasets",
+      "explanation": "Lesson 3: a list of datasets in schedule= is AND logic. Gold billing waits for both Silver meters AND Silver generation before triggering.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI1",
+        "module-AFI1-lesson-03",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI1-l04-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Lesson 4 says Dataset chains 'fail silently by design.' What does this mean operationally?",
+      "options": [
+        "A consumer that is never triggered has no failed run to alert on — needs freshness monitoring",
+        "A consumer that fails posts no error message to the Airflow UI for the operator to investigate",
+        "A consumer that succeeds writes no audit log entry that the security team can later review",
+        "A consumer that retries silently succeeds on the second attempt without telling the operator"
+      ],
+      "correctAnswer": "A consumer that is never triggered has no failed run to alert on — needs freshness monitoring",
+      "explanation": "Lesson 4: an upstream that didn't update means the downstream DAG was never created. Pair Datasets with a freshness-monitoring DAG.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI1",
+        "module-AFI1-lesson-04",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI1-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you use a custom Timetable instead of cron + branching to skip holidays?",
+      "options": [
+        "When the DAG should not have a DAG Run on holidays — no metadata record, no UI entry, no overhead",
+        "When the DAG should branch on holidays — the holiday logic must be visible in the Graph View",
+        "When the DAG must wait for a Dataset on holidays — the timetable handles cross-DAG dependencies",
+        "When the DAG ID must change on holidays — the timetable assigns a holiday suffix to the run ID"
+      ],
+      "correctAnswer": "When the DAG should not have a DAG Run on holidays — no metadata record, no UI entry, no overhead",
+      "explanation": "Lesson 5: custom timetable = no run is created. Branching = run is created and tasks are skipped. SaulėGrid's regulatory DAG uses a timetable to keep the audit trail clean.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI1",
+        "module-AFI1-lesson-05",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI1-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Which built-in timetable matches 'every 4 hours starting from the start_date'?",
+      "options": [
+        "DeltaDataIntervalTimetable(interval=duration(hours=4))",
+        "EventsTimetable(events=[every_four_hours])",
+        "CronTriggerTimetable(cron='0 */4 * * *', interval='dataset')",
+        "DatasetOrTimeSchedule(timetable=None, hours=4)"
+      ],
+      "correctAnswer": "DeltaDataIntervalTimetable(interval=duration(hours=4))",
+      "explanation": "Lesson 6: DeltaDataIntervalTimetable runs every fixed interval. CronTrigger uses cron strings; Events uses a list of explicit dates.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI1",
+        "module-AFI1-lesson-06",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI1-l07-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "An SLA-critical Gold DAG combines Datasets and a 06:00 cron. Which combination keeps the data ready by 06:00 even if Silver is late?",
+      "options": [
+        "DatasetOrTimeSchedule with OR — fires on the first signal: Dataset update OR 06:00 cron",
+        "DatasetAndTimeSchedule with AND — fires only when both Silver is fresh AND it is past 06:00",
+        "CronTriggerTimetable alone — Datasets are too unreliable for SLA-critical Gold pipelines",
+        "EventsTimetable with both signals — fires once per signal regardless of which arrives first"
+      ],
+      "correctAnswer": "DatasetOrTimeSchedule with OR — fires on the first signal: Dataset update OR 06:00 cron",
+      "explanation": "Lesson 7: OR guarantees a run by 06:00 even if Silver is late. AND would skip the run entirely on the morning Silver is delayed — exactly when billing needs to run.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI1",
+        "module-AFI1-lesson-07",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI1-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid has an event-triggered DAG `dag_bronze_reprocess`. Which configuration is correct for this kind of DAG?",
+      "options": [
+        "schedule=None, params with sensible defaults, and a validation task as the first step",
+        "schedule='@once', params=None, and a validation task running last as a final check",
+        "schedule='@daily' with catchup=False so it auto-runs but accepts external triggers too",
+        "schedule=ExternalTaskSensor(...) so the DAG waits for the upstream API call to finish"
+      ],
+      "correctAnswer": "schedule=None, params with sensible defaults, and a validation task as the first step",
+      "explanation": "Lesson 8: schedule=None means 'no automatic schedule'. params with defaults make manual triggers easy. First-task validation prevents bad input from reaching processing.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI1",
+        "module-AFI1-lesson-08",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI1-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why are ExternalTaskSensors a known anti-pattern at scale?",
+      "options": [
+        "Each sensor occupies a worker slot during its wait — many sensors exhaust the worker pool",
+        "Each sensor opens a TCP socket to the metadata DB that never closes properly afterward",
+        "Each sensor doubles the storage cost of the metadata database for the duration of the wait",
+        "Each sensor crashes the scheduler when its timeout fires before the upstream DAG finishes"
+      ],
+      "correctAnswer": "Each sensor occupies a worker slot during its wait — many sensors exhaust the worker pool",
+      "explanation": "Lesson 9: sensors hold slots. Use Datasets where possible, reschedule mode (not poke) for any remaining sensors, and a dedicated pool to cap them.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI1",
+        "module-AFI1-lesson-09",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI1-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 names four scheduling mechanisms in SaulėGrid's architecture. Which set is correct?",
+      "options": [
+        "Cron for chain entry points, Datasets for cross-DAG, timetables for calendars, API triggers for ad-hoc",
+        "Cron for everything in production, Datasets for staging, sensors for legacy, plugins for custom logic",
+        "Datasets for all DAGs, manual triggers for emergencies, timetables for cron, plugins for everything else",
+        "Cron for hourly DAGs, Datasets for daily DAGs, timetables for weekly DAGs, sensors for monthly DAGs"
+      ],
+      "correctAnswer": "Cron for chain entry points, Datasets for cross-DAG, timetables for calendars, API triggers for ad-hoc",
+      "explanation": "Lesson 10: each mechanism has a specific purpose. No DAG depends on a time-buffer assumption — that is the whole point of the architecture.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI1",
+        "module-AFI1-lesson-10",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI2-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What problem do custom hooks and operators solve that copy-pasted task code does not?",
+      "options": [
+        "A bug fix in one component propagates to every DAG that uses it — single point of change",
+        "A custom operator runs faster than a function because it bypasses Python's function-call overhead",
+        "A custom operator is exempt from Airflow's parsing budget so heavy imports become free at runtime",
+        "A custom operator can be scheduled independently of the DAG that contains it for resilience"
+      ],
+      "correctAnswer": "A bug fix in one component propagates to every DAG that uses it — single point of change",
+      "explanation": "Lesson 1: copy-paste = bug fixes drift across copies. Components = one fix, every DAG benefits. The shift from 'write the logic' to 'build the component'.",
+      "xpReward": 40,
+      "tags": [
+        "module-AFI2",
+        "module-AFI2-lesson-01",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI2-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does SaulėGrid's custom hook convention require every interaction method to do?",
+      "options": [
+        "Return a metadata dictionary with status, duration, and domain-specific fields for monitoring",
+        "Return the raw response object exactly as the underlying provider library returned it to the caller",
+        "Return None and rely on the operator's execute method to construct any metadata for the task",
+        "Return a string formatted as 'OK' on success or 'FAIL: <reason>' on any kind of failure"
+      ],
+      "correctAnswer": "Return a metadata dictionary with status, duration, and domain-specific fields for monitoring",
+      "explanation": "Lesson 2: consistent metadata structure means dashboards can aggregate hook performance across DAGs without custom parsing for each one.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI2",
+        "module-AFI2-lesson-02",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI2-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `template_fields = ('data_date', 'remote_path', 'bronze_path')` do on a custom operator?",
+      "options": [
+        "Marks those fields for Jinja templating at task runtime — supports `{{ ds }}` substitution",
+        "Locks those fields as read-only after instantiation so nothing can modify them at runtime",
+        "Renames those fields automatically by replacing underscores with hyphens before serialization",
+        "Hides those fields from the Airflow UI so credentials embedded in them are not exposed"
+      ],
+      "correctAnswer": "Marks those fields for Jinja templating at task runtime — supports `{{ ds }}` substitution",
+      "explanation": "Lesson 3: template_fields lists which constructor parameters Airflow renders through Jinja at execution time, enabling `{{ ds }}` and other macros.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI2",
+        "module-AFI2-lesson-03",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI2-l04-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why must `__init__` on a custom operator be lightweight?",
+      "options": [
+        "The scheduler calls __init__ on every parse cycle to build the task graph — heavy work runs every 30s",
+        "The metadata database serializes __init__ once per DAG Run and caches the result for the executor",
+        "The web server invokes __init__ on every page load to render the operator's UI configuration",
+        "Airflow blocks __init__ that exceeds 100ms because it freezes the scheduler's main event loop"
+      ],
+      "correctAnswer": "The scheduler calls __init__ on every parse cycle to build the task graph — heavy work runs every 30s",
+      "explanation": "Lesson 4: __init__ runs on every DAG parse. Heavy imports or DB calls in __init__ slow the entire installation. Defer heavy work to execute().",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI2",
+        "module-AFI2-lesson-04",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI2-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you use a Task Group inside a DAG?",
+      "options": [
+        "When the DAG has 8+ tasks that fall into clear logical sub-units worth collapsing in the Graph View",
+        "When the DAG has 3-5 tasks of any kind because Task Groups are mandatory for production DAGs",
+        "When the DAG uses sensors so each sensor is grouped with the task that depends on its result"
+      ],
+      "correctAnswer": "When the DAG has 8+ tasks that fall into clear logical sub-units worth collapsing in the Graph View",
+      "explanation": "Lesson 5: groups visually organize related tasks. For 3-5 flat tasks, groups add unnecessary nesting; for 8+ tasks across domains, groups reveal structure.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI2",
+        "module-AFI2-lesson-05",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI2-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid use the indirect-passing pattern for large XCom values?",
+      "options": [
+        "Large data goes to S3 with the path passed via XCom — keeps the metadata DB small and fast",
+        "Large data is split into 100KB XCom chunks so the metadata DB can spread load across rows",
+        "Large data is cached in Redis with the cache key passed via XCom for cross-task reuse",
+        "Large data is gzipped before being pushed to XCom so the database compression saves bytes"
+      ],
+      "correctAnswer": "Large data goes to S3 with the path passed via XCom — keeps the metadata DB small and fast",
+      "explanation": "Lesson 6: XCom is for small values (paths, counts, flags). Large values bloat the metadata DB and slow every scheduler query.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI2",
+        "module-AFI2-lesson-06",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI2-l07-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the architectural advantage of a custom XCom backend (e.g., S3XComBackend) over the indirect-passing convention?",
+      "options": [
+        "Platform-level enforcement — large values go to S3 transparently, even if developers forget",
+        "Better serialization — the backend uses Protocol Buffers instead of JSON for compactness",
+        "Lower latency — the backend caches XCom values in Redis to skip the metadata DB altogether",
+        "Encryption — the backend encrypts XCom values at rest using a separate AWS KMS key"
+      ],
+      "correctAnswer": "Platform-level enforcement — large values go to S3 transparently, even if developers forget",
+      "explanation": "Lesson 7: convention requires every developer to remember it. Backend = platform guardrail that cannot be forgotten or bypassed.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI2",
+        "module-AFI2-lesson-07",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI2-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you use `@task.short_circuit` instead of `@task.branch`?",
+      "options": [
+        "Pre-condition check that should skip ALL downstream tasks when False (binary go/no-go)",
+        "Choosing between 2-4 distinct downstream paths based on a value computed by the task",
+        "Wrapping a Python function so it runs in an isolated virtualenv with pinned requirements",
+        "Reusing a multi-task pattern across 3+ DAGs without copy-pasting the task definitions"
+      ],
+      "correctAnswer": "Pre-condition check that should skip ALL downstream tasks when False (binary go/no-go)",
+      "explanation": "Lesson 8: short_circuit returns True (continue) or False (skip everything downstream). Branch picks one path among several. Different shapes of decision.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI2",
+        "module-AFI2-lesson-08",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI2-l09-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "SaulėGrid's rule: a function is promoted to `saulegrid_common` only after it is used in 3+ DAGs. Why?",
+      "options": [
+        "Prevents the shared package from becoming a dumping ground for every utility function",
+        "Three uses are required by Python's packaging guidelines for any code shared between modules",
+        "Airflow's scheduler caches the package only when at least three DAGs reference it concurrently",
+        "Three uses guarantee statistical significance when measuring the function's average runtime"
+      ],
+      "correctAnswer": "Prevents the shared package from becoming a dumping ground for every utility function",
+      "explanation": "Lesson 9: shared package = team API contract. Promoting too eagerly = a dumping ground. The 3-DAG threshold proves cross-DAG value first.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI2",
+        "module-AFI2-lesson-09",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI2-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10's production Bronze DAG is 18 lines. Where did the complexity go?",
+      "options": [
+        "Encapsulated in shared hooks, operators, and Datasets in saulegrid_common — DAG composes them",
+        "Compressed via Airflow's built-in DAG minifier that runs during the deployment Docker build",
+        "Spread across helper modules in the dags/ folder that the scheduler loads alongside the DAG file",
+        "Removed entirely — modern Airflow handles SFTP and validation through its built-in providers"
+      ],
+      "correctAnswer": "Encapsulated in shared hooks, operators, and Datasets in saulegrid_common — DAG composes them",
+      "explanation": "Lesson 10: components live in saulegrid_common. The DAG composes them. A bug fix in any component fixes every DAG that uses it.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI2",
+        "module-AFI2-lesson-10",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI3-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why is idempotency described as the prerequisite for every other pattern in Module 3?",
+      "options": [
+        "Retries, recovery, and dead-letter handling all assume re-running a task produces the same result",
+        "Idempotency was added to Airflow before retries and the codebase still requires it for compatibility",
+        "The scheduler refuses to schedule a task without an idempotent flag set in the operator class",
+        "Idempotency is required by SaulėGrid's compliance auditors for every pipeline that touches billing"
+      ],
+      "correctAnswer": "Retries, recovery, and dead-letter handling all assume re-running a task produces the same result",
+      "explanation": "Lesson 1: incremental processing assumes safe reprocessing. Retries assume retries are safe. SLA recovery assumes clearing+rerun produces correct output. Everything builds on idempotency.",
+      "xpReward": 40,
+      "tags": [
+        "module-AFI3",
+        "module-AFI3-lesson-01",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI3-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid's idempotency convention by layer is which combination?",
+      "options": [
+        "Bronze: overwrite. Silver: delete-then-write the date partition. Gold: upsert by composite key.",
+        "Bronze: append for raw data. Silver: append for transformed data. Gold: full refresh nightly.",
+        "Bronze: upsert by source URI. Silver: overwrite the entire table. Gold: insert with timestamp suffix.",
+        "Bronze: insert and never delete. Silver: delete and never insert. Gold: only update existing rows."
+      ],
+      "correctAnswer": "Bronze: overwrite. Silver: delete-then-write the date partition. Gold: upsert by composite key.",
+      "explanation": "Lesson 2: each layer's write strategy matches its data shape — Bronze raw, Silver partitioned, Gold relational with concurrent reads.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI3",
+        "module-AFI3-lesson-02",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI3-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the watermark pattern in Lesson 3 use Variables for?",
+      "options": [
+        "Tracking the last processed timestamp so the next run reads only newer records",
+        "Tracking which DAG Run was most recent so backfills know where to resume from",
+        "Tracking the SLA threshold for the pipeline so the run can adjust its retry behavior",
+        "Tracking the worker count so the autoscaler knows how many workers the DAG needs"
+      ],
+      "correctAnswer": "Tracking the last processed timestamp so the next run reads only newer records",
+      "explanation": "Lesson 3: watermark = 'I have processed up to timestamp X'. Next run reads records with timestamp > X. Append after the watermark advances.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI3",
+        "module-AFI3-lesson-03",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI3-l04-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "SaulėGrid's tiered retry strategy uses different settings per system. Why does the SFTP download use long delays with exponential backoff?",
+      "options": [
+        "The provider rate-limits aggressive reconnections — exponential backoff avoids triggering the limit",
+        "SFTP servers cannot handle more than one retry per minute due to the protocol's session limits",
+        "Exponential backoff is required by RFC 3617 for any SFTP-based file transfer in production",
+        "The provider charges per connection attempt and exponential backoff minimizes the bill"
+      ],
+      "correctAnswer": "The provider rate-limits aggressive reconnections — exponential backoff avoids triggering the limit",
+      "explanation": "Lesson 4: encode the operational reality — SFTP rate-limits, weather APIs recover quickly, databases need fixed intervals. One-size-fits-all retries are wrong.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI3",
+        "module-AFI3-lesson-04",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI3-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does an `sla_miss_callback` on a DAG actually do?",
+      "options": [
+        "Fires a custom function when a task with `sla=...` completes after its threshold — sends alerts",
+        "Cancels the DAG Run when its first task exceeds the SLA so resources go to other DAGs",
+        "Reschedules the DAG Run to a later slot when the SLA cannot be met within the current window",
+        "Logs the SLA miss to a dedicated table for the regulator's quarterly compliance audit only"
+      ],
+      "correctAnswer": "Fires a custom function when a task with `sla=...` completes after its threshold — sends alerts",
+      "explanation": "Lesson 5: SLA = time relative to logical_date by which a task must complete. Miss callback runs your custom alert/escalation logic when breached.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI3",
+        "module-AFI3-lesson-05",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI3-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the purpose of a dead-letter table in SaulėGrid's Silver pipeline?",
+      "options": [
+        "Capture rejected records with rejection_reason and code so they can be investigated and reprocessed",
+        "Hold all records that the scheduler could not parse during DAG file scanning at startup",
+        "Store the most recent SLA miss for every Gold-layer DAG indexed by the breach severity",
+        "Buffer raw Bronze data during pipeline maintenance windows for catchup processing later"
+      ],
+      "correctAnswer": "Capture rejected records with rejection_reason and code so they can be investigated and reprocessed",
+      "explanation": "Lesson 6: dead-letter = quality gate's reject pile. Each rejection has a code (NULL_METER_ID, etc.) for monitoring and selective reprocessing.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI3",
+        "module-AFI3-lesson-06",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI3-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "After a Saturday Bronze failure, what is the recovery sequence Lesson 7 prescribes?",
+      "options": [
+        "Clear the failed run with downstream, then trigger Sunday's run, then trigger Monday's run",
+        "Backfill the entire month from start_date to today with --reset-dagruns set on every DAG",
+        "Pause every dependent DAG, manually copy missing files, and unpause them once verification completes",
+        "Delete the failed DAG Run from the metadata database and let the next scheduled run catch up alone"
+      ],
+      "correctAnswer": "Clear the failed run with downstream, then trigger Sunday's run, then trigger Monday's run",
+      "explanation": "Lesson 7: clear = re-evaluate dependencies and reset state. Then trigger the missed dates one by one so Datasets cascade properly through Silver and Gold.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI3",
+        "module-AFI3-lesson-07",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI3-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What mechanism guarantees cross-DAG consistency in SaulėGrid's architecture?",
+      "options": [
+        "Dataset scheduling — downstream DAGs run only when upstream data is genuinely ready",
+        "ExternalTaskSensors — every Silver DAG polls every Bronze DAG until completion",
+        "Manual triggers — a senior engineer kicks off each layer once the previous one is verified",
+        "Cron with generous time buffers — a 90-minute gap between layers absorbs any drift"
+      ],
+      "correctAnswer": "Dataset scheduling — downstream DAGs run only when upstream data is genuinely ready",
+      "explanation": "Lesson 8: Datasets are the consistency mechanism by default. Freshness monitoring is the verification layer that detects gaps the scheduler did not prevent.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI3",
+        "module-AFI3-lesson-08",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI3-l09-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Lesson 9 says some DAG changes are 'irreversible.' Which of these is irreversible?",
+      "options": [
+        "Removing a column from the output schema — downstream consumers referencing it will break",
+        "Adding a nullable column to the output schema — downstream queries that ignore it keep working",
+        "Adding a new validation rule — rejected records go to dead-letter and can be reprocessed",
+        "Switching the schedule from cron to Datasets — the scheduler keeps both forms during migration"
+      ],
+      "correctAnswer": "Removing a column from the output schema — downstream consumers referencing it will break",
+      "explanation": "Lesson 9: irreversible = downstream consumers depend on the prior state. Removing a column or changing a partition key cannot be quietly undone.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI3",
+        "module-AFI3-lesson-09",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI3-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid's pipeline design checklist enforces at least eight standards. Which one is correct?",
+      "options": [
+        "Idempotency, write strategy, incremental scope, retry config, SLA defined, dead letters, recovery runbook, Dataset scheduling",
+        "Async only, no XCom, no retries, no SLAs, no dead letters, no documentation, no version control, no review",
+        "DAG count under five, line count under one hundred, single-task DAGs, no shared package, no tests, fast parse",
+        "Branching everywhere, sensors required, cron only, manual deployment, manual rotation, Admin role for all"
+      ],
+      "correctAnswer": "Idempotency, write strategy, incremental scope, retry config, SLA defined, dead letters, recovery runbook, Dataset scheduling",
+      "explanation": "Lesson 10: the checklist codifies the module's lessons into a PR review template. Each unchecked item is a risk to investigate before merge.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI3",
+        "module-AFI3-lesson-10",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI4-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why is DAG code described as 'executor-agnostic'?",
+      "options": [
+        "The same DAG runs on LocalExecutor in dev and CeleryExecutor in prod without modification",
+        "The executor field is read at parse time and the DAG cannot be migrated to another executor later",
+        "DAG code locks itself to one executor at startup so the scheduler cannot reroute mid-execution",
+        "Each executor type requires its own DAG file format and the codebase must maintain three copies"
+      ],
+      "correctAnswer": "The same DAG runs on LocalExecutor in dev and CeleryExecutor in prod without modification",
+      "explanation": "Lesson 1: executor is an infrastructure decision, not a code decision. Scheduler/DB/web server work identically; the executor is the only swappable piece.",
+      "xpReward": 40,
+      "tags": [
+        "module-AFI4",
+        "module-AFI4-lesson-01",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI4-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When is LocalExecutor the right choice for SaulėGrid?",
+      "options": [
+        "Single machine with parallel tasks where the workload fits in one host's CPU/memory budget",
+        "Distributed cluster across data centers where Redis brokers handle inter-machine messaging",
+        "Kubernetes deployment where each task gets its own pod and resource quota at runtime",
+        "Edge deployment with intermittent connectivity where tasks queue and replay on reconnect"
+      ],
+      "correctAnswer": "Single machine with parallel tasks where the workload fits in one host's CPU/memory budget",
+      "explanation": "Lesson 2: LocalExecutor parallelizes processes on one machine. No broker, no workers, minimal operational overhead. Right until the host outgrows the workload.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI4",
+        "module-AFI4-lesson-02",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI4-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What architectural advantage does CeleryExecutor have over LocalExecutor?",
+      "options": [
+        "The message broker decouples scheduler from workers — workers can be added without scheduler restart",
+        "The broker stores task results permanently so workers can read other workers' outputs over the network",
+        "The broker enforces strict ordering across all workers so tasks complete in deterministic sequence",
+        "The broker eliminates the need for a metadata database by storing all task state in Redis directly"
+      ],
+      "correctAnswer": "The message broker decouples scheduler from workers — workers can be added without scheduler restart",
+      "explanation": "Lesson 3: broker = decoupling layer. Add/remove workers without restart. Each worker has its own resources — no contention with the scheduler host.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI4",
+        "module-AFI4-lesson-03",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI4-l04-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "When does KubernetesExecutor's per-task pod model become the right trade-off?",
+      "options": [
+        "When tasks need different Python dependencies that would conflict on a shared worker host",
+        "When pipelines must process data faster than CeleryExecutor can dispatch tasks to its workers",
+        "When the team wants to eliminate the metadata database by relying on Kubernetes etcd instead",
+        "When the schedule is sub-minute and Kubernetes is the only executor that supports rapid dispatch"
+      ],
+      "correctAnswer": "When tasks need different Python dependencies that would conflict on a shared worker host",
+      "explanation": "Lesson 4: pod-per-task = different Docker images per task. Trades CeleryExecutor's simplicity for dependency isolation. Worth it only if isolation is genuinely needed.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI4",
+        "module-AFI4-lesson-04",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI4-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid's executor selection principle is which of these?",
+      "options": [
+        "Choose the simplest executor that meets current requirements with 12-18 months of growth headroom",
+        "Always choose KubernetesExecutor because it is the most powerful and future-proof of the three options",
+        "Always choose CeleryExecutor because Redis is the de-facto standard message broker for orchestration",
+        "Always choose LocalExecutor because the operational overhead of distributed executors is never justified"
+      ],
+      "correctAnswer": "Choose the simplest executor that meets current requirements with 12-18 months of growth headroom",
+      "explanation": "Lesson 5: the right executor is the one the team can debug at 2 AM. Power without operational fluency is a liability, not an asset.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI4",
+        "module-AFI4-lesson-05",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI4-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid create dedicated pools like `sftp_pool` (2 slots) and `warehouse_pool` (5 slots)?",
+      "options": [
+        "Each pool's slot count matches the external system's documented concurrency limit",
+        "Each pool is required by Airflow before any task that connects to an external system can run",
+        "Each pool replaces the executor's parallelism setting for tasks that target external systems",
+        "Each pool acts as a load balancer that distributes work across multiple identical external systems"
+      ],
+      "correctAnswer": "Each pool's slot count matches the external system's documented concurrency limit",
+      "explanation": "Lesson 6: pools enforce external-system concurrency limits. The provider allows 2 SFTP connections; the pool guarantees Airflow respects that.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI4",
+        "module-AFI4-lesson-06",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI4-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What happens when a task is assigned `queue='gpu'` but no worker subscribes to the gpu queue?",
+      "options": [
+        "The task sits in the queue indefinitely — not failed, not timed out, just waiting forever",
+        "The scheduler reassigns the task to the default queue after a 60-second timeout window",
+        "The web server displays a red 'orphaned queue' badge in the UI's task instance view",
+        "Airflow raises an OrphanedQueueException at parse time and the DAG fails to load entirely"
+      ],
+      "correctAnswer": "The task sits in the queue indefinitely — not failed, not timed out, just waiting forever",
+      "explanation": "Lesson 7: orphaned queue = silent indefinite wait. SaulėGrid's CI check validates queue assignments against the active worker pool to prevent this.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI4",
+        "module-AFI4-lesson-07",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI4-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid's worker scaling is described as 'three-layer hybrid'. Which layers?",
+      "options": [
+        "Persistent workers + scheduled additional workers + Celery autoscale within each worker",
+        "Hot standby workers + cold backup workers + KEDA-based Kubernetes scaling on top",
+        "On-prem workers + cloud burst workers + edge workers near the data sources around the EU"
+      ],
+      "correctAnswer": "Persistent workers + scheduled additional workers + Celery autoscale within each worker",
+      "explanation": "Lesson 8: persistent (always-on baseline) + scheduled (cron starts overnight workers) + autoscale (burst). Each layer covers a different demand pattern.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI4",
+        "module-AFI4-lesson-08",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI4-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is a 'zombie task' in Airflow's executor model?",
+      "options": [
+        "A running task whose worker process stopped sending heartbeats — scheduler marks it failed",
+        "A queued task whose worker started running it but never reported the new state to the database",
+        "A succeeded task whose XCom value was lost before the executor could persist it to storage"
+      ],
+      "correctAnswer": "A running task whose worker process stopped sending heartbeats — scheduler marks it failed",
+      "explanation": "Lesson 9: zombie = task says it's running but the worker is gone (crashed, network partition, etc.). After scheduler_zombie_task_threshold seconds, scheduler fails it.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI4",
+        "module-AFI4-lesson-09",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI4-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 describes SaulėGrid's runtime architecture. Which combination matches?",
+      "options": [
+        "CeleryExecutor + Redis with Sentinel + 3 persistent workers + 2 burst workers + queue specialization",
+        "KubernetesExecutor + etcd + per-task pods + horizontal pod autoscaler + namespace isolation",
+        "LocalExecutor + SQLite + single host + cron-based DAG dispatch + standalone setup"
+      ],
+      "correctAnswer": "CeleryExecutor + Redis with Sentinel + 3 persistent workers + 2 burst workers + queue specialization",
+      "explanation": "Lesson 10: their actual production deployment. CeleryExecutor for distributed capacity, Redis Sentinel for HA broker, RDS PostgreSQL for the metadata DB.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI4",
+        "module-AFI4-lesson-10",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI5-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why does manual UI-based connection management break down at SaulėGrid's scale (12 connections × 3 environments)?",
+      "options": [
+        "Manual entry across environments is error-prone — a wrong-pasted password causes silent runtime failures",
+        "The Airflow UI rejects any connection containing more than 12 characters in its password field",
+        "Connections defined in the UI are not exported during backups so they are lost on host failure",
+        "The metadata database limits connection records to 36 entries before the UI starts truncating them"
+      ],
+      "correctAnswer": "Manual entry across environments is error-prone — a wrong-pasted password causes silent runtime failures",
+      "explanation": "Lesson 1: manual = error-prone. Wrong-pasted password = silent runtime failure. Secrets backends + config-as-code replace human typing with automation.",
+      "xpReward": 40,
+      "tags": [
+        "module-AFI5",
+        "module-AFI5-lesson-01",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI5-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the connection lookup chain when a Secrets Backend is configured?",
+      "options": [
+        "Secrets Backend → environment variables → metadata database — first hit wins",
+        "Metadata database → Secrets Backend → environment variables — UI takes priority",
+        "Environment variables → metadata database → Secrets Backend — local overrides win",
+        "Secrets Backend only — environment variables and database are ignored when configured"
+      ],
+      "correctAnswer": "Secrets Backend → environment variables → metadata database — first hit wins",
+      "explanation": "Lesson 2: backend has highest priority. This allows gradual migration — move connections to Vault one at a time without removing them from the database.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI5",
+        "module-AFI5-lesson-02",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI5-l03-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the most common configuration error when setting up Vault as a Secrets Backend?",
+      "options": [
+        "Path mismatch — KV v2 silently inserts a 'data' segment that backend_kwargs must account for",
+        "Auth mismatch — AppRole tokens expire after 60 seconds and the backend cannot refresh them",
+        "TLS mismatch — Vault requires TLS 1.3 but Airflow's HTTP client defaults to TLS 1.2 always",
+        "Encoding mismatch — Vault stores secrets as UTF-16 but Airflow expects UTF-8 throughout"
+      ],
+      "correctAnswer": "Path mismatch — KV v2 silently inserts a 'data' segment that backend_kwargs must account for",
+      "explanation": "Lesson 3: KV v2 stores at secret/data/{path} but the CLI hides this. backend_kwargs must align mount_point + path with the actual storage layout.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI5",
+        "module-AFI5-lesson-03",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI5-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the credential management hierarchy from Lesson 4 (best to worst)?",
+      "options": [
+        "Eliminate (IAM roles) → Generate dynamically (OAuth tokens) → Store in Vault (static passwords)",
+        "Hardcode in DAGs → Store in metadata DB → Store in Vault → Store in encrypted env vars",
+        "Generate per-task → Cache in Redis → Replicate across workers → Sync to the metadata DB",
+        "Static passwords → Rotated quarterly → Stored in metadata DB → Encrypted with team-shared key"
+      ],
+      "correctAnswer": "Eliminate (IAM roles) → Generate dynamically (OAuth tokens) → Store in Vault (static passwords)",
+      "explanation": "Lesson 4: zero credentials > per-task tokens > stored secrets. Each step up reduces the surface area for credential incidents.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI5",
+        "module-AFI5-lesson-04",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI5-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is `bronze_path = Variable.get('saulegrid.bronze.path')` at the top of a DAG file dangerous?",
+      "options": [
+        "It queries the metadata database on every scheduler parse — many queries per minute total",
+        "It locks the variable for the DAG and prevents other DAGs from reading the same value",
+        "It caches the value forever and ignores any updates the operator makes through the UI",
+        "It crashes the scheduler when the variable is missing instead of using a default value"
+      ],
+      "correctAnswer": "It queries the metadata database on every scheduler parse — many queries per minute total",
+      "explanation": "Lesson 5: top-level code runs every parse. Variable.get() at module level = constant DB hammering. Move it inside task callables.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI5",
+        "module-AFI5-lesson-05",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI5-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is SaulėGrid's 'configuration as code' principle?",
+      "options": [
+        "YAML files in Git are the source of truth — the UI displays current state, the repo wins on drift",
+        "All configuration lives in the Airflow UI — Git just holds DAG code and never touches connections",
+        "Configuration is generated at deploy time by an LLM that reads the README and infers the right values",
+        "Each engineer maintains their own local YAML and the scheduler picks the most recently modified file"
+      ],
+      "correctAnswer": "YAML files in Git are the source of truth — the UI displays current state, the repo wins on drift",
+      "explanation": "Lesson 6: Git wins. The init script runs on every deploy and corrects any UI drift back to the repo's intent.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI5",
+        "module-AFI5-lesson-06",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI5-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is SaulėGrid's variable naming convention?",
+      "options": [
+        "saulegrid.{domain}.{key} — namespaced prefix prevents collisions and groups related variables",
+        "ALL_CAPS_WITH_UNDERSCORES — required by the metadata DB's case-sensitive lookup index",
+        "{environment}-{key} — environment prefix prevents dev variables from leaking into production",
+        "v1_{key} — version prefix lets the team add v2_{key} without breaking existing DAG references"
+      ],
+      "correctAnswer": "saulegrid.{domain}.{key} — namespaced prefix prevents collisions and groups related variables",
+      "explanation": "Lesson 7: namespaced names. Listing 'saulegrid.bronze.*' shows all bronze-related vars; 'saulegrid.*' shows the entire team's configuration.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI5",
+        "module-AFI5-lesson-07",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI5-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid synchronize its credential rotation schedule with the provider's rotation cycle?",
+      "options": [
+        "It eliminates the risk of using expired credentials — the update happens on the day the new credential becomes available",
+        "It satisfies a Lithuanian regulatory requirement that every Vault operation align with the provider's calendar",
+        "It guarantees that two providers never rotate on the same day so the platform team is never overwhelmed",
+        "It reduces the Vault audit log size because synchronized writes compress better than scattered ones"
+      ],
+      "correctAnswer": "It eliminates the risk of using expired credentials — the update happens on the day the new credential becomes available",
+      "explanation": "Lesson 8: provider issues new credential on day X → SaulėGrid updates Vault on day X. No expired-credential window.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI5",
+        "module-AFI5-lesson-08",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI5-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the connection registry (config/connection_registry.yaml) document?",
+      "options": [
+        "Owner, rotation schedule, Vault path, consuming DAGs, and last-verified date for each connection",
+        "Every connection's password history with timestamps so the team can roll back to any prior version",
+        "The full URI of every connection in plaintext so engineers can copy-paste into local development",
+        "Each connection's TCP port assignment so the network team can update firewall rules in advance"
+      ],
+      "correctAnswer": "Owner, rotation schedule, Vault path, consuming DAGs, and last-verified date for each connection",
+      "explanation": "Lesson 9: registry = operational metadata. Audit task compares it against the metadata DB to find undocumented or missing connections.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI5",
+        "module-AFI5-lesson-09",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI5-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10's configuration architecture has four layers. Which list matches?",
+      "options": [
+        "DAG code (Git) + Configuration (Variables/YAML) + Credentials (Vault) + Operational metadata (registry)",
+        "Local config + staging config + production config + DR config — each environment is fully self-contained",
+        "Hardcoded values + manual overrides + UI tweaks + cron-injected secrets — the legacy four-step process",
+        "API keys + OAuth tokens + IAM roles + service principals — the four authentication mechanisms in use"
+      ],
+      "correctAnswer": "DAG code (Git) + Configuration (Variables/YAML) + Credentials (Vault) + Operational metadata (registry)",
+      "explanation": "Lesson 10: separation of concerns across four layers, each with a defined source of truth and deployment target.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI5",
+        "module-AFI5-lesson-10",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI6-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "How is testing DAGs different from testing application code?",
+      "options": [
+        "DAG tests verify both the orchestration platform's ability to parse/schedule and the logic correctness",
+        "DAG tests are slower because every test must spin up a full Airflow scheduler and a Postgres database",
+        "DAG tests cannot use mocks because Airflow forbids replacing any Connection or Hook at test runtime",
+        "DAG tests only run during deployment because the test runner cannot resolve Airflow imports locally"
+      ],
+      "correctAnswer": "DAG tests verify both the orchestration platform's ability to parse/schedule and the logic correctness",
+      "explanation": "Lesson 1: app tests = function correctness. DAG tests = both 'can Airflow run this?' and 'does the logic produce correct output?' Two layers, two test types.",
+      "xpReward": 40,
+      "tags": [
+        "module-AFI6",
+        "module-AFI6-lesson-01",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI6-l02-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does `DagBag(dag_folder='dags/')` plus `assert dag_bag.import_errors == {}` catch?",
+      "options": [
+        "Circular imports, syntax errors, missing dependencies, and exceptions in top-level DAG code",
+        "Slow database queries, oversized XCom values, and credentials accidentally stored in the DAG file",
+        "Schedule misconfigurations such as catchup=True with a far-past start_date and no max_active_runs",
+        "Worker imbalance, queue assignment errors, and pool exhaustion across the executor's slot pool"
+      ],
+      "correctAnswer": "Circular imports, syntax errors, missing dependencies, and exceptions in top-level DAG code",
+      "explanation": "Lesson 2: a single integrity test catches every structural error class. The cheapest, highest-value test in the whole suite.",
+      "xpReward": 40,
+      "tags": [
+        "module-AFI6",
+        "module-AFI6-lesson-02",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI6-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Structure validation tests verify which kinds of conventions?",
+      "options": [
+        "Naming patterns, required tags, SLA on Gold DAGs, retries on external-system tasks, access control",
+        "Algorithmic correctness of business logic functions used inside the DAG's transformation tasks",
+        "Network-level latency between the scheduler host and external systems referenced by Connections",
+        "Memory consumption of each Airflow worker process during a representative production workload"
+      ],
+      "correctAnswer": "Naming patterns, required tags, SLA on Gold DAGs, retries on external-system tasks, access control",
+      "explanation": "Lesson 3: structure = conventions like dag_{layer}_{domain}, snake_case task IDs, every Gold DAG has sla_miss_callback. The executable specification of team conventions.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI6",
+        "module-AFI6-lesson-03",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI6-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid keep transformation logic in `saulegrid_common/transformations/` separate from `dags/`?",
+      "options": [
+        "Pure functions with no Airflow imports can be unit-tested directly without any Airflow runtime",
+        "Pure functions are required by Python's packaging spec to live outside the dags/ folder by name",
+        "Pure functions cannot use type hints so keeping them separate prevents type-checking conflicts",
+        "Pure functions are slower to import so isolating them prevents the scheduler from loading them"
+      ],
+      "correctAnswer": "Pure functions with no Airflow imports can be unit-tested directly without any Airflow runtime",
+      "explanation": "Lesson 4: thin DAG = call business function. Business function = pure logic, easy to unit test. Tests run in milliseconds without Airflow.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI6",
+        "module-AFI6-lesson-04",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI6-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does SaulėGrid's mocking boundary look like across test layers?",
+      "options": [
+        "Unit/structure: mock everything. Integration: Docker containers + mock servers. Staging: real endpoints.",
+        "Unit: real DB. Integration: real DB. Staging: real DB. Same boundary throughout for consistency.",
+        "Unit: mock SFTP only. Integration: mock everything. Staging: real Postgres but mocked APIs.",
+        "Unit: full Airflow runtime. Integration: full Airflow runtime. Staging: production Airflow runtime."
+      ],
+      "correctAnswer": "Unit/structure: mock everything. Integration: Docker containers + mock servers. Staging: real endpoints.",
+      "explanation": "Lesson 5: each layer catches different failure classes. Unit fast and reliable; integration realistic; staging high-confidence end-to-end.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI6",
+        "module-AFI6-lesson-05",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI6-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `dag.test()` provide for development?",
+      "options": [
+        "Quick local DAG execution in test mode — sequential, no scheduler, with optional connection overrides",
+        "Continuous DAG monitoring across staging and production with automatic test result aggregation",
+        "Auto-generation of integration tests from a recorded DAG Run — captures inputs and replays them",
+        "A REST endpoint that triggers the DAG with test fixtures and reports the result via webhook"
+      ],
+      "correctAnswer": "Quick local DAG execution in test mode — sequential, no scheduler, with optional connection overrides",
+      "explanation": "Lesson 6: dag.test() runs the DAG locally without scheduler/executor. Quick check during development; not a CI tool.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI6",
+        "module-AFI6-lesson-06",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI6-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is a 'dirty fixture' in SaulėGrid's data quality testing?",
+      "options": [
+        "CSV fixture with intentional quality issues per record + comment explaining the expected rejection",
+        "CSV fixture pulled directly from production and stored unchanged for the test suite to use",
+        "CSV fixture that has been corrupted by a fuzzing tool to test the validator's exception handling",
+        "CSV fixture that contains personal data anonymized by the team for staging-only data quality tests"
+      ],
+      "correctAnswer": "CSV fixture with intentional quality issues per record + comment explaining the expected rejection",
+      "explanation": "Lesson 7: dirty fixture = known-bad records, each with a comment naming the expected rejection code. Distribution test verifies every code is exercised.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI6",
+        "module-AFI6-lesson-07",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI6-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is SaulėGrid's testing pyramid execution time budget for the per-push CI run?",
+      "options": [
+        "Under 90 seconds total — fast enough to be a natural part of the development workflow",
+        "Under 10 minutes total — long enough to run extensive end-to-end tests for every push",
+        "Under 5 seconds total — tests must run faster than the scheduler's heartbeat interval",
+        "Under 30 minutes total — comprehensive coverage requires running the full integration suite"
+      ],
+      "correctAnswer": "Under 90 seconds total — fast enough to be a natural part of the development workflow",
+      "explanation": "Lesson 8: 90s keeps CI in the development workflow. Slower CI = developers batch changes and skip CI locally — defeating the purpose.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI6",
+        "module-AFI6-lesson-08",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI6-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does SaulėGrid's test environment principle say?",
+      "options": [
+        "Every test runnable on a fresh machine with only Python and Docker installed — no other setup",
+        "Every test reuses the staging Airflow instance to share connections, variables, and pools globally",
+        "Every test requires a senior engineer's machine because the local setup needs production secrets",
+        "Every test pulls fixtures from S3 at runtime so the repository stays small and easy to clone"
+      ],
+      "correctAnswer": "Every test runnable on a fresh machine with only Python and Docker installed — no other setup",
+      "explanation": "Lesson 9: clone repo + pip install + docker-compose up = full test suite running. New team member's first day = productive.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI6",
+        "module-AFI6-lesson-09",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI6-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 says SaulėGrid's testing standards transform a question. From what to what?",
+      "options": [
+        "From 'will this DAG work in production?' to 'this DAG is verified by 123 assertions — it will'",
+        "From 'who tested this DAG?' to 'the senior engineer who reviewed the PR personally tested it'",
+        "From 'when was the last test run?' to 'every commit triggers the full test suite automatically'",
+        "From 'are tests required?' to 'the team writes tests when they have time after the deadline'"
+      ],
+      "correctAnswer": "From 'will this DAG work in production?' to 'this DAG is verified by 123 assertions — it will'",
+      "explanation": "Lesson 10: testing transforms uncertainty into verified confidence. The pyramid covers structure → logic → integration → idempotency.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI6",
+        "module-AFI6-lesson-10",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI7-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is wrong with manual `scp dags/*.py airflow-prod:/opt/airflow/dags/` deployments?",
+      "options": [
+        "No test validation, no deployment record, no protection against simultaneous pushes, no rollback mechanism",
+        "scp is slower than rsync so deployments take twice as long for the same set of DAG files",
+        "scp does not preserve file permissions and the scheduler then refuses to load the new DAG files",
+        "scp blocks the scheduler for the duration of the copy and pauses every running DAG Run"
+      ],
+      "correctAnswer": "No test validation, no deployment record, no protection against simultaneous pushes, no rollback mechanism",
+      "explanation": "Lesson 1: manual = quality depends on the human's attention on that day. Automated = quality is the pipeline's configuration, reviewed and consistent.",
+      "xpReward": 40,
+      "tags": [
+        "module-AFI7",
+        "module-AFI7-lesson-01",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI7-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid pin every dependency in requirements.txt to an exact version?",
+      "options": [
+        "Reproducibility — the same versions install in dev, staging, and production every single time",
+        "Performance — pinned versions skip the dependency resolver and pip install completes faster",
+        "Security — pinned versions cannot receive security patches and stay at the audited release",
+        "Licensing — pinned versions guarantee the legal team approved every dependency by name"
+      ],
+      "correctAnswer": "Reproducibility — the same versions install in dev, staging, and production every single time",
+      "explanation": "Lesson 2: pinning eliminates 'works on my machine' surprises. Quarterly upgrade cycle moves pins forward deliberately.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI7",
+        "module-AFI7-lesson-02",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI7-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid target a 90-second CI pipeline?",
+      "options": [
+        "Fast enough to be a natural part of the workflow — slower CI = developers skip it locally",
+        "Slower than 90s would exceed GitHub Actions' free-tier compute budget for the team's repository",
+        "90s is the maximum interval Airflow's scheduler tolerates between deploys without restarting",
+        "90s lets the team run CI on every keystroke without rate-limiting from the GitHub API"
+      ],
+      "correctAnswer": "Fast enough to be a natural part of the workflow — slower CI = developers skip it locally",
+      "explanation": "Lesson 3: CI must be a partner, not a bottleneck. If CI is slow, devs batch changes and break the fast-feedback loop.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI7",
+        "module-AFI7-lesson-03",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI7-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does SaulėGrid's CI check for deprecated patterns like `schedule_interval=`?",
+      "options": [
+        "Scans every DAG file for deprecated keywords and fails the build with the suggested replacement",
+        "Auto-rewrites the deprecated keyword to the modern form and creates a follow-up PR for review",
+        "Adds a warning comment to the PR but does not block the merge if other tests pass cleanly",
+        "Logs the deprecation to the metadata database for the quarterly compliance audit by the regulator"
+      ],
+      "correctAnswer": "Scans every DAG file for deprecated keywords and fails the build with the suggested replacement",
+      "explanation": "Lesson 4: CI catches deprecated APIs (schedule_interval, execution_date, provide_context, SubDagOperator) before they reach production.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI7",
+        "module-AFI7-lesson-04",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI7-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does SaulėGrid mitigate deploying DAG changes while tasks are running?",
+      "options": [
+        "Deploy only during the 10:00-14:00 quiet window when no DAG Runs are typically in progress",
+        "Pause every running DAG Run before deploy and resume them after deployment completes successfully",
+        "Wait until the metadata database is empty so the deploy has zero in-flight task instances",
+        "Deploy to a new Airflow instance and switch traffic with DNS — old instance drains over hours"
+      ],
+      "correctAnswer": "Deploy only during the 10:00-14:00 quiet window when no DAG Runs are typically in progress",
+      "explanation": "Lesson 5: 10:00-14:00 = scheduled DAGs have completed. Running tasks complete with old code; next runs use new code — generally safe.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI7",
+        "module-AFI7-lesson-05",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI7-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does SaulėGrid's environment promotion model look like?",
+      "options": [
+        "Dev → Staging is automatic on merge. Staging → Production is manual after a validation checklist.",
+        "Dev → Staging → Production all automatic on merge with no human intervention or validation steps.",
+        "Dev → Production directly because staging is too expensive to maintain for a small platform team.",
+        "Production runs manually-deployed code; dev/staging are continuously deployed for testing only."
+      ],
+      "correctAnswer": "Dev → Staging is automatic on merge. Staging → Production is manual after a validation checklist.",
+      "explanation": "Lesson 6: automation up to staging, human gate before production. Validation checklist + team approval prevents bad code from auto-deploying to billing.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI7",
+        "module-AFI7-lesson-06",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI7-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid rehearse rollback procedures quarterly?",
+      "options": [
+        "An untested rollback is hope, not a procedure — practice makes the 15-minute target achievable",
+        "Quarterly rehearsal is required by Lithuanian financial regulations for billing-critical infrastructure",
+        "Quarterly rehearsal generates audit log entries that the security team needs for compliance reports",
+        "Quarterly rehearsal lets the team practice writing post-mortems without an actual incident occurring"
+      ],
+      "correctAnswer": "An untested rollback is hope, not a procedure — practice makes the 15-minute target achievable",
+      "explanation": "Lesson 7: untested = unproven. Quarterly drills make every team member fluent in `helm rollback` so the safety net works under real pressure.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI7",
+        "module-AFI7-lesson-07",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI7-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does SaulėGrid handle a security CVE in a transitive dependency?",
+      "options": [
+        "Compressed timeline — assess severity, update the package, run tests, 24-hour staging, deploy",
+        "Wait for the next quarterly upgrade cycle so the change goes through the standard review process",
+        "Pin the vulnerable package permanently and rely on network-level mitigations from the firewall team",
+        "Switch to a fork of the package that the team maintains internally with backported fixes only"
+      ],
+      "correctAnswer": "Compressed timeline — assess severity, update the package, run tests, 24-hour staging, deploy",
+      "explanation": "Lesson 8: emergency patches bypass the normal one-week staging. Risk of regression < risk of exploit. SaulėGrid has shipped two such patches in 48 hours.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI7",
+        "module-AFI7-lesson-08",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI7-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 9 says SaulėGrid's infrastructure is 'cattle, not pets.' What does that mean?",
+      "options": [
+        "Every component is defined in version-controlled files — the entire platform is reconstructable from Git",
+        "Every server has a unique name and is hand-configured by the platform team for its specific workload",
+        "Every host runs in a single VM image that the cloud provider auto-replaces every six months",
+        "Every Airflow component runs in a Kubernetes pod with no persistent identity across restarts"
+      ],
+      "correctAnswer": "Every component is defined in version-controlled files — the entire platform is reconstructable from Git",
+      "explanation": "Lesson 9: cattle = disposable + reconstructable. Helm + Docker Compose + requirements.txt = full platform from Git. Production failure = recoverable, not catastrophic.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI7",
+        "module-AFI7-lesson-09",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI7-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 closes by stating what guarantee the deployment pipeline now provides?",
+      "options": [
+        "Every change is tested, reviewed, traceable, and reversible — the three-incident week cannot recur",
+        "Every change is automatically pushed to production within 60 seconds of being committed to main",
+        "Every change is reviewed by the entire engineering team before being merged into the main branch",
+        "Every change is logged to the metadata database for the security team's quarterly compliance audit"
+      ],
+      "correctAnswer": "Every change is tested, reviewed, traceable, and reversible — the three-incident week cannot recur",
+      "explanation": "Lesson 10: automated pipeline replaces 'I deployed' with 'pipeline deployed'. The three-incident week's failure modes are structurally prevented now.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI7",
+        "module-AFI7-lesson-10",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI8-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does multi-team Airflow access require an explicit security model rather than implicit trust?",
+      "options": [
+        "Implicit trust does not codify who can do what — the March 8 incident was a permission model failure",
+        "Implicit trust violates Lithuanian data protection regulations that require role-based authorization",
+        "Implicit trust prevents the audit log from working because Airflow has no identity to record actions to",
+        "Implicit trust crashes the web server when the user count exceeds five concurrent sessions"
+      ],
+      "correctAnswer": "Implicit trust does not codify who can do what — the March 8 incident was a permission model failure",
+      "explanation": "Lesson 1: 2 engineers = trust everyone. 12 people across 3 teams = codify who can do what. The incident was a model failure, not a trust violation.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI8",
+        "module-AFI8-lesson-01",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI8-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is SaulėGrid's policy on assigning the built-in Admin role?",
+      "options": [
+        "Admin is assigned to exactly one person — the team lead. All other users get custom roles.",
+        "Admin is assigned to every full-time engineer for productivity — junior staff get the User role.",
+        "Admin is assigned to whoever is on-call this week so they can fix issues without escalating.",
+        "Admin is assigned to a shared service account that engineers use via a password rotation app."
+      ],
+      "correctAnswer": "Admin is assigned to exactly one person — the team lead. All other users get custom roles.",
+      "explanation": "Lesson 2: Admin = unrestricted. Every Admin can modify security settings, read credentials, change configuration. Limit to one person.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI8",
+        "module-AFI8-lesson-02",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI8-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does SaulėGrid's `analytics_viewer` custom role grant?",
+      "options": [
+        "Read-only access to DAGs, Task Instances, Task Logs, XCom, and Datasets — no write or trigger",
+        "Full access to Gold DAGs but no access to Bronze or Silver DAGs in any environment",
+        "Permission to trigger Gold DAGs manually so the analytics team can re-run reports on demand",
+        "Permission to modify Connection passwords so the analytics team rotates their own credentials"
+      ],
+      "correctAnswer": "Read-only access to DAGs, Task Instances, Task Logs, XCom, and Datasets — no write or trigger",
+      "explanation": "Lesson 3: analytics needs to see, not change. Read-only on DAGs/instances/logs/XCom/Datasets. No edit, no trigger, no admin.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI8",
+        "module-AFI8-lesson-03",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI8-l04-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What happens when a DAG is deployed without an `access_control` parameter?",
+      "options": [
+        "The DAG is visible to all authenticated users — every role can read it by default",
+        "The DAG is hidden from all users until an Admin explicitly grants role-level permissions",
+        "The DAG fails to import — Airflow refuses to load DAGs without an access_control parameter",
+        "The DAG inherits the access_control of the most recently deployed DAG in the same DAG bag"
+      ],
+      "correctAnswer": "The DAG is visible to all authenticated users — every role can read it by default",
+      "explanation": "Lesson 4: default = visible to everyone. SaulėGrid's CI test rejects PRs whose DAGs lack access_control to prevent uncontrolled visibility.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI8",
+        "module-AFI8-lesson-04",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI8-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is SaulėGrid's authentication architecture?",
+      "options": [
+        "OAuth via Google Workspace — the IdP manages identity and group→role mapping is automatic",
+        "Local username/password — credentials in the metadata DB managed by the platform admin alone",
+        "SSH keys — every engineer's public key is added to the Airflow web server's authorized_keys",
+        "API tokens only — the UI is disabled and all interaction happens through the REST API"
+      ],
+      "correctAnswer": "OAuth via Google Workspace — the IdP manages identity and group→role mapping is automatic",
+      "explanation": "Lesson 5: corporate IdP manages identity. When someone leaves, deactivating their Google account immediately blocks Airflow login — no separate cleanup needed.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI8",
+        "module-AFI8-lesson-05",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI8-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid use service account tokens (not personal credentials) for CI/CD API access?",
+      "options": [
+        "Service tokens are not tied to employment status and have minimum permissions for the automation",
+        "Service tokens are 30% faster than personal credentials because they bypass the OAuth handshake",
+        "Service tokens are required by GitHub Actions because personal credentials cannot be stored as secrets",
+        "Service tokens automatically rotate every 24 hours so no manual rotation procedure is needed"
+      ],
+      "correctAnswer": "Service tokens are not tied to employment status and have minimum permissions for the automation",
+      "explanation": "Lesson 6: personal creds in CI = automation breaks when developer leaves; full access if compromised. Service tokens = scoped + survives team changes.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI8",
+        "module-AFI8-lesson-06",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI8-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the value of audit logging according to Lesson 7?",
+      "options": [
+        "Demonstrates that the security model works — verified property, not unverified assertion",
+        "Catches insider threats — most security incidents come from team members with valid access",
+        "Replaces RBAC — the audit log is granular enough to detect unauthorized actions retroactively",
+        "Identifies slow API calls — the timestamps in the log reveal performance bottlenecks per user"
+      ],
+      "correctAnswer": "Demonstrates that the security model works — verified property, not unverified assertion",
+      "explanation": "Lesson 7: audit log proves RBAC works, authentication is effective, and credentials are managed. Confidence comes from verification, not assertion.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI8",
+        "module-AFI8-lesson-07",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI8-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 8 describes three network zones for SaulėGrid's Airflow deployment. Which list is correct?",
+      "options": [
+        "Reverse proxy (internet-facing TLS) → Application subnet (Airflow components) → Data subnet (DB/broker)",
+        "DMZ → Public cloud → Private cloud — every component spans all three for high availability",
+        "Internal network → External network → Backup network — each handles a different traffic class",
+        "Frontend → Middleware → Backend — separation by application tier rather than by network zone"
+      ],
+      "correctAnswer": "Reverse proxy (internet-facing TLS) → Application subnet (Airflow components) → Data subnet (DB/broker)",
+      "explanation": "Lesson 8: three zones with decreasing accessibility. Proxy faces internet; app subnet runs Airflow; data subnet is reachable only from the app subnet.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI8",
+        "module-AFI8-lesson-08",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI8-l09-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Lesson 9 warns that 'security anti-patterns compound.' What does that mean operationally?",
+      "options": [
+        "Fixing one anti-pattern while leaving others creates the illusion of security without the reality",
+        "Each anti-pattern multiplies the others' impact — three anti-patterns produce nine vulnerabilities total",
+        "Anti-patterns spread across DAGs over time so one infected DAG eventually corrupts every other DAG",
+        "Anti-patterns trigger compounding fines from the regulator that double for each unaddressed pattern"
+      ],
+      "correctAnswer": "Fixing one anti-pattern while leaving others creates the illusion of security without the reality",
+      "explanation": "Lesson 9: partial security is often worse than none — confidence without justification. The framework has to address all patterns, not pick a few.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI8",
+        "module-AFI8-lesson-09",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI8-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 lists the layers of SaulėGrid's security framework. Which set?",
+      "options": [
+        "Network + Authentication + RBAC + DAG-level access + Audit",
+        "Firewall + VPN + Antivirus + Patches + Backups",
+        "Encryption + Hashing + Salting + Tokens + Cookies"
+      ],
+      "correctAnswer": "Network + Authentication + RBAC + DAG-level access + Audit",
+      "explanation": "Lesson 10: each layer adds a check. A request must pass all layers; the audit layer records every request regardless of allow/deny.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI8",
+        "module-AFI8-lesson-10",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI9-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is SaulėGrid's principle for performance tuning?",
+      "options": [
+        "Measure the binding constraint, apply a targeted fix, verify with the metric — never tune blindly",
+        "Increase parallelism whenever queue depth grows — it is the single lever that always helps",
+        "Switch executors when performance degrades — a different executor model fixes most issues",
+        "Add more workers continuously — extra capacity is the cheapest way to absorb performance issues"
+      ],
+      "correctAnswer": "Measure the binding constraint, apply a targeted fix, verify with the metric — never tune blindly",
+      "explanation": "Lesson 1: tuning without measurement is guesswork. Scheduler loop, parse time, DB latency, queue time — these four diagnose 90% of issues.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI9",
+        "module-AFI9-lesson-01",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI9-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `scheduler_heartbeat_duration` measure, and what is its healthy range?",
+      "options": [
+        "Total time for one scheduler loop iteration — healthy < 5 seconds, ideally < 2 seconds",
+        "Total time the scheduler spends queueing tasks — healthy < 50ms per task across the run",
+        "Total time the metadata database spends responding to scheduler queries — healthy < 1 second",
+        "Total time the executor takes to acknowledge a queued task — healthy < 100ms after enqueue"
+      ],
+      "correctAnswer": "Total time for one scheduler loop iteration — healthy < 5 seconds, ideally < 2 seconds",
+      "explanation": "Lesson 2: heartbeat = full scheduler loop. > 5s = parser or DB bottleneck. Trend matters more than any single sample.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI9",
+        "module-AFI9-lesson-02",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI9-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "An engineer's DAG file imports pandas at the top. What is the parse-time cost?",
+      "options": [
+        "300-500ms per parse cycle — pandas runs every 30 seconds even though no task uses it",
+        "Zero — the scheduler caches imports across parse cycles after the first heartbeat completes",
+        "5-10ms — pandas is lightweight and only meaningful for DAGs that import it dozens of times",
+        "Up to 60s — pandas conflicts with Airflow's serializer and triggers a fallback parser path"
+      ],
+      "correctAnswer": "300-500ms per parse cycle — pandas runs every 30 seconds even though no task uses it",
+      "explanation": "Lesson 3: heavy imports at module level run on every parse cycle. Defer them inside task callables — only run when the task actually executes.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI9",
+        "module-AFI9-lesson-03",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI9-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `.airflowignore` do, and why does SaulėGrid maintain it?",
+      "options": [
+        "Excludes patterns (test files, helpers, __pycache__) from the scheduler's DAG file scan",
+        "Disables specific Airflow features that the platform team does not want exposed to engineers",
+        "Tells the metadata database which tables to skip during the weekly cleanup maintenance run",
+        "Hides flagged DAGs from the Airflow UI so the analytics team cannot see them in the list view"
+      ],
+      "correctAnswer": "Excludes patterns (test files, helpers, __pycache__) from the scheduler's DAG file scan",
+      "explanation": "Lesson 4: scheduler scans dags/ for .py files. .airflowignore prevents scanning helpers, test files, __init__.py — anything that is not a DAG.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI9",
+        "module-AFI9-lesson-04",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI9-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is SaulėGrid's metadata database size target, and why?",
+      "options": [
+        "Under 5GB — operational state, not analytics data; large DBs slow every scheduler query",
+        "Over 100GB — comprehensive history of every DAG Run since the platform was first deployed",
+        "Exactly 10GB — the optimal size that PostgreSQL's query planner is tuned for at default settings",
+        "Under 100MB — the metadata DB should fit in RAM for the scheduler to access it instantly"
+      ],
+      "correctAnswer": "Under 5GB — operational state, not analytics data; large DBs slow every scheduler query",
+      "explanation": "Lesson 5: metadata DB = bookkeeping, not warehouse. SaulėGrid's actual size stabilizes around 3GB after weekly cleanup runs.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI9",
+        "module-AFI9-lesson-05",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI9-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `airflow db clean --clean-before-timestamp` do?",
+      "options": [
+        "Removes records older than the timestamp from dag_run, task_instance, log, xcom, and similar tables",
+        "Drops the entire metadata database and recreates the schema from scratch with default content",
+        "Compacts the metadata database by rebuilding all indexes without deleting any historical data",
+        "Cleans the worker filesystems by removing log files older than the timestamp from each host"
+      ],
+      "correctAnswer": "Removes records older than the timestamp from dag_run, task_instance, log, xcom, and similar tables",
+      "explanation": "Lesson 6: db clean removes stale operational records. Weekly maintenance DAG runs it to keep the metadata DB lean and fast.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI9",
+        "module-AFI9-lesson-06",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI9-l07-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "An engineer increases `parallelism` to fix 'tasks are queued too long.' Why is this often wrong?",
+      "options": [
+        "If the bottleneck is pool slots or worker capacity, parallelism does nothing — diagnose first",
+        "Parallelism is read-only and the engineer's change is silently ignored on the next scheduler restart",
+        "Parallelism only affects sub-DAGs and modern Airflow has no sub-DAGs since they were deprecated",
+        "Parallelism caps at 32 in the open-source edition — only the commercial edition allows higher values"
+      ],
+      "correctAnswer": "If the bottleneck is pool slots or worker capacity, parallelism does nothing — diagnose first",
+      "explanation": "Lesson 7: increase the binding constraint. Pool slots? executor capacity? parallelism cap? Each has its own fix. Wrong dial = no improvement or worse.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFI9",
+        "module-AFI9-lesson-07",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI9-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is heavy data processing inside a PythonOperator an anti-pattern at scale?",
+      "options": [
+        "Worker slots are orchestration resources — every minute of processing is a minute slots cannot dispatch",
+        "Heavy processing crashes the worker because Airflow caps task memory at 512 MB by configuration",
+        "The metadata database stores intermediate processing results which slows every scheduler query",
+        "Heavy processing locks the executor's queue and prevents other tasks from being dispatched at all"
+      ],
+      "correctAnswer": "Worker slots are orchestration resources — every minute of processing is a minute slots cannot dispatch",
+      "explanation": "Lesson 8: thin tasks dispatch fast, freeing slots. Trigger Spark/dbt/SQL — let the processing engine do the heavy work, not the worker.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI9",
+        "module-AFI9-lesson-08",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI9-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is SaulėGrid's metrics-and-alerting pipeline?",
+      "options": [
+        "Airflow → StatsD → Prometheus → Grafana — with thresholds defined per panel",
+        "Airflow → CloudWatch → AWS X-Ray → Honeycomb — for distributed tracing per request",
+        "Airflow → Loki → Datadog APM → PagerDuty — log-based alerting with no metrics layer",
+        "Airflow → Splunk → Splunk → Splunk — single-vendor observability across the entire stack"
+      ],
+      "correctAnswer": "Airflow → StatsD → Prometheus → Grafana — with thresholds defined per panel",
+      "explanation": "Lesson 9: StatsD emit, Prometheus scrape, Grafana display. Each panel has owner, threshold, action — anything else is visual noise.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI9",
+        "module-AFI9-lesson-09",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI9-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 says performance tuning is not about making Airflow 'faster'. What is it about?",
+      "options": [
+        "Identifying which component is the binding constraint and applying the targeted fix verified by metrics",
+        "Replacing components piece by piece until the new architecture matches the team's growth projections",
+        "Buying enterprise-edition Airflow licenses to unlock features that the open-source edition lacks",
+        "Doubling worker counts every quarter regardless of measurement — capacity solves most problems"
+      ],
+      "correctAnswer": "Identifying which component is the binding constraint and applying the targeted fix verified by metrics",
+      "explanation": "Lesson 10: tuning = match the fix to the constraint. Scheduler? DB? Executor? Pool? Each has its own dial.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI9",
+        "module-AFI9-lesson-10",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI10-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 1 describes the 'production mindset.' What does it warn happens to platforms that are not actively operated?",
+      "options": [
+        "Configuration drifts, security controls weaken, performance thresholds relax, runbooks rot",
+        "Adoption grows uncontrollably until the platform serves more teams than it can support",
+        "Cost decreases steadily as workloads stabilize and the cloud bill compresses over time",
+        "Performance improves spontaneously as traffic patterns simplify around fewer use cases"
+      ],
+      "correctAnswer": "Configuration drifts, security controls weaken, performance thresholds relax, runbooks rot",
+      "explanation": "Lesson 1: active operations is the immune system. Without it, drift is the natural state — config, security, performance, documentation all decay.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI10",
+        "module-AFI10-lesson-01",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI10-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does SaulėGrid require for every metric on the monitoring dashboard?",
+      "options": [
+        "An owner (who investigates), a threshold (when it alerts), and an action (what to do)",
+        "A 30-day retention window, a percentile breakdown, and a vendor-supplied performance baseline",
+        "A weekly review meeting, a quarterly capacity plan, and an annual budget for tooling upgrades",
+        "A markdown comment in the source dashboard JSON explaining the metric in three sentences"
+      ],
+      "correctAnswer": "An owner (who investigates), a threshold (when it alerts), and an action (what to do)",
+      "explanation": "Lesson 2: a metric without owner+threshold+action is visual noise. Quarterly review removes panels that have never alerted.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI10",
+        "module-AFI10-lesson-02",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI10-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the principle behind SaulėGrid's blameless post-mortems?",
+      "options": [
+        "Focus on system failures, not human failures — the system should have prevented the error",
+        "Focus on the engineer who caused the incident — accountability requires naming the responsible party",
+        "Focus on the customer impact — every post-mortem is published externally to demonstrate transparency",
+        "Focus on the cost — every post-mortem includes a financial impact analysis approved by finance"
+      ],
+      "correctAnswer": "Focus on system failures, not human failures — the system should have prevented the error",
+      "explanation": "Lesson 3: the system should prevent errors. If a person caused the incident, ask why the pipeline allowed it. Blame culture hides incidents and prevents learning.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI10",
+        "module-AFI10-lesson-03",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI10-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is SaulėGrid's runbook principle?",
+      "options": [
+        "If an operation has been performed more than twice, it should have a runbook anyone can follow",
+        "Every team member writes their own personal runbook in their notes app — never shared with peers",
+        "Runbooks are a sign of poor automation — every documented procedure should be replaced with a script",
+        "Runbooks are read-only documents written once at platform launch and never modified afterward"
+      ],
+      "correctAnswer": "If an operation has been performed more than twice, it should have a runbook anyone can follow",
+      "explanation": "Lesson 4: third occurrence = document. Runbooks eliminate bus factor and let any team member perform any operation reliably.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI10",
+        "module-AFI10-lesson-04",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI10-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What two on-call anti-patterns does Lesson 5 warn against?",
+      "options": [
+        "Alert fatigue (so many alerts each one gets dismissed) and hero culture (one engineer handles everything)",
+        "Pager rotation (engineers swap shifts during an incident) and remote-only on-call (no in-office presence)",
+        "Manual escalation (no automatic paging) and silent escalation (alerts go to a channel no one watches)",
+        "External vendor on-call (a third party fields alerts) and AI-driven on-call (LLM triages incidents)"
+      ],
+      "correctAnswer": "Alert fatigue (so many alerts each one gets dismissed) and hero culture (one engineer handles everything)",
+      "explanation": "Lesson 5: alert fatigue = real incidents dismissed. Hero culture = burnout, knowledge silos, single point of failure. Both prevented by discipline + rotation.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI10",
+        "module-AFI10-lesson-05",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI10-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does SaulėGrid's SLA governance principle treat SLAs as?",
+      "options": [
+        "Contracts between teams — engineering delivers within window, consumers query only after window",
+        "Aspirational targets — engineering aims for the SLA but no consequences attach to misses or breaches",
+        "Marketing claims — the SLA is published on the platform website but rarely measured internally",
+        "Bonus triggers — engineers get a quarterly bonus when SLAs are met four months in a row"
+      ],
+      "correctAnswer": "Contracts between teams — engineering delivers within window, consumers query only after window",
+      "explanation": "Lesson 6: contract = mutual commitment. Engineering on time + consumers wait. Querying before SLA is outside the agreement, not the team's failure.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI10",
+        "module-AFI10-lesson-06",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI10-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 7 says platform health metrics serve two audiences. Which two?",
+      "options": [
+        "Engineers (need detail for diagnosis) and stakeholders (need aggregate indicators for decisions)",
+        "Developers (need API specifications) and end-users (need product documentation and tutorials)",
+        "Auditors (need compliance reports) and customers (need uptime guarantees in their contracts)",
+        "Vendors (need usage statistics) and analysts (need raw data exports for their research)"
+      ],
+      "correctAnswer": "Engineers (need detail for diagnosis) and stakeholders (need aggregate indicators for decisions)",
+      "explanation": "Lesson 7: same data, different abstraction. Dashboard = real-time detail for engineers. Health score + monthly report = aggregate for stakeholders.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI10",
+        "module-AFI10-lesson-07",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI10-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 8's change management principle says every change must be three things. Which list?",
+      "options": [
+        "Reversible (rollback plan), communicated (notify downstream), traceable (full audit chain)",
+        "Tested in staging, deployed to production, and verified by a customer-facing feature flag",
+        "Backwards-compatible, performance-neutral, and accompanied by a regulatory impact assessment",
+        "Tagged in Git, documented in Confluence, and announced in Slack with a thread per change"
+      ],
+      "correctAnswer": "Reversible (rollback plan), communicated (notify downstream), traceable (full audit chain)",
+      "explanation": "Lesson 8: reversible + communicated + traceable = predictable evolution. Issues trace back to the change that caused them.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI10",
+        "module-AFI10-lesson-08",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI10-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 9 says every mid-level pattern 'breaks at enterprise scale.' What does the senior track teach?",
+      "options": [
+        "DAG factories for consistency, namespace isolation for access control, automated governance for change",
+        "Microservices architecture, event sourcing, CQRS, and saga patterns adapted to data orchestration",
+        "Custom Airflow forks, proprietary executors, hand-tuned schedulers, and bespoke metadata schemas",
+        "Manual operations, individual heroics, untested deployments, and YOLO production changes only"
+      ],
+      "correctAnswer": "DAG factories for consistency, namespace isolation for access control, automated governance for change",
+      "explanation": "Lesson 9: senior = patterns that restore order at enterprise scale. Mid-level operates a platform; senior designs the platform others operate.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFI10",
+        "module-AFI10-lesson-09",
+        "airflow-mid"
+      ]
+    },
+    {
+      "id": "airflow-AFI10-l10-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Lesson 10 describes the journey from 'DAG author' to 'platform engineer.' What does the platform engineer now know how to do?",
+      "options": [
+        "Build, test, deploy, secure, tune, and operate a production orchestration platform three teams trust",
+        "Write DAGs that run reliably in development on a single machine using LocalExecutor and SQLite",
+        "Configure SSH access on the production scheduler so engineers can debug issues by tailing log files",
+        "Translate cron expressions into preset strings so DAGs use @daily and @hourly wherever possible"
+      ],
+      "correctAnswer": "Build, test, deploy, secure, tune, and operate a production orchestration platform three teams trust",
+      "explanation": "Lesson 10: the journey covered architecture, design, runtime, secrets, testing, deployment, security, performance, operations. The toolkit is complete.",
+      "xpReward": 40,
+      "tags": [
+        "module-AFI10",
+        "module-AFI10-lesson-10",
+        "airflow-mid"
+      ]
     }
   ]
 }
