@@ -332,6 +332,21 @@ export const TheoryContent = ({
           />
         ) : null}
 
+        {checkpointPending && (
+          <div
+            className="mt-10 rounded-[12px] px-4 py-3 text-sm flex items-center gap-2"
+            style={{
+              background: 'rgba(255,201,101,0.08)',
+              border: '1px solid rgba(255,201,101,0.2)',
+              color: 'rgba(255,201,101,0.85)',
+            }}
+            role="note"
+          >
+            <span aria-hidden="true">⚑</span>
+            Complete the checkpoint questions below to unlock the next module.
+          </div>
+        )}
+
         <div className="mt-10 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 border-t border-light-border pt-5 dark:border-dark-border" style={{ borderColor: 'var(--rm-border)' }}>
           <button
             type="button"

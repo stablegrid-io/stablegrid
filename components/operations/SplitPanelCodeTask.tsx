@@ -627,19 +627,34 @@ function DatasetPanel({
   );
   const [dataCache, setDataCache] = useState<Record<string, CsvData>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const fetchData = useCallback(
     async (ds: PracticeSetDataset) => {
       if (dataCache[ds.id]) return;
       setLoading((prev) => ({ ...prev, [ds.id]: true }));
+      setErrors((prev) => {
+        if (!(ds.id in prev)) return prev;
+        const next = { ...prev };
+        delete next[ds.id];
+        return next;
+      });
       try {
         const params = new URLSearchParams({ topic, file: ds.file });
         const res = await fetch(`/api/operations/datasets?${params}`);
-        if (!res.ok) throw new Error('Failed');
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
         const json: CsvData = await res.json();
         setDataCache((prev) => ({ ...prev, [ds.id]: json }));
-      } catch {
-        /* ignore */
+      } catch (error) {
+        setErrors((prev) => ({
+          ...prev,
+          [ds.id]:
+            error instanceof Error
+              ? `Couldn't load preview (${error.message}).`
+              : "Couldn't load preview.",
+        }));
       } finally {
         setLoading((prev) => ({ ...prev, [ds.id]: false }));
       }
@@ -670,6 +685,7 @@ function DatasetPanel({
         const isExpanded = expandedId === ds.id;
         const data = dataCache[ds.id];
         const isLoading = loading[ds.id];
+        const errorMessage = errors[ds.id];
 
         return (
           <div
@@ -717,6 +733,23 @@ function DatasetPanel({
                         }}
                       />
                     ))}
+                  </div>
+                )}
+                {!isLoading && errorMessage && (
+                  <div className="p-4 flex items-center justify-between gap-3 text-[12px]" style={{ color: 'var(--rm-text-secondary)' }}>
+                    <span>{errorMessage}</span>
+                    <button
+                      type="button"
+                      onClick={() => fetchData(ds)}
+                      className="rounded-[8px] px-3 py-1.5 text-[11px] font-medium transition-colors"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        color: 'var(--rm-text)',
+                      }}
+                    >
+                      Retry
+                    </button>
                   </div>
                 )}
                 {data && (
@@ -1371,6 +1404,13 @@ export function SplitPanelCodeTask({
   const [pyodideLoading, setPyodideLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [outputCollapsed, setOutputCollapsed] = useState(false);
+
+  /* Surface the run shortcut so users discover Cmd/Ctrl+Enter without
+     having to read docs or stumble onto it. */
+  const runShortcutLabel = useMemo(() => {
+    if (typeof navigator === 'undefined') return 'Ctrl + Enter';
+    return /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ Enter' : 'Ctrl + Enter';
+  }, []);
 
   /* Sync code changes to parent */
   useEffect(() => {
@@ -2203,6 +2243,7 @@ sys.stderr = sys.__stderr__
                     <button
                       onClick={handleRun}
                       disabled={running}
+                      title={`Run code (${runShortcutLabel})`}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-[14px] text-[11px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
                       style={{
                         color: running ? 'rgba(255,255,255,0.5)' : '#fff',
@@ -2219,6 +2260,9 @@ sys.stderr = sys.__stderr__
                         <>
                           <Play className="h-3 w-3" />
                           Run code
+                          <kbd className="ml-1 hidden sm:inline-block rounded px-1.5 py-0.5 text-[9px] font-mono opacity-70" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.18)' }}>
+                            {runShortcutLabel}
+                          </kbd>
                         </>
                       )}
                     </button>

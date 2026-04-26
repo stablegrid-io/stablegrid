@@ -290,12 +290,15 @@ const buildLatestTaskAction = ({
     };
   }
 
+  // Brand-new user: no timed activity, no completed flashcards. Send them to
+  // the actual entry point of the product (Learn) instead of a generic "Task
+  // Deck" card that points at /tasks — which is jarring as a first surface.
   return {
-    title: 'Task Deck',
-    summary: 'Open notebooks, missions, or flashcards from one command surface.',
-    statLine: 'No recent task activity yet',
-    actionLabel: 'Open tasks',
-    actionHref: '/tasks',
+    title: 'Start learning',
+    summary: 'Pick a track and complete your first lesson to begin earning kWh.',
+    statLine: 'New here — your first session is one click away',
+    actionLabel: 'Begin first lesson',
+    actionHref: '/learn',
     topicId: fallbackTopic,
     accentRgb: DEFAULT_TASKS_ACCENT_RGB
   };

@@ -301,6 +301,21 @@ function resolvePracticeTrackSlug(trackLevel: string | undefined): string | null
   return ['junior', 'mid', 'senior'].includes(normalized) ? normalized : null;
 }
 
+// The practice landing route /operations/practice redirects to /learn, which
+// drops the user back at the topic picker. Building the track map URL from
+// the practice metadata keeps them anchored on the level they came from.
+function buildTrackMapPath(practiceSet: PracticeSet): string {
+  const topic = practiceSet.topic;
+  const trackSlug = resolvePracticeTrackSlug(practiceSet.metadata?.trackLevel);
+  if (topic && trackSlug) {
+    return `/learn/${topic}/theory/${trackSlug}`;
+  }
+  if (topic) {
+    return `/learn/${topic}`;
+  }
+  return '/learn';
+}
+
 async function persistPracticeCompletion(practiceSet: PracticeSet) {
   const moduleId = practiceSet.metadata?.moduleId;
   const topic = practiceSet.topic;
@@ -340,14 +355,14 @@ function StartScreen({
 }) {
   return (
     <div className="relative mx-auto max-w-5xl px-6 py-16 sm:px-8 lg:py-24">
-      {/* Back link */}
+      {/* Back link — points at the actual track map for this level. */}
       <Link
-        href="/operations/practice"
+        href={buildTrackMapPath(practiceSet)}
         className="inline-flex items-center gap-1.5 text-[12px] text-white/30 hover:text-white/60 transition-colors mb-12"
         style={{ opacity: 0, animation: 'fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        Practice Sets
+        Back to track
       </Link>
 
       {/* Main content */}
@@ -788,6 +803,14 @@ function ResultsBreakdownRow({
             const isCorrect = answer?.result === true;
             const correctValue = getCorrectValue(field);
             const tint = isCorrect ? GREEN : RED;
+            const toleranceHint =
+              field.type === 'numeric' && (field.tolerance ?? 0) > 0
+                ? ` (±${field.tolerance})`
+                : '';
+            const acceptedAlternates = [
+              ...(field.acceptSynonyms ?? []),
+              ...(field.alsoAccept ? [field.alsoAccept] : []),
+            ];
 
             return (
               <div
@@ -811,7 +834,12 @@ function ResultsBreakdownRow({
                     </div>
                     {!isCorrect && (
                       <div className="mt-1.5" style={{ color: `rgba(${GREEN},0.6)` }}>
-                        Correct: {correctValue}
+                        Correct: {correctValue}{toleranceHint}
+                        {acceptedAlternates.length > 0 && (
+                          <span className="block text-[11px] mt-0.5" style={{ color: `rgba(${GREEN},0.45)` }}>
+                            Also accepted: {acceptedAlternates.join(', ')}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -948,33 +976,49 @@ function ResultsScreen({
                 : 'Good start. Take time to review the explanations, then give it another attempt.'}
         </p>
 
-        {/* Action buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 mt-10 max-w-md mx-auto">
-          <button
-            onClick={() => dispatch({ type: 'REVIEW' })}
-            className="flex-1 rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+        {/* Action buttons — primary "Continue" returns to the track map where
+            the just-completed module is now marked done and the next one
+            unlocked. */}
+        <div className="flex flex-col gap-3 mt-10 max-w-md mx-auto">
+          <Link
+            href={buildTrackMapPath(practiceSet)}
+            className="rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
             style={{
-              background: 'var(--rm-bg-elevated)',
-              border: '1px solid var(--rm-border)',
-              color: 'var(--rm-text-secondary)',
+              background: 'rgba(255,255,255,0.92)',
+              color: '#0a0c0e',
             }}
           >
-            <Eye className="h-4 w-4" />
-            Review Answers
-          </button>
+            Continue to track
+            <ArrowRight className="h-4 w-4" />
+          </Link>
 
-          <button
-            onClick={() => dispatch({ type: 'RESET', taskCount: tasks.length })}
-            className="flex-1 rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
-            style={{
-              background: 'var(--rm-bg-elevated)',
-              border: '1px solid var(--rm-border)',
-              color: 'var(--rm-text-secondary)',
-            }}
-          >
-            <RotateCcw className="h-4 w-4" />
-            Retry
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => dispatch({ type: 'REVIEW' })}
+              className="flex-1 rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+              style={{
+                background: 'var(--rm-bg-elevated)',
+                border: '1px solid var(--rm-border)',
+                color: 'var(--rm-text-secondary)',
+              }}
+            >
+              <Eye className="h-4 w-4" />
+              Review Answers
+            </button>
+
+            <button
+              onClick={() => dispatch({ type: 'RESET', taskCount: tasks.length })}
+              className="flex-1 rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+              style={{
+                background: 'var(--rm-bg-elevated)',
+                border: '1px solid var(--rm-border)',
+                color: 'var(--rm-text-secondary)',
+              }}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Retry
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1000,22 +1044,6 @@ function ResultsScreen({
         ))}
       </div>
 
-      {/* Back link */}
-      <div
-        className="mt-12 text-center"
-        style={{
-          opacity: 0,
-          animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 200ms forwards',
-        }}
-      >
-        <Link
-          href="/operations/practice"
-          className="inline-flex items-center gap-1.5 text-[12px] text-white/25 hover:text-white/50 transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Practice Sets
-        </Link>
-      </div>
     </div>
   );
 }

@@ -10,6 +10,20 @@ import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModulePro
 import { summarizeTrackLessonProgress } from '@/lib/learn/theoryTrackProgress';
 import type { TheoryDoc } from '@/types/theory';
 import type { TheoryTrackSummary } from '@/data/learn/theory/tracks';
+
+const TOPIC_LOGO_PATHS: Record<string, string> = {
+  pyspark: '/brand/pyspark-track-star.svg',
+  fabric: '/brand/microsoft-fabric-2023.svg',
+  airflow: '/brand/apache-airflow-logo.svg',
+  sql: '/brand/sql-logo.png',
+  'python-de': '/brand/python-logo.svg',
+  databricks: '/brand/databricks-logo.svg',
+  snowflake: '/brand/snowflake-logo.svg',
+  dbt: '/brand/dbt-logo.svg',
+  kafka: '/brand/apache-kafka-logo.svg',
+  flink: '/brand/apache-flink-logo.svg',
+  iceberg: '/brand/apache-iceberg-logo.svg',
+};
 import type {
   ServerTheoryChapterProgressSnapshot,
   ServerTheoryModuleProgressSnapshot
@@ -99,9 +113,22 @@ export const TheoryTrackGallery = ({
         {/* Title block */}
         <header className="mb-10">
           <h1
-            className="font-black text-5xl lg:text-[4rem] tracking-tighter text-on-surface mb-2"
-            style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards' }}
+            className="flex items-center gap-4 font-black text-5xl lg:text-[4rem] tracking-tighter text-on-surface mb-2"
+            style={{
+              opacity: 0,
+              animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards',
+              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+            }}
           >
+            {TOPIC_LOGO_PATHS[doc.topic] && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={TOPIC_LOGO_PATHS[doc.topic]}
+                alt=""
+                aria-hidden="true"
+                className="h-12 w-12 lg:h-14 lg:w-14 shrink-0 object-contain"
+              />
+            )}
             {getLearnTopicMeta(doc.topic)?.title ?? doc.topic.replace(/-/g, ' ')}
           </h1>
         </header>

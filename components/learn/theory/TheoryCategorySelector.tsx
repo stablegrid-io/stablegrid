@@ -19,6 +19,23 @@ import type {
   TheoryCategorySummary
 } from '@/data/learn/theory/categories';
 
+// Maps doc.topic to the brand mark we ship in /public/brand. Missing keys
+// fall through to no-logo rendering rather than 404 — useful for topics
+// that don't yet have a dedicated mark.
+const TOPIC_LOGO_PATHS: Record<string, string> = {
+  pyspark: '/brand/pyspark-track-star.svg',
+  fabric: '/brand/microsoft-fabric-2023.svg',
+  airflow: '/brand/apache-airflow-logo.svg',
+  sql: '/brand/sql-logo.png',
+  'python-de': '/brand/python-logo.svg',
+  databricks: '/brand/databricks-logo.svg',
+  snowflake: '/brand/snowflake-logo.svg',
+  dbt: '/brand/dbt-logo.svg',
+  kafka: '/brand/apache-kafka-logo.svg',
+  flink: '/brand/apache-flink-logo.svg',
+  iceberg: '/brand/apache-iceberg-logo.svg',
+};
+
 interface ChapterProgressSnapshot {
   sectionsRead: number;
   sectionsTotal: number;
@@ -377,7 +394,22 @@ export const TheoryCategorySelector = ({
               >
                 Theory
               </p>
-              <h1 className="mb-2 text-3xl font-bold text-text-light-primary dark:text-text-dark-primary">
+              <h1
+                className="mb-2 flex items-center gap-3 text-3xl font-bold text-text-light-primary dark:text-text-dark-primary"
+                style={{
+                  fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+                  letterSpacing: '-0.035em',
+                }}
+              >
+                {TOPIC_LOGO_PATHS[doc.topic] && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={TOPIC_LOGO_PATHS[doc.topic]}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-9 w-9 shrink-0 object-contain"
+                  />
+                )}
                 {doc.title}
               </h1>
               <p className="max-w-3xl text-sm text-text-light-secondary dark:text-text-dark-secondary">
@@ -423,7 +455,22 @@ export const TheoryCategorySelector = ({
             <p className="mb-2 text-xs font-mono font-bold uppercase tracking-[0.24em] text-brand-500">
               Theory
             </p>
-            <h1 className="mb-2 text-3xl font-bold text-text-light-primary dark:text-text-dark-primary">
+            <h1
+              className="mb-2 flex items-center gap-3 text-3xl font-bold text-text-light-primary dark:text-text-dark-primary"
+              style={{
+                fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+                letterSpacing: '-0.035em',
+              }}
+            >
+              {TOPIC_LOGO_PATHS[doc.topic] && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={TOPIC_LOGO_PATHS[doc.topic]}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-9 w-9 shrink-0 object-contain"
+                />
+              )}
               {doc.title}
             </h1>
             <p className="max-w-3xl text-sm text-text-light-secondary dark:text-text-dark-secondary">

@@ -23,7 +23,7 @@ export const navItems: NavItem[] = [
   {
     href: '/learn',
     icon: BookOpen,
-    label: 'Learn',
+    label: 'Theory',
     matchPrefixes: ['/theory', '/learn']
   },
   // {

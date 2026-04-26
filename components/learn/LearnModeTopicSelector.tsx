@@ -340,7 +340,11 @@ export function LearnModeTopicSelector({
     if (themeFilter !== 'all') {
       result = result.filter((t) => (TRACK_META_BY_TOPIC[t.id]?.category ?? 'Other') === themeFilter);
     }
-    if (topicFilter !== 'all') {
+    if (topicFilter === 'all') {
+      // Hide under-construction topics from the default view; users opt in
+      // via the dedicated filter when they want to browse what's coming.
+      result = result.filter((t) => topicStatuses[t.id] !== 'under-construction');
+    } else {
       result = result.filter((t) => topicStatuses[t.id] === topicFilter);
     }
 
@@ -388,7 +392,8 @@ export function LearnModeTopicSelector({
       base = base.filter((t) => (TRACK_META_BY_TOPIC[t.id]?.category ?? 'Other') === themeFilter);
     }
     return {
-      all: base.length,
+      // "All" mirrors the default view, which excludes under-construction.
+      all: base.filter((t) => topicStatuses[t.id] !== 'under-construction').length,
       'in-progress': base.filter((t) => topicStatuses[t.id] === 'in-progress').length,
       completed: base.filter((t) => topicStatuses[t.id] === 'completed').length,
       untouched: base.filter((t) => topicStatuses[t.id] === 'untouched').length,

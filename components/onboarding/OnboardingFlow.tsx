@@ -290,7 +290,10 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
                 ← Back
               </button>
             )}
-            {step !== 'ready' && (
+            {/* Skip is only available once the user has at least one topic
+                selected — otherwise the flag flips with no preference data
+                captured and /home has nothing to personalise around. */}
+            {step !== 'ready' && step !== 'welcome' && step !== 'topic' && selectedTopics.size > 0 && (
               <button
                 type="button"
                 onClick={skip}

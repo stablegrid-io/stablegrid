@@ -372,6 +372,26 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     [theorySession, handleStopEarly]
   );
 
+  // Browser-level guard: when the focus timer is actually running (or paused
+  // mid-session), block tab close / refresh / external nav with the native
+  // confirmation. Read progress is persisted on every tick, but the timed
+  // session itself isn't fully restored on a hard reload — losing it
+  // mid-pomodoro is worth one click of friction to confirm.
+  useEffect(() => {
+    const phase = theorySession.phase;
+    const sessionIsActive = phase === 'focus' || phase === 'break' || phase === 'paused';
+    if (!sessionIsActive) return;
+
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Required by some older browsers; modern browsers ignore the string
+      // and show their own generic copy.
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [theorySession.phase]);
+
   // Auto-reset session when it completes (no overlay needed)
   useEffect(() => {
     if (theorySession.phase === 'complete') {
