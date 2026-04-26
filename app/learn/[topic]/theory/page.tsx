@@ -109,6 +109,7 @@ export function generateMetadata({ params }: LearnTopicTheoryPageProps): Metadat
     title: `${title} — Junior to Senior`,
     description,
     alternates: { canonical },
+    robots: { index: false, follow: false },
     openGraph: {
       title: `${title} — StableGrid`,
       description,

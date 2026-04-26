@@ -20,6 +20,7 @@ export default function robots(): MetadataRoute.Robots {
           '/stats',
           '/operations/practice/',
           '/practice/',
+          '/learn/',
         ],
       },
     ],

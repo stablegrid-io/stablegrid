@@ -267,12 +267,9 @@ export function generateMetadata({
     };
   }
 
-  const isSession = Boolean(
-    searchParams?.chapter || searchParams?.lesson || searchParams?.practice || searchParams?.capstone
-  );
-  const sessionRobots = isSession
-    ? ({ index: false, follow: true } as const)
-    : undefined;
+  // All /learn/* routes are auth-gated (anonymous users see locked tier cards),
+  // so block indexing across the board until a public marketing surface exists.
+  const noindex = { index: false, follow: false } as const;
 
   const topicMeta = getLearnTopicMeta(params.topic);
   const topicTitle = topicMeta?.title ?? doc.title;
@@ -286,7 +283,7 @@ export function generateMetadata({
       title: `${topicTitle} — ${trackName}`,
       description: track.description,
       alternates: { canonical },
-      ...(sessionRobots ? { robots: sessionRobots } : {}),
+      robots: noindex,
       openGraph: {
         title: `${topicTitle} — ${trackName}`,
         description: track.description,
@@ -306,6 +303,6 @@ export function generateMetadata({
     title: `${topicTitle} — ${categoryMeta.label}`,
     description: categoryMeta.description,
     alternates: { canonical: `/learn/${params.topic}/theory/${categoryParam}` },
-    ...(sessionRobots ? { robots: sessionRobots } : {}),
+    robots: noindex,
   };
 }
