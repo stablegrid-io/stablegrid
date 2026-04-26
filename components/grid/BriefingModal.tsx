@@ -89,7 +89,7 @@ export function BriefingModal({ onAcknowledge }: BriefingModalProps) {
               fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
             }}
           >
-            Saulégrid, April 2026
+            Saulėgrid, April 2026
           </h2>
         </header>
 
@@ -110,7 +110,7 @@ export function BriefingModal({ onAcknowledge }: BriefingModalProps) {
             The grid is down. The control room is running on backup. And you — the operator with the only intact
             dispatch terminal — have been handed a battery bank with{' '}
             <strong style={{ color: BRAND_CYAN, fontWeight: 600 }}>reserve capacity</strong> and a schematic of
-            ten empty component slots across the Saulégrid service territory.
+            ten empty component slots across the Saulėgrid service territory.
           </p>
 
           <p

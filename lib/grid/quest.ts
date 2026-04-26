@@ -52,7 +52,7 @@ export function computeQuestView(itemsOwned: readonly ComponentSlug[]): QuestVie
   return {
     stateId: 'restored',
     header: 'QUEST // GRID RESTORED',
-    body: 'All ten districts online. Cascade conditions cleared. Saulégrid stable.',
+    body: 'All ten districts online. Cascade conditions cleared. Saulėgrid stable.',
     objective: null,
     flavorNudge,
   };

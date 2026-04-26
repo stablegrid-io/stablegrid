@@ -191,6 +191,12 @@ export function GridPage() {
         <h1 className="text-5xl font-bold tracking-tight text-on-surface">
           Grid Game
         </h1>
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-on-surface/60">
+          Saulėgrid is dark — ten districts down after a cascading failure on the Baltic corridor, and
+          you&rsquo;re the operator with the last working dispatch terminal. Spend the kWh you earn from
+          Theory and Practice to deploy real grid components and bring the network back online, one
+          district at a time.
+        </p>
       </header>
 
       {/* Header strip: kWh balance + restored counter */}
@@ -209,7 +215,7 @@ export function GridPage() {
             className="font-mono"
             style={{ fontSize: 10, letterSpacing: '0.2em', color: TEXT_TERTIARY, textTransform: 'uppercase', marginBottom: 6 }}
           >
-            Dispatch Terminal · Saulégrid
+            Dispatch Terminal · Saulėgrid
           </div>
           <h1
             style={{

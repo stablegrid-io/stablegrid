@@ -5,7 +5,7 @@ import { GridPage } from '@/components/grid/GridPage';
 
 export const metadata: Metadata = {
   title: 'Grid',
-  description: 'Deploy grid components with kWh earned in the Learn hub. Restore Saulégrid, one district at a time.',
+  description: 'Deploy grid components with kWh earned in the Learn hub. Restore Saulėgrid, one district at a time.',
   robots: { index: false, follow: false },
 };
 

@@ -220,23 +220,28 @@ function CategoryCard({ category, index }: { category: Category; index: number }
 export function PracticeHub() {
   return (
     <div className="min-h-screen pb-24 lg:pb-10">
-      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="relative w-full px-4 py-8 sm:px-6 lg:px-10 xl:px-14">
 
         {/* Header */}
         <header
-          className="mb-12 border-l-2 border-primary pl-6"
+          className="mb-10"
           style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}
         >
-          <h1 className="text-5xl font-extrabold tracking-tighter text-on-surface mb-2">
-            Practice <span className="text-primary">Lab</span>
+          <h1 className="text-5xl font-bold tracking-tight text-on-surface">
+            Practice Lab
           </h1>
-          <p className="text-[14px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: 480 }}>
-            Targeted drills across four disciplines. Pick a category and start sharpening.
+          <p className="mt-3 max-w-2xl text-base leading-relaxed text-on-surface/60">
+            Theory builds the map. Practice builds the reflex. Five disciplines, drilled until hesitation
+            turns into instinct &mdash; the kind of fluency you only earn by doing the rep one more time.
           </p>
+          <div
+            aria-hidden="true"
+            className="h-px w-full mt-6 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+          />
         </header>
 
-        {/* Category grid — 4 columns */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {/* Category grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
           {CATEGORIES.map((cat, i) =>
             cat.comingSoon ? (
               <CategoryCard key={cat.id} category={cat} index={i} />

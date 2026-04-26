@@ -294,7 +294,7 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
           pointerEvents: 'none',
         }}
       >
-        Saulégrid Territory · Lithuania
+        Saulėgrid Territory · Lithuania
       </div>
 
       {/* Category legend */}
