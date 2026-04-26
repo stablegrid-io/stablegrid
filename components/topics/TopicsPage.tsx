@@ -46,7 +46,7 @@ export function TopicsPage() {
             style={{ color: '#99f7ff', letterSpacing: '0.08em' }}
           >
             <ArrowLeft aria-hidden="true" className="w-4 h-4 topics-back-link__arrow" strokeWidth={2.2} />
-            STABLEGRID.IO
+            stablegrid.io
           </Link>
           <Link
             href="/login"

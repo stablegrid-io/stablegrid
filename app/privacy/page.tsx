@@ -10,8 +10,8 @@ import { ArrowLeft } from 'lucide-react';
 import { COOKIE_CATEGORY_COPY, COOKIE_SERVICE_REGISTRY } from '@/lib/cookies/cookie-config';
 
 export const metadata: Metadata = {
-  title: 'Privacy · stableGrid',
-  description: 'How stableGrid collects, uses, and protects user data.'
+  title: 'Privacy · stablegrid',
+  description: 'How stablegrid collects, uses, and protects user data.'
 };
 
 const policyCategories = [
@@ -65,7 +65,7 @@ export default function PrivacyPage() {
         </Link>
 
         <header className="space-y-3">
-          <p className="font-bold text-sm tracking-tight" style={{ color: '#99f7ff', letterSpacing: '0.08em' }}>stableGrid</p>
+          <p className="font-bold text-sm tracking-tight" style={{ color: '#99f7ff', letterSpacing: '0.08em' }}>stablegrid</p>
           <h1 className="text-3xl font-bold tracking-tight text-on-surface">Privacy Policy</h1>
           <p className="text-sm text-on-surface-variant">Effective date: March 9, 2026</p>
         </header>
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
         <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">
           <h2 className="text-lg font-semibold text-on-surface">Data controller</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
-            stableGrid is operated by <span className="font-medium text-on-surface">[Company Name]</span>,
+            stablegrid is operated by <span className="font-medium text-on-surface">[Company Name]</span>,
             registered at <span className="font-medium text-on-surface">[Registered Address]</span>.
             For any privacy or data-protection enquiry (including exercise of the rights listed below),
             contact{' '}
@@ -285,7 +285,7 @@ export default function PrivacyPage() {
         </section>
 
         <footer className="pt-8 pb-4 text-center text-[11px] text-on-surface-variant">
-          © 2026 stableGrid
+          © 2026 stablegrid
         </footer>
       </div>
     </main>

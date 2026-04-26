@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Support · stableGrid',
-  description: 'Support and contact paths for stableGrid users.'
+  title: 'Support · stablegrid',
+  description: 'Support and contact paths for stablegrid users.'
 };
 
 export default function SupportPage() {
@@ -16,7 +16,7 @@ export default function SupportPage() {
           ← Home
         </a>
         <header className="space-y-3">
-          <p className="font-bold text-sm tracking-tight" style={{ color: '#99f7ff', letterSpacing: '0.08em' }}>stableGrid</p>
+          <p className="font-bold text-sm tracking-tight" style={{ color: '#99f7ff', letterSpacing: '0.08em' }}>stablegrid</p>
           <h1 className="text-3xl font-bold tracking-tight text-on-surface">Support</h1>
           <p className="text-sm text-on-surface-variant">
             We aim to reply to every support request within 2 business days. Critical bugs
@@ -31,7 +31,7 @@ export default function SupportPage() {
             route your message quickly.
           </p>
           <a
-            href="mailto:support@stablegrid.io?subject=%5BstableGrid%5D%20"
+            href="mailto:support@stablegrid.io?subject=%5Bstablegrid%5D%20"
             className="inline-block w-full rounded-[14px] border border-white/[0.06] bg-[#0c0e10] px-4 py-3 text-sm font-medium text-primary transition hover:border-primary/40 hover:bg-[#0e1114] min-h-[44px]"
           >
             support@stablegrid.io
@@ -39,7 +39,7 @@ export default function SupportPage() {
           <p className="text-xs text-on-surface-variant">
             Suggested subject:
             <span className="ml-2 inline-block rounded-[8px] bg-[#0c0e10] px-2 py-1 font-mono text-xs text-on-surface-variant">
-              [stableGrid] brief issue summary
+              [stablegrid] brief issue summary
             </span>
           </p>
         </section>

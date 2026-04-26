@@ -15,7 +15,7 @@ export function generateMetadata({ params }: Props): Metadata {
   const lang = LANG_LABELS[params.language] ?? params.language;
   const level = params.level.charAt(0).toUpperCase() + params.level.slice(1);
   return {
-    title: `${lang} ${level} | stableGrid.io`,
+    title: `${lang} ${level} | stablegrid.io`,
     description: `${lang} ${level}-level coding practice tree map.`,
   };
 }

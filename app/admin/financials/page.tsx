@@ -3,7 +3,7 @@ import { AdminFinancialsPage } from '@/components/admin/financials/AdminFinancia
 import { AdminAccessError, requireAdminAccess } from '@/lib/admin/access';
 
 export const metadata = {
-  title: 'Financials · Admin Console · stableGrid.io'
+  title: 'Financials · Admin Console · stablegrid.io'
 };
 
 export default async function AdminFinancialsRoute() {

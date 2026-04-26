@@ -317,7 +317,7 @@ function CheatSheetContent({ sheet }: { sheet: CheatSheet }) {
         {/* Footer */}
         <div className="mt-16 pt-8" style={{ borderTop: '1px solid var(--rm-border)' }}>
           <p className="font-mono text-[10px] tracking-widest uppercase text-center" style={{ color: 'var(--rm-text-secondary)' }}>
-            stableGrid · Module {sheet.moduleId.replace('module-', '')} Cheat Sheet · {sheet.topic} {sheet.track} Track
+            stablegrid · Module {sheet.moduleId.replace('module-', '')} Cheat Sheet · {sheet.topic} {sheet.track} Track
           </p>
         </div>
       </div>
@@ -426,7 +426,7 @@ export default function CheatSheetsPage() {
     </head><body>
       <div style="margin-bottom:32px;padding-bottom:16px;border-bottom:2px solid #eee;">
         <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#999;margin-bottom:6px;">
-          stableGrid · ${sheet.topic.toUpperCase()} ${sheet.track.toUpperCase()} TRACK
+          stablegrid · ${sheet.topic.toUpperCase()} ${sheet.track.toUpperCase()} TRACK
         </p>
         <h1 style="font-size:28px;font-weight:700;margin-bottom:4px;">${sheet.title}</h1>
         <p style="font-size:12px;color:#888;">Cheat Sheet · ${sheet.lessonCount} lessons · ${Math.round(sheet.estimatedMinutes / 60)}h ${sheet.estimatedMinutes % 60}m</p>
@@ -434,7 +434,7 @@ export default function CheatSheetsPage() {
       ${sectionsHtml}
       <div style="margin-top:40px;padding-top:12px;border-top:1px solid #eee;text-align:center;">
         <p style="font-size:9px;text-transform:uppercase;letter-spacing:0.15em;color:#bbb;">
-          stableGrid · Module ${sheet.moduleId.replace('module-', '')} Cheat Sheet · ${new Date().getFullYear()}
+          stablegrid · Module ${sheet.moduleId.replace('module-', '')} Cheat Sheet · ${new Date().getFullYear()}
         </p>
       </div>
     </body></html>`);

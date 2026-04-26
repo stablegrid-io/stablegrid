@@ -13,8 +13,8 @@ export function PrivacyTab() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8">
       <header className="space-y-3">
-        <p className="text-xs font-mono font-bold uppercase tracking-[0.18em] text-brand-500">
-          stableGrid
+        <p className="text-xs font-mono font-bold tracking-[0.18em] text-brand-500">
+          stablegrid
         </p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           Privacy Policy

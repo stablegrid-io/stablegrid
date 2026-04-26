@@ -88,7 +88,7 @@ export const HeroSection = () => {
           </h1>
 
           <p className="mb-8 max-w-xl text-lg leading-relaxed text-grid-text">
-            stableGrid currently focuses on one structured PySpark-first route,
+            stablegrid currently focuses on one structured PySpark-first route,
             chapter progression, and session controls. Practice, flashcards, and mission
             layers are in active build and not part of this launch.
           </p>

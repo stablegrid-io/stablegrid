@@ -3,7 +3,7 @@ import { AdminFeedbackPage } from '@/components/admin/feedback/AdminFeedbackPage
 import { AdminAccessError, requireAdminAccess } from '@/lib/admin/access';
 
 export const metadata = {
-  title: 'Feedback · Admin Console · stableGrid.io'
+  title: 'Feedback · Admin Console · stablegrid.io'
 };
 
 export default async function AdminFeedbackRoute() {

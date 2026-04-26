@@ -8,7 +8,7 @@ interface Props {
 export function generateMetadata({ params }: Props): Metadata {
   const lang = params.language.charAt(0).toUpperCase() + params.language.slice(1);
   return {
-    title: `${lang} Coding Practice | stableGrid.io`,
+    title: `${lang} Coding Practice | stablegrid.io`,
     description: `${lang} coding challenges across Junior, Mid, and Senior levels.`,
   };
 }

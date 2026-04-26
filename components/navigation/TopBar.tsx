@@ -20,10 +20,17 @@ export const TopBar = () => {
       isCompact ? 'lg:left-16' : 'lg:left-48'
     }`}>
       {/* Left: Brand */}
-      <div className="flex items-center">
+      <div className="flex items-center gap-3">
         <Link href="/home" className="flex items-center">
           <StableGridBrand className="text-xl" />
         </Link>
+        <span
+          aria-hidden="true"
+          className="hidden sm:inline-block h-4 w-px bg-white/10"
+        />
+        <span className="hidden sm:inline text-xs text-on-surface-variant tracking-tight">
+          Understanding data is your edge.
+        </span>
       </div>
 
       <div />

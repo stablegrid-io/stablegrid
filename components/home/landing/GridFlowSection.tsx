@@ -217,9 +217,9 @@ interface LandingFaqItem {
 const LANDING_FAQ_ITEMS: readonly LandingFaqItem[] = [
   {
     id: 'what-is-stablegrid',
-    question: 'What is stableGrid?',
+    question: 'What is stablegrid?',
     answer:
-      'stableGrid is a gamified learning platform for big data. You learn core concepts, practice through tasks, and apply decisions in a live energy-grid simulation.'
+      'stablegrid is a gamified learning platform for big data. You learn core concepts, practice through tasks, and apply decisions in a live energy-grid simulation.'
   },
   {
     id: 'how-fast-can-i-start',
@@ -241,7 +241,7 @@ const LANDING_FAQ_ITEMS: readonly LandingFaqItem[] = [
   },
   {
     id: 'is-this-for-teams',
-    question: 'Can teams use stableGrid together?',
+    question: 'Can teams use stablegrid together?',
     answer:
       'Yes. Teams can align on the same learning path and compare progress across modules, tasks, and readiness checkpoints.'
   },
@@ -2545,7 +2545,7 @@ export const GridFlowSection = () => {
       id="grid-flow"
       data-intro-lock={shouldLockIntroScroll ? 'true' : 'false'}
       className={`relative overflow-clip ${isLightMode ? 'bg-[#edf5ef]' : 'bg-black'}`}
-      aria-label="Three-step guided introduction to stableGrid core experience"
+      aria-label="Three-step guided introduction to stablegrid core experience"
     >
       {!shouldLockIntroScroll ? (
         <ScrollSectionIndicator

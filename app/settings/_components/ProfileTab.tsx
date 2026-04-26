@@ -127,7 +127,7 @@ export function ProfileTab({ profile, userEmail, provider, onToast }: ProfileTab
     <div className="space-y-5">
       <SettingsCard
         title="Personal Information"
-        description="Your identity on stableGrid."
+        description="Your identity on stablegrid."
         icon={<User className="h-4 w-4" />}
       >
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">

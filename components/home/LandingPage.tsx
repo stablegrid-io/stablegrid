@@ -8,6 +8,7 @@ import { LANDING_TOPICS } from '@/lib/landing/topics';
 import { TopicCard } from '@/components/topics/TopicCard';
 import { LandingIntro } from '@/components/home/landing/LandingIntro';
 import { ComponentCatalogDemo } from '@/components/home/landing/ComponentCatalogDemo';
+import { StableGridMark } from '@/components/brand/StableGridLogo';
 
 // ─── Nav on scroll ───────────────────────────────────────────────────────────
 
@@ -150,8 +151,26 @@ function NavOnScroll() {
       }}
     >
       <div className="max-w-6xl mx-auto px-6 flex items-center justify-between h-14">
-        <Link href="/" className="font-bold tracking-tight text-sm" style={{ color: '#99f7ff', letterSpacing: '0.08em' }}>
-          STABLEGRID.IO
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2.5 font-semibold tracking-tight"
+          style={{ letterSpacing: '-0.015em', fontSize: 16 }}
+        >
+          <StableGridMark className="h-5 w-5 shrink-0" style={{ color: 'rgba(255,255,255,0.95)' }} />
+          <span>
+            <span style={{ color: 'rgba(255,255,255,0.96)' }}>stablegrid</span>
+            <span
+              style={{
+                background:
+                  'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.4) 100%)',
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+                color: 'transparent',
+              }}
+            >
+              .io
+            </span>
+          </span>
         </Link>
 
         {/* Center nav links — desktop only */}
@@ -1020,12 +1039,26 @@ export const LandingPage = () => {
           {/* Top row */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
             <div>
-              <p
-                className="font-bold tracking-tight text-sm mb-1"
-                style={{ color: '#0c0e10', letterSpacing: '0.08em' }}
+              <div
+                className="inline-flex items-center gap-2.5 font-semibold tracking-tight mb-1"
+                style={{ letterSpacing: '-0.015em', fontSize: 16 }}
               >
-                STABLEGRID.IO
-              </p>
+                <StableGridMark className="h-5 w-5 shrink-0" style={{ color: '#0c0e10' }} />
+                <span>
+                  <span style={{ color: '#0c0e10' }}>stablegrid</span>
+                  <span
+                    style={{
+                      background:
+                        'linear-gradient(180deg, #0c0e10 0%, rgba(12,14,16,0.4) 100%)',
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      color: 'transparent',
+                    }}
+                  >
+                    .io
+                  </span>
+                </span>
+              </div>
               <p className="text-sm" style={{ color: 'rgba(12,14,16,0.4)' }}>
                 Understanding data is your edge.
               </p>
@@ -1057,7 +1090,7 @@ export const LandingPage = () => {
             style={{ borderTop: '1px solid rgba(12,14,16,0.06)' }}
           >
             <p className="text-xs" style={{ color: 'rgba(12,14,16,0.25)' }}>
-              © 2026 stableGrid.io
+              © 2026 stablegrid.io
             </p>
           </div>
         </div>

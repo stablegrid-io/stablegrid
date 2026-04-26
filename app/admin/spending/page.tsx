@@ -3,7 +3,7 @@ import { AdminSpendingPage } from '@/components/admin/spending/AdminSpendingPage
 import { AdminAccessError, requireAdminAccess } from '@/lib/admin/access';
 
 export const metadata = {
-  title: 'Spending · Admin Console · stableGrid.io'
+  title: 'Spending · Admin Console · stablegrid.io'
 };
 
 export default async function AdminSpendingRoute() {

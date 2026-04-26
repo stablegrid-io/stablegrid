@@ -4,8 +4,8 @@ export function SupportTab() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8">
       <header className="space-y-3">
-        <p className="text-xs font-mono font-bold uppercase tracking-[0.18em] text-brand-500">
-          stableGrid
+        <p className="text-xs font-mono font-bold tracking-[0.18em] text-brand-500">
+          stablegrid
         </p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Support</h1>
         <p className="text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
@@ -25,7 +25,7 @@ export function SupportTab() {
           </a>{' '}
           with subject format:
           <span className="block text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-            [stableGrid] brief issue summary
+            [stablegrid] brief issue summary
           </span>
         </p>
       </section>

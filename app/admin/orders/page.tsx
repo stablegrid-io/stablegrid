@@ -3,7 +3,7 @@ import { OrdersPage } from '@/components/admin/orders/OrdersPage';
 import { AdminAccessError, requireAdminAccess } from '@/lib/admin/access';
 
 export const metadata = {
-  title: 'Orders · Admin Console · stableGrid.io'
+  title: 'Orders · Admin Console · stablegrid.io'
 };
 
 export default async function AdminOrdersRoute() {

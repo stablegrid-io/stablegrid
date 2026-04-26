@@ -3,9 +3,9 @@ import Link from 'next/link';
 import { ArrowRight, Check } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Not sure yet? · stableGrid.io',
+  title: 'Not sure yet? · stablegrid.io',
   description:
-    'A concise overview of who stableGrid is for, what you get, and how quickly you can see value.'
+    'A concise overview of who stablegrid is for, what you get, and how quickly you can see value.'
 };
 
 const VALUE_POINTS = [
@@ -32,7 +32,7 @@ export default function NotSureYetPage() {
             Not sure yet?
           </h1>
           <p className="mt-4 max-w-2xl text-[15px] leading-7 text-[#bed0c8] sm:text-[17px]">
-            stableGrid helps you build real big-data confidence through guided learning and applied
+            stablegrid helps you build real big-data confidence through guided learning and applied
             practice. You do not need to commit upfront to one long path.
           </p>
 

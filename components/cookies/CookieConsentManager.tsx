@@ -236,7 +236,7 @@ export function CookieConsentManager() {
               </div>
               <div>
                 <h2 className="text-[0.9rem] font-semibold tracking-tight text-white/90">
-                  Privacy on stableGrid
+                  Privacy on stablegrid
                 </h2>
                 <p className="mt-1 text-[0.8rem] leading-relaxed text-white/45">
                   We use cookies for essential functionality and to improve your experience.{' '}
@@ -308,7 +308,7 @@ export function CookieConsentManager() {
                   >
                     Privacy settings
                   </h2>
-                  <p className="text-[0.72rem] text-white/30">stableGrid.io</p>
+                  <p className="text-[0.72rem] text-white/30">stablegrid.io</p>
                 </div>
               </div>
               <button

@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'stableGrid.io',
+  title: 'stablegrid.io',
   description: 'Learning topics and chapter content.'
 };
 

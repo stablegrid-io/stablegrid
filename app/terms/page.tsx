@@ -7,8 +7,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Terms · stableGrid',
-  description: 'Terms of use for stableGrid.'
+  title: 'Terms · stablegrid',
+  description: 'Terms of use for stablegrid.'
 };
 
 export default function TermsPage() {
@@ -19,7 +19,7 @@ export default function TermsPage() {
           ← Home
         </a>
         <header className="space-y-3">
-          <p className="font-bold text-sm tracking-tight" style={{ color: '#99f7ff', letterSpacing: '0.08em' }}>stableGrid</p>
+          <p className="font-bold text-sm tracking-tight" style={{ color: '#99f7ff', letterSpacing: '0.08em' }}>stablegrid</p>
           <h1 className="text-3xl font-bold tracking-tight text-on-surface">
             Terms of Use
           </h1>
@@ -31,7 +31,7 @@ export default function TermsPage() {
         <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Service scope</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
-            stableGrid is a learning platform for data engineering. The current scope includes
+            stablegrid is a learning platform for data engineering. The current scope includes
             structured theory, practice sets, Grid Ops (our applied training arena), missions,
             the in-platform kWh economy, and paid subscription tiers with billing through Stripe.
             Features evolve over time; material additions will be reflected in these terms.
@@ -60,7 +60,7 @@ export default function TermsPage() {
           <h2 className="text-xl font-semibold">Intellectual property</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             All platform content — including theory material, practice sets, datasets, source
-            code, branding, and the stableGrid name and logo — is owned by stableGrid or its
+            code, branding, and the stablegrid name and logo — is owned by stablegrid or its
             licensors and is protected by intellectual-property laws. You receive a limited,
             non-exclusive, non-transferable licence to access and use the service for personal
             learning. Reproduction, resale, or redistribution of platform content is not permitted
@@ -68,7 +68,7 @@ export default function TermsPage() {
           </p>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             You retain ownership of content you submit (e.g., solutions, bug reports,
-            notebook entries). By submitting content you grant stableGrid a worldwide,
+            notebook entries). By submitting content you grant stablegrid a worldwide,
             royalty-free licence to host, store, and process that content for the purpose of
             operating and improving the service.
           </p>
@@ -114,14 +114,14 @@ export default function TermsPage() {
           <h2 className="text-xl font-semibold">Disclaimer and limitation of liability</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             The service is provided on an &quot;as is&quot; and &quot;as available&quot; basis.
-            To the maximum extent permitted by law, stableGrid disclaims all implied warranties
+            To the maximum extent permitted by law, stablegrid disclaims all implied warranties
             of merchantability, fitness for a particular purpose, and non-infringement.
           </p>
           <p className="text-sm leading-7 text-on-surface-variant/80">
-            To the maximum extent permitted by law, stableGrid&apos;s aggregate liability for any
+            To the maximum extent permitted by law, stablegrid&apos;s aggregate liability for any
             claim arising out of or relating to the service is capped at the greater of (a) the
-            amounts you paid to stableGrid in the twelve months preceding the event giving rise
-            to the claim, or (b) one hundred euros (€100). stableGrid is not liable for indirect,
+            amounts you paid to stablegrid in the twelve months preceding the event giving rise
+            to the claim, or (b) one hundred euros (€100). stablegrid is not liable for indirect,
             consequential, incidental, or punitive damages, or for loss of data, profits, or
             goodwill. Nothing in these terms excludes liability that cannot lawfully be excluded,
             including for gross negligence, wilful misconduct, or statutory consumer rights.

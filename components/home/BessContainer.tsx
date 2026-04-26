@@ -348,7 +348,7 @@ export default function BessContainer({
                 {/* Left door: minimal brand */}
                 {side === 'L' && (
                   <g>
-                    <text x="50" y="48" fontSize="4.5" fontWeight="700" fontFamily="system-ui" fill="#4a4f5a" letterSpacing="2" textAnchor="middle">STABLEGRID</text>
+                    <text x="50" y="48" fontSize="4.5" fontWeight="700" fontFamily="system-ui" fill="#4a4f5a" letterSpacing="2" textAnchor="middle">stablegrid</text>
                     <text x="50" y="55" fontSize="2.2" fontWeight="500" fontFamily="system-ui" fill="#6b7280" letterSpacing="1.5" textAnchor="middle">SG-5000 · LFP</text>
                   </g>
                 )}

@@ -69,7 +69,7 @@ export function FirstLoopChecklist({ steps }: FirstLoopChecklistProps) {
             Finish two chapters, then spend the reward.
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#4a6154] dark:text-[#b7cec2]">
-            stableGrid is clearest when you complete the full loop once. The primary action above
+            stablegrid is clearest when you complete the full loop once. The primary action above
             keeps moving to the next unfinished step.
           </p>
         </div>

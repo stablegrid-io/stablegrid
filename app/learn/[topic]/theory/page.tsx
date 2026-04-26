@@ -70,7 +70,7 @@ export function generateStaticParams() {
 export function generateMetadata({ params }: LearnTopicTheoryPageProps): Metadata {
   const doc = theoryDocs[params.topic];
   return {
-    title: 'stableGrid',
+    title: 'stablegrid',
     description: doc?.description ?? 'Module-based theory documentation.'
   };
 }

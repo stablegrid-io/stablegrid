@@ -18,7 +18,7 @@ import type { ComponentSlug } from '@/types/grid';
 import { capBalance } from '@/lib/energy';
 
 export const metadata: Metadata = {
-  title: 'stableGrid.io',
+  title: 'stablegrid.io',
   description: 'Adaptive data engineering learning paths, operations drills, and career progression.'
 };
 

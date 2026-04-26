@@ -378,7 +378,7 @@ function Ticker() {
         </div>
       </div>
       <div className="shrink-0 hidden sm:block text-on-surface-variant/15">
-        stableGrid v4.2
+        stablegrid v4.2
       </div>
     </div>
   );

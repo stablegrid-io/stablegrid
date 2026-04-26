@@ -32,7 +32,7 @@ export const LandingFooter = () => {
     >
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 md:flex-row">
         <div className="flex items-center gap-2.5">
-          <Link href="/" aria-label="stableGrid home">
+          <Link href="/" aria-label="stablegrid home">
             <StableGridWordmark
               size="sm"
               iconClassName="bg-gradient-to-br from-[#171d1b] to-[#0d1110] text-grid-glow-bright shadow-[0_0_0_1px_rgba(121,208,171,0.22),0_10px_22px_-14px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)]"

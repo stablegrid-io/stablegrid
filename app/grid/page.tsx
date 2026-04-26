@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { GridPage } from '@/components/grid/GridPage';
 
 export const metadata: Metadata = {
-  title: 'Grid · stableGrid.io',
+  title: 'Grid · stablegrid.io',
   description: 'Deploy grid components with kWh earned in the Learn hub. Restore Saulégrid, one district at a time.',
 };
 

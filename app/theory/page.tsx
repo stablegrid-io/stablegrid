@@ -5,7 +5,7 @@ import { learnTopics } from '@/data/learn';
 import { loadServerTheoryProgress } from '@/lib/learn/serverTheoryProgress';
 
 export const metadata: Metadata = {
-  title: 'Theory Hub | stableGrid',
+  title: 'Theory Hub | stablegrid',
   description: 'Select a topic, then open theory categories and chapters.'
 };
 
