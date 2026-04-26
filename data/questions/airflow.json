@@ -1,0 +1,2102 @@
+{
+  "questions": [
+    {
+      "id": "airflow-AF1-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "SaulėGrid ran download, validate, and aggregate as separate cron jobs at 00:00, 00:30, and 01:00. What is the fundamental limitation of this design?",
+      "options": [
+        "The schedule encodes a timing assumption rather than a real dependency between the steps",
+        "Cron cannot run Python scripts and that forces SaulėGrid to rewrite jobs as bash one-liners",
+        "Each cron entry is locked to UTC and that breaks every pipeline during DST transitions",
+        "Cron runs jobs only once per host and that prevents SaulėGrid from scaling horizontally"
+      ],
+      "correctAnswer": "The schedule encodes a timing assumption rather than a real dependency between the steps",
+      "explanation": "Lesson 1: cron answers 'when' (run at 00:30) — not 'is it safe to run' (did download finish). The 30-min buffer was an assumption that breaks when reality changes.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF1",
+        "module-AF1-lesson-01",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF1-l02-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Without an orchestrator, when one of SaulėGrid's twelve pipeline steps fails at 03:00, what does the on-call engineer have to do?",
+      "options": [
+        "Mentally trace the dependency chain and manually rerun every downstream step in order",
+        "Restart the entire host machine to clear corrupted state from the failed job process",
+        "Open a support ticket with the cloud vendor since cron logs are owned by the platform",
+        "Wait for the next scheduled tick and rely on cron to retry the failed job by itself"
+      ],
+      "correctAnswer": "Mentally trace the dependency chain and manually rerun every downstream step in order",
+      "explanation": "Lesson 2: without an orchestrator there is no automatic dependency resolution. The operator has to figure out the failure point and rerun downstream steps by hand.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF1",
+        "module-AF1-lesson-02",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF1-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 3 names three pillars of orchestration that must work together. Which trio is correct?",
+      "options": [
+        "Dependency management, state tracking, and automatic failure recovery across runs",
+        "Source control, secret management, and continuous deployment of the pipeline code",
+        "Data validation, schema evolution, and quality reporting on every produced dataset",
+        "Resource quotas, autoscaling rules, and cost dashboards for every pipeline step"
+      ],
+      "correctAnswer": "Dependency management, state tracking, and automatic failure recovery across runs",
+      "explanation": "Lesson 3: dependency management decides order, state tracking detects failures, recovery fixes them. Each is incomplete without the others.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF1",
+        "module-AF1-lesson-03",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF1-l04-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why did Airflow become the industry standard despite Luigi and Oozie being older?",
+      "options": [
+        "Python-native DAGs, a rich web UI, and a community that built provider integrations",
+        "It was the only orchestrator licensed for free under a permissive open-source license",
+        "Microsoft and Google jointly funded its development and bundled it with their clouds",
+        "Its DAG syntax was simpler than every alternative and required no configuration files"
+      ],
+      "correctAnswer": "Python-native DAGs, a rich web UI, and a community that built provider integrations",
+      "explanation": "Lesson 4: Airflow combined Python-native definition + web UI + a strong open-source ecosystem at the right time. None of those alone were unique — the combination was.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF1",
+        "module-AF1-lesson-04",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF1-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 5 compares Airflow to a conductor. What does that analogy mean in practice?",
+      "options": [
+        "Airflow coordinates other tools at the right time but does no data processing itself",
+        "Airflow replaces PySpark and dbt by absorbing their transformation logic into DAGs",
+        "Airflow rewrites every downstream tool's queries to optimize end-to-end performance",
+        "Airflow holds the data in memory and streams it through each tool in the data stack"
+      ],
+      "correctAnswer": "Airflow coordinates other tools at the right time but does no data processing itself",
+      "explanation": "Lesson 5: Airflow is the conductor — it tells PySpark when to run and SFTP when to download but does no processing or transfer itself.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF1",
+        "module-AF1-lesson-05",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF1-l06-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why does the SaulėGrid course use the same company, columns, and pipeline across every lesson?",
+      "options": [
+        "Familiarity frees mental energy to focus on the new Airflow concept each lesson teaches",
+        "Lithuanian regulations require all training material to use a single named example company",
+        "It avoids per-example licensing fees that come from using multiple fictional brand names",
+        "Airflow only supports DAGs that share a topic and breaks if datasets differ between DAGs"
+      ],
+      "correctAnswer": "Familiarity frees mental energy to focus on the new Airflow concept each lesson teaches",
+      "explanation": "Lesson 6: by Module 5 the learner knows meter_id and daily_kw without reading column descriptions, so the new concept gets the attention.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF1",
+        "module-AF1-lesson-06",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF1-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "A new Airflow user wants to read a CSV, clean rows, and compute aggregates inside a single PythonOperator task. Why is this an anti-pattern at production scale?",
+      "options": [
+        "Airflow tasks should trigger external engines like PySpark — not perform the heavy work",
+        "PythonOperator does not have access to the filesystem and cannot read CSV files at all",
+        "Airflow taxes per-row processing inside tasks and the bill grows linearly with row count",
+        "DAG files cannot import pandas because the scheduler blocks any non-Airflow imports"
+      ],
+      "correctAnswer": "Airflow tasks should trigger external engines like PySpark — not perform the heavy work",
+      "explanation": "Lesson 7: DAG code is lightweight orchestration logic. Heavy transformation belongs in PySpark/SQL/dbt that the task triggers, not in the task body itself.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF1",
+        "module-AF1-lesson-07",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF1-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What do the three letters in 'DAG' mean for how Airflow can run your pipeline?",
+      "options": [
+        "Directed gives order, Acyclic prevents loops, Graph enables automatic parallel execution",
+        "Distributed shards work, Atomic isolates writes, Generated schedules cron expressions",
+        "Daemon runs forever, Async handles I/O, Generic accepts any Python callable as a task",
+        "Deferred runs later, Async sends signals, Granular splits work into many small slices"
+      ],
+      "correctAnswer": "Directed gives order, Acyclic prevents loops, Graph enables automatic parallel execution",
+      "explanation": "Lesson 8: directed = order, acyclic = no infinite loops, graph = the structure that lets the scheduler find parallel opportunities automatically.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF1",
+        "module-AF1-lesson-08",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF1-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "A junior engineer wants to push a 200MB DataFrame from one task to the next using XCom. What should they do instead?",
+      "options": [
+        "Write the DataFrame to storage in one task and pass only the file path through XCom",
+        "Compress the DataFrame with gzip before pushing it through XCom to reduce payload size",
+        "Split the DataFrame into 1MB chunks and push each chunk as a separate XCom record",
+        "Increase the metadata database size and the XCom row limit to accept larger payloads"
+      ],
+      "correctAnswer": "Write the DataFrame to storage in one task and pass only the file path through XCom",
+      "explanation": "Lesson 9: XCom is for small values (paths, counts, flags). Large data goes to storage; XCom carries the path. Anything else hammers the metadata DB.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF1",
+        "module-AF1-lesson-09",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF1-l10-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Lesson 10 outlines what Module 2 will teach. Which area does it cover?",
+      "options": [
+        "How Airflow's four components work together to discover, schedule, and execute DAGs",
+        "How to write production-grade PySpark transformation logic for the Silver layer",
+        "How to design a data warehouse schema that supports SaulėGrid's billing reports",
+        "How to build a custom executor that replaces the default Celery executor at scale"
+      ],
+      "correctAnswer": "How Airflow's four components work together to discover, schedule, and execute DAGs",
+      "explanation": "Lesson 10: the next module makes the orchestration concepts concrete by walking through the scheduler, executor, database, and web server.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF1",
+        "module-AF1-lesson-10",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF2-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "How does Module 2's mnemonic describe the four core Airflow components?",
+      "options": [
+        "The scheduler decides, the executor does, the database remembers, and the web server shows",
+        "The scheduler queues, the executor logs, the database backs up, and the web server proxies",
+        "The scheduler validates, the executor authenticates, the database caches, and the UI alerts",
+        "The scheduler compiles, the executor optimizes, the database indexes, and the UI templates"
+      ],
+      "correctAnswer": "The scheduler decides, the executor does, the database remembers, and the web server shows",
+      "explanation": "Lesson 1: this mnemonic maps each component to its single responsibility. When debugging, decide which of the four 'verbs' the problem belongs to.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF2",
+        "module-AF2-lesson-01",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF2-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "An engineer puts `df = pd.read_csv('huge.csv')` at the top of a DAG file. What happens at SaulėGrid scale?",
+      "options": [
+        "The CSV is read on every scheduler parse cycle, wasting CPU and slowing every DAG",
+        "The scheduler caches the DataFrame after one read and reuses it for every DAG Run",
+        "The scheduler refuses to parse the file and surfaces a clear error in the web UI",
+        "The CSV is loaded once at startup and stays in memory until the host is restarted"
+      ],
+      "correctAnswer": "The CSV is read on every scheduler parse cycle, wasting CPU and slowing every DAG",
+      "explanation": "Lesson 2: the scheduler executes the DAG file as a Python module on every loop. Top-level heavy code runs over and over — keep DAG files lightweight.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF2",
+        "module-AF2-lesson-02",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF2-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "If the Airflow web server crashes for an hour, what is the impact on running pipelines?",
+      "options": [
+        "Pipelines keep running because the scheduler and executor do not depend on the web server",
+        "All pipelines pause until the web server is back online and reissues task heartbeat signals",
+        "All running tasks fail because they cannot read connection passwords from the web server",
+        "Pipelines downgrade to sequential execution because the web server distributes worker slots"
+      ],
+      "correctAnswer": "Pipelines keep running because the scheduler and executor do not depend on the web server",
+      "explanation": "Lesson 3: the web server is for visibility. Losing it removes the UI but the scheduler keeps queueing and the executor keeps running tasks.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF2",
+        "module-AF2-lesson-03",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF2-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What kind of data does the Airflow metadata database store?",
+      "options": [
+        "Operational state — DAG runs, task instances, connections — not the pipeline's actual data",
+        "Both operational state and the raw output rows produced by every task in every DAG Run",
+        "Encrypted Parquet copies of the Bronze layer for fast lookup from the Airflow web server",
+        "Cached query results from PostgreSQL warehouses to accelerate dashboard rendering jobs"
+      ],
+      "correctAnswer": "Operational state — DAG runs, task instances, connections — not the pipeline's actual data",
+      "explanation": "Lesson 4: the metadata DB holds Airflow's own bookkeeping. SaulėGrid's meter readings live in the data lake — putting them in the metadata DB degrades Airflow.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF2",
+        "module-AF2-lesson-04",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF2-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid runs on a single beefy machine with parallel pipelines. Which executor is the right fit?",
+      "options": [
+        "LocalExecutor with PostgreSQL — parallel tasks on one machine without distributed pieces",
+        "SequentialExecutor with SQLite — easiest to set up and matches the single-machine deploy",
+        "CeleryExecutor with Redis — distributes work across workers even on a single machine",
+        "KubernetesExecutor — every task spins up its own pod for maximum process isolation"
+      ],
+      "correctAnswer": "LocalExecutor with PostgreSQL — parallel tasks on one machine without distributed pieces",
+      "explanation": "Lesson 5: LocalExecutor parallelizes tasks across processes on one machine. Sequential cannot parallelize; Celery/Kubernetes is overkill for a single host.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF2",
+        "module-AF2-lesson-05",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF2-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "An engineer adds a new DAG file with a syntax error at the top. What does Airflow do?",
+      "options": [
+        "The DAG silently disappears from the UI until the syntax error in the file is fixed",
+        "The scheduler emails every admin in the metadata database with the full Python traceback",
+        "Airflow prints the syntax error to the home page banner and lists the file as 'broken'",
+        "The scheduler quarantines all DAGs in the same directory until the bad file is removed"
+      ],
+      "correctAnswer": "The DAG silently disappears from the UI until the syntax error in the file is fixed",
+      "explanation": "Lesson 6: the DAG directory is the source of truth, but a syntax error makes the parser crash for that file — the DAG disappears with no in-UI explanation.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF2",
+        "module-AF2-lesson-06",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF2-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "In Airflow's component communication, which path is the only direct scheduler-to-executor link?",
+      "options": [
+        "The task queue — the scheduler enqueues task instances and the executor picks them up",
+        "A WebSocket from the scheduler that the executor opens whenever a heartbeat is needed",
+        "A gRPC stream that the executor maintains to receive new tasks in real-time order",
+        "A symbolic link in the DAG directory the scheduler updates with new task descriptors"
+      ],
+      "correctAnswer": "The task queue — the scheduler enqueues task instances and the executor picks them up",
+      "explanation": "Lesson 7: every other path goes through the metadata DB. Only the queue is a direct scheduler→executor channel.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF2",
+        "module-AF2-lesson-07",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF2-l08-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why is `airflow standalone` recommended for local development but not production?",
+      "options": [
+        "It uses SequentialExecutor, which runs tasks one at a time and cannot parallelize them",
+        "It refuses to load DAGs that contain more than ten tasks defined in the same DAG file",
+        "It limits all schedules to hourly or slower and rejects any sub-hour cron expression",
+        "It blocks every external connection and only allows tasks targeting the local filesystem"
+      ],
+      "correctAnswer": "It uses SequentialExecutor, which runs tasks one at a time and cannot parallelize them",
+      "explanation": "Lesson 8: standalone mode is convenient (single command, SQLite) but Sequential prevents parallelism. Production needs LocalExecutor + PostgreSQL or beyond.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF2",
+        "module-AF2-lesson-08",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF2-l09-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "In the lifecycle of a task instance, which sequence of states is the happy path?",
+      "options": [
+        "no_status → scheduled → queued → running → success",
+        "no_status → running → scheduled → queued → success",
+        "queued → no_status → running → scheduled → success",
+        "scheduled → no_status → queued → success → running"
+      ],
+      "correctAnswer": "no_status → scheduled → queued → running → success",
+      "explanation": "Lesson 9: scheduler creates (no_status), evaluates eligibility (scheduled), enqueues (queued), executor picks up (running), task finishes (success).",
+      "xpReward": 40,
+      "tags": [
+        "module-AF2",
+        "module-AF2-lesson-09",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF2-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 contrasts retries and human intervention. What is each one's job?",
+      "options": [
+        "Retries handle transient failures automatically — permanent failures need a human fix",
+        "Retries handle every failure type and the on-call engineer is paged only for outages",
+        "Retries handle bugs in the code and humans handle network blips that retries cannot fix",
+        "Retries delete the failed run and humans rebuild it from scratch using the backfill CLI"
+      ],
+      "correctAnswer": "Retries handle transient failures automatically — permanent failures need a human fix",
+      "explanation": "Lesson 10: a retry on a code bug fails the same way each time. Retries are for transient problems; permanent ones require code or config changes.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF2",
+        "module-AF2-lesson-10",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF3-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the difference between a DAG and a DAG Run in Airflow's terminology?",
+      "options": [
+        "A DAG is the code in your Python file; a DAG Run is one execution recorded in the DB",
+        "A DAG is one Python function and a DAG Run is the queue entry that triggers that function",
+        "A DAG is a finished pipeline and a DAG Run is the unfinished version still being authored",
+        "A DAG is a scheduled task and a DAG Run is the executor process that runs that task"
+      ],
+      "correctAnswer": "A DAG is the code in your Python file; a DAG Run is one execution recorded in the DB",
+      "explanation": "Lesson 1: DAG = definition (your code). DAG Run = one instance of that DAG executing for a given logical date.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF3",
+        "module-AF3-lesson-01",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF3-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is wrong with `python_callable=download_from_sftp()` in a PythonOperator definition?",
+      "options": [
+        "Parentheses call the function during DAG parsing — every loop instead of once per run",
+        "Parentheses make the function private and the executor cannot find it at task runtime",
+        "Parentheses cause Python to treat the result as a string and the operator rejects it",
+        "Parentheses lock the function reference so Airflow cannot retry the task on failure"
+      ],
+      "correctAnswer": "Parentheses call the function during DAG parsing — every loop instead of once per run",
+      "explanation": "Lesson 2: pass the function reference (no parens). With parens, Python calls the function during parsing — every few seconds.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF3",
+        "module-AF3-lesson-02",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF3-l03-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid prefer the `with DAG()` context-manager pattern over the explicit `dag=dag` pattern?",
+      "options": [
+        "Tasks inside the with-block automatically belong to the DAG — forgetting becomes impossible",
+        "The context manager runs tasks faster because it avoids creating a separate DAG object",
+        "The context manager allows multiple DAG IDs in one block which simplifies deployment",
+        "The context manager bypasses the metadata database and writes directly to the worker disk"
+      ],
+      "correctAnswer": "Tasks inside the with-block automatically belong to the DAG — forgetting becomes impossible",
+      "explanation": "Lesson 3: with-block makes ownership automatic; the dag=dag pattern requires it on every task and is easy to forget.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF3",
+        "module-AF3-lesson-03",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF3-l04-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is `start_date=datetime.now()` the most common DAG misconfiguration?",
+      "options": [
+        "The start_date keeps moving forward on every parse so no DAG Run is ever scheduled",
+        "datetime.now() raises a TypeError because Airflow needs a date object, not a datetime",
+        "The scheduler caches the first value and ignores it forever — the DAG never updates",
+        "datetime.now() is naive UTC so the scheduler runs every DAG twice per day to compensate"
+      ],
+      "correctAnswer": "The start_date keeps moving forward on every parse so no DAG Run is ever scheduled",
+      "explanation": "Lesson 4: start_date is evaluated on every parse. With now(), the baseline shifts every few seconds and the scheduler can never decide a run is due.",
+      "xpReward": 120,
+      "tags": [
+        "module-AF3",
+        "module-AF3-lesson-04",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF3-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the role of `default_args` on a DAG definition?",
+      "options": [
+        "It encodes team operational standards (retries, timeouts, owner) inherited by every task",
+        "It overrides the schedule parameter and replaces it with task-specific cron expressions",
+        "It determines which executor the DAG uses regardless of the global Airflow configuration",
+        "It registers the DAG with the metadata database so the web server can render it in the UI"
+      ],
+      "correctAnswer": "It encodes team operational standards (retries, timeouts, owner) inherited by every task",
+      "explanation": "Lesson 5: default_args = the default policy (owner, retries, retry_delay, email). Tasks inherit it; individual tasks override only when they need to.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF3",
+        "module-AF3-lesson-05",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF3-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Two files in SaulėGrid's dags/ directory accidentally use the same dag_id. What happens?",
+      "options": [
+        "The second DAG is silently ignored — no error, no log, just missing from the web UI",
+        "The scheduler refuses to start until the conflict between the two files is resolved",
+        "Airflow renames the second DAG by appending a numeric suffix to its dag_id automatically",
+        "Both DAGs run normally because the metadata database stores them as separate entries"
+      ],
+      "correctAnswer": "The second DAG is silently ignored — no error, no log, just missing from the web UI",
+      "explanation": "Lesson 6: this silent behavior is one of Airflow's most frustrating debugging experiences. Always grep the codebase before assigning a dag_id.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF3",
+        "module-AF3-lesson-06",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF3-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "An engineer writes `import pandas as pd` at the top of every DAG file. Why does this hurt the scheduler?",
+      "options": [
+        "The import runs on every parse cycle, consuming scheduler CPU for every DAG file",
+        "Pandas is incompatible with Airflow's Python and crashes the scheduler at startup time",
+        "The import locks the metadata database for several seconds during each scheduler parse",
+        "Pandas tries to phone home to its update server and the scheduler waits on the response"
+      ],
+      "correctAnswer": "The import runs on every parse cycle, consuming scheduler CPU for every DAG file",
+      "explanation": "Lesson 7: top-level code runs every parse. Heavy imports (pandas, requests, boto3) belong inside task callables — not at module level.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF3",
+        "module-AF3-lesson-07",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF3-l08-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "When investigating a failed pipeline, what is the standard Airflow debugging hierarchy?",
+      "options": [
+        "DAG Run → Task Instance → Log",
+        "Connection → Variable → Pool",
+        "Worker → Pod → Container",
+        "Trigger → Sensor → Operator"
+      ],
+      "correctAnswer": "DAG Run → Task Instance → Log",
+      "explanation": "Lesson 8: every UI view is organized around DAG Run → Task Instance → Log. This top-down workflow narrows the question on every step.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF3",
+        "module-AF3-lesson-08",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF3-l09-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the purpose of the `doc_md` field on a DAG definition?",
+      "options": [
+        "Document why decisions were made so the future on-call engineer can understand the DAG",
+        "Render the DAG's source code as syntax-highlighted Markdown on the Airflow home page",
+        "Replace the doc strings on each Python callable since Airflow ignores Python docstrings",
+        "Generate a JSON schema describing the DAG's inputs for downstream consumer dashboards"
+      ],
+      "correctAnswer": "Document why decisions were made so the future on-call engineer can understand the DAG",
+      "explanation": "Lesson 9: doc_md captures the why (why retries=5? why this schedule?). Six months later, the answers belong here, not in tribal memory.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF3",
+        "module-AF3-lesson-09",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF3-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid use a flat `dags/` directory plus a `helpers/` subdirectory?",
+      "options": [
+        "DAGs are independently deployable, while shared helper code lives in importable modules",
+        "Airflow forbids more than two levels of nesting in the DAG directory at the filesystem level",
+        "A flat layout lets the scheduler bypass module imports and load DAGs directly from disk",
+        "Subdirectories named anything other than 'helpers' are excluded from scheduler parsing"
+      ],
+      "correctAnswer": "DAGs are independently deployable, while shared helper code lives in importable modules",
+      "explanation": "Lesson 10: flat dags/ keeps each DAG its own deploy unit; helpers/ holds shared utilities (sftp_utils, validation, alerting) that DAGs import.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF3",
+        "module-AF3-lesson-10",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF4-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does the 'single-responsibility' principle mean for a SaulėGrid task design?",
+      "options": [
+        "A task does exactly one thing — download_meters downloads, it does not also validate",
+        "A task is owned by exactly one engineer who is paged on every failure of that task",
+        "A task uses exactly one Connection at runtime so credential rotation is straightforward",
+        "A task lives in exactly one DAG and is never reused across multiple pipeline files"
+      ],
+      "correctAnswer": "A task does exactly one thing — download_meters downloads, it does not also validate",
+      "explanation": "Lesson 1: a task that downloads, validates, and aggregates is debugged, retried, and monitored as three things. One responsibility per task is easier to reason about.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF4",
+        "module-AF4-lesson-01",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF4-l02-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the relationship between an Operator and a Task in Airflow?",
+      "options": [
+        "Operator is the class (template); Task is an instance produced by configuring the operator",
+        "Operator is the running process; Task is the Python file that defines the operator subclass",
+        "Operator is one task in production; Task is the schedule entry that triggers that operator",
+        "Operator is the database row; Task is the worker process that updates that row at runtime"
+      ],
+      "correctAnswer": "Operator is the class (template); Task is an instance produced by configuring the operator",
+      "explanation": "Lesson 2: PythonOperator is a class. Task = an instantiation of that class with a specific task_id and parameters. Many tasks can share one operator class.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF4",
+        "module-AF4-lesson-02",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF4-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "BashOperator's `bash_command='/scripts/download.sh'` raises a 'template not found' error. What is the fix?",
+      "options": [
+        "Add a trailing space — without it Airflow tries to render the path as a Jinja template",
+        "Change the path to use a forward slash on every OS instead of platform-specific separators",
+        "Set the bash_command to a Python f-string so Jinja templating is bypassed by Airflow",
+        "Wrap the bash_command in triple quotes so Airflow treats it as raw shell input only"
+      ],
+      "correctAnswer": "Add a trailing space — without it Airflow tries to render the path as a Jinja template",
+      "explanation": "Lesson 3: when bash_command ends with a path, Airflow assumes it is a Jinja template path. A single trailing space tells Airflow it is a literal command.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF4",
+        "module-AF4-lesson-03",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF4-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Inside a PythonOperator callable, the file is missing. What should the callable do?",
+      "options": [
+        "Raise an exception so Airflow can fail the task and trigger retries plus alerts",
+        "Return None and write a warning to stdout so the next task can decide what to do",
+        "Print the error message and continue execution so downstream tasks can still run",
+        "Catch the error silently and write an empty placeholder file to keep the chain going"
+      ],
+      "correctAnswer": "Raise an exception so Airflow can fail the task and trigger retries plus alerts",
+      "explanation": "Lesson 4: silent failures are the most expensive failures. Raise an exception — Airflow's retry and alerting handle the rest.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF4",
+        "module-AF4-lesson-04",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF4-l05-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid add EmptyOperator checkpoints (start, bronze_ready, transforms_done, end)?",
+      "options": [
+        "They cost nothing at runtime but make the Graph View structure visually clear",
+        "They reset the metadata database state between phases to avoid stale task entries",
+        "They throttle the executor so downstream tasks do not start before upstream is durable",
+        "They emit Slack notifications between phases without needing a separate notify task"
+      ],
+      "correctAnswer": "They cost nothing at runtime but make the Graph View structure visually clear",
+      "explanation": "Lesson 5: an EmptyOperator runs in milliseconds and uses no real resources. The benefit — clearer phases in the Graph View — is significant.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF4",
+        "module-AF4-lesson-05",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF4-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Network-dependent download, local validation, and Slack notification — which retry/timeout policy fits?",
+      "options": [
+        "Download: many retries with backoff and a long timeout. Validate: short timeout and few retries. Notify: no retries and short timeout.",
+        "Download: no retries since SFTP is reliable. Validate: long timeout because validation is slow. Notify: many retries because Slack is flaky.",
+        "Download: short timeout to fail fast. Validate: many retries because data quality varies. Notify: long timeout because Slack waits for ack."
+      ],
+      "correctAnswer": "Download: many retries with backoff and a long timeout. Validate: short timeout and few retries. Notify: no retries and short timeout.",
+      "explanation": "Lesson 6: per-task config encodes the team's operational experience. SFTP is slow & flaky → long timeout + retries. Validation is local → short. Notify must not block.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF4",
+        "module-AF4-lesson-06",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF4-l07-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid use the verb_noun naming convention for task IDs (download_meters, validate_readings)?",
+      "options": [
+        "Names tell you what the task does — task_1, step_a, do_stuff are meaningless in the UI",
+        "Airflow rejects task IDs that do not start with a verb because of its naming linter",
+        "The metadata database indexes verb prefixes for faster filtering across DAGs in the UI",
+        "Verb_noun is required for TaskFlow tasks because the decorator parses the task ID format"
+      ],
+      "correctAnswer": "Names tell you what the task does — task_1, step_a, do_stuff are meaningless in the UI",
+      "explanation": "Lesson 7: task_id appears in the Graph View, in logs, in alerts. A descriptive verb_noun name explains the task at a glance.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF4",
+        "module-AF4-lesson-07",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF4-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid set `execution_timeout` on every production task — even ones that 'should never hang'?",
+      "options": [
+        "A task with no timeout that hangs runs forever; a 15-min timeout catches it in 15 minutes",
+        "The default timeout is 30 seconds and trips on every task longer than half a minute",
+        "Airflow refuses to schedule any task without an execution_timeout in production mode",
+        "Setting a timeout is required for retries to fire because retries inherit the timeout value"
+      ],
+      "correctAnswer": "A task with no timeout that hangs runs forever; a 15-min timeout catches it in 15 minutes",
+      "explanation": "Lesson 8: 'should never hang' is not a guarantee. A timeout converts an unbounded outage into a bounded one with retry/alert behavior.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF4",
+        "module-AF4-lesson-08",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF4-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid wants Slack to be notified whether the pipeline succeeded or failed. Which trigger rule fits the notify task?",
+      "options": [
+        "trigger_rule='all_done' so notify runs after the pipeline regardless of success or failure",
+        "trigger_rule='all_success' so notify only runs when the pipeline finished perfectly clean",
+        "trigger_rule='one_failed' so notify only fires when at least one upstream task has failed",
+        "trigger_rule='dummy' so notify always runs even before any upstream tasks have completed"
+      ],
+      "correctAnswer": "trigger_rule='all_done' so notify runs after the pipeline regardless of success or failure",
+      "explanation": "Lesson 9: all_done = upstream are all in a final state (success or failed). Perfect for a status notification that should fire either way.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF4",
+        "module-AF4-lesson-09",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF4-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Module 4's complete Bronze DAG has check_sftp before download_meters. Why this 'heartbeat' pattern?",
+      "options": [
+        "Fail fast in 2 minutes if SFTP is down instead of waiting 60 minutes for download to time out",
+        "Warm up the SFTP connection pool so the actual download has a sub-second establishment phase",
+        "Authenticate once with SFTP so the credentials can be cached for downstream tasks to reuse",
+        "Pre-fetch the SFTP file index so the download task does not have to issue a LIST command"
+      ],
+      "correctAnswer": "Fail fast in 2 minutes if SFTP is down instead of waiting 60 minutes for download to time out",
+      "explanation": "Lesson 10: heartbeat = a cheap precondition check before an expensive operation. Fails fast on SFTP outages, saving wasted retry time.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF4",
+        "module-AF4-lesson-10",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF5-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "In the classic operator pattern, what is the boilerplate that TaskFlow eliminates?",
+      "options": [
+        "Manual `kwargs['ti'].xcom_push(...)` and `xcom_pull(...)` calls inside every callable",
+        "Manual `dag=dag` arguments on every operator definition you write inside the file",
+        "Manual `task_id=...` arguments since TaskFlow auto-generates names from function bodies",
+        "Manual `default_args` dictionaries since TaskFlow injects them at parse time globally"
+      ],
+      "correctAnswer": "Manual `kwargs['ti'].xcom_push(...)` and `xcom_pull(...)` calls inside every callable",
+      "explanation": "Lesson 1: classic ops require manual XCom push/pull. TaskFlow's @task makes return values and parameters do that automatically.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF5",
+        "module-AF5-lesson-01",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF5-l02-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does the `@task` decorator turn a regular Python function into?",
+      "options": [
+        "An Airflow task with the same capabilities as a PythonOperator — retries, timeouts, logs",
+        "A new operator class that subclasses BaseOperator and must be registered with the scheduler",
+        "A scheduler-side validator that runs the function during parsing instead of at runtime",
+        "A web-server endpoint that serves the function's return value over HTTP to other DAGs"
+      ],
+      "correctAnswer": "An Airflow task with the same capabilities as a PythonOperator — retries, timeouts, logs",
+      "explanation": "Lesson 2: @task wraps the function as a task with all PythonOperator parameters. Same execution model, friendlier syntax.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF5",
+        "module-AF5-lesson-02",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF5-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "A junior engineer's @task function returns a 500MB pandas DataFrame. What is the correct fix?",
+      "options": [
+        "Write the DataFrame to storage and return only the file path through the XCom return value",
+        "Compress the DataFrame using pickle protocol 5 before returning it to keep XCom under quota",
+        "Split the DataFrame into many smaller @task return values that XCom can handle separately",
+        "Increase the metadata database size so XCom can store payloads above the default limit"
+      ],
+      "correctAnswer": "Write the DataFrame to storage and return only the file path through the XCom return value",
+      "explanation": "Lesson 3: TaskFlow returns are XCom under the hood. SaulėGrid's rule: small values only — paths, counts, flags. Large data goes to storage.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF5",
+        "module-AF5-lesson-03",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF5-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "In TaskFlow, writing `count = validate_meter_data(path)` does what to the dependency graph?",
+      "options": [
+        "Both wires the dependency (validate runs after download) and binds the data (path flows in)",
+        "Wires the dependency only — the data binding requires a separate xcom_pull call afterward",
+        "Binds the data only — the >> operator must still be added explicitly to wire the dependency",
+        "Neither — the assignment must be wrapped with airflow.dag.connect() to take any effect"
+      ],
+      "correctAnswer": "Both wires the dependency (validate runs after download) and binds the data (path flows in)",
+      "explanation": "Lesson 4: in TaskFlow, calling a @task function creates the task AND wires the dependency in one expression. Data flow IS the dependency graph.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF5",
+        "module-AF5-lesson-04",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF5-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "A `@task(multiple_outputs=True)` function returns a list. What happens?",
+      "options": [
+        "Airflow raises an error at runtime — multiple_outputs requires the function to return a dict",
+        "Airflow uses each list element as a separate XCom under keys '0', '1', '2' automatically",
+        "Airflow wraps the list as the value of a single XCom under the function's task_id key",
+        "Airflow ignores multiple_outputs and stores the list as a single return value as usual"
+      ],
+      "correctAnswer": "Airflow raises an error at runtime — multiple_outputs requires the function to return a dict",
+      "explanation": "Lesson 5: multiple_outputs=True requires a dict because the dict's keys become XCom keys. Lists, ints, strings raise at runtime.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF5",
+        "module-AF5-lesson-05",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF5-l06-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "In a SaulėGrid DAG, three tasks pass file paths between Python callables. Which style fits best?",
+      "options": [
+        "TaskFlow @task — data passes between Python tasks; visible in the function signatures",
+        "Classic PythonOperator — manual xcom_push/pull is more explicit for new team members",
+        "BashOperator chain — pass paths as command-line arguments through environment variables",
+        "EmptyOperator chain — push the paths as XCom keys directly from the EmptyOperator"
+      ],
+      "correctAnswer": "TaskFlow @task — data passes between Python tasks; visible in the function signatures",
+      "explanation": "Lesson 6: when Python callables pass data, TaskFlow's signatures expose the data flow naturally. Classic XCom is verbose by comparison.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF5",
+        "module-AF5-lesson-06",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF5-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "In a mixed-style DAG, when should you reach for a classic operator instead of @task?",
+      "options": [
+        "For BashOperator commands, EmptyOperator checkpoints, and provider operators — they have no TaskFlow equivalents",
+        "For any task that runs longer than five minutes — TaskFlow has a hard timeout cap on tasks",
+        "For any task that uses Variables — Variable.get() does not work inside @task functions",
+        "For any task that emits XCom — TaskFlow tasks have writable XCom only on success state"
+      ],
+      "correctAnswer": "For BashOperator commands, EmptyOperator checkpoints, and provider operators — they have no TaskFlow equivalents",
+      "explanation": "Lesson 7: TaskFlow is for Python logic. BashOperator/EmptyOperator/provider operators stay classic. Mixing is the intended design.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF5",
+        "module-AF5-lesson-07",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF5-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "An engineer needs `requests==2.31.0` for one task that conflicts with the worker's installed version. Which decorator fits?",
+      "options": [
+        "@task.virtualenv — runs the function in an isolated venv with pinned requirements",
+        "@task.bash — pip-installs requests inline before invoking the Python interpreter manually",
+        "@task.kubernetes — runs the function in a pod whose image includes the conflicting library",
+        "@task.docker — uses Docker layer caching to inject the requests library into the worker"
+      ],
+      "correctAnswer": "@task.virtualenv — runs the function in an isolated venv with pinned requirements",
+      "explanation": "Lesson 8: @task.virtualenv installs the listed requirements in an isolated venv per execution — the right tool when library versions clash.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF5",
+        "module-AF5-lesson-08",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF5-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid's rule: 'Use @task for new Python tasks; keep BashOperator and provider operators classic.' Why?",
+      "options": [
+        "TaskFlow's value is in Python data passing — forcing it on bash and provider tasks loses fit",
+        "TaskFlow has stricter retry semantics that bash and provider operators cannot satisfy at all",
+        "Mixing within one DAG is forbidden by Airflow and the rule keeps every DAG TaskFlow-only",
+        "Provider operators only work with the legacy DAG context manager and not with TaskFlow"
+      ],
+      "correctAnswer": "TaskFlow's value is in Python data passing — forcing it on bash and provider tasks loses fit",
+      "explanation": "Lesson 9: TaskFlow shines for Python data flow. Bash, Empty, and provider operators are best in their classic form.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF5",
+        "module-AF5-lesson-09",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF5-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "In SaulėGrid's TaskFlow Silver DAG, `flows = separate_flows(bronze)` is followed by `cons = aggregate_consumption(flows['consumption_path'])`. What is happening?",
+      "options": [
+        "separate_flows returns multiple_outputs and each consumer picks the key it needs from the dict",
+        "separate_flows pushes a single XCom and aggregate_consumption pulls the entire blob each time",
+        "separate_flows triggers all consumers in parallel and ignores the data they need internally",
+        "separate_flows runs three sequential operators that each return a single value to consumers"
+      ],
+      "correctAnswer": "separate_flows returns multiple_outputs and each consumer picks the key it needs from the dict",
+      "explanation": "Lesson 10: with multiple_outputs=True, the dict's keys become separate XComs. Different downstream tasks pull different keys.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF5",
+        "module-AF5-lesson-10",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF6-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does `download >> validate` express in classic operator syntax?",
+      "options": [
+        "validate must happen after download — it does not necessarily mean data flows between them",
+        "download sends its return value to validate as a parameter via the XCom shared queue",
+        "download and validate are aliased — they refer to the same task instance under two names",
+        "validate replaces download in the metadata database after download has finished cleanly"
+      ],
+      "correctAnswer": "validate must happen after download — it does not necessarily mean data flows between them",
+      "explanation": "Lesson 1: >> is 'must happen before', not 'sends data to'. In classic ops, dependency and data flow are independent.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF6",
+        "module-AF6-lesson-01",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF6-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When is `chain()` the cleaner choice over `>>` for setting dependencies?",
+      "options": [
+        "When the list is long, dynamically built, or needs cross-dependencies between two lists",
+        "When the dependency graph contains cycles that >> cannot express in a single expression",
+        "When using TaskFlow tasks because >> is reserved for classic operators only in Airflow",
+        "When the schedule is sub-hourly because >> evaluates dependencies once per scheduler tick"
+      ],
+      "correctAnswer": "When the list is long, dynamically built, or needs cross-dependencies between two lists",
+      "explanation": "Lesson 2: chain() shines for long/dynamic chains and cross-dependencies between parallel lanes. Short chains stay readable with >>.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF6",
+        "module-AF6-lesson-02",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF6-l03-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does `validate >> [aggregate_a, aggregate_b, aggregate_c]` create?",
+      "options": [
+        "A fan-out: all three aggregations depend on validate and run in parallel after it succeeds",
+        "A fan-in: validate runs only after all three aggregations have completed in any order",
+        "A diamond: validate runs once before and once after the three parallel aggregations",
+        "A cycle: validate depends on the three aggregations which all depend on validate again"
+      ],
+      "correctAnswer": "A fan-out: all three aggregations depend on validate and run in parallel after it succeeds",
+      "explanation": "Lesson 3: list on the right of >> = fan-out. The three children are independent of each other and run in parallel.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF6",
+        "module-AF6-lesson-03",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF6-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `[aggregate_a, aggregate_b, aggregate_c] >> write_silver` enable as a quality gate?",
+      "options": [
+        "write_silver runs only after all three aggregations succeed — a complete-or-nothing gate",
+        "write_silver runs as soon as the first aggregation succeeds without waiting for the others",
+        "write_silver runs three times — once per upstream — and writes whichever finishes first",
+        "write_silver runs on its own schedule and reads whatever results the aggregations have"
+      ],
+      "correctAnswer": "write_silver runs only after all three aggregations succeed — a complete-or-nothing gate",
+      "explanation": "Lesson 4: fan-in synchronizes parallel work. Either all three aggregations make it into Silver, or none do.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF6",
+        "module-AF6-lesson-04",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF6-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Module 6 lists five basic patterns from which every complex DAG is composed. Which set is correct?",
+      "options": [
+        "Linear chain, fan-out, fan-in, diamond, and side branch",
+        "Cron, sensor, branch, retry, and rollback patterns across all DAGs",
+        "Bronze, Silver, Gold, regulatory, and billing patterns at SaulėGrid",
+        "Lambda, sidecar, broadcast, scatter-gather, and pipeline patterns"
+      ],
+      "correctAnswer": "Linear chain, fan-out, fan-in, diamond, and side branch",
+      "explanation": "Lesson 5: every DAG is a composition of these five. Recognizing them in an existing DAG is faster than reading every edge individually.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF6",
+        "module-AF6-lesson-05",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF6-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Where does the trigger_rule attribute belong in Airflow?",
+      "options": [
+        "On the downstream task — one rule applies to all of its upstream dependencies at once",
+        "On each dependency edge — every >> can carry its own per-edge trigger rule individually",
+        "On the upstream task — its rule decides what state propagates to all of its downstream tasks",
+        "On the DAG itself — the rule applies uniformly to every task instance inside that DAG"
+      ],
+      "correctAnswer": "On the downstream task — one rule applies to all of its upstream dependencies at once",
+      "explanation": "Lesson 6: trigger_rule is set on the downstream task. You cannot say 'tolerate failure on B but require A' — that needs branching, not a per-edge rule.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF6",
+        "module-AF6-lesson-06",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF6-l07-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "After a BranchPythonOperator picks one branch, the rejoining task uses the default trigger_rule. What goes wrong?",
+      "options": [
+        "The rejoin task is blocked because the unchosen branch is 'skipped' and all_success rejects skipped",
+        "The rejoin task runs twice — once for each branch — instead of consolidating the two paths",
+        "The rejoin task fails with a 'branch ambiguous' error because Airflow cannot pick a state",
+        "The rejoin task runs on the wrong branch because Airflow defaults to picking the first one"
+      ],
+      "correctAnswer": "The rejoin task is blocked because the unchosen branch is 'skipped' and all_success rejects skipped",
+      "explanation": "Lesson 7: default trigger_rule is all_success, which treats skipped as not-success. Always use trigger_rule='none_failed' on the convergence task.",
+      "xpReward": 120,
+      "tags": [
+        "module-AF6",
+        "module-AF6-lesson-07",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF6-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the ShortCircuitOperator's behavior when its callable returns False?",
+      "options": [
+        "All downstream tasks are skipped — like an early return at the start of a function",
+        "The DAG Run is marked failed and the scheduler stops creating new runs of this DAG",
+        "The downstream tasks run but with their states forced to 'failed' by Airflow's executor",
+        "The DAG Run pauses indefinitely until an operator manually clears the short-circuit task"
+      ],
+      "correctAnswer": "All downstream tasks are skipped — like an early return at the start of a function",
+      "explanation": "Lesson 8: ShortCircuit returns True (continue) or False (skip everything downstream). Think of it as a guard clause for the pipeline.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF6",
+        "module-AF6-lesson-08",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF6-l09-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid name dependency patterns when discussing DAG design?",
+      "options": [
+        "Pattern names accelerate communication, design reviews, and onboarding for new engineers",
+        "Airflow requires a registered pattern name on every DAG before the scheduler will accept it",
+        "The metadata database indexes pattern names so the UI can group DAGs by structural type",
+        "Pattern names are exported as Prometheus metrics for the platform's reliability dashboards"
+      ],
+      "correctAnswer": "Pattern names accelerate communication, design reviews, and onboarding for new engineers",
+      "explanation": "Lesson 9: 'Silver uses a diamond with a side branch for notifications' is faster than describing every edge. Pattern vocabulary is design speed.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF6",
+        "module-AF6-lesson-09",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF6-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Module 6 closes by connecting dependencies to Module 7. What does each provide?",
+      "options": [
+        "Dependencies define what runs after what; scheduling defines when each pipeline runs",
+        "Dependencies define how data flows; scheduling defines which engine processes the data",
+        "Dependencies define which executor runs each task; scheduling defines task retry counts",
+        "Dependencies define which DAGs the user can see; scheduling defines who can trigger them"
+      ],
+      "correctAnswer": "Dependencies define what runs after what; scheduling defines when each pipeline runs",
+      "explanation": "Lesson 10: dependencies = order. Scheduling = time. Together they tell Airflow exactly what to run, in what order, at what time.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF6",
+        "module-AF6-lesson-10",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF7-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the modern parameter name for setting how often a DAG runs?",
+      "options": [
+        "schedule — replaces the deprecated schedule_interval and accepts cron, presets, or None",
+        "frequency — accepts seconds, minutes, hours, or days as integer values for cadence",
+        "trigger — combines schedule with manual trigger configuration in a single field",
+        "cron — accepts only cron expressions and rejects preset strings like @daily today"
+      ],
+      "correctAnswer": "schedule — replaces the deprecated schedule_interval and accepts cron, presets, or None",
+      "explanation": "Lesson 1: schedule is the modern parameter. schedule_interval still works but logs a deprecation warning.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF7",
+        "module-AF7-lesson-01",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF7-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the cron expression `0 */6 * * *` mean in plain English?",
+      "options": [
+        "At minute 0, every 6th hour, any day, any month, any day of week — every 6 hours on the hour",
+        "At minute 0, hour 6, any day, any month, any day of week — once per day at exactly 06:00",
+        "At any minute, every 6th hour, any day, any month, any day of week — six times per hour",
+        "At minute 0, hour 6, on day 6 of the month, any month, any day of week — monthly on the 6th"
+      ],
+      "correctAnswer": "At minute 0, every 6th hour, any day, any month, any day of week — every 6 hours on the hour",
+      "explanation": "Lesson 2: read aloud field by field. */6 in the hour position = every 6th hour. The schedule fires at 00:00, 06:00, 12:00, 18:00.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF7",
+        "module-AF7-lesson-02",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF7-l03-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid prefer `@daily` over `0 0 * * *` when both are equivalent?",
+      "options": [
+        "Communication — '@daily' immediately tells a reader the intent without parsing five fields",
+        "Performance — preset strings skip the cron parser and are evaluated faster every loop",
+        "Compatibility — older Airflow versions silently rejected '0 0 * * *' as malformed cron",
+        "Security — preset strings are sandboxed by Airflow while cron strings can run shell code"
+      ],
+      "correctAnswer": "Communication — '@daily' immediately tells a reader the intent without parsing five fields",
+      "explanation": "Lesson 3: presets communicate intent. '@daily' is unmistakable; '0 0 * * *' requires either knowing cron or looking it up.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF7",
+        "module-AF7-lesson-03",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF7-l04-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "A daily DAG triggers at midnight on March 23rd. Which date's data should the task process?",
+      "options": [
+        "March 22nd — the DAG fires at the END of its data interval, processing the completed day",
+        "March 23rd — the DAG fires at the START of its data interval, processing the current day",
+        "March 24th — the DAG schedules ahead of time and processes tomorrow's data in advance",
+        "March 21st — the DAG fires two days behind to ensure all upstream sources are ready"
+      ],
+      "correctAnswer": "March 22nd — the DAG fires at the END of its data interval, processing the completed day",
+      "explanation": "Lesson 4: Airflow fires at the END of the data interval. The midnight March 23 trigger processes March 22's completed data. Always use data_interval_start.",
+      "xpReward": 120,
+      "tags": [
+        "module-AF7",
+        "module-AF7-lesson-04",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF7-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Inside a task callable, why use `kwargs['ds']` (or `{{ ds }}` in BashOperator) instead of `datetime.now()`?",
+      "options": [
+        "{{ ds }} returns the logical_date — the correct processing date even during retries or backfill",
+        "{{ ds }} is faster because it avoids the system call that datetime.now() makes per task",
+        "{{ ds }} is automatically timezone-corrected while datetime.now() always returns UTC",
+        "{{ ds }} is sandboxed by Airflow while datetime.now() can be tampered with by other DAGs"
+      ],
+      "correctAnswer": "{{ ds }} returns the logical_date — the correct processing date even during retries or backfill",
+      "explanation": "Lesson 5: datetime.now() returns wall-clock time of execution — wrong during backfills/retries. {{ ds }} returns the logical processing date.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF7",
+        "module-AF7-lesson-05",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF7-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "An engineer deploys a new DAG with `start_date=2025-09-01` and the default `catchup=True`. What happens?",
+      "options": [
+        "The scheduler creates a DAG Run for every missed interval since September — possibly hundreds",
+        "The scheduler creates a single DAG Run for the current date and ignores the historical dates",
+        "The scheduler refuses to deploy the DAG until the engineer sets a start_date in the future",
+        "The scheduler creates DAG Runs but throttles them to one per day to avoid overwhelming the system"
+      ],
+      "correctAnswer": "The scheduler creates a DAG Run for every missed interval since September — possibly hundreds",
+      "explanation": "Lesson 6: catchup=True backfills every missed interval. Combined with a start_date months ago, the scheduler floods. Set max_active_runs=1.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF7",
+        "module-AF7-lesson-06",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF7-l07-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why are manual DAG triggers a design feature, not a sign of failure?",
+      "options": [
+        "They enable targeted reprocessing, testing, and ad-hoc analysis without rerunning the backlog",
+        "They are required because the scheduler stops working when the system clock drifts by a minute",
+        "They are the only way to run sub-hourly schedules since cron expressions are minute-bound",
+        "They bypass the metadata database which speeds up runtime by skipping state transitions"
+      ],
+      "correctAnswer": "They enable targeted reprocessing, testing, and ad-hoc analysis without rerunning the backlog",
+      "explanation": "Lesson 7: scheduled runs handle routine, manual triggers handle exceptions. SaulėGrid uses them 2-3 times per week intentionally.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF7",
+        "module-AF7-lesson-07",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF7-l08-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "An engineer writes `start_date=datetime(2026, 1, 1)` (no timezone). What does Airflow do?",
+      "options": [
+        "Treats the naive datetime as UTC, silently shifting the schedule by 2-3 hours from local time",
+        "Raises an error at parse time because Airflow requires every datetime to carry a timezone",
+        "Treats the naive datetime as the local timezone of the scheduler host machine for the date",
+        "Treats the naive datetime as the user's browser timezone read from the web UI session cookie"
+      ],
+      "correctAnswer": "Treats the naive datetime as UTC, silently shifting the schedule by 2-3 hours from local time",
+      "explanation": "Lesson 8: naive datetimes are treated as UTC. SaulėGrid requires pendulum.datetime(..., tz='Europe/Vilnius') for every start_date.",
+      "xpReward": 120,
+      "tags": [
+        "module-AF7",
+        "module-AF7-lesson-08",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF7-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When designing a schedule, where should the engineer start?",
+      "options": [
+        "Work backward from the consumer's deadline — when does the business need the data ready?",
+        "Forward from the source — what time does the upstream SFTP file arrive each morning?",
+        "From the executor's idle window — schedule when worker capacity is otherwise unused",
+        "From a default 6 AM time — every team eventually converges on early-morning schedules"
+      ],
+      "correctAnswer": "Work backward from the consumer's deadline — when does the business need the data ready?",
+      "explanation": "Lesson 9: every schedule pattern maps to a business requirement. Start with 'when does the consumer need the data?' and work backward to a schedule.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF7",
+        "module-AF7-lesson-09",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF7-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Module 7 closes by previewing Module 8. Which trio does Module 8 introduce?",
+      "options": [
+        "Connections (credentials), Hooks (Python wrappers), and Variables (configuration)",
+        "Datasets (events), Triggers (asyncio), and Deferrable Operators (resource-light waits)",
+        "Sensors (polling), Pools (rate limits), and Slots (executor capacity allocation)"
+      ],
+      "correctAnswer": "Connections (credentials), Hooks (Python wrappers), and Variables (configuration)",
+      "explanation": "Lesson 10: Module 8 covers how Airflow integrates with external systems — Connections, Hooks, Variables.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF7",
+        "module-AF7-lesson-10",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF8-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why do Connections exist as a separate concept from DAG code?",
+      "options": [
+        "DAG code references a connection ID; the credentials live in the metadata DB or env vars",
+        "DAG code embeds credentials directly so each pipeline owns its security context cleanly",
+        "DAG code reads credentials from the worker's filesystem at runtime via the Hook layer",
+        "DAG code negotiates credentials per-task with the executor over a secure local channel"
+      ],
+      "correctAnswer": "DAG code references a connection ID; the credentials live in the metadata DB or env vars",
+      "explanation": "Lesson 1: Connections separate the address (DAG references 'sftp_saulegrid_meters') from the credentials (stored in DB). Rotation = update one record.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF8",
+        "module-AF8-lesson-01",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF8-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "An engineer hardcodes `'sftp://etl:S3cur3@sftp.saulegrid.lt:22'` in a DAG file. What is wrong?",
+      "options": [
+        "Credentials in DAG code are a security violation — DAGs reference connection IDs only",
+        "Hardcoded URIs bypass the metadata database and slow the executor's auth handshake",
+        "URI strings are case-sensitive in Airflow and small typos cause silent connection failures",
+        "Hardcoded connections do not auto-reconnect when the SFTP server rotates its host key"
+      ],
+      "correctAnswer": "Credentials in DAG code are a security violation — DAGs reference connection IDs only",
+      "explanation": "Lesson 2: SaulėGrid's code review blocks any PR with credential-like strings in DAGs. The DAG knows the ID; the metadata knows the secret.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF8",
+        "module-AF8-lesson-02",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF8-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "An engineer wants to add an Amazon S3 connection but it is not in the UI dropdown. Why?",
+      "options": [
+        "The S3 provider package (apache-airflow-providers-amazon) is not installed on this host",
+        "S3 connections must be created via the CLI because the UI form requires extra fields",
+        "S3 is supported only in commercial Airflow distributions and not in the open-source build",
+        "S3 connections are auto-created from environment variables and never appear in the dropdown"
+      ],
+      "correctAnswer": "The S3 provider package (apache-airflow-providers-amazon) is not installed on this host",
+      "explanation": "Lesson 3: out-of-the-box: SFTP, Postgres, HTTP. Anything else (S3, BigQuery, Snowflake) requires installing the provider package first.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF8",
+        "module-AF8-lesson-03",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF8-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is a Hook's role in Airflow's external-system integration?",
+      "options": [
+        "A Python wrapper that resolves a Connection at runtime and provides methods to interact",
+        "A scheduler hook that fires before each task to validate the executor has free capacity",
+        "A web-server hook that decorates the UI with platform-specific badges per Connection type",
+        "A pre-commit hook that scans DAG files for credential leaks during developer commits"
+      ],
+      "correctAnswer": "A Python wrapper that resolves a Connection at runtime and provides methods to interact",
+      "explanation": "Lesson 4: Hook = Python class that wraps a Connection. PostgresHook.get_conn() returns a psycopg2 connection authenticated with the Connection's credentials.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF8",
+        "module-AF8-lesson-04",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF8-l05-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is `Variable.get('quality_threshold')` at the top level of a DAG file dangerous?",
+      "options": [
+        "It queries the metadata database on every scheduler parse — many queries per minute total",
+        "It locks the variable for that DAG and prevents other DAGs from reading the same value",
+        "It caches the value forever and ignores any updates the operator makes through the UI",
+        "It crashes the scheduler when the variable is missing instead of using a default value"
+      ],
+      "correctAnswer": "It queries the metadata database on every scheduler parse — many queries per minute total",
+      "explanation": "Lesson 5: top-level code runs on every parse. Variable.get() at module level = constant DB hammering. Move it inside task callables.",
+      "xpReward": 120,
+      "tags": [
+        "module-AF8",
+        "module-AF8-lesson-05",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF8-l06-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Which practice does SaulėGrid use to enforce 'no credentials in DAG code'?",
+      "options": [
+        "A pre-commit hook that scans for credential-like patterns and blocks the commit",
+        "Manual review by a senior engineer for every PR with a 'security' label attached",
+        "A weekly audit that grep-searches the repository for hardcoded passwords retroactively",
+        "A runtime executor check that crashes any task whose source contains credential strings"
+      ],
+      "correctAnswer": "A pre-commit hook that scans for credential-like patterns and blocks the commit",
+      "explanation": "Lesson 6: discipline lapses; automation does not. Pre-commit hooks catch the moments when 'just for testing' would otherwise slip through.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF8",
+        "module-AF8-lesson-06",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF8-l07-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does installing `apache-airflow-providers-postgres` give you?",
+      "options": [
+        "PostgresOperator, PostgresHook, and a 'Postgres' connection type in the UI dropdown",
+        "Direct access to PostgreSQL's internal query planner from inside Airflow task code",
+        "An embedded PostgreSQL database that Airflow can use as its own metadata backend",
+        "A migration tool that converts existing MySQL connections to PostgreSQL connections automatically"
+      ],
+      "correctAnswer": "PostgresOperator, PostgresHook, and a 'Postgres' connection type in the UI dropdown",
+      "explanation": "Lesson 7: providers add operators + hooks + connection types for one platform. Postgres provider = PostgresOperator + PostgresHook + 'Postgres' UI type.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF8",
+        "module-AF8-lesson-07",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF8-l08-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Lesson 8 lists three steps for integrating any new platform. What are they?",
+      "options": [
+        "Install the provider package, create the Connection, use the operator referencing the connection ID",
+        "Write a custom Python wrapper, configure the executor, register the wrapper as a plugin module",
+        "Write a Bash script, schedule it with cron, and trust Airflow to discover it on next parse cycle",
+        "Subclass BaseOperator, implement the execute method, and add the new operator to the DAG file"
+      ],
+      "correctAnswer": "Install the provider package, create the Connection, use the operator referencing the connection ID",
+      "explanation": "Lesson 8: pip install provider → airflow connections add → use operator(conn_id='...'). Same three steps for Postgres, S3, Snowflake, Slack.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF8",
+        "module-AF8-lesson-08",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF8-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid rename a Connection to `deprecated_<id>` before deleting it?",
+      "options": [
+        "Renaming surfaces missed references on the next scheduler cycle before deletion is final",
+        "Renaming archives the credential history and is required by Lithuanian regulators legally",
+        "Renaming forces Airflow to roll the password and protects against credential reuse attacks",
+        "Renaming creates a snapshot that the scheduler caches for 90 days as a recovery option"
+      ],
+      "correctAnswer": "Renaming surfaces missed references on the next scheduler cycle before deletion is final",
+      "explanation": "Lesson 9: deletion is immediate with no grace period. Renaming first lets a full schedule cycle catch any missed reference before final deletion.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF8",
+        "module-AF8-lesson-09",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF8-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10's integration architecture separates four layers. Which list matches?",
+      "options": [
+        "Connections (credentials), Hooks (methods), Operators (tasks), and Variables (configuration)",
+        "Datasets (events), Triggers (asyncio), Deferrable Operators (waits), and Sensors (polls)",
+        "DAGs (code), Pools (slots), Queues (priorities), and Workers (executors)",
+        "Schedulers (decisions), Executors (work), Web servers (visibility), and Databases (state)"
+      ],
+      "correctAnswer": "Connections (credentials), Hooks (methods), Operators (tasks), and Variables (configuration)",
+      "explanation": "Lesson 10: Connections + Hooks + Operators + Variables = the four-layer integration model. Each layer is independently swappable.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF8",
+        "module-AF8-lesson-10",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF9-l01-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "In the Airflow web UI, which section does an engineer spend roughly 90% of their time in?",
+      "options": [
+        "DAGs — the list, grid, graph, and logs for daily monitoring and incident response",
+        "Admin — Connections, Variables, Pools, and provider configuration management",
+        "Browse — cross-DAG search, DAG dependencies, audit logs, and task instance lookup",
+        "Security — user roles, permissions, RBAC configuration, and access control lists"
+      ],
+      "correctAnswer": "DAGs — the list, grid, graph, and logs for daily monitoring and incident response",
+      "explanation": "Lesson 1: DAGs is where monitoring, debugging, and triggering happen. Admin/Browse/Security are occasional visits.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF9",
+        "module-AF9-lesson-01",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF9-l02-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the DAG List view's job in SaulėGrid's morning routine?",
+      "options": [
+        "Identify which DAGs need diagnosis — not diagnose them. Red circles say 'needs attention'.",
+        "Display the latest task log line for each DAG in a single scrollable view across DAGs.",
+        "Render the dependency graph for every DAG inline so the operator can scan all at once.",
+        "Show every Connection's status with green/red indicators across the full integration matrix."
+      ],
+      "correctAnswer": "Identify which DAGs need diagnosis — not diagnose them. Red circles say 'needs attention'.",
+      "explanation": "Lesson 2: the list view answers 'which DAGs, if any, need investigation?' Diagnosis happens in Grid View and logs.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF9",
+        "module-AF9-lesson-02",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF9-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the Grid View tell you that the DAG List view does not?",
+      "options": [
+        "Which task on which date failed, and whether downstream tasks were skipped or completed",
+        "Which executor slot ran each task and how much CPU each task consumed during execution",
+        "Which DAG file changed most recently and which engineer authored the most recent commit",
+        "Which Connection each task used and whether the credential was rotated within 90 days"
+      ],
+      "correctAnswer": "Which task on which date failed, and whether downstream tasks were skipped or completed",
+      "explanation": "Lesson 3: Grid View narrows from 'this DAG failed' to 'this specific task on this specific date failed' typically in under 10 seconds.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF9",
+        "module-AF9-lesson-03",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF9-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When is the Graph View the right tool to use?",
+      "options": [
+        "After every DAG deployment — verify the dependency structure matches the design visually",
+        "After every task failure — read the task logs inside the Graph View's right-hand panel",
+        "After every schedule change — verify the cron expression matches the intended cadence",
+        "After every Connection rotation — verify the new credentials propagated across worker hosts"
+      ],
+      "correctAnswer": "After every DAG deployment — verify the dependency structure matches the design visually",
+      "explanation": "Lesson 4: Graph View = visual code review of dependencies. A missing >> shows up as a missing edge — visually obvious in a way the source might not be.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF9",
+        "module-AF9-lesson-04",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF9-l05-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "An engineer clicks 'Mark Success' on a failed task. What happens?",
+      "options": [
+        "The task's database state changes to success — the task code is NOT actually executed",
+        "Airflow re-runs the task from scratch and updates the database when it completes cleanly",
+        "Airflow rolls back to the last successful run and discards the failed task instance entirely",
+        "Airflow runs only the failed lines of code in the task and leaves successful steps unchanged"
+      ],
+      "correctAnswer": "The task's database state changes to success — the task code is NOT actually executed",
+      "explanation": "Lesson 5: Mark Success only changes the DB state. Use it only when you have already done the work through other means (manual upload, etc.).",
+      "xpReward": 120,
+      "tags": [
+        "module-AF9",
+        "module-AF9-lesson-05",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF9-l06-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does SaulėGrid's logging convention require a task log to answer?",
+      "options": [
+        "What was the task trying to do, what happened during execution, and why did it fail or succeed",
+        "Which executor ran the task, how many seconds it took, and what its memory peak was",
+        "Which engineer last modified the DAG file, what their email is, and when the file was committed",
+        "Which Connection it used, what the password expiration date is, and which provider it called"
+      ],
+      "correctAnswer": "What was the task trying to do, what happened during execution, and why did it fail or succeed",
+      "explanation": "Lesson 6: logs are read at 8 AM by someone who may not know the task. Three questions answered = a good log.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF9",
+        "module-AF9-lesson-06",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF9-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the Gantt View specifically useful for at SaulėGrid?",
+      "options": [
+        "Performance analysis — how long each task took and where time was spent in the run",
+        "Dependency analysis — the graph structure of upstream and downstream task relationships",
+        "Schedule analysis — the cron expression's effect on the cadence of historical DAG Runs",
+        "Connection analysis — the latency of each external system across the run's lifecycle"
+      ],
+      "correctAnswer": "Performance analysis — how long each task took and where time was spent in the run",
+      "explanation": "Lesson 7: Gantt is the performance tool. Grid/Graph diagnose; Gantt times. Bar lengths reveal bottlenecks; positions reveal parallelism.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF9",
+        "module-AF9-lesson-07",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF9-l08-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the Calendar View's primary purpose?",
+      "options": [
+        "Reveal trends — are we getting more or less reliable? Which DAGs have the most red days?",
+        "Show the schedule's next-fire times for the upcoming month across every DAG in the system",
+        "Display every Connection rotation date so engineers can plan credential refreshes ahead",
+        "Render every executor's free slots over time to inform pool capacity planning decisions"
+      ],
+      "correctAnswer": "Reveal trends — are we getting more or less reliable? Which DAGs have the most red days?",
+      "explanation": "Lesson 8: Calendar turns individual incidents into a reliability narrative — the trend that guides infrastructure investment decisions.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF9",
+        "module-AF9-lesson-08",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF9-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is SaulėGrid's five-step troubleshooting workflow?",
+      "options": [
+        "Identify (DAG List) → Locate (Grid) → Inspect (Logs) → Diagnose → Remediate",
+        "Restart → Retry → Reset → Refresh → Redeploy until the failed task succeeds",
+        "Page → Triage → Escalate → Investigate → Document the incident in the postmortem",
+        "Pause → Backfill → Unpause → Validate → Notify the consumer of the new data"
+      ],
+      "correctAnswer": "Identify (DAG List) → Locate (Grid) → Inspect (Logs) → Diagnose → Remediate",
+      "explanation": "Lesson 9: a junior who follows the workflow diagnoses as effectively as a senior 'who just knows where to look' — the workflow ensures the right views in the right order.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF9",
+        "module-AF9-lesson-09",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF9-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How long is SaulėGrid's daily morning health check when everything is green?",
+      "options": [
+        "About two minutes — open DAGs page, scan for red, filter by 'bronze' and 'gold', done",
+        "About thirty minutes — read every task log line by line for every overnight DAG run",
+        "About one hour — review the Calendar, Gantt, and Graph views for every production DAG",
+        "About fifteen seconds — a Slack bot pages only when something is red so no UI visit is needed"
+      ],
+      "correctAnswer": "About two minutes — open DAGs page, scan for red, filter by 'bronze' and 'gold', done",
+      "explanation": "Lesson 10: morning routine is fast because the UI is designed for visual status checks. Two minutes when green; up to fifteen on a failure.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF9",
+        "module-AF9-lesson-10",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF10-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 1 makes a key claim about the design process for production DAGs. What is it?",
+      "options": [
+        "Building a production DAG is assembly of known concepts, not invention of new ones",
+        "Building a production DAG requires inventing custom operators that the team owns long-term",
+        "Building a production DAG starts with a UML diagram that the team approves before any code",
+        "Building a production DAG begins with the Connection layer and proceeds outward to schedules"
+      ],
+      "correctAnswer": "Building a production DAG is assembly of known concepts, not invention of new ones",
+      "explanation": "Lesson 1: schedule from Module 7, dependencies from 6, operators from 4, retries from 4, Connections from 8. Composition of what you already know.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF10",
+        "module-AF10-lesson-01",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF10-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid's production Bronze DAG uses three operator styles together. Which combination?",
+      "options": [
+        "TaskFlow @task for Python logic, BashOperator for the SFTP script, EmptyOperator for sentinels",
+        "Only PythonOperator for everything because uniform style is easier for new engineers to read",
+        "Only TaskFlow @task because classic operators are deprecated in modern Airflow versions",
+        "Only BashOperator because Bronze ingestion is fundamentally a shell-script concern at scale"
+      ],
+      "correctAnswer": "TaskFlow @task for Python logic, BashOperator for the SFTP script, EmptyOperator for sentinels",
+      "explanation": "Lesson 2: TaskFlow for Python data passing, BashOperator for the existing SFTP script, EmptyOperator for start/end sentinels. Mixing is intentional.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF10",
+        "module-AF10-lesson-02",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF10-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid's Silver DAG uses TaskFlow for fan-out + fan-in. Why TaskFlow over classic operators here?",
+      "options": [
+        "The diamond pattern emerges visibly from function signatures — fan-out and fan-in by reading the DAG",
+        "TaskFlow is the only style that can express fan-out and fan-in patterns in modern Airflow",
+        "TaskFlow auto-tunes parallelism better than classic operators when the executor is LocalExecutor",
+        "TaskFlow stores XCom in a separate database that scales linearly with the number of branches"
+      ],
+      "correctAnswer": "The diamond pattern emerges visibly from function signatures — fan-out and fan-in by reading the DAG",
+      "explanation": "Lesson 3: in TaskFlow, three calls reading three keys = visible fan-out. One function consuming three return values = visible fan-in. Code IS the diagram.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF10",
+        "module-AF10-lesson-03",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF10-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "SaulėGrid's Gold DAG uses BranchPythonOperator. What does the branch decide?",
+      "options": [
+        "Whether to include the regulatory report on business days or skip it on weekends",
+        "Whether to use TaskFlow or classic operators based on the runtime configuration values",
+        "Which Connection ID the downstream PostgresOperator should use for the warehouse insert",
+        "Which executor slot the downstream tasks should run in based on current pool utilization"
+      ],
+      "correctAnswer": "Whether to include the regulatory report on business days or skip it on weekends",
+      "explanation": "Lesson 4: business logic that varies by day. Mon-Fri = include regulatory; weekends = skip. The rejoining task uses trigger_rule='none_failed'.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF10",
+        "module-AF10-lesson-04",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF10-l05-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does SaulėGrid limit ExternalTaskSensor usage to a small number per Airflow installation?",
+      "options": [
+        "Each sensor occupies an executor slot for its full wait — many sensors exhaust parallelism",
+        "Each sensor opens a TCP connection to the metadata database that never closes correctly",
+        "Each sensor crashes the scheduler when its timeout fires before the upstream DAG finishes",
+        "Each sensor doubles the storage cost of the metadata database for the duration of the wait"
+      ],
+      "correctAnswer": "Each sensor occupies an executor slot for its full wait — many sensors exhaust parallelism",
+      "explanation": "Lesson 5: sensors hold slots. SaulėGrid's three sensors are fine. Fifty waiting simultaneously could exhaust executor parallelism. Datasets are the slot-free alternative.",
+      "xpReward": 120,
+      "tags": [
+        "module-AF10",
+        "module-AF10-lesson-05",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF10-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 6 reframes Airflow error handling. What is its core insight?",
+      "options": [
+        "Error handling is configuring the orchestration layer (retries, deps, callbacks) — not try/except",
+        "Error handling is wrapping every callable in try/except blocks that swallow and log failures",
+        "Error handling is post-hoc — write a separate cleanup DAG that runs after every failure",
+        "Error handling is delegated to the executor — Python code should never catch any exception"
+      ],
+      "correctAnswer": "Error handling is configuring the orchestration layer (retries, deps, callbacks) — not try/except",
+      "explanation": "Lesson 6: retries + dependency protection + on_failure_callback + all_done notify = architectural decisions that protect the pipeline. Try/except is the wrong layer.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF10",
+        "module-AF10-lesson-06",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF10-l07-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What three questions should a SaulėGrid task log answer for the on-call engineer at 8 AM?",
+      "options": [
+        "What was the task trying to do, what happened during execution, and why did it fail or succeed",
+        "Which engineer wrote the code, when did they commit, and what their email address is",
+        "Which executor ran the task, how much memory it used, and how many CPU cores it took",
+        "Which version of Airflow ran it, which provider package it used, and which UI version rendered it"
+      ],
+      "correctAnswer": "What was the task trying to do, what happened during execution, and why did it fail or succeed",
+      "explanation": "Lesson 7: at 8 AM the reader may not know the code. Logs that answer the three questions are good logs.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF10",
+        "module-AF10-lesson-07",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF10-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does SaulėGrid treat DAG files at the operational level?",
+      "options": [
+        "As production code — version control, code review, testing, and documented deployment",
+        "As scratch files — engineers can edit them in production without review and redeploy fast",
+        "As config files — they are managed by ops separately from any application code",
+        "As scheduled scripts — they run via cron and bypass the standard CI/CD pipeline"
+      ],
+      "correctAnswer": "As production code — version control, code review, testing, and documented deployment",
+      "explanation": "Lesson 8: DAG files run nightly with real consequences (billing, regulatory). They get the same rigor as PySpark transformation scripts.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF10",
+        "module-AF10-lesson-08",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF10-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Lesson 9 say about performance tuning at junior scale?",
+      "options": [
+        "Avoid common mistakes — keep DAG files lightweight, set timeouts, fan out independent tasks",
+        "Tune the scheduler's parsing interval to one second to maximize scheduler throughput",
+        "Run every DAG with KubernetesExecutor for maximum process isolation and parallelism",
+        "Pre-warm the executor on each parse cycle by making it run a tiny synthetic task on demand"
+      ],
+      "correctAnswer": "Avoid common mistakes — keep DAG files lightweight, set timeouts, fan out independent tasks",
+      "explanation": "Lesson 9: at junior scale, performance is about avoiding mistakes — heavy imports, Variable.get() at module level, missing timeouts. Tuning comes later.",
+      "xpReward": 80,
+      "tags": [
+        "module-AF10",
+        "module-AF10-lesson-09",
+        "airflow-junior"
+      ]
+    },
+    {
+      "id": "airflow-AF10-l10-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Lesson 10 closes the junior track. Which of these reflects what the learner now has?",
+      "options": [
+        "A complete toolkit — DAGs, tasks, dependencies, schedules, connections, monitoring",
+        "A custom operator framework — the ability to write any operator from scratch in a day",
+        "A production deployment plan — Kubernetes, Helm, monitoring stacks, alerting routes",
+        "A migration plan — moving every existing cron job to Airflow within a single quarter"
+      ],
+      "correctAnswer": "A complete toolkit — DAGs, tasks, dependencies, schedules, connections, monitoring",
+      "explanation": "Lesson 10: the foundation is complete. Whether the next step is mid-level track, production Airflow, or your own project — the toolkit is there.",
+      "xpReward": 40,
+      "tags": [
+        "module-AF10",
+        "module-AF10-lesson-10",
+        "airflow-junior"
+      ]
+    }
+  ]
+}

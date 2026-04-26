@@ -1,4 +1,5 @@
 import type { Question } from '@/lib/types';
+import airflowQuestions from '@/data/questions/airflow.json';
 import fabricQuestions from '@/data/questions/fabric.json';
 import pysparkQuestions from '@/data/questions/pyspark.json';
 
@@ -9,6 +10,7 @@ interface QuestionPayload {
 const QUESTION_BANKS: Record<string, Question[]> = {
   pyspark: (pysparkQuestions as QuestionPayload).questions ?? [],
   fabric: (fabricQuestions as QuestionPayload).questions ?? [],
+  airflow: (airflowQuestions as QuestionPayload).questions ?? [],
 };
 
 export const CHECKPOINT_PASS_RATIO = 0.9;
