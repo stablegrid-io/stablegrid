@@ -69,6 +69,10 @@ export default function PrivacyPage() {
           <p className="font-bold text-sm tracking-tight" style={{ color: '#99f7ff', letterSpacing: '0.08em' }}>stablegrid</p>
           <h1 className="text-3xl font-bold tracking-tight text-on-surface">Privacy Policy</h1>
           <p className="text-sm text-on-surface-variant">Effective date: March 9, 2026</p>
+          <div
+            aria-hidden="true"
+            className="h-px w-full mt-2 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+          />
         </header>
 
         <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">

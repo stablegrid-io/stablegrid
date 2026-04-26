@@ -332,7 +332,7 @@ export function CapstoneProjectView({ topic, level }: Props) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-on-surface-variant/60 text-sm">Capstone project not found for {topic} / {level}.</p>
-          <Link href={backHref} className="inline-flex items-center gap-2 text-[11px] font-mono font-medium tracking-widest uppercase text-on-surface-variant/50 hover:text-on-surface-variant transition-colors"><ArrowLeft className="h-3.5 w-3.5" /> Back to track</Link>
+          <Link href={backHref} className="inline-flex items-center gap-2 text-[11px] font-mono font-medium tracking-widest uppercase text-on-surface-variant/80 hover:text-on-surface transition-colors"><ArrowLeft className="h-3.5 w-3.5" /> Back to track</Link>
         </div>
       </div>
     );
@@ -355,7 +355,7 @@ export function CapstoneProjectView({ topic, level }: Props) {
 
         {/* Back link */}
         <div style={{ opacity: 0, animation: 'fadeSlideUp .4s cubic-bezier(.16,1,.3,1) forwards' }}>
-          <Link href={backHref} className="inline-flex items-center gap-2 text-on-surface-variant/50 hover:text-on-surface transition-colors duration-200">
+          <Link href={backHref} className="inline-flex items-center gap-2 text-on-surface-variant/80 hover:text-on-surface transition-colors duration-200">
             <ArrowLeft className="h-4 w-4" />
             <span className="text-[11px] font-mono font-medium tracking-widest uppercase">Back to Learning Path</span>
           </Link>

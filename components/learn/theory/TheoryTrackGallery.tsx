@@ -104,7 +104,7 @@ export const TheoryTrackGallery = ({
         {/* Back */}
         <Link
           href="/learn"
-          className="mb-8 inline-flex items-center gap-2 text-[13px] font-medium text-on-surface-variant/50 hover:text-on-surface-variant transition-colors"
+          className="mb-8 inline-flex items-center gap-2 text-[13px] font-medium text-on-surface-variant/80 hover:text-on-surface transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Learn Hub
@@ -113,7 +113,7 @@ export const TheoryTrackGallery = ({
         {/* Title block */}
         <header className="mb-10">
           <h1
-            className="flex items-center gap-4 font-black text-5xl lg:text-[4rem] tracking-tighter text-on-surface mb-2"
+            className="flex items-center gap-4 font-black text-5xl lg:text-[4rem] tracking-tighter text-on-surface mb-6"
             style={{
               opacity: 0,
               animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards',
@@ -131,6 +131,10 @@ export const TheoryTrackGallery = ({
             )}
             {getLearnTopicMeta(doc.topic)?.title ?? doc.topic.replace(/-/g, ' ')}
           </h1>
+          <div
+            aria-hidden="true"
+            className="h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent"
+          />
         </header>
 
         {/* 3-column tier grid */}

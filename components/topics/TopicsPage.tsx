@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import { LANDING_TOPICS } from '@/lib/landing/topics';
+import { StableGridMark } from '@/components/brand/StableGridLogo';
 import { TopicCard } from './TopicCard';
 
 export function TopicsPage() {
@@ -17,12 +17,6 @@ export function TopicsPage() {
             @keyframes fadeSlideUp {
               from { opacity: 0; transform: translateY(16px); }
               to   { opacity: 1; transform: translateY(0); }
-            }
-            .topics-back-link__arrow {
-              transition: transform 300ms cubic-bezier(.16,1,.3,1);
-            }
-            .topics-back-link:hover .topics-back-link__arrow {
-              transform: translateX(-3px);
             }
           `,
         }}
@@ -42,11 +36,24 @@ export function TopicsPage() {
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between h-14">
           <Link
             href="/"
-            className="topics-back-link inline-flex items-center gap-2 font-bold tracking-tight text-sm"
-            style={{ color: '#99f7ff', letterSpacing: '0.08em' }}
+            className="inline-flex items-center gap-2.5 font-semibold tracking-tight"
+            style={{ letterSpacing: '-0.015em', fontSize: 16 }}
           >
-            <ArrowLeft aria-hidden="true" className="w-4 h-4 topics-back-link__arrow" strokeWidth={2.2} />
-            stablegrid.io
+            <StableGridMark className="h-5 w-5 shrink-0" style={{ color: 'rgba(255,255,255,0.95)' }} />
+            <span>
+              <span style={{ color: 'rgba(255,255,255,0.96)' }}>stablegrid</span>
+              <span
+                style={{
+                  background:
+                    'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.4) 100%)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  color: 'transparent',
+                }}
+              >
+                .io
+              </span>
+            </span>
           </Link>
           <Link
             href="/login"
@@ -115,6 +122,11 @@ export function TopicsPage() {
             From Junior fundamentals to Senior architecture — every track follows the same structured progression.
             Each card opens the full theory + practice library when you sign in.
           </p>
+          <div
+            aria-hidden="true"
+            className="h-px w-full mt-10 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+            style={{ opacity: 0, animation: 'fadeSlideUp .6s cubic-bezier(.16,1,.3,1) 240ms forwards' }}
+          />
         </div>
       </header>
 

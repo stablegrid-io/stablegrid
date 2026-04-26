@@ -1,11 +1,20 @@
 import { notFound, redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import type { Metadata } from 'next';
 import { TheoryLayout } from '@/components/learn/theory/TheoryLayout';
 import { TheoryTrackPath } from '@/components/learn/theory/TheoryTrackPath';
+import { TrackEssentialsInterstitial } from '@/components/learn/theory/TrackEssentialsInterstitial';
 import { CapstoneProjectView } from '@/components/learn/theory/CapstoneProjectView';
 import { learnTopics, getLearnTopicMeta } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
 import { BreadcrumbJsonLd } from '@/lib/seo/jsonLd';
+import { getTrackEssentials } from '@/data/learn/trackEssentials';
+
+const TRACK_LEVEL_ACCENT: Record<string, { color: string; rgb: string }> = {
+  junior: { color: '#99f7ff', rgb: '153,247,255' },
+  mid:    { color: '#ffc965', rgb: '255,201,101' },
+  senior: { color: '#ff716c', rgb: '255,113,108' },
+};
 import { getPracticeSets, getPracticeSet } from '@/data/operations/practice-sets';
 import { PracticeSetSession } from '@/app/operations/practice/[topic]/[level]/[modulePrefix]/PracticeSetViewer';
 import {
@@ -32,6 +41,7 @@ interface LearnTopicTheoryCategoryPageProps {
     lesson?: string | string[];
     practice?: string | string[];
     capstone?: string | string[];
+    essentials?: string | string[];
   };
 }
 
@@ -112,6 +122,38 @@ export default async function LearnTopicTheoryCategoryPage({
 
     if (requestedChapter) {
       return <TheoryLayout doc={trackDoc} />;
+    }
+
+    // ── Track essentials interstitial (first visit only, or forced via ?essentials=1) ──
+    const cookieKey = `${params.topic}:${categoryParam}`;
+    const seenCookie = cookies().get('seenTrackEssentials')?.value ?? '';
+    const seenSlugs = new Set(
+      decodeURIComponent(seenCookie).split(',').filter(Boolean)
+    );
+    const forceEssentials =
+      typeof searchParams?.essentials === 'string'
+        ? searchParams.essentials === '1'
+        : Array.isArray(searchParams?.essentials)
+          ? searchParams.essentials.includes('1')
+          : false;
+    const showInterstitial =
+      Boolean(getTrackEssentials(params.topic, categoryParam)) &&
+      (forceEssentials || !seenSlugs.has(cookieKey));
+
+    if (showInterstitial) {
+      const accent = TRACK_LEVEL_ACCENT[categoryParam] ?? TRACK_LEVEL_ACCENT.junior;
+      return (
+        <TrackEssentialsInterstitial
+          topic={params.topic}
+          tier={categoryParam}
+          trackSlug={categoryParam}
+          trackLabel={track.title ?? track.label}
+          accentColor={accent.color}
+          accentRgb={accent.rgb}
+          backHref={`/learn/${params.topic}/theory`}
+          continueHref={`/learn/${params.topic}/theory/${categoryParam}`}
+        />
+      );
     }
 
     const { completedChapterIds, chapterProgressById, moduleProgressById } =

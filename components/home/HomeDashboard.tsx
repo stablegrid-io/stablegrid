@@ -92,7 +92,13 @@ export const HomeDashboard = ({
   const anim = (delay: number) =>
     ({ opacity: 0, animation: `homeFadeUp .7s cubic-bezier(.16,1,.3,1) ${delay}ms forwards` }) as const;
 
-  const [defaultVariantIdx] = useState(() => Math.floor(Math.random() * 5));
+  // Random greeting picked after hydration so server + client render the same
+  // initial variant (index 0). Picking randomly during SSR causes a hydration
+  // mismatch — server and client get different Math.random() values.
+  const [defaultVariantIdx, setDefaultVariantIdx] = useState(0);
+  useEffect(() => {
+    setDefaultVariantIdx(Math.floor(Math.random() * 5));
+  }, []);
 
   const greetingLine = useMemo(() => {
     const name = <span style={{ color: '#99f7ff' }}>{firstName}</span>;

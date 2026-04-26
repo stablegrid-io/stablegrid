@@ -2,10 +2,10 @@
 
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, Lock, Zap, BookOpen, FlaskConical, Layers, Clock, Trophy } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Check, Lock, Zap, BookOpen, FlaskConical, Layers, Clock, Trophy } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { getTrackConceptMeta } from '@/data/learn/theory/trackConceptMeta';
-import { TrackEssentialsPanel } from '@/components/learn/theory/TrackEssentialsPanel';
+import { getTrackEssentials } from '@/data/learn/trackEssentials';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import { getModuleCheckpointMeta } from '@/lib/learn/moduleCheckpoints';
@@ -187,16 +187,27 @@ export const TheoryTrackPath = ({
     <div className="min-h-screen pb-24 lg:pb-8" style={vars}>
       <div className="mx-auto max-w-5xl px-4 py-8">
 
-        <Link
-          href={`/learn/${doc.topic}/theory`}
-          className="mb-8 inline-flex items-center gap-2 font-mono font-medium text-[11px] text-on-surface-variant/50 hover:text-on-surface-variant transition-colors uppercase tracking-widest"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Track Selection
-        </Link>
+        <div className="mb-8 flex items-center justify-between gap-4">
+          <Link
+            href={`/learn/${doc.topic}/theory`}
+            className="inline-flex items-center gap-2 font-mono font-medium text-[11px] text-on-surface-variant/80 hover:text-on-surface transition-colors uppercase tracking-widest"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Track Selection
+          </Link>
+          {getTrackEssentials(doc.topic, track.slug) && (
+            <Link
+              href={`/learn/${doc.topic}/theory/${track.slug}?essentials=1`}
+              className="inline-flex items-center gap-1.5 font-mono font-medium text-[11px] text-on-surface-variant/80 hover:text-on-surface transition-colors uppercase tracking-widest"
+            >
+              Track Essentials
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
+        </div>
 
         {/* ── Title ── */}
-        <div className="text-center mb-16" style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards' }}>
+        <div className="text-center mb-12" style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards' }}>
           <div
             className="inline-block w-10 h-1.5 mb-6 rounded-full"
             style={{ backgroundColor: ta.color, boxShadow: `0 0 12px rgba(${ta.rgb},0.5)` }}
@@ -204,17 +215,13 @@ export const TheoryTrackPath = ({
           <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-on-surface">
             Learning Path
           </h1>
-          <p className="mt-3 font-mono font-medium text-[12px] tracking-widest text-on-surface-variant/35 uppercase">
+          <p className="mt-3 font-mono font-medium text-[12px] tracking-widest text-on-surface-variant/70 uppercase">
             Master each node to unlock the next stage
           </p>
         </div>
-
-        {/* ── Track essentials (why this tier, concepts, outcomes) ── */}
-        <TrackEssentialsPanel
-          topic={doc.topic}
-          tier={track.slug}
-          accentColor={ta.color}
-          accentRgb={ta.rgb}
+        <div
+          aria-hidden="true"
+          className="h-px w-full mb-16 bg-gradient-to-r from-transparent via-white/15 to-transparent"
         />
 
         {/* ── Zigzag tree map ── */}
@@ -306,7 +313,7 @@ export const TheoryTrackPath = ({
                   </h3>
 
                   {/* Description */}
-                  <p className="text-[12px] leading-relaxed text-on-surface-variant/40 mb-5">
+                  <p className="text-[12px] leading-relaxed text-on-surface-variant/75 mb-5">
                     Apply everything you learned in a real-world scenario. Build a complete data pipeline from raw ingestion to clean output.
                   </p>
 
@@ -391,6 +398,10 @@ function TheoryNode({ card, idx, ta, topic }: {
           className="font-mono text-[10px] font-bold tracking-widest uppercase"
           style={{ color: isLocked ? 'rgba(255,255,255,0.2)' : ta.color }}
         >
+          <span style={{ opacity: isLocked ? 1 : 0.55 }}>
+            {String(idx + 1).padStart(2, '0')}
+          </span>
+          <span className="mx-2" style={{ opacity: isLocked ? 1 : 0.4 }}>·</span>
           {eyebrow}
         </span>
         {isLocked ? (
@@ -408,9 +419,11 @@ function TheoryNode({ card, idx, ta, topic }: {
         {title}
       </h3>
 
-      {/* Description */}
+      {/* Description — clamped to 2 lines, expands on hover */}
       {desc && (
-        <p className="text-[12px] leading-relaxed text-on-surface-variant/40 mb-5 line-clamp-2">{desc}</p>
+        <p className="text-[12px] leading-relaxed text-on-surface-variant/75 mb-5 line-clamp-2 group-hover:line-clamp-none transition-colors">
+          {desc}
+        </p>
       )}
 
       {/* Progress bar */}
@@ -484,6 +497,10 @@ function PracticeNode({ ps, idx, ta, practiceBasePath }: {
                 className="font-mono text-[10px] font-bold tracking-widest uppercase"
                 style={{ color: ta.color }}
               >
+                <span style={{ opacity: 0.55 }}>
+                  {String(idx + 1).padStart(2, '0')}
+                </span>
+                <span className="mx-2" style={{ opacity: 0.4 }}>·</span>
                 {eyebrow}
               </span>
               <FlaskConical className="h-5 w-5" style={{ color: 'rgba(255,255,255,0.12)' }} />
@@ -506,8 +523,8 @@ function PracticeNode({ ps, idx, ta, practiceBasePath }: {
               </div>
             </div>
 
-            {/* Description */}
-            <p className="text-[12px] leading-relaxed text-on-surface-variant/35 mb-5 line-clamp-2">
+            {/* Description — clamped to 2 lines, expands on hover */}
+            <p className="text-[12px] leading-relaxed text-on-surface-variant/75 mb-5 line-clamp-2 group-hover:line-clamp-none transition-colors">
               {ps.description}
             </p>
 

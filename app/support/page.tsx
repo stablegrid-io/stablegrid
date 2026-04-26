@@ -23,6 +23,10 @@ export default function SupportPage() {
             We aim to reply to every support request within 2 business days. Critical bugs
             affecting sign-in, billing, or data loss take top priority.
           </p>
+          <div
+            aria-hidden="true"
+            className="h-px w-full mt-2 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+          />
         </header>
 
         <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">

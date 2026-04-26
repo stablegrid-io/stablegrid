@@ -65,7 +65,7 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
     <div className="flex flex-col h-[calc(100dvh-4rem)] overflow-hidden">
       {/* Top bar */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4 lg:px-6" style={{ borderColor: `rgba(${ta.rgb},0.08)`, backgroundColor: '#0c0e10' }}>
-        <Link href={backHref} className="flex items-center gap-2 text-on-surface-variant/50 hover:text-on-surface transition-colors">
+        <Link href={backHref} className="flex items-center gap-2 text-on-surface-variant/80 hover:text-on-surface transition-colors">
           <ArrowLeft className="h-4 w-4" />
           <span className="hidden sm:inline text-[11px] font-mono font-medium tracking-widest uppercase">Back</span>
         </Link>
