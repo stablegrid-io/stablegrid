@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, ArrowUpDown } from 'lucide-react';
+import { Search, ChevronDown, Check } from 'lucide-react';
 import { getLearnTopicMeta, learnTopics } from '@/data/learn';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { CATEGORY_COLORS, type CategoryName } from '@/components/home/orbitalMapData';
@@ -98,6 +98,145 @@ const getSimpleTrackName = (title: string) => {
   return title.replace(/\s+(tracks?|modules?)$/i, '').trim();
 };
 
+interface DropdownOption {
+  id: string;
+  label: string;
+  count?: number;
+  rgb?: string;
+}
+
+interface FilterDropdownProps {
+  eyebrow: string;
+  value: string;
+  options: DropdownOption[];
+  onChange: (id: string) => void;
+  isOpen: boolean;
+  onToggle: () => void;
+  align?: 'left' | 'right';
+  showCount?: boolean;
+}
+
+function FilterDropdown({
+  eyebrow,
+  value,
+  options,
+  onChange,
+  isOpen,
+  onToggle,
+  align = 'right',
+  showCount = false,
+}: FilterDropdownProps) {
+  const active = options.find((o) => o.id === value) ?? options[0];
+  const accentRgb = active?.rgb ?? '255,255,255';
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        className="inline-flex items-center gap-1.5 h-9 px-3 transition-all"
+        style={{
+          borderRadius: 10,
+          background: isOpen ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${isOpen ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}`,
+        }}
+        onMouseEnter={(e) => {
+          if (!isOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+        }}
+        onMouseLeave={(e) => {
+          if (!isOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+        }}
+      >
+        <span className="font-mono text-[9px] tracking-[0.18em] uppercase font-semibold text-white/55">
+          {eyebrow}
+        </span>
+        <span className="text-white/30 text-[10px]">·</span>
+        <span
+          className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold whitespace-nowrap inline-flex items-center gap-1"
+          style={{ color: `rgb(${accentRgb})` }}
+        >
+          {active?.label}
+          {showCount && active?.count !== undefined && active.count > 0 && active.id !== 'all' && (
+            <span className="font-medium text-white/55">({active.count})</span>
+          )}
+        </span>
+        <ChevronDown
+          className="h-3.5 w-3.5 text-white/55 ml-0.5 transition-transform"
+          style={{ transform: isOpen ? 'rotate(180deg)' : 'none' }}
+          strokeWidth={2}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          role="listbox"
+          className={`absolute top-full mt-2 z-30 min-w-[200px] ${align === 'right' ? 'right-0' : 'left-0'}`}
+          style={{
+            borderRadius: 12,
+            background: 'rgba(16,18,22,0.96)',
+            backdropFilter: 'blur(40px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(160%)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            boxShadow: '0 16px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
+            padding: 4,
+          }}
+        >
+          {options.map((opt) => {
+            const isActive = opt.id === value;
+            const itemRgb = opt.rgb ?? '255,255,255';
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                role="option"
+                aria-selected={isActive}
+                onClick={() => {
+                  onChange(opt.id);
+                  onToggle();
+                }}
+                className="w-full flex items-center justify-between gap-3 px-3 py-2 transition-all"
+                style={{
+                  borderRadius: 8,
+                  color: isActive ? `rgb(${itemRgb})` : 'rgba(255,255,255,0.78)',
+                  background: isActive ? `rgba(${itemRgb},0.14)` : 'transparent',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <span className="font-mono text-[11px] tracking-[0.14em] uppercase font-semibold whitespace-nowrap">
+                  {opt.label}
+                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {showCount && opt.count !== undefined && opt.count > 0 && opt.id !== 'all' && (
+                    <span
+                      className="font-mono text-[10px] tabular-nums"
+                      style={{
+                        padding: '1px 6px',
+                        borderRadius: 99,
+                        background: isActive ? 'rgba(0,0,0,0.32)' : 'rgba(255,255,255,0.08)',
+                        color: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.55)',
+                      }}
+                    >
+                      {opt.count}
+                    </span>
+                  )}
+                  {isActive && <Check className="h-3.5 w-3.5" strokeWidth={2.5} />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function LearnModeTopicSelector({
   mode,
   initialCompletedChapterCountByTopic = {},
@@ -137,6 +276,26 @@ export function LearnModeTopicSelector({
   const [themeFilter, setThemeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
+  const [openDropdown, setOpenDropdown] = useState<'category' | 'status' | 'sort' | null>(null);
+  const toolbarRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!openDropdown) return;
+    const handleClick = (e: MouseEvent) => {
+      if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenDropdown(null);
+    };
+    window.addEventListener('mousedown', handleClick);
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      window.removeEventListener('mousedown', handleClick);
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [openDropdown]);
   const [topicScores, setTopicScores] = useState<Record<string, TopicScore>>({});
 
   useEffect(() => {
@@ -247,30 +406,28 @@ export function LearnModeTopicSelector({
           </h1>
         </header>
 
-        {/* Filter toolbar — translucent material, fitted segmented groups */}
+        {/* Filter toolbar — search + dropdowns */}
         <section
+          ref={toolbarRef}
           aria-label="Filter tracks"
-          className="mb-10 w-full max-w-4xl overflow-hidden"
+          className="relative z-30 mb-10 w-full max-w-4xl"
           style={{
             borderRadius: 18,
-            background: 'rgba(255,255,255,0.028)',
+            background: 'rgba(255,255,255,0.05)',
             backdropFilter: 'blur(40px) saturate(160%)',
             WebkitBackdropFilter: 'blur(40px) saturate(160%)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.18)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 32px rgba(0,0,0,0.22)',
             opacity: 0,
             animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards',
           }}
         >
-          {/* Toolbar: Search · count · divider · sort */}
-          <div
-            className="flex items-center gap-3 px-2.5 py-2.5"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
-          >
+          {/* Single-row toolbar: search + count + dropdowns */}
+          <div className="flex flex-wrap items-center gap-2 px-2.5 py-2.5">
             {/* Search field */}
-            <div className="relative flex-1 min-w-0">
+            <div className="relative flex-1 min-w-[220px]">
               <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50"
                 strokeWidth={1.75}
               />
               <input
@@ -278,28 +435,28 @@ export function LearnModeTopicSelector({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search tracks"
-                className="h-9 w-full pl-9 pr-14 text-[13px] font-normal text-white outline-none transition-all placeholder:text-white/35"
+                className="h-9 w-full pl-9 pr-14 text-[13px] font-normal text-white outline-none transition-all placeholder:text-white/50"
                 style={{
                   borderRadius: 10,
-                  background: 'rgba(255,255,255,0.025)',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(153,247,255,0.4)';
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
                 }}
               />
               <kbd
-                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] tabular-nums text-white/40"
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] tabular-nums text-white/55"
                 style={{
                   padding: '2px 6px',
                   borderRadius: 5,
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.07)',
+                  background: 'rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.12)',
                 }}
               >
                 ⌘K
@@ -307,200 +464,56 @@ export function LearnModeTopicSelector({
             </div>
 
             {/* Count */}
-            <div className="hidden sm:flex items-baseline gap-1 shrink-0 pl-1">
-              <span className="font-mono text-[15px] tabular-nums text-white/85 leading-none">
+            <div className="hidden sm:flex items-baseline gap-1 shrink-0 px-1">
+              <span className="font-mono text-[15px] tabular-nums text-white/95 leading-none">
                 {filteredTopics.length}
               </span>
-              <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-white/35 font-semibold">
+              <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-white/55 font-semibold">
                 {filteredTopics.length === 1 ? 'track' : 'tracks'}
               </span>
             </div>
 
-            {/* Divider */}
-            <div
-              className="hidden md:block shrink-0 h-5 w-px"
-              style={{ background: 'rgba(255,255,255,0.08)' }}
+            {/* Category dropdown */}
+            <FilterDropdown
+              eyebrow="Category"
+              value={themeFilter}
+              options={[
+                { id: 'all', label: 'All' },
+                ...(['Foundations', 'Infrastructure', 'Orchestration', 'Platforms', 'Processing', 'Storage'] as CategoryName[]).map((cat) => ({
+                  id: cat,
+                  label: cat,
+                  rgb: CATEGORY_COLORS[cat],
+                })),
+              ]}
+              onChange={(id) => setThemeFilter(id)}
+              isOpen={openDropdown === 'category'}
+              onToggle={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')}
             />
 
-            {/* Sort — fitted segmented */}
-            <div className="hidden md:inline-flex items-center gap-1.5 shrink-0 pr-1">
-              <ArrowUpDown className="h-3.5 w-3.5 text-white/40" strokeWidth={1.75} />
-              <div
-                className="inline-flex items-center gap-px p-0.5"
-                style={{
-                  borderRadius: 9,
-                  background: 'rgba(0,0,0,0.25)',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                {SORT_OPTIONS.map((opt) => {
-                  const isActive = sortBy === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setSortBy(opt.id)}
-                      className="font-mono px-2.5 py-1 text-[9.5px] tracking-[0.16em] uppercase font-semibold whitespace-nowrap transition-all"
-                      style={{
-                        borderRadius: 7,
-                        color: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)',
-                        background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        boxShadow: isActive
-                          ? 'inset 0 0.5px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.3)'
-                          : 'none',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.8)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.45)';
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+            {/* Status dropdown */}
+            <FilterDropdown
+              eyebrow="Status"
+              value={topicFilter}
+              options={TOPIC_FILTERS.map((opt) => ({
+                id: opt.id,
+                label: opt.label,
+                count: filterCounts[opt.id],
+              }))}
+              onChange={(id) => setTopicFilter(id as TopicFilter)}
+              isOpen={openDropdown === 'status'}
+              onToggle={() => setOpenDropdown(openDropdown === 'status' ? null : 'status')}
+              showCount
+            />
 
-          {/* Filter rows — fitted segmented groups */}
-          <div className="flex flex-col gap-1.5 p-2">
-            {/* Topic group */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <div
-                className="inline-flex flex-wrap items-center gap-px p-0.5"
-                style={{
-                  borderRadius: 9,
-                  background: 'rgba(0,0,0,0.25)',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                {(['all', 'Foundations', 'Infrastructure', 'Orchestration', 'Platforms', 'Processing', 'Storage'] as const).map((theme) => {
-                  const isActive = themeFilter === theme || (theme === 'all' && themeFilter === 'all');
-                  const label = theme === 'all' ? 'All' : theme;
-                  const catRgb = theme === 'all' ? '255,255,255' : CATEGORY_COLORS[theme as CategoryName] ?? '153,247,255';
-                  return (
-                    <button
-                      key={theme}
-                      type="button"
-                      onClick={() => setThemeFilter(theme === 'all' ? 'all' : isActive ? 'all' : theme)}
-                      className="font-mono px-3 py-1 text-[10px] tracking-[0.16em] uppercase font-semibold whitespace-nowrap transition-all"
-                      style={{
-                        borderRadius: 7,
-                        color: isActive
-                          ? theme === 'all' ? 'rgba(255,255,255,0.95)' : `rgb(${catRgb})`
-                          : 'rgba(255,255,255,0.5)',
-                        background: isActive
-                          ? theme === 'all' ? 'rgba(255,255,255,0.1)' : `rgba(${catRgb},0.14)`
-                          : 'transparent',
-                        boxShadow: isActive
-                          ? theme === 'all'
-                            ? 'inset 0 0.5px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.3)'
-                            : `inset 0 0.5px 0 rgba(${catRgb},0.22), 0 1px 2px rgba(0,0,0,0.3)`
-                          : 'none',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.85)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.5)';
-                      }}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Status group */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <div
-                className="inline-flex flex-wrap items-center gap-px p-0.5"
-                style={{
-                  borderRadius: 9,
-                  background: 'rgba(0,0,0,0.25)',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                {TOPIC_FILTERS.map((opt) => {
-                  const isActive = topicFilter === opt.id;
-                  const count = filterCounts[opt.id];
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setTopicFilter(opt.id)}
-                      className="font-mono inline-flex items-center gap-1.5 px-3 py-1 text-[10px] tracking-[0.16em] uppercase font-semibold whitespace-nowrap transition-all"
-                      style={{
-                        borderRadius: 7,
-                        color: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.5)',
-                        background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        boxShadow: isActive
-                          ? 'inset 0 0.5px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.3)'
-                          : 'none',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.85)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.5)';
-                      }}
-                    >
-                      {opt.label}
-                      {count > 0 && opt.id !== 'all' && (
-                        <span
-                          className="tabular-nums font-medium text-[9px] leading-none"
-                          style={{
-                            padding: '2px 5px',
-                            borderRadius: 99,
-                            background: isActive ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.06)',
-                            color: isActive ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.4)',
-                          }}
-                        >
-                          {count}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Sort — mobile fallback */}
-            <div className="md:hidden flex flex-wrap items-center gap-1.5">
-              <div
-                className="inline-flex flex-wrap items-center gap-px p-0.5"
-                style={{
-                  borderRadius: 9,
-                  background: 'rgba(0,0,0,0.25)',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                }}
-              >
-                {SORT_OPTIONS.map((opt) => {
-                  const isActive = sortBy === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setSortBy(opt.id)}
-                      className="font-mono px-3 py-1 text-[10px] tracking-[0.16em] uppercase font-semibold whitespace-nowrap transition-all"
-                      style={{
-                        borderRadius: 7,
-                        color: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.5)',
-                        background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        boxShadow: isActive
-                          ? 'inset 0 0.5px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.3)'
-                          : 'none',
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            {/* Sort dropdown */}
+            <FilterDropdown
+              eyebrow="Sort"
+              value={sortBy}
+              options={SORT_OPTIONS.map((opt) => ({ id: opt.id, label: opt.label }))}
+              onChange={(id) => setSortBy(id as SortOption)}
+              isOpen={openDropdown === 'sort'}
+              onToggle={() => setOpenDropdown(openDropdown === 'sort' ? null : 'sort')}
+            />
           </div>
         </section>
 

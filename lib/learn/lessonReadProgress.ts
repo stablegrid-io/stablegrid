@@ -1,4 +1,4 @@
-export const MIN_LESSON_READ_SECONDS = 30;
+export const MIN_LESSON_READ_SECONDS = 60;
 
 export type LessonSecondsById = Record<string, number>;
 
