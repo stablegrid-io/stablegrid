@@ -7,8 +7,12 @@ import { createMiddlewareClient } from '@/lib/supabase/middleware';
 const MAINTENANCE_MODE = false;
 
 const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/update-password'];
-const PROTECTED_ROUTES = ['/home', '/hub', '/missions', '/practice', '/workspace', '/onboarding', '/operations', '/theory', '/learn', '/settings', '/stats'];
+// /theory and /learn are intentionally public — topic landings + track-level
+// pages are SEO surface. Deep reading sessions (?chapter, ?practice, ?capstone)
+// are still gated below via isLearnSession.
+const PROTECTED_ROUTES = ['/home', '/hub', '/missions', '/practice', '/workspace', '/onboarding', '/operations', '/settings', '/stats'];
 const ADMIN_ROUTES = ['/admin'];
+const LEARN_SESSION_PARAMS = ['chapter', 'practice', 'capstone'] as const;
 
 /* ── Admin membership cache (5-minute TTL) ── */
 const ADMIN_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -134,14 +138,17 @@ export async function middleware(request: NextRequest) {
     data: { user }
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
   const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
     pathname.startsWith(route)
   );
   const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
+  const isLearnSession =
+    pathname.startsWith('/learn/') &&
+    LEARN_SESSION_PARAMS.some((param) => searchParams.has(param));
 
-  if (!user && (isProtectedRoute || isAdminRoute)) {
+  if (!user && (isProtectedRoute || isAdminRoute || isLearnSession)) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -173,7 +180,7 @@ export async function middleware(request: NextRequest) {
   // block them on a missing flag.
   if (
     user &&
-    isProtectedRoute &&
+    (isProtectedRoute || isLearnSession) &&
     !pathname.startsWith('/onboarding') &&
     !isAdminRoute
   ) {
