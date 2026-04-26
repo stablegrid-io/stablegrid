@@ -118,6 +118,7 @@ export const TheorySidebar = ({
                 }}
                 disabled={isLockedLesson}
                 title={lessonLabel}
+                style={{ borderRadius: 12 }}
                 className={`w-full border px-3 py-2.5 text-left transition-colors ${
                   isActiveLesson
                     ? 'border-white/[0.12] bg-white/[0.06]'

@@ -5,14 +5,14 @@ import {
   Home,
   BookOpen,
   Target,
-  Zap,
   TrendingUp
 } from 'lucide-react';
 import { SubstationIcon } from './icons/SubstationIcon';
+import { GridLogoIcon } from './icons/GridLogoIcon';
 
 export interface NavItem {
   href: string;
-  icon: LucideIcon | typeof SubstationIcon;
+  icon: LucideIcon | typeof SubstationIcon | typeof GridLogoIcon;
   label: string;
   matchPrefixes?: string[];
   disabled?: boolean;
@@ -40,7 +40,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: '/grid',
-    icon: Zap,
+    icon: GridLogoIcon,
     label: 'Grid',
     matchPrefixes: ['/grid']
   },
