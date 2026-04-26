@@ -103,9 +103,9 @@ export function LoginForm() {
             boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
           }}
         >
-          {/* Brand mark — top-right corner */}
+          {/* Brand mark — top-left corner */}
           <StableGridMark
-            className="login-stagger-1 absolute right-5 top-5 h-6 w-6"
+            className="login-stagger-1 absolute left-5 top-5 h-6 w-6"
             style={{ color: 'rgba(255,255,255,0.78)' }}
           />
 

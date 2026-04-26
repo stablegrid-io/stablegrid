@@ -21,18 +21,14 @@ export const BottomNav = () => {
           <Link
             key={item.href}
             href={item.href}
-            className="flex flex-col items-center justify-center gap-1 flex-1 h-full"
+            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full mx-1 my-1.5 rounded-[10px] transition-all duration-150 ${
+              isActive
+                ? 'bg-white/[0.08] text-on-surface'
+                : 'text-on-surface-variant/60 hover:text-on-surface-variant hover:bg-white/[0.04]'
+            }`}
           >
-            <Icon
-              className={`h-5 w-5 transition-colors ${
-                isActive ? 'text-primary' : 'text-slate-500'
-              }`}
-            />
-            <span
-              className={`font-mono text-[9px] uppercase tracking-wider transition-colors ${
-                isActive ? 'text-primary' : 'text-slate-500'
-              }`}
-            >
+            <Icon className="h-5 w-5" />
+            <span className="font-mono text-[9px] uppercase tracking-wider">
               {item.label}
             </span>
           </Link>
