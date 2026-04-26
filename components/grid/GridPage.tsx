@@ -187,6 +187,12 @@ export function GridPage() {
         gap: 'clamp(20px, 3vw, 28px)',
       }}
     >
+      <header className="border-b border-white/[0.08] pb-4">
+        <h1 className="text-5xl font-bold tracking-tight text-on-surface">
+          Grid Game
+        </h1>
+      </header>
+
       {/* Header strip: kWh balance + restored counter */}
       <section
         style={{

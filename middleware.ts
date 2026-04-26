@@ -61,6 +61,64 @@ const hasAdminMembership = async (userId: string) => {
   return isAdmin;
 };
 
+/* ── Onboarding-completed cache (5-minute TTL) ── */
+// Without this gate a user who closes the tab mid-onboarding never sees the
+// flow again — the OAuth callback only fires once and subsequent visits land
+// directly on /home. We re-check on every protected route until the flag
+// flips, then cache the positive result so onboarded users don't pay the
+// round-trip on every navigation.
+const ONBOARDING_CACHE_TTL_MS = 5 * 60 * 1000;
+const onboardingCache = new Map<string, { completed: boolean; expiresAt: number }>();
+
+const hasCompletedOnboarding = async (userId: string) => {
+  const cached = onboardingCache.get(userId);
+  if (cached && cached.completed && Date.now() < cached.expiresAt) {
+    return true;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase service role environment variables.');
+  }
+
+  const profileUrl = new URL('/rest/v1/profiles', supabaseUrl);
+  profileUrl.searchParams.set('select', 'onboarding_completed');
+  profileUrl.searchParams.set('id', `eq.${userId}`);
+  profileUrl.searchParams.set('limit', '1');
+
+  const response = await fetch(profileUrl.toString(), {
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      Accept: 'application/json'
+    },
+    cache: 'no-store'
+  });
+
+  if (!response.ok) {
+    // Fail open — never block on a transient profile-read failure.
+    return true;
+  }
+
+  const data = (await response.json()) as Array<{ onboarding_completed: boolean | null }>;
+  const completed = Array.isArray(data) && data.length > 0
+    ? Boolean(data[0]?.onboarding_completed)
+    : false;
+
+  onboardingCache.set(userId, { completed, expiresAt: Date.now() + ONBOARDING_CACHE_TTL_MS });
+
+  if (onboardingCache.size > 200) {
+    const now = Date.now();
+    for (const [key, entry] of onboardingCache) {
+      if (now >= entry.expiresAt) onboardingCache.delete(key);
+    }
+  }
+
+  return completed;
+};
+
 export async function middleware(request: NextRequest) {
   // Maintenance mode: redirect everything except / and static assets
   if (MAINTENANCE_MODE) {
@@ -107,6 +165,22 @@ export async function middleware(request: NextRequest) {
   // Authenticated users visiting the landing page get redirected to dashboard
   if (user && pathname === '/') {
     return NextResponse.redirect(new URL('/home', request.url));
+  }
+
+  // Onboarding gate: any protected page (other than /onboarding itself or
+  // admin) must wait until profiles.onboarding_completed is true. Admin
+  // membership implies an internal user who already has activity; don't
+  // block them on a missing flag.
+  if (
+    user &&
+    isProtectedRoute &&
+    !pathname.startsWith('/onboarding') &&
+    !isAdminRoute
+  ) {
+    const completed = await hasCompletedOnboarding(user.id);
+    if (!completed) {
+      return NextResponse.redirect(new URL('/onboarding', request.url));
+    }
   }
 
   return response;

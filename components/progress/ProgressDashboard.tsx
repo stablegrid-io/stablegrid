@@ -443,7 +443,7 @@ export function ProgressDashboard({
 
         {/* ── Hero ── */}
         <div
-          className="border-l-2 border-primary pl-6 space-y-3"
+          className="border-b border-white/[0.08] pb-6 space-y-3"
           style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 80ms forwards' }}
         >
           <h1

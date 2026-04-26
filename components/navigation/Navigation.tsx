@@ -40,10 +40,7 @@ const NavigationShell = ({ children }: { children: ReactNode }) => {
     <>
       {/* Background overlays — skipped on pages that provide their own full-bleed imagery (hideNav or customBackground). */}
       {!hideForFocus && !hideNav && !customBackground && (
-        <>
-          <div className="fixed inset-0 grid-overlay pointer-events-none z-0" />
-          <div className="fixed inset-0 scanline pointer-events-none z-0 opacity-20" />
-        </>
+        <div className="fixed inset-0 scanline pointer-events-none z-0 opacity-20" />
       )}
 
       {!hideForFocus && <Sidebar />}

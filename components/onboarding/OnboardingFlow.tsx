@@ -158,7 +158,7 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
     if (isFinishing) return;
     setIsFinishing(true);
     setFinishError(null);
-    const destination = '/theory';
+    const destination = '/learn';
     // Emit legacy selectedGoal/selectedLevel keys as null for one release to
     // keep dashboards that key on them from breaking silently. Remove after audit.
     await trackProductEvent('onboarding_completed', {

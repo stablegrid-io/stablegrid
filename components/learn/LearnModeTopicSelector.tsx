@@ -399,10 +399,9 @@ export function LearnModeTopicSelector({
   return (
     <div className="min-h-screen pb-24 lg:pb-10">
       <div className="relative w-full px-4 py-8 sm:px-6 lg:px-10 xl:px-14">
-        {/* Page header — matches Stitch Theory Hub */}
-        <header className="mb-10 border-l-2 border-primary pl-6" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}>
-          <h1 className="text-5xl font-extrabold tracking-tighter text-on-surface mb-2">
-            Theory <span className="text-primary">Hub</span>
+        <header className="mb-10 border-b border-white/[0.08] pb-4" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}>
+          <h1 className="text-5xl font-bold tracking-tight text-on-surface">
+            Theory Hub
           </h1>
         </header>
 
