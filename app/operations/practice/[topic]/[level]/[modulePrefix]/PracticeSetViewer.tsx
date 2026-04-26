@@ -278,6 +278,43 @@ function ProgressDots({
   );
 }
 
+// Practice metadata uses both 'mid' and 'mid-level' historically; the API only
+// recognises the canonical theory slugs. Anything else maps to null and the
+// API call is skipped rather than risking a 400.
+function resolvePracticeTrackSlug(trackLevel: string | undefined): string | null {
+  if (!trackLevel) return null;
+  const normalized = trackLevel.toLowerCase().replace(/-level$/, '');
+  return ['junior', 'mid', 'senior'].includes(normalized) ? normalized : null;
+}
+
+async function persistPracticeCompletion(practiceSet: PracticeSet) {
+  const moduleId = practiceSet.metadata?.moduleId;
+  const topic = practiceSet.topic;
+  const trackSlug = resolvePracticeTrackSlug(practiceSet.metadata?.trackLevel);
+  if (!moduleId || !topic || !trackSlug) return;
+
+  try {
+    await fetch('/api/learn/module-progress', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': `practice-complete-${moduleId}-${Date.now()}`,
+      },
+      body: JSON.stringify({
+        action: 'complete_practice',
+        topic,
+        track: trackSlug,
+        moduleId,
+        currentLessonId: null,
+        lastVisitedRoute: null,
+      }),
+      credentials: 'same-origin',
+    });
+  } catch (error) {
+    console.warn('[practice-complete] failed to persist completion:', error);
+  }
+}
+
 // ── StartScreen ────────────────────────────────────────────────────────────────
 
 function StartScreen({
@@ -440,12 +477,16 @@ function TaskScreen({
 
   const handleNext = useCallback(() => {
     if (isLast) {
+      // Persist practice completion before flipping to the results phase so
+      // the result survives a tab close. Fire-and-forget — UX must not wait
+      // on the network and any failure is recoverable on the next visit.
+      void persistPracticeCompletion(practiceSet);
       dispatch({ type: 'FINISH' });
     } else {
       dispatch({ type: 'NEXT_TASK' });
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [dispatch, isLast]);
+  }, [dispatch, isLast, practiceSet]);
 
   const handlePrev = useCallback(() => {
     dispatch({ type: 'PREV_TASK' });

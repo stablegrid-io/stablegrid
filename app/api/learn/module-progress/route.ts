@@ -20,7 +20,12 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import type { Topic } from '@/types/progress';
 
-type ModuleProgressAction = 'ensure' | 'complete' | 'incomplete' | 'touch';
+type ModuleProgressAction =
+  | 'ensure'
+  | 'complete'
+  | 'complete_practice'
+  | 'incomplete'
+  | 'touch';
 
 interface ModuleProgressRow extends ModuleProgressRowLike {
   id: string;
@@ -64,6 +69,7 @@ const isTopic = (value: string): value is Topic => TOPIC_SET.has(value as Topic)
 const isAction = (value: unknown): value is ModuleProgressAction =>
   value === 'ensure' ||
   value === 'complete' ||
+  value === 'complete_practice' ||
   value === 'incomplete' ||
   value === 'touch';
 
@@ -671,14 +677,20 @@ export async function POST(request: Request) {
           throw new ApiRouteError('Module progress row missing.', 404);
         }
 
-        if (payload.action === 'complete' && !targetRow.is_unlocked) {
+        const isCompleteAction =
+          payload.action === 'complete' || payload.action === 'complete_practice';
+
+        if (isCompleteAction && !targetRow.is_unlocked) {
           throw new ApiRouteError(
             'Module is locked and cannot be completed yet.',
             409
           );
         }
 
-        // Verify the user has actually read the module before allowing completion
+        // Reading completion requires a finished reading session. Practice
+        // completion is independent — a user can master a module by passing
+        // the practice set without reading every lesson, so we don't gate
+        // on reading_sessions for `complete_practice`.
         if (payload.action === 'complete') {
           const { data: sessionRow } = await supabase
             .from('reading_sessions')
@@ -700,31 +712,30 @@ export async function POST(request: Request) {
           }
         }
 
-        const mutatedRows =
-          payload.action === 'complete'
+        const mutatedRows = isCompleteAction
+          ? mutateModuleProgressRows({
+              rows: ensuredRows,
+              moduleId: payload.moduleId,
+              mutation: { type: 'complete' },
+              nowIso
+            })
+          : payload.action === 'incomplete'
             ? mutateModuleProgressRows({
                 rows: ensuredRows,
                 moduleId: payload.moduleId,
-                mutation: { type: 'complete' },
+                mutation: { type: 'incomplete' },
                 nowIso
               })
-            : payload.action === 'incomplete'
-              ? mutateModuleProgressRows({
-                  rows: ensuredRows,
-                  moduleId: payload.moduleId,
-                  mutation: { type: 'incomplete' },
-                  nowIso
-                })
-              : mutateModuleProgressRows({
-                  rows: ensuredRows,
-                  moduleId: payload.moduleId,
-                  mutation: {
-                    type: 'touch',
-                    currentLessonId: payload.currentLessonId,
-                    lastVisitedRoute: payload.lastVisitedRoute
-                  },
-                  nowIso
-                });
+            : mutateModuleProgressRows({
+                rows: ensuredRows,
+                moduleId: payload.moduleId,
+                mutation: {
+                  type: 'touch',
+                  currentLessonId: payload.currentLessonId,
+                  lastVisitedRoute: payload.lastVisitedRoute
+                },
+                nowIso
+              });
 
         const syncedRows = await syncModuleProgressChain({
           supabase,
