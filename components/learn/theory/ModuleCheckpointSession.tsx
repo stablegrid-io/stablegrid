@@ -89,6 +89,7 @@ export function ModuleCheckpointSession({
     () =>
       selectCheckpointQuestions({
         topic,
+        chapterId: chapter.id,
         moduleNumber: chapter.number,
         lessonCount: chapter.sections.length,
       }),
