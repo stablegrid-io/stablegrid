@@ -1543,6 +1543,1982 @@
         "local-mode",
         "cluster"
       ]
+    },
+    {
+      "id": "pyspark-m02-l01-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Before Spark 2.0, connecting to Spark required juggling SparkContext, SQLContext, and HiveContext. What did the SparkSession change?",
+      "options": [
+        "It removed the JVM and made Spark Python-only",
+        "It unified the pre-2.0 entry points into one driver-side object that gives access to read/write, SQL, and config",
+        "It eliminated the need for executors entirely",
+        "It moved everything into the cluster manager"
+      ],
+      "correctAnswer": "It unified the pre-2.0 entry points into one driver-side object that gives access to read/write, SQL, and config",
+      "explanation": "Lesson 01: SparkSession is the single entry point introduced in Spark 2.0 — it consolidated SparkContext/SQLContext/HiveContext into one `spark` object that exposes data I/O, SQL, DataFrame creation, and configuration in one place.",
+      "xpReward": 40,
+      "tags": [
+        "module-02",
+        "module-02-lesson-01",
+        "sparksession",
+        "entry-point"
+      ]
+    },
+    {
+      "id": "pyspark-m02-l02-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "In `SparkSession.builder.appName('x').getOrCreate()`, what does `getOrCreate()` actually do?",
+      "options": [
+        "Always creates a brand-new session, replacing any existing one",
+        "Returns the existing SparkSession if one is already active; otherwise creates a new one with the configured options",
+        "Throws an error when a session already exists",
+        "Creates a SparkContext but skips the SparkSession wrapper"
+      ],
+      "correctAnswer": "Returns the existing SparkSession if one is already active; otherwise creates a new one with the configured options",
+      "explanation": "Lesson 02: `getOrCreate()` is deliberate — it returns the active session when one exists (typical in notebooks, where a previous cell already created it) and otherwise creates a fresh one. This makes the same code safe in both scripts and notebooks.",
+      "xpReward": 80,
+      "tags": [
+        "module-02",
+        "module-02-lesson-02",
+        "builder-pattern",
+        "getorcreate"
+      ]
+    },
+    {
+      "id": "pyspark-m02-l03-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why does setting a meaningful `appName()` matter, even though it doesn't affect computation?",
+      "options": [
+        "Spark refuses to run jobs without an appName",
+        "It is the human-readable label that surfaces in cluster manager dashboards, the Spark UI, monitoring alerts, and logs — critical for operational triage",
+        "The appName determines how many executors are allocated",
+        "appName changes how Catalyst optimizes the query"
+      ],
+      "correctAnswer": "It is the human-readable label that surfaces in cluster manager dashboards, the Spark UI, monitoring alerts, and logs — critical for operational triage",
+      "explanation": "Lesson 03: the app name appears wherever an operator looks during an incident — YARN/K8s dashboards, Spark UI, alert subjects, log lines. Without a clear name, the on-call engineer paged at 3 AM has to guess which job failed.",
+      "xpReward": 40,
+      "tags": [
+        "module-02",
+        "module-02-lesson-03",
+        "appname",
+        "operations"
+      ]
+    },
+    {
+      "id": "pyspark-m02-l04-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "You want to find which step of a slow pipeline took the longest. At the junior level, which Spark UI tab is the most direct answer?",
+      "options": [
+        "Storage tab — it shows JVM heap composition",
+        "Stages tab — it breaks each job into stages and tasks with per-stage durations",
+        "Environment tab — it shows the JVM version",
+        "Executors tab — it shows the OS user"
+      ],
+      "correctAnswer": "Stages tab — it breaks each job into stages and tasks with per-stage durations",
+      "explanation": "Lesson 04: at the junior level the Jobs and Stages tabs are the workhorses. Stages takes you from 'pipeline is slow' to 'this stage is the bottleneck' the fastest — durations and task counts are right there.",
+      "xpReward": 80,
+      "tags": [
+        "module-02",
+        "module-02-lesson-04",
+        "spark-ui",
+        "stages"
+      ]
+    },
+    {
+      "id": "pyspark-m02-l05-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does the modern SparkSession relate to the older SparkContext?",
+      "options": [
+        "SparkSession completely replaces SparkContext; SparkContext no longer exists",
+        "SparkSession wraps SparkContext — a SparkContext is still created internally and can be reached via `spark.sparkContext` for low-level operations",
+        "SparkSession only works for SQL; SparkContext is still required for DataFrames",
+        "They are unrelated objects from different libraries"
+      ],
+      "correctAnswer": "SparkSession wraps SparkContext — a SparkContext is still created internally and can be reached via `spark.sparkContext` for low-level operations",
+      "explanation": "Lesson 05: SparkSession does not replace SparkContext — it wraps it. A SparkContext is created automatically inside it; you reach it via `spark.sparkContext` when you need RDD-level work. New code should always start from `SparkSession.builder`.",
+      "xpReward": 80,
+      "tags": [
+        "module-02",
+        "module-02-lesson-05",
+        "sparkcontext",
+        "history"
+      ]
+    },
+    {
+      "id": "pyspark-m02-l06-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is hardcoding `master('local[*]')` in a script that will run in production considered a mistake?",
+      "options": [
+        "Local mode is slower than cluster mode for any dataset",
+        "spark-submit specifies the master from the command line; hardcoding `local[*]` overrides it, so the 'cluster job' silently runs as a single local process",
+        "Local mode requires a paid Spark license in production",
+        "Master URLs aren't allowed in production code"
+      ],
+      "correctAnswer": "spark-submit specifies the master from the command line; hardcoding `local[*]` overrides it, so the 'cluster job' silently runs as a single local process",
+      "explanation": "Lesson 06 / common-mistake callout: in production, spark-submit provides the master (e.g. `yarn`, `k8s://...`). If the code hardcodes `local[*]`, that wins — and the job that should be distributed across the cluster runs single-machine without any error.",
+      "xpReward": 120,
+      "tags": [
+        "module-02",
+        "module-02-lesson-06",
+        "local-mode",
+        "cluster-mode"
+      ]
+    },
+    {
+      "id": "pyspark-m02-l07-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "A developer calls `spark.conf.set('spark.executor.memory', '8g')` after the SparkSession has already started. Why doesn't it take effect?",
+      "options": [
+        "The property name is misspelled and Spark silently ignores it",
+        "Memory settings are immutable at runtime — executor memory is allocated when the session starts, so it must be set before `getOrCreate()` (or via spark-submit)",
+        "It does take effect, but only after a 30-second delay",
+        "Memory can only be set inside SQL queries"
+      ],
+      "correctAnswer": "Memory settings are immutable at runtime — executor memory is allocated when the session starts, so it must be set before `getOrCreate()` (or via spark-submit)",
+      "explanation": "Lesson 07: `spark.executor.memory` and `spark.driver.memory` are immutable — the cluster manager allocates that memory the moment executors start. Changing them via `spark.conf.set()` after the session is up has no effect.",
+      "xpReward": 120,
+      "tags": [
+        "module-02",
+        "module-02-lesson-07",
+        "configuration",
+        "memory"
+      ]
+    },
+    {
+      "id": "pyspark-m02-l08-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Spark configuration can be set in four places: built-in defaults, `spark-defaults.conf`, `spark-submit` flags, and `SparkSession.builder`. Which has the HIGHEST priority?",
+      "options": [
+        "Built-in defaults — Spark trusts its own values most",
+        "`spark-defaults.conf` — the platform team's settings always win",
+        "`SparkSession.builder` in code — the application's own config overrides everything below it",
+        "All four have equal priority and Spark picks one randomly"
+      ],
+      "correctAnswer": "`SparkSession.builder` in code — the application's own config overrides everything below it",
+      "explanation": "Lesson 08: precedence stack is defaults < spark-defaults.conf < spark-submit < SparkSession.builder. Each layer overrides the one below; code-level config is final, which is why an application can always override a platform-team default if it really needs to.",
+      "xpReward": 80,
+      "tags": [
+        "module-02",
+        "module-02-lesson-08",
+        "configuration",
+        "precedence"
+      ]
+    },
+    {
+      "id": "pyspark-m02-l09-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the practical difference between `--deploy-mode client` and `--deploy-mode cluster` in spark-submit?",
+      "options": [
+        "Client mode runs everything on the driver's laptop; cluster mode skips the driver entirely",
+        "Client mode keeps the driver on the submitting machine (logs stream to your terminal); cluster mode launches the driver on a cluster node, so the job survives if you close your laptop",
+        "Client mode is faster but only works for SQL queries",
+        "They differ only in pricing on managed Spark services"
+      ],
+      "correctAnswer": "Client mode keeps the driver on the submitting machine (logs stream to your terminal); cluster mode launches the driver on a cluster node, so the job survives if you close your laptop",
+      "explanation": "Lesson 09: client mode keeps the driver on the submitting host — useful for development because output streams to your terminal. Cluster mode runs the driver on a cluster node — the production choice, because the job keeps running even if the submitter disconnects.",
+      "xpReward": 120,
+      "tags": [
+        "module-02",
+        "module-02-lesson-09",
+        "spark-submit",
+        "deploy-mode"
+      ]
+    },
+    {
+      "id": "pyspark-m02-l10-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why is calling `spark.stop()` (or wrapping the pipeline in try/finally) at the end of a production script important?",
+      "options": [
+        "It saves the DataFrame results to disk before exit",
+        "Without stopping, the cluster manager keeps the executors allocated — real memory and CPU stay reserved and unavailable to other jobs",
+        "It is required for Catalyst to finalize its optimizations",
+        "Skipping it causes the next run to need a new appName"
+      ],
+      "correctAnswer": "Without stopping, the cluster manager keeps the executors allocated — real memory and CPU stay reserved and unavailable to other jobs",
+      "explanation": "Lesson 10 (and NordGrid's early-days incident): an unreleased session keeps executors allocated. A forgotten debug session held 128 GB of cluster memory overnight and starved scheduled pipelines. Production scripts wrap pipeline logic in try/finally with `spark.stop()`.",
+      "xpReward": 40,
+      "tags": [
+        "module-02",
+        "module-02-lesson-10",
+        "lifecycle",
+        "spark-stop"
+      ]
+    },
+    {
+      "id": "pyspark-m03-l01-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Which set of three properties best describes a PySpark DataFrame?",
+      "options": [
+        "Distributed, strongly typed (schema-aware), and immutable",
+        "Single-machine, untyped, and mutable",
+        "GPU-accelerated, untyped, and immutable",
+        "Distributed, untyped, and mutable"
+      ],
+      "correctAnswer": "Distributed, strongly typed (schema-aware), and immutable",
+      "explanation": "Lesson 01: a DataFrame is distributed (split into partitions across executors), typed (carries an explicit schema with names and data types), and immutable (any transformation produces a new DataFrame instead of mutating the old one).",
+      "xpReward": 40,
+      "tags": [
+        "module-03",
+        "module-03-lesson-01",
+        "dataframe",
+        "fundamentals"
+      ]
+    },
+    {
+      "id": "pyspark-m03-l02-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When creating a DataFrame from a Python list with `createDataFrame()`, why do production pipelines typically pass an explicit `StructType` schema instead of relying on inference?",
+      "options": [
+        "Inference is impossible from Python collections",
+        "It guarantees deterministic types — Spark won't silently pick the wrong type (e.g. string for what should be a date) and the schema becomes part of the contract",
+        "Explicit schemas make the DataFrame run on GPUs",
+        "`createDataFrame()` only works with StructType — passing a plain list throws"
+      ],
+      "correctAnswer": "It guarantees deterministic types — Spark won't silently pick the wrong type (e.g. string for what should be a date) and the schema becomes part of the contract",
+      "explanation": "Lesson 02: explicit `StructType` removes guesswork. Inferred types depend on the sample values (e.g. dates passed as strings stay strings); a hard-coded schema makes the structure deterministic and self-documenting.",
+      "xpReward": 80,
+      "tags": [
+        "module-03",
+        "module-03-lesson-02",
+        "createDataFrame",
+        "structtype"
+      ]
+    },
+    {
+      "id": "pyspark-m03-l03-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What's the key schema-handling difference between reading a CSV file and reading a Parquet file in PySpark?",
+      "options": [
+        "CSV is faster than Parquet because it has no schema overhead",
+        "Parquet carries its schema inside the file (column names, types, nullability) so the reader knows the types instantly; CSV has no type metadata, so types must be inferred or supplied explicitly",
+        "Parquet only supports string columns; CSV supports all types",
+        "Both formats store the schema identically; the difference is only compression"
+      ],
+      "correctAnswer": "Parquet carries its schema inside the file (column names, types, nullability) so the reader knows the types instantly; CSV has no type metadata, so types must be inferred or supplied explicitly",
+      "explanation": "Lesson 03: CSV is plain text — every cell is a string until something else assigns a type. Parquet stores the schema as metadata in the file header, so the reader gets correct types for free, including dates and nullability.",
+      "xpReward": 80,
+      "tags": [
+        "module-03",
+        "module-03-lesson-03",
+        "csv",
+        "parquet"
+      ]
+    },
+    {
+      "id": "pyspark-m03-l04-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is `inferSchema=True` discouraged in production pipelines?",
+      "options": [
+        "It uses too much driver RAM",
+        "It makes the pipeline non-deterministic and slow — Spark runs an extra full pass over the data to guess types, and a change in the source can silently flip a column's type",
+        "It always raises an exception in cluster mode",
+        "It only works for Parquet files, not CSV"
+      ],
+      "correctAnswer": "It makes the pipeline non-deterministic and slow — Spark runs an extra full pass over the data to guess types, and a change in the source can silently flip a column's type",
+      "explanation": "Lesson 04 production rule: inferSchema scans the file once just to guess types and is not deterministic — if the source format shifts (a new column appears, a numeric column starts holding text), downstream code can break in subtle ways. Production pipelines pass an explicit `StructType`.",
+      "xpReward": 120,
+      "tags": [
+        "module-03",
+        "module-03-lesson-04",
+        "schema",
+        "inferschema"
+      ]
+    },
+    {
+      "id": "pyspark-m03-l05-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Which of these methods is an ACTION (triggers execution) rather than a transformation?",
+      "options": [
+        "filter()",
+        "withColumn()",
+        "count()",
+        "select()"
+      ],
+      "correctAnswer": "count()",
+      "explanation": "Lesson 05: `filter`, `withColumn`, and `select` are transformations — they extend the plan without running anything. `count()` is an action — it triggers a full execution from source to result. Putting `count()` inside a loop or after every step in a production pipeline runs the whole plan repeatedly.",
+      "xpReward": 80,
+      "tags": [
+        "module-03",
+        "module-03-lesson-05",
+        "lazy-evaluation",
+        "actions"
+      ]
+    },
+    {
+      "id": "pyspark-m03-l06-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is DataFrame immutability important in a distributed system?",
+      "options": [
+        "It makes the DataFrame faster to print",
+        "It enables safe retries — when a task fails, Spark can rerun it on a different executor without worrying that the input data has been mutated mid-flight",
+        "It eliminates the need for partitions",
+        "It compresses the data automatically"
+      ],
+      "correctAnswer": "It enables safe retries — when a task fails, Spark can rerun it on a different executor without worrying that the input data has been mutated mid-flight",
+      "explanation": "Lesson 06: in a cluster, executors crash and tasks get retried on other nodes. If data could be mutated, retries would race with in-flight writes. Immutability means every transformation produces a fresh DataFrame; the original is always safe to re-process.",
+      "xpReward": 80,
+      "tags": [
+        "module-03",
+        "module-03-lesson-06",
+        "immutability",
+        "fault-tolerance"
+      ]
+    },
+    {
+      "id": "pyspark-m03-l07-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "When exploring a brand-new DataFrame, which method is essentially FREE — no data is read or computed?",
+      "options": [
+        "show(20)",
+        "describe()",
+        "printSchema()",
+        "count()"
+      ],
+      "correctAnswer": "printSchema()",
+      "explanation": "Lesson 07: `printSchema()` reads the schema metadata Spark already has — no data passes through executors. `show()`, `describe()`, and `count()` all trigger a full or partial scan. The recommended exploration order is printSchema → show(5) → describe (only on a sample if the dataset is huge).",
+      "xpReward": 40,
+      "tags": [
+        "module-03",
+        "module-03-lesson-07",
+        "exploration",
+        "actions"
+      ]
+    },
+    {
+      "id": "pyspark-m03-l08-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "When you write `col('daily_kw') > 0` in PySpark, what does that expression actually represent?",
+      "options": [
+        "A boolean value computed immediately by reading the column",
+        "A Column object — an unevaluated expression that describes how to compute a value per row, used inside transformations like filter and withColumn",
+        "An error — Column objects do not support comparison operators",
+        "A Pandas Series of booleans"
+      ],
+      "correctAnswer": "A Column object — an unevaluated expression that describes how to compute a value per row, used inside transformations like filter and withColumn",
+      "explanation": "Lesson 08: `col('daily_kw') > 0` does not compute anything — it builds a Column expression. The expression is later applied row-by-row when an action triggers the plan. This is why PySpark engineers think in column expressions instead of iterating row-by-row like in plain Python.",
+      "xpReward": 120,
+      "tags": [
+        "module-03",
+        "module-03-lesson-08",
+        "column",
+        "expressions"
+      ]
+    },
+    {
+      "id": "pyspark-m03-l09-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is `toPandas()` dangerous on a large PySpark DataFrame?",
+      "options": [
+        "It permanently converts the data and prevents further Spark operations",
+        "It pulls every row from the executors into the driver's single-machine memory; on a multi-billion-row DataFrame that almost always crashes the driver with OOM",
+        "It silently corrupts the data during conversion",
+        "Pandas isn't installed by default in PySpark, so it always raises"
+      ],
+      "correctAnswer": "It pulls every row from the executors into the driver's single-machine memory; on a multi-billion-row DataFrame that almost always crashes the driver with OOM",
+      "explanation": "Lesson 09: `toPandas()` collects ALL data into a single Pandas DataFrame in driver memory. It's fine for small results (a chart, a 1000-row sample) but catastrophic on production-scale DataFrames — the driver isn't sized for full-dataset materialization.",
+      "xpReward": 120,
+      "tags": [
+        "module-03",
+        "module-03-lesson-09",
+        "pandas",
+        "topandas"
+      ]
+    },
+    {
+      "id": "pyspark-m03-l10-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Every PySpark pipeline follows the same three-phase pattern. What are the three phases, in order?",
+      "options": [
+        "Configure → schedule → log",
+        "Read → transform → act (the action triggers execution and writes results)",
+        "Compile → plan → optimize",
+        "Allocate → distribute → collect"
+      ],
+      "correctAnswer": "Read → transform → act (the action triggers execution and writes results)",
+      "explanation": "Lesson 10: Read loads data into a DataFrame, Transform applies a chain of lazy operations (filter, withColumn, join), Act calls a terminating action (write, count, show) that triggers the optimized plan to run end-to-end.",
+      "xpReward": 40,
+      "tags": [
+        "module-03",
+        "module-03-lesson-10",
+        "lifecycle",
+        "pattern"
+      ]
+    },
+    {
+      "id": "pyspark-m04-l01-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is `select()` both a shaping tool and a performance tool when reading from Parquet?",
+      "options": [
+        "It compresses the data before writing it back",
+        "Catalyst pushes the column list down to the Parquet reader so only the selected columns are read from disk — fewer bytes scanned",
+        "It forces Spark to use a single executor, which is faster",
+        "It converts the DataFrame to a Pandas object that's faster to filter"
+      ],
+      "correctAnswer": "Catalyst pushes the column list down to the Parquet reader so only the selected columns are read from disk — fewer bytes scanned",
+      "explanation": "Lesson 01: Parquet stores data column-by-column, so when Catalyst sees a `select(...)` it pushes that list down to the reader and only the chosen columns are physically read. Selecting fewer columns directly cuts I/O — it isn't just code clarity.",
+      "xpReward": 80,
+      "tags": [
+        "module-04",
+        "module-04-lesson-01",
+        "select",
+        "column-pruning"
+      ]
+    },
+    {
+      "id": "pyspark-m04-l02-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When are `select('daily_kw')` and `select(col('daily_kw'))` NOT interchangeable?",
+      "options": [
+        "They are always interchangeable for any operation",
+        "When you need to apply expressions — arithmetic, comparisons, function calls — you must use `col()` because a bare string is just a name and can't carry an expression",
+        "Only the string form supports nested columns",
+        "The string form is faster, so always prefer it"
+      ],
+      "correctAnswer": "When you need to apply expressions — arithmetic, comparisons, function calls — you must use `col()` because a bare string is just a name and can't carry an expression",
+      "explanation": "Lesson 02: a string is a column reference; a `col()` expression can be composed (`col('daily_kw') * 1000`, `col('daily_kw') > 0`). For plain selection both are fine and equivalent; for any expression you need the Column object.",
+      "xpReward": 80,
+      "tags": [
+        "module-04",
+        "module-04-lesson-02",
+        "column",
+        "col-vs-string"
+      ]
+    },
+    {
+      "id": "pyspark-m04-l03-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What's a meaningful behavioral difference between `select()` and `drop()` for columns that don't exist?",
+      "options": [
+        "Both raise an AnalysisException — the behavior is identical",
+        "`select()` raises an AnalysisException for a missing column; `drop()` silently ignores names that aren't there",
+        "`drop()` raises; `select()` silently keeps all columns",
+        "Both silently ignore missing columns"
+      ],
+      "correctAnswer": "`select()` raises an AnalysisException for a missing column; `drop()` silently ignores names that aren't there",
+      "explanation": "Lesson 03: that asymmetry matters in practice. `drop('legacy_col')` is safe to leave in code even when the column may not appear in some inputs; `select('legacy_col')` will fail. NordGrid's pattern: `drop()` for cleanup mid-pipeline, `select()` to pin the final schema at the end.",
+      "xpReward": 80,
+      "tags": [
+        "module-04",
+        "module-04-lesson-03",
+        "drop",
+        "select"
+      ]
+    },
+    {
+      "id": "pyspark-m04-l04-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What's the relationship between PySpark's `filter()` and `where()`?",
+      "options": [
+        "`where()` is faster than `filter()`",
+        "They are exact aliases — same implementation, same behavior, same performance — pure style choice",
+        "`filter()` only takes Column expressions, `where()` only takes SQL strings",
+        "`filter()` is lazy, `where()` is eager"
+      ],
+      "correctAnswer": "They are exact aliases — same implementation, same behavior, same performance — pure style choice",
+      "explanation": "Lesson 04: `filter()` and `where()` are aliases of the same method. Some teams pick `filter()` for the Pythonic feel, others `where()` for SQL familiarity — Catalyst sees them identically.",
+      "xpReward": 40,
+      "tags": [
+        "module-04",
+        "module-04-lesson-04",
+        "filter",
+        "where"
+      ]
+    },
+    {
+      "id": "pyspark-m04-l05-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why must you parenthesise each comparison when combining filter conditions with `&` or `|` in PySpark?",
+      "options": [
+        "PySpark's parser requires the parentheses for syntactic reasons specific to Spark",
+        "Python's `&` and `|` have HIGHER precedence than `>`, `==`, etc., so `col('a') > 0 & col('b') == 'X'` is parsed as `col('a') > (0 & col('b')) == 'X'` — almost never what you meant",
+        "The parentheses are required only when there are more than three conditions",
+        "Without them PySpark silently switches to short-circuit evaluation"
+      ],
+      "correctAnswer": "Python's `&` and `|` have HIGHER precedence than `>`, `==`, etc., so `col('a') > 0 & col('b') == 'X'` is parsed as `col('a') > (0 & col('b')) == 'X'` — almost never what you meant",
+      "explanation": "Lesson 05: `&` and `|` are bitwise operators in Python and bind TIGHTER than comparisons. The fix is `(col('a') > 0) & (col('b') == 'X')` — wrap each comparison so the boolean operators apply to whole booleans, not to their operands.",
+      "xpReward": 120,
+      "tags": [
+        "module-04",
+        "module-04-lesson-05",
+        "operators",
+        "precedence"
+      ]
+    },
+    {
+      "id": "pyspark-m04-l06-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does `col('daily_kw') == None` not work for finding null values, and what's the correct way?",
+      "options": [
+        "It works fine; either approach is equivalent",
+        "Spark uses three-valued logic — comparing anything (including null) to null yields null, and `filter()` drops null rows. Use `col('daily_kw').isNull()` instead",
+        "`== None` works only for string columns",
+        "Spark raises a TypeError when you compare to `None`"
+      ],
+      "correctAnswer": "Spark uses three-valued logic — comparing anything (including null) to null yields null, and `filter()` drops null rows. Use `col('daily_kw').isNull()` instead",
+      "explanation": "Lesson 06: in three-valued logic, `null == null` is null, not true. `filter()` only keeps rows where the condition is truly true, so any null comparison silently discards the rows you wanted. `isNull()` / `isNotNull()` are the correct primitives.",
+      "xpReward": 120,
+      "tags": [
+        "module-04",
+        "module-04-lesson-06",
+        "null",
+        "three-valued-logic"
+      ]
+    },
+    {
+      "id": "pyspark-m04-l07-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does the execution plan differ between `df.filter(col('daily_kw') > 0)` and `df.filter('daily_kw > 0')`?",
+      "options": [
+        "The Column form is faster because it skips parsing",
+        "There is no difference — Catalyst parses the SQL string into the same logical plan as the Column expression, so the optimized plan is identical",
+        "The string form runs in Pandas and is slower",
+        "The Column form supports nulls; the string form does not"
+      ],
+      "correctAnswer": "There is no difference — Catalyst parses the SQL string into the same logical plan as the Column expression, so the optimized plan is identical",
+      "explanation": "Lesson 07: the SQL string is parsed into a Column expression before optimization, so Catalyst sees the same logical plan either way. Choose by readability — Column expressions for IDE-aware refactoring, SQL strings when the team thinks in SQL.",
+      "xpReward": 80,
+      "tags": [
+        "module-04",
+        "module-04-lesson-07",
+        "filter",
+        "expr"
+      ]
+    },
+    {
+      "id": "pyspark-m04-l08-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What's the cleanest way to rename `kwh_reading` to `daily_kw` while ALSO trimming the DataFrame down to just four columns?",
+      "options": [
+        "Call `withColumnRenamed('kwh_reading', 'daily_kw')` — it does both at once",
+        "Use `select(...)` and call `.alias('daily_kw')` on the column — selection and rename happen in a single pass; no extra columns survive",
+        "Drop the unwanted columns, then call `withColumnRenamed`",
+        "There's no way to do it in PySpark; rename and select must be separate stages"
+      ],
+      "correctAnswer": "Use `select(...)` and call `.alias('daily_kw')` on the column — selection and rename happen in a single pass; no extra columns survive",
+      "explanation": "Lesson 08: `select(... col('kwh_reading').alias('daily_kw') ...)` shapes and renames in one step. `withColumnRenamed` only renames — it would leave every other column intact, so you'd still need `select()` to trim.",
+      "xpReward": 40,
+      "tags": [
+        "module-04",
+        "module-04-lesson-08",
+        "alias",
+        "rename"
+      ]
+    },
+    {
+      "id": "pyspark-m04-l09-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "When `dropDuplicates(['meter_id', 'date'])` finds multiple rows with the same `(meter_id, date)`, which row does it keep?",
+      "options": [
+        "Always the first row in the file",
+        "Always the row with the highest non-null count",
+        "An arbitrary row — the choice depends on partition order and execution timing, so for deterministic results you must order or aggregate first",
+        "It raises an error and refuses to drop"
+      ],
+      "correctAnswer": "An arbitrary row — the choice depends on partition order and execution timing, so for deterministic results you must order or aggregate first",
+      "explanation": "Lesson 09 warning: `dropDuplicates` is non-deterministic on the kept row. If you need 'latest reading wins' semantics, sort by ingestion_timestamp first or use a window function with `row_number() over (partition by … order by …)` and keep `row_number = 1`.",
+      "xpReward": 120,
+      "tags": [
+        "module-04",
+        "module-04-lesson-09",
+        "dropduplicates",
+        "determinism"
+      ]
+    },
+    {
+      "id": "pyspark-m04-l10-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Eight transformations chained together — does that mean Spark scans the dataset eight times?",
+      "options": [
+        "Yes — every transformation is a full pass",
+        "No — all transformations are lazy. Spark records the whole chain into a plan and Catalyst executes it as a single optimized pass when an action triggers",
+        "Only if `.cache()` is called between every step",
+        "Only when running in cluster mode"
+      ],
+      "correctAnswer": "No — all transformations are lazy. Spark records the whole chain into a plan and Catalyst executes it as a single optimized pass when an action triggers",
+      "explanation": "Lesson 10: chaining is free. Spark builds the entire chain as a logical plan, lets Catalyst combine and reorder operations (filter pushdown, column pruning, predicate combining), and only physically scans the data when an action like `write` runs.",
+      "xpReward": 40,
+      "tags": [
+        "module-04",
+        "module-04-lesson-10",
+        "chaining",
+        "lazy-evaluation"
+      ]
+    },
+    {
+      "id": "pyspark-m05-l01-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What happens when you call `withColumn('region', upper(col('region')))` on a DataFrame that already has a `region` column?",
+      "options": [
+        "Spark raises an error because the column already exists",
+        "It REPLACES the existing region column's values with the new expression, keeping the column in its original position",
+        "It creates a second column named region_1",
+        "It creates a brand-new region column at the end and removes the original"
+      ],
+      "correctAnswer": "It REPLACES the existing region column's values with the new expression, keeping the column in its original position",
+      "explanation": "Lesson 01: passing an existing column name to `withColumn()` replaces that column's values in place. The column keeps its original position — useful for type casts, normalization, and cleanup without restructuring the schema.",
+      "xpReward": 80,
+      "tags": [
+        "module-05",
+        "module-05-lesson-01",
+        "withcolumn",
+        "replace"
+      ]
+    },
+    {
+      "id": "pyspark-m05-l02-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Which renaming technique applies new names POSITIONALLY (first name → first column, regardless of current name)?",
+      "options": [
+        "withColumnRenamed('old_name', 'new_name')",
+        "alias() inside select()",
+        "toDF('a', 'b', 'c', ...)",
+        "withColumn('new_name', col('old_name'))"
+      ],
+      "correctAnswer": "toDF('a', 'b', 'c', ...)",
+      "explanation": "Lesson 02: `toDF()` accepts a list of names and assigns them positionally — first name to first column, etc. It doesn't look at the existing names at all. Useful for renaming all columns at once when you trust the order; risky if column order ever changes.",
+      "xpReward": 80,
+      "tags": [
+        "module-05",
+        "module-05-lesson-02",
+        "rename",
+        "todf"
+      ]
+    },
+    {
+      "id": "pyspark-m05-l03-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What happens if you `cast('double')` a string column where some values are 'N/A' instead of numbers?",
+      "options": [
+        "Spark raises an exception and aborts the job",
+        "Spark silently produces null for the bad rows — no error, the rest of the column casts fine",
+        "Spark treats 'N/A' as zero",
+        "Spark refuses to cast any rows in that column"
+      ],
+      "correctAnswer": "Spark silently produces null for the bad rows — no error, the rest of the column casts fine",
+      "explanation": "Lesson 03 warning: cast failures don't throw — they produce null. The defensive pattern is to count nulls before and after the cast: a sudden jump in nulls means a data quality issue you'd otherwise miss until a downstream report looked wrong.",
+      "xpReward": 120,
+      "tags": [
+        "module-05",
+        "module-05-lesson-03",
+        "cast",
+        "silent-nulls"
+      ]
+    },
+    {
+      "id": "pyspark-m05-l04-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why are PySpark's built-in string functions (upper, trim, regexp_replace, etc.) much faster than wrapping equivalent Python logic in a UDF?",
+      "options": [
+        "Built-in functions run on GPUs",
+        "Built-in functions execute entirely on the JVM inside the executors at native speed; UDFs serialize each row to Python and back, which is orders of magnitude slower",
+        "Built-in functions skip the data and return cached results",
+        "There is no difference; UDFs and built-ins perform identically"
+      ],
+      "correctAnswer": "Built-in functions execute entirely on the JVM inside the executors at native speed; UDFs serialize each row to Python and back, which is orders of magnitude slower",
+      "explanation": "Lesson 04: built-in string functions compile to JVM bytecode and process partitions in-place. UDFs cross the JVM↔Python boundary for every row, paying serialization cost twice per row. Always prefer built-ins.",
+      "xpReward": 80,
+      "tags": [
+        "module-05",
+        "module-05-lesson-04",
+        "string-functions",
+        "performance"
+      ]
+    },
+    {
+      "id": "pyspark-m05-l05-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What's NordGrid's recommended way to handle dates throughout a pipeline?",
+      "options": [
+        "Convert dates to strings as early as possible, then process them as text",
+        "Keep dates as DateType/TimestampType all the way through; only convert to formatted strings at the very last output step",
+        "Convert dates to Unix timestamps for everything",
+        "Process dates as integers (YYYYMMDD) for performance"
+      ],
+      "correctAnswer": "Keep dates as DateType/TimestampType all the way through; only convert to formatted strings at the very last output step",
+      "explanation": "Lesson 05: working with dates as proper temporal types lets you use date arithmetic, comparisons, and date-part extraction efficiently. Format-as-string only at the output boundary so downstream consumers get the format they need.",
+      "xpReward": 80,
+      "tags": [
+        "module-05",
+        "module-05-lesson-05",
+        "dates",
+        "datetype"
+      ]
+    },
+    {
+      "id": "pyspark-m05-l06-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "If `daily_kw` is null in a row, what is the value of `col('daily_kw') * 0.12 + 5`?",
+      "options": [
+        "5 — the literal 5 is added even when daily_kw is null",
+        "null — any arithmetic involving null propagates null through the entire expression",
+        "0.12 — the multiplier is preserved when the operand is null",
+        "Spark raises an error during evaluation"
+      ],
+      "correctAnswer": "null — any arithmetic involving null propagates null through the entire expression",
+      "explanation": "Lesson 06: null propagates through arithmetic. `null * 0.12` is null, `null + 5` is null. Use `coalesce()` or `when(col('x').isNotNull(), ...).otherwise(...)` to substitute a default before doing math.",
+      "xpReward": 120,
+      "tags": [
+        "module-05",
+        "module-05-lesson-06",
+        "arithmetic",
+        "nulls"
+      ]
+    },
+    {
+      "id": "pyspark-m05-l07-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What SQL construct does `when(cond1, val1).when(cond2, val2).otherwise(default)` correspond to?",
+      "options": [
+        "GROUP BY",
+        "CASE WHEN cond1 THEN val1 WHEN cond2 THEN val2 ELSE default END",
+        "JOIN ON",
+        "UNION ALL"
+      ],
+      "correctAnswer": "CASE WHEN cond1 THEN val1 WHEN cond2 THEN val2 ELSE default END",
+      "explanation": "Lesson 07: `when().when().otherwise()` is the PySpark equivalent of SQL's CASE WHEN. Conditions are evaluated top-down; the first match wins. Without `otherwise()`, unmatched rows get null.",
+      "xpReward": 40,
+      "tags": [
+        "module-05",
+        "module-05-lesson-07",
+        "when",
+        "case-when"
+      ]
+    },
+    {
+      "id": "pyspark-m05-l08-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why might NordGrid materialize a boolean `is_valid` column on the Silver table instead of repeating the filter condition wherever it's needed?",
+      "options": [
+        "Boolean columns are smaller on disk than running the comparison",
+        "It encodes the business definition of 'valid' once — every downstream query filters on the flag, so changes to the rule live in one place",
+        "Boolean columns are required by Parquet",
+        "Spark cannot filter on conditions inline"
+      ],
+      "correctAnswer": "It encodes the business definition of 'valid' once — every downstream query filters on the flag, so changes to the rule live in one place",
+      "explanation": "Lesson 08: a flag column turns business logic into a label. When the rule changes (e.g. tighter null-handling), you update the flag definition once instead of finding every duplicated filter expression scattered across reports.",
+      "xpReward": 80,
+      "tags": [
+        "module-05",
+        "module-05-lesson-08",
+        "boolean",
+        "flags"
+      ]
+    },
+    {
+      "id": "pyspark-m05-l09-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `expr('CASE WHEN daily_kw < 500 THEN \"low\" ELSE \"high\" END')` return?",
+      "options": [
+        "A Python string that you have to parse manually",
+        "A Column expression you can use anywhere — withColumn, select, filter — exactly like a Column built via the API",
+        "A SQL view registered automatically in the catalog",
+        "An error — expr() does not accept CASE WHEN"
+      ],
+      "correctAnswer": "A Column expression you can use anywhere — withColumn, select, filter — exactly like a Column built via the API",
+      "explanation": "Lesson 09: `expr()` parses a SQL string and returns a regular Column object. The optimized plan is identical to the equivalent `when().otherwise()` chain — choose by readability.",
+      "xpReward": 80,
+      "tags": [
+        "module-05",
+        "module-05-lesson-09",
+        "expr",
+        "sql"
+      ]
+    },
+    {
+      "id": "pyspark-m05-l10-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "A 50-line Bronze-to-Silver pipeline chains 8 transformations. How many physical scans of the source CSV does Spark perform when the final write triggers?",
+      "options": [
+        "8 — one per transformation",
+        "Just one — Catalyst sees the whole chain, optimizes it, and reads the source data once",
+        "Two — one to infer schema, one to transform",
+        "16 — Spark reads twice per transformation for safety"
+      ],
+      "correctAnswer": "Just one — Catalyst sees the whole chain, optimizes it, and reads the source data once",
+      "explanation": "Lesson 10: lazy evaluation lets Catalyst combine all transformations into one plan. The physical execution does column pruning, predicate pushdown, and filter combining, then makes a single pass over the source.",
+      "xpReward": 40,
+      "tags": [
+        "module-05",
+        "module-05-lesson-10",
+        "pipeline",
+        "lazy"
+      ]
+    },
+    {
+      "id": "pyspark-m06-l01-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What's the defining characteristic that distinguishes aggregation from row-level operations like filter or withColumn?",
+      "options": [
+        "Aggregation runs faster than row-level operations",
+        "Aggregation reduces the number of rows — many rows become few rows (or one row)",
+        "Aggregation always increases the row count",
+        "Aggregation only works on Parquet files"
+      ],
+      "correctAnswer": "Aggregation reduces the number of rows — many rows become few rows (or one row)",
+      "explanation": "Lesson 01: filter/select/withColumn keep one row per input row. Aggregation collapses many rows into summaries — 500,000 readings into 4 regional totals. That row reduction is the bridge from raw data to information.",
+      "xpReward": 40,
+      "tags": [
+        "module-06",
+        "module-06-lesson-01",
+        "aggregation",
+        "fundamentals"
+      ]
+    },
+    {
+      "id": "pyspark-m06-l02-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is it standard to import PySpark's aggregation functions with aliases (e.g. `from pyspark.sql.functions import sum as spark_sum`)?",
+      "options": [
+        "Aliases run faster than the original names",
+        "Python has built-in functions called `sum`, `min`, `max` — without an alias the import shadows them and breaks plain Python code in the same file",
+        "It's a stylistic preference; the names work identically without aliases",
+        "Spark requires aliases for all imports"
+      ],
+      "correctAnswer": "Python has built-in functions called `sum`, `min`, `max` — without an alias the import shadows them and breaks plain Python code in the same file",
+      "explanation": "Lesson 02 warning: `from pyspark.sql.functions import sum` overrides Python's built-in `sum`. Aliasing as `spark_sum` keeps both available — important when you need plain Python `sum(...)` next to PySpark `spark_sum(...)`.",
+      "xpReward": 80,
+      "tags": [
+        "module-06",
+        "module-06-lesson-02",
+        "imports",
+        "shadowing"
+      ]
+    },
+    {
+      "id": "pyspark-m06-l03-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Is `groupBy('region').agg(sum('daily_kw'))` an action or a transformation?",
+      "options": [
+        "An action — it executes immediately and returns a Python dict",
+        "A transformation — it builds the plan but doesn't execute until an action like show, count, or write triggers it",
+        "Neither — it is a metadata operation",
+        "It depends on whether the cluster is in local mode"
+      ],
+      "correctAnswer": "A transformation — it builds the plan but doesn't execute until an action like show, count, or write triggers it",
+      "explanation": "Lesson 03: groupBy + agg is lazy. It looks like 'do the work,' but no rows are scanned until an action fires. This is why you can safely chain groupBy with further filters and selects without paying for intermediate computation.",
+      "xpReward": 80,
+      "tags": [
+        "module-06",
+        "module-06-lesson-03",
+        "groupby",
+        "lazy"
+      ]
+    },
+    {
+      "id": "pyspark-m06-l04-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why should you alias every aggregation expression inside `agg()`?",
+      "options": [
+        "Without alias() the aggregation runs slower",
+        "Without alias() the output column is named e.g. `sum(daily_kw)` — parentheses break downstream selects, joins, and SQL queries",
+        "alias() is required for the aggregation to compile",
+        "alias() converts the result to a Pandas DataFrame"
+      ],
+      "correctAnswer": "Without alias() the output column is named e.g. `sum(daily_kw)` — parentheses break downstream selects, joins, and SQL queries",
+      "explanation": "Lesson 04: an unnamed aggregation gets a default column name with parentheses. That name is awkward to reference (`col('sum(daily_kw)')`) and unfriendly to SQL. Always alias for clean downstream contracts.",
+      "xpReward": 80,
+      "tags": [
+        "module-06",
+        "module-06-lesson-04",
+        "agg",
+        "alias"
+      ]
+    },
+    {
+      "id": "pyspark-m06-l05-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Where should you filter out unwanted rows when you can do it either before or after a groupBy?",
+      "options": [
+        "After the groupBy — filtering aggregated results is faster",
+        "Before the groupBy — pre-filtering reduces the rows that enter the (expensive, shuffle-bound) aggregation",
+        "It makes no difference; Catalyst always optimizes them identically",
+        "Filtering is not allowed before a groupBy"
+      ],
+      "correctAnswer": "Before the groupBy — pre-filtering reduces the rows that enter the (expensive, shuffle-bound) aggregation",
+      "explanation": "Lesson 05: filter-before-groupBy is the WHERE pattern, filter-after is HAVING. Catalyst pushes simple filters down on its own, but expressing your intent up front guarantees the shuffle processes only the rows you want.",
+      "xpReward": 120,
+      "tags": [
+        "module-06",
+        "module-06-lesson-05",
+        "filter",
+        "groupby-cost"
+      ]
+    },
+    {
+      "id": "pyspark-m06-l06-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is high cardinality a problem for the column you pivot on?",
+      "options": [
+        "Pivot only supports string columns regardless of cardinality",
+        "Each unique value in the pivot column becomes its own output column — 10,000 unique values produces a 10,000-column DataFrame that is hard to use, slow to write, and poor for analytics",
+        "High-cardinality pivots are the fastest scenario in Spark",
+        "Pivot drops high-cardinality values silently"
+      ],
+      "correctAnswer": "Each unique value in the pivot column becomes its own output column — 10,000 unique values produces a 10,000-column DataFrame that is hard to use, slow to write, and poor for analytics",
+      "explanation": "Lesson 06 warning: pivot turns row values into column headers. Region (4 values) is a great pivot column. Meter ID (500K values) would create 500K columns — broken in every direction. Pre-supply the value list when you know it.",
+      "xpReward": 80,
+      "tags": [
+        "module-06",
+        "module-06-lesson-06",
+        "pivot",
+        "cardinality"
+      ]
+    },
+    {
+      "id": "pyspark-m06-l07-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does `groupBy().agg()` always trigger a shuffle, while `filter()` and `withColumn()` do not?",
+      "options": [
+        "groupBy is older than the other operations and was implemented inefficiently",
+        "Aggregation is a wide transformation — rows with the same key may live on different partitions, so Spark must redistribute (shuffle) them onto the same executor before computing the aggregate",
+        "Spark always shuffles for any aggregation regardless of partition layout",
+        "Shuffle is a configuration option that is on by default"
+      ],
+      "correctAnswer": "Aggregation is a wide transformation — rows with the same key may live on different partitions, so Spark must redistribute (shuffle) them onto the same executor before computing the aggregate",
+      "explanation": "Lesson 07: filter/withColumn are narrow — each partition is independent. groupBy/join/distinct are wide — they need rows with the same key to land on the same executor, which means writing data to disk and re-reading it across the network.",
+      "xpReward": 120,
+      "tags": [
+        "module-06",
+        "module-06-lesson-07",
+        "shuffle",
+        "wide-transformation"
+      ]
+    },
+    {
+      "id": "pyspark-m06-l08-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you reach for `approx_count_distinct()` instead of `countDistinct()`?",
+      "options": [
+        "Whenever you want a count — there's no downside",
+        "When you don't need the exact unique count and the column has many distinct values, so a much cheaper estimate (typically ±2%) is acceptable",
+        "Only on very small datasets",
+        "Only on columns that contain nulls"
+      ],
+      "correctAnswer": "When you don't need the exact unique count and the column has many distinct values, so a much cheaper estimate (typically ±2%) is acceptable",
+      "explanation": "Lesson 08: countDistinct shuffles all values to one place to count exactly — expensive for high-cardinality columns. approx_count_distinct uses HyperLogLog and is dramatically cheaper at the cost of a small error margin. The choice is cost vs precision.",
+      "xpReward": 80,
+      "tags": [
+        "module-06",
+        "module-06-lesson-08",
+        "countdistinct",
+        "approximation"
+      ]
+    },
+    {
+      "id": "pyspark-m06-l09-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Daily regional summary, monthly billing, and quarterly regulatory pivot — what do these three NordGrid pipelines have in common?",
+      "options": [
+        "They all use the same tiny toolkit: filter() to pre-trim rows, groupBy() to define groups, agg() for metrics, alias for naming",
+        "They all run only in cluster mode",
+        "They all require a UDF",
+        "They all use a different aggregation library"
+      ],
+      "correctAnswer": "They all use the same tiny toolkit: filter() to pre-trim rows, groupBy() to define groups, agg() for metrics, alias for naming",
+      "explanation": "Lesson 09: aggregation feels varied (single key, multi-key, pivoted) but the building blocks are the same. The patterns differ in how you combine the same primitives, not in the primitives themselves.",
+      "xpReward": 40,
+      "tags": [
+        "module-06",
+        "module-06-lesson-09",
+        "patterns",
+        "aggregation"
+      ]
+    },
+    {
+      "id": "pyspark-m06-l10-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What's the difference between `count('*')` and `count('daily_kw')` in an aggregation?",
+      "options": [
+        "Both count rows identically; the difference is performance",
+        "`count('*')` counts every row including those with nulls in any column; `count('daily_kw')` counts only rows where daily_kw is NOT null",
+        "`count('daily_kw')` counts unique values; `count('*')` counts all values",
+        "`count('*')` raises an error if any column has nulls"
+      ],
+      "correctAnswer": "`count('*')` counts every row including those with nulls in any column; `count('daily_kw')` counts only rows where daily_kw is NOT null",
+      "explanation": "Lesson 10 mistake: aggregation functions handle nulls per-column. count('*') is row-count; count(column) is non-null-count. sum/avg also ignore nulls. Knowing this avoids 'why is my count 1500 lower than my row count?' confusion.",
+      "xpReward": 120,
+      "tags": [
+        "module-06",
+        "module-06-lesson-10",
+        "count",
+        "nulls"
+      ]
+    },
+    {
+      "id": "pyspark-m07-l01-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why does NordGrid keep meter readings, meter metadata, and substation references in separate tables instead of one big table?",
+      "options": [
+        "Spark cannot read tables larger than a fixed size",
+        "Each table changes at a different rate (readings daily, metadata rarely) — keeping them apart keeps storage compact and updates simple; joins combine them when needed",
+        "Joins are free, so any table layout is fine",
+        "Spark requires data to be in at least three tables"
+      ],
+      "correctAnswer": "Each table changes at a different rate (readings daily, metadata rarely) — keeping them apart keeps storage compact and updates simple; joins combine them when needed",
+      "explanation": "Lesson 01: separation reflects real change frequencies. Denormalizing a 500K-row metadata table into every reading row would multiply storage and force every metadata change to rewrite the entire reading history. Joins are how you reassemble at query time.",
+      "xpReward": 40,
+      "tags": [
+        "module-07",
+        "module-07-lesson-01",
+        "joins",
+        "data-modeling"
+      ]
+    },
+    {
+      "id": "pyspark-m07-l02-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "An inner join between 500,000 readings and 498,200 meters returns 498,200 rows. What is the danger in this result?",
+      "options": [
+        "There is no danger — the row drop is always intentional",
+        "Inner joins silently drop unmatched rows from BOTH sides — 1,800 readings disappeared without warning, hiding a real data quality problem (orphan readings)",
+        "Inner joins always duplicate rows",
+        "The result is corrupted and Spark should refuse to compute it"
+      ],
+      "correctAnswer": "Inner joins silently drop unmatched rows from BOTH sides — 1,800 readings disappeared without warning, hiding a real data quality problem (orphan readings)",
+      "explanation": "Lesson 02 warning: inner joins are silent filters. If your readings/metadata join shrinks the row count, those rows are gone — and the issue (a meter that emits readings without a metadata entry) gets buried. Use a left join + null check when you want auditability.",
+      "xpReward": 120,
+      "tags": [
+        "module-07",
+        "module-07-lesson-02",
+        "inner-join",
+        "data-loss"
+      ]
+    },
+    {
+      "id": "pyspark-m07-l03-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Which join type guarantees that the result has the same number of rows as the LEFT input?",
+      "options": [
+        "Inner join",
+        "Left join — every left row is preserved; right-side columns are null when there's no match",
+        "Cross join",
+        "Right join"
+      ],
+      "correctAnswer": "Left join — every left row is preserved; right-side columns are null when there's no match",
+      "explanation": "Lesson 03: a left join never drops a left row. Use it for enrichment when the left table is your source of truth — the row count equals input regardless of metadata coverage. Pair with `assert df_out.count() == df_in.count()` for safety.",
+      "xpReward": 80,
+      "tags": [
+        "module-07",
+        "module-07-lesson-03",
+        "left-join",
+        "row-count"
+      ]
+    },
+    {
+      "id": "pyspark-m07-l04-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When is a full outer join the right tool?",
+      "options": [
+        "Whenever you want enrichment",
+        "When you're reconciling two sources and need to surface what's in left-only, right-only, AND matched — the nulls in the result identify the gaps",
+        "When you want to drop unmatched rows",
+        "When one of the inputs is empty"
+      ],
+      "correctAnswer": "When you're reconciling two sources and need to surface what's in left-only, right-only, AND matched — the nulls in the result identify the gaps",
+      "explanation": "Lesson 04: full outer keeps everything. NordGrid's pattern: join the meter inventory to the readings — left-only rows = inventory entries that never reported, right-only rows = readings from unknown meters. The nulls tell the story.",
+      "xpReward": 80,
+      "tags": [
+        "module-07",
+        "module-07-lesson-04",
+        "full-outer",
+        "reconciliation"
+      ]
+    },
+    {
+      "id": "pyspark-m07-l05-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What's the most dangerous thing about cross joins in production?",
+      "options": [
+        "They are slow but always produce the correct result",
+        "An accidental cross join (omitted condition or trivially-true condition) silently multiplies row counts — joining two 500K-row tables yields 250 BILLION rows, which can crash a cluster",
+        "Cross joins always raise an error",
+        "Cross joins fail silently and produce empty results"
+      ],
+      "correctAnswer": "An accidental cross join (omitted condition or trivially-true condition) silently multiplies row counts — joining two 500K-row tables yields 250 BILLION rows, which can crash a cluster",
+      "explanation": "Lesson 05: cross joins are output multipliers — `left × right`. Spark won't stop you from joining on `lit(True)`. The signature symptom: a result far larger than either input. Always sanity-check row counts after a join.",
+      "xpReward": 120,
+      "tags": [
+        "module-07",
+        "module-07-lesson-05",
+        "cross-join",
+        "row-explosion"
+      ]
+    },
+    {
+      "id": "pyspark-m07-l06-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How are semi joins and anti joins different from inner/left/full joins?",
+      "options": [
+        "They are slower equivalents",
+        "They are FILTERS — they use the right DataFrame only to decide which left-side rows to keep (semi) or drop (anti), and add NO columns from the right",
+        "They always drop nulls",
+        "They are aliases of inner and outer joins"
+      ],
+      "correctAnswer": "They are FILTERS — they use the right DataFrame only to decide which left-side rows to keep (semi) or drop (anti), and add NO columns from the right",
+      "explanation": "Lesson 06: semi answers 'which left rows have a match?' (keeps them); anti answers 'which left rows have NO match?' (keeps those). Output columns come only from the left side — they're filters disguised as joins.",
+      "xpReward": 80,
+      "tags": [
+        "module-07",
+        "module-07-lesson-06",
+        "semi-join",
+        "anti-join"
+      ]
+    },
+    {
+      "id": "pyspark-m07-l07-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "When does column ambiguity (`Reference 'region' is ambiguous`) typically occur after a join?",
+      "options": [
+        "Whenever both sides have any column with the same name, regardless of join syntax",
+        "When you join on a Column expression like `df_a['region'] == df_b['region']` — both `region` columns survive into the result. Joining on a string `on='region'` collapses them automatically",
+        "Only on left joins",
+        "When the DataFrames have different schemas"
+      ],
+      "correctAnswer": "When you join on a Column expression like `df_a['region'] == df_b['region']` — both `region` columns survive into the result. Joining on a string `on='region'` collapses them automatically",
+      "explanation": "Lesson 07: `on='region'` keeps a single region column; `df_a.region == df_b.region` keeps both. Fix by joining on string keys when possible, aliasing the DataFrames, or dropping the duplicate column right after the join.",
+      "xpReward": 120,
+      "tags": [
+        "module-07",
+        "module-07-lesson-07",
+        "ambiguity",
+        "joins"
+      ]
+    },
+    {
+      "id": "pyspark-m07-l08-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is a non-equi join?",
+      "options": [
+        "A join that intentionally produces no results",
+        "A join whose condition uses a comparison other than `=` — `BETWEEN`, `<`, `>` — typically for range lookups (e.g. matching readings to billing tier brackets)",
+        "A join on multiple columns",
+        "A self-join"
+      ],
+      "correctAnswer": "A join whose condition uses a comparison other than `=` — `BETWEEN`, `<`, `>` — typically for range lookups (e.g. matching readings to billing tier brackets)",
+      "explanation": "Lesson 08: equi-joins (`=`) cover 90% of cases. Non-equi joins handle ranges — e.g. matching `daily_kw` to a tier table where each tier defines `min_kw <= reading < max_kw`. They are more expensive to plan because hash-based join strategies don't apply.",
+      "xpReward": 80,
+      "tags": [
+        "module-07",
+        "module-07-lesson-08",
+        "non-equi-join",
+        "ranges"
+      ]
+    },
+    {
+      "id": "pyspark-m07-l09-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is NordGrid's defensive habit after every join in a multi-step join pipeline?",
+      "options": [
+        "Cache the result of every join",
+        "Assert (or otherwise verify) the row count — a left join shouldn't change the left side's row count, so any drift is an immediate signal of a bad join condition or duplicate keys",
+        "Re-cast every column",
+        "Sort the result"
+      ],
+      "correctAnswer": "Assert (or otherwise verify) the row count — a left join shouldn't change the left side's row count, so any drift is an immediate signal of a bad join condition or duplicate keys",
+      "explanation": "Lesson 09: row-count assertions are the cheapest debugging tool you have. A silent fan-out from duplicate keys, or silent loss from a bad inner join, becomes an explicit failure where it happens, not 4 transformations later.",
+      "xpReward": 40,
+      "tags": [
+        "module-07",
+        "module-07-lesson-09",
+        "assert",
+        "row-count"
+      ]
+    },
+    {
+      "id": "pyspark-m07-l10-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is a broadcast join much cheaper than a shuffle hash / sort-merge join when one side is small?",
+      "options": [
+        "Broadcast joins use less CPU per row",
+        "Broadcast sends the SMALL DataFrame to every executor in full; the LARGE DataFrame is matched in place, with no shuffle of the large side at all",
+        "Broadcast joins always use one executor",
+        "Broadcast joins skip the join condition"
+      ],
+      "correctAnswer": "Broadcast sends the SMALL DataFrame to every executor in full; the LARGE DataFrame is matched in place, with no shuffle of the large side at all",
+      "explanation": "Lesson 10: shuffling a multi-billion-row table is the expensive part. If the right side fits in executor memory (default threshold ~10 MB), Spark broadcasts it and does the join locally on each partition of the large table — no large-side shuffle.",
+      "xpReward": 80,
+      "tags": [
+        "module-07",
+        "module-07-lesson-10",
+        "broadcast-join",
+        "shuffle"
+      ]
+    },
+    {
+      "id": "pyspark-m08-l01-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Does `spark.read.parquet('path/')` immediately load data into memory?",
+      "options": [
+        "Yes — it reads the entire file into the driver",
+        "No — it returns a DataFrame that REFERENCES the files; the actual read happens when an action triggers, with column pruning and predicate pushdown applied",
+        "It loads only the schema and discards the data",
+        "It depends on file size"
+      ],
+      "correctAnswer": "No — it returns a DataFrame that REFERENCES the files; the actual read happens when an action triggers, with column pruning and predicate pushdown applied",
+      "explanation": "Lesson 01: `spark.read` is lazy like every other DataFrame operation. It records intent. The reader picks up filters and column lists from later transformations and reads only what's needed when you finally trigger execution.",
+      "xpReward": 40,
+      "tags": [
+        "module-08",
+        "module-08-lesson-01",
+        "spark-read",
+        "lazy"
+      ]
+    },
+    {
+      "id": "pyspark-m08-l02-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does `inferSchema=True` on CSV cost so much?",
+      "options": [
+        "Spark always re-encodes the file when inferring",
+        "Spark must scan the entire file TWICE — once to guess column types, then again to actually read with those types",
+        "It triples the storage requirement",
+        "It only works in cluster mode"
+      ],
+      "correctAnswer": "Spark must scan the entire file TWICE — once to guess column types, then again to actually read with those types",
+      "explanation": "Lesson 02 warning: CSV has no type metadata, so `inferSchema=True` does a full pass to guess types and a second to load. On a 500 GB archive that doubles read cost. In production, supply a `StructType` schema explicitly.",
+      "xpReward": 80,
+      "tags": [
+        "module-08",
+        "module-08-lesson-02",
+        "csv",
+        "inferschema"
+      ]
+    },
+    {
+      "id": "pyspark-m08-l03-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `spark.read.json('path/')` expect by default?",
+      "options": [
+        "A single huge JSON document at the path",
+        "JSON Lines (newline-delimited JSON) — one complete JSON object per line; the standard format for log/event data",
+        "A YAML file",
+        "A binary serialized JSON"
+      ],
+      "correctAnswer": "JSON Lines (newline-delimited JSON) — one complete JSON object per line; the standard format for log/event data",
+      "explanation": "Lesson 03: JSONL is the default for streaming/event ingestion. For multi-line JSON documents (a single object spanning many lines), set `option('multiLine', True)`. Nested objects come back as StructType columns.",
+      "xpReward": 80,
+      "tags": [
+        "module-08",
+        "module-08-lesson-03",
+        "json",
+        "jsonl"
+      ]
+    },
+    {
+      "id": "pyspark-m08-l04-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does Parquet rarely need an explicit schema when reading?",
+      "options": [
+        "Parquet files don't have a schema",
+        "Parquet files embed the schema (column names, types, nullability) in the file metadata — Spark reads it directly with no inference required",
+        "Spark always infers Parquet schemas from the filename",
+        "Parquet uses the same schema for every dataset"
+      ],
+      "correctAnswer": "Parquet files embed the schema (column names, types, nullability) in the file metadata — Spark reads it directly with no inference required",
+      "explanation": "Lesson 04: Parquet is self-describing. The schema travels with the data, so the reader gets correct types — including dates and nullability — for free. This is one reason Parquet is the standard for processed analytical data.",
+      "xpReward": 80,
+      "tags": [
+        "module-08",
+        "module-08-lesson-04",
+        "parquet",
+        "schema"
+      ]
+    },
+    {
+      "id": "pyspark-m08-l05-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is schema inference dangerous in long-lived production pipelines?",
+      "options": [
+        "Inference is always wrong",
+        "Inference depends on the sample's content — if the source starts producing values that change the inferred type (e.g. `daily_kw` had only integers, then a row arrives with `1250.5`), downstream code that assumed the old type breaks silently",
+        "Inference works only the first time a pipeline runs",
+        "Inferred schemas can't be saved to Parquet"
+      ],
+      "correctAnswer": "Inference depends on the sample's content — if the source starts producing values that change the inferred type (e.g. `daily_kw` had only integers, then a row arrives with `1250.5`), downstream code that assumed the old type breaks silently",
+      "explanation": "Lesson 05: a real NordGrid incident. inferSchema is non-deterministic across data drift. An explicit StructType pins the contract: if the data actually changes, you get an explicit error instead of silent breakage at the analytics layer.",
+      "xpReward": 120,
+      "tags": [
+        "module-08",
+        "module-08-lesson-05",
+        "schema",
+        "inference"
+      ]
+    },
+    {
+      "id": "pyspark-m08-l06-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What's the biggest risk of using `mode('append')` for an idempotent daily pipeline?",
+      "options": [
+        "It overwrites yesterday's data",
+        "If the pipeline runs twice for the same day (retry after a transient failure), the second run appends a duplicate set of rows — the output silently doubles for that day",
+        "It is slower than overwrite",
+        "It only works for Parquet"
+      ],
+      "correctAnswer": "If the pipeline runs twice for the same day (retry after a transient failure), the second run appends a duplicate set of rows — the output silently doubles for that day",
+      "explanation": "Lesson 06: append doesn't dedupe. For idempotency, either (a) use `overwrite` partitioned by date so a re-run replaces just that day, or (b) write to a staging path and use a transactional copy. Append + retries = duplicates.",
+      "xpReward": 80,
+      "tags": [
+        "module-08",
+        "module-08-lesson-06",
+        "write-mode",
+        "idempotency"
+      ]
+    },
+    {
+      "id": "pyspark-m08-l07-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How do you control how many output files a `df.write.parquet(...)` produces?",
+      "options": [
+        "Set `option('maxFiles', n)`",
+        "It is determined by the number of DataFrame partitions at write time — use `coalesce(n)` to reduce or `repartition(n)` to redistribute before writing",
+        "Spark always writes exactly one file",
+        "Output files are determined by the cluster manager"
+      ],
+      "correctAnswer": "It is determined by the number of DataFrame partitions at write time — use `coalesce(n)` to reduce or `repartition(n)` to redistribute before writing",
+      "explanation": "Lesson 07: one output file per partition. coalesce(n) reduces partitions without a shuffle (good when going down). repartition(n) reshuffles — necessary when going up or when partition sizes are unbalanced.",
+      "xpReward": 80,
+      "tags": [
+        "module-08",
+        "module-08-lesson-07",
+        "write",
+        "file-count"
+      ]
+    },
+    {
+      "id": "pyspark-m08-l08-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is `partitionBy('meter_id')` a bad idea on a 500,000-meter table?",
+      "options": [
+        "Spark cannot partitionBy on string columns",
+        "It creates 500,000 directories — the small-files problem; each directory holds tiny files and metadata operations dominate read time, often more expensive than reading the data",
+        "Partitioned writes only support numeric columns",
+        "PartitionBy doubles the storage cost"
+      ],
+      "correctAnswer": "It creates 500,000 directories — the small-files problem; each directory holds tiny files and metadata operations dominate read time, often more expensive than reading the data",
+      "explanation": "Lesson 08 warning: partition columns should have LOW cardinality. Region (4 values) is great. Date (~1K values) is fine if you query by date often. Meter_id (500K) blows up directory listing time and turns a 5-second scan into 5 minutes of metadata operations.",
+      "xpReward": 120,
+      "tags": [
+        "module-08",
+        "module-08-lesson-08",
+        "partitionby",
+        "small-files"
+      ]
+    },
+    {
+      "id": "pyspark-m08-l09-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What's the fundamental layout difference between CSV and Parquet?",
+      "options": [
+        "CSV is faster for analytical queries",
+        "CSV is row-oriented (each row's columns sit together on disk); Parquet is column-oriented (each column's values are grouped together), enabling column pruning and per-column compression",
+        "CSV uses Unicode and Parquet uses ASCII",
+        "There is no difference; they are aliases"
+      ],
+      "correctAnswer": "CSV is row-oriented (each row's columns sit together on disk); Parquet is column-oriented (each column's values are grouped together), enabling column pruning and per-column compression",
+      "explanation": "Lesson 09: row-oriented favors transactional writes (append a row, you write all columns together). Column-oriented favors analytical reads (read just the columns you need, compress each column with the codec best suited to its values). This is why Parquet dominates analytics.",
+      "xpReward": 40,
+      "tags": [
+        "module-08",
+        "module-08-lesson-09",
+        "formats",
+        "row-vs-column"
+      ]
+    },
+    {
+      "id": "pyspark-m08-l10-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "In NordGrid's pipeline, why does CSV stay at the Bronze layer while Parquet is used for Silver and Gold?",
+      "options": [
+        "CSV is faster than Parquet",
+        "Source systems produce CSV, so Bronze accepts it as-is; once cleaned, Silver and Gold use Parquet for the schema-bearing, column-pruned, compressed analytical layout that downstream readers benefit from",
+        "Parquet cannot be ingested",
+        "Spark requires this exact arrangement"
+      ],
+      "correctAnswer": "Source systems produce CSV, so Bronze accepts it as-is; once cleaned, Silver and Gold use Parquet for the schema-bearing, column-pruned, compressed analytical layout that downstream readers benefit from",
+      "explanation": "Lesson 10: format follows the pipeline stage. Bronze prioritizes faithful capture of whatever the source produced (CSV/JSON). Silver/Gold prioritize fast analytical reads, where Parquet's column layout, compression, and self-describing schema pay off.",
+      "xpReward": 40,
+      "tags": [
+        "module-08",
+        "module-08-lesson-10",
+        "pipeline",
+        "formats"
+      ]
+    },
+    {
+      "id": "pyspark-m09-l01-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why are functions from `pyspark.sql.functions` (like `upper`, `year`, `round`) so much faster than wrapping the same logic in a Python UDF?",
+      "options": [
+        "They run on dedicated GPUs",
+        "Spark compiles them to JVM bytecode and executes them directly on the executors; the Python layer is only involved when you build the plan, not when rows are processed",
+        "They cache results between calls",
+        "There is no performance difference"
+      ],
+      "correctAnswer": "Spark compiles them to JVM bytecode and executes them directly on the executors; the Python layer is only involved when you build the plan, not when rows are processed",
+      "explanation": "Lesson 01: built-ins are JVM-native. Each row stays in the JVM through the whole pipeline. UDFs serialize each row to Python and back per row — much slower and Catalyst can't reason about the operation.",
+      "xpReward": 40,
+      "tags": [
+        "module-09",
+        "module-09-lesson-01",
+        "functions",
+        "jvm"
+      ]
+    },
+    {
+      "id": "pyspark-m09-l02-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When source data packs multiple values into a delimited string (e.g. `'NORTH-METER-001'`), what's the cleanest way to extract the parts?",
+      "options": [
+        "Always reach for regexp_extract with a complex pattern",
+        "Use `split('-')` to produce an array, then `element_at(arr, 1/2/3)` (1-indexed) to pull each piece — readable and avoids regex",
+        "Loop over rows in Python",
+        "Cast the column to a struct"
+      ],
+      "correctAnswer": "Use `split('-')` to produce an array, then `element_at(arr, 1/2/3)` (1-indexed) to pull each piece — readable and avoids regex",
+      "explanation": "Lesson 02: split + element_at handles most delimited-string parsing without writing regex. Reserve regexp_replace/regexp_extract for genuinely irregular patterns.",
+      "xpReward": 80,
+      "tags": [
+        "module-09",
+        "module-09-lesson-02",
+        "split",
+        "element-at"
+      ]
+    },
+    {
+      "id": "pyspark-m09-l03-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When dates arrive as strings in a non-ISO format (e.g. `'01/March/2026'`), what's the right way to convert them to DateType?",
+      "options": [
+        "Use `cast('date')` — it auto-detects every format",
+        "Use `to_date(col, 'dd/MMMM/yyyy')` — `cast('date')` only handles the ISO format `YYYY-MM-DD`",
+        "Use string manipulation to rebuild ISO format first, then cast",
+        "It's not possible without a UDF"
+      ],
+      "correctAnswer": "Use `to_date(col, 'dd/MMMM/yyyy')` — `cast('date')` only handles the ISO format `YYYY-MM-DD`",
+      "explanation": "Lesson 03: cast assumes ISO-8601 dates. For any other format, `to_date()` (or `to_timestamp()`) takes an explicit format string. Parse once at the Bronze→Silver boundary; then DateType all the way through.",
+      "xpReward": 80,
+      "tags": [
+        "module-09",
+        "module-09-lesson-03",
+        "to-date",
+        "format"
+      ]
+    },
+    {
+      "id": "pyspark-m09-l04-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What's the difference between `greatest(col('a'), col('b'), col('c'))` and `max(col('a'))`?",
+      "options": [
+        "They are equivalent — both return the same value",
+        "`greatest()` compares values ACROSS COLUMNS in the SAME row (returns the max of a, b, c per row); `max()` aggregates DOWN ROWS (returns the max of column a across the whole DataFrame)",
+        "`greatest()` works only for numbers; `max()` for any type",
+        "`max()` is faster"
+      ],
+      "correctAnswer": "`greatest()` compares values ACROSS COLUMNS in the SAME row (returns the max of a, b, c per row); `max()` aggregates DOWN ROWS (returns the max of column a across the whole DataFrame)",
+      "explanation": "Lesson 04: greatest/least are row-level — same row, multiple columns. max/min are aggregate functions — same column, multiple rows. They look similar but live on different axes; mixing them up is a classic confusion.",
+      "xpReward": 120,
+      "tags": [
+        "module-09",
+        "module-09-lesson-04",
+        "greatest",
+        "max"
+      ]
+    },
+    {
+      "id": "pyspark-m09-l05-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What happens to the row count when you `explode()` an array column?",
+      "options": [
+        "Row count stays the same",
+        "Rows MULTIPLY — one row with an N-element array becomes N rows, with the other columns duplicated; useful for flattening hourly samples but easy to overlook size impact",
+        "Row count drops to one summary row",
+        "Spark refuses to explode arrays larger than 100"
+      ],
+      "correctAnswer": "Rows MULTIPLY — one row with an N-element array becomes N rows, with the other columns duplicated; useful for flattening hourly samples but easy to overlook size impact",
+      "explanation": "Lesson 05 warning: explode is row-multiplying. 500,000 meters × 24 hourly samples = 12 million rows after exploding. Plan for the size; pre-filter the array if you don't need every element.",
+      "xpReward": 120,
+      "tags": [
+        "module-09",
+        "module-09-lesson-05",
+        "explode",
+        "arrays"
+      ]
+    },
+    {
+      "id": "pyspark-m09-l06-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `coalesce(col('primary'), col('backup'), lit(0.0))` return?",
+      "options": [
+        "Always 0.0",
+        "The FIRST non-null value among the arguments — primary if non-null, otherwise backup, otherwise 0.0",
+        "All three values concatenated",
+        "An error if primary is null"
+      ],
+      "correctAnswer": "The FIRST non-null value among the arguments — primary if non-null, otherwise backup, otherwise 0.0",
+      "explanation": "Lesson 06: coalesce builds a fallback chain across COLUMNS. Useful when readings come from multiple sources (primary feed, backup cell, manual entry). Distinct from `fillna({col: 0})`, which only fills nulls in one specific column with one literal.",
+      "xpReward": 80,
+      "tags": [
+        "module-09",
+        "module-09-lesson-06",
+        "coalesce",
+        "nulls"
+      ]
+    },
+    {
+      "id": "pyspark-m09-l07-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What's NordGrid's convention about WHERE in the pipeline null handling should happen?",
+      "options": [
+        "Wherever it's convenient",
+        "All null handling is done at the Bronze→Silver boundary — by the time data reaches Silver, every column has well-defined non-null semantics, so downstream code never has to special-case nulls again",
+        "Nulls are passed through every layer untouched",
+        "Nulls are handled at the dashboard layer only"
+      ],
+      "correctAnswer": "All null handling is done at the Bronze→Silver boundary — by the time data reaches Silver, every column has well-defined non-null semantics, so downstream code never has to special-case nulls again",
+      "explanation": "Lesson 07: pushing null handling into one boundary eliminates an entire class of recurring bugs. The Silver contract becomes: 'columns are clean, nulls are explicit and intentional, everyone downstream can rely on it.'",
+      "xpReward": 80,
+      "tags": [
+        "module-09",
+        "module-09-lesson-07",
+        "nulls",
+        "silver"
+      ]
+    },
+    {
+      "id": "pyspark-m09-l08-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does a window function like `lag(col('daily_kw'), 1)` differ from `groupBy('meter_id').agg(lag(...))`?",
+      "options": [
+        "They are the same operation",
+        "Window functions ADD a column without reducing the row count — every row gets the lagged value computed within its window. groupBy().agg() COLLAPSES rows into one row per group",
+        "Window functions only work on numeric columns",
+        "Window functions are only available in SQL"
+      ],
+      "correctAnswer": "Window functions ADD a column without reducing the row count — every row gets the lagged value computed within its window. groupBy().agg() COLLAPSES rows into one row per group",
+      "explanation": "Lesson 08: window functions preserve every input row and decorate it with values computed across a window of related rows. groupBy reduces; window decorates. Day-over-day deltas, running totals, and rank-within-group all need windows, not groupBy.",
+      "xpReward": 80,
+      "tags": [
+        "module-09",
+        "module-09-lesson-08",
+        "window",
+        "lag"
+      ]
+    },
+    {
+      "id": "pyspark-m09-l09-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why are Python UDFs typically 10–100× slower than equivalent built-in expressions?",
+      "options": [
+        "Spark deliberately throttles UDFs",
+        "UDFs force every row to cross the JVM↔Python boundary (serialize → run Python → serialize back); built-ins stay in the JVM. Catalyst also can't reason about UDF logic, so optimizations like predicate pushdown are skipped",
+        "UDFs run on a single executor",
+        "There is no performance difference"
+      ],
+      "correctAnswer": "UDFs force every row to cross the JVM↔Python boundary (serialize → run Python → serialize back); built-ins stay in the JVM. Catalyst also can't reason about UDF logic, so optimizations like predicate pushdown are skipped",
+      "explanation": "Lesson 09: UDFs pay a per-row serialization cost twice and become opaque to the optimizer. Always check pyspark.sql.functions before writing one. Use `when().otherwise()` chains for conditional logic — they're built-ins, fast, and Catalyst-aware.",
+      "xpReward": 120,
+      "tags": [
+        "module-09",
+        "module-09-lesson-09",
+        "udf",
+        "performance"
+      ]
+    },
+    {
+      "id": "pyspark-m09-l10-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Order these from FASTEST to SLOWEST: built-in Column functions, expr() SQL strings, Python UDFs.",
+      "options": [
+        "UDF > expr > built-in",
+        "Built-in functions ≈ expr() (both compile to the same plan) > Python UDF (much slower due to JVM↔Python serialization)",
+        "expr > UDF > built-in",
+        "All three perform identically"
+      ],
+      "correctAnswer": "Built-in functions ≈ expr() (both compile to the same plan) > Python UDF (much slower due to JVM↔Python serialization)",
+      "explanation": "Lesson 10: the performance hierarchy is built-in ≈ expr() ≫ UDF. expr() parses to the same Catalyst plan as the Column API. UDFs sit far below because of cross-language overhead. Decision order: built-in first, expr() if SQL is clearer, UDF only if no other option.",
+      "xpReward": 40,
+      "tags": [
+        "module-09",
+        "module-09-lesson-10",
+        "performance-hierarchy"
+      ]
+    },
+    {
+      "id": "pyspark-m10-l01-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why must you call `df.createOrReplaceTempView('readings')` before writing `spark.sql('SELECT * FROM readings')`?",
+      "options": [
+        "Spark SQL only works in cluster mode",
+        "SQL queries reference tables by NAME — a Python DataFrame variable doesn't give SQL a name to bind to. Registering a view exposes the DataFrame under that name in the session catalog",
+        "Spark SQL requires Hive metastore configuration",
+        "The DataFrame must first be saved to disk"
+      ],
+      "correctAnswer": "SQL queries reference tables by NAME — a Python DataFrame variable doesn't give SQL a name to bind to. Registering a view exposes the DataFrame under that name in the session catalog",
+      "explanation": "Lesson 01: `createOrReplaceTempView` is the bridge — it gives the DataFrame a name SQL can bind to. The DataFrame itself isn't materialized; the view is just a logical alias.",
+      "xpReward": 80,
+      "tags": [
+        "module-10",
+        "module-10-lesson-01",
+        "tempview",
+        "sql"
+      ]
+    },
+    {
+      "id": "pyspark-m10-l02-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `spark.sql('SELECT region, sum(daily_kw) FROM readings GROUP BY region')` return?",
+      "options": [
+        "A Python list of tuples",
+        "A standard PySpark DataFrame — you can chain DataFrame transformations on it, register it as another view, or write it to Parquet",
+        "A SQL string for further parsing",
+        "A Pandas DataFrame"
+      ],
+      "correctAnswer": "A standard PySpark DataFrame — you can chain DataFrame transformations on it, register it as another view, or write it to Parquet",
+      "explanation": "Lesson 02: spark.sql returns a DataFrame just like spark.read does. SQL and the DataFrame API freely interoperate — you can write a SQL aggregation and then chain `.filter()` on the result.",
+      "xpReward": 80,
+      "tags": [
+        "module-10",
+        "module-10-lesson-02",
+        "spark-sql",
+        "dataframe"
+      ]
+    },
+    {
+      "id": "pyspark-m10-l03-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "If SQL and the DataFrame API produce the same execution plan, why support both?",
+      "options": [
+        "Compatibility with legacy SQL servers",
+        "Each is clearer in different scenarios — SQL for declarative analytics queries (joins + groupBy + having), DataFrame API for procedural ETL (step-by-step casts, filters, conditionals); Catalyst compiles both to the same internal plan",
+        "DataFrame API is always faster",
+        "SQL is required for cluster mode"
+      ],
+      "correctAnswer": "Each is clearer in different scenarios — SQL for declarative analytics queries (joins + groupBy + having), DataFrame API for procedural ETL (step-by-step casts, filters, conditionals); Catalyst compiles both to the same internal plan",
+      "explanation": "Lesson 03: same engine, two front doors. Choose by READABILITY for the task — analytics teams reading SQL fluently; engineers wiring up testable, IDE-aware ETL using the DataFrame API.",
+      "xpReward": 120,
+      "tags": [
+        "module-10",
+        "module-10-lesson-03",
+        "sql-vs-dataframe"
+      ]
+    },
+    {
+      "id": "pyspark-m10-l04-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What's the practical difference between a temporary view and a global temporary view?",
+      "options": [
+        "Global temp views are stored permanently on disk",
+        "A temp view (`createOrReplaceTempView`) is visible only inside the SparkSession that created it. A global temp view (`createOrReplaceGlobalTempView`) lives in the special `global_temp` schema and is visible to ALL sessions in the same Spark application",
+        "Global temp views are faster",
+        "There is no difference"
+      ],
+      "correctAnswer": "A temp view (`createOrReplaceTempView`) is visible only inside the SparkSession that created it. A global temp view (`createOrReplaceGlobalTempView`) lives in the special `global_temp` schema and is visible to ALL sessions in the same Spark application",
+      "explanation": "Lesson 04: scope is the only meaningful difference. Default to temp views — the smaller scope avoids cross-pipeline collisions. Reach for global temp views only when you genuinely need cross-session sharing.",
+      "xpReward": 80,
+      "tags": [
+        "module-10",
+        "module-10-lesson-04",
+        "tempview",
+        "scope"
+      ]
+    },
+    {
+      "id": "pyspark-m10-l05-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does NordGrid's hybrid pipeline pattern look like?",
+      "options": [
+        "All SQL or all DataFrame API — never mixed",
+        "DataFrame API for the procedural Bronze→Silver work (load, cast, filter, rename), then register the Silver DataFrame as a view and use SQL for the declarative analytical Gold queries (joins, groupBy, aggregations)",
+        "SQL for ingestion, DataFrame API for output",
+        "Always start with SQL and convert to DataFrame at the end"
+      ],
+      "correctAnswer": "DataFrame API for the procedural Bronze→Silver work (load, cast, filter, rename), then register the Silver DataFrame as a view and use SQL for the declarative analytical Gold queries (joins, groupBy, aggregations)",
+      "explanation": "Lesson 05: each stage gets the tool that's clearest there. Procedural ETL — DataFrame API. Declarative analytics — SQL. Mixing freely is the productive pattern; forcing one or the other costs readability.",
+      "xpReward": 80,
+      "tags": [
+        "module-10",
+        "module-10-lesson-05",
+        "hybrid",
+        "pattern"
+      ]
+    },
+    {
+      "id": "pyspark-m10-l06-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What's the SQL equivalent of method chaining `df.filter(...).groupBy(...).agg(...)`?",
+      "options": [
+        "Stored procedures",
+        "Common Table Expressions (CTEs) — `WITH step1 AS (...), step2 AS (...) SELECT ... FROM step2` — each CTE is one named transformation, readable top-to-bottom",
+        "Triggers",
+        "Subqueries with no alias"
+      ],
+      "correctAnswer": "Common Table Expressions (CTEs) — `WITH step1 AS (...), step2 AS (...) SELECT ... FROM step2` — each CTE is one named transformation, readable top-to-bottom",
+      "explanation": "Lesson 06: CTEs let SQL flow as a step-by-step pipeline instead of nested subqueries. Each step gets a name; later steps reference earlier ones. The same intent as DataFrame chaining, expressed in SQL.",
+      "xpReward": 80,
+      "tags": [
+        "module-10",
+        "module-10-lesson-06",
+        "cte",
+        "with"
+      ]
+    },
+    {
+      "id": "pyspark-m10-l07-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "How does `UPPER(region)` in Spark SQL relate to `upper(col('region'))` in the DataFrame API?",
+      "options": [
+        "They are different functions with different semantics",
+        "They are the same operation — Spark SQL functions and DataFrame API functions compile to the same internal expression; only the surface syntax differs",
+        "SQL UPPER is slower",
+        "DataFrame `upper` only handles ASCII"
+      ],
+      "correctAnswer": "They are the same operation — Spark SQL functions and DataFrame API functions compile to the same internal expression; only the surface syntax differs",
+      "explanation": "Lesson 07: every function category — string, date, numeric, conditional, aggregation — has parallel API and SQL forms backed by the same JVM implementation. Same engine, different syntax.",
+      "xpReward": 40,
+      "tags": [
+        "module-10",
+        "module-10-lesson-07",
+        "functions",
+        "sql"
+      ]
+    },
+    {
+      "id": "pyspark-m10-l08-001",
+      "topic": "pyspark",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is `spark.catalog.tableExists('my_view')` useful in a SQL-heavy pipeline?",
+      "options": [
+        "It speeds up queries",
+        "Defensive programming — verify required views are registered before running a query, so a missing-view bug fails fast with a clear message instead of a confusing SQL parse error deep inside a long script",
+        "Spark requires it before every SELECT",
+        "It deletes the view if it exists"
+      ],
+      "correctAnswer": "Defensive programming — verify required views are registered before running a query, so a missing-view bug fails fast with a clear message instead of a confusing SQL parse error deep inside a long script",
+      "explanation": "Lesson 08: catalog checks are cheap and turn 'view missing in step 7 of 12' into 'view missing — pre-flight check failed.' Same pattern as schema validation: spend a few lines to fail clearly at the boundary.",
+      "xpReward": 120,
+      "tags": [
+        "module-10",
+        "module-10-lesson-08",
+        "catalog",
+        "defensive"
+      ]
+    },
+    {
+      "id": "pyspark-m10-l09-001",
+      "topic": "pyspark",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Which factor matters MOST when choosing between SQL and the DataFrame API at NordGrid?",
+      "options": [
+        "Personal preference of the engineer writing the code",
+        "Team consistency — whichever interface is chosen, the codebase should use it consistently for similar operations so reviewers and on-call engineers don't have to re-learn the conventions every file",
+        "Always SQL because analysts read it",
+        "Always DataFrame API because it is faster"
+      ],
+      "correctAnswer": "Team consistency — whichever interface is chosen, the codebase should use it consistently for similar operations so reviewers and on-call engineers don't have to re-learn the conventions every file",
+      "explanation": "Lesson 09: convention beats preference. A consistent codebase is easier to review, easier to debug at 3 AM, and easier to onboard into. Pick a rule (e.g. ETL = API, analytics = SQL) and stick to it.",
+      "xpReward": 80,
+      "tags": [
+        "module-10",
+        "module-10-lesson-09",
+        "conventions"
+      ]
+    },
+    {
+      "id": "pyspark-m10-l10-001",
+      "topic": "pyspark",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "After completing the junior PySpark track, what foundation has been built?",
+      "options": [
+        "Only SQL syntax",
+        "Every operation a junior data engineer uses daily — SparkSession, DataFrames, selecting/filtering, transformations, aggregations, joins, file I/O, built-in functions, and SQL — all backed by the same Catalyst engine",
+        "Only the basics of distributed computing theory, no practical skills",
+        "Only knowledge of the NordGrid scenario"
+      ],
+      "correctAnswer": "Every operation a junior data engineer uses daily — SparkSession, DataFrames, selecting/filtering, transformations, aggregations, joins, file I/O, built-in functions, and SQL — all backed by the same Catalyst engine",
+      "explanation": "Lesson 10: the junior track covers the full daily toolkit. Every later module (mid-level, senior) builds on these primitives — performance tuning, streaming, advanced patterns — but the foundation is the same set of ten modules you just completed.",
+      "xpReward": 40,
+      "tags": [
+        "module-10",
+        "module-10-lesson-10",
+        "summary"
+      ]
     }
   ]
 }
