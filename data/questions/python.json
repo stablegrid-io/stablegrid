@@ -2158,6 +2158,2105 @@
         "module-PY10-lesson-10",
         "python-junior"
       ]
+    },
+    {
+      "id": "python-PYI1-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the audience shift between junior-level and mid-level Python data engineering?",
+      "options": [
+        "From writing code for yourself to writing code that 3 teams and 15 engineers extend and maintain",
+        "From writing pipelines in Python to writing them in Scala for performance reasons at scale",
+        "From writing scripts manually to writing them inside a no-code platform with a visual editor",
+        "From writing code for production to writing code only for prototyping and exploratory work"
+      ],
+      "correctAnswer": "From writing code for yourself to writing code that 3 teams and 15 engineers extend and maintain",
+      "explanation": "Lesson 1: junior built a pipeline; mid builds the architecture pipelines plug into. Every pattern exists because someone else uses your code without understanding it.",
+      "xpReward": 40,
+      "tags": [
+        "module-PYI1",
+        "module-PYI1-lesson-01",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI1-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the `@runtime_checkable Protocol` pattern give you that an abstract base class does not?",
+      "options": [
+        "Structural typing — any class with the right methods satisfies the protocol without explicit inheritance",
+        "Faster method dispatch — protocols use direct attribute lookup while ABCs go through the MRO chain",
+        "Encryption of method calls — protocols sign each invocation with a per-class HMAC for security",
+        "Automatic test generation — pytest discovers protocols and creates test stubs for each defined method"
+      ],
+      "correctAnswer": "Structural typing — any class with the right methods satisfies the protocol without explicit inheritance",
+      "explanation": "Lesson 2: third-party readers from any team satisfy DataReader by having .read(path) — no inheritance needed. Like Go interfaces, not Java interfaces.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI1",
+        "module-PYI1-lesson-02",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI1-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you use an ABC instead of a Protocol?",
+      "options": [
+        "When the base class provides shared concrete behavior (logging, timing) that subclasses inherit",
+        "When the team has more than 5 implementations because Protocols cap at 5 conforming classes",
+        "When the framework integrates with Java code because Protocols are not visible to JVM bridges",
+        "When performance matters because ABC method dispatch is faster than Protocol attribute lookup"
+      ],
+      "correctAnswer": "When the base class provides shared concrete behavior (logging, timing) that subclasses inherit",
+      "explanation": "Lesson 3: ABC + concrete shared methods (BaseTransformer with logging/timing). ABCs with only abstract methods = refactor to Protocol. CelticWind enforces this in review.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI1",
+        "module-PYI1-lesson-03",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI1-l04-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does `ValidatingReader(reader, validator)` demonstrate as a pattern?",
+      "options": [
+        "Decorator — wraps a reader and adds validation behavior without modifying the original reader's class",
+        "Inheritance — extends CsvReader by overriding its read method with validation-aware logic",
+        "Singleton — ensures only one validator exists per pipeline instance through class-level locking",
+        "Facade — hides the reader's complexity behind a simpler API that the pipeline orchestration calls"
+      ],
+      "correctAnswer": "Decorator — wraps a reader and adds validation behavior without modifying the original reader's class",
+      "explanation": "Lesson 4: composition + delegation. LoggingReader(ValidatingReader(RetryingReader(CsvReader()))) stacks behaviors. Same pattern as Python's @decorator syntax for functions.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI1",
+        "module-PYI1-lesson-04",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI1-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind use manual constructor injection instead of a DI framework?",
+      "options": [
+        "The framework's wiring is handled by a factory function — Python does not need Spring/Autofac",
+        "Constructor injection is required by Apache PEP 8 for any class with three or more dependencies",
+        "DI frameworks are forbidden by Lithuanian regulations because they obscure the dependency graph",
+        "Python's import system blocks DI frameworks from inspecting class hierarchies at runtime correctly"
+      ],
+      "correctAnswer": "The framework's wiring is handled by a factory function — Python does not need Spring/Autofac",
+      "explanation": "Lesson 5: DI in Python = pass deps as __init__ params. Factory function reads config, instantiates, passes to SilverPipeline. No framework needed.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI1",
+        "module-PYI1-lesson-05",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI1-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the Strategy pattern configure that a parameter does not?",
+      "options": [
+        "The behavior itself — StrictValidator rejects, LenientValidator warns; not just a value",
+        "The class hierarchy — strategies replace inheritance with delegation through a registry pattern",
+        "The async runtime — strategies run in their own event loop independently of the main pipeline",
+        "The serialization format — strategies are encoded in YAML while parameters are encoded in JSON"
+      ],
+      "correctAnswer": "The behavior itself — StrictValidator rejects, LenientValidator warns; not just a value",
+      "explanation": "Lesson 6: parameter = value (max_kw=5000). Strategy = behavior (reject vs warn). New behavior = new class, no modification to BatchValidator.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI1",
+        "module-PYI1-lesson-06",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI1-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should the Repository pattern be adopted at CelticWind?",
+      "options": [
+        "When you have two or more concrete implementations — not when you have one and a theoretical future need",
+        "Always — the Repository pattern is required by every data engineering style guide for production code",
+        "Never — Python's pathlib and pyarrow already abstract storage, making repositories redundant overhead",
+        "On day one — abstract every storage interface preemptively because adding it later requires rewrites"
+      ],
+      "correctAnswer": "When you have two or more concrete implementations — not when you have one and a theoretical future need",
+      "explanation": "Lesson 7: indirection costs complexity. CelticWind adopted Repository when adding Azure Blob — not preemptively. Two implementations = abstract; one = simpler direct call.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI1",
+        "module-PYI1-lesson-07",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI1-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What test distinguishes inheritance from composition in CelticWind's data models?",
+      "options": [
+        "'Can I pass this child object anywhere the parent is expected?' Yes = inheritance, no = composition",
+        "'How many fields does the child add?' More than 5 = composition, fewer = inheritance always",
+        "'Is the child class frozen?' frozen=True = composition, frozen=False = inheritance is correct",
+        "'Does the child override any methods?' Override = inheritance, no override = composition fits"
+      ],
+      "correctAnswer": "'Can I pass this child object anywhere the parent is expected?' Yes = inheritance, no = composition",
+      "explanation": "Lesson 8: EnrichedReading IS-A ValidatedReading (inheritance). PipelineRunResult HAS RegionalSummaries (composition). Liskov substitution test guides every model.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI1",
+        "module-PYI1-lesson-08",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI1-l09-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "When should you use generic types `Generic[T]` versus concrete types?",
+      "options": [
+        "Generics for framework components; concrete types for business logic that handles a specific domain",
+        "Generics for everything — concrete types are deprecated in modern Python and break mypy strict mode",
+        "Generics for performance-critical code — they enable JIT compilation that concrete types skip entirely",
+        "Generics for asyncio code only — synchronous code uses concrete types per Python's threading guidelines"
+      ],
+      "correctAnswer": "Generics for framework components; concrete types for business logic that handles a specific domain",
+      "explanation": "Lesson 9: PipelineStep[T, U] = framework. validate_meter_readings(list[BaseMeterReading]) = business logic. Over-genericizing business code adds abstraction without value.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI1",
+        "module-PYI1-lesson-09",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI1-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Module 1's architecture enable for Module 2's concurrency?",
+      "options": [
+        "Concurrency requires no architectural changes — a ConcurrentCsvReader satisfies the same DataReader protocol",
+        "Concurrency requires rewriting every component because protocols cannot express async semantics correctly",
+        "Concurrency replaces dependency injection — concurrent pipelines build their dependencies inline at runtime",
+        "Concurrency requires forking the framework — sequential and concurrent pipelines cannot share a codebase"
+      ],
+      "correctAnswer": "Concurrency requires no architectural changes — a ConcurrentCsvReader satisfies the same DataReader protocol",
+      "explanation": "Lesson 10: protocols don't specify sequential vs concurrent. Pipeline gets concurrent reader through DI without orchestration changes. Architecture enables concurrency.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI1",
+        "module-PYI1-lesson-10",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI2-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is the instinct 'parallelize everything' wrong for the CelticWind pipeline?",
+      "options": [
+        "The 12-second write step is already saturating disk bandwidth; threading would not make it faster",
+        "Python's GIL forbids any parallelism so concurrent code provides exactly zero speedup over sequential",
+        "Multiprocessing is licensed per worker by Apache and CelticWind cannot afford more than one worker",
+        "Lithuanian regulations forbid concurrent processing of meter data for cybersecurity compliance reasons"
+      ],
+      "correctAnswer": "The 12-second write step is already saturating disk bandwidth; threading would not make it faster",
+      "explanation": "Lesson 1: profile first, identify bottleneck, apply concurrency only where it crosses the benefit threshold. Some steps are not worth parallelizing.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI2",
+        "module-PYI2-lesson-01",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI2-l02-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the GIL's effect on threading vs multiprocessing?",
+      "options": [
+        "Threading: GIL released during I/O so threads run truly concurrently. CPU-bound: GIL held, threads take turns",
+        "Threading: GIL replaced by per-thread locks on every CPython 3.12+ build by default automatically",
+        "Threading: GIL applies only to async code — synchronous threads bypass the GIL and run in parallel",
+        "Threading: GIL affects only multiprocessing — single-threaded code runs without any GIL involvement"
+      ],
+      "correctAnswer": "Threading: GIL released during I/O so threads run truly concurrently. CPU-bound: GIL held, threads take turns",
+      "explanation": "Lesson 2: GIL released during I/O = threading helps. GIL held during Python bytecode = threading does NOT help CPU-bound. Multiprocessing has separate GILs per process.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI2",
+        "module-PYI2-lesson-02",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI2-l03-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why is the `with ThreadPoolExecutor() as pool:` context manager required at CelticWind?",
+      "options": [
+        "Ensures the pool is shut down cleanly after all tasks — even if an exception occurs in the body",
+        "Improves performance — context-managed pools cache thread state across the program's lifetime",
+        "Required by Python's typing system — ThreadPoolExecutor cannot be used outside a `with` block",
+        "Encrypts inter-thread communication — without it, threads can read each other's memory unsafely"
+      ],
+      "correctAnswer": "Ensures the pool is shut down cleanly after all tasks — even if an exception occurs in the body",
+      "explanation": "Lesson 3: forgotten shutdown() leaves worker threads running, consuming resources, holding file locks. Context manager guarantees cleanup.",
+      "xpReward": 40,
+      "tags": [
+        "module-PYI2",
+        "module-PYI2-lesson-03",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI2-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `Semaphore(max_concurrent)` do in concurrent API calls?",
+      "options": [
+        "Limits how many threads can hold the semaphore at once — caps concurrent in-flight API requests",
+        "Synchronizes thread output by serializing every print and log call through one shared lock",
+        "Encrypts payload between threads with a session key derived from the semaphore's hash value",
+        "Distributes load across multiple cloud regions by routing requests through a region-locked queue"
+      ],
+      "correctAnswer": "Limits how many threads can hold the semaphore at once — caps concurrent in-flight API requests",
+      "explanation": "Lesson 4: 8 threads start API calls simultaneously without it = burst exceeds rate limit. Semaphore caps concurrency; sleep paces calls.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI2",
+        "module-PYI2-lesson-04",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI2-l05-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why must `validate_chunk` be a top-level function (not nested or a lambda) for `ProcessPoolExecutor`?",
+      "options": [
+        "Worker processes pickle the function to communicate it — pickle requires module-level functions",
+        "Top-level functions run faster because Python caches their bytecode at the module's import time",
+        "Worker processes share top-level functions through Linux's fork mechanism for memory efficiency",
+        "Top-level functions are required by mypy when used inside ProcessPoolExecutor for type checking"
+      ],
+      "correctAnswer": "Worker processes pickle the function to communicate it — pickle requires module-level functions",
+      "explanation": "Lesson 5: ProcessPoolExecutor pickles the function across the process boundary. Lambdas, nested funcs, methods are unpicklable.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI2",
+        "module-PYI2-lesson-05",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI2-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When does `asyncio` outperform `ThreadPoolExecutor` for I/O-bound work?",
+      "options": [
+        "When the concurrency count is high (hundreds of API calls) — coroutines are lighter than threads",
+        "When the workload is CPU-bound — asyncio bypasses the GIL by running coroutines on separate cores",
+        "When the network is unreliable — asyncio retries automatically while threads require manual logic",
+        "When the I/O is local — asyncio has special filesystem support that threading lacks entirely"
+      ],
+      "correctAnswer": "When the concurrency count is high (hundreds of API calls) — coroutines are lighter than threads",
+      "explanation": "Lesson 6: 365 concurrent API calls = asyncio's lighter coroutines beat thread pool. Threading is fine up to ~20 concurrent; asyncio scales to thousands.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI2",
+        "module-PYI2-lesson-06",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI2-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `asyncio.gather(*tasks, return_exceptions=True)` change?",
+      "options": [
+        "Exceptions become return values instead of cancelling all sibling tasks — partial success is collected",
+        "Exceptions are logged with full stack traces while gather still raises the first exception found",
+        "Exceptions are encrypted in the result list to prevent sensitive error messages from leaking",
+        "Exceptions trigger automatic retries with exponential backoff before the gather call completes"
+      ],
+      "correctAnswer": "Exceptions become return values instead of cancelling all sibling tasks — partial success is collected",
+      "explanation": "Lesson 7: default = first exception cancels all. return_exceptions=True = collect successes + failures. Filter list comprehension on the result.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI2",
+        "module-PYI2-lesson-07",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI2-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does the concurrency model decision flow at CelticWind?",
+      "options": [
+        "I/O-bound + < 20 tasks → threading; I/O-bound + many tasks → asyncio; CPU-bound > 60s → multiprocessing",
+        "Always asyncio for everything because asyncio is the modern Python concurrency standard since 3.10",
+        "Always multiprocessing because multiple cores are always available and provide guaranteed speedup",
+        "Always sequential because concurrency overhead exceeds the benefits at any pipeline scale"
+      ],
+      "correctAnswer": "I/O-bound + < 20 tasks → threading; I/O-bound + many tasks → asyncio; CPU-bound > 60s → multiprocessing",
+      "explanation": "Lesson 8: I/O fits threading or asyncio (by count); CPU > 60s threshold for multiprocessing. Architecture stays the same; concurrency is targeted to bottlenecks.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI2",
+        "module-PYI2-lesson-08",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI2-l09-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind treat sequential as the default and require justification for concurrency?",
+      "options": [
+        "27 minutes of SLA headroom is a maintenance advantage — every line of sequential code is debuggable by anyone",
+        "Concurrency is forbidden by the engineering style guide because of past incidents involving thread races",
+        "Concurrent code is 10× slower in Python due to GIL contention so sequential is always the best choice",
+        "Sequential code uses less RAM than concurrent code regardless of workload characteristics every time"
+      ],
+      "correctAnswer": "27 minutes of SLA headroom is a maintenance advantage — every line of sequential code is debuggable by anyone",
+      "explanation": "Lesson 9: 3-min pipeline within 30-min SLA = not a perf problem. Headroom = safety margin for growth. Saving 2 min costs maintainability.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI2",
+        "module-PYI2-lesson-09",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI2-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the concurrent pipeline make Module 3's memory problem worse?",
+      "options": [
+        "ThreadPoolExecutor reads 8 files concurrently — 8 lists merged into one 2.4 GB list before validation",
+        "ThreadPoolExecutor disables Python's garbage collector to avoid race conditions during file reads",
+        "ThreadPoolExecutor caches file contents in shared memory so they cannot be released between runs",
+        "ThreadPoolExecutor doubles memory because each thread maintains a private copy of the entire dataset"
+      ],
+      "correctAnswer": "ThreadPoolExecutor reads 8 files concurrently — 8 lists merged into one 2.4 GB list before validation",
+      "explanation": "Lesson 10: 8 concurrent reads → 8 lists → 1 merged list = 2.4 GB peak. Module 3 teaches chunking, Polars, and pyarrow to fix this.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI2",
+        "module-PYI2-lesson-10",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI3-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does Module 3 say memory becomes a budget at mid-level scale?",
+      "options": [
+        "1.2M rows = 2,400 MB list[dict] + 1,200 MB validate + 1,200 MB transform = 4,800 MB peak crash",
+        "1.2M rows trigger Lithuania's data sovereignty law that caps in-memory record counts globally",
+        "1.2M rows are blocked by Python's interpreter limit — defaults reject above 1M element lists",
+        "1.2M rows require an Apache Spark license fee that scales linearly with row count per pipeline run"
+      ],
+      "correctAnswer": "1.2M rows = 2,400 MB list[dict] + 1,200 MB validate + 1,200 MB transform = 4,800 MB peak crash",
+      "explanation": "Lesson 1: junior scale = memory free. Mid scale = 'load and process' becomes 'chunk and stream'. Defining architectural change of mid-level Python.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI3",
+        "module-PYI3-lesson-01",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI3-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the right mental model for `del` in pipeline code?",
+      "options": [
+        "Use for objects > 100 MB no longer needed — not for small objects where GC handles cleanup efficiently",
+        "Use for every variable after every line — explicit del is required by Python's strict mode in 3.13+",
+        "Use only inside try blocks — del outside try-except is unsafe and can corrupt the interpreter state",
+        "Use only on lists — del on dicts and sets raises TypeError because they have a different lifecycle"
+      ],
+      "correctAnswer": "Use for objects > 100 MB no longer needed — not for small objects where GC handles cleanup efficiently",
+      "explanation": "Lesson 2: explicit del before the next allocation. Don't sprinkle del everywhere for small objects — adds noise without benefit. > 100 MB threshold at CelticWind.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI3",
+        "module-PYI3-lesson-02",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI3-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the key advantage of the chunked pipeline pattern?",
+      "options": [
+        "Constant memory usage — chunk_size × 2 KB regardless of total row count — small objects are GC'd per iter",
+        "Faster execution — chunks complete in parallel through Python's threading module without any extra code",
+        "Strong guarantees — the database transaction wraps each chunk so partial failures cannot corrupt output",
+        "Higher throughput — chunked I/O bypasses the file system cache and reads directly from the disk"
+      ],
+      "correctAnswer": "Constant memory usage — chunk_size × 2 KB regardless of total row count — small objects are GC'd per iter",
+      "explanation": "Lesson 3: yield → process → write per chunk. Memory stays constant. Garbage collected at end of each iteration. Aggregations need a separate merge step.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI3",
+        "module-PYI3-lesson-03",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI3-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does Polars use ~6× less memory than `list[dict]` for the same data?",
+      "options": [
+        "Columnar storage — each column stored once with type info, not per-row dict overhead per record",
+        "Compression — Polars compresses every column with snappy by default to reduce memory footprint",
+        "Lazy materialization — Polars only loads columns into memory as they are accessed in expressions",
+        "Memory-mapped files — Polars maps the source file directly without copying any data into RAM"
+      ],
+      "correctAnswer": "Columnar storage — each column stored once with type info, not per-row dict overhead per record",
+      "explanation": "Lesson 4: 1.2M dicts (each with 5 string keys) = 2,400 MB. Polars columnar = 380 MB. Same data, different layout.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI3",
+        "module-PYI3-lesson-04",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI3-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is CelticWind's rule about converting between `list[dict]` and Polars DataFrames?",
+      "options": [
+        "Convert once at the boundary — stay in Polars for analytical steps; conversion costs ~1s per million rows",
+        "Convert on every step — interoperability is more important than the per-conversion overhead",
+        "Convert never — pick one representation and use it throughout the entire pipeline forever",
+        "Convert only at runtime — type checkers complain about Polars types so build-time stays in dicts"
+      ],
+      "correctAnswer": "Convert once at the boundary — stay in Polars for analytical steps; conversion costs ~1s per million rows",
+      "explanation": "Lesson 5: 0.3s aggregation + 2s round-trip conversion = no benefit. Convert at boundary (after validation), stay in Polars (write_parquet directly).",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI3",
+        "module-PYI3-lesson-05",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI3-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Polars' lazy evaluation enable?",
+      "options": [
+        "Build a query plan, optimize, execute in one pass — declarative thinking instead of imperative",
+        "Cache intermediate DataFrames in Redis so repeated queries return instantly across runs always",
+        "Run computations in a separate thread that the GIL cannot block during the lazy evaluation step",
+        "Defer all errors until collect() is called so the pipeline can ignore broken steps in development"
+      ],
+      "correctAnswer": "Build a query plan, optimize, execute in one pass — declarative thinking instead of imperative",
+      "explanation": "Lesson 6: scan_csv + filter + groupby + agg → optimizer applies all in one pass. Same model as PySpark/Spark SQL/dbt — declarative thinking.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI3",
+        "module-PYI3-lesson-06",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI3-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the most common pyarrow performance mistake?",
+      "options": [
+        "Converting to list[dict] for processing and back to pyarrow for writing — each conversion copies the data",
+        "Reading all columns instead of using projection pushdown to read only the columns the pipeline needs",
+        "Compressing with snappy instead of zstd — zstd has better ratios for analytical workloads at scale",
+        "Storing pyarrow Tables in Redis instead of using the local filesystem for intermediate persistence"
+      ],
+      "correctAnswer": "Converting to list[dict] for processing and back to pyarrow for writing — each conversion copies the data",
+      "explanation": "Lesson 7: each conversion copies the entire dataset. Use Polars (Arrow-native) or pyarrow.compute. Convert to list[dict] only for per-row Pydantic/API logic.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI3",
+        "module-PYI3-lesson-07",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI3-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind disable tracemalloc in production?",
+      "options": [
+        "Overhead pushes a 95%-capacity pipeline over the edge — production uses resource.getrusage instead",
+        "Production has no shell access — tracemalloc cannot dump its output without an interactive terminal",
+        "Production runs as root — tracemalloc requires non-root user and refuses to start in the production pod",
+        "Production uses Python 3.12 — tracemalloc was removed in 3.12 in favor of memray for memory profiling"
+      ],
+      "correctAnswer": "Overhead pushes a 95%-capacity pipeline over the edge — production uses resource.getrusage instead",
+      "explanation": "Lesson 8: tracemalloc tracks every alloc → CPU + memory overhead. resource.getrusage is OS-level with zero overhead. Enable tracemalloc only during incident investigation.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI3",
+        "module-PYI3-lesson-08",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI3-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the 80/20 insight about memory optimization?",
+      "options": [
+        "80% of memory comes from 20% of code — typically initial load + 1-2 large intermediates. Optimize those 3 lines.",
+        "80% of memory savings come from 20% of optimizations — top 5 patterns deliver 80% of total savings overall",
+        "80% of pipelines have memory issues — 20% of teams cause 80% of out-of-memory incidents at production scale",
+        "80% of memory is wasted by Python's GC — turning off automatic GC saves 80% of total runtime memory peak"
+      ],
+      "correctAnswer": "80% of memory comes from 20% of code — typically initial load + 1-2 large intermediates. Optimize those 3 lines.",
+      "explanation": "Lesson 9: 3 alloc sites = 92% of CelticWind's peak memory. Optimizing those reduced 2.4 GB → 185 MB. 80/20 applies to memory like everything else.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI3",
+        "module-PYI3-lesson-09",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI3-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the memory-efficient pipeline architecture look like at CelticWind?",
+      "options": [
+        "CSV+Pydantic path: chunked dicts. SCADA Parquet path: pyarrow + zero-copy Polars throughout the stage",
+        "All paths: load full dataset + apply Polars on the entire frame to maximize Polars vectorization gains",
+        "All paths: stream JSON line by line through asyncio so memory is constant across every pipeline stage",
+        "All paths: store everything in S3 and stream from S3 on demand to bypass local memory entirely"
+      ],
+      "correctAnswer": "CSV+Pydantic path: chunked dicts. SCADA Parquet path: pyarrow + zero-copy Polars throughout the stage",
+      "explanation": "Lesson 10: per-row needs (Pydantic) = chunked dicts. Analytical needs (aggregation) = Polars. Both stay within 2 GB on 4 GB server.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI3",
+        "module-PYI3-lesson-10",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI4-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When did CelticWind decide to build a framework?",
+      "options": [
+        "When the 8th pipeline was added and more than half of new code was copy-pasted from existing pipelines",
+        "On day one — every team should build a framework before writing any production code at all",
+        "After hiring 50 engineers — the framework decision is dictated by team size not by technical needs",
+        "After Apache published the official Python pipeline framework specification version 2.0 last year"
+      ],
+      "correctAnswer": "When the 8th pipeline was added and more than half of new code was copy-pasted from existing pipelines",
+      "explanation": "Lesson 1: 3 pipelines = 3 scripts is simpler. > half copy-pasted = framework justified. Below the threshold, abstraction overhead exceeds duplication cost.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI4",
+        "module-PYI4-lesson-01",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI4-l02-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What design principle does the registry pattern implement?",
+      "options": [
+        "Open/Closed — open for extension (register new components), closed for modification (no framework changes)",
+        "Single Responsibility — each registry handles exactly one component type's lifecycle and creation",
+        "Liskov Substitution — registries guarantee that any registered component is interchangeable safely",
+        "Interface Segregation — registries split monolithic interfaces into smaller per-component contracts"
+      ],
+      "correctAnswer": "Open/Closed — open for extension (register new components), closed for modification (no framework changes)",
+      "explanation": "Lesson 2: chain of if/elif grows with each new component, requires modifying framework code. Registry = dict lookup, external code extends without framework changes.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI4",
+        "module-PYI4-lesson-02",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI4-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Python's entry-point mechanism enable for CelticWind's framework?",
+      "options": [
+        "Per-team plugin packages discover automatically at startup — framework never imports team packages directly",
+        "Per-team plugins compile to native code through Cython for performance gains across the entire system",
+        "Per-team plugins encrypt their entry points with team-specific keys for cross-team isolation guarantees",
+        "Per-team plugins replace pyproject.toml because entry points define everything Python packages need"
+      ],
+      "correctAnswer": "Per-team plugin packages discover automatically at startup — framework never imports team packages directly",
+      "explanation": "Lesson 3: same mechanism as pytest plugins, Flask extensions. New team installs their package → entry points auto-register their components. Framework stays unaware.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI4",
+        "module-PYI4-lesson-03",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI4-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the topological sort on `StepDefinition.depends_on` produce?",
+      "options": [
+        "Execution layers — steps in the same layer can run concurrently; layers run sequentially across the DAG",
+        "Linear order — every step gets a number from 1 to N and runs strictly in numbered sequence forever",
+        "Random order — the sort shuffles to load-balance across workers regardless of dependencies declared",
+        "Reverse order — leaves first, roots last so the framework finalizes outputs before reading inputs"
+      ],
+      "correctAnswer": "Execution layers — steps in the same layer can run concurrently; layers run sequentially across the DAG",
+      "explanation": "Lesson 4: layer 0 = no deps (read_meters, read_prices, read_weather → concurrent). Layer N = depends on all earlier. Same model as Apache Airflow at smaller scale.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI4",
+        "module-PYI4-lesson-04",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI4-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What separation does the StepHook pattern preserve?",
+      "options": [
+        "Business logic in components (RegionNormalizer normalizes); infrastructure in hooks (logging, metrics, retry)",
+        "Synchronous logic in components; asynchronous logic in hooks for latency-sensitive operations only",
+        "Public API in components; private implementation in hooks invisible to the consuming team's code",
+        "CPU work in components; I/O work in hooks because hooks have separate threading semantics globally"
+      ],
+      "correctAnswer": "Business logic in components (RegionNormalizer normalizes); infrastructure in hooks (logging, metrics, retry)",
+      "explanation": "Lesson 5: change logging format = update one hook, not 12 components. Components stay focused on their transformation logic; hooks add infrastructure transparently.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI4",
+        "module-PYI4-lesson-05",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI4-l06-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does CelticWind's rule about YAML configuration forbid?",
+      "options": [
+        "Conditional logic, loops, or inline Python — YAML declares which components and how they are configured",
+        "More than 50 lines per pipeline — YAML files exceeding this limit are split into included files automatically",
+        "Comments — YAML pipelines must be self-documenting and any explanation belongs in a separate Markdown",
+        "Component versions — pinning versions in YAML breaks the registry's auto-upgrade mechanism completely"
+      ],
+      "correctAnswer": "Conditional logic, loops, or inline Python — YAML declares which components and how they are configured",
+      "explanation": "Lesson 6: logic in YAML = meta-programming language without debugger/types/tests. Conditional behavior = a RoutingValidator component, not a YAML if-statement.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI4",
+        "module-PYI4-lesson-06",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI4-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does a SchemaContract between pipeline steps prevent?",
+      "options": [
+        "Implicit interface — steps document their required/produced columns and the framework verifies them",
+        "Schema evolution — contracts freeze the schema permanently so no producer can ever add a column",
+        "Type errors — contracts validate Python types at runtime through Pydantic before each step runs",
+        "Performance regressions — contracts measure execution time and reject any step that slows below SLA"
+      ],
+      "correctAnswer": "Implicit interface — steps document their required/produced columns and the framework verifies them",
+      "explanation": "Lesson 7: without contracts, you read the producer's code to know its outputs. Contracts make interface explicit and verifiable at build time.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI4",
+        "module-PYI4-lesson-07",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI4-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the `skip` recovery strategy require to be safe?",
+      "options": [
+        "The step must be truly optional — its absence does not silently corrupt downstream results",
+        "The step must complete in under 60 seconds — longer steps cannot recover from a skip cleanly",
+        "The step must run on a separate worker — skipping affects only the worker that executed the step",
+        "The step must be implemented in Cython — Python steps cannot be skipped due to interpreter limits"
+      ],
+      "correctAnswer": "The step must be truly optional — its absence does not silently corrupt downstream results",
+      "explanation": "Lesson 8: weather enrichment skip = safe (billing optional). Validation skip = unvalidated data hits Gold (dangerous). CelticWind's YAML requires comment explaining why optional.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI4",
+        "module-PYI4-lesson-08",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI4-l09-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the right progression toward a framework at CelticWind?",
+      "options": [
+        "Shared utilities (months 1-3) → registries + factory (months 4-9) → full framework with DAG + hooks (month 10+)",
+        "Full framework on day 1 — never write any pipeline code without the framework's structure first",
+        "Full framework on day 30 — after the team has 30 days of pipeline experience to inform design",
+        "Never frameworks — every pipeline should be standalone for maximum independence between teams"
+      ],
+      "correctAnswer": "Shared utilities (months 1-3) → registries + factory (months 4-9) → full framework with DAG + hooks (month 10+)",
+      "explanation": "Lesson 9: each step motivated by real pain, not anticipated need. Partial framework served for 6 months before the full version was built.",
+      "xpReward": 40,
+      "tags": [
+        "module-PYI4",
+        "module-PYI4-lesson-09",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI4-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What did CelticWind's framework deliver in code metrics?",
+      "options": [
+        "12 pipelines: 8,000 LOC (60% duplicated) → 12 YAML + 3,200 LOC shared",
+        "12 pipelines: 8,000 LOC → 800 LOC by removing all comments and using minified Python syntax",
+        "12 pipelines: 8,000 LOC → 0 LOC because the framework auto-generates all pipeline implementations",
+        "12 pipelines: 8,000 LOC → 24,000 LOC because the framework adds substantial abstraction overhead"
+      ],
+      "correctAnswer": "12 pipelines: 8,000 LOC (60% duplicated) → 12 YAML + 3,200 LOC shared",
+      "explanation": "Lesson 10: 12 YAML files + 3,200 LOC of shared code. Module 5 then layers in advanced configuration management on top of these YAML pipeline definitions.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI4",
+        "module-PYI4-lesson-10",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI5-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why is configuration treated as infrastructure at mid-level scale?",
+      "options": [
+        "A config error has the same impact as a code bug — wrong output, data loss, or pipeline failure",
+        "A config error is automatically fixed by Python's interpreter through default value substitution",
+        "A config error is detected by the regulator's automated audit before the pipeline can deploy live",
+        "A config error is harmless — the pipeline runs with whatever values are present in the YAML files"
+      ],
+      "correctAnswer": "A config error has the same impact as a code bug — wrong output, data loss, or pipeline failure",
+      "explanation": "Lesson 1: junior = convenience. Mid = infrastructure. Configuration deserves the same engineering rigor as code: typed, validated, tested, versioned.",
+      "xpReward": 40,
+      "tags": [
+        "module-PYI5",
+        "module-PYI5-lesson-01",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI5-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does pydantic-settings' `Field(ge=1000, le=10000)` provide?",
+      "options": [
+        "Validation at load time — `max_daily_kw=500` raises ValidationError immediately, not at runtime",
+        "Encryption at rest — values outside the range are stored encrypted in the YAML file by default",
+        "Auto-correction — values outside the range are clamped to the nearest valid bound silently",
+        "Performance optimization — Python's interpreter caches values inside the range for faster access"
+      ],
+      "correctAnswer": "Validation at load time — `max_daily_kw=500` raises ValidationError immediately, not at runtime",
+      "explanation": "Lesson 2: declarative validation. max_daily_kw=500 raises 'should be >= 1000' at load. Model class = both validation logic AND schema documentation.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI5",
+        "module-PYI5-lesson-02",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI5-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the configuration source precedence order in pydantic-settings?",
+      "options": [
+        "CLI args > env vars > .env file > YAML > model defaults — highest priority wins",
+        "Model defaults > YAML > .env file > env vars > CLI args — most stable values win",
+        "Whichever is loaded first wins — order depends on the application's import sequence at startup",
+        "Random precedence — pydantic-settings shuffles sources to prevent staleness in cached values"
+      ],
+      "correctAnswer": "CLI args > env vars > .env file > YAML > model defaults — highest priority wins",
+      "explanation": "Lesson 3: CLI > env vars > .env > YAML > defaults. Stale CELTICWIND_LOG_LEVEL=DEBUG silently overrides YAML INFO. Log effective config at startup to surface overrides.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI5",
+        "module-PYI5-lesson-03",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI5-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is `CELTICWIND_ENV` set by infrastructure (Kubernetes/Docker) and not by the application?",
+      "options": [
+        "Application cannot accidentally override its own environment detection — infrastructure controls cannot be bypassed",
+        "Applications run faster when environment variables are set externally rather than through Python code",
+        "Lithuanian regulations require infrastructure-level environment management for all production pipelines",
+        "Python's os.environ has a 32-character limit per variable that infrastructure can override per pod"
+      ],
+      "correctAnswer": "Application cannot accidentally override its own environment detection — infrastructure controls cannot be bypassed",
+      "explanation": "Lesson 4: production K8s pod spec sets CELTICWIND_ENV=production. App trusts it absolutely. Missing = development (safe fallback).",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI5",
+        "module-PYI5-lesson-04",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI5-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is CelticWind's hierarchy of credential management?",
+      "options": [
+        "Eliminate (IAM) → Generate dynamically (OAuth tokens) → Store in Vault (static secrets)",
+        "Hardcode → DB → Vault → Encrypted env vars — progressive security from least to most",
+        "Per-task tokens → Cached in Redis → Replicated across workers → Synced to metadata DB always",
+        "Static passwords → Rotated quarterly → Stored in metadata DB → Encrypted with team key globally"
+      ],
+      "correctAnswer": "Eliminate (IAM) → Generate dynamically (OAuth tokens) → Store in Vault (static secrets)",
+      "explanation": "Lesson 5: zero credentials > per-task tokens > stored secrets. EnvironmentSecretsProvider for dev, AzureKeyVaultProvider for prod. Same protocol.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI5",
+        "module-PYI5-lesson-05",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI5-l06-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind put feature flags on a removal date?",
+      "options": [
+        "Flags permanently enabled = dead code — conditional logic with one path never exercised again",
+        "Flags consume memory in Python's interpreter cache and slow startup if too many accumulate",
+        "Flags are billed per-flag by the configuration management vendor on a monthly subscription basis",
+        "Flags must be removed by the regulator's quarterly audit deadline or the audit fails"
+      ],
+      "correctAnswer": "Flags permanently enabled = dead code — conditional logic with one path never exercised again",
+      "explanation": "Lesson 6: stale flag = technical debt. After 30 days stable, remove flag and simplify the conditional. Code review checklist asks about flags > 90 days old.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI5",
+        "module-PYI5-lesson-06",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI5-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the cost-benefit of configuration tests?",
+      "options": [
+        "Seconds to write, milliseconds to run, prevents hours of production downtime — among the best ROI",
+        "Hours to write, seconds to run, prevents minor inconveniences — moderate ROI for the engineering effort",
+        "Days to write, minutes to run, required by Lithuanian regulators — compliance-driven, not value-driven",
+        "Weeks to write, hours to run, replaces the need for any other testing — high effort but maximum coverage"
+      ],
+      "correctAnswer": "Seconds to write, milliseconds to run, prevents hours of production downtime — among the best ROI",
+      "explanation": "Lesson 7: parametrize over all envs, assert constraints. CelticWind: 4 prevented incidents in 6 months, each would have cost 2+ hours of engineer time.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI5",
+        "module-PYI5-lesson-07",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI5-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does configuration drift detection enable?",
+      "options": [
+        "Compare active config hash to expected hash — warn when production differs from the committed YAML",
+        "Block any deployment with drift — refuse to start the pipeline until the YAML is back in sync",
+        "Auto-correct drift by overwriting the production config with the latest YAML from the main branch",
+        "Encrypt the drift signal — only the security team can read the warning about configuration drift"
+      ],
+      "correctAnswer": "Compare active config hash to expected hash — warn when production differs from the committed YAML",
+      "explanation": "Lesson 8: drift warning, not block — emergency overrides are valid. Policy: investigate within 48 hours, intentional drift updates the committed YAML.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI5",
+        "module-PYI5-lesson-08",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI5-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the CelticWind rule for what to make configurable?",
+      "options": [
+        "Configurable when the value changes between environments; in code when the same in every environment",
+        "Configurable for everything — make every constant a YAML setting for maximum flexibility always",
+        "Configurable for nothing — hardcode all values in code so the pipeline behavior is fully deterministic",
+        "Configurable only for paths — every other value belongs in code regardless of environment differences"
+      ],
+      "correctAnswer": "Configurable when the value changes between environments; in code when the same in every environment",
+      "explanation": "Lesson 9: 22 settings in CelticWind's PipelineConfig. Periodic review removes settings with same value in every env — those are defaults that belong in code.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI5",
+        "module-PYI5-lesson-09",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI5-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does Module 6's testing layer build on Module 5's configuration layer?",
+      "options": [
+        "Property tests generate random valid/invalid configs; integration tests use development profile + CLI overrides",
+        "Property tests replace configuration tests entirely because Hypothesis generates better test cases",
+        "Integration tests skip configuration because they run on the real production server with live secrets",
+        "Configuration tests are a subset of integration tests and Module 6 supersedes Module 5 entirely"
+      ],
+      "correctAnswer": "Property tests generate random valid/invalid configs; integration tests use development profile + CLI overrides",
+      "explanation": "Lesson 10: Module 5 typed config makes integration testing practical. Hypothesis generates configs for validation, integration tests use dev profile + overrides.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI5",
+        "module-PYI5-lesson-10",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI6-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the testing mindset shift between junior and mid level?",
+      "options": [
+        "From 'right answer for these inputs?' to 'correct for any valid input + consistent output composed?'",
+        "From writing tests by hand to having pytest auto-generate tests from function signatures and types",
+        "From local testing to remote testing on Apache's centralized test execution platform globally",
+        "From English test names to Esperanto test names because Esperanto names sort alphabetically better"
+      ],
+      "correctAnswer": "From 'right answer for these inputs?' to 'correct for any valid input + consistent output composed?'",
+      "explanation": "Lesson 1: example-based (junior) → property-based + snapshot + integration (mid). Verify invariants, detect changes, verify component interactions.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI6",
+        "module-PYI6-lesson-01",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI6-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does property-based testing verify with Hypothesis?",
+      "options": [
+        "Universal properties (output count = input count, valid records meet constraints) across random inputs",
+        "Specific examples — Hypothesis is just a fancier @parametrize decorator with the same example-based mindset",
+        "Performance characteristics — Hypothesis benchmarks each function on 10,000 random inputs by default",
+        "Type correctness — Hypothesis runs mypy in strict mode on every test function before execution"
+      ],
+      "correctAnswer": "Universal properties (output count = input count, valid records meet constraints) across random inputs",
+      "explanation": "Lesson 2: Hypothesis generates 200+ random inputs and verifies invariants hold. Complementary to example tests, not a replacement for them.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI6",
+        "module-PYI6-lesson-02",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI6-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the value of `@st.composite` custom strategies?",
+      "options": [
+        "Generate domain-specific data with constraints — meter_id_strategy matches IE-XXX-X-NNNNN exactly",
+        "Compose strategies from primitives — the decorator combines st.integers and st.floats into product types",
+        "Run strategies in parallel — composite strategies generate inputs across multiple cores at once safely",
+        "Cache strategies in Redis — composite strategies persist across test runs for faster CI execution"
+      ],
+      "correctAnswer": "Generate domain-specific data with constraints — meter_id_strategy matches IE-XXX-X-NNNNN exactly",
+      "explanation": "Lesson 3: realistic data generators replace handcrafted fixtures. Hypothesis shrinks failures to minimal examples — points to root cause, not just one symptom.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI6",
+        "module-PYI6-lesson-03",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI6-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the most common snapshot test mistake?",
+      "options": [
+        "Including dynamic fields (timestamp, UUID, duration) without normalizing — fails on every run",
+        "Reading the snapshot from disk instead of from Redis — disk reads are slower and break CI parallelism",
+        "Comparing JSON strings instead of dictionaries — JSON ordering varies between Python versions",
+        "Storing snapshots in Git — binary files belong in S3 storage and are never committed to version control"
+      ],
+      "correctAnswer": "Including dynamic fields (timestamp, UUID, duration) without normalizing — fails on every run",
+      "explanation": "Lesson 4: dynamic fields → false positives. Normalize timestamp='NORMALIZED', duration=0.0 before comparison. Maintain normalize function alongside the snapshot.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI6",
+        "module-PYI6-lesson-04",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI6-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the `@pytest.mark.integration` marker enable at CelticWind?",
+      "options": [
+        "PR check runs unit tests (2s); merge runs integration tests (8s) — fast feedback for developers",
+        "Integration tests run on a separate machine with production-like resources for accurate results",
+        "Integration tests share fixtures with unit tests but use real databases instead of mocked ones",
+        "Integration tests are auto-skipped on Tuesdays per the team's reduced-load development schedule"
+      ],
+      "correctAnswer": "PR check runs unit tests (2s); merge runs integration tests (8s) — fast feedback for developers",
+      "explanation": "Lesson 5: PR fast feedback (unit only). Merge runs full suite (incl integration). Local: pytest -m 'not integration' for fast iteration.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI6",
+        "module-PYI6-lesson-05",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI6-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you use a factory versus a Hypothesis strategy?",
+      "options": [
+        "Factory for example-based tests asserting on specific values; strategy for property-based tests asserting invariants",
+        "Factory for unit tests; strategy for integration tests — these are completely different testing layers",
+        "Factory for fixtures shared across tests; strategy for one-off test inputs that change every run",
+        "Factory for synchronous tests; strategy for async tests because Hypothesis only supports asyncio"
+      ],
+      "correctAnswer": "Factory for example-based tests asserting on specific values; strategy for property-based tests asserting invariants",
+      "explanation": "Lesson 6: factory_meter_readings(count=20, region='DUBLIN') = specific assertion. valid_meter_reading() Hypothesis = property over any valid reading. Both replace fixtures.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI6",
+        "module-PYI6-lesson-06",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI6-l07-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind avoid timing assertions in unit tests?",
+      "options": [
+        "Slow CI servers, heavy load, small data — timing tests have false positives that train teams to retry",
+        "Timing assertions are forbidden by Apache PEP 8 because they introduce non-determinism into CI",
+        "Timing assertions require root permissions to install timing instrumentation in production-like environments",
+        "Timing assertions are 10× slower than functional tests so they exceed the CI budget for every PR check"
+      ],
+      "correctAnswer": "Slow CI servers, heavy load, small data — timing tests have false positives that train teams to retry",
+      "explanation": "Lesson 7: timing for performance regression tests on dedicated hardware (lesson 8). Unit/integration tests assert correctness only — never speed.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI6",
+        "module-PYI6-lesson-07",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI6-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the difference between absolute and relative performance thresholds?",
+      "options": [
+        "Absolute (< 5s) catches CI hardware regressions; relative (< 12× ratio) catches O(n²) algorithmic regressions",
+        "Absolute is required for unit tests; relative is required for integration tests in CelticWind's policy",
+        "Absolute uses milliseconds; relative uses microseconds — both measure exactly the same dimension",
+        "Absolute and relative are equivalent — choosing between them depends on the team's preferred style"
+      ],
+      "correctAnswer": "Absolute (< 5s) catches CI hardware regressions; relative (< 12× ratio) catches O(n²) algorithmic regressions",
+      "explanation": "Lesson 8: absolute breaks when CI hardware changes. Relative tests algorithmic complexity (O(n) = 10× ratio, O(n²) = 100×). CelticWind uses both on critical paths.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI6",
+        "module-PYI6-lesson-08",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI6-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does CelticWind's test marker organization enable?",
+      "options": [
+        "PR: -m 'not slow' (260 tests, 10s); merge: full suite (280 tests, 70s); nightly: stress tests too",
+        "All tests run on every PR regardless of marker — markers are documentation only at CelticWind",
+        "Markers run tests across multiple cloud providers — each marker maps to a specific cloud region globally",
+        "Markers encrypt test results for the security team's audit log of all engineering test executions"
+      ],
+      "correctAnswer": "PR: -m 'not slow' (260 tests, 10s); merge: full suite (280 tests, 70s); nightly: stress tests too",
+      "explanation": "Lesson 9: markers = unit/integration/slow/snapshot. PR runs fast subset; merge runs full; nightly runs stress. Treat test suite as a product.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI6",
+        "module-PYI6-lesson-09",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI6-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does the CI/CD pipeline (Module 7) build on the test suite (Module 6)?",
+      "options": [
+        "Without comprehensive tests, CI/CD = automated risk deployment — tests provide confidence to deploy automatically",
+        "CI/CD replaces tests entirely because automated deployment makes manual testing redundant for production",
+        "CI/CD runs tests only once at staging — production deploys without re-running tests for performance",
+        "CI/CD requires zero tests because the deployment system has its own validation layer at runtime"
+      ],
+      "correctAnswer": "Without comprehensive tests, CI/CD = automated risk deployment — tests provide confidence to deploy automatically",
+      "explanation": "Lesson 10: 280-test suite → CI confidence → automatic deploy. Without tests, CI/CD just automates the risk. Module 7's pipeline depends on Module 6's tests.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI6",
+        "module-PYI6-lesson-10",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI7-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does the CI/CD pipeline do beyond what tests + config systems provide?",
+      "options": [
+        "Ensures correct, portable code reaches production reliably, reproducibly, and reversibly",
+        "Replaces the need for tests by relying on production telemetry to catch any bugs after deployment",
+        "Encrypts the deployment payload so production servers verify the cryptographic signature first",
+        "Runs the pipeline on the developer's laptop instead of the production server for cost efficiency"
+      ],
+      "correctAnswer": "Ensures correct, portable code reaches production reliably, reproducibly, and reversibly",
+      "explanation": "Lesson 1: tests prove correctness, config makes portable, CI/CD ensures the correct + portable code reaches production. Manual deploy = weakest link.",
+      "xpReward": 40,
+      "tags": [
+        "module-PYI7",
+        "module-PYI7-lesson-01",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI7-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind generate a lock file (pip freeze > requirements.lock) even though pyproject.toml has version ranges?",
+      "options": [
+        "Ranges (>=2.5,<3.0) for flexibility; lock file (2.7.1 exactly) for identical staging+prod versions",
+        "Lock files are encrypted by Apache and required for any production package distribution worldwide",
+        "Lock files enable parallel pip install — without them, pip serializes installation across cores",
+        "Lock files are smaller than pyproject.toml — they reduce CI artifact sizes by an order of magnitude"
+      ],
+      "correctAnswer": "Ranges (>=2.5,<3.0) for flexibility; lock file (2.7.1 exactly) for identical staging+prod versions",
+      "explanation": "Lesson 2: pyproject.toml = compatibility ranges. Lock file = exact reproducibility. CI generates lock, deployment uses it. Prevents 'requests 2.31 vs 2.32' surprises.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI7",
+        "module-PYI7-lesson-02",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI7-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does semantic versioning (1.2.0 → 2.0.0) communicate?",
+      "options": [
+        "MAJOR = breaking change (consumers must update); MINOR = new feature; PATCH = bug fix only",
+        "MAJOR = important release; MINOR = small release; PATCH = anything from typo fix to feature add",
+        "MAJOR = production deployment; MINOR = staging deployment; PATCH = development only — never deploy",
+        "MAJOR = annual release; MINOR = quarterly release; PATCH = monthly release — calendar-based"
+      ],
+      "correctAnswer": "MAJOR = breaking change (consumers must update); MINOR = new feature; PATCH = bug fix only",
+      "explanation": "Lesson 3: MAJOR breaking, MINOR feature, PATCH fix. CI rejects builds reusing a published version number. New fix = new version (1.2.1 not 1.2.0 republished).",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI7",
+        "module-PYI7-lesson-03",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI7-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why must secrets never appear in a Dockerfile?",
+      "options": [
+        "ENV CELTICWIND_KEY=... embeds the secret in every image layer — anyone who pulls can extract it",
+        "Dockerfile env vars are slower than runtime env vars by 10× because they go through extra parsing",
+        "Dockerfile env vars conflict with Kubernetes pod env vars and the pod spec wins silently always",
+        "Dockerfile env vars are encrypted with a per-build key that is lost when the build cache is cleared"
+      ],
+      "correctAnswer": "ENV CELTICWIND_KEY=... embeds the secret in every image layer — anyone who pulls can extract it",
+      "explanation": "Lesson 4: docker history / docker inspect reveals embedded ENV. Inject at runtime via -e or K8s secrets. CI checks reject Dockerfiles with secret-prefix ENV lines.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI7",
+        "module-PYI7-lesson-04",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI7-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does a multi-stage Dockerfile achieve?",
+      "options": [
+        "Build stage has build tools (compilers, build); runtime stage has only the wheel — smaller, more secure",
+        "Build stage runs in parallel — multi-stage Dockerfiles auto-distribute across all available CPU cores",
+        "Build stage compiles to native code — multi-stage Dockerfiles produce binary executables not Python wheels",
+        "Build stage is encrypted — only the runtime stage is decrypted on the production server during boot"
+      ],
+      "correctAnswer": "Build stage has build tools (compilers, build); runtime stage has only the wheel — smaller, more secure",
+      "explanation": "Lesson 5: stage 1 builds wheel with build tools. Stage 2 = python:slim + install wheel. Smaller image, no build tools in production.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI7",
+        "module-PYI7-lesson-05",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI7-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does CelticWind's CI pipeline do on a tag push (`refs/tags/v*`)?",
+      "options": [
+        "Builds the wheel + Docker image and pushes to the container registry for production deployment",
+        "Reverts to the previous tag — tag pushes trigger automatic rollback to the prior production version",
+        "Sends an email to all subscribers — tag pushes are subscription notifications without any deploy action",
+        "Locks the main branch — tag pushes prevent further commits until the tag is manually unlocked"
+      ],
+      "correctAnswer": "Builds the wheel + Docker image and pushes to the container registry for production deployment",
+      "explanation": "Lesson 6: lint+test on every PR/push. build+publish only on main or tags. Production releases use tagged builds with predictable versions.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI7",
+        "module-PYI7-lesson-06",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI7-l07-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind set the false-positive target for CI gates at < 2%?",
+      "options": [
+        "30% false positives train developers to retry without investigation — quality gates lose meaning entirely",
+        "2% is an Apache-standard threshold required for any open-source project to receive Foundation funding",
+        "2% matches the regulatory ceiling for false alerts in any data engineering pipeline globally enforced",
+        "2% is the maximum that PagerDuty's alerting system can handle without rate-limiting downstream"
+      ],
+      "correctAnswer": "30% false positives train developers to retry without investigation — quality gates lose meaning entirely",
+      "explanation": "Lesson 7: > 2% false positives → developers learn to ignore. Flaky tests get fixed or quarantined. Network-dependent tests use mocks.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI7",
+        "module-PYI7-lesson-07",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI7-l08-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind use rolling deployment (not blue-green) for the billing pipeline?",
+      "options": [
+        "Billing reads live API prices — Blue and Green produce different output from the same input timing",
+        "Billing data is too large for blue-green — staging cannot duplicate the production data volume cheaply",
+        "Billing has stricter SLAs than blue-green can guarantee due to its 30-second comparison overhead",
+        "Billing uses a different Python interpreter — blue-green requires identical interpreters in both slots"
+      ],
+      "correctAnswer": "Billing reads live API prices — Blue and Green produce different output from the same input timing",
+      "explanation": "Lesson 8: blue-green requires deterministic output. Live API responses differ between Blue's run and Green's comparison run. Idempotent Silver pipeline = blue-green.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI7",
+        "module-PYI7-lesson-08",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI7-l09-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "How does CelticWind treat rollback?",
+      "options": [
+        "Safety net for bugs that escape all 4 layers (CI, staging, blue-green, monitoring) — not a planned step",
+        "First option — every deployment plans for rollback as the primary recovery path immediately on issues",
+        "Last option — every deployment is final and rollback is forbidden once production traffic flows live",
+        "Manual only — rollback requires senior engineer approval through a multi-step Lithuanian regulatory process"
+      ],
+      "correctAnswer": "Safety net for bugs that escape all 4 layers (CI, staging, blue-green, monitoring) — not a planned step",
+      "explanation": "Lesson 9: rollback = safety net, not planned step. Mandatory post-mortem: why didn't tests catch this? Drives test/quality-gate/staging improvements.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI7",
+        "module-PYI7-lesson-09",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI7-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the deployment pipeline enable for Module 8's optimization work?",
+      "options": [
+        "Tests verify correctness preserved; performance regression tests confirm improvement — safe optimization",
+        "The pipeline auto-applies optimizations through static analysis on every commit to the main branch",
+        "The pipeline blocks all optimizations until a senior engineer manually approves through a separate process",
+        "The pipeline requires optimizations to be deployed to staging for 30 days before production deployment"
+      ],
+      "correctAnswer": "Tests verify correctness preserved; performance regression tests confirm improvement — safe optimization",
+      "explanation": "Lesson 10: optimize → CI verifies tests pass (correctness) → perf regression tests confirm improvement. Without CI/CD, broken optimizations reach production.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI7",
+        "module-PYI7-lesson-10",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI8-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is performance intuition wrong more often than not?",
+      "options": [
+        "Modern systems have non-obvious bottlenecks: regex backtracking, GC pauses, per-row overhead at scale",
+        "Modern systems are too complex to understand — only Apache-certified consultants can profile correctly",
+        "Modern systems use machine learning for execution — human reasoning cannot anticipate ML decisions",
+        "Modern systems run on distributed infrastructure that hides bottlenecks behind a network abstraction"
+      ],
+      "correctAnswer": "Modern systems have non-obvious bottlenecks: regex backtracking, GC pauses, per-row overhead at scale",
+      "explanation": "Lesson 1: 'Parquet compression seems expensive' = intuition wrong. CPU stuck on regex backtracking, not I/O. Profile first, never guess.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI8",
+        "module-PYI8-lesson-01",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI8-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does cProfile's `cumtime` (cumulative time) tell you?",
+      "options": [
+        "Total time spent in this function including all functions it called — top-down hierarchical view",
+        "Total time spent waiting for I/O during this function's execution — pure wall-clock measurement",
+        "Total time the function would take if run on perfectly optimized hardware in a vacuum",
+        "Total time the function spent in Python's GC during garbage collection cycles between calls"
+      ],
+      "correctAnswer": "Total time spent in this function including all functions it called — top-down hierarchical view",
+      "explanation": "Lesson 2: cumtime = self + callees. tottime = self only. cProfile sorts by cumtime to find the slowest call chains.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI8",
+        "module-PYI8-lesson-02",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI8-l03-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the most common Python performance anti-pattern in regex usage?",
+      "options": [
+        "re.compile() called inside a per-row function instead of once at module level — 1.2M compiles wastes 60% time",
+        "re.compile() with a pattern longer than 100 characters — the regex engine cannot optimize complex patterns",
+        "re.compile() with the IGNORECASE flag — case-insensitive matching is 10× slower than case-sensitive",
+        "re.compile() inside an if statement — the regex engine must re-evaluate the pattern on every condition"
+      ],
+      "correctAnswer": "re.compile() called inside a per-row function instead of once at module level — 1.2M compiles wastes 60% time",
+      "explanation": "Lesson 3: per-call compile = 60% of validation time. Module-level _PATTERN = re.compile(...) once = 84% reduction from one line change.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI8",
+        "module-PYI8-lesson-03",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI8-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the most useful information to log alongside an I/O timing?",
+      "options": [
+        "Data size (bytes, rows) — 4.2s for 200 MB is normal; 4.2s for 20 MB is a problem only with size",
+        "Engineer name — required by Lithuanian regulations to track which developer initiated the I/O",
+        "Random nonce — to make every log entry unique for the security team's tamper-detection auditing",
+        "CPU usage percentage — I/O timings need CPU usage to be meaningful for capacity planning later"
+      ],
+      "correctAnswer": "Data size (bytes, rows) — 4.2s for 200 MB is normal; 4.2s for 20 MB is a problem only with size",
+      "explanation": "Lesson 4: 4.2s/200MB = 48 MB/s (normal). 4.2s/20MB = 4.8 MB/s (problem). Without size, the timing is meaningless. Throughput = comparable across runs.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI8",
+        "module-PYI8-lesson-04",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI8-l05-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "When does an O(n²) algorithm become a problem?",
+      "options": [
+        "Invisible at 100 rows (microseconds), dominates at 1.2M rows (45 seconds) — scale exposes complexity",
+        "Always — O(n²) is forbidden by Apache PEP 8 regardless of the input size or the algorithm's purpose",
+        "Never — Python's interpreter automatically rewrites O(n²) algorithms to O(n) at runtime via JIT compilation",
+        "Only with strings — O(n²) on numbers is fine because Python's number operations are vectorized"
+      ],
+      "correctAnswer": "Invisible at 100 rows (microseconds), dominates at 1.2M rows (45 seconds) — scale exposes complexity",
+      "explanation": "Lesson 5: 100 rows = microseconds (invisible). 1.2M rows = 45s (dominates). Use set/dict for O(1) lookups instead of nested loops.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI8",
+        "module-PYI8-lesson-05",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI8-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the rule about strings in Python performance code?",
+      "options": [
+        "Use ','.join() for variable-length combination; f-strings for fixed templates — never += in a loop",
+        "Use string concatenation everywhere — Python optimizes += automatically through interning at startup",
+        "Use bytes operations exclusively — strings are 5× slower than bytes for any serialization workload",
+        "Use Cython for all string code — pure Python strings are too slow for any production pipeline always"
+      ],
+      "correctAnswer": "Use ','.join() for variable-length combination; f-strings for fixed templates — never += in a loop",
+      "explanation": "Lesson 6: += in loop = O(n²) immutable string copies. join = O(n). 30× speedup at 1.2M rows. f-strings for templates, join for variable lists.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI8",
+        "module-PYI8-lesson-06",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI8-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Parquet column projection (`columns=['turbine_id', ...]`) achieve?",
+      "options": [
+        "Read only the needed columns — 6.8× faster, 4.7× less memory than reading all columns by default",
+        "Encrypt only the listed columns — Parquet's column-level encryption applies only to projected columns",
+        "Validate only the listed columns — Parquet skips schema validation for the columns not in the list",
+        "Cache only the listed columns — Parquet's read cache stores only the projected columns persistently"
+      ],
+      "correctAnswer": "Read only the needed columns — 6.8× faster, 4.7× less memory than reading all columns by default",
+      "explanation": "Lesson 7: columnar storage = read what you need. CelticWind: 12-column scan all (8.2s, 450MB) vs 3-column projection (1.2s, 95MB).",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI8",
+        "module-PYI8-lesson-07",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI8-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does CelticWind tune chunk size?",
+      "options": [
+        "Benchmark sizes (1K-500K) with tracemalloc — find the sweet spot between throughput and memory usage",
+        "Always 50,000 — the standard chunk size for Python pipelines per the engineering style guide",
+        "Always 1,000 — small chunks reduce memory; throughput penalty is acceptable for safety reasons",
+        "Always one row — Python's interpreter optimizes single-row operations better than batched ones at scale"
+      ],
+      "correctAnswer": "Benchmark sizes (1K-500K) with tracemalloc — find the sweet spot between throughput and memory usage",
+      "explanation": "Lesson 8: 50K = sweet spot for CSV+Pydantic on 4GB server. Polars optimal at 500K (vectorized = lower per-chunk overhead). Workload-dependent.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI8",
+        "module-PYI8-lesson-08",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI8-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you NOT optimize?",
+      "options": [
+        "Pipeline runs within 50% of SLA — the headroom accommodates data growth and infrastructure variability",
+        "Pipeline runs in development — only optimize on production servers with real workloads to measure properly",
+        "Pipeline uses Python — Python is too slow to optimize meaningfully so always rewrite in Rust instead",
+        "Pipeline serves billing — billing pipelines must never be modified per Lithuanian regulatory framework"
+      ],
+      "correctAnswer": "Pipeline runs within 50% of SLA — the headroom accommodates data growth and infrastructure variability",
+      "explanation": "Lesson 9: 50% SLA headroom = safety margin for growth. Optimization beyond readability = expensive maintenance. Each optimization must include why-comment with profile data.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI8",
+        "module-PYI8-lesson-09",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI8-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does CelticWind's performance baseline look like after Module 8 optimization?",
+      "options": [
+        "Read: 96s→15s, Validate: 45s→25s (compiled regex), Total pipeline runs in 63s (was 171s)",
+        "Read: 96s→0s — Python's interpreter learned to read CSV files instantly through machine learning",
+        "Read: 96s→480s — adding profiling overhead made the pipeline slower than the original sequential one",
+        "Read: 96s→96s — optimizations were rejected because they broke the pipeline's readability metrics"
+      ],
+      "correctAnswer": "Read: 96s→15s, Validate: 45s→25s (compiled regex), Total pipeline runs in 63s (was 171s)",
+      "explanation": "Lesson 10: ThreadPoolExecutor (M2) for read, compiled regex for validate. 171s → 63s. Module 9 builds observability on top of this baseline.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI8",
+        "module-PYI8-lesson-10",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI9-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the shift from logging to observability?",
+      "options": [
+        "From answering known questions ('did it finish?') to making behavior visible enough that unexpected patterns are detectable",
+        "From writing logs to an SQL database instead of writing them to a file — pure storage backend change only",
+        "From English logs to JSON logs — observability is purely a structured-format change with no semantic shift",
+        "From local logs to remote logs — observability moves logs from the application's host to a central server"
+      ],
+      "correctAnswer": "From answering known questions ('did it finish?') to making behavior visible enough that unexpected patterns are detectable",
+      "explanation": "Lesson 1: logs (anticipated questions) + metrics (unanticipated trends) + health checks (operational) = observability. Visibility for unexpected patterns.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI9",
+        "module-PYI9-lesson-01",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI9-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is the first argument to `logger.info` an event name (not a message)?",
+      "options": [
+        "Event names are stable identifiers that log queries rely on — messages change format and break queries",
+        "Event names are encrypted with a per-event key — messages are visible to anyone reading the log file",
+        "Event names are cached by structlog for performance — messages are recomputed on every log call",
+        "Event names are required by Apache PEP 8 because they enable type-safe log query construction always"
+      ],
+      "correctAnswer": "Event names are stable identifiers that log queries rely on — messages change format and break queries",
+      "explanation": "Lesson 2: 'validation_complete' = stable. 'Validation completed with 399850 valid...' = format changes break queries. Event names = API names, treated as stable.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI9",
+        "module-PYI9-lesson-02",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI9-l03-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does `bind_contextvars(run_id=...)` enable across pipeline functions?",
+      "options": [
+        "Every subsequent log event in this run inherits run_id — propagates through asyncio + ThreadPoolExecutor automatically",
+        "Every subsequent log event is encrypted with run_id as the key — security audit log per pipeline run",
+        "Every subsequent log event is throttled by run_id — only one event per second per run reaches the log",
+        "Every subsequent log event is replicated across data centers tagged with run_id for global availability"
+      ],
+      "correctAnswer": "Every subsequent log event in this run inherits run_id — propagates through asyncio + ThreadPoolExecutor automatically",
+      "explanation": "Lesson 3: contextvars propagate through async + threads (3.12+). ProcessPoolExecutor needs explicit re-binding in each worker (separate process = separate context).",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI9",
+        "module-PYI9-lesson-03",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI9-l04-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind cap Prometheus label cardinality?",
+      "options": [
+        "Each unique label combination = separate time series — meter_id label = 1.2M time series overwhelming storage",
+        "Cardinality is required to be below 100 by Apache's specification for any production metrics export",
+        "Cardinality affects encryption strength — high cardinality makes per-label encryption keys easier to brute force",
+        "Cardinality affects pricing — Prometheus charges per unique time series and high cardinality increases bills"
+      ],
+      "correctAnswer": "Each unique label combination = separate time series — meter_id label = 1.2M time series overwhelming storage",
+      "explanation": "Lesson 4: pipeline (12) × step (5) × status (3) = ~180 series. meter_id as label = 1.2M series → Prometheus collapses. Meter-level metrics belong in logs.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYI9",
+        "module-PYI9-lesson-04",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI9-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is CelticWind's policy on metrics with no alert?",
+      "options": [
+        "Either has an alert with actionable runbook OR is a diagnostic metric consulted during investigation",
+        "Every metric must have an alert — diagnostic-only metrics are forbidden by the engineering policy",
+        "No metric should have an alert — the on-call team checks Grafana every 15 minutes during business hours",
+        "Metrics without alerts must be removed from the dashboard within 30 days regardless of their utility"
+      ],
+      "correctAnswer": "Either has an alert with actionable runbook OR is a diagnostic metric consulted during investigation",
+      "explanation": "Lesson 5: alert without action = noise. Diagnostic metrics (consulted during investigation) are fine. Core 5 metrics have alerts; diagnostic metrics don't.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI9",
+        "module-PYI9-lesson-05",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI9-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the difference between a liveness check and a readiness check in Kubernetes?",
+      "options": [
+        "Liveness: process alive and responsive? Readiness: can the pipeline run successfully right now?",
+        "Liveness: every 30s, restart on 3 failures. Readiness: every 60s, ignore failures permanently",
+        "Liveness: HTTP 200 always. Readiness: HTTP 200 if the database is reachable for cache pre-population",
+        "Liveness: synchronous check. Readiness: async check that the Kubernetes scheduler ignores entirely"
+      ],
+      "correctAnswer": "Liveness: process alive and responsive? Readiness: can the pipeline run successfully right now?",
+      "explanation": "Lesson 6: liveness = restart if dead. Readiness = traffic eligibility. Cap at 500ms total — file existence checks (microseconds) + lightweight API ping.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI9",
+        "module-PYI9-lesson-06",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI9-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What three things does an alert at 03:15 need to tell the on-call engineer?",
+      "options": [
+        "What might be wrong, what to check first, what to do — runbook link is mandatory in PagerDuty",
+        "Who wrote the code, when they committed it, where they live — for rapid contact during the incident",
+        "How many users are affected, how much revenue is lost, when the regulator must be informed",
+        "Which Python version is running, which Linux kernel, which CPU architecture — for forensic analysis"
+      ],
+      "correctAnswer": "What might be wrong, what to check first, what to do — runbook link is mandatory in PagerDuty",
+      "explanation": "Lesson 7: alert without runbook → escalates to platform team. Runbook tells the engineer the diagnosis path and remediation steps without prior context.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI9",
+        "module-PYI9-lesson-07",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI9-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the design principle for CelticWind's dashboards?",
+      "options": [
+        "Each dashboard answers one specific question — metrics that don't help the question are excluded",
+        "Each dashboard shows every available metric — engineers learn to read walls of charts efficiently",
+        "Each dashboard mirrors the production code structure — one dashboard per Python module exactly",
+        "Each dashboard runs on a separate Grafana instance — isolation prevents cascading failures globally"
+      ],
+      "correctAnswer": "Each dashboard answers one specific question — metrics that don't help the question are excluded",
+      "explanation": "Lesson 8: 'is the platform healthy?' (overview), 'what failed?' (detail), 'when will we need to optimize?' (historical). Metric-not-answering question = excluded.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI9",
+        "module-PYI9-lesson-08",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI9-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the policy for unused dashboards and alerts?",
+      "options": [
+        "Dashboards with zero views in a month → candidate for removal; alerts with zero acks in a quarter → review",
+        "Keep everything forever — dashboards and alerts may be needed someday and removal is irreversible",
+        "Run a daily script that removes any dashboard not viewed in the last 24 hours automatically permanently",
+        "Migrate unused dashboards to cold storage on Lithuanian government cloud servers for compliance reasons"
+      ],
+      "correctAnswer": "Dashboards with zero views in a month → candidate for removal; alerts with zero acks in a quarter → review",
+      "explanation": "Lesson 9: weekly ops review checks alert ack rates and dashboard view counts. False confidence is worse than no monitoring at all.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI9",
+        "module-PYI9-lesson-09",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI9-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What three observability surfaces does the CelticWind pipeline expose?",
+      "options": [
+        "structlog JSON to stdout, Prometheus metrics on :9090, health checks on :8080",
+        "structlog JSON to S3, Prometheus metrics in Redis, health checks via Slack notification only",
+        "structlog text to syslog, Prometheus metrics on the Apache server, health checks through email replies",
+        "structlog binary to a database, Prometheus metrics in YAML files, health checks by manual verification"
+      ],
+      "correctAnswer": "structlog JSON to stdout, Prometheus metrics on :9090, health checks on :8080",
+      "explanation": "Lesson 10: 3 surfaces. Logs (aggregator), metrics (Prometheus + Grafana + PagerDuty), health (K8s probes). Together = complete observability stack.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI9",
+        "module-PYI9-lesson-10",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI10-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does Module 10 say takes years versus weeks?",
+      "options": [
+        "Building takes weeks, deploying takes hours, operating takes years — operational discipline determines years",
+        "Building takes years, deploying takes months, operating takes weeks — most time is in initial development",
+        "All three take the same amount of time — Apache best practices balance phases at 1/3 each in time",
+        "Building takes hours, deploying takes minutes, operating takes seconds — modern tooling makes all fast"
+      ],
+      "correctAnswer": "Building takes weeks, deploying takes hours, operating takes years — operational discipline determines years",
+      "explanation": "Lesson 1: idempotency, checkpointing, graceful shutdown, runbooks make those years smooth. Without discipline, day 1 works → day 90 degrades.",
+      "xpReward": 40,
+      "tags": [
+        "module-PYI10",
+        "module-PYI10-lesson-01",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI10-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is CelticWind's idempotent write pattern?",
+      "options": [
+        "Write to .tmp_date=X/, then atomically rename to date=X/ — partial writes overwritten on retry",
+        "Append to date=X/ on every run — duplicates are deduplicated by a downstream cleaner per partition",
+        "Write to date=X-{run_id}/ — every run writes to a unique directory and the consumer picks the latest",
+        "Write nothing — read replicas serve queries from the source data without producing any writes ever"
+      ],
+      "correctAnswer": "Write to .tmp_date=X/, then atomically rename to date=X/ — partial writes overwritten on retry",
+      "explanation": "Lesson 2: tmp dir + rmtree + atomic rename. Code review checklist: 'Append mode is not permitted for production.' Quarantine log is the only exception.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI10",
+        "module-PYI10-lesson-02",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI10-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the relationship between checkpointing and idempotency?",
+      "options": [
+        "Step must be idempotent before it can be checkpointed — failure between step and checkpoint = duplicates",
+        "Checkpointing replaces idempotency — checkpoints prevent re-execution so idempotency is unnecessary",
+        "Idempotency replaces checkpointing — idempotent steps can be replayed indefinitely without checkpoints",
+        "Both are equivalent — checkpointing and idempotency are two names for the same recovery mechanism"
+      ],
+      "correctAnswer": "Step must be idempotent before it can be checkpointed — failure between step and checkpoint = duplicates",
+      "explanation": "Lesson 3: failure between step (append) + checkpoint save = duplicates on retry. Save checkpoint AFTER idempotent write. Safe resume point.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI10",
+        "module-PYI10-lesson-03",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI10-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does graceful shutdown on SIGTERM achieve?",
+      "options": [
+        "Finish the current chunk, save checkpoint, exit cleanly — Kubernetes can restart with no data corruption",
+        "Crash immediately to free resources — Kubernetes restarts the pod and resumes from a clean state",
+        "Block forever until all data is processed — SIGTERM is ignored to prevent partial output corruption",
+        "Switch to async mode — SIGTERM transitions the synchronous pipeline to coroutine-based execution"
+      ],
+      "correctAnswer": "Finish the current chunk, save checkpoint, exit cleanly — Kubernetes can restart with no data corruption",
+      "explanation": "Lesson 4: shutdown.should_stop check at top of each chunk loop. break out cleanly after current chunk + checkpoint. Tested in CI integration suite.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI10",
+        "module-PYI10-lesson-04",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI10-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What three questions does a good post-mortem answer?",
+      "options": [
+        "What happened (timeline), why (root cause not 'API down' but 'no fallback'), what prevents recurrence",
+        "Who failed (engineer name), when (timestamp), how to punish (HR action) — accountability-focused",
+        "Cost (revenue lost), impact (users affected), penalty (regulatory fines) — financial-focused only",
+        "Pythonic style (PEP 8), test coverage (>90%), documentation completeness (100%) — quality metrics"
+      ],
+      "correctAnswer": "What happened (timeline), why (root cause not 'API down' but 'no fallback'), what prevents recurrence",
+      "explanation": "Lesson 5: blameless. Focus on systemic causes + process improvements. Post-mortem archive = institutional memory for operational failures.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI10",
+        "module-PYI10-lesson-05",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI10-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When is the best time to write a runbook?",
+      "options": [
+        "Immediately after resolving the incident — diagnostic steps and fix commands are still fresh",
+        "On the engineer's birthday — to commemorate their incident response with a permanent artifact",
+        "At pipeline launch — write every possible runbook before any incident can possibly occur",
+        "Never — runbooks are obsolete the moment they are written and create false confidence in operations"
+      ],
+      "correctAnswer": "Immediately after resolving the incident — diagnostic steps and fix commands are still fresh",
+      "explanation": "Lesson 6: post-mortem template includes 'if this recurs, what steps should the on-call engineer follow?' Answer = runbook. 15 min vs 1 hour from memory.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI10",
+        "module-PYI10-lesson-06",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI10-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the prerequisite for any reprocessing strategy?",
+      "options": [
+        "Idempotent writes — without them, reprocessing produces duplicates or partial output silently",
+        "Manual approval from the regulator — Lithuanian law requires per-reprocessing authorization always",
+        "Triple-region replication — reprocessing without replicas can corrupt the only data copy permanently"
+      ],
+      "correctAnswer": "Idempotent writes — without them, reprocessing produces duplicates or partial output silently",
+      "explanation": "Lesson 7: append-mode pipelines + reprocessing = duplicates. Runbook step 1: 'Verify pipeline uses idempotent writes.' If not, escalate.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI10",
+        "module-PYI10-lesson-07",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI10-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How are SLAs negotiated at CelticWind?",
+      "options": [
+        "Quarterly planning meetings between engineering and each consuming team — reflects actual deadlines",
+        "Engineering sets SLAs unilaterally — consumers must adapt to whatever the platform offers each quarter",
+        "Consumers set SLAs unilaterally — engineering must meet whatever deadlines downstream teams demand",
+        "SLAs are auto-generated from past performance — no negotiation, just statistical extrapolation"
+      ],
+      "correctAnswer": "Quarterly planning meetings between engineering and each consuming team — reflects actual deadlines",
+      "explanation": "Lesson 8: 06:00 SLA meaningless if billing needs 04:00. Quarterly negotiation. Billing platinum (06:00, 99.9%) reflects invoicing deadline; analytics gold (09:00, 99%).",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI10",
+        "module-PYI10-lesson-08",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI10-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the capacity projection model produce?",
+      "options": [
+        "Projected runtime per year + SLA headroom + action_needed flag (when headroom < 20%)",
+        "Projected revenue per year + cost per query + ROI flag (when payback period exceeds 2 years)",
+        "Projected team size + Python version per year + migration flag (when version EOL approaches)",
+        "Projected PR count + CI time + scaling flag (when GitHub Actions monthly minutes exceed budget)"
+      ],
+      "correctAnswer": "Projected runtime per year + SLA headroom + action_needed flag (when headroom < 20%)",
+      "explanation": "Lesson 9: synthesis of every module's data — growth rate (M9 metrics), runtime (M9 gauge), bottleneck (M8 profile), parallelism (M2), memory (M3).",
+      "xpReward": 80,
+      "tags": [
+        "module-PYI10",
+        "module-PYI10-lesson-09",
+        "python-mid"
+      ]
+    },
+    {
+      "id": "python-PYI10-l10-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does the senior track shift from?",
+      "options": [
+        "From operating systems (mid) to designing platforms that other teams build on (senior)",
+        "From writing pipelines (mid) to writing pipelines but in Rust (senior) for performance gains",
+        "From Python (mid) to Scala (senior) because senior tracks all standardize on the JVM ecosystem",
+        "From reading code (mid) to reviewing code (senior) — senior is purely a code review specialization"
+      ],
+      "correctAnswer": "From operating systems (mid) to designing platforms that other teams build on (senior)",
+      "explanation": "Lesson 10: junior built pipelines, mid operated them. Senior designs platforms. Operational discipline (idempotency, monitoring, runbooks) remains the foundation.",
+      "xpReward": 40,
+      "tags": [
+        "module-PYI10",
+        "module-PYI10-lesson-10",
+        "python-mid"
+      ]
     }
   ]
 }
