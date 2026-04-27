@@ -4257,6 +4257,2105 @@
         "module-PYI10-lesson-10",
         "python-mid"
       ]
+    },
+    {
+      "id": "python-PYS1-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does Lesson 1 say a namespace that does not match the organization will be worked around, not followed?",
+      "options": [
+        "Every technical decision has an organizational counterpart — namespaces encode team boundaries",
+        "Engineers prefer flat namespaces because nested ones require more typing in the import statements",
+        "Lithuanian regulations require namespaces to mirror the organizational chart at all times globally",
+        "Python's import system caps namespace depth at 3 levels regardless of business requirements always"
+      ],
+      "correctAnswer": "Every technical decision has an organizational counterpart — namespaces encode team boundaries",
+      "explanation": "Lesson 1: namespace hierarchy = team boundaries. Ownership registry = accountability. Topology = country autonomy. Mismatch with org = worked around.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS1",
+        "module-PYS1-lesson-01",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS1-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is renaming `ie.billing.meters` to `ie.revenue.meters` classified as a platform-level breaking change?",
+      "options": [
+        "Requires updating every consumer's imports, configs, deployment routes, RBAC rules, and dashboards",
+        "Renames are forbidden by Lithuanian regulations governing data-platform naming conventions globally",
+        "Renames break Python's import system because module aliases are not allowed in PEP 8 compliance",
+        "Renames require the platform team to manually update each consumer's source code by hand"
+      ],
+      "correctAnswer": "Requires updating every consumer's imports, configs, deployment routes, RBAC rules, and dashboards",
+      "explanation": "Lesson 2: namespace permanence. Renames = formal migration plan reviewed by platform team. Choose carefully at creation time — it is permanent.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS1",
+        "module-PYS1-lesson-02",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS1-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the Atlantic Alliance use a hybrid monorepo + polyrepo model?",
+      "options": [
+        "Atomic platform changes (one commit) + team deployment autonomy (separate cadences)",
+        "Monorepo for staging + polyrepo for production — environment-specific repository structures",
+        "Required by Apache PEP 8 for any data platform that exceeds 200 pipelines and 10 teams",
+        "To bypass GitHub's 1 GB monorepo limit by splitting cold data into separate repositories"
+      ],
+      "correctAnswer": "Atomic platform changes (one commit) + team deployment autonomy (separate cadences)",
+      "explanation": "Lesson 3: monorepo says 'we coordinate tightly'. Polyrepo says 'teams are autonomous'. Hybrid respects 3 founding companies' different cadences.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS1",
+        "module-PYS1-lesson-03",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS1-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What metric measures the platform team's value at the Alliance?",
+      "options": [
+        "Adoption rate by product teams + developer satisfaction — not platform sophistication",
+        "Lines of code in the platform SDK + number of features delivered per quarter consistently",
+        "Number of platform engineers + how senior they are — staffing alone proves platform value",
+        "Number of incidents the platform team resolves directly without escalating to product teams"
+      ],
+      "correctAnswer": "Adoption rate by product teams + developer satisfaction — not platform sophistication",
+      "explanation": "Lesson 4: 80% adoption + 7/10 satisfaction = healthy. Below = pause feature work, investigate. Platform exists to serve product teams, not architectural purity.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS1",
+        "module-PYS1-lesson-04",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS1-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the rule for orphaned data products at the Alliance?",
+      "options": [
+        "More than 2 orphaned products triggers a governance review — first audit found 14, decommissioned 8",
+        "Orphaned products are auto-deleted after 7 days of zero consumer activity in production",
+        "Orphaned products are reassigned to the platform team automatically through round-robin selection",
+        "Orphaned products must be retained forever per Lithuanian regulatory requirements globally enforced"
+      ],
+      "correctAnswer": "More than 2 orphaned products triggers a governance review — first audit found 14, decommissioned 8",
+      "explanation": "Lesson 5: no owner = nobody fixes when broken. Dashboard highlights orphans. First audit: 14 orphaned, 8 decommissioned (no consumers), 6 assigned to most-dependent team.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS1",
+        "module-PYS1-lesson-05",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS1-l06-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance use sequential cross-country deployment instead of simultaneous?",
+      "options": [
+        "Simultaneous would have exposed all 3 countries to a config-loader race condition; sequential caught it",
+        "Simultaneous deployment is forbidden by Lithuanian regulators governing multi-country data platforms",
+        "Simultaneous would exceed the team's PagerDuty subscription budget for cross-country alerts daily",
+        "Sequential deployment is required by Apache HTTP servers running behind Kubernetes in production"
+      ],
+      "correctAnswer": "Simultaneous would have exposed all 3 countries to a config-loader race condition; sequential caught it",
+      "explanation": "Lesson 6: sequential = 4 days of insurance for 5M-meter platform. Platform 1.8 release: race condition caught in IE prod (day 1), fixed before SC rollout (day 3).",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS1",
+        "module-PYS1-lesson-06",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS1-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What configuration layering does the Alliance use across environments × countries × teams?",
+      "options": [
+        "base.yml → {env}.yml → {country}/country.yml → {country}/{team}.yml — 4 layers, 27 combinations",
+        "One YAML per pipeline — config layering is forbidden because precedence rules confuse teams",
+        "All settings in environment variables — YAML files are deprecated in modern Python platforms",
+        "Three separate config files (env, country, team) merged at startup with random precedence rules"
+      ],
+      "correctAnswer": "base.yml → {env}.yml → {country}/country.yml → {country}/{team}.yml — 4 layers, 27 combinations",
+      "explanation": "Lesson 7: 3-dim hierarchy = 3 envs × 3 countries × 3 teams = 27 combos. CI runs 27 parametrized tests, catches errors like FR team.yml accidentally overriding country max_daily_kw.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS1",
+        "module-PYS1-lesson-07",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS1-l08-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does the Alliance's 'blessed dependencies' policy enforce?",
+      "options": [
+        "Specific version ranges for tested dependencies — CI fails if a team's pin falls outside the blessed range",
+        "All teams must use the same exact version of every dependency without any deviation permitted",
+        "Apache-approved dependencies only — non-Apache packages are forbidden across the entire platform",
+        "Free-only dependencies — any commercial library requires platform team budget approval first"
+      ],
+      "correctAnswer": "Specific version ranges for tested dependencies — CI fails if a team's pin falls outside the blessed range",
+      "explanation": "Lesson 8: French team's 0.21.0 Polars pin → null-handling incident corrupted 12,000 billing records. Now: blessed ranges, CI gate enforces compliance.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS1",
+        "module-PYS1-lesson-08",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS1-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance budget 20% of each platform release cycle for migration tooling?",
+      "options": [
+        "Migration speed determines adoption rate — 4-hour migration with codemods vs 3-day manual = adoption",
+        "20% is the Apache-recommended percentage for any open-source platform's migration documentation",
+        "20% is the maximum that Lithuanian regulators allow for non-feature work in any release cycle",
+        "20% leaves room for unexpected emergencies that arise during the production deployment phase"
+      ],
+      "correctAnswer": "Migration speed determines adoption rate — 4-hour migration with codemods vs 3-day manual = adoption",
+      "explanation": "Lesson 9: 3-day migration = reluctant adoption. 4-hour migration with codemods = eager. Investment pays for itself in adoption speed.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS1",
+        "module-PYS1-lesson-09",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS1-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the Alliance Platform Blueprint reflect at the highest level?",
+      "options": [
+        "Hybrid repo + 4-level namespace + producer-owned products + sequential country promotion",
+        "Pure monorepo + flat namespace + platform-owned products + simultaneous global deployment",
+        "Pure polyrepo + 2-level namespace + consumer-owned products + manual deployment approval",
+        "Cloud-native + serverless + auto-scaling + zero-touch operations across all infrastructure"
+      ],
+      "correctAnswer": "Hybrid repo + 4-level namespace + producer-owned products + sequential country promotion",
+      "explanation": "Lesson 10: each decision encodes an organizational reality. Module 2 next: CPython runtime internals beyond what profilers reveal.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS1",
+        "module-PYS1-lesson-10",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS2-l01-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does Module 2 teach beyond what profiling tools reveal?",
+      "options": [
+        "Why the runtime behaves as it does — implementation-level understanding enables fixes profiling cannot suggest",
+        "How to write Python without profiling — runtime knowledge replaces the need for any profiling tools",
+        "How to skip Module 8 mid-level — runtime internals are sufficient for all performance optimization",
+        "How to bypass the GIL — runtime knowledge allows direct memory manipulation that ignores GIL constraints"
+      ],
+      "correctAnswer": "Why the runtime behaves as it does — implementation-level understanding enables fixes profiling cannot suggest",
+      "explanation": "Lesson 1: profiling = 'function takes 40s'. Runtime = 'because re.match compiles a DFA per call, allocating from pymalloc's 256-byte pool that fragments...'",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS2",
+        "module-PYS2-lesson-01",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS2-l02-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the diagnostic rule for distinguishing pymalloc arena retention from a memory leak?",
+      "options": [
+        "Measure RSS across 5 consecutive runs — linear growth = leak; stabilization after first run = retention",
+        "Always treat RSS growth as a leak — the only fix is to restart the process every hour preemptively",
+        "Compare tracemalloc to RSS — if they differ by 10%, it is a leak in C extension memory allocators",
+        "Run gc.collect() after every chunk — if RSS does not drop, the leak is in cyclic references somewhere"
+      ],
+      "correctAnswer": "Measure RSS across 5 consecutive runs — linear growth = leak; stabilization after first run = retention",
+      "explanation": "Lesson 2: 400→520→520→520 = retention (normal). 400→450→500→550→600 = leak. Arenas plateau at peak; leaks grow linearly.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS2",
+        "module-PYS2-lesson-02",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS2-l03-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does CPython's reference counting work for `del large_list` but PyPy does not?",
+      "options": [
+        "CPython guarantees immediate deallocation when refcount hits 0; PyPy uses a tracing GC without that guarantee",
+        "CPython is faster than PyPy at all operations including memory deallocation across data engineering workloads",
+        "PyPy is incompatible with del entirely — the keyword raises a runtime error in PyPy 3.10+ versions",
+        "CPython has a special memory allocator for lists; PyPy uses the standard system malloc which is slower"
+      ],
+      "correctAnswer": "CPython guarantees immediate deallocation when refcount hits 0; PyPy uses a tracing GC without that guarantee",
+      "explanation": "Lesson 3: CPython's refcount + immediate dealloc = del frees memory now. PyPy/Jython/GraalPy use tracing GC. Pattern fails on non-CPython implementations.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS2",
+        "module-PYS2-lesson-03",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS2-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance set GC thresholds to `(700, 10, 50)` for Celery workers?",
+      "options": [
+        "Reduces gen-2 collection frequency 5× — pause cost goes from 50-200ms to less per pipeline run",
+        "Required by Apache standards for any Celery worker that processes more than 1000 tasks per hour",
+        "Increases memory usage 5× to fit larger data structures — performance trade-off for capacity",
+        "Disables generational GC entirely — workers run faster without any garbage collection overhead"
+      ],
+      "correctAnswer": "Reduces gen-2 collection frequency 5× — pause cost goes from 50-200ms to less per pipeline run",
+      "explanation": "Lesson 4: default (700, 10, 10) = gen-2 every 70K allocs. (700, 10, 50) = every 350K. Fewer pauses for long-lived workers.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS2",
+        "module-PYS2-lesson-04",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS2-l05-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the accurate rule about threading vs multiprocessing in Python?",
+      "options": [
+        "'Use threading for any operation that releases the GIL' — not just I/O — including pyarrow, Polars, numpy",
+        "'Use threading for I/O, multiprocessing for CPU' — the simple rule is sufficient for all workloads",
+        "'Use threading for everything in Python 3.13+' — the GIL was removed entirely in that version",
+        "'Use multiprocessing for everything' — threading has too many bugs for production data engineering work"
+      ],
+      "correctAnswer": "'Use threading for any operation that releases the GIL' — not just I/O — including pyarrow, Polars, numpy",
+      "explanation": "Lesson 5: GIL released by pq.read_table, pl.filter, np.dot, file I/O. GIL held by re.match, dict construction, float(). Map each step to its GIL behavior.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS2",
+        "module-PYS2-lesson-05",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS2-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When is a Cython or Rust extension justified at the Alliance?",
+      "options": [
+        "Profiled bottleneck + ≥5× speedup potential + stable interface (not modified frequently)",
+        "Always — pure Python is too slow for any production data engineering pipeline regardless of scale",
+        "Never — Apache PEP 8 forbids non-Python code in any data platform for portability reasons",
+        "When the team has Rust expertise — performance gain is secondary to engineer skill alignment"
+      ],
+      "correctAnswer": "Profiled bottleneck + ≥5× speedup potential + stable interface (not modified frequently)",
+      "explanation": "Lesson 6: pure Python = debuggable, testable, readable. Cython needs C compiler, Rust needs toolchain. Justify with profile + speedup + stability.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS2",
+        "module-PYS2-lesson-06",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS2-l07-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the resource management requirement for `multiprocessing.shared_memory`?",
+      "options": [
+        "Every segment must be unlinked on exit (incl. exceptions) — orphans consume memory indefinitely",
+        "Every segment must be encrypted with a per-segment key from Vault before any worker can access it",
+        "Every segment must be replicated across all workers to ensure availability during process failures",
+        "Every segment is auto-released when the parent process exits — manual cleanup is not needed"
+      ],
+      "correctAnswer": "Every segment must be unlinked on exit (incl. exceptions) — orphans consume memory indefinitely",
+      "explanation": "Lesson 7: shared memory persists until explicitly unlinked. Crashed worker = orphaned segment forever. Context manager + periodic cleanup of segments > 1 hour old.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS2",
+        "module-PYS2-lesson-07",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS2-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance use lazy imports for pyarrow/Polars/pydantic?",
+      "options": [
+        "Eager import = 2080ms startup; lazy = 80ms — fits Kubernetes liveness probe timeouts cleanly",
+        "Lazy imports are 5× faster than eager imports because Python optimizes deferred imports through caching",
+        "Eager imports are forbidden by Apache PEP 8 for any package that is larger than 100 KB on disk",
+        "Lazy imports automatically decrypt encrypted modules when they are first accessed by the worker"
+      ],
+      "correctAnswer": "Eager import = 2080ms startup; lazy = 80ms — fits Kubernetes liveness probe timeouts cleanly",
+      "explanation": "Lesson 8: pyarrow 800ms, polars 600ms, pydantic 400ms. Lazy = workers start within probe timeouts. -X importtime profiles transitive imports.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS2",
+        "module-PYS2-lesson-08",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS2-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the runtime-level optimization decision criterion?",
+      "options": [
+        "Not 'which is faster?' but 'which is fast enough AND maintainable by the team we have?'",
+        "Always 'which is faster?' — performance is the only metric that matters in data engineering at scale",
+        "Always 'which has the best documentation?' — engineer onboarding outweighs all performance concerns",
+        "Always 'which is most popular?' — Apache-recommended tools must be used regardless of fit"
+      ],
+      "correctAnswer": "Not 'which is faster?' but 'which is fast enough AND maintainable by the team we have?'",
+      "explanation": "Lesson 9: Rust 0.8s impressive, Python 33s maintainable. SLA needs sub-5s = Rust justified. SLA allows 60s = Python better engineering choice.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS2",
+        "module-PYS2-lesson-09",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS2-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does Module 3 build on Module 2's runtime knowledge?",
+      "options": [
+        "5M meters exceeds single 8-core server even with optimizations — distribute across worker fleet",
+        "5M meters require rewriting Python in Rust — Module 2 was preparation for the language switch",
+        "5M meters need a custom Python interpreter — Module 3 introduces a forked CPython with no GIL",
+        "5M meters fit on one server with the right runtime tuning — Module 3 covers single-server scaling"
+      ],
+      "correctAnswer": "5M meters exceeds single 8-core server even with optimizations — distribute across worker fleet",
+      "explanation": "Lesson 10: GIL map (M2) determines threading vs distributing within a worker. Shared memory (M2.7) for zero-copy intra-server. Module 3 = horizontal scaling.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS2",
+        "module-PYS2-lesson-10",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS3-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the operational cost of distribution that Lesson 1 emphasizes?",
+      "options": [
+        "Single-server has 1 failure mode; distributed has 15-20 across broker, workers, results, network",
+        "Single-server is forbidden at scale — Apache requires distributed architectures for all platforms",
+        "Distributed is always faster — single-server is 10× slower than any distributed alternative",
+        "Distributed costs 50% more in cloud bills — cost is the only meaningful trade-off to consider"
+      ],
+      "correctAnswer": "Single-server has 1 failure mode; distributed has 15-20 across broker, workers, results, network",
+      "explanation": "Lesson 1: every lesson addresses both the pattern AND its failure modes because operational complexity is the cost of distribution.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS3",
+        "module-PYS3-lesson-01",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS3-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the rule for Celery task arguments at the Alliance?",
+      "options": [
+        "Pass file paths and config keys, not data — task loads fresh data inside the worker for idempotency",
+        "Pass Pydantic models directly — Celery serializes them automatically through pickle protocol 5",
+        "Pass Polars DataFrames — Celery's columnar serializer handles them more efficiently than dicts",
+        "Pass file handles — Celery shares file descriptors across worker processes through fork inheritance"
+      ],
+      "correctAnswer": "Pass file paths and config keys, not data — task loads fresh data inside the worker for idempotency",
+      "explanation": "Lesson 2: Polars DF / Pydantic model / file handle = serialization fail. Path + config keys are JSON-serializable. Worker re-reads data = idempotent.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS3",
+        "module-PYS3-lesson-02",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS3-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance use 7 queues instead of 25 sub-region queues?",
+      "options": [
+        "Single, unambiguous purpose per queue — 7 queue depth charts vs 25, no cross-region routing confusion",
+        "Apache Celery limits queue count to 7 in the open-source build — the enterprise edition supports more",
+        "Lithuanian regulations cap queue counts at 7 for any data platform serving cross-border workloads",
+        "Redis broker performance degrades significantly above 8 queues — 7 is the optimal number empirically"
+      ],
+      "correctAnswer": "Single, unambiguous purpose per queue — 7 queue depth charts vs 25, no cross-region routing confusion",
+      "explanation": "Lesson 3: 25 queues = monitoring complexity + routing confusion. 7 queues (4 country + priority + high-mem + DLQ) handle all sub-regions within country queues.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS3",
+        "module-PYS3-lesson-03",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS3-l04-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance defer pyarrow imports until first task execution in Celery prefork workers?",
+      "options": [
+        "Reduces parent memory 400MB → 80MB; avoids copy-on-write duplication of pyarrow's C++ allocator state",
+        "Required by Celery for any worker pool size above 4 — pyarrow conflicts with prefork below that threshold",
+        "Apache PEP 8 forbids importing pyarrow before fork() in any production data engineering platform",
+        "Lazy import is the only way Celery can detect when pyarrow is actually needed by a specific task"
+      ],
+      "correctAnswer": "Reduces parent memory 400MB → 80MB; avoids copy-on-write duplication of pyarrow's C++ allocator state",
+      "explanation": "Lesson 4: prefork inherits parent's memory pages (CoW). Heavy import in parent = each child duplicates pages on first write. Lazy import in child = no duplication.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS3",
+        "module-PYS3-lesson-04",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS3-l05-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why must Celery chord header tasks return lightweight results?",
+      "options": [
+        "365 × 10MB results = 3.6GB Redis memory before callback runs — chord header writes to storage, returns path",
+        "Apache Celery has a 1 KB hard limit on chord header results — larger payloads are silently truncated",
+        "Lightweight results are 10× faster — chord performance scales linearly with header result size only",
+        "Lithuanian regulators forbid chord header results above 1 KB for any production data platform always"
+      ],
+      "correctAnswer": "365 × 10MB results = 3.6GB Redis memory before callback runs — chord header writes to storage, returns path",
+      "explanation": "Lesson 5: chord stores all header results in Redis until callback. Large results = OOM. Header writes to S3, returns path. Caps Redis at ~1KB per task.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS3",
+        "module-PYS3-lesson-05",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS3-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the Alliance do with the dead letter queue every day at 08:00?",
+      "options": [
+        "Review each task — resubmit with fix, escalate if systemic, or acknowledge if expected and rerunnable",
+        "Auto-reprocess every task — DLQ entries are retried infinitely until they finally succeed every time",
+        "Auto-delete every task — DLQ is purged daily to prevent memory bloat and Redis cost growth",
+        "Forward to Apache Foundation — Apache reviews failed tasks for the open-source community catalog"
+      ],
+      "correctAnswer": "Review each task — resubmit with fix, escalate if systemic, or acknowledge if expected and rerunnable",
+      "explanation": "Lesson 6: DLQ task = small incident (data not processed). > 10 in queue triggers incident response. Daily review classifies and acts on each.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS3",
+        "module-PYS3-lesson-06",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS3-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the rule for Celery task results at the Alliance?",
+      "options": [
+        "Lightweight results in Redis (TTL 1h); large outputs to S3 + return path; ignore_result=True for fire-and-forget",
+        "All results in Redis with no TTL — durability is more important than memory efficiency in production",
+        "All results in PostgreSQL — Apache standards require relational storage for any production task results",
+        "No results stored anywhere — fire-and-forget is the default for every task type in production"
+      ],
+      "correctAnswer": "Lightweight results in Redis (TTL 1h); large outputs to S3 + return path; ignore_result=True for fire-and-forget",
+      "explanation": "Lesson 7: 50MB result × N tasks = unsustainable Redis memory. Pattern: lightweight Redis result (path/count/status) + heavy output to S3.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS3",
+        "module-PYS3-lesson-07",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS3-l08-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "How does OpenTelemetry's trace_id extend Module 9 mid-level's run_id?",
+      "options": [
+        "run_id = single process; trace_id = across multiple processes/servers via Celery headers + Jaeger",
+        "trace_id replaces run_id entirely — OpenTelemetry deprecated run_id in version 1.20 of the spec",
+        "trace_id is encrypted but run_id is not — security through obscurity for distributed pipeline tracing",
+        "trace_id requires a paid OpenTelemetry license but run_id is free — only paid platforms scale globally"
+      ],
+      "correctAnswer": "run_id = single process; trace_id = across multiple processes/servers via Celery headers + Jaeger",
+      "explanation": "Lesson 8: same engineering pattern (bind, propagate, correlate). Different scope: structlog contextvars (call stack) vs Celery headers + collector (multi-process).",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS3",
+        "module-PYS3-lesson-08",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS3-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the Alliance's threshold for distributing a pipeline?",
+      "options": [
+        "Runtime > 80% of SLA on the target server — below that, sequential local execution is faster overall",
+        "Always distribute — Apache standards require distributed architecture for any production pipeline",
+        "Never distribute — single-server is always faster after considering serialization and broker overhead",
+        "Distribute when the team has 5+ engineers — staffing determines architecture independent of workload"
+      ],
+      "correctAnswer": "Runtime > 80% of SLA on the target server — below that, sequential local execution is faster overall",
+      "explanation": "Lesson 9: 3-pipeline rejected proposals saved 60h migration + ongoing operational overhead. 4.5s distributed > 3s local with 4× failure modes = no distribution.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS3",
+        "module-PYS3-lesson-09",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS3-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does Module 4 build on Module 3's distributed task architecture?",
+      "options": [
+        "Module 4's GraphQL data product API submits Celery tasks via Module 3 — execution layer behind the consumption interface",
+        "Module 4 replaces Module 3 — APIs are the modern alternative to distributed task processing entirely",
+        "Module 4 is independent of Module 3 — they cover unrelated platform capabilities at the same scale",
+        "Module 4 wraps Module 3 — GraphQL becomes the only way to invoke Celery tasks at the Alliance"
+      ],
+      "correctAnswer": "Module 4's GraphQL data product API submits Celery tasks via Module 3 — execution layer behind the consumption interface",
+      "explanation": "Lesson 10: GraphQL query that triggers data product refresh = Celery task to country queue. Module 4 builds consumption interface; Module 3 is execution engine.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS3",
+        "module-PYS3-lesson-10",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS4-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the API contract enable that direct file consumption does not?",
+      "options": [
+        "Producer can change storage format/engine/schedule without affecting consumers — decoupling at the contract surface",
+        "Consumer can write data back to the producer — APIs enable bidirectional file modification semantics",
+        "Producer can encrypt data with consumer-specific keys — APIs are the only way to do per-consumer crypto",
+        "Consumer can run arbitrary SQL — APIs delegate query execution back to the consumer's database"
+      ],
+      "correctAnswer": "Producer can change storage format/engine/schedule without affecting consumers — decoupling at the contract surface",
+      "explanation": "Lesson 1: file consumption = consumer knows path, schema, partitions, schedule. API = stable contract; storage format change (Parquet→Delta) invisible to consumers.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS4",
+        "module-PYS4-lesson-01",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS4-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the Alliance enforce on every GraphQL endpoint?",
+      "options": [
+        "Max query depth 3, max field count 50, query cost budget 1000 points",
+        "Max query depth 100, max field count 10000, no cost budget — let consumers query freely",
+        "Max query depth 1, max field count 5, no nested relations — only flat queries are permitted",
+        "Apache GraphQL standard limits — every platform uses the same depth and field count limits globally"
+      ],
+      "correctAnswer": "Max query depth 3, max field count 50, query cost budget 1000 points",
+      "explanation": "Lesson 2: GraphQL nesting = expensive joins. Depth 3 + 50 fields + 1000-point budget prevent runaway queries. 400 with limit-exceeded message.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS4",
+        "module-PYS4-lesson-02",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS4-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does a webhook endpoint need to do within the source system's timeout?",
+      "options": [
+        "Validate, deduplicate, queue to Celery in ~50ms — return 200 before any actual processing begins",
+        "Process the entire event synchronously — return 200 only after the event is fully written to storage",
+        "Forward the event to Kafka without any validation — defer all processing to downstream consumers",
+        "Encrypt the event with a per-source key — return 200 only after the encryption key is rotated"
+      ],
+      "correctAnswer": "Validate, deduplicate, queue to Celery in ~50ms — return 200 before any actual processing begins",
+      "explanation": "Lesson 3: 5-10s source timeout. Sync 15s processing = source times out, retries, creates duplicates. Validate + dedupe + queue + return 200 in 50ms.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS4",
+        "module-PYS4-lesson-03",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS4-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the per-team connection limit on the Alliance's SSE endpoint?",
+      "options": [
+        "5 simultaneous connections — beyond limit returns 429; tracked as Prometheus gauge",
+        "Unlimited — SSE is a stateless protocol so connection counts have no practical meaning at scale",
+        "1 connection — only one SSE consumer per team is permitted to prevent any kind of fanout",
+        "100 connections — generous limit that no team has ever come close to reaching in production"
+      ],
+      "correctAnswer": "5 simultaneous connections — beyond limit returns 429; tracked as Prometheus gauge",
+      "explanation": "Lesson 4: each SSE connection holds server thread + subscription. 1000-connection client = exhaust server. Limit + 429 + dashboard.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS4",
+        "module-PYS4-lesson-04",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS4-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Who owns the data product versioning process at the Alliance?",
+      "options": [
+        "The data product's owner team — they communicate, write migration guide, track adoption",
+        "The platform team — they handle every product's versioning to ensure consistency across the alliance",
+        "The consumers — they decide when each version is sunset and force the producer to comply",
+        "The Lithuanian regulators — they dictate versioning timelines for all production data platforms"
+      ],
+      "correctAnswer": "The data product's owner team — they communicate, write migration guide, track adoption",
+      "explanation": "Lesson 5: URL versioning is trivial. Hard part = org process. Owner manages migration. Platform provides tooling (versioned routing, deprecation headers, dashboard).",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS4",
+        "module-PYS4-lesson-05",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS4-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does the Alliance treat 403 responses?",
+      "options": [
+        "Security signal — logged with team/scope/timestamp; > 10 denials in 24h triggers automated investigation",
+        "Standard error — logged at debug level only and never reviewed by the security team afterwards",
+        "Auto-grant — 403 responses trigger automatic permission grants to keep teams unblocked at all times",
+        "Customer-facing message — 403 responses are translated into user-friendly text in three languages"
+      ],
+      "correctAnswer": "Security signal — logged with team/scope/timestamp; > 10 denials in 24h triggers automated investigation",
+      "explanation": "Lesson 6: 403 may indicate misconfigured client, credential compromise, or unauthorized attempt. Weekly security review of denial patterns.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS4",
+        "module-PYS4-lesson-06",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS4-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What headers does the Alliance include on every API response for rate limiting?",
+      "options": [
+        "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset — for adaptive client throttling",
+        "X-RateLimit-IP — only per-source IP tracking, no team or token information exposed for privacy",
+        "X-RateLimit-Cost — only the cost of the current query, no budget or remaining capacity exposed",
+        "No headers — clients should retry on 429 without any additional rate-limiting metadata"
+      ],
+      "correctAnswer": "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset — for adaptive client throttling",
+      "explanation": "Lesson 7: 800/1000 consumed = client slows proactively. Self-regulating clients never hit the limit. Three headers enable adaptive throttling.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS4",
+        "module-PYS4-lesson-07",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS4-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does every cached API response include `X-Cache-Age`?",
+      "options": [
+        "Consumer can detect stale data (X-Cache-Age: 86400 = 24h old) and decide whether to bypass cache",
+        "Required by Apache HTTP standards for any cached API response in production environments",
+        "Performance optimization — consumers cache responses locally based on the X-Cache-Age value alone",
+        "Lithuanian regulators require cache-age headers on every API response in production data platforms"
+      ],
+      "correctAnswer": "Consumer can detect stale data (X-Cache-Age: 86400 = 24h old) and decide whether to bypass cache",
+      "explanation": "Lesson 8: cache that is never invalidated serves stale data forever with 200 OK. X-Cache-Age + Cache-Control: no-cache bypass enable consumer awareness.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS4",
+        "module-PYS4-lesson-08",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS4-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When does building a data product API NOT make sense?",
+      "options": [
+        "Single team consumer on the same cluster — over-engineering vs direct file access",
+        "More than 3 consumers — APIs are required by Apache standards for any multi-consumer dataset",
+        "Cross-cluster consumer — direct file access works fine across cluster boundaries with NFS mounts",
+        "Field-level authorization needed — APIs cannot do field-level permissions at production scale"
+      ],
+      "correctAnswer": "Single team consumer on the same cluster — over-engineering vs direct file access",
+      "explanation": "Lesson 9: API valuable when consumer base grows (caching amortizes), consumers remote (abstracts location), access control exceeds filesystem. Build when justified.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS4",
+        "module-PYS4-lesson-09",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS4-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the relationship between Module 4's GraphQL schema and Module 5's Protobuf schema?",
+      "options": [
+        "GraphQL = API surface; Protobuf = data contract underneath; rename detected by registry before deploy",
+        "GraphQL replaces Protobuf — modern data products use GraphQL exclusively and have abandoned Protobuf",
+        "Protobuf wraps GraphQL — the API serves Protobuf binary responses with GraphQL as an internal index",
+        "Both are equivalent — choose one based on team preference for the API serialization format"
+      ],
+      "correctAnswer": "GraphQL = API surface; Protobuf = data contract underneath; rename detected by registry before deploy",
+      "explanation": "Lesson 10: M4 governs consumption interface, M5 governs data contract. Together = complete data product governance stack. M4 versioning + M5 schema registry.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS4",
+        "module-PYS4-lesson-10",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS5-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does Lesson 1 say schemas have both technical and organizational components?",
+      "options": [
+        "Tools detect breaks (registry, compatibility checker, CI); organization coordinates evolution (90-day windows)",
+        "Tools alone are sufficient — Apache schema registries handle every aspect of schema evolution automatically",
+        "Organization alone is sufficient — well-coordinated teams do not need any technical schema enforcement",
+        "Schemas are purely technical — organizational coordination has no role in schema evolution at all"
+      ],
+      "correctAnswer": "Tools detect breaks (registry, compatibility checker, CI); organization coordinates evolution (90-day windows)",
+      "explanation": "Lesson 1: technical components straightforward. Organizational components require cross-team coordination tools alone cannot provide. Module covers both.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS5",
+        "module-PYS5-lesson-01",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS5-l02-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the absolute rule about Protobuf field numbers at the Alliance?",
+      "options": [
+        "Reserved field numbers can never be reused — old consumers deserialize new bytes as old type, garbage value silently",
+        "Field numbers can be reused after 30 days — Apache Protobuf relaxes this rule for production schemas",
+        "Field numbers must increase monotonically — gaps indicate breaking changes that cannot be undone",
+        "Field numbers must match column ordering in the storage format — Parquet column index must equal field number"
+      ],
+      "correctAnswer": "Reserved field numbers can never be reused — old consumers deserialize new bytes as old type, garbage value silently",
+      "explanation": "Lesson 2: field 100 was raw_kw (float64). Reused as source_system (string) = old consumers deserialize string bytes as float = garbage. Reserved at .proto + CI gate enforce.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS5",
+        "module-PYS5-lesson-02",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS5-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the Alliance's pipeline do before writing data?",
+      "options": [
+        "Calls registry.register(schema) — write blocked if registration fails; prevents data without registered schema",
+        "Calls registry.fetch(latest) — uses whatever is registered regardless of compatibility with new data",
+        "Skips registration — pipelines write freely and consumers fetch the latest schema each time they read",
+        "Calls registry.delete_old() — clears old versions to keep the registry small and fast across queries"
+      ],
+      "correctAnswer": "Calls registry.register(schema) — write blocked if registration fails; prevents data without registered schema",
+      "explanation": "Lesson 3: register before write. Failed registration (incompatible) = pipeline exits without writing. Prevents 'data exists that no schema describes' scenario.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS5",
+        "module-PYS5-lesson-03",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS5-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance use FULL compatibility (not BACKWARD or FORWARD)?",
+      "options": [
+        "Cross-country promotion window (5 days) makes version mismatches inevitable; only FULL handles both directions",
+        "FULL is required by Apache for any production schema registry — BACKWARD/FORWARD are deprecated modes",
+        "FULL is faster than BACKWARD — the compatibility check completes in half the time on average",
+        "FULL allows breaking changes that BACKWARD prohibits — flexibility is more valuable than safety"
+      ],
+      "correctAnswer": "Cross-country promotion window (5 days) makes version mismatches inevitable; only FULL handles both directions",
+      "explanation": "Lesson 4: FULL prohibits removing any field (even optional). Cross-country mismatch window = need both old-and-new and new-and-old reads. Cleanup deferred 1-2 quarters.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS5",
+        "module-PYS5-lesson-04",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS5-l05-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does the Alliance do about CI gate bypass for schema compatibility?",
+      "options": [
+        "Bypass requires platform team approval via signed commit; unauthorized bypass triggers security alert",
+        "Bypass is freely allowed — engineers self-certify when they need to ship a breaking change quickly",
+        "Bypass is impossible — the gate cannot be disabled by anyone for any reason at any time",
+        "Bypass requires Lithuanian regulator approval — the regulator reviews every bypass request individually"
+      ],
+      "correctAnswer": "Bypass requires platform team approval via signed commit; unauthorized bypass triggers security alert",
+      "explanation": "Lesson 5: NONE compatibility 'temporarily' set + forgotten = 3 subsequent breaking changes shipped undetected. Now signed commits + security alerts.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS5",
+        "module-PYS5-lesson-05",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS5-l06-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does sample data exercise that schema validation does not?",
+      "options": [
+        "Format conventions: meter_id is 14-char IE-DUB-N-00142, optional fields both present/absent, boundary values",
+        "Performance characteristics — sample data times the validator's throughput on representative loads",
+        "Encryption strength — sample data tests the schema registry's TLS configuration for production use",
+        "Replication consistency — sample data verifies that the schema registry replicates correctly across regions"
+      ],
+      "correctAnswer": "Format conventions: meter_id is 14-char IE-DUB-N-00142, optional fields both present/absent, boundary values",
+      "explanation": "Lesson 6: schema says 'meter_id is string'. Sample says 'looks like IE-DUB-N-00142'. Consumer parses format, depends on it. Sample exercises range of values producer may produce.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS5",
+        "module-PYS5-lesson-06",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS5-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you use the parallel-field strategy for schema evolution?",
+      "options": [
+        "Renaming a field — keep old name during migration, all consumers use new name, then deprecate old",
+        "Adding a field — adding always uses parallel-field, never additive, regardless of risk profile",
+        "Removing a field — removing requires parallel-field to give consumers time to migrate away",
+        "Changing a type — all type changes use parallel-field with both fields present simultaneously"
+      ],
+      "correctAnswer": "Renaming a field — keep old name during migration, all consumers use new name, then deprecate old",
+      "explanation": "Lesson 7: rename (daily_kw → consumption_kw): both fields present, consumers migrate to new name, old deprecated. Cost = double storage during migration.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS5",
+        "module-PYS5-lesson-07",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS5-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Where do business rules belong vs where do schema definitions belong?",
+      "options": [
+        "Schema = types + optionality. Contract layer = validation rules (regex, ranges, conditionals)",
+        "Schema = everything including business rules. Apache Protobuf supports conditional required fields",
+        "Schema = only field names. Contract layer handles types, optionality, and business rules together",
+        "Schema = only field IDs. Everything else (names, types, rules) is in the contract layer"
+      ],
+      "correctAnswer": "Schema = types + optionality. Contract layer = validation rules (regex, ranges, conditionals)",
+      "explanation": "Lesson 8: schema with conditional required ('required if country=IE') becomes a programming language. Schema = types/optionality. Contract = Pydantic + validation rules.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS5",
+        "module-PYS5-lesson-08",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS5-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance NOT register every team-internal schema?",
+      "options": [
+        "300+ hours/year governance overhead with no cross-team benefit — registry overwhelmed, platform team consumed",
+        "Apache PEP 8 forbids registering team-internal schemas in any production schema registry globally",
+        "Team-internal schemas evolve too quickly — registry cannot keep up with the daily rate of changes",
+        "Team-internal schemas are confidential — registering them in a shared registry leaks team-specific knowledge"
+      ],
+      "correctAnswer": "300+ hours/year governance overhead with no cross-team benefit — registry overwhelmed, platform team consumed",
+      "explanation": "Lesson 9: 200 subjects, platform team 40% on internal reviews, teams resented bureaucracy. Reduced to cross-team only = freed both for governance that prevents incidents.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS5",
+        "module-PYS5-lesson-09",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS5-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does Module 6 build on Module 5's schema definitions?",
+      "options": [
+        "AST-based generator translates Protobuf schemas to Pydantic models automatically — eliminates manual sync at 45 schemas",
+        "Module 6 replaces Module 5's Protobuf with Pydantic entirely — Pydantic is the modern data engineering standard",
+        "Module 6 forks Module 5's registry into a Pydantic-only system — Protobuf is deprecated for new platforms",
+        "Module 6 ignores Module 5 — metaprogramming has no relationship with schema governance ever"
+      ],
+      "correctAnswer": "AST-based generator translates Protobuf schemas to Pydantic models automatically — eliminates manual sync at 45 schemas",
+      "explanation": "Lesson 10: 45 cross-team schemas × manual Pydantic sync = hours per quarter. Generator eliminates the manual step. Schema governance defines, M6 machinery turns into Python code.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS5",
+        "module-PYS5-lesson-10",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS6-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How is the platform SDK's API quality measured?",
+      "options": [
+        "Discoverability + correctness + diagnostics + stability — same standards as any public API",
+        "Test coverage + documentation pages + open issues — quantitative metrics from the codebase",
+        "Lines of code + number of features + release cadence — productivity metrics from the team",
+        "Adoption rate + uptime + cost — business metrics from the platform's customers downstream"
+      ],
+      "correctAnswer": "Discoverability + correctness + diagnostics + stability — same standards as any public API",
+      "explanation": "Lesson 1: SDK users are engineers writing Python code. API quality measured by same standards as public APIs. Metaprogramming serves these qualities.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS6",
+        "module-PYS6-lesson-01",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS6-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When are descriptors the right tool vs `__init_subclass__`?",
+      "options": [
+        "Descriptors for individual attribute behavior; __init_subclass__ for class-level behavior",
+        "Descriptors are deprecated in Python 3.13 — __init_subclass__ replaces all use cases for descriptors",
+        "Always descriptors — they provide more flexibility than __init_subclass__ in every scenario",
+        "Always __init_subclass__ — descriptors are too low-level for any modern Python platform code"
+      ],
+      "correctAnswer": "Descriptors for individual attribute behavior; __init_subclass__ for class-level behavior",
+      "explanation": "Lesson 2: ConfigField (per-attribute validation) = descriptor. AlliancePipeline registration (class-level) = __init_subclass__. Use simplest tool for the problem.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS6",
+        "module-PYS6-lesson-02",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS6-l03-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the 4:1 ratio in the Alliance SDK?",
+      "options": [
+        "4 base classes use __init_subclass__; 1 uses metaclass — simpler tool when sufficient",
+        "4 metaclasses; 1 __init_subclass__ — Apache standards prefer metaclasses for most platforms",
+        "4 descriptors; 1 metaclass — descriptors handle most cases at the Alliance's metaprogramming layer",
+        "4:1 is a code coverage ratio — 4 lines of test for every 1 line of metaprogramming code"
+      ],
+      "correctAnswer": "4 base classes use __init_subclass__; 1 uses metaclass — simpler tool when sufficient",
+      "explanation": "Lesson 3: AlliancePipeline, AllianceTask, AllianceDataProduct, AllianceSchema use __init_subclass__. SchemaModelMeta is the only metaclass. Reflects 'simplest tool' principle.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS6",
+        "module-PYS6-lesson-03",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS6-l04-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the 'surprise test' principle for metaprogramming?",
+      "options": [
+        "Engineer defines subclass, asserts on every attribute — undeclared/undocumented attribute = surprise to eliminate",
+        "Engineer is surprised by performance gains — speedup must exceed 5× to justify metaprogramming complexity",
+        "Engineer is surprised by error messages — error message clarity is the only criterion for metaclass quality",
+        "Engineer is surprised by API ergonomics — fluent builder vs decorator API choice depends on team taste"
+      ],
+      "correctAnswer": "Engineer defines subclass, asserts on every attribute — undeclared/undocumented attribute = surprise to eliminate",
+      "explanation": "Lesson 4: metaclass that adds unexpected attributes/methods/error messages = unnecessary cognitive load. Surprise tests catch this and demand removal.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS6",
+        "module-PYS6-lesson-04",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS6-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance use file-based plugin discovery for some pipelines?",
+      "options": [
+        "200-file scan = 1.2s startup. Acceptable for long-lived workers (Celery), prohibitive for CLI tools",
+        "File-based is faster than entry points — Apache standards recommend file-based for all production plugins",
+        "Entry points are deprecated — Apache removed entry-point support in importlib.metadata 5.0+ versions",
+        "File-based is more secure — entry points expose the package to dependency injection attacks at runtime"
+      ],
+      "correctAnswer": "200-file scan = 1.2s startup. Acceptable for long-lived workers (Celery), prohibitive for CLI tools",
+      "explanation": "Lesson 5: 200 files × import = 1.2s. Workers start once, run hours = OK. CLI tool per invocation = prohibitive. CLI uses explicit registration.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS6",
+        "module-PYS6-lesson-05",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS6-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the rule about generated code at the Alliance?",
+      "options": [
+        "Commit the generated code; CI verifies committed matches generator output — mismatch fails build",
+        "Generate at runtime always — committed generated code drifts from source and creates inconsistencies",
+        "Never generate — Apache standards forbid code generation in any production data platform globally",
+        "Generate only in production — staging and dev environments use hand-written equivalents instead"
+      ],
+      "correctAnswer": "Commit the generated code; CI verifies committed matches generator output — mismatch fails build",
+      "explanation": "Lesson 6: runtime gen = depends on generator + .proto access + startup timeout. Committed gen = static file, normal import, reviewable in PR. CI matches committed to gen output.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS6",
+        "module-PYS6-lesson-06",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS6-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does every Alliance SDK error message follow?",
+      "options": [
+        "Pattern: what is wrong + which object + how to fix — error messages teach the API while resolving",
+        "Pattern: stack trace + module name + line number — full Python diagnostic without any fix suggestion",
+        "Pattern: exception class + numeric code + lookup URL — engineers consult external docs for resolution",
+        "Pattern: random encouragement + bug emoji + jocular tone — keeps debugging sessions psychologically light"
+      ],
+      "correctAnswer": "Pattern: what is wrong + which object + how to fix — error messages teach the API while resolving",
+      "explanation": "Lesson 7: 'Pipeline ie.billing.meters has no write step. Add .write(...) before .build()'. What/which/how. Tested in SDK test suite alongside positive behavior.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS6",
+        "module-PYS6-lesson-07",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS6-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the Alliance test suite for metaprogramming NOT do?",
+      "options": [
+        "Never imports the metaclass directly — tests user experience (defining a subclass, asserting on visible attributes)",
+        "Never uses pytest fixtures — fixtures and metaclasses are incompatible across Python implementations",
+        "Never tests positive paths — only negative paths to catch the metaclass's failure modes systematically",
+        "Never runs in CI — metaclass tests are too slow for the per-PR test budget at the Alliance"
+      ],
+      "correctAnswer": "Never imports the metaclass directly — tests user experience (defining a subclass, asserting on visible attributes)",
+      "explanation": "Lesson 8: testing internal state = testing implementation. Testing visible attributes = testing user experience. Tests break when UX changes, not when implementation refactors.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS6",
+        "module-PYS6-lesson-08",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS6-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the fallback documentation requirement at the Alliance?",
+      "options": [
+        "Every metaprogramming feature has documented fallback: 'If X removed, replace with manual Y, takes 11h'",
+        "Every metaprogramming feature has Apache certification — fallbacks are unnecessary with proper certification",
+        "Every metaprogramming feature has runtime version detection — falls back automatically across Python versions",
+        "Every metaprogramming feature has been tested by Lithuanian regulators — fallbacks are required by law"
+      ],
+      "correctAnswer": "Every metaprogramming feature has documented fallback: 'If X removed, replace with manual Y, takes 11h'",
+      "explanation": "Lesson 9: 5 platform engineers leave = 45 inherit code they may not understand. Fallback docs make metaprogramming an optimization, not a dependency that cannot be unwound.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS6",
+        "module-PYS6-lesson-09",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS6-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does Module 7 connect to Module 6's metaprogramming?",
+      "options": [
+        "Schema definitions (M5) determine Parquet column types; generated Pydantic models (M6) validate before storage layer",
+        "M7 replaces M6 — storage architecture is more important than metaprogramming at platform scale",
+        "M7 is independent of M6 — they cover unrelated platform capabilities at the senior level",
+        "M7 deprecates M6 — Parquet eliminates the need for any framework engineering or metaprogramming"
+      ],
+      "correctAnswer": "Schema definitions (M5) determine Parquet column types; generated Pydantic models (M6) validate before storage layer",
+      "explanation": "Lesson 10: storage architecture decisions at 18 TB. Encoding, page layout, Delta vs Iceberg, tiering. M5 schemas → Parquet types. M6 generated models → validate before storage.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS6",
+        "module-PYS6-lesson-10",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS7-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the storage architecture serve more than just batch writes?",
+      "options": [
+        "Storage serves Module 4 GraphQL reads, Module 5 schemas, Module 3 Celery writes, Module 9 streams",
+        "Storage architecture is independent of all other concerns — it serves only the team that writes the data",
+        "Storage architecture is purely a cost decision — performance and access patterns are secondary concerns",
+        "Storage architecture is dictated by the cloud vendor — engineers must accept their default configuration"
+      ],
+      "correctAnswer": "Storage serves Module 4 GraphQL reads, Module 5 schemas, Module 3 Celery writes, Module 9 streams",
+      "explanation": "Lesson 1: optimization for batch that degrades point-lookup affects every API consumer. Storage must serve all access patterns, not just the writing pipeline.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS7",
+        "module-PYS7-lesson-01",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS7-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance sort Silver meter data by `(reading_date, region)`?",
+      "options": [
+        "Tight min/max statistics enable predicate pushdown — region filter reads 4 pages instead of 36",
+        "Apache Parquet requires column ordering by data type — date and region come first by convention",
+        "Sorting reduces file size by 40% — sorted data compresses better than unsorted in all cases",
+        "Sorting is required for Parquet to be readable by Spark and Trino — unsorted Parquet files break queries"
+      ],
+      "correctAnswer": "Tight min/max statistics enable predicate pushdown — region filter reads 4 pages instead of 36",
+      "explanation": "Lesson 2: each page has min/max stats. Sort by query columns concentrates region's data in few pages. Higher-cardinality first (date), then lower (region).",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS7",
+        "module-PYS7-lesson-02",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS7-l03-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the Parquet tuning methodology at the Alliance?",
+      "options": [
+        "Measure I/O with default → change one parameter → re-measure → compare. Never tune by intuition",
+        "Always max compression — Apache Parquet's zstd at max level is optimal for all production workloads",
+        "Always default settings — Parquet defaults are tuned for data engineering and should never be changed",
+        "Tune by analogy to other Alliance tables — apply the most-used team's settings to new tables"
+      ],
+      "correctAnswer": "Measure I/O with default → change one parameter → re-measure → compare. Never tune by intuition",
+      "explanation": "Lesson 3: 1MB → 256KB pages helps 5%-selective filters but not 50%-selective. Same mistake as M8 mid-level: optimization without measurement is intuition guessing.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS7",
+        "module-PYS7-lesson-03",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS7-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Delta Lake time travel enable for incident recovery?",
+      "options": [
+        "Read version 84 (last correct), recompute, write version 86 — 5min recovery vs 2h backup restore",
+        "Time travel is purely a feature for data scientists — incident recovery uses traditional backups",
+        "Time travel deletes corrupt data automatically — Delta Lake detects and removes bad versions on its own",
+        "Time travel is encrypted by default — only authorized users can read historical versions of tables"
+      ],
+      "correctAnswer": "Read version 84 (last correct), recompute, write version 86 — 5min recovery vs 2h backup restore",
+      "explanation": "Lesson 4: every write = new version in transaction log. French billing aggregation bug = read version 84, recompute, write 86. 30-day retention.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS7",
+        "module-PYS7-lesson-04",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS7-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does an Iceberg catalog enable?",
+      "options": [
+        "Multi-engine access (Python pipeline + Spark + Trino) on the same table without format conversion",
+        "Encrypted access — Iceberg catalogs are the only table format that supports column-level encryption",
+        "Vendor lock-in to Apache — only Apache-licensed engines can connect to an Iceberg catalog instance",
+        "Real-time replication — Iceberg catalogs replicate tables across regions for high availability"
+      ],
+      "correctAnswer": "Multi-engine access (Python pipeline + Spark + Trino) on the same table without format conversion",
+      "explanation": "Lesson 5: REST catalog/Hive Metastore/AWS Glue/Nessie. Decouples table from engine. Python (delta-rs/pyiceberg), Trino, Spark all see consistent view.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS7",
+        "module-PYS7-lesson-05",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS7-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance run both Delta Lake AND Iceberg?",
+      "options": [
+        "Delta = Python (delta-rs, no JVM); Iceberg = Trino analytics (catalog-native). Best-of-breed per use case",
+        "Delta is for staging, Iceberg for production — environment-specific table formats per Apache standards",
+        "Delta is for billing, Iceberg for analytics — domain-specific formats prevent cross-domain coupling",
+        "Both formats are required by Lithuanian regulators for any cross-country data platform globally"
+      ],
+      "correctAnswer": "Delta = Python (delta-rs, no JVM); Iceberg = Trino analytics (catalog-native). Best-of-breed per use case",
+      "explanation": "Lesson 6: dual-format cost = double op knowledge. Justified because each serves different teams with different tools. Single-format would sacrifice either delta-rs MERGE or Trino integration.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS7",
+        "module-PYS7-lesson-06",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS7-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does the Alliance review storage tier boundaries?",
+      "options": [
+        "Quarterly review checks hot-tier hit rate; > 5% fall-through extends hot window (year 1: 30 → 45 days)",
+        "Annual review only — boundaries are stable enough to need only one review per year per tier",
+        "Never reviewed — Apache standards set boundaries that should not be changed regardless of usage",
+        "Daily review — boundaries shift constantly based on the previous day's query patterns automatically"
+      ],
+      "correctAnswer": "Quarterly review checks hot-tier hit rate; > 5% fall-through extends hot window (year 1: 30 → 45 days)",
+      "explanation": "Lesson 7: 30-day boundary assumed billing accesses last 30 days. French team added 45-day reconciliation = boundary extended. Quarterly review prevents 10× latency surprises.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS7",
+        "module-PYS7-lesson-07",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS7-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why did the Alliance migrate from raw Parquet to Delta Lake?",
+      "options": [
+        "Concurrent writers + readers safety (ACID) — not for table format features per se but multi-access pattern",
+        "Delta Lake is faster than raw Parquet — Apache benchmarks show 5× improvement on all queries",
+        "Delta Lake is required by Apache standards for any data platform exceeding 10 TB of storage",
+        "Delta Lake supports SQL — raw Parquet has no SQL interface for analytical queries at scale"
+      ],
+      "correctAnswer": "Concurrent writers + readers safety (ACID) — not for table format features per se but multi-access pattern",
+      "explanation": "Lesson 8: raw Parquet readers may see partial files concurrent writers create. Delta Lake's transaction log = consistent snapshots. Multi-access pattern needs ACID.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS7",
+        "module-PYS7-lesson-08",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS7-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the table format decision criterion at the Alliance?",
+      "options": [
+        "Access pattern complexity (concurrency, updates, multi-engine) — not data volume",
+        "Always use a table format — Apache standards require Delta Lake or Iceberg for all storage",
+        "Never use a table format — raw Parquet is simpler and sufficient for all data engineering use cases",
+        "Always use Delta Lake — Iceberg is too complex for production use at any data platform scale"
+      ],
+      "correctAnswer": "Access pattern complexity (concurrency, updates, multi-engine) — not data volume",
+      "explanation": "Lesson 9: smallest Alliance Delta = 50MB lookup table updated by 3 teams. Largest raw Parquet = 200GB Bronze. Size and format are independent dimensions.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS7",
+        "module-PYS7-lesson-09",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS7-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does Module 8 build on Module 7's storage architecture?",
+      "options": [
+        "RBAC for Delta tables, column-level encryption for PII Parquet, GDPR for cross-country, audit logs",
+        "M8 replaces M7 entirely — security architecture supersedes storage architecture at scale",
+        "M8 is independent of M7 — security and storage are unrelated concerns at the senior level",
+        "M8 deprecates M7 — multi-tenant security eliminates the need for storage architecture decisions"
+      ],
+      "correctAnswer": "RBAC for Delta tables, column-level encryption for PII Parquet, GDPR for cross-country, audit logs",
+      "explanation": "Lesson 10: storage tiering → audit log retention. Time travel → right-to-erasure verification. Storage and security are inseparable at enterprise scale.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS7",
+        "module-PYS7-lesson-10",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS8-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is the Alliance's security model woven into platform architecture, not bolted on?",
+      "options": [
+        "Module 1's topology = jurisdictional compliance, M4's authz = classification, M5's registry = access impact",
+        "Security is a separate concern from architecture — security teams design it independently of platform teams",
+        "Lithuanian regulations require security to be designed first — architecture follows security decisions",
+        "Apache standards mandate post-hoc security — security must be added after the platform is operational"
+      ],
+      "correctAnswer": "Module 1's topology = jurisdictional compliance, M4's authz = classification, M5's registry = access impact",
+      "explanation": "Lesson 1: previous modules implemented security implicitly. This module formalizes the complete architecture, compliance framework, and audit infrastructure that demonstrates compliance.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS8",
+        "module-PYS8-lesson-01",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS8-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the rule for wildcard access grants at the Alliance?",
+      "options": [
+        "Restricted to team's own namespace (ie.billing.* OK, ie.* requires platform team approval)",
+        "Wildcards are forbidden — every grant must specify exact resource names without any wildcard",
+        "Wildcards are unrestricted — engineers can grant cross-team access freely without any approval",
+        "Wildcards require Apache certification — only Apache-certified engineers can create wildcard grants"
+      ],
+      "correctAnswer": "Restricted to team's own namespace (ie.billing.* OK, ie.* requires platform team approval)",
+      "explanation": "Lesson 2: ie.* gives access to every Irish resource including other teams'. Cross-namespace wildcards = platform approval. CI flags these for review.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS8",
+        "module-PYS8-lesson-02",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS8-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the role of the Alliance's PII scanner vs the data product owner's classification?",
+      "options": [
+        "Scanner is automated first line; owner's decision is authoritative determination — both needed",
+        "Scanner replaces the owner's decision — automation is more accurate than human judgment for PII",
+        "Owner's decision replaces the scanner — automated scanning produces too many false positives",
+        "Both are independent — scanner runs in CI, owner reviews quarterly, results never cross"
+      ],
+      "correctAnswer": "Scanner is automated first line; owner's decision is authoritative determination — both needed",
+      "explanation": "Lesson 3: scanner catches obvious patterns. Cannot detect semantic PII (meter_id correlated with public address DB). Scanner reduces accidents; human decides PII in domain.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS8",
+        "module-PYS8-lesson-03",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS8-l04-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance's GDPR erasure pipeline cover backup snapshots and log files?",
+      "options": [
+        "Customer data exists in Delta tables, raw Parquet, Redis cache, structlog JSON, backups, registry samples",
+        "GDPR requires erasure only from primary storage — backups and logs are excluded from the right to erasure",
+        "Apache requires erasure from databases only — file-based storage is exempt from GDPR Article 17",
+        "Erasure is purely conceptual — no actual data deletion is required by GDPR Article 17 in practice"
+      ],
+      "correctAnswer": "Customer data exists in Delta tables, raw Parquet, Redis cache, structlog JSON, backups, registry samples",
+      "explanation": "Lesson 4: data catalog tracks every store with customer-identifiable data. Erasure processes each. Quarterly audit verifies no missing store = compliance gap detected.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS8",
+        "module-PYS8-lesson-04",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS8-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the Alliance design for UK adequacy revocation as a non-event for analytics?",
+      "options": [
+        "Cross-border analytics use only anonymized Gold data — only 3 specific PII flows need SCC fallback",
+        "UK adequacy is permanent — Apache standards guarantee adequacy across all EU-UK data transfers",
+        "Analytics teams are exempt from adequacy — only billing teams need adequacy considerations globally",
+        "Adequacy revocation triggers automatic platform shutdown — no design considerations are needed"
+      ],
+      "correctAnswer": "Cross-border analytics use only anonymized Gold data — only 3 specific PII flows need SCC fallback",
+      "explanation": "Lesson 5: design for worst case at start = costs nothing. Redesign after revocation = months of emergency engineering. Anonymized aggregates make analytics adequacy-independent.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS8",
+        "module-PYS8-lesson-05",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS8-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is meta-audit at the Alliance?",
+      "options": [
+        "Access to the audit log is itself audit-logged — required by DPO for GDPR compliance because log is confidential",
+        "Apache certification of the audit logging system — only Apache-certified loggers can be used in production",
+        "Recursive testing of audit log replication — tests that the audit log replicates audit log access events",
+        "Random sampling of audit events — meta-audit checks 5% of events for accuracy and completeness"
+      ],
+      "correctAnswer": "Access to the audit log is itself audit-logged — required by DPO for GDPR compliance because log is confidential",
+      "explanation": "Lesson 6: audit log records customer_id in erasure events + actor_identity. Classified confidential. audit:read scope (platform + compliance teams). Access logged recursively.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS8",
+        "module-PYS8-lesson-06",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS8-l07-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does the Alliance's quarterly security drill simulate?",
+      "options": [
+        "Secret compromise: revoke test secret, measure time to full recovery, identify procedure gaps",
+        "Production outage: shut down all services for 1 hour to test the disaster recovery playbook fully",
+        "Penetration test: external red team attempts unauthorized access to find exploitable vulnerabilities",
+        "Compliance audit: regulators arrive unannounced to inspect all security controls and audit logs"
+      ],
+      "correctAnswer": "Secret compromise: revoke test secret, measure time to full recovery, identify procedure gaps",
+      "explanation": "Lesson 7: untested revocation procedure fails under pressure. Drill: revoke test secret, measure recovery, fix gaps. Recorded in security review minutes.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS8",
+        "module-PYS8-lesson-07",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS8-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is zero-trust at the Alliance?",
+      "options": [
+        "Every access authenticated + authorized regardless of network location (combination of token + RBAC + network + audit)",
+        "Network firewall + VPN — once inside the network, all access is implicitly trusted at the Alliance",
+        "Single sign-on for all engineers — one login grants access to all systems without re-authentication",
+        "Apache zero-trust certification — Apache provides a turnkey zero-trust solution for all platforms"
+      ],
+      "correctAnswer": "Every access authenticated + authorized regardless of network location (combination of token + RBAC + network + audit)",
+      "explanation": "Lesson 8: not a firewall. Design principle. Service tokens (auth) + RBAC (authz) + network policies (defense in depth) + audit (detection). Removing any breaks zero-trust.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS8",
+        "module-PYS8-lesson-08",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS8-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the annual classification review check at the Alliance?",
+      "options": [
+        "Under-classified (PII in internal datasets via PII scanner) AND over-classified (public marked confidential)",
+        "Only under-classified data — over-classification is harmless because more security is always better",
+        "Only over-classified data — under-classification is automatically caught by the PII scanner daily"
+      ],
+      "correctAnswer": "Under-classified (PII in internal datasets via PII scanner) AND over-classified (public marked confidential)",
+      "explanation": "Lesson 9: under-classified = PII exposure to unauthorized teams. Over-classified = wasted engineering time + audit capacity. Both are misclassifications.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS8",
+        "module-PYS8-lesson-09",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS8-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does Module 9 build on Module 8's security architecture?",
+      "options": [
+        "Kafka SASL/SCRAM (auth) + topic ACLs (namespace authz) + audit-logged messages — streaming equivalent of M8",
+        "M9 replaces M8 — streaming architecture supersedes batch security entirely at enterprise scale",
+        "M9 is independent of M8 — streaming has no security requirements that batch does not already cover",
+        "M9 deprecates M8 — exactly-once delivery patterns eliminate the need for security controls"
+      ],
+      "correctAnswer": "Kafka SASL/SCRAM (auth) + topic ACLs (namespace authz) + audit-logged messages — streaming equivalent of M8",
+      "explanation": "Lesson 10: SASL/SCRAM = streaming JWT. Topic ACLs = namespace-scoped permissions. Every consumed message audit-logged. Security applies directly to streaming.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS8",
+        "module-PYS8-lesson-10",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS9-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does the Alliance treat streaming relative to its 197+ batch pipelines?",
+      "options": [
+        "Extension for specific use cases where batch latency is insufficient — not replacement",
+        "Replacement — Apache standards require migrating all batch to streaming for modern platforms",
+        "Forbidden — Apache standards prohibit streaming in any production data platform globally",
+        "Required for everything — every pipeline must be streaming regardless of latency requirements"
+      ],
+      "correctAnswer": "Extension for specific use cases where batch latency is insufficient — not replacement",
+      "explanation": "Lesson 1: 197 batch pipelines unchanged. 3 streaming pipelines added for sub-minute latency. Module teaches adding streaming to batch platform, not migration.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS9",
+        "module-PYS9-lesson-01",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS9-l02-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the rule about Kafka partition counts at the Alliance?",
+      "options": [
+        "Can be added but never removed; adding breaks key-to-partition mapping for keyed messages",
+        "Auto-scales based on throughput — Kafka adjusts partition count automatically every hour",
+        "Always 1 partition per topic — single-partition topics are simpler for Python consumers to handle",
+        "Apache standards mandate exactly 16 partitions per topic for any production Kafka deployment"
+      ],
+      "correctAnswer": "Can be added but never removed; adding breaks key-to-partition mapping for keyed messages",
+      "explanation": "Lesson 2: SCADA topic 3 partitions = 3 countries (unlikely to change). Meter events 8 partitions = sub-region count with growth room. Set once, stable for 18 months.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS9",
+        "module-PYS9-lesson-02",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS9-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the Alliance's Kafka consumer set `max.poll.interval.ms` to for batched Delta Lake writes?",
+      "options": [
+        "600 seconds (10 min) — accommodates batch writes of up to 100,000 messages per micro-batch",
+        "30 seconds — Apache standards for any Python Kafka consumer regardless of workload type",
+        "60 seconds — the protocol's default, increased only with explicit Apache certification approval",
+        "Infinite — disable timeout entirely so the consumer can process arbitrarily large batches safely"
+      ],
+      "correctAnswer": "600 seconds (10 min) — accommodates batch writes of up to 100,000 messages per micro-batch",
+      "explanation": "Lesson 3: default 300s (5min). Batch write of 100K messages exceeds default → rebalance kicks in → reprocessing. Set to 600s for 10-min Delta MERGE windows.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS9",
+        "module-PYS9-lesson-03",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS9-l04-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does end-to-end exactly-once mean at the Alliance?",
+      "options": [
+        "Each turbine event appears exactly once in Delta Lake AND exactly once on operations dashboard",
+        "Kafka exactly-once between producer and consumer — Delta Lake write delivery is best-effort beyond Kafka",
+        "Each event processed exactly once on each Celery worker — duplicates across workers are acceptable",
+        "Apache Kafka guarantees exactly-once for all messages — no additional patterns are needed"
+      ],
+      "correctAnswer": "Each turbine event appears exactly once in Delta Lake AND exactly once on operations dashboard",
+      "explanation": "Lesson 4: Kafka exactly-once is between Kafka boundary. Alliance exactly-once = end-to-end. Delta MERGE is idempotent (achieves it for 2/3 use cases). Billing uses transactional.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS9",
+        "module-PYS9-lesson-04",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS9-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Debezium capture from PostgreSQL?",
+      "options": [
+        "WAL (write-ahead log) — converts INSERT/UPDATE/DELETE into structured Kafka events near-real-time",
+        "Trigger output — Debezium installs SQL triggers on every table to capture changes",
+        "Periodic snapshots — Debezium polls PostgreSQL every minute to detect changes",
+        "Apache standard CDC events — only certified Apache databases support Debezium properly"
+      ],
+      "correctAnswer": "WAL (write-ahead log) — converts INSERT/UPDATE/DELETE into structured Kafka events near-real-time",
+      "explanation": "Lesson 5: WAL is PostgreSQL's own change log. Debezium reads it, publishes events. Python consumer MERGEs into Silver Delta within seconds of each change.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS9",
+        "module-PYS9-lesson-05",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS9-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does the Alliance refresh the in-memory turbine metadata lookup without blocking?",
+      "options": [
+        "Background thread loads new dict, atomic pointer swap (thread-safe in CPython due to GIL)",
+        "Synchronous refresh in the consumer poll loop — adds 200ms latency but is simpler to implement",
+        "Redis cache with 300s TTL — every event read triggers a Redis lookup for current metadata",
+        "Apache standards require periodic restart of consumers — refresh by killing and recreating workers"
+      ],
+      "correctAnswer": "Background thread loads new dict, atomic pointer swap (thread-safe in CPython due to GIL)",
+      "explanation": "Lesson 6: synchronous = 200ms latency hit. Background thread + atomic swap = 0 latency. Pointer swap is thread-safe due to GIL (M2 lesson 5).",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS9",
+        "module-PYS9-lesson-06",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS9-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does the Alliance describe the hybrid batch + streaming architecture?",
+      "options": [
+        "Steady-state architecture — batch optimal for high-volume/latency-tolerant; streaming for low-volume/latency-sensitive",
+        "Transitional — the Alliance is migrating to pure streaming over the next 2 years per Apache standards",
+        "Legacy — modern data platforms have abandoned batch entirely in favor of pure streaming everywhere",
+        "Required by regulators — Lithuanian law mandates dual batch + streaming for all data platforms"
+      ],
+      "correctAnswer": "Steady-state architecture — batch optimal for high-volume/latency-tolerant; streaming for low-volume/latency-sensitive",
+      "explanation": "Lesson 7: pure batch fails grid ops (27h latency for turbine status). Pure streaming fails billing (unnecessary complexity). Hybrid matches workload to optimal model.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS9",
+        "module-PYS9-lesson-07",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS9-l08-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the Alliance's early-warning indicator for streaming consumer capacity?",
+      "options": [
+        "Lag growth rate (msg/s produced minus consumed) — positive sustained = needs more capacity before data loss",
+        "Absolute lag — Apache standards trigger alerts only when lag exceeds 100,000 messages on any partition",
+        "Consumer crash count — capacity issues manifest as crashes, not as lag accumulation gradually",
+        "CPU utilization — streaming consumers are CPU-bound so CPU is the only relevant capacity metric"
+      ],
+      "correctAnswer": "Lag growth rate (msg/s produced minus consumed) — positive sustained = needs more capacity before data loss",
+      "explanation": "Lesson 8: 200/s produced - 180/s consumed = 20/s growth = 1.7M/day. 7-day retention = data loss after ~12M messages. Growth rate Prometheus metric, 1h evaluation.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS9",
+        "module-PYS9-lesson-08",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS9-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the Alliance's criterion for streaming over batch?",
+      "options": [
+        "Traceable to a business decision that cannot be made with stale data (grid curtailment, real-time billing)",
+        "Always streaming — sub-minute latency is the goal for every data product at the Alliance",
+        "Streaming for new pipelines, batch for legacy — gradual migration over many quarters and years",
+        "Streaming for popular pipelines, batch for niche ones — popularity drives latency requirements"
+      ],
+      "correctAnswer": "Traceable to a business decision that cannot be made with stale data (grid curtailment, real-time billing)",
+      "explanation": "Lesson 9: grid ops needs sub-10s (delayed curtailment = grid instability). Billing needs sub-5min (stale prices = €3K/h cost). Analytics dropped streaming = no decision needs sub-minute.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS9",
+        "module-PYS9-lesson-09",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS9-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does Module 10 close the senior track?",
+      "options": [
+        "Maps 30 modules across 3 tracks into unified governance: catalog, costs, SLA, capacity, organizational patterns",
+        "Module 10 is independent of all prior modules — it covers organizational topics unrelated to engineering",
+        "Module 10 replaces all prior modules — governance is the only thing that matters at enterprise scale",
+        "Module 10 deprecates the senior track — modern platforms use only modules 1-9 in production"
+      ],
+      "correctAnswer": "Maps 30 modules across 3 tracks into unified governance: catalog, costs, SLA, capacity, organizational patterns",
+      "explanation": "Lesson 10: complete journey junior (400K, 1 team) → mid (1.2M, mid scale) → senior (5M, multi-country). M10 maps all 30 contributions into governance + decommissioning.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS9",
+        "module-PYS9-lesson-10",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS10-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does Lesson 1 say makes 200 pipelines a 'platform' rather than 200 independent scripts?",
+      "options": [
+        "Shared conventions (M1), schemas (M5), security (M8), accountability (this module) = platform",
+        "Storage location — pipelines on the same disk are a platform; pipelines on different disks are not",
+        "Programming language — Python pipelines are a platform; mixed-language pipelines are independent scripts",
+        "Number of teams — pipelines run by one team are a platform; pipelines run by multiple teams are scripts"
+      ],
+      "correctAnswer": "Shared conventions (M1), schemas (M5), security (M8), accountability (this module) = platform",
+      "explanation": "Lesson 1: 200 scripts share infra. Platform shares conventions, schemas, security, accountability. Governance makes whole > sum of parts.",
+      "xpReward": 40,
+      "tags": [
+        "module-PYS10",
+        "module-PYS10-lesson-01",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS10-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does the Alliance measure data catalog usability?",
+      "options": [
+        "Search success rate (80% target) and time-to-discovery (< 2 min target) — tracked via API access logs",
+        "Number of entries — more entries = better catalog (Apache standards measure size, not usability)",
+        "Engineer survey — usability is purely subjective so qualitative feedback is the only metric",
+        "Entry update frequency — daily updates = active catalog; less frequent = stale and unused catalog"
+      ],
+      "correctAnswer": "Search success rate (80% target) and time-to-discovery (< 2 min target) — tracked via API access logs",
+      "explanation": "Lesson 2: stale + missing + broken = engineers distrust, fall back to Slack. 80%/2-min target. Below = catalog team investigates which entries are bad.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS10",
+        "module-PYS10-lesson-02",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS10-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the Alliance enforce in CI for data lineage?",
+      "options": [
+        "Every read call references a dataset in catalog's upstream_dependencies; missing reference fails build",
+        "Every read is logged for 30 days — lineage is reconstructed from access logs at quarterly review",
+        "Every read is encrypted — lineage gaps are detected by analyzing the encrypted access patterns",
+        "Lineage is not enforced — Apache standards leave lineage entirely to the data engineer's discretion"
+      ],
+      "correctAnswer": "Every read call references a dataset in catalog's upstream_dependencies; missing reference fails build",
+      "explanation": "Lesson 3: undeclared read = missing edge in lineage graph = schema change breaks pipeline undetected. CI: 'Pipeline reads from S but doesn't declare dependency'.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS10",
+        "module-PYS10-lesson-03",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS10-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is cost allocation informational (not budget-linked) in Year 1 at the Alliance?",
+      "options": [
+        "Awareness + optimization incentive without adversarial dynamics — Year 2 plans budget linkage",
+        "Apache PEP 8 forbids budget-linked chargeback in any production data platform globally enforced",
+        "Lithuanian regulators require Year 1 information-only chargeback for all multi-team data platforms",
+        "Budget linkage is technically infeasible — Year 1 builds the data; Year 2 will use it for budgets"
+      ],
+      "correctAnswer": "Awareness + optimization incentive without adversarial dynamics — Year 2 plans budget linkage",
+      "explanation": "Lesson 4: penalizing legitimate usage (billing 40% of compute because 40% of data) discourages data-intensive work. Year 1 awareness, Year 2 budget enforcement.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS10",
+        "module-PYS10-lesson-04",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS10-l05-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "How does end-to-end SLA availability compound across pipeline dependencies?",
+      "options": [
+        "Multiplicatively — Bronze 99.5% × Silver 99% × Gold 99% × API 99.9% = 97.4% end-to-end",
+        "Additively — sum of dependency availabilities provides the end-to-end value at the platform layer",
+        "Maximum — end-to-end equals the highest availability among all the pipeline's dependencies always",
+        "Minimum — end-to-end equals the lowest availability among all the pipeline's dependencies always"
+      ],
+      "correctAnswer": "Multiplicatively — Bronze 99.5% × Silver 99% × Gold 99% × API 99.9% = 97.4% end-to-end",
+      "explanation": "Lesson 5: weakest link determines chain. Compounded multiplication = realistic. Bronze 99.5% (2 fails/month) is the weakest; bringing Bronze higher raises everything.",
+      "xpReward": 120,
+      "tags": [
+        "module-PYS10",
+        "module-PYS10-lesson-05",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS10-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the Alliance learn from Year 1's capacity planning estimates?",
+      "options": [
+        "First year ±20% error from estimates; second year ±8% from actual metrics — €600/month over-provisioning",
+        "Estimates are perfect — Apache standards capacity planning has zero error in the first year always",
+        "Estimates are useless — Apache standards recommend skipping Year 1 capacity planning entirely",
+        "Estimates are confidential — Lithuanian regulators forbid sharing capacity data across teams or years"
+      ],
+      "correctAnswer": "First year ±20% error from estimates; second year ±8% from actual metrics — €600/month over-provisioning",
+      "explanation": "Lesson 6: 15% meter growth est, 18% actual. 20 new pipelines/year est, 24 actual. Year 2 metric-based = ±5% provisioning. Over-provisioning = cost of estimation uncertainty.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS10",
+        "module-PYS10-lesson-06",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS10-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does the Alliance handle deprecated and sunset datasets in the catalog?",
+      "options": [
+        "Filtered by default — visible only with explicit toggle. Keeps engineer's view focused on 400 active",
+        "Auto-deleted after 7 days of zero consumer activity per Apache standards across all platforms",
+        "Highlighted prominently — deprecated datasets are shown first in search results to draw attention",
+        "Marked with red border — visual styling alone is sufficient to indicate dataset lifecycle status"
+      ],
+      "correctAnswer": "Filtered by default — visible only with explicit toggle. Keeps engineer's view focused on 400 active",
+      "explanation": "Lesson 7: 100 legacy + 400 active = clutter, confusion, audit overhead. Filter by default = focused view. Toggle preserves access for historical analysis and compliance.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS10",
+        "module-PYS10-lesson-07",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS10-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What distinguishes an enabling team from a support team at the Alliance?",
+      "options": [
+        "Enabling: proactively closes capability gaps. Support: reacts to tickets. Enabling = SDK adoption, not tickets",
+        "Enabling teams have more engineers — staffing alone determines whether a team is enabling or support",
+        "Enabling teams have more Apache certifications — certification levels dictate the team's classification",
+        "Enabling and support are equivalent — Apache standards do not distinguish between the two patterns"
+      ],
+      "correctAnswer": "Enabling: proactively closes capability gaps. Support: reacts to tickets. Enabling = SDK adoption, not tickets",
+      "explanation": "Lesson 8: support = tickets. Enabling = notices 4 teams' custom retry logic, creates tutorial, migrates them to SDK. Success = capabilities adopted, not tickets resolved.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS10",
+        "module-PYS10-lesson-08",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS10-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the 85/10/5 split at the Alliance?",
+      "options": [
+        "85% changes need no governance, 10% standard process, 5% full governance — engineers spend < 5% on governance",
+        "85% pipelines, 10% APIs, 5% notebooks — distribution of artifact types across the platform overall",
+        "85% Python, 10% SQL, 5% other — language distribution across the entire codebase at the Alliance",
+        "85% Apache-approved, 10% commercial, 5% in-house — software origin distribution per platform standards"
+      ],
+      "correctAnswer": "85% changes need no governance, 10% standard process, 5% full governance — engineers spend < 5% on governance",
+      "explanation": "Lesson 9: every change needing approval = bottleneck (M1 lesson 4 anti-pattern). No change needing approval = unprotected contracts. 85/10/5 = scoped governance.",
+      "xpReward": 80,
+      "tags": [
+        "module-PYS10",
+        "module-PYS10-lesson-09",
+        "python-senior"
+      ]
+    },
+    {
+      "id": "python-PYS10-l10-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does Lesson 10 say is the complete journey from junior to senior?",
+      "options": [
+        "From 'I can write code that processes data' to 'I can architect data infrastructure organizations depend on'",
+        "From writing pipelines to writing pipelines but in Rust — language migration is the senior shift",
+        "From Python to Scala — Apache standards require senior engineers to use the JVM ecosystem fully",
+        "From individual contributor to manager — senior data engineering is purely a management role globally"
+      ],
+      "correctAnswer": "From 'I can write code that processes data' to 'I can architect data infrastructure organizations depend on'",
+      "explanation": "Lesson 10: junior built pipelines. Mid operated them. Senior designs platform. Platform = conventions + tools + governance + organizational patterns that make pipelines possible.",
+      "xpReward": 40,
+      "tags": [
+        "module-PYS10",
+        "module-PYS10-lesson-10",
+        "python-senior"
+      ]
     }
   ]
 }
