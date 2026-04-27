@@ -536,17 +536,14 @@ export const LandingPage = () => {
             {[
               {
                 level: 'JUNIOR', subtitle: 'FOUNDATIONAL MODULES', color: '#99f7ff', rgb: '153,247,255',
-                image: '/brand/track-junior.png',
                 modules: '0/10', est: '~42 hours total', xp: '1.0X', cta: 'Start track', locked: false,
               },
               {
                 level: 'MID', subtitle: 'ADVANCED SYSTEMS', color: '#ffc965', rgb: '255,201,101',
-                image: '/brand/track-mid.png',
                 modules: '0/10', est: '~53 hours total', xp: '1.5X', cta: 'Start track', locked: false,
               },
               {
                 level: 'SENIOR', subtitle: 'PLATFORM ARCHITECTURE', color: '#ff716c', rgb: '255,113,108',
-                image: '/brand/track-senior.png',
                 modules: '0/10', est: '~66 hours total', xp: '3.0X', cta: 'Start track', locked: false,
               },
             ].map((tier, i) => (
@@ -577,25 +574,37 @@ export const LandingPage = () => {
                     <div className="absolute bottom-0 right-0 w-px h-4" style={{ backgroundColor: tier.locked ? 'rgba(255,255,255,0.04)' : `rgba(${tier.rgb},0.25)` }} />
                   </div>
 
-                  {/* Banner image */}
+                  {/* Banner: tier-tinted brand mark */}
                   <div className="relative h-44 overflow-hidden shrink-0">
-                    <div
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-                      style={{
-                        backgroundImage: `url(${tier.image})`,
-                        filter: tier.locked ? 'brightness(0.15) saturate(0)' : undefined,
-                      }}
-                    />
-                    {/* bottom gradient fade into card */}
-                    <div
-                      className="absolute inset-0"
-                      style={{ background: 'linear-gradient(to bottom, transparent 30%, #181c20 95%)' }}
-                    />
-                    {tier.locked && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Lock aria-hidden="true" className="h-12 w-12 text-white/[0.07]" />
+                    {!tier.locked ? (
+                      <>
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-0 transition-opacity duration-700 group-hover:opacity-80"
+                          style={{
+                            background: `radial-gradient(60% 70% at 50% 45%, rgba(${tier.rgb},0.18) 0%, rgba(${tier.rgb},0.05) 40%, transparent 75%)`,
+                          }}
+                        />
+                        <div
+                          className="absolute inset-0 flex items-center justify-center transition-transform duration-700 group-hover:scale-105"
+                          style={{
+                            color: tier.color,
+                            filter: `drop-shadow(0 0 18px rgba(${tier.rgb},0.35))`,
+                          }}
+                        >
+                          <StableGridMark className="h-24 w-24 lg:h-28 lg:w-28" />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <Lock aria-hidden="true" className="h-10 w-10 text-white/[0.12]" />
                       </div>
                     )}
+                    {/* bottom gradient fade into card */}
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{ background: 'linear-gradient(to bottom, transparent 30%, #181c20 95%)' }}
+                    />
                   </div>
 
                   {/* Body */}
@@ -717,7 +726,6 @@ export const LandingPage = () => {
                 cta: 'Start free',
                 href: '/login',
                 highlight: false,
-                image: '/pricing-free.png',
                 accent: '153,247,255',
                 eyebrow: 'STARTER',
                 tagline: 'Everything\u2019s open while we\u2019re in beta.',
@@ -739,7 +747,6 @@ export const LandingPage = () => {
                 href: `/login?next=${encodeURIComponent('/settings?tab=billing&auto_upgrade=1')}`,
                 highlight: true,
                 badge: 'Beta · limited',
-                image: '/pricing-monthly.png',
                 accent: '255,201,101',
                 eyebrow: 'EARLY SUPPORTER',
                 tagline: 'Back the build. Lock in your price. Keep the grid on.',
@@ -796,31 +803,28 @@ export const LandingPage = () => {
                   </div>
                 )}
 
-                {/* Hero portrait banner */}
+                {/* Hero banner: tier-tinted brand mark */}
                 <div className="relative h-32 overflow-hidden shrink-0">
                   <div
-                    className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-[1.04]"
+                    aria-hidden="true"
+                    className="absolute inset-0 transition-opacity duration-700 group-hover:opacity-80"
                     style={{
-                      backgroundImage: `url(${plan.image})`,
-                      backgroundPosition: 'center 25%',
+                      background: `radial-gradient(60% 70% at 50% 45%, rgba(${plan.accent},0.18) 0%, rgba(${plan.accent},0.05) 40%, transparent 75%)`,
                     }}
                   />
-                  {/* accent-tinted overlay */}
                   <div
-                    className="absolute inset-0 mix-blend-overlay opacity-40"
+                    className="absolute inset-0 flex items-center justify-center transition-transform duration-700 group-hover:scale-105"
                     style={{
-                      background: `radial-gradient(ellipse at center, rgba(${plan.accent},0.35) 0%, transparent 65%)`,
+                      color: `rgb(${plan.accent})`,
+                      filter: `drop-shadow(0 0 18px rgba(${plan.accent},0.35))`,
                     }}
-                  />
+                  >
+                    <StableGridMark className="h-20 w-20" />
+                  </div>
                   {/* bottom fade into card */}
                   <div
-                    className="absolute inset-0"
+                    className="absolute inset-0 pointer-events-none"
                     style={{ background: 'linear-gradient(to bottom, transparent 20%, #0f1215 98%)' }}
-                  />
-                  {/* vignette */}
-                  <div
-                    className="absolute inset-0"
-                    style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.5) 100%)' }}
                   />
                 </div>
 

@@ -21,7 +21,8 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     icon: '/brand/apache-airflow-logo.svg',
     category: 'Orchestration',
     catRgb: '255,180,60',
-    description: 'Build Apache Airflow capability across orchestration foundations, DAG authoring, scheduling, monitoring, and production debugging.',
+    description:
+      'Born at Airbnb, now orchestrating pipelines at Lyft, Adobe, and Stripe. Author DAGs, scale executors, debug production. 300 practice questions and a checkpoint per module.',
     levels: {
       junior: 'DAG authoring, operators, scheduling basics',
       mid: 'Dynamic DAGs, sensors, XComs, monitoring',
@@ -34,7 +35,8 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     icon: '/brand/microsoft-fabric-track.svg',
     category: 'Platforms',
     catRgb: '34,200,150',
-    description: 'Build Microsoft Fabric capability across platform foundations, analytics workflows, governance controls, and production delivery practices.',
+    description:
+      "Microsoft's unified analytics stack — OneLake, lakehouses, and governance in one platform that enterprises like KPMG and Heathrow are betting on. 300 practice questions per tier.",
     levels: {
       junior: 'Workspaces, lakehouses, notebooks, data flows',
       mid: 'Production pipelines, governance, lineage',
@@ -47,7 +49,8 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     icon: '/brand/pyspark-track-star.svg',
     category: 'Processing',
     catRgb: '170,120,255',
-    description: 'Build PySpark capability across foundations, data engineering workflows, optimization, and production-ready governance patterns.',
+    description:
+      'The engine behind batch and streaming at Netflix, Uber, and Shopify. DataFrames through Catalyst, AQE, and skew tuning. 360 practice questions plus hands-on coding tasks.',
     levels: {
       junior: 'DataFrames, transformations, joins, basics',
       mid: 'Window functions, partitioning, UDFs, broadcast',
@@ -60,7 +63,8 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     icon: '/brand/sql-logo.svg',
     category: 'Foundations',
     catRgb: '200,210,220',
-    description: 'Build SQL capability across query foundations, window functions, performance tuning, and production data modeling patterns.',
+    description:
+      "The language every data team speaks — Stripe, Booking, Goldman, your last interview. Joins and windows through partitioning and query planning. 300 practice questions, junior to senior.",
     levels: {
       junior: 'Joins, aggregations, subqueries, basic windows',
       mid: 'Advanced windows, CTEs, indexing, optimization',
@@ -73,7 +77,8 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     icon: '/brand/python-logo.svg',
     category: 'Foundations',
     catRgb: '200,210,220',
-    description: 'Build Python capability across language foundations, async patterns, packaging, and production-ready data engineering practices.',
+    description:
+      'Powers Instagram, Spotify, and most of the data work at NASA and Bloomberg. Data structures through async, typing, packaging, and profiling. 300 practice questions for data engineers.',
     levels: {
       junior: 'Data structures, I/O, pandas basics',
       mid: 'Async, typing, packaging, testing pipelines',

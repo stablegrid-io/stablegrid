@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Lock } from 'lucide-react';
+import { StableGridMark } from '@/components/brand/StableGridLogo';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { getLearnTopicMeta } from '@/data/learn';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
@@ -44,27 +45,18 @@ const TIER = [
     color: '#99f7ff', rgb: '153,247,255',
     label: 'JUNIOR', subtitle: 'FOUNDATIONAL MODULES',
     xp: '1.0X', cta: 'Start Learning',
-    image: '/brand/track-junior.png',
-    imageFilter: '',
-    imageHue: '',
     ctaStyle: 'filled' as const,
   },
   {
     color: '#ffc965', rgb: '255,201,101',
     label: 'MID', subtitle: 'ADVANCED SYSTEMS',
     xp: '1.5X', cta: 'Start Learning',
-    image: '/brand/track-mid.png',
-    imageFilter: '',
-    imageHue: '',
     ctaStyle: 'outlined' as const,
   },
   {
     color: '#ff716c', rgb: '255,113,108',
     label: 'SENIOR', subtitle: 'PLATFORM ARCHITECTURE',
     xp: '3.0X', cta: 'Locked',
-    image: '/brand/track-senior.png',
-    imageFilter: '',
-    imageHue: '',
     ctaStyle: 'outlined' as const,
   },
 ];
@@ -191,24 +183,39 @@ export const TheoryTrackGallery = ({
                   <Corner pos="top-left" rgb={tier.rgb} locked={isLocked} />
                   <Corner pos="bottom-right" rgb={tier.rgb} locked={isLocked} />
 
-                  {/* ── Banner image ── */}
+                  {/* ── Banner: tier-tinted brand mark ── */}
                   <div className="relative h-44 overflow-hidden shrink-0">
-                    <div
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-                      style={{
-                        backgroundImage: `url(${tier.image})`,
-                        filter: isLocked ? 'brightness(0.15) saturate(0)' : `${tier.imageFilter} ${tier.imageHue}`,
-                      }}
-                    />
-                    {/* bottom gradient */}
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, #181c20 95%)' }} />
-
-                    {/* Lock overlay */}
-                    {isLocked && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Lock className="h-12 w-12 text-white/[0.07]" />
+                    {!isLocked ? (
+                      <>
+                        {/* Soft tier-coloured radial backdrop so the mark sits
+                            on a glow rather than a flat field. */}
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-0 transition-opacity duration-700 group-hover:opacity-80"
+                          style={{
+                            background: `radial-gradient(60% 70% at 50% 45%, rgba(${tier.rgb},0.18) 0%, rgba(${tier.rgb},0.05) 40%, transparent 75%)`,
+                          }}
+                        />
+                        {/* Centered tier-tinted brand mark — StableGridMark uses
+                            currentColor for both stroke and fill. */}
+                        <div
+                          className="absolute inset-0 flex items-center justify-center transition-transform duration-700 group-hover:scale-105"
+                          style={{
+                            color: tier.color,
+                            filter: `drop-shadow(0 0 18px rgba(${tier.rgb},0.35))`,
+                          }}
+                        >
+                          <StableGridMark className="h-24 w-24 lg:h-28 lg:w-28" />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <Lock className="h-10 w-10 text-white/[0.12]" />
                       </div>
                     )}
+
+                    {/* bottom gradient */}
+                    <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 30%, #181c20 95%)' }} />
 
                     {/* Complete badge */}
                     {isComplete && (

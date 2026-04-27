@@ -36,15 +36,6 @@ export function TopicCard({ topic, index, href = '/login' }: TopicCardProps) {
           e.currentTarget.style.boxShadow = 'none';
         }}
       >
-        {/* Top accent line */}
-        <div
-          className="absolute top-0 left-0 right-0"
-          style={{
-            height: 2,
-            background: `linear-gradient(90deg, transparent 5%, rgba(${topic.catRgb}, 0.5), transparent 95%)`,
-          }}
-        />
-
         {/* Banner with logo */}
         <div className="relative h-32 overflow-hidden shrink-0 flex items-center justify-center">
           <Image
@@ -73,31 +64,15 @@ export function TopicCard({ topic, index, href = '/login' }: TopicCardProps) {
           </div>
 
           {/* Title + per-level breakdown */}
-          <h3 className="text-2xl font-bold mb-4 tracking-tight uppercase" style={{ color: 'rgba(255,255,255,0.95)' }}>
+          <h3 className="text-2xl font-bold mb-3 tracking-tight uppercase" style={{ color: 'rgba(255,255,255,0.95)' }}>
             {topic.name}
           </h3>
-          <ul className="mb-8 flex flex-col gap-2.5">
-            {(['junior', 'mid', 'senior'] as const).map((level) => (
-              <li key={level} className="flex items-baseline gap-3">
-                <span
-                  className="font-mono text-[10px] font-bold uppercase tabular-nums shrink-0"
-                  style={{
-                    color: 'rgba(255,255,255,0.42)',
-                    letterSpacing: '0.14em',
-                    width: 44,
-                  }}
-                >
-                  {level}
-                </span>
-                <span
-                  className="text-[13px] leading-snug"
-                  style={{ color: 'rgba(255,255,255,0.7)' }}
-                >
-                  {topic.levels[level]}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <p
+            className="mb-8 text-[13px] leading-relaxed"
+            style={{ color: 'rgba(255,255,255,0.55)' }}
+          >
+            {topic.description}
+          </p>
 
           {/* Progress (only when authenticated + has real progress) + CTA */}
           <div className="mt-auto">
