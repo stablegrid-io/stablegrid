@@ -16,7 +16,10 @@
       "explanation": "drop_duplicates() is the built-in pandas method for de-duplicating rows.",
       "hint": "Use the pandas method specifically made for dedupe.",
       "xpReward": 40,
-      "tags": ["pandas", "data-cleaning"]
+      "tags": [
+        "pandas",
+        "data-cleaning"
+      ]
     },
     {
       "id": "python-021",
@@ -24,11 +27,19 @@
       "difficulty": "medium",
       "type": "multiple-choice",
       "question": "Which method converts values to datetime in pandas?",
-      "options": ["to_datetime()", "as_date()", "parse_date()", "datetimeify()"],
+      "options": [
+        "to_datetime()",
+        "as_date()",
+        "parse_date()",
+        "datetimeify()"
+      ],
       "correctAnswer": "to_datetime()",
       "explanation": "pd.to_datetime() is the standard conversion utility in pandas.",
       "xpReward": 35,
-      "tags": ["time-series", "pandas"]
+      "tags": [
+        "time-series",
+        "pandas"
+      ]
     },
     {
       "id": "python-032",
@@ -45,7 +56,2108 @@
       "correctAnswer": "Count of null values in col",
       "explanation": "isnull() creates a boolean mask where nulls are true, and sum() counts true values.",
       "xpReward": 30,
-      "tags": ["pandas", "nulls"]
+      "tags": [
+        "pandas",
+        "nulls"
+      ]
+    },
+    {
+      "id": "python-PY1-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the most important difference between a script you run manually and a pipeline that runs unattended at 03:00?",
+      "options": [
+        "The pipeline must handle errors gracefully, log what it does, and make failures diagnosable from logs alone",
+        "The pipeline must run faster than any human-operated script to fit within the maintenance window allotted",
+        "The pipeline must use less memory than scripts so it can run on the smallest available cloud instance",
+        "The pipeline must be written in a single file so the on-call engineer can read it without an IDE"
+      ],
+      "correctAnswer": "The pipeline must handle errors gracefully, log what it does, and make failures diagnosable from logs alone",
+      "explanation": "Lesson 1: pipelines run when nobody is watching. Error handling, logging, and testability are the disciplines this course teaches beyond basic Python.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY1",
+        "module-PY1-lesson-01",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY1-l02-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why is Python the default starting language for data engineering teams?",
+      "options": [
+        "Widest access to tools, jobs, and teams — most frameworks (Airflow, dbt, PySpark) use it as primary interface",
+        "Fastest execution speed — Python compiled bytecode outperforms Scala on data engineering workloads",
+        "Smallest memory footprint — Python interpreters use less RAM than the JVM by a factor of ten",
+        "Strictest type system — Python's type checker catches every runtime error before deployment to production"
+      ],
+      "correctAnswer": "Widest access to tools, jobs, and teams — most frameworks (Airflow, dbt, PySpark) use it as primary interface",
+      "explanation": "Lesson 2: Scala/Java/Go fit specific cases. Python is the default — and it gives you the widest ecosystem (Airflow, dbt, PySpark all use it).",
+      "xpReward": 40,
+      "tags": [
+        "module-PY1",
+        "module-PY1-lesson-02",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY1-l03-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does this course assume you can already do in Python?",
+      "options": [
+        "Write a for loop, define a function, use a dictionary, and read a file with open()",
+        "Build a Flask web application, deploy it to AWS Lambda, and serve traffic at production scale",
+        "Write Cython extensions to optimize hot loops below the speed of standard library implementations",
+        "Implement a custom asyncio event loop and a coroutine scheduler from scratch in pure Python"
+      ],
+      "correctAnswer": "Write a for loop, define a function, use a dictionary, and read a file with open()",
+      "explanation": "Lesson 3: this course builds on basic Python foundations. If for/function/dict/open feel unfamiliar, start with a general Python course first.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY1",
+        "module-PY1-lesson-03",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY1-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is the CelticWind scenario a deliberate simplification of a real energy company?",
+      "options": [
+        "The goal is to learn Python patterns, not the energy industry — every simplification is intentional",
+        "Lithuanian energy regulations require all training data to omit certain fields per the curriculum",
+        "Apache Python community style guides forbid using realistic data sets in any educational material",
+        "The Python interpreter cannot handle the row counts of a real energy company without crashing"
+      ],
+      "correctAnswer": "The goal is to learn Python patterns, not the energy industry — every simplification is intentional",
+      "explanation": "Lesson 4: scenarios expand only where complexity is needed (timezone, API pagination). Real companies have thousands of fields; CelticWind keeps the focus on Python patterns.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY1",
+        "module-PY1-lesson-04",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY1-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Each CelticWind data source has a 'personality' that teaches a different Python skill. Why?",
+      "options": [
+        "CSV teaches text parsing, Parquet teaches schemas, nested JSON teaches navigation, the API teaches paginated auth",
+        "Each source uses a different programming language internally and the Python wrapper is unique to each one",
+        "Each source is owned by a different department at CelticWind so the data formats reflect their preferences",
+        "Each source charges a different licensing fee so the format mirrors the cost structure of the contract terms"
+      ],
+      "correctAnswer": "CSV teaches text parsing, Parquet teaches schemas, nested JSON teaches navigation, the API teaches paginated auth",
+      "explanation": "Lesson 5: the scenario includes all five so each Python skill has a natural use case. Different sources teach different skills.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY1",
+        "module-PY1-lesson-05",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY1-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind use the Bronze/Silver/Gold layered architecture instead of writing CSV → billing summary directly?",
+      "options": [
+        "The three-layer approach forces validation before aggregation — every Gold record passed quality gates first",
+        "The Apache Iceberg specification requires three named layers for any data warehouse to be considered compliant",
+        "Bronze and Silver are required by Lithuanian energy regulators as auditable intermediate stages of every pipeline",
+        "The three-layer pattern is enforced by the file system because S3 buckets cannot have fewer than three folders"
+      ],
+      "correctAnswer": "The three-layer approach forces validation before aggregation — every Gold record passed quality gates first",
+      "explanation": "Lesson 6: 'works until it doesn't' — a bad value (daily_kw='N/A') slips through to billing without validation. Layers prevent the most expensive mistake: wrong results that look right.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY1",
+        "module-PY1-lesson-06",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY1-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is the pipeline function in Lesson 7 only 12 lines?",
+      "options": [
+        "Each called function (read, validate, transform, write) hides its complexity behind a clear name",
+        "The pipeline is a stub — the real implementation has 200 lines and lives in a private Git repository",
+        "The Apache Airflow scheduler imposes a 12-line maximum on top-level pipeline orchestration code",
+        "The pipeline avoids comments and whitespace to stay below CelticWind's strict line-count budget at all costs"
+      ],
+      "correctAnswer": "Each called function (read, validate, transform, write) hides its complexity behind a clear name",
+      "explanation": "Lesson 7: modular design = pipeline reads top to bottom without knowing how each function works internally. Module 4 teaches you to write code this way.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY1",
+        "module-PY1-lesson-07",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY1-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How do the Python libraries in this course connect to other data engineering frameworks?",
+      "options": [
+        "csv/json skills lead to PySpark readers; logging leads to Airflow logging; pytest leads to dbt testing",
+        "The course's libraries are CelticWind-specific and have no connection to any external framework or tool",
+        "Each library is a thin Python wrapper around an Apache Spark Java class loaded through Py4J at runtime",
+        "Frameworks use these libraries directly so you can replace any framework call with the underlying Python"
+      ],
+      "correctAnswer": "csv/json skills lead to PySpark readers; logging leads to Airflow logging; pytest leads to dbt testing",
+      "explanation": "Lesson 8: each library opens a door to a framework skill. Learning these libraries builds the foundation every framework assumes you have.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY1",
+        "module-PY1-lesson-08",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY1-l09-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "How does the Python for Data Engineers track relate to the SQL for Data Engineers track?",
+      "options": [
+        "Independent — neither requires the other; taking both gives you the complete foundation if you use both",
+        "Sequential — Python must be completed before SQL because every SQL example uses Python helper functions",
+        "Identical — both tracks teach the same content with different code samples for each scenario",
+        "Replacement — the SQL track is being deprecated and will be merged into Python during the next quarter"
+      ],
+      "correctAnswer": "Independent — neither requires the other; taking both gives you the complete foundation if you use both",
+      "explanation": "Lesson 9: independent tracks (CelticWind for Python, HydroAlpes for SQL). If your team uses both, take both. If only Python, this track alone is enough.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY1",
+        "module-PY1-lesson-09",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY1-l10-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does Module 2 begin teaching after Module 1's foundation?",
+      "options": [
+        "Python toolbox — virtual environments, project structure, type hints, configuration, and pre-commit hooks",
+        "PySpark fundamentals — DataFrame operations, aggregations, joins, and the Spark execution engine",
+        "Airflow scheduler internals — how the metadata database stores DAG runs and task instance state",
+        "Cloud architecture — AWS Lambda functions, S3 buckets, and the IAM permissions data pipelines need"
+      ],
+      "correctAnswer": "Python toolbox — virtual environments, project structure, type hints, configuration, and pre-commit hooks",
+      "explanation": "Lesson 10: Module 2 covers the toolbox — venv, dependencies, project layout, modules, type hints, YAML config, env vars, __main__, linting, project template.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY1",
+        "module-PY1-lesson-10",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY2-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind require `python3 -m venv .venv` as the first command in every project setup?",
+      "options": [
+        "Installing without a venv modifies system Python — pip upgrades can break OS package managers and IDEs",
+        "Virtual environments are required by Lithuanian regulations for any production data pipeline globally",
+        "Without a venv, Python refuses to import any third-party packages from PyPI as a security default",
+        "venvs run 3× faster than the system Python because they bundle pre-compiled bytecode for all imports"
+      ],
+      "correctAnswer": "Installing without a venv modifies system Python — pip upgrades can break OS package managers and IDEs",
+      "explanation": "Lesson 1: virtual envs isolate the project's packages from the system Python. First command in every CelticWind setup guide.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY2",
+        "module-PY2-lesson-01",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY2-l02-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does `pip freeze > requirements.txt` produce?",
+      "options": [
+        "A pinned list of every package + exact version installed in the active environment",
+        "An optimized binary wheel for each package the project uses, ready to deploy to production",
+        "A dependency graph showing which packages depend on which other packages transitively",
+        "A security audit report of every package's CVE history aggregated from public vulnerability databases"
+      ],
+      "correctAnswer": "A pinned list of every package + exact version installed in the active environment",
+      "explanation": "Lesson 2: requirements.txt is the project's shopping list. Anyone clones + pip install -r = identical tool set to the original developer.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY2",
+        "module-PY2-lesson-02",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY2-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the value of CelticWind's standard project layout (src/, tests/, config/, data/)?",
+      "options": [
+        "A new engineer can find things without asking — validators in validators.py, tests in tests/, config in config/",
+        "The Apache Python style guide mandates this exact directory structure for every package on PyPI",
+        "Python's import system requires this layout to resolve modules correctly across platforms reliably",
+        "The pyproject.toml file refuses to install packages whose source layout differs from this template"
+      ],
+      "correctAnswer": "A new engineer can find things without asking — validators in validators.py, tests in tests/, config in config/",
+      "explanation": "Lesson 3: a good layout answers questions before they are asked. New engineers don't need to ask 'where is X?' — the structure predicts.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY2",
+        "module-PY2-lesson-03",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY2-l04-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the rule that prevents circular import errors at CelticWind?",
+      "options": [
+        "Modules import downward (pipeline imports readers; readers imports nothing from pipeline)",
+        "Modules import alphabetically (a-modules before b-modules) so the resolution order is predictable",
+        "Modules import lazily (every import statement is wrapped in try/except ImportError as a fallback)",
+        "Modules import dynamically (importlib.import_module() at runtime instead of static import statements)"
+      ],
+      "correctAnswer": "Modules import downward (pipeline imports readers; readers imports nothing from pipeline)",
+      "explanation": "Lesson 4: if readers imports validators and validators imports readers, Python raises ImportError. Downward-only imports break the cycle.",
+      "xpReward": 120,
+      "tags": [
+        "module-PY2",
+        "module-PY2-lesson-04",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY2-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the type hint `def filter_readings(readings: list[dict], min_kw: float, region: str) -> list[dict]` give you that a comment does not?",
+      "options": [
+        "Verifiable contract — mypy and the IDE compare hints against actual usage and warn on mismatches",
+        "Faster execution speed — Python skips runtime type checking when hints are present in the signature",
+        "Encrypted parameters — the type checker encodes argument names so they are not visible in stack traces",
+        "Auto-generated tests — pytest produces input examples for every type hint and runs them automatically"
+      ],
+      "correctAnswer": "Verifiable contract — mypy and the IDE compare hints against actual usage and warn on mismatches",
+      "explanation": "Lesson 5: a comment is unverifiable. mypy + IDE check hints against usage. CelticWind caught 3 bugs in the first month from refactors that changed return types but not all callers.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY2",
+        "module-PY2-lesson-05",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY2-l06-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the rule about credentials in `config.yml`?",
+      "options": [
+        "Never — config.yml is committed to Git and appears in the repo's history forever",
+        "Sometimes — only the production config.yml may store credentials but staging/dev versions cannot",
+        "Always — every credential should be checked into Git so the team can audit who changed what when",
+        "Optionally — credentials may be stored encrypted with a team-shared key inside the YAML file itself"
+      ],
+      "correctAnswer": "Never — config.yml is committed to Git and appears in the repo's history forever",
+      "explanation": "Lesson 6: API keys, DB passwords, auth tokens never appear in config files. Lesson 7 covers env vars + .env for secrets.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY2",
+        "module-PY2-lesson-06",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY2-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What must appear in `.gitignore` before any commit?",
+      "options": [
+        ".env — committing it once exposes every secret in Git history forever, even if deleted later",
+        ".venv — virtual environments are reproducible from requirements.txt and waste storage in the repo",
+        "src/ — the source directory is rebuilt from a private artifact registry on each deployment automatically",
+        "tests/ — test files contain sensitive validation logic that should not be visible in the public repo"
+      ],
+      "correctAnswer": ".env — committing it once exposes every secret in Git history forever, even if deleted later",
+      "explanation": "Lesson 7: a single .env commit exposes secrets in Git history forever. CelticWind's pre-commit hook rejects any commit that includes a file named .env.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY2",
+        "module-PY2-lesson-07",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY2-l08-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the purpose of `if __name__ == '__main__':` at the bottom of a Python file?",
+      "options": [
+        "Code runs only when the file is executed directly, not when it is imported as a module",
+        "Code runs only on the main thread, not in any subprocess started by the multiprocessing module",
+        "Code runs only on the master node of a distributed cluster, not on the worker nodes during execution",
+        "Code runs only when the Python interpreter is the default system interpreter, not a virtual environment"
+      ],
+      "correctAnswer": "Code runs only when the file is executed directly, not when it is imported as a module",
+      "explanation": "Lesson 8: above the line = library definitions. Below = actual execution. File becomes both reusable library (import) and executable program (run).",
+      "xpReward": 40,
+      "tags": [
+        "module-PY2",
+        "module-PY2-lesson-08",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY2-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind use a pre-commit hook for ruff and black instead of asking developers to run them?",
+      "options": [
+        "Automation is more reliable than good intentions — especially at 03:00 hotfixing a pipeline",
+        "Pre-commit hooks run faster than manual invocation because they cache results between commits",
+        "ruff and black require root permissions to modify files, which only the pre-commit hook has",
+        "Manual invocation produces formatting that differs slightly from the automated tools' output"
+      ],
+      "correctAnswer": "Automation is more reliable than good intentions — especially at 03:00 hotfixing a pipeline",
+      "explanation": "Lesson 9: developers forget. Some skip when in a hurry. Pre-commit removes the choice — runs automatically, fails commit if code does not pass.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY2",
+        "module-PY2-lesson-09",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY2-l10-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does CelticWind's project template provide for new pipelines?",
+      "options": [
+        "Scaffolding — venv, directory structure, .gitignore, dependencies, and pyproject.toml ready to fill",
+        "Production code — a fully implemented pipeline that the new engineer customizes for their use case",
+        "Documentation only — markdown files explaining how to set up a project from scratch by hand",
+        "Cloud infrastructure — Terraform modules that deploy AWS resources before any code is written"
+      ],
+      "correctAnswer": "Scaffolding — venv, directory structure, .gitignore, dependencies, and pyproject.toml ready to fill",
+      "explanation": "Lesson 10: the foundation phase output. Module 3 starts filling the scaffolding with pipeline logic — data structures for tabular data.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY2",
+        "module-PY2-lesson-10",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY3-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the safest way to access a field that might not exist in a dictionary?",
+      "options": [
+        "reading.get('substation', 'UNKNOWN') — returns the default if the key is absent without raising",
+        "reading['substation'] or 'UNKNOWN' — returns the default if the value is None or empty string",
+        "reading.fetch('substation', default='UNKNOWN') — Python's preferred way for safe field access",
+        "try reading['substation'] except: 'UNKNOWN' — wraps the access in a try/except for safety"
+      ],
+      "correctAnswer": "reading.get('substation', 'UNKNOWN') — returns the default if the key is absent without raising",
+      "explanation": "Lesson 1: dict.get(key, default) returns the default when the key is missing. Bracket access raises KeyError on missing keys.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY3",
+        "module-PY3-lesson-01",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY3-l02-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the memory cost of representing 400,000 rows × 5 fields as a list of dictionaries?",
+      "options": [
+        "2 million copies of the key strings — each dict stores its keys alongside its values",
+        "Roughly 400 bytes total — Python's dict implementation deduplicates keys across instances",
+        "Identical to a list of named tuples — Python optimizes the layout for both data structures",
+        "Lower than CSV input — Python compresses dict values when stored in a list larger than 1000"
+      ],
+      "correctAnswer": "2 million copies of the key strings — each dict stores its keys alongside its values",
+      "explanation": "Lesson 2: each dict copies its keys. For under 1M rows it is negligible; for larger sets, named tuples and dataclasses (lessons 6-7) are more efficient.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY3",
+        "module-PY3-lesson-02",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY3-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind keep filter functions non-mutating (every filter creates a new list)?",
+      "options": [
+        "Each step's input stays unchanged so each step is independently debuggable",
+        "Python's garbage collector cannot release memory if a list is mutated in place during iteration",
+        "List comprehensions are required by the Python standard to be non-destructive in all cases",
+        "Mutation is forbidden by the type checker because list[dict] is declared immutable in the type system"
+      ],
+      "correctAnswer": "Each step's input stays unchanged so each step is independently debuggable",
+      "explanation": "Lesson 3: a bug in step 3 may have been caused by a mutating step 1. Keeping each step's input unchanged makes every step independently debuggable.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY3",
+        "module-PY3-lesson-03",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY3-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What property does the `transform_reading` function in Lesson 4 demonstrate?",
+      "options": [
+        "Purity — output depends only on input; no files, databases, globals, or other external state",
+        "Concurrency — the function runs in parallel across multiple CPU cores by default in Python 3.12",
+        "Compilation — the function is JIT-compiled to machine code on the first call and cached afterwards",
+        "Encryption — the function encrypts the output dictionary using a key derived from the input"
+      ],
+      "correctAnswer": "Purity — output depends only on input; no files, databases, globals, or other external state",
+      "explanation": "Lesson 4: pure functions are easy to test (known input → known output) and easy to debug (behavior fully determined by arguments). Module 4 explores this in depth.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY3",
+        "module-PY3-lesson-04",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY3-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is `defaultdict(float)` useful for region-level totals?",
+      "options": [
+        "Auto-initializes any new key to 0.0 — no need to check 'if region not in totals' before adding",
+        "Stores values in a sorted order by default so the output is naturally alphabetized by region",
+        "Encrypts the values at rest so the totals cannot be read without the right decryption key",
+        "Persists to disk automatically every time a value is updated for the duration of the program"
+      ],
+      "correctAnswer": "Auto-initializes any new key to 0.0 — no need to check 'if region not in totals' before adding",
+      "explanation": "Lesson 5: defaultdict(float) returns 0.0 for missing keys on first access. Eliminates the 'if key not in dict: dict[key] = 0' boilerplate.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY3",
+        "module-PY3-lesson-05",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY3-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What advantage do named tuples have over dictionaries for 400,000 meter readings?",
+      "options": [
+        "Memory — field names stored once in the class, not 400,000 times — roughly 40% memory savings",
+        "Speed — field access by name is 10× faster than dict key lookup at the Python interpreter level",
+        "Validation — named tuples enforce field types automatically without any decorator declarations",
+        "Encryption — named tuple fields are encrypted in memory and decrypted only on attribute access"
+      ],
+      "correctAnswer": "Memory — field names stored once in the class, not 400,000 times — roughly 40% memory savings",
+      "explanation": "Lesson 6: dict stores keys per instance; named tuple stores them once in the class. ~40% memory savings on CelticWind's 400K daily readings.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY3",
+        "module-PY3-lesson-06",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY3-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `__post_init__` enable in a dataclass?",
+      "options": [
+        "Validation and normalization after fields are set — runs once per instance at construction time",
+        "Persistence to disk — the instance is automatically serialized to a file after initialization completes",
+        "Pre-computation of derived fields — Python caches the values at class definition time, not per instance",
+        "Memoization of method calls — every method's return value is cached based on the input arguments"
+      ],
+      "correctAnswer": "Validation and normalization after fields are set — runs once per instance at construction time",
+      "explanation": "Lesson 7: __post_init__ runs after __init__ finishes setting fields. Perfect place for validation (raise) and normalization (self.region = self.region.upper()).",
+      "xpReward": 80,
+      "tags": [
+        "module-PY3",
+        "module-PY3-lesson-07",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY3-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you choose a dataclass over a dictionary for a meter reading?",
+      "options": [
+        "Silver layer — schema is known, validation is wanted, immutability or normalization is desired",
+        "Bronze layer — raw data with unknown schema needs the flexibility of dynamic field names",
+        "Network transfer — sending records over the network requires dataclass serialization headers",
+        "Configuration — runtime settings are mutable and rarely need the type contract of a dataclass"
+      ],
+      "correctAnswer": "Silver layer — schema is known, validation is wanted, immutability or normalization is desired",
+      "explanation": "Lesson 8: dict for unknown schemas (Bronze). Dataclass for known schemas with validation (Silver). Trust the dataclass = downstream code does not re-check.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY3",
+        "module-PY3-lesson-08",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY3-l09-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the most common bug with `itertools.groupby`?",
+      "options": [
+        "Forgetting to sort the input first — unsorted data produces multiple groups for the same key",
+        "Forgetting to convert each group to a list — the lazy iterator can be consumed only once safely",
+        "Forgetting to import groupby from itertools — Python's standard library has another similar function",
+        "Forgetting to filter None values first — groupby raises TypeError on None keys silently otherwise"
+      ],
+      "correctAnswer": "Forgetting to sort the input first — unsorted data produces multiple groups for the same key",
+      "explanation": "Lesson 9: groupby groups consecutive rows with the same key. DUBLIN, CORK, DUBLIN unsorted = 3 groups. Always sorted_data = sorted(data, key=key_func) first.",
+      "xpReward": 120,
+      "tags": [
+        "module-PY3",
+        "module-PY3-lesson-09",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY3-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Module 3's pipeline pattern (`validate_and_transform` → `aggregate_by_region`) demonstrate?",
+      "options": [
+        "Each function takes input, produces output, has a single clear responsibility — Module 4's preview",
+        "Each function runs in a separate Python process for true parallelism on multicore machines",
+        "Each function caches its result in Redis so repeated calls return instantly without recomputation",
+        "Each function is automatically tested by pytest's discovery mechanism without any test fixtures"
+      ],
+      "correctAnswer": "Each function takes input, produces output, has a single clear responsibility — Module 4's preview",
+      "explanation": "Lesson 10: single-responsibility functions are the foundation of the pipeline pattern. Module 4 makes this the foundation of every function you write.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY3",
+        "module-PY3-lesson-10",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY4-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why is a function with one responsibility easier to test?",
+      "options": [
+        "Give it a known input, check the output — no files, validation rules, or output paths needed",
+        "It runs faster — single-purpose functions are auto-compiled by Python's interpreter at startup",
+        "It uses less memory — Python releases the function's stack frame immediately after the return",
+        "It is shorter — fewer lines means fewer test cases needed to cover all the function's branches"
+      ],
+      "correctAnswer": "Give it a known input, check the output — no files, validation rules, or output paths needed",
+      "explanation": "Lesson 1: a function that reads, validates, transforms, and writes needs files, rulesets, configs, and writable paths to test anything. Single-responsibility = testable.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY4",
+        "module-PY4-lesson-01",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY4-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the `*` in `def filter_readings(readings, *, min_kw=0, max_kw=5000):` enforce?",
+      "options": [
+        "Everything after `*` is keyword-only — callers must name min_kw and max_kw explicitly",
+        "Everything after `*` is variadic — the function accepts any number of positional arguments",
+        "Everything after `*` is required — no defaults are allowed for parameters past the asterisk",
+        "Everything after `*` is type-checked — mypy enforces stricter type rules on these parameters"
+      ],
+      "correctAnswer": "Everything after `*` is keyword-only — callers must name min_kw and max_kw explicitly",
+      "explanation": "Lesson 2: keyword-only enforces calls like filter(readings, min_kw=0). filter(readings, 0, 5000) raises TypeError. Forces readable call sites.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY4",
+        "module-PY4-lesson-02",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY4-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `tuple[list[dict], list[dict]]` document about a function's return value?",
+      "options": [
+        "Returns two lists — typically (valid, rejected) — that the caller unpacks with `valid, rejected = ...`",
+        "Returns a tuple containing one list of dicts — the second `list[dict]` is the type alias name",
+        "Returns either a tuple or two lists depending on whether the input was non-empty when the call ran",
+        "Returns a list whose elements are tuples — the outer `tuple` is metadata about the iteration order"
+      ],
+      "correctAnswer": "Returns two lists — typically (valid, rejected) — that the caller unpacks with `valid, rejected = ...`",
+      "explanation": "Lesson 3: tuple[X, Y] = function returns 2 values. Caller does `valid, rejected = validate_readings(...)`. The hint communicates the contract.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY4",
+        "module-PY4-lesson-03",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY4-l04-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Where in the pipeline architecture do impure functions belong?",
+      "options": [
+        "At the boundaries — readers (input) and writers (output) — with pure functions in the middle",
+        "Throughout the pipeline — every function should perform some I/O for observability and logging",
+        "At the top level — only `if __name__ == '__main__':` may invoke functions with side effects",
+        "Inside try blocks — impure functions raise too many exceptions to live outside error handlers"
+      ],
+      "correctAnswer": "At the boundaries — readers (input) and writers (output) — with pure functions in the middle",
+      "explanation": "Lesson 4: impure at edges (read/write), pure in the middle (validate/transform/aggregate). Pure middle = majority of code is testable without mocking files or APIs.",
+      "xpReward": 120,
+      "tags": [
+        "module-PY4",
+        "module-PY4-lesson-04",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY4-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you use a generator expression `(...)` instead of a list comprehension `[...]`?",
+      "options": [
+        "When you only iterate once and want to avoid storing the entire intermediate list in memory",
+        "When you need to index the result by position, like `result[0]` or `result[-1]` afterwards",
+        "When the function will be called from multiple threads concurrently and needs thread-safety",
+        "When you want pytest to discover the values automatically and run a test for each one"
+      ],
+      "correctAnswer": "When you only iterate once and want to avoid storing the entire intermediate list in memory",
+      "explanation": "Lesson 5: list comprehension builds the full list in memory. Generator expression yields one at a time — laziness saves memory for single-pass operations like sum(...).",
+      "xpReward": 80,
+      "tags": [
+        "module-PY4",
+        "module-PY4-lesson-05",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY4-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the key behavior of a generator (a function that uses `yield`)?",
+      "options": [
+        "Produces values one at a time without storing the whole sequence — file is never fully loaded",
+        "Produces values in parallel across multiple CPU cores using Python's multiprocessing module",
+        "Produces values cached in Redis so repeated iteration returns the cached values instantly",
+        "Produces values type-checked at runtime by mypy before each value is yielded to the caller"
+      ],
+      "correctAnswer": "Produces values one at a time without storing the whole sequence — file is never fully loaded",
+      "explanation": "Lesson 6: yield produces values lazily. Each row is read, transformed, yielded, then the next row is processed. File is never fully in memory.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY4",
+        "module-PY4-lesson-06",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY4-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When does CelticWind's style guide prefer `lambda` over a list comprehension?",
+      "options": [
+        "With sorted/min/max where the `key=` argument is the established Python pattern",
+        "With map and filter — lambdas are required because comprehensions cannot wrap them safely",
+        "With pytest fixtures — fixtures must be lambdas because they cannot be regular functions",
+        "With dataclass __post_init__ methods — lambdas are the only way to validate dataclass fields"
+      ],
+      "correctAnswer": "With sorted/min/max where the `key=` argument is the established Python pattern",
+      "explanation": "Lesson 7: comprehensions for filter and transform; lambda only with sorted/min/max where key= is the standard pattern. [r['region'] for r in readings] reads better than map+lambda.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY4",
+        "module-PY4-lesson-07",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY4-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind organize code into readers.py, validators.py, transformers.py, and writers.py?",
+      "options": [
+        "Each source module has a corresponding test module — one-to-one mapping shows where tests live",
+        "Each module is automatically deployed to a separate AWS Lambda function for parallel execution",
+        "Each module has a different Python interpreter version optimized for its specific workload type",
+        "Each module is owned by a different team at CelticWind so the boundaries reflect organizational scope"
+      ],
+      "correctAnswer": "Each source module has a corresponding test module — one-to-one mapping shows where tests live",
+      "explanation": "Lesson 8: validators.py has test_validators.py. Module boundary = test boundary. New function in validators.py = new test in test_validators.py.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY4",
+        "module-PY4-lesson-08",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY4-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What should a docstring document according to CelticWind's style guide?",
+      "options": [
+        "The business reason behind the code — `max_kw=5000 reflects 5 kW nameplate × 1000` — not what the code does",
+        "The exact line-by-line behavior — every branch, every variable, every return statement, fully described",
+        "The performance characteristics — Big-O complexity, memory usage, and worst-case execution time per call"
+      ],
+      "correctAnswer": "The business reason behind the code — `max_kw=5000 reflects 5 kW nameplate × 1000` — not what the code does",
+      "explanation": "Lesson 9: code already says what; docstring says why. The next engineer can read Python; they cannot read the business requirement that motivated it.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY4",
+        "module-PY4-lesson-09",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY4-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Module 4's `run_silver_pipeline` function demonstrate as a pattern?",
+      "options": [
+        "Composition — high-level orchestration calls focused single-responsibility functions from each module",
+        "Inheritance — every function inherits from BasePipeline and overrides one method per layer",
+        "Concurrency — every step runs in a separate thread with synchronization barriers between layers",
+        "Memoization — every function caches its results so re-running the pipeline returns instantly"
+      ],
+      "correctAnswer": "Composition — high-level orchestration calls focused single-responsibility functions from each module",
+      "explanation": "Lesson 10: pipeline orchestration calls read → validate → transform → write. Each function does one thing. The pattern is composition.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY4",
+        "module-PY4-lesson-10",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY5-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the most important thing to remember about CSV files?",
+      "options": [
+        "Every value is a string — '28.5' is the string '28.5', not the number 28.5",
+        "Every value is a float — Python's csv module auto-converts numeric values to float on read",
+        "Every value is encoded — CSV files require base64 decoding before any field can be accessed",
+        "Every value is unique — duplicate rows are automatically de-duplicated when DictReader runs"
+      ],
+      "correctAnswer": "Every value is a string — '28.5' is the string '28.5', not the number 28.5",
+      "explanation": "Lesson 1: every CSV value is a string. reading['daily_kw'] > 0 compares strings (alphabetical), not numbers — silent wrong results without error.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY5",
+        "module-PY5-lesson-01",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY5-l02-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does `csv.DictWriter` do that `csv.writer` does not?",
+      "options": [
+        "Writes from dictionaries with field names as columns — no positional mapping needed",
+        "Writes encrypted output by default using the column names as the encryption key derivation",
+        "Writes only the rows that have changed since the last write to the same output file path",
+        "Writes JSON output with the fields converted to JSON object keys instead of CSV columns"
+      ],
+      "correctAnswer": "Writes from dictionaries with field names as columns — no positional mapping needed",
+      "explanation": "Lesson 2: DictReader + DictWriter = consistent dict representation throughout the pipeline. Rename a field once; both readers and writers see the new name.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY5",
+        "module-PY5-lesson-02",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY5-l03-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "An Austrian legacy CSV uses ISO-8859-1 encoding and semicolons. What is the right approach?",
+      "options": [
+        "Pass `encoding='iso-8859-1'` and `delimiter=';'` to the reader — both as configurable parameters",
+        "Convert the file to UTF-8 and replace all semicolons with commas before reading it with Python",
+        "Open the file in binary mode and decode each line manually using the chardet library auto-detection",
+        "Reject the file — Python's csv module supports only UTF-8 with comma delimiters by default"
+      ],
+      "correctAnswer": "Pass `encoding='iso-8859-1'` and `delimiter=';'` to the reader — both as configurable parameters",
+      "explanation": "Lesson 3: assumptions of UTF-8 and comma are wrong for European data. CelticWind's readers accept encoding and delimiter as parameters with defaults.",
+      "xpReward": 120,
+      "tags": [
+        "module-PY5",
+        "module-PY5-lesson-03",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY5-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `json.load` give you that `csv.DictReader` does not?",
+      "options": [
+        "Type preservation — 28.5 is the float 28.5, not the string '28.5', because JSON has number type",
+        "Schema enforcement — JSON files validate every value against a registered schema by default",
+        "Compression — JSON files are smaller than CSV because Python's json module compresses on read",
+        "Pagination — json.load streams records one at a time so the entire file never enters memory"
+      ],
+      "correctAnswer": "Type preservation — 28.5 is the float 28.5, not the string '28.5', because JSON has number type",
+      "explanation": "Lesson 4: JSON has number, bool, null types. CSV has only strings. JSON eliminates string-to-number conversion errors that plague CSV pipelines.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY5",
+        "module-PY5-lesson-04",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY5-l05-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does `json.dumps({'timestamp': datetime.now()})` raise TypeError?",
+      "options": [
+        "datetime is not JSON-serializable — use `default=str` or a custom serializer to handle it",
+        "datetime requires a timezone — naive datetimes cannot be JSON-encoded under any circumstances",
+        "json.dumps requires a list at the top level — wrap the dict in `[...]` first to fix the error",
+        "json.dumps cannot encode dictionaries with non-string keys — convert keys to str before encoding"
+      ],
+      "correctAnswer": "datetime is not JSON-serializable — use `default=str` or a custom serializer to handle it",
+      "explanation": "Lesson 5: datetime is not in JSON's type set. default=str converts it to a string; custom serializer gives precise control over the format.",
+      "xpReward": 120,
+      "tags": [
+        "module-PY5",
+        "module-PY5-lesson-05",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY5-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does CelticWind handle nested JSON in the pipeline?",
+      "options": [
+        "Flatten immediately at the Bronze-to-Silver boundary — all subsequent processing uses flat dicts",
+        "Preserve the nesting throughout — every transformation function navigates the nested structure",
+        "Convert to XML — XPath expressions are easier than dictionary navigation for deeply nested data",
+        "Store raw JSON in the database — let the database handle the navigation through JSON path queries"
+      ],
+      "correctAnswer": "Flatten immediately at the Bronze-to-Silver boundary — all subsequent processing uses flat dicts",
+      "explanation": "Lesson 6: complexity of navigation is isolated in the flattening function. Pipeline core works with flat dicts regardless of source format.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY5",
+        "module-PY5-lesson-06",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY5-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is Parquet preferred over CSV for Silver and Gold layers at CelticWind?",
+      "options": [
+        "Type preservation, columnar storage, compression — every analytical platform uses it as native format",
+        "Apache Spark refuses to read CSV files in production environments larger than 1 GB on disk",
+        "Lithuanian regulations require all data above the Bronze layer to use the Apache Parquet format",
+        "Parquet is the only format that supports ACID transactions out of the box without extra tooling"
+      ],
+      "correctAnswer": "Type preservation, columnar storage, compression — every analytical platform uses it as native format",
+      "explanation": "Lesson 7: CSV is Bronze (raw); Parquet is Silver/Gold (validated, typed, compressed). Spark, Delta, Iceberg all use Parquet as native storage.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY5",
+        "module-PY5-lesson-07",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY5-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why should you specify a Parquet schema explicitly instead of letting pyarrow infer it?",
+      "options": [
+        "Inferred types may vary between runs — int64 today, float64 tomorrow when a decimal arrives",
+        "Inferred types are slower because pyarrow scans the entire file to determine each column type",
+        "Inferred types raise warnings that pollute the Airflow logs and obscure the real pipeline output",
+        "Inferred types are encrypted by default and require a key the pipeline does not normally have"
+      ],
+      "correctAnswer": "Inferred types may vary between runs — int64 today, float64 tomorrow when a decimal arrives",
+      "explanation": "Lesson 8: schema drift between runs breaks downstream consumers. Explicit schema = consistent types across all writes. Define once in config, reuse for every write.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY5",
+        "module-PY5-lesson-08",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY5-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What advantage does `pathlib.Path` provide over string paths?",
+      "options": [
+        "Cross-platform path joining with `/` operator — works on Windows, macOS, and Linux identically",
+        "Auto-validation that the file exists — raises FileNotFoundError when constructing the Path",
+        "Auto-encryption — Path objects encrypt the file's contents transparently on read and write",
+        "Multi-threading — Path objects support concurrent reads from multiple threads without locking"
+      ],
+      "correctAnswer": "Cross-platform path joining with `/` operator — works on Windows, macOS, and Linux identically",
+      "explanation": "Lesson 9: Path('/data') / 'bronze' / file works on all platforms. open(), pyarrow, most libs accept Path directly. CelticWind keeps Path objects throughout, strings only at config boundary.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY5",
+        "module-PY5-lesson-09",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY5-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Lesson 10's `read_data_file` function demonstrate?",
+      "options": [
+        "Format detection from suffix — same function for CSV, JSON, Parquet returning list[dict] uniformly",
+        "Format conversion — every input file is converted to Parquet first, then read into Python dicts",
+        "Format compression — every input file is gzipped before reading to reduce memory footprint",
+        "Format validation — every input file is checked against a JSON schema before any data is loaded"
+      ],
+      "correctAnswer": "Format detection from suffix — same function for CSV, JSON, Parquet returning list[dict] uniformly",
+      "explanation": "Lesson 10: dispatch on suffix. .csv → DictReader, .json → json.load, .parquet → pyarrow. Pipeline gets list[dict] regardless of source format.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY5",
+        "module-PY5-lesson-10",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY6-l01-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is `datetime.now()` (without `timezone.utc`) dangerous in pipeline code?",
+      "options": [
+        "Naive datetimes depend on the machine's local timezone — different timestamps on dev vs prod",
+        "Naive datetimes are immutable and cannot be passed to any standard library function correctly",
+        "Naive datetimes raise DeprecationWarning in Python 3.12+ and will be removed in Python 3.14",
+        "Naive datetimes round to seconds — microsecond precision is lost in the conversion to UTC"
+      ],
+      "correctAnswer": "Naive datetimes depend on the machine's local timezone — different timestamps on dev vs prod",
+      "explanation": "Lesson 1: laptop in Dublin (winter UTC+0) vs Frankfurt server (winter UTC+1) produces different timestamps from the same code. Always datetime.now(timezone.utc).",
+      "xpReward": 80,
+      "tags": [
+        "module-PY6",
+        "module-PY6-lesson-01",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY6-l02-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does the string `'01/02/2025'` mean in a CSV file?",
+      "options": [
+        "Ambiguous — January 2 in US format (MM/DD), February 1 in European format (DD/MM)",
+        "Always January 2 — the United States date format is the global standard for ISO 8601 dates",
+        "Always February 1 — European date format is the only valid CSV format per RFC 4180 specification",
+        "Always invalid — proper CSV files use ISO 8601 (YYYY-MM-DD), so the slash format is rejected"
+      ],
+      "correctAnswer": "Ambiguous — January 2 in US format (MM/DD), February 1 in European format (DD/MM)",
+      "explanation": "Lesson 2: same string, two interpretations. Wrong format = every date in Jan-Dec is wrong silently. CelticWind documents the format per source in YAML.",
+      "xpReward": 120,
+      "tags": [
+        "module-PY6",
+        "module-PY6-lesson-02",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY6-l03-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the recommended format for storing a date in a database or Parquet file?",
+      "options": [
+        "ISO 8601 via `isoformat()` — universal standard, lossless roundtrip via `fromisoformat()`",
+        "Unix timestamp as string — Python's preferred format for cross-platform date persistence",
+        "Custom format like `15-Jan-2025` — human-readable everywhere and easy to debug at 03:00",
+        "Excel serial number — interoperable with the spreadsheet tools the analytics team uses daily"
+      ],
+      "correctAnswer": "ISO 8601 via `isoformat()` — universal standard, lossless roundtrip via `fromisoformat()`",
+      "explanation": "Lesson 3: isoformat() for machines, strftime() for humans/file systems. ISO 8601 is universal and roundtrips losslessly via fromisoformat().",
+      "xpReward": 40,
+      "tags": [
+        "module-PY6",
+        "module-PY6-lesson-03",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY6-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `timedelta` handle and not handle in date arithmetic?",
+      "options": [
+        "Handles days, hours, minutes, seconds — not months or years (because 'one month' is ambiguous)",
+        "Handles months and years — not weeks (use `timedelta(weeks=1)` syntax which is unsupported)",
+        "Handles only days — Python's standard library cannot do sub-day arithmetic with timedelta",
+        "Handles all date units — including business days and holidays through the standard library"
+      ],
+      "correctAnswer": "Handles days, hours, minutes, seconds — not months or years (because 'one month' is ambiguous)",
+      "explanation": "Lesson 4: 'one month from January 31' is ambiguous (Feb 28? March 3?). Use dateutil.relativedelta for months. timedelta covers most pipeline needs.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY6",
+        "module-PY6-lesson-04",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY6-l05-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is comparing `'2025-01-15T23:00:00'` (Irish) and `'2025-01-16T00:00:00'` (CET) as strings wrong?",
+      "options": [
+        "These strings represent the same moment in time but compare unequal as strings",
+        "These strings have different lengths so Python's comparison operator fails to convert them",
+        "These strings use different separators that Python's string comparator handles incorrectly",
+        "These strings contain different timezone abbreviations that mask the true UTC offset value"
+      ],
+      "correctAnswer": "These strings represent the same moment in time but compare unequal as strings",
+      "explanation": "Lesson 5: 23:00 UTC+0 = 00:00 UTC+1 = same UTC moment. Naive string comparison says 'different' (wrong) and 'earlier' (wrong). UTC normalization fixes both.",
+      "xpReward": 120,
+      "tags": [
+        "module-PY6",
+        "module-PY6-lesson-05",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY6-l06-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the difference between `replace(tzinfo=...)` and `astimezone(...)`?",
+      "options": [
+        "`replace` attaches a timezone label without changing the time; `astimezone` converts the time value",
+        "`replace` requires a string timezone name; `astimezone` requires a `timezone` object reference",
+        "`replace` is read-only; `astimezone` mutates the original datetime in place when called",
+        "`replace` is for dates; `astimezone` is for datetimes — they are mutually exclusive operations"
+      ],
+      "correctAnswer": "`replace` attaches a timezone label without changing the time; `astimezone` converts the time value",
+      "explanation": "Lesson 6: replace = label naive datetime with its source TZ. astimezone = convert to a different TZ. Confusing them silently shifts every timestamp.",
+      "xpReward": 120,
+      "tags": [
+        "module-PY6",
+        "module-PY6-lesson-06",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY6-l07-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What are the three steps of CelticWind's timezone normalization function?",
+      "options": [
+        "Parse to naive (fromisoformat) → label with source TZ (replace) → convert to UTC (astimezone)",
+        "Parse to UTC (fromisoformat) → label with target TZ (replace) → convert to naive (astimezone)",
+        "Read from DB → cache in Redis → write to UTC table — the normalization is database-side only",
+        "Strip the timezone (replace) → convert to local time (astimezone) → format as ISO string (isoformat)"
+      ],
+      "correctAnswer": "Parse to naive (fromisoformat) → label with source TZ (replace) → convert to UTC (astimezone)",
+      "explanation": "Lesson 7: parse → label → convert. Skip step 2 = naive treated as system local TZ (wrong). Skip step 3 = stays in source TZ (comparisons fail).",
+      "xpReward": 120,
+      "tags": [
+        "module-PY6",
+        "module-PY6-lesson-07",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY6-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the UTC-first pattern's rule?",
+      "options": [
+        "Convert every timestamp to UTC at the Bronze-to-Silver boundary; all downstream code uses UTC",
+        "Convert every timestamp to local time at read time; consumers convert back to UTC if needed",
+        "Convert every timestamp to a Unix epoch integer; UTC is implicit in the epoch representation",
+        "Convert every timestamp to the source's timezone; compare only timestamps from the same source"
+      ],
+      "correctAnswer": "Convert every timestamp to UTC at the Bronze-to-Silver boundary; all downstream code uses UTC",
+      "explanation": "Lesson 8: normalize at Bronze→Silver. All Silver/Gold code works in UTC. Joins, comparisons, aggregations work correctly across multi-timezone sources.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY6",
+        "module-PY6-lesson-08",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY6-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind use `date` objects (not strings) for date arithmetic in partitioning?",
+      "options": [
+        "Date objects handle calendar quirks correctly — strftime only at the I/O boundary for Path",
+        "Date objects use 50% less memory than strings — important for partitions with many distinct dates",
+        "Date objects support arithmetic operators that Python strings have removed in recent versions",
+        "Date objects are required by pyarrow's schema — string dates are rejected during Parquet writes"
+      ],
+      "correctAnswer": "Date objects handle calendar quirks correctly — strftime only at the I/O boundary for Path",
+      "explanation": "Lesson 9: date math (Feb 28 + 1 day = March 1) is correct on date objects, broken on strings. Format only when constructing the Path.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY6",
+        "module-PY6-lesson-09",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY6-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the meter-to-price matching function in Lesson 10 work?",
+      "options": [
+        "Both reading and price are normalized to UTC during Bronze→Silver, so timestamp equality works",
+        "Both reading and price are stored in the same database table that auto-aligns timezones on read",
+        "Both reading and price use the same source timezone so the comparison is timezone-independent",
+        "Both reading and price are floats representing the Unix epoch with no timezone metadata at all"
+      ],
+      "correctAnswer": "Both reading and price are normalized to UTC during Bronze→Silver, so timestamp equality works",
+      "explanation": "Lesson 10: matching depends on consistent UTC representation. Without normalization, 23:00 Irish ≠ 00:00 CET in string form, and the join fails.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY6",
+        "module-PY6-lesson-10",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY7-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does Module 7 close from Module 1's six gaps between script and pipeline Python?",
+      "options": [
+        "Error handling, logging, and graceful failure — making pipelines diagnosable from logs alone",
+        "Type hints, docstrings, and code style — making pipeline code consistent across the team",
+        "Configuration, secrets, and environment management — separating code from environment",
+        "Testing, mocking, and CI integration — proving the pipeline works through automated tests"
+      ],
+      "correctAnswer": "Error handling, logging, and graceful failure — making pipelines diagnosable from logs alone",
+      "explanation": "Lesson 1: Module 1 listed 6 gaps. Module 7 closes the error/logging/recovery gap. Every function: handles expected errors, logs behavior, fails gracefully.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY7",
+        "module-PY7-lesson-01",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY7-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is `except:` (or `except Exception:`) a bad pattern in pipeline code?",
+      "options": [
+        "Catches programming bugs (NameError, TypeError) that should crash the pipeline, not be hidden",
+        "Catches network errors twice — once at the OS level and once at the Python application level",
+        "Catches keyboard interrupts and prevents the engineer from stopping a runaway pipeline gracefully",
+        "Catches deprecation warnings that the Python type checker needs to surface to the developer"
+      ],
+      "correctAnswer": "Catches programming bugs (NameError, TypeError) that should crash the pipeline, not be hidden",
+      "explanation": "Lesson 2: bare except hides code defects (NameError, TypeError) silently. Catch specific types (FileNotFoundError, ValueError). Let bugs crash so they get fixed.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY7",
+        "module-PY7-lesson-02",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY7-l03-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "How should you decide which exceptions to catch?",
+      "options": [
+        "Data errors (FileNotFound, ValueError, ConnectionError) — catch. Code errors (NameError, TypeError) — let crash.",
+        "All exceptions — every function should catch every exception and log it for debugging purposes",
+        "No exceptions — let every error crash and let the orchestration layer (Airflow) handle retries",
+        "Only exceptions documented in the function's docstring — undocumented errors should not be caught"
+      ],
+      "correctAnswer": "Data errors (FileNotFound, ValueError, ConnectionError) — catch. Code errors (NameError, TypeError) — let crash.",
+      "explanation": "Lesson 3: data errors (external world is imperfect) → handle. Code errors (bugs) → let crash so they get fixed. Catching TypeError hides bugs instead of fixing them.",
+      "xpReward": 120,
+      "tags": [
+        "module-PY7",
+        "module-PY7-lesson-03",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY7-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does CelticWind's `CelticWindError` base class enable?",
+      "options": [
+        "Single `except CelticWindError` clause catches all pipeline-specific errors but lets bugs crash",
+        "Automatic retry on every subclass — Python retries the failing operation 3 times by default",
+        "Encrypted error messages — the base class encrypts the exception's message field for security",
+        "Performance optimization — the base class caches stack traces so subsequent raises are faster"
+      ],
+      "correctAnswer": "Single `except CelticWindError` clause catches all pipeline-specific errors but lets bugs crash",
+      "explanation": "Lesson 4: base class lets `except CelticWindError` catch all pipeline errors. TypeError (Python built-in) escapes — caller knows it is a code bug, not data.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY7",
+        "module-PY7-lesson-04",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY7-l05-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind use `logger = logging.getLogger(__name__)` instead of print statements?",
+      "options": [
+        "Logger output has level (INFO/ERROR), timestamp, module name, and goes to file + console configurably",
+        "Logger output is faster than print — print blocks on stdout while logger writes asynchronously",
+        "Logger output is encrypted by default while print sends plaintext to the terminal application",
+        "Logger output is required by Lithuanian regulations for any production data pipeline globally"
+      ],
+      "correctAnswer": "Logger output has level (INFO/ERROR), timestamp, module name, and goes to file + console configurably",
+      "explanation": "Lesson 5: logger writes structured output to file/console with level, timestamp, module name. print produces unstructured output that monitoring cannot parse.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY7",
+        "module-PY7-lesson-05",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY7-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Where should logging be configured at CelticWind?",
+      "options": [
+        "Once, in the pipeline's `if __name__ == '__main__':` block — before any module creates a logger",
+        "In every module file — each module configures its own logger with module-specific format strings",
+        "In the YAML config — Python's logging module reads logging.yml directly without any code involved",
+        "In the conftest.py — pytest configures logging globally for both test runs and production runs"
+      ],
+      "correctAnswer": "Once, in the pipeline's `if __name__ == '__main__':` block — before any module creates a logger",
+      "explanation": "Lesson 6: configure once at entry point. Modules call getLogger(__name__) and inherit. Configuring inside modules may not propagate to other modules' loggers.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY7",
+        "module-PY7-lesson-06",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY7-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What should every log message answer?",
+      "options": [
+        "What happened, to what data (which meter, which file), and what was the result",
+        "Who wrote the code, when they committed it, and which engineer is currently on call",
+        "Which Python version is running, which OS the pipeline lives on, and which CPU architecture",
+        "Which Airflow DAG ID, which task ID, and which execution date triggered the function"
+      ],
+      "correctAnswer": "What happened, to what data (which meter, which file), and what was the result",
+      "explanation": "Lesson 7: log reader has no context. Every message: what (operation), to what data (meter/file), result (count/duration/error). Code-required-to-understand = bad message.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY7",
+        "module-PY7-lesson-07",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY7-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Which HTTP status codes warrant retries?",
+      "options": [
+        "Transient: 503 (unavailable), 429 (rate limit), 502/504 (gateway), Timeout, ConnectionError",
+        "Permanent: 401 (auth), 400 (bad request), 404 (not found) — the response will not change",
+        "All 5xx codes — server-side errors are always retriable per HTTP RFC 7231 specification",
+        "All 4xx codes — client-side errors are retriable when the client adjusts the request format"
+      ],
+      "correctAnswer": "Transient: 503 (unavailable), 429 (rate limit), 502/504 (gateway), Timeout, ConnectionError",
+      "explanation": "Lesson 8: retry only conditions that may go away (503, 429, network). 401 (wrong key) on retry = same wrong key. CelticWind lists retryable codes explicitly.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY7",
+        "module-PY7-lesson-08",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY7-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the `with` statement guarantee?",
+      "options": [
+        "Cleanup happens — `__exit__` is called even if the body raises an exception during execution",
+        "Performance — Python optimizes `with` blocks by inlining the context manager's methods",
+        "Concurrency — `with` blocks run in their own thread for isolation from the main thread",
+        "Encryption — `with` blocks encrypt any file opened inside them with a per-block random key"
+      ],
+      "correctAnswer": "Cleanup happens — `__exit__` is called even if the body raises an exception during execution",
+      "explanation": "Lesson 9: with f = open(...) → f.close() always runs even on exceptions. Equivalent to try/finally but more readable. CelticWind wraps every pipeline run in pipeline_run.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY7",
+        "module-PY7-lesson-09",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY7-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the role of the `__main__` block in Lesson 10's resilient pipeline?",
+      "options": [
+        "Distinguishes exit codes — 0 success, 1 known CelticWindError, 2 unexpected error (code bug)",
+        "Distinguishes runtimes — runs the pipeline in dev/staging/prod based on environment variables only",
+        "Distinguishes engineers — only the on-call engineer's user ID is allowed to invoke the pipeline",
+        "Distinguishes file formats — the entry point converts CSV to Parquet before any logic runs"
+      ],
+      "correctAnswer": "Distinguishes exit codes — 0 success, 1 known CelticWindError, 2 unexpected error (code bug)",
+      "explanation": "Lesson 10: sys.exit(0/1/2) communicates outcome to the orchestrator. Airflow/cron use the exit code to decide retry/alert behavior. Module 8 builds on this with validation framework.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY7",
+        "module-PY7-lesson-10",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY8-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What is the role of Silver between Bronze and Gold?",
+      "options": [
+        "Quality gate — validate, clean, type every record; rejects go to quarantine, valid records continue",
+        "Aggregation — Silver computes the regional totals that Gold reports to the billing team",
+        "Encryption — Silver encrypts Bronze data at rest; Gold contains the unencrypted business outputs",
+        "Deduplication only — Silver removes duplicate rows; Gold handles all other validation steps"
+      ],
+      "correctAnswer": "Quality gate — validate, clean, type every record; rejects go to quarantine, valid records continue",
+      "explanation": "Lesson 1: Silver is the quality gate. Bronze = as received; Silver = validated/cleaned/typed. Module 8 builds the gate.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY8",
+        "module-PY8-lesson-01",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY8-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does schema validation catch that record-level validation does not?",
+      "options": [
+        "Source system rename/add/remove of columns — caught immediately at the schema check, not deep in transforms",
+        "Single-record validation rules (negative kW, missing meter_id) — schema check is the only place these appear",
+        "Performance regressions — schema check measures DAG parsing time and alerts on slowdowns",
+        "Network outages — schema check pings the source system to verify connectivity before reading"
+      ],
+      "correctAnswer": "Source system rename/add/remove of columns — caught immediately at the schema check, not deep in transforms",
+      "explanation": "Lesson 2: a renamed column is a valid CSV — just different. Schema validation catches the mismatch at the boundary instead of as a confusing KeyError later.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY8",
+        "module-PY8-lesson-02",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY8-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does a `coerce_*` function combine that pure validation does not?",
+      "options": [
+        "Validates AND transforms in one operation — check and conversion cannot get out of sync",
+        "Validates AND logs in one operation — every check produces a structured audit log entry automatically",
+        "Validates AND retries in one operation — failed coercions retry up to 3 times before raising",
+        "Validates AND caches in one operation — successful coercions cache the result for repeated rows"
+      ],
+      "correctAnswer": "Validates AND transforms in one operation — check and conversion cannot get out of sync",
+      "explanation": "Lesson 3: 'I checked the value' and 'I converted the value' are the same step. Eliminates the gap where a checker says OK but the converter fails.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY8",
+        "module-PY8-lesson-03",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY8-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is `max_daily_kw=5000` documented in the code at CelticWind?",
+      "options": [
+        "Business reason: 5 kW nameplate × 1000 daily conversion factor — without docs, looks like a guess",
+        "Performance reason: 5000 fits in a single CPU register — without docs, looks like an arbitrary cap",
+        "Security reason: 5000 is a Lithuanian regulatory limit — without docs, the regulator may reject the pipeline",
+        "Compatibility reason: 5000 matches the source system's column type — without docs, the source may overflow"
+      ],
+      "correctAnswer": "Business reason: 5 kW nameplate × 1000 daily conversion factor — without docs, looks like a guess",
+      "explanation": "Lesson 4: every constraint has a comment explaining the business reason. Module 4's docstring discipline applied to validation rules.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY8",
+        "module-PY8-lesson-04",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY8-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What pattern handles both CSV's empty strings and JSON's `None` for missing values?",
+      "options": [
+        "raw.get(key, '').strip() or default — covers missing key, empty string, and whitespace uniformly",
+        "raw[key] if raw[key] else default — raises KeyError on missing keys, defeating the safety check",
+        "raw.get(key) or 'default' — fails when the value is the literal string '0' or False boolean",
+        "Use a third-party library that auto-detects the source format and applies the right null check"
+      ],
+      "correctAnswer": "raw.get(key, '').strip() or default — covers missing key, empty string, and whitespace uniformly",
+      "explanation": "Lesson 5: CSV missing = '', JSON null = None. raw.get(key, '').strip() handles both: missing key returns '', strip handles whitespace, or applies default.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY8",
+        "module-PY8-lesson-05",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY8-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind's deduplication function return both unique records AND the count of removed duplicates?",
+      "options": [
+        "Duplicates_removed becomes a structured metric — sudden spike (10K) indicates a source system problem",
+        "The count is required for billing — Apache Iceberg charges per row written to the data lake",
+        "The count is encrypted — the encryption key derives from the duplicate count for each batch",
+        "The count is needed for retry — failed deduplications retry until the count matches expectations"
+      ],
+      "correctAnswer": "Duplicates_removed becomes a structured metric — sudden spike (10K) indicates a source system problem",
+      "explanation": "Lesson 6: silent removal hides problems. Logging duplicates_removed=200 lets monitoring detect 50× spikes that indicate source bugs.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY8",
+        "module-PY8-lesson-06",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY8-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Pydantic give you that hand-written validators do not?",
+      "options": [
+        "Class is both validation AND schema documentation — change rules in one place, all callers updated",
+        "Class is automatically tested — pytest generates test cases for every field type defined on the model",
+        "Class is multi-threaded — Pydantic validates fields in parallel across multiple CPU cores",
+        "Class is encrypted — Pydantic stores model instances in encrypted memory regions automatically"
+      ],
+      "correctAnswer": "Class is both validation AND schema documentation — change rules in one place, all callers updated",
+      "explanation": "Lesson 7: MeterReadingModel = validation logic + schema documentation. Update one class when rules change. ValidationError aggregates all field errors.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY8",
+        "module-PY8-lesson-07",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY8-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is a 'quarantine' record at CelticWind?",
+      "options": [
+        "Rejected record + rejection reasons + timestamp + source row — diagnostic evidence, not production data",
+        "Encrypted production record with stricter access control — for sensitive data subject to GDPR",
+        "Backup of the production record before transformation — for rollback if the transform is wrong",
+        "Cached copy of the production record kept for 24 hours — for repeat queries to avoid re-reading"
+      ],
+      "correctAnswer": "Rejected record + rejection reasons + timestamp + source row — diagnostic evidence, not production data",
+      "explanation": "Lesson 8: quarantine = evidence of data problems. Team investigates, fixes upstream, optionally reprocesses. Quarantine files older than 90 days archive at CelticWind.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY8",
+        "module-PY8-lesson-08",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY8-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the validation report include `rejection_breakdown` (rejections by field)?",
+      "options": [
+        "Trends are more informative than counts — daily rate stable? rising? Module 9's monitoring uses these",
+        "Breakdown is required by Lithuanian regulators for any quarterly compliance report submission",
+        "Breakdown is faster to compute than the total count when the dataset has more than a million rows"
+      ],
+      "correctAnswer": "Trends are more informative than counts — daily rate stable? rising? Module 9's monitoring uses these",
+      "explanation": "Lesson 9: a single day shows quality; a week shows trend; a month reveals patterns (winter storms = more rejections). Reports stored as dated JSON files for the dashboard.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY8",
+        "module-PY8-lesson-09",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY8-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the order of operations in CelticWind's validation framework pipeline?",
+      "options": [
+        "Read → Schema check → Deduplicate → Pydantic validate → Write Silver + Quarantine → Report",
+        "Read → Pydantic validate → Schema check → Deduplicate → Write Silver + Quarantine → Report",
+        "Read → Deduplicate → Schema check → Pydantic validate → Write Silver + Quarantine → Report",
+        "Read → Write Silver → Pydantic validate → Schema check → Deduplicate → Write Quarantine → Report"
+      ],
+      "correctAnswer": "Read → Schema check → Deduplicate → Pydantic validate → Write Silver + Quarantine → Report",
+      "explanation": "Lesson 10: schema fails fast on structural errors. Dedup before validation = less work. Pydantic per-record. Write outputs + report. Module 9 adds APIs.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY8",
+        "module-PY8-lesson-10",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY9-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "How does the pipeline view an API differently from a CSV file?",
+      "options": [
+        "Same — both are data sources. The transport differs (network vs disk); the architecture stays the same.",
+        "Different — APIs require encryption; CSV files are read in plaintext from the local file system",
+        "Different — APIs are mutable; CSV files are immutable once written to the Bronze layer always",
+        "Different — APIs run synchronously; CSV files are read asynchronously through the threading module"
+      ],
+      "correctAnswer": "Same — both are data sources. The transport differs (network vs disk); the architecture stays the same.",
+      "explanation": "Lesson 1: pipeline reads API like a file (with different transport). Read → validate → transform → write. Module 5's multi-format reader extends to APIs as the 4th source.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY9",
+        "module-PY9-lesson-01",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY9-l02-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is `timeout=30` essential on every `requests.get()`?",
+      "options": [
+        "Without it, the call waits forever if the server doesn't respond — pipeline hangs at 03:00 silently",
+        "Without it, requests retries indefinitely until either the network or the cosmic ray flips a bit",
+        "Without it, Python's GC cannot release the connection's memory until interpreter shutdown",
+        "Without it, the response body is buffered fully in memory before any handler is allowed to run"
+      ],
+      "correctAnswer": "Without it, the call waits forever if the server doesn't respond — pipeline hangs at 03:00 silently",
+      "explanation": "Lesson 2: no timeout = hang forever. Morning engineer sees 'still running' with no progress. CelticWind: every API call has 30s timeout (configurable in YAML).",
+      "xpReward": 80,
+      "tags": [
+        "module-PY9",
+        "module-PY9-lesson-02",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY9-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the conceptual split between `params` and `headers` in `requests.get(...)`?",
+      "options": [
+        "params = request content (date, market zone); headers = metadata (auth, content-type, user-agent)",
+        "params = query string; headers = cookies — both encode key-value pairs in the same way internally",
+        "params = required parameters; headers = optional — API rejects calls without all required headers",
+        "params = encrypted payload; headers = plaintext metadata — TLS encrypts only the params dict"
+      ],
+      "correctAnswer": "params = request content (date, market zone); headers = metadata (auth, content-type, user-agent)",
+      "explanation": "Lesson 3: clear separation makes API code readable. params = business logic; headers = infrastructure (auth, format, identification).",
+      "xpReward": 80,
+      "tags": [
+        "module-PY9",
+        "module-PY9-lesson-03",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY9-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What happens when `logger.info('Calling API with key %s', api_key)` runs?",
+      "options": [
+        "Writes the API key to the log file — anyone with log access can read the secret afterwards",
+        "Encrypts the API key automatically because it matches a secret pattern recognized by the logger",
+        "Hashes the API key with SHA-256 before logging because Python's logging module redacts sensitive fields",
+        "Skips the call to logger.info because the format string contains 'key' which is in a denylist"
+      ],
+      "correctAnswer": "Writes the API key to the log file — anyone with log access can read the secret afterwards",
+      "explanation": "Lesson 4: secrets in code/config/logs = exposure. Module 2's rule: secrets only in env vars, never logged. Mask Authorization header in logs.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY9",
+        "module-PY9-lesson-04",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY9-l05-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Which of these HTTP errors should CelticWind's pipeline retry?",
+      "options": [
+        "503 (unavailable) and 429 (rate limited) — temporary, may succeed on retry. Not 401 or 400.",
+        "All errors with status code ≥ 400 — Apache HTTP standards mandate retry for any 4xx/5xx code",
+        "No errors — every retry costs API credits, so the pipeline must surface every failure to the team",
+        "Only 401 (auth) — the API may have rotated keys; retry forces a credential refresh from Vault"
+      ],
+      "correctAnswer": "503 (unavailable) and 429 (rate limited) — temporary, may succeed on retry. Not 401 or 400.",
+      "explanation": "Lesson 5: retry transient (503, 429, 502, 504, Timeout). Don't retry permanent (401 wrong key, 400 bad query, 404 missing). CelticWind lists retryable codes in YAML.",
+      "xpReward": 120,
+      "tags": [
+        "module-PY9",
+        "module-PY9-lesson-05",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY9-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the cursor-pagination function include a `max_pages` safety limit?",
+      "options": [
+        "API pagination bug (next_url loops, page_size mismatch) can cause infinite loops and bans",
+        "Python's recursion limit forbids more than 1000 paginated calls per function invocation by default",
+        "API providers charge a flat fee per call above 100 pages; max_pages caps the bill at predictable levels",
+        "The metadata database refuses to store more than 100 paginated batches in a single Bronze write"
+      ],
+      "correctAnswer": "API pagination bug (next_url loops, page_size mismatch) can cause infinite loops and bans",
+      "explanation": "Lesson 6: pagination bugs (loop, off-by-one) can produce thousands of calls. max_pages is a safety net. CelticWind logs warning when limit is reached.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY9",
+        "module-PY9-lesson-06",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY9-l07-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the `Retry-After` header on a 429 response tell you?",
+      "options": [
+        "The number of seconds to wait before retrying — respect it instead of guessing a delay",
+        "The number of retries remaining before the API key is revoked permanently for abuse",
+        "The number of bytes to skip in the response body when implementing client-side filtering",
+        "The number of distinct IPs the client must use to spread the load across the rate limiter"
+      ],
+      "correctAnswer": "The number of seconds to wait before retrying — respect it instead of guessing a delay",
+      "explanation": "Lesson 7: server tells you the retry delay. Use it. CelticWind: time.sleep(int(response.headers.get('Retry-After', 60))) before retrying.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY9",
+        "module-PY9-lesson-07",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY9-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What two purposes does API response caching serve at CelticWind?",
+      "options": [
+        "Performance (avoid unnecessary API calls) AND data governance (preserve raw response for reprocessing)",
+        "Compression (reduce response size) AND encryption (protect sensitive data at rest in the cache)",
+        "Compliance (Lithuanian regulators require caching) AND analytics (Apache Iceberg requires caching)",
+        "Concurrency (allow parallel reads) AND consistency (ensure all consumers see the same response)"
+      ],
+      "correctAnswer": "Performance (avoid unnecessary API calls) AND data governance (preserve raw response for reprocessing)",
+      "explanation": "Lesson 8: cached JSON is the API equivalent of a Bronze CSV file. Avoid duplicate calls + reprocess if transform logic changes — same as CSV Bronze files.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY9",
+        "module-PY9-lesson-08",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY9-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `timeout=(5, 30)` mean in `requests.get(...)`?",
+      "options": [
+        "5 seconds to establish the connection (TCP+TLS), 30 seconds for the server to send the full response",
+        "5 retries on connect failure, 30 retries on read failure — separate counts for each kind of error",
+        "5 milliseconds for high-priority calls, 30 seconds for low-priority calls within the same request",
+        "5 (HTTP version) and 30 (default keep-alive timeout in seconds) — both are connection-level settings"
+      ],
+      "correctAnswer": "5 seconds to establish the connection (TCP+TLS), 30 seconds for the server to send the full response",
+      "explanation": "Lesson 9: connect_timeout (TCP+TLS handshake), read_timeout (full response). ConnectTimeout vs ReadTimeout — both are subclasses of Timeout, both retryable.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY9",
+        "module-PY9-lesson-09",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY9-l10-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does `EpexPriceClient` encapsulate as a class?",
+      "options": [
+        "Authentication, caching, rate limiting, and retry — a clean interface that the pipeline calls simply",
+        "Threading, multiprocessing, and asyncio — three concurrency models that the pipeline can choose between",
+        "Database connection, transaction management, and rollback — for atomic API-to-DB pipelines",
+        "Compilation, type checking, and serialization — Python's standard infrastructure for API clients"
+      ],
+      "correctAnswer": "Authentication, caching, rate limiting, and retry — a clean interface that the pipeline calls simply",
+      "explanation": "Lesson 10: client.get_prices(date) hides auth, cache check, retry, rate limit. Pipeline gets a clean interface. Module 10 teaches mocking such clients.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY9",
+        "module-PY9-lesson-10",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY10-l01-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does Module 10 close from Module 1's six gaps?",
+      "options": [
+        "'Testing is manual: I ran it and it looked right' becomes 'pytest verifies every function automatically'",
+        "'Configuration is hardcoded' becomes 'configuration lives in environment-specific YAML files'",
+        "'Imports are absolute' becomes 'imports use relative paths within the src/ directory tree'",
+        "'Errors crash the pipeline' becomes 'errors are caught silently and the pipeline continues running'"
+      ],
+      "correctAnswer": "'Testing is manual: I ran it and it looked right' becomes 'pytest verifies every function automatically'",
+      "explanation": "Lesson 1: closes the last gap from Module 1's list. After Module 10, all six gaps closed. Code = production-grade data engineering Python.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY10",
+        "module-PY10-lesson-01",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY10-l02-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does CelticWind's test naming convention look like?",
+      "options": [
+        "test_{function}_{behavior} — e.g., test_validate_reading_rejects_negative_kw",
+        "test_{number} — e.g., test_001, test_002 — sequential numbering for each test in a file",
+        "{function}_test — e.g., validate_reading_test — function name first followed by suffix",
+        "should_{behavior} — e.g., should_reject_negative_kw — BDD-style assertion-first naming"
+      ],
+      "correctAnswer": "test_{function}_{behavior} — e.g., test_validate_reading_rejects_negative_kw",
+      "explanation": "Lesson 2: failure message says exactly what is broken. test_validate_reading_rejects_negative_kw immediately points to the behavior under test.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY10",
+        "module-PY10-lesson-02",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY10-l03-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does CelticWind use a one-to-one mapping between source modules and test modules?",
+      "options": [
+        "Adding a function to validators.py = adding tests to test_validators.py — predictable test home",
+        "pytest discovers tests faster when the module names match — directory scans skip unmatched files",
+        "The Python import system requires test modules to mirror source modules for namespace correctness",
+        "Apache PEP 8 mandates this mapping for any package distributed through PyPI to the public"
+      ],
+      "correctAnswer": "Adding a function to validators.py = adding tests to test_validators.py — predictable test home",
+      "explanation": "Lesson 3: predictable test location. New function in module X → tests go in test_X.py. Module 4's organizational discipline carries through to tests.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY10",
+        "module-PY10-lesson-03",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY10-l04-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does pytest do with a fixture between test functions?",
+      "options": [
+        "Each test function gets a fresh copy — modifying the fixture in one test does not affect others",
+        "All test functions share the same fixture instance — modifications persist across the test run",
+        "Fixtures are loaded once at the start and reset only when the entire test suite completes",
+        "Fixtures are reloaded from disk between tests — pytest re-reads the fixture file each time"
+      ],
+      "correctAnswer": "Each test function gets a fresh copy — modifying the fixture in one test does not affect others",
+      "explanation": "Lesson 4: each test gets a fresh copy. Test isolation: a test that passes in isolation passes when run with others. Order does not affect results.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY10",
+        "module-PY10-lesson-04",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY10-l05-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you use `@pytest.mark.parametrize` instead of separate test functions?",
+      "options": [
+        "Same assertion logic, different inputs (valid Dublin/Cork/Galway) — parametrize lists the variations",
+        "Different assertion logic, different inputs — separate test functions for each behavior tested",
+        "Same input, different output expectations — parametrize specifies multiple acceptable answers",
+        "Random inputs — parametrize generates random test data on every run automatically by default"
+      ],
+      "correctAnswer": "Same assertion logic, different inputs (valid Dublin/Cork/Galway) — parametrize lists the variations",
+      "explanation": "Lesson 5: parametrize = same logic, different data. Separate tests = different logic. CelticWind: one @parametrize per behavior with all input variations.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY10",
+        "module-PY10-lesson-05",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY10-l06-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the `tmp_path` fixture provide for testing file I/O?",
+      "options": [
+        "A temporary directory unique to the test, auto-cleaned afterwards — for safe file creation",
+        "A pre-populated directory with test fixtures already loaded — read-only, shared across tests",
+        "A network-mounted shared directory — for tests that span multiple machines in the CI pool",
+        "A persistent directory that survives test runs — for caching test results between invocations"
+      ],
+      "correctAnswer": "A temporary directory unique to the test, auto-cleaned afterwards — for safe file creation",
+      "explanation": "Lesson 6: tmp_path = pytest's temp dir per test. Auto-cleaned. Test creates CSV/Parquet, reader function reads it back, assertion verifies content.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY10",
+        "module-PY10-lesson-06",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY10-l07-001",
+      "topic": "python-de",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does `@patch('celticwind.api.requests.get', return_value=fake_response)` work but patching `'requests.get'` does not?",
+      "options": [
+        "Patch the import path the module under test uses — celticwind.api imported it, so patch there",
+        "Patch the originating library — requests.get is defined there, so the patch applies globally everywhere",
+        "Patch the function reference — pass the function object directly so Python knows what to replace",
+        "Patch all paths simultaneously — pytest applies the patch to every reference of the function name"
+      ],
+      "correctAnswer": "Patch the import path the module under test uses — celticwind.api imported it, so patch there",
+      "explanation": "Lesson 7: most common mocking mistake. celticwind.api imports requests.get as celticwind.api.requests.get. Patch where it's used, not where it's defined.",
+      "xpReward": 120,
+      "tags": [
+        "module-PY10",
+        "module-PY10-lesson-07",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY10-l08-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is testing error-handling code especially important?",
+      "options": [
+        "Error handlers are the least-exercised code — bugs invisible during normal operation surface only on failure",
+        "Error handlers are the most-exercised code — they run more often than the happy path in production",
+        "Error handlers must comply with Lithuanian regulations — every handler is audited quarterly by VERT",
+        "Error handlers run faster than success handlers — testing them improves the pipeline's average runtime"
+      ],
+      "correctAnswer": "Error handlers are the least-exercised code — bugs invisible during normal operation surface only on failure",
+      "explanation": "Lesson 8: error handler runs only on failure — least-tested, surfaces only at the worst time. Testing ensures the safety net is functional.",
+      "xpReward": 80,
+      "tags": [
+        "module-PY10",
+        "module-PY10-lesson-08",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY10-l09-001",
+      "topic": "python-de",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the warning about test coverage at CelticWind?",
+      "options": [
+        "High coverage with weak assertions gives false confidence — coverage is necessary but not sufficient",
+        "100% coverage is required by Apache PEP 8 — anything below 100 fails CI and blocks deployment",
+        "Coverage tools slow tests by 10× — only run coverage on the nightly CI build, not per-commit",
+        "Coverage is maximized by running tests in parallel — pytest-xdist increases coverage automatically"
+      ],
+      "correctAnswer": "High coverage with weak assertions gives false confidence — coverage is necessary but not sufficient",
+      "explanation": "Lesson 9: a test that calls validate(valid_input) covers the code but doesn't verify rejection. Code review asks: 'do tests assert the right things, or just execute the code?'",
+      "xpReward": 80,
+      "tags": [
+        "module-PY10",
+        "module-PY10-lesson-09",
+        "python-junior"
+      ]
+    },
+    {
+      "id": "python-PY10-l10-001",
+      "topic": "python-de",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "What does Lesson 10's closing message say about taking the next framework course?",
+      "options": [
+        "Will feel like an extension of what you already know — every framework assumes these skills",
+        "Will require relearning Python from scratch — frameworks have their own embedded language dialects",
+        "Will be unnecessary — this course covers everything any data engineer needs throughout their career",
+        "Will be sequenced before this one — the framework courses are prerequisites for the foundations"
+      ],
+      "correctAnswer": "Will feel like an extension of what you already know — every framework assumes these skills",
+      "explanation": "Lesson 10: PySpark/Airflow/dbt/Fabric all assume project structure, error handling, tests, APIs, validation. This course = the assumed foundation.",
+      "xpReward": 40,
+      "tags": [
+        "module-PY10",
+        "module-PY10-lesson-10",
+        "python-junior"
+      ]
     }
   ]
 }
