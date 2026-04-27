@@ -12,6 +12,18 @@ function getStripeClient() {
   return new Stripe(secretKey);
 }
 
+async function isCustomerLive(stripe: Stripe, customerId: string): Promise<boolean> {
+  try {
+    const customer = await stripe.customers.retrieve(customerId);
+    return !(customer as { deleted?: boolean }).deleted;
+  } catch (error) {
+    if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === 'resource_missing') {
+      return false;
+    }
+    throw error;
+  }
+}
+
 export async function POST(request: Request) {
   const supabase = createClient();
   const {
@@ -49,6 +61,10 @@ export async function POST(request: Request) {
 
     let customerId = subscription?.stripe_customer_id ?? null;
 
+    if (customerId && !(await isCustomerLive(stripe, customerId))) {
+      customerId = null;
+    }
+
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
@@ -62,6 +78,7 @@ export async function POST(request: Request) {
         {
           user_id: user.id,
           stripe_customer_id: customerId,
+          stripe_sub_id: null,
           plan: 'free',
           status: 'active'
         },

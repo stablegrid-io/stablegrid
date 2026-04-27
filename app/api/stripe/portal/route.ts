@@ -12,6 +12,18 @@ function getStripeClient() {
   return new Stripe(secretKey);
 }
 
+async function isCustomerLive(stripe: Stripe, customerId: string): Promise<boolean> {
+  try {
+    const customer = await stripe.customers.retrieve(customerId);
+    return !(customer as { deleted?: boolean }).deleted;
+  } catch (error) {
+    if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === 'resource_missing') {
+      return false;
+    }
+    throw error;
+  }
+}
+
 export async function POST(request: Request) {
   const supabase = createClient();
   const {
@@ -43,6 +55,18 @@ export async function POST(request: Request) {
     }
 
     const stripe = getStripeClient();
+
+    if (!(await isCustomerLive(stripe, subscription.stripe_customer_id))) {
+      await supabase
+        .from('subscriptions')
+        .update({ stripe_customer_id: null, stripe_sub_id: null })
+        .eq('user_id', user.id);
+      return NextResponse.json(
+        { error: 'No active Stripe customer. Start a checkout to set one up.' },
+        { status: 404 }
+      );
+    }
+
     const origin = process.env.NEXT_PUBLIC_URL ?? new URL(request.url).origin;
 
     const portal = await stripe.billingPortal.sessions.create({
