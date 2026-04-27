@@ -100,16 +100,34 @@ export const TheorySessionPicker = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    const previousOverflow = document.body.style.overflow;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
       onDismiss();
     };
-    document.body.style.overflow = 'hidden';
+    // iOS Safari ignores `overflow: hidden` on body for momentum scrolling, so
+    // a plain hidden lock leaks scroll behind the modal. Pinning body with
+    // `position: fixed` and offsetting top by the current scrollY freezes the
+    // viewport, then we restore scroll on close.
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const previous = {
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+      overflow: body.style.overflow
+    };
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      body.style.position = previous.position;
+      body.style.top = previous.top;
+      body.style.width = previous.width;
+      body.style.overflow = previous.overflow;
+      window.scrollTo(0, scrollY);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onDismiss]);

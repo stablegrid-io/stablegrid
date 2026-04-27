@@ -67,6 +67,14 @@ export interface CheckpointModeConfig {
   }) => void;
   /** Where the "Back / Continue" CTAs should return to. */
   returnHref: string;
+  /**
+   * Optional URL of the next module's first lesson. When set, the pass screen
+   * promotes a "Next module" CTA above "Continue to track" so users move
+   * forward without bouncing through the track map.
+   */
+  nextModuleHref?: string;
+  /** Title of the next module — shown inside the "Next module" CTA. */
+  nextModuleTitle?: string;
   /** Label shown above the score (e.g. "Module Checkpoint"). */
   resultsHeading?: string;
   /** Label shown in the session topbar (e.g. "Module 01 · Checkpoint"). */
@@ -343,8 +351,9 @@ async function persistPracticeCompletion(practiceSet: PracticeSet) {
   const topic = practiceSet.topic;
   const trackSlug = resolvePracticeTrackSlug(practiceSet.metadata?.trackLevel);
   if (!moduleId || !topic || !trackSlug) return;
-  // Checkpoints aren't practice sets — they don't have server-side module rows.
-  // Their pass state is recorded client-side via useCheckpointStore.
+  // Checkpoints aren't practice sets — they don't have a `module_progress` row.
+  // Their pass state is persisted via useCheckpointStore (localStorage cache +
+  // /api/learn/module-checkpoint) keyed against `module_checkpoints`.
   if (moduleId.startsWith('checkpoint-')) return;
 
   try {
@@ -454,18 +463,26 @@ function StartScreen({
 function FocusWrapper({
   briefPath,
   children,
+  beforeExit,
 }: {
   briefPath: string;
   children: React.ReactNode;
+  /**
+   * Optional pre-exit guard. Return false to abort exiting (e.g. user
+   * cancelled a "leave checkpoint?" confirm). Used to keep ESC from silently
+   * discarding an in-progress checkpoint attempt.
+   */
+  beforeExit?: () => boolean;
 }) {
   const exitLinkRef = React.useRef<HTMLAnchorElement>(null);
 
   const exitSession = useCallback(() => {
+    if (beforeExit && !beforeExit()) return;
     clearSession();
     const store = useReadingModeStore.getState();
     if (store.focusMode) store.toggleFocus();
     exitLinkRef.current?.click();
-  }, []);
+  }, [beforeExit]);
 
   // ESC: in focus mode → exit focus only; otherwise → exit session.
   // Ignore when typing in inputs.
@@ -1045,8 +1062,10 @@ function ResultsScreen({
 
         {/* Action buttons — primary "Continue" returns to the track map where
             the just-completed module is now marked done and the next one
-            unlocked. In checkpoint mode, only show the "continue" CTA on pass;
-            on fail the retry button below becomes the primary call to action. */}
+            unlocked. In checkpoint mode, on pass we promote a direct "Next
+            module" CTA when one exists, demoting "Continue to track" to a
+            secondary outline button so users move forward without bouncing
+            through the track map. On fail the retry button is the primary CTA. */}
         <div className="flex flex-col gap-3 mt-10 max-w-md mx-auto">
           {checkpointFailed ? (
             <button
@@ -1063,6 +1082,33 @@ function ResultsScreen({
               <RotateCcw className="h-4 w-4" />
               Retry checkpoint
             </button>
+          ) : checkpointPassed && checkpointMode?.nextModuleHref ? (
+            <>
+              <Link
+                href={checkpointMode.nextModuleHref}
+                className="rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+                style={{
+                  background: 'rgba(255,255,255,0.92)',
+                  color: '#0a0c0e',
+                }}
+              >
+                {checkpointMode.nextModuleTitle
+                  ? `Next module: ${checkpointMode.nextModuleTitle}`
+                  : 'Start next module'}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href={checkpointMode.returnHref ?? buildTrackMapPath(practiceSet)}
+                className="rounded-[14px] py-3 text-[12px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.16)',
+                  color: 'rgba(255,255,255,0.65)',
+                }}
+              >
+                Back to track
+              </Link>
+            </>
           ) : (
             <Link
               href={checkpointMode?.returnHref ?? buildTrackMapPath(practiceSet)}
@@ -1257,6 +1303,39 @@ export function PracticeSetSession({
     }
   }, [practiceSession.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Detect in-progress checkpoint work so we can warn before navigation
+  // discards it. Practice sets aren't graded, so we only guard checkpoint
+  // attempts. "Has progress" means the quiz hasn't been submitted (still in
+  // session phase) and at least one question has been answered or checked.
+  const hasUnsavedCheckpointProgress =
+    Boolean(checkpointMode) &&
+    state.phase === 'session' &&
+    state.taskStates.some(
+      (ts) =>
+        ts.checked ||
+        Object.values(ts.answers).some((a) => a && a.value !== '')
+    );
+
+  // beforeunload: catches tab close, refresh, address-bar nav. Modern browsers
+  // ignore custom messages — they show a generic "Leave site?" dialog when
+  // returnValue is set.
+  useEffect(() => {
+    if (!hasUnsavedCheckpointProgress) return;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsavedCheckpointProgress]);
+
+  const confirmLeaveCheckpoint = useCallback(() => {
+    if (!hasUnsavedCheckpointProgress) return true;
+    return window.confirm(
+      'Leave the checkpoint? Your current attempt will be discarded — questions are reshuffled when you return.'
+    );
+  }, [hasUnsavedCheckpointProgress]);
+
   const openSessionPicker = useCallback(() => {
     if (!sessionDefaultsHydrated) return;
     setSessionPickerVisible(true);
@@ -1305,6 +1384,7 @@ export function PracticeSetSession({
                 href={treeMapPath}
                 onClick={(e) => {
                   e.preventDefault();
+                  if (!confirmLeaveCheckpoint()) return;
                   clearSession();
                   window.location.href = treeMapPath;
                 }}
@@ -1356,7 +1436,7 @@ export function PracticeSetSession({
             data-reading-mode={readingMode}
             style={{ backgroundColor: 'var(--rm-bg)' }}
           >
-            <FocusWrapper briefPath={treeMapPath}>
+            <FocusWrapper briefPath={treeMapPath} beforeExit={confirmLeaveCheckpoint}>
               <TaskScreen
                 practiceSet={practiceSet}
                 state={state}

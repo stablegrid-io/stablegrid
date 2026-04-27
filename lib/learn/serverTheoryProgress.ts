@@ -31,6 +31,14 @@ export interface ServerTheoryProgressPayload {
   completedChapterIds: string[];
   chapterProgressById: Record<string, ServerTheoryChapterProgressSnapshot>;
   moduleProgressById: Record<string, ServerTheoryModuleProgressSnapshot>;
+  /**
+   * Map of moduleId → whether the user has passed the module checkpoint quiz.
+   * Sourced from `module_checkpoints`. Empty for anonymous users.
+   * The client store (lib/stores/useCheckpointStore.ts) ORs this with its
+   * localStorage cache so a just-passed-but-not-yet-synced result still
+   * reflects on the track map until the next page load.
+   */
+  checkpointPassedById: Record<string, boolean>;
 }
 
 interface ServerTheoryModuleProgressRow {
@@ -189,7 +197,8 @@ export const loadServerTheoryProgress = async (
       totalChapterCount: canonicalModules.length,
       completedChapterIds: [],
       chapterProgressById: {},
-      moduleProgressById: {}
+      moduleProgressById: {},
+      checkpointPassedById: {}
     };
   }
 
@@ -249,11 +258,30 @@ export const loadServerTheoryProgress = async (
     completedChapterIds = normalizedModuleProgress.completedChapterIds;
   }
 
+  // Checkpoint quiz pass state. Tolerate a missing table (fresh installs that
+  // haven't run the 20260427120000_module_checkpoints migration yet) so the
+  // theory hub keeps rendering — fall back to the client store on the page.
+  const checkpointPassedById: Record<string, boolean> = {};
+  const { data: checkpointRows, error: checkpointRowsError } = await supabase
+    .from('module_checkpoints')
+    .select('module_id,passed')
+    .eq('user_id', user.id)
+    .eq('topic', topic);
+
+  if (!checkpointRowsError && Array.isArray(checkpointRows)) {
+    for (const row of checkpointRows as { module_id: string | null; passed: boolean | null }[]) {
+      if (typeof row.module_id === 'string' && row.passed) {
+        checkpointPassedById[row.module_id] = true;
+      }
+    }
+  }
+
   return {
     hasUser: true,
     totalChapterCount: canonicalModules.length,
     completedChapterIds,
     chapterProgressById,
-    moduleProgressById
+    moduleProgressById,
+    checkpointPassedById
   };
 };

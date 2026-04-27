@@ -22,6 +22,14 @@ interface ModuleCheckpointSessionProps {
   trackSlug: string;
   chapter: TheoryChapter;
   returnHref: string;
+  /**
+   * URL of the next module's reading session. When provided, the pass screen
+   * surfaces a primary "Next module" CTA so users don't have to bounce back
+   * through the track map after clearing the checkpoint.
+   */
+  nextModuleHref?: string;
+  /** Title of the next module — shown on the pass screen CTA. */
+  nextModuleTitle?: string;
 }
 
 const buildCheckpointPracticeSet = (
@@ -78,6 +86,8 @@ export function ModuleCheckpointSession({
   trackSlug,
   chapter,
   returnHref,
+  nextModuleHref,
+  nextModuleTitle,
 }: ModuleCheckpointSessionProps) {
   const [attemptKey, setAttemptKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -119,13 +129,24 @@ export function ModuleCheckpointSession({
   );
 
   const handleRetry = useCallback(() => {
+    // Retry skips the pre-mission interstitial — the user has already seen it
+    // and a 3-second wait between attempts is friction, not atmosphere.
+    setIsLoading(false);
     setAttemptKey((k) => k + 1);
-    setIsLoading(true);
   }, []);
 
-  // Pre-mission interstitial — game-style loading screen before each attempt.
+  const handleSkipInterstitial = useCallback(() => {
+    setIsLoading(false);
+  }, []);
+
+  // Pre-mission interstitial — game-style loading screen before the first attempt.
+  // Subsequent attempts (attemptKey > 0) bypass it via handleRetry above.
   useEffect(() => {
     if (questions.length === 0) {
+      setIsLoading(false);
+      return;
+    }
+    if (attemptKey > 0) {
       setIsLoading(false);
       return;
     }
@@ -174,7 +195,13 @@ export function ModuleCheckpointSession({
   }
 
   if (isLoading) {
-    return <CheckpointInterstitial chapter={chapter} questionCount={questions.length} />;
+    return (
+      <CheckpointInterstitial
+        chapter={chapter}
+        questionCount={questions.length}
+        onSkip={handleSkipInterstitial}
+      />
+    );
   }
 
   const moduleNumberLabel = String(chapter.number).padStart(2, '0');
@@ -187,6 +214,8 @@ export function ModuleCheckpointSession({
         passingScorePercent: Math.round(CHECKPOINT_PASS_RATIO * 100),
         onResultsComputed: handleResults,
         returnHref,
+        nextModuleHref,
+        nextModuleTitle,
         resultsHeading: 'Module Checkpoint',
         topbarLabel: `Module ${moduleNumberLabel} · Checkpoint`,
         onRetry: handleRetry,

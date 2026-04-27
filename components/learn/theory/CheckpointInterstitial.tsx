@@ -7,6 +7,12 @@ interface CheckpointInterstitialProps {
   chapter: TheoryChapter;
   /** Total questions in the upcoming checkpoint, for the status footer. */
   questionCount: number;
+  /**
+   * Called when the user presses Skip / Enter / Space / Escape, or
+   * automatically when prefers-reduced-motion is set. Omit to render the
+   * interstitial without a skip affordance (legacy callers).
+   */
+  onSkip?: () => void;
 }
 
 const STATUS_LINES = [
@@ -24,6 +30,7 @@ const stripModulePrefix = (title: string) =>
 export function CheckpointInterstitial({
   chapter,
   questionCount,
+  onSkip,
 }: CheckpointInterstitialProps) {
   const [statusIdx, setStatusIdx] = useState(0);
 
@@ -33,6 +40,29 @@ export function CheckpointInterstitial({
     }, STATUS_INTERVAL_MS);
     return () => window.clearInterval(id);
   }, []);
+
+  // Auto-skip for users who opted out of motion. The animated loader has no
+  // informational value for them, and a 3s wait with no signal of progress is
+  // an accessibility regression for that audience.
+  useEffect(() => {
+    if (!onSkip) return;
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mq.matches) onSkip();
+  }, [onSkip]);
+
+  // Keyboard: Space / Enter / Escape all skip the interstitial.
+  useEffect(() => {
+    if (!onSkip) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === ' ' || event.key === 'Enter' || event.key === 'Escape') {
+        event.preventDefault();
+        onSkip();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onSkip]);
 
   const moduleNumber = String(chapter.number).padStart(2, '0');
   const title = stripModulePrefix(chapter.title) || chapter.title;
@@ -109,6 +139,19 @@ export function CheckpointInterstitial({
         <p className="mt-3 font-mono text-[10px] tracking-[0.28em] uppercase text-white/25">
           {questionCount} questions · 90% to pass
         </p>
+
+        {onSkip && (
+          <button
+            type="button"
+            onClick={onSkip}
+            className="mt-10 inline-flex items-center gap-2 px-4 py-2 rounded-full font-mono text-[10px] font-bold tracking-[0.2em] uppercase text-white/45 hover:text-white/75 hover:bg-white/[0.04] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/30"
+            aria-label="Skip intro and start checkpoint"
+          >
+            Skip intro
+            <span className="text-white/25">·</span>
+            <kbd className="font-sans text-[9px] text-white/35">Space</kbd>
+          </button>
+        )}
       </div>
 
       <style jsx global>{`

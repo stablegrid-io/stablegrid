@@ -577,6 +577,12 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     activeChapter.durationMinutes ??
     activeChapter.totalMinutes;
   const contentRef = useRef<HTMLDivElement | null>(null);
+  // Per-lesson scroll position memory. When the user navigates away from a
+  // lesson and returns later, the saved scrollTop is restored so they don't
+  // have to find their place again. First-time visits scroll to top.
+  const scrollByLessonRef = useRef<Record<string, number>>({});
+  const previousLessonIdRef = useRef<string | null>(null);
+
   const handleChapterComplete = useCallback(() => {
     const alreadyCounted = completedChapterIds.has(activeChapter.id);
     const nextCompletedCount = alreadyCounted
@@ -952,7 +958,9 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     setActiveLessonId(resolvedLessonId);
     updateQueryRoute(targetChapter.id, resolvedLessonId);
     setSidebarOpen(false);
-    contentRef.current?.scrollTo?.({ top: 0, behavior: 'smooth' });
+    // Scrolling is handled by the per-lesson restoration effect below so a
+    // returning lesson lands at its saved scroll position. Forcing top here
+    // would clobber that.
   };
 
   const handleSelectLesson = (lessonId: string) => {
@@ -962,8 +970,34 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     setActiveLessonId(lessonId);
     updateQueryRoute(activeChapter.id, lessonId);
     setSidebarOpen(false);
-    contentRef.current?.scrollTo?.({ top: 0, behavior: 'smooth' });
+    // See handleSelectChapter — scroll restore happens in the effect below.
   };
+
+  // Save the previous lesson's scroll position when the active lesson changes,
+  // and restore the new lesson's saved position (or scroll to top for a fresh
+  // visit). Fires after commit so the new lesson's content has laid out and
+  // scrollTop sets against its real height. behavior: 'auto' keeps restores
+  // instant — a smooth animation toward an arbitrary scroll position would
+  // feel jarring.
+  useEffect(() => {
+    const previous = previousLessonIdRef.current;
+    if (previous && previous !== activeLessonId && contentRef.current) {
+      scrollByLessonRef.current[previous] = contentRef.current.scrollTop;
+    }
+    previousLessonIdRef.current = activeLessonId;
+
+    if (!activeLessonId) return;
+    const saved = scrollByLessonRef.current[activeLessonId];
+    const target = saved ?? 0;
+    const isRestore = saved !== undefined && saved > 0;
+    const id = window.requestAnimationFrame(() => {
+      contentRef.current?.scrollTo?.({
+        top: target,
+        behavior: isRestore ? 'auto' : 'smooth'
+      });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [activeLessonId]);
 
   const syncModuleProgress = useCallback(
     async ({

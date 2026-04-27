@@ -80,6 +80,17 @@ const makeSupabaseClient = ({
       };
     }
 
+    if (table === 'module_checkpoints') {
+      // Tests that don't care about checkpoint state get an empty result.
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(async () => ({ data: [], error: null }))
+          }))
+        }))
+      };
+    }
+
     throw new Error(`Unexpected table: ${table}`);
   })
 });

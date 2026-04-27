@@ -54,6 +54,16 @@ export const TrackEssentialsInterstitial = ({
     const seen = readSeenSlugs();
     seen.add(cookieKey);
     writeSeenSlugs(seen);
+    // Best-effort cross-device sync. Cookie write above is the synchronous
+    // source of truth for this navigation; the POST persists for other devices.
+    void fetch('/api/learn/track-essentials', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ topic, trackSlug }),
+      cache: 'no-store',
+    }).catch(() => {
+      /* tolerated — cookie still suppresses on this device */
+    });
     startTransition(() => {
       router.replace(continueHref);
       router.refresh();

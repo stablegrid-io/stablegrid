@@ -31,6 +31,7 @@ import {
   getTheoryTracks
 } from '@/data/learn/theory/tracks';
 import { loadServerTheoryProgress } from '@/lib/learn/serverTheoryProgress';
+import { createClient } from '@/lib/supabase/server';
 
 interface LearnTopicTheoryCategoryPageProps {
   params: {
@@ -124,16 +125,29 @@ export default async function LearnTopicTheoryCategoryPage({
           : null;
 
     if (requestedCheckpoint) {
-      const chapter = trackDoc.chapters.find((c) => c.id === requestedCheckpoint);
-      if (!chapter) {
+      const chapterIndex = trackDoc.chapters.findIndex((c) => c.id === requestedCheckpoint);
+      if (chapterIndex < 0) {
         notFound();
       }
+      const chapter = trackDoc.chapters[chapterIndex];
+      // Next module within the same track. `chapters` reflects the track's
+      // canonical order (filterTheoryDocByCategory preserves it), so a +1 lookup
+      // is the same advancement the track map uses for its sequential gating.
+      const nextChapter = trackDoc.chapters[chapterIndex + 1];
+      const nextModuleHref = nextChapter
+        ? `/learn/${params.topic}/theory/${categoryParam}?chapter=${nextChapter.id}`
+        : undefined;
+      const nextModuleTitle = nextChapter
+        ? nextChapter.title.replace(/^module\s*\d+\s*:\s*/i, '').trim() || nextChapter.title
+        : undefined;
       return (
         <ModuleCheckpointSession
           topic={params.topic}
           trackSlug={categoryParam}
           chapter={chapter}
           returnHref={`/learn/${params.topic}/theory/${categoryParam}`}
+          nextModuleHref={nextModuleHref}
+          nextModuleTitle={nextModuleTitle}
         />
       );
     }
@@ -150,11 +164,38 @@ export default async function LearnTopicTheoryCategoryPage({
     }
 
     // ── Track essentials interstitial (first visit only, or forced via ?essentials=1) ──
+    // Source-of-truth precedence: profiles.seen_track_essentials (cross-device)
+    // > seenTrackEssentials cookie (anon + same-device cache). Either suppresses
+    // the interstitial. The cookie is preserved as a fast fallback so a brief
+    // DB outage on a returning user doesn't replay the welcome screen.
     const cookieKey = `${params.topic}:${categoryParam}`;
     const seenCookie = cookies().get('seenTrackEssentials')?.value ?? '';
     const seenSlugs = new Set(
       decodeURIComponent(seenCookie).split(',').filter(Boolean)
     );
+    try {
+      const supabase = createClient();
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('seen_track_essentials')
+          .eq('id', user.id)
+          .maybeSingle<{ seen_track_essentials: string[] | null }>();
+        const persisted = Array.isArray(profile?.seen_track_essentials)
+          ? profile!.seen_track_essentials
+          : [];
+        for (const entry of persisted) {
+          if (typeof entry === 'string') seenSlugs.add(entry);
+        }
+      }
+    } catch {
+      // Tolerate a missing column on fresh installs that haven't run the
+      // 20260427121000_profiles_seen_track_essentials migration. Cookie still
+      // suppresses the interstitial.
+    }
     const forceEssentials =
       typeof searchParams?.essentials === 'string'
         ? searchParams.essentials === '1'
@@ -181,8 +222,12 @@ export default async function LearnTopicTheoryCategoryPage({
       );
     }
 
-    const { completedChapterIds, chapterProgressById, moduleProgressById } =
-      await loadServerTheoryProgress(trackDoc.topic);
+    const {
+      completedChapterIds,
+      chapterProgressById,
+      moduleProgressById,
+      checkpointPassedById
+    } = await loadServerTheoryProgress(trackDoc.topic);
 
     // Load practice sets matching this topic + level
     const allPracticeSets = getPracticeSets(params.topic);
@@ -219,7 +264,8 @@ export default async function LearnTopicTheoryCategoryPage({
           completedChapterIds={completedChapterIds}
           chapterProgressById={chapterProgressById}
           moduleProgressById={moduleProgressById}
-          practiceSets={[]}
+          initialCheckpointPassedById={checkpointPassedById}
+          practiceSets={levelPracticeSets}
           practiceBasePath={`/learn/${params.topic}/theory/${categoryParam}`}
         />
       </>

@@ -103,15 +103,18 @@ export const LessonCompletionToast = ({
             <button
               type="button"
               onClick={onGoToNext}
-              className="mt-3 w-full flex items-center justify-between rounded-[14px] py-2.5 px-4 text-[12px] font-semibold transition-all duration-300 hover:scale-[1.01]"
+              title={`Next: ${nextModuleTitle}`}
+              className="mt-3 w-full flex items-center justify-between gap-2 rounded-[14px] py-2.5 px-4 text-[12px] font-semibold transition-all duration-300 hover:scale-[1.01]"
               style={{
                 background: `rgba(${accentRgb},0.1)`,
                 border: `1px solid rgba(${accentRgb},0.2)`,
                 color: `rgb(${accentRgb})`,
               }}
             >
-              <span>Next: {nextModuleTitle}</span>
-              <ArrowRight className="h-3.5 w-3.5" />
+              <span className="min-w-0 flex-1 truncate text-left">
+                Next: {nextModuleTitle}
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 flex-shrink-0" />
             </button>
           ) : isTrackComplete ? (
             <div className="mt-3 text-center text-[12px] text-white/40">

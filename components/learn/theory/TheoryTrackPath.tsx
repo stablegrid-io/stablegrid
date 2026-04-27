@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, type CSSProperties } from 'react';
+import { Fragment, useEffect, useMemo, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Lock, Target, Zap, BookOpen, FlaskConical, Layers, Clock, Trophy } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
@@ -31,6 +31,14 @@ interface TheoryTrackPathProps {
   completedChapterIds: string[];
   chapterProgressById?: Record<string, ServerTheoryChapterProgressSnapshot>;
   moduleProgressById?: Record<string, ServerTheoryModuleProgressSnapshot>;
+  /**
+   * Server-rendered map of moduleId → checkpoint passed. Used as the
+   * initial truth so the SSR pass shows correct unlock state on first paint
+   * (without it, every module N>1 would briefly render `locked` while the
+   * Zustand store hydrates from localStorage). Local cache stays
+   * authoritative for instant updates after passing a checkpoint client-side.
+   */
+  initialCheckpointPassedById?: Record<string, boolean>;
   practiceSets?: PracticeSet[];
   practiceBasePath?: string;
 }
@@ -89,6 +97,7 @@ const PRACTICE_EYEBROWS = ['Operations', 'Response', 'Simulation', 'Diagnostics'
 export const TheoryTrackPath = ({
   doc, track, completedChapterIds,
   chapterProgressById = {}, moduleProgressById = {},
+  initialCheckpointPassedById,
   practiceSets = [], practiceBasePath = '',
 }: TheoryTrackPathProps) => {
   const {
@@ -100,7 +109,36 @@ export const TheoryTrackPath = ({
     initialModuleProgressById: moduleProgressById,
   });
   const checkpointResults = useCheckpointStore((s) => s.results);
+  const seedFromServer = useCheckpointStore((s) => s.seedFromServer);
+  const flushPendingSync = useCheckpointStore((s) => s.flushPendingSync);
+
+  // Seed the local cache from the server-rendered map so passes made on
+  // other devices are reflected, then retry any local-only attempts that
+  // failed to sync previously.
+  useEffect(() => {
+    if (initialCheckpointPassedById) {
+      const keyed: Record<string, { passed: boolean }> = {};
+      for (const [moduleId, passed] of Object.entries(initialCheckpointPassedById)) {
+        if (passed) keyed[buildCheckpointKey(doc.topic, moduleId)] = { passed: true };
+      }
+      if (Object.keys(keyed).length > 0) {
+        seedFromServer(keyed);
+      }
+    }
+    void flushPendingSync();
+  }, [initialCheckpointPassedById, seedFromServer, flushPendingSync, doc.topic]);
+
+  const serverCheckpointSet = useMemo(
+    () => new Set(
+      Object.entries(initialCheckpointPassedById ?? {})
+        .filter(([, passed]) => passed)
+        .map(([moduleId]) => moduleId)
+    ),
+    [initialCheckpointPassedById]
+  );
+
   const isCheckpointPassed = (moduleId: string) =>
+    serverCheckpointSet.has(moduleId) ||
     Boolean(checkpointResults[buildCheckpointKey(doc.topic, moduleId)]?.passed);
 
   const modules = sortModulesByOrder(track.chapters);
