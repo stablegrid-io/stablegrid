@@ -542,6 +542,8 @@ function TaskScreen({
   const useFixedFocusOverlay = focusMode && !checkpointMode;
 
   const isCodeTask = !!(task as any).starterScaffold;
+  const isMcqOnlyTask =
+    !isCodeTask && fields.length > 0 && fields.every((f) => f.type === 'single_select');
   const allFieldsFilled = isCodeTask
     ? (taskState.answers['__code']?.value?.trim()?.length ?? 0) > 0
     : fields.every((f) => {
@@ -670,8 +672,10 @@ function TaskScreen({
           animation: 'fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 40ms forwards',
         }}
       >
-        {/* Task card — always split panel layout */}
-        <div className="space-y-6">
+        {/* Task card — always split panel layout. MCQ-only tasks are narrow
+            (sparse content) so we cap the card + footer at ~860px and center
+            them; code tasks keep full width for the editor. */}
+        <div className={`space-y-6 ${isMcqOnlyTask ? 'mx-auto max-w-[860px]' : ''}`}>
           <SplitPanelCodeTask
             key={task.id}
             task={task}

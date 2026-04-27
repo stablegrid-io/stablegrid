@@ -44,9 +44,8 @@ const buildCheckpointPracticeSet = (
     type: 'multiple_choice',
     estimatedMinutes: 1,
     description: {
-      context: q.question,
-      task: 'Select the best answer.',
-      validationHint: q.explanation,
+      context: '',
+      task: '',
     },
     template: {
       fields: [

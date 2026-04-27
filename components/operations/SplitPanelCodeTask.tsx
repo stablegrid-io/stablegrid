@@ -37,6 +37,14 @@ const GREEN_RGB = '34,197,94';
 const RED_RGB = '239,68,68';
 const RUN_GREEN = `rgb(${GREEN_RGB})`;
 
+/* Feedback colors that adapt per reading mode. Use these for any "Correct"
+   / "Incorrect" affordance rendered against the page surface (option pills,
+   chips, rationale cards). The fixed GREEN_RGB / RED_RGB constants above stay
+   for elements rendered inside the code editor's own dark panel, which has a
+   constant background regardless of reading mode. */
+const SUCCESS_RGB = 'var(--rm-success-rgb)';
+const ERROR_RGB = 'var(--rm-error-rgb)';
+
 /* ── Types ──────────────────────────────────────────────────────────────────── */
 
 interface FieldAnswer {
@@ -64,7 +72,6 @@ interface SplitPanelCodeTaskProps {
   isLast: boolean;
 }
 
-type ViewMode = 'description' | 'code' | 'split';
 type LeftTab = 'context' | 'dataset' | 'hints';
 
 /* ── Type config ────────────────────────────────────────────────────────────── */
@@ -823,6 +830,13 @@ function getCorrectValue(field: TemplateField): string {
 
 /* ── FieldRenderer ──────────────────────────────────────────────────────────── */
 
+function getOptionsGridClass(count: number): string {
+  if (count <= 2) return 'grid grid-cols-2 gap-2.5';
+  if (count === 3) return 'grid grid-cols-1 sm:grid-cols-3 gap-2.5';
+  if (count === 4) return 'grid grid-cols-1 sm:grid-cols-2 gap-2.5';
+  return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5';
+}
+
 function FieldRenderer({
   field,
   value,
@@ -831,6 +845,8 @@ function FieldRenderer({
   readOnly,
   showResult,
   onChange,
+  gridLayout = false,
+  hideLabel = false,
 }: {
   field: TemplateField;
   value: string;
@@ -839,34 +855,42 @@ function FieldRenderer({
   readOnly: boolean;
   showResult: boolean;
   onChange: (v: string) => void;
+  gridLayout?: boolean;
+  hideLabel?: boolean;
 }) {
   const correctValue = getCorrectValue(field);
   const showFeedback = checked && showResult;
+  const optionsContainerClass =
+    gridLayout && field.type === 'single_select' && field.options
+      ? getOptionsGridClass(field.options.length)
+      : 'space-y-2';
 
   return (
     <div className="space-y-3">
       {/* Field label */}
-      <div className="flex items-start gap-2">
-        <span className="text-[13px] leading-relaxed flex-1" style={{ color: 'var(--rm-text)' }}>
-          {field.label}
-        </span>
-        {showFeedback && result === true && (
-          <div className="flex items-center gap-1 shrink-0">
-            <Check className="h-3.5 w-3.5" style={{ color: `rgb(${GREEN_RGB})` }} />
-            <span className="text-[11px] font-medium" style={{ color: `rgb(${GREEN_RGB})` }}>Correct</span>
-          </div>
-        )}
-        {showFeedback && result === false && (
-          <div className="flex items-center gap-1 shrink-0">
-            <X className="h-3.5 w-3.5" style={{ color: `rgb(${RED_RGB})` }} />
-            <span className="text-[11px] font-medium" style={{ color: `rgb(${RED_RGB})` }}>Incorrect</span>
-          </div>
-        )}
-      </div>
+      {!hideLabel && (
+        <div className="flex items-start gap-2">
+          <span className="text-[13px] leading-relaxed flex-1" style={{ color: 'var(--rm-text)' }}>
+            {field.label}
+          </span>
+          {showFeedback && result === true && (
+            <div className="flex items-center gap-1 shrink-0">
+              <Check className="h-3.5 w-3.5" style={{ color: `rgb(${SUCCESS_RGB})` }} />
+              <span className="text-[11px] font-semibold" style={{ color: `rgb(${SUCCESS_RGB})` }}>Correct</span>
+            </div>
+          )}
+          {showFeedback && result === false && (
+            <div className="flex items-center gap-1 shrink-0">
+              <X className="h-3.5 w-3.5" style={{ color: `rgb(${ERROR_RGB})` }} />
+              <span className="text-[11px] font-semibold" style={{ color: `rgb(${ERROR_RGB})` }}>Incorrect</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Single/multi select options */}
       {(field.type === 'single_select' || field.type === 'multi_select') && field.options && (
-        <div className="space-y-2">
+        <div className={optionsContainerClass}>
           {field.options.map((opt) => {
             const selected = value === opt;
             const isCorrectOption = opt.toLowerCase() === correctValue.toLowerCase();
@@ -876,14 +900,14 @@ function FieldRenderer({
             let iconElement: React.ReactNode = null;
 
             if (showCorrectHighlight) {
-              borderStyle = `1px solid rgba(${GREEN_RGB},0.3)`;
-              iconElement = <Check className="h-4 w-4 shrink-0" style={{ color: `rgb(${GREEN_RGB})` }} />;
+              borderStyle = `1.5px solid rgba(${SUCCESS_RGB},0.55)`;
+              iconElement = <Check className="h-4 w-4 shrink-0" style={{ color: `rgb(${SUCCESS_RGB})` }} />;
             } else if (selected && showFeedback && result === true) {
-              borderStyle = `1px solid rgba(${GREEN_RGB},0.3)`;
-              iconElement = <Check className="h-4 w-4 shrink-0" style={{ color: `rgb(${GREEN_RGB})` }} />;
+              borderStyle = `1.5px solid rgba(${SUCCESS_RGB},0.55)`;
+              iconElement = <Check className="h-4 w-4 shrink-0" style={{ color: `rgb(${SUCCESS_RGB})` }} />;
             } else if (selected && showFeedback && result === false) {
-              borderStyle = `1px solid rgba(${RED_RGB},0.3)`;
-              iconElement = <X className="h-4 w-4 shrink-0" style={{ color: `rgb(${RED_RGB})` }} />;
+              borderStyle = `1.5px solid rgba(${ERROR_RGB},0.55)`;
+              iconElement = <X className="h-4 w-4 shrink-0" style={{ color: `rgb(${ERROR_RGB})` }} />;
             } else if (selected) {
               // Selected (pre-check) — white indicator with bg-color check
               // so it auto-inverts in light reading modes too.
@@ -896,30 +920,33 @@ function FieldRenderer({
               );
             }
 
+            const interactive = !(readOnly || checked);
             return (
               <button
                 key={opt}
                 onClick={() => !readOnly && !checked && onChange(opt)}
                 disabled={readOnly || checked}
-                className={`w-full text-left rounded-[14px] px-4 py-3.5 text-[13px] leading-relaxed transition-all duration-200 ${
-                  readOnly || checked ? 'cursor-default' : 'cursor-pointer'
+                className={`group w-full h-full text-left rounded-[14px] px-4 py-3.5 text-[13px] leading-relaxed transition-all duration-200 ${
+                  interactive
+                    ? 'cursor-pointer hover:brightness-[1.06] hover:-translate-y-px'
+                    : 'cursor-default'
                 }`}
                 style={{
                   border: borderStyle,
                   backgroundColor: showCorrectHighlight
-                    ? `rgba(${GREEN_RGB},0.05)`
+                    ? `rgba(${SUCCESS_RGB},0.1)`
                     : selected && showFeedback && result === true
-                      ? `rgba(${GREEN_RGB},0.05)`
+                      ? `rgba(${SUCCESS_RGB},0.1)`
                       : selected && showFeedback && result === false
-                        ? `rgba(${RED_RGB},0.05)`
+                        ? `rgba(${ERROR_RGB},0.1)`
                         : 'var(--rm-bg-elevated)',
                 }}
               >
-                <span className="flex items-center gap-3">
-                  {iconElement && iconElement}
+                <span className="flex items-start gap-3">
+                  {iconElement && <span className="mt-0.5">{iconElement}</span>}
                   {!iconElement && !showFeedback && (
                     <div
-                      className="w-4 h-4 rounded-full shrink-0 transition-all duration-200"
+                      className="w-4 h-4 rounded-full shrink-0 mt-0.5 transition-all duration-200"
                       style={{
                         border: selected ? 'none' : '1.5px solid var(--rm-border)',
                         background: 'transparent',
@@ -927,17 +954,19 @@ function FieldRenderer({
                     />
                   )}
                   {!iconElement && showFeedback && (
-                    <div className="w-4 h-4 shrink-0" />
+                    <div className="w-4 h-4 shrink-0 mt-0.5" />
                   )}
                   <span
+                    className="flex-1"
                     style={{
                       color: showCorrectHighlight
-                        ? `rgb(${GREEN_RGB})`
+                        ? `rgb(${SUCCESS_RGB})`
                         : selected && showFeedback && result === true
-                          ? `rgb(${GREEN_RGB})`
+                          ? `rgb(${SUCCESS_RGB})`
                           : selected && showFeedback && result === false
-                            ? `rgb(${RED_RGB})`
+                            ? `rgb(${ERROR_RGB})`
                             : 'var(--rm-text)',
+                      fontWeight: (showCorrectHighlight || (selected && showFeedback)) ? 600 : 400,
                     }}
                   >
                     {opt}
@@ -960,14 +989,14 @@ function FieldRenderer({
           className="w-full rounded-[14px] px-4 py-3.5 text-[13px] leading-relaxed outline-none transition-all duration-200"
           style={{
             border: showFeedback && result === true
-              ? `1px solid rgba(${GREEN_RGB},0.3)`
+              ? `1.5px solid rgba(${SUCCESS_RGB},0.55)`
               : showFeedback && result === false
-                ? `1px solid rgba(${RED_RGB},0.3)`
+                ? `1.5px solid rgba(${ERROR_RGB},0.55)`
                 : '1px solid var(--rm-border)',
             backgroundColor: showFeedback && result === true
-              ? `rgba(${GREEN_RGB},0.05)`
+              ? `rgba(${SUCCESS_RGB},0.1)`
               : showFeedback && result === false
-                ? `rgba(${RED_RGB},0.05)`
+                ? `rgba(${ERROR_RGB},0.1)`
                 : 'var(--rm-bg-elevated)',
             color: 'var(--rm-text)',
           }}
@@ -979,9 +1008,10 @@ function FieldRenderer({
         <div
           className="rounded-[14px] px-3 py-2 text-[12px] flex items-center gap-2"
           style={{
-            background: `rgba(${GREEN_RGB},0.05)`,
-            border: `1px solid rgba(${GREEN_RGB},0.12)`,
-            color: `rgb(${GREEN_RGB})`,
+            background: `rgba(${SUCCESS_RGB},0.1)`,
+            border: `1px solid rgba(${SUCCESS_RGB},0.25)`,
+            color: `rgb(${SUCCESS_RGB})`,
+            fontWeight: 600,
           }}
         >
           <Check className="h-3 w-3 shrink-0" />
@@ -999,18 +1029,18 @@ function RationaleCard({ field, result }: { field: TemplateField; result: boolea
   if (!rationale) return null;
 
   const isCorrect = result === true;
-  const tint = isCorrect ? GREEN_RGB : RED_RGB;
+  const tint = isCorrect ? SUCCESS_RGB : ERROR_RGB;
 
   return (
     <div
-      className="rounded-[14px] px-4 py-3 text-[12px] leading-relaxed"
+      className="rounded-[14px] px-4 py-3 text-[13px] leading-relaxed"
       style={{
-        background: `rgba(${tint},0.03)`,
-        border: `1px solid rgba(${tint},0.08)`,
-        color: 'var(--rm-text-secondary)',
+        background: `rgba(${tint},0.08)`,
+        border: `1px solid rgba(${tint},0.2)`,
+        color: 'var(--rm-text)',
       }}
     >
-      <span className="font-semibold" style={{ color: `rgba(${tint},0.8)` }}>
+      <span className="font-semibold" style={{ color: `rgb(${tint})` }}>
         {isCorrect ? 'Correct' : 'Explanation'}:
       </span>{' '}
       {rationale}
@@ -1373,11 +1403,26 @@ export function SplitPanelCodeTask({
   const isCodeTask = !!(task.starterScaffold);
   const fields = task.template?.fields ?? [];
 
-  /* View mode: responsive default */
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window === 'undefined') return 'split';
-    return window.innerWidth < 768 ? 'description' : 'split';
+  /* MCQ-only tasks render full-width: shared scenario on top, then per-question
+     cards with options laid out as a responsive grid. The split-panel UX is
+     wasteful for pure multiple-choice (left side has just "Select the best
+     answer"), so we collapse it into a single column flow. */
+  const isMcqOnlyTask =
+    !isCodeTask &&
+    fields.length > 0 &&
+    fields.every((f) => f.type === 'single_select');
+
+  /* Track viewport size so we can stack panels vertically on mobile,
+     where a 50/50 horizontal split leaves the editor unusably narrow. */
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 1024;
   });
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   /* Left panel tab */
   const [leftTab, setLeftTab] = useState<LeftTab>('context');
@@ -1438,6 +1483,21 @@ export function SplitPanelCodeTask({
     if (task.description.validationHint || (task.hints && task.hints.length > 0)) tabs.push('hints');
     return tabs;
   }, [taskDatasets, task.description.validationHint, task.hints]);
+
+  /* For MCQ-only tasks the left panel is only worth showing when it carries
+     real shared context (scenario, datasets, hints). For checkpoint-style
+     tasks where each question stands alone, drop the panel entirely so the
+     question + options are the only thing on screen. */
+  const mcqHasMeaningfulLeft =
+    isMcqOnlyTask &&
+    Boolean(
+      task.description.context ||
+        task.description.task ||
+        taskDatasets.length > 0 ||
+        (task.hints && task.hints.length > 0) ||
+        task.description.validationHint
+    );
+  const showLeftForMcq = isMcqOnlyTask ? mcqHasMeaningfulLeft : true;
 
   /* Stable ref to handleRun for keyboard shortcut */
   const handleRunRef = useRef<() => void>();
@@ -1626,7 +1686,7 @@ sys.stderr = sys.__stderr__
   const lineCount = code.split('\n').length;
   const typeInfo = TYPE_CONFIG[task.type];
 
-  const showLeft = true;
+  const showLeft = showLeftForMcq;
   const showRight = true;
 
   /* ── Resizable split ───────────────────────────────────────────────────────── */
@@ -1668,14 +1728,19 @@ sys.stderr = sys.__stderr__
       }}
     >
       {/* ─ Split Panels ────────────────────────────────────────────────────── */}
-      <div ref={containerRef} className="flex" style={{ minHeight: '560px' }}>
+      <div
+        ref={containerRef}
+        className={isMcqOnlyTask ? 'flex flex-col' : 'flex flex-col lg:flex-row'}
+        style={{ minHeight: isMobile || isMcqOnlyTask ? undefined : '560px' }}
+      >
         {/* ─ Left Panel ──────────────────────────────────────────────────── */}
         {showLeft && (
           <div
             className="overflow-y-auto"
             style={{
-              width: `${splitPct}%`,
-              maxHeight: '80vh',
+              width: isMobile || isMcqOnlyTask ? '100%' : `${splitPct}%`,
+              maxHeight: isMobile || isMcqOnlyTask ? undefined : '80vh',
+              borderBottom: isMcqOnlyTask ? '1px solid var(--rm-border)' : undefined,
             }}
           >
             {/* Sub-tabs */}
@@ -1747,17 +1812,19 @@ sys.stderr = sys.__stderr__
                 </h2>
 
                 {/* Context */}
-                <div>
-                  <h4
-                    className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-2.5"
-                    style={{ color: 'var(--rm-text-secondary)' }}
-                  >
-                    Context
-                  </h4>
-                  <p className="text-[13px] leading-[1.75]" style={{ color: 'var(--rm-text)' }}>
-                    {task.description.context}
-                  </p>
-                </div>
+                {task.description.context && (
+                  <div>
+                    <h4
+                      className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-2.5"
+                      style={{ color: 'var(--rm-text-secondary)' }}
+                    >
+                      Context
+                    </h4>
+                    <p className="text-[13px] leading-[1.75]" style={{ color: 'var(--rm-text)' }}>
+                      {task.description.context}
+                    </p>
+                  </div>
+                )}
 
                 {/* Task */}
                 <div>
@@ -2090,7 +2157,7 @@ sys.stderr = sys.__stderr__
         )}
 
         {/* ─ Resize Handle ───────────────────────────────────────────────── */}
-        {showLeft && showRight && (
+        {showLeft && showRight && !isMobile && (
           <div
             onPointerDown={onDragStart}
             className="shrink-0 cursor-col-resize group flex items-center justify-center hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors"
@@ -2105,7 +2172,8 @@ sys.stderr = sys.__stderr__
           <div
             className="flex flex-col"
             style={{
-              width: `${100 - splitPct}%`,
+              width: isMobile ? '100%' : `${100 - splitPct}%`,
+              borderTop: isMobile ? '1px solid var(--rm-border)' : undefined,
               backgroundColor: 'var(--rm-code-bg, #0d1117)',
             }}
           >
@@ -2160,9 +2228,10 @@ sys.stderr = sys.__stderr__
             {/* Code editor area */}
             <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
               <div className="flex" style={{ minHeight: '280px' }}>
-                {/* Line numbers */}
+                {/* Line numbers — match editor font size so rows line up.
+                   16px on mobile prevents iOS focus-zoom on the textarea. */}
                 <div
-                  className="select-none text-right pr-3 pl-4 py-4 font-mono text-[13px] leading-relaxed shrink-0"
+                  className="select-none text-right pr-3 pl-4 py-4 font-mono text-[16px] lg:text-[13px] leading-relaxed shrink-0"
                   style={{
                     color: 'var(--rm-text-secondary)',
                     opacity: 0.3,
@@ -2178,7 +2247,7 @@ sys.stderr = sys.__stderr__
                 <div className="relative flex-1" style={{ minHeight: '280px' }}>
                   {/* Highlighted code layer */}
                   <pre
-                    className="absolute inset-0 font-mono text-[13px] leading-relaxed p-4 pointer-events-none whitespace-pre-wrap break-words overflow-hidden"
+                    className="absolute inset-0 font-mono text-[16px] lg:text-[13px] leading-relaxed p-4 pointer-events-none whitespace-pre-wrap break-words overflow-hidden"
                     aria-hidden
                     style={{ color: 'var(--rm-code-text, #e2e8f0)' }}
                     dangerouslySetInnerHTML={{ __html: highlightPython(code) + '\n' }}
@@ -2191,7 +2260,7 @@ sys.stderr = sys.__stderr__
                     onKeyDown={isReview ? undefined : handleKeyDown}
                     readOnly={isReview}
                     rows={Math.max(14, lineCount + 2)}
-                    className="relative z-10 w-full h-full font-mono text-[13px] leading-relaxed p-4 resize-none focus:outline-none overflow-hidden"
+                    className="relative z-10 w-full h-full font-mono text-[16px] lg:text-[13px] leading-relaxed p-4 resize-none focus:outline-none overflow-hidden"
                     style={{
                       backgroundColor: 'transparent',
                       color: 'transparent',
@@ -2323,7 +2392,7 @@ sys.stderr = sys.__stderr__
         )}
 
         {/* ─ Resize Handle (non-code) ─────────────────────────────────────── */}
-        {showLeft && showRight && !isCodeTask && (
+        {showLeft && showRight && !isCodeTask && !isMobile && !isMcqOnlyTask && (
           <div
             onPointerDown={onDragStart}
             className="shrink-0 cursor-col-resize group flex items-center justify-center hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors"
@@ -2334,11 +2403,12 @@ sys.stderr = sys.__stderr__
         )}
 
         {/* ─ Right Panel: Answer Fields (non-code tasks) ─────────────────── */}
-        {showRight && !isCodeTask && (
+        {showRight && !isCodeTask && !isMcqOnlyTask && (
           <div
             className="flex flex-col"
             style={{
-              width: `${100 - splitPct}%`,
+              width: isMobile ? '100%' : `${100 - splitPct}%`,
+              borderTop: isMobile ? '1px solid var(--rm-border)' : undefined,
               backgroundColor: 'var(--rm-bg-elevated)',
             }}
           >
@@ -2362,13 +2432,13 @@ sys.stderr = sys.__stderr__
               {checked && (
                 <div className="flex items-center gap-1.5">
                   {taskState.allCorrect ? (
-                    <Check className="h-3.5 w-3.5" style={{ color: `rgb(${GREEN_RGB})` }} />
+                    <Check className="h-3.5 w-3.5" style={{ color: `rgb(${SUCCESS_RGB})` }} />
                   ) : (
-                    <X className="h-3.5 w-3.5" style={{ color: `rgb(${RED_RGB})` }} />
+                    <X className="h-3.5 w-3.5" style={{ color: `rgb(${ERROR_RGB})` }} />
                   )}
                   <span
-                    className="text-[11px] font-medium"
-                    style={{ color: taskState.allCorrect ? `rgb(${GREEN_RGB})` : `rgb(${RED_RGB})` }}
+                    className="text-[11px] font-semibold"
+                    style={{ color: taskState.allCorrect ? `rgb(${SUCCESS_RGB})` : `rgb(${ERROR_RGB})` }}
                   >
                     {taskState.allCorrect ? 'All Correct' : 'Review Below'}
                   </span>
@@ -2377,7 +2447,7 @@ sys.stderr = sys.__stderr__
             </div>
 
             {/* Answer fields area */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-6" style={{ maxHeight: '80vh' }}>
+            <div className="flex-1 overflow-y-auto p-5 space-y-6" style={{ maxHeight: isMobile ? undefined : '80vh' }}>
               {fields.length > 0 && fields.map((field) => (
                 <div key={field.id} className="space-y-3">
                   <FieldRenderer
@@ -2401,6 +2471,80 @@ sys.stderr = sys.__stderr__
               ))}
             </div>
 
+          </div>
+        )}
+
+        {/* ─ MCQ-only Layout: question on top, options as a responsive grid ── */}
+        {showRight && isMcqOnlyTask && (
+          <div className="flex flex-col w-full">
+            {/* Stacked question cards (no "ANSWER" header — radio buttons make
+                the section purpose obvious; per-field Correct/Incorrect chips
+                replace the aggregate status row). */}
+            <div className="p-6 sm:p-8 space-y-8">
+              {fields.map((field, idx) => {
+                const answer = taskState.answers[field.id];
+                const result = answer?.result ?? null;
+                const showFeedback = taskState.checked;
+                return (
+                  <div key={field.id} className="space-y-5">
+                    {/* Question heading — dominant typography so the question
+                        clearly leads the answer options visually. */}
+                    <div className="flex items-start gap-3">
+                      {fields.length > 1 && (
+                        <span
+                          className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-[12px] font-semibold mt-0.5"
+                          style={{
+                            border: '1px solid var(--rm-border)',
+                            color: 'var(--rm-text-secondary)',
+                          }}
+                        >
+                          {idx + 1}
+                        </span>
+                      )}
+                      <h3
+                        className="flex-1 text-[18px] sm:text-[20px] leading-snug font-semibold tracking-[-0.01em]"
+                        style={{ color: 'var(--rm-text-heading, var(--rm-text))' }}
+                      >
+                        {field.label}
+                      </h3>
+                      {showFeedback && result === true && (
+                        <div className="flex items-center gap-1 shrink-0 mt-1.5">
+                          <Check className="h-3.5 w-3.5" style={{ color: `rgb(${SUCCESS_RGB})` }} />
+                          <span className="text-[11px] font-semibold" style={{ color: `rgb(${SUCCESS_RGB})` }}>Correct</span>
+                        </div>
+                      )}
+                      {showFeedback && result === false && (
+                        <div className="flex items-center gap-1 shrink-0 mt-1.5">
+                          <X className="h-3.5 w-3.5" style={{ color: `rgb(${ERROR_RGB})` }} />
+                          <span className="text-[11px] font-semibold" style={{ color: `rgb(${ERROR_RGB})` }}>Incorrect</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Options grid (label is rendered above, hide it in renderer) */}
+                    <FieldRenderer
+                      field={field}
+                      value={answer?.value ?? ''}
+                      result={result}
+                      checked={taskState.checked}
+                      readOnly={isReview}
+                      showResult={taskState.checked}
+                      onChange={(v) => onAnswerChange(field.id, v)}
+                      gridLayout
+                      hideLabel
+                    />
+
+                    {/* Rationale after check */}
+                    {taskState.checked && (
+                      <RationaleCard
+                        field={field}
+                        result={result}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

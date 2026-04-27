@@ -275,6 +275,9 @@
   --rm-list-badge-bg: rgba(153,247,255,0.1);
   --rm-list-badge-text: #99f7ff;
   --rm-hr: rgba(255,255,255,0.06);
+  /* Feedback colors — green-400/red-400 read vibrantly on dark surfaces. */
+  --rm-success-rgb: 74,222,128;
+  --rm-error-rgb: 248,113,113;
 }
 
 [data-reading-mode="light"] {
@@ -307,6 +310,9 @@
   --rm-list-badge-bg: #dbeafe;
   --rm-list-badge-text: #1d4ed8;
   --rm-hr: #e5e7eb;
+  /* Feedback colors — green-700/red-700 for AA contrast on white. */
+  --rm-success-rgb: 21,128,61;
+  --rm-error-rgb: 185,28,28;
 }
 
 [data-reading-mode="book"] {
@@ -339,6 +345,9 @@
   --rm-list-badge-bg: rgba(166,140,96,0.15);
   --rm-list-badge-text: #756a58;
   --rm-hr: #beb7ad;
+  /* Feedback colors — darker shades for warm beige surface. */
+  --rm-success-rgb: 22,101,52;
+  --rm-error-rgb: 153,27,27;
 }
 
 [data-reading-mode="kindle"] {
@@ -371,6 +380,9 @@
   --rm-list-badge-bg: rgba(0,0,0,0.05);
   --rm-list-badge-text: #6b6560;
   --rm-hr: #d8d0c4;
+  /* Feedback colors — darker shades for warm cream surface. */
+  --rm-success-rgb: 22,101,52;
+  --rm-error-rgb: 153,27,27;
 }
 
 [data-reading-mode="nightowl"] {
@@ -403,6 +415,9 @@
   --rm-list-badge-bg: rgba(212,160,80,0.1);
   --rm-list-badge-text: #d4a050;
   --rm-hr: #3a2a18;
+  /* Feedback colors — vibrant on dark amber surface. */
+  --rm-success-rgb: 74,222,128;
+  --rm-error-rgb: 248,113,113;
 }
 
 [data-reading-mode="black"] {
@@ -435,6 +450,9 @@
   --rm-list-badge-bg: rgba(255,255,255,0.05);
   --rm-list-badge-text: #888888;
   --rm-hr: #1a1a1a;
+  /* Feedback colors — vibrant on pure black. */
+  --rm-success-rgb: 74,222,128;
+  --rm-error-rgb: 248,113,113;
 }
 
 /* Transition on container */
