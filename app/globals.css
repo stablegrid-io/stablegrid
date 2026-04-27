@@ -23,7 +23,6 @@
 
   body {
     @apply font-sans antialiased;
-    font-feature-settings: 'cv11', 'ss01', 'ss02', 'ss03', 'ss04';
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
