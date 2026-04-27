@@ -39,7 +39,7 @@ function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="py-28 lg:py-40 px-6">
+    <section id="faq" className="py-16 lg:py-24 px-6">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-x-16 gap-y-12">
         {/* Left — heading + intro */}
         <div>
@@ -433,11 +433,11 @@ export const LandingPage = () => {
       </section>
 
       {/* Section divider */}
-      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
 
 
       {/* ── Topics Showcase ────────────────────────────────────────────────── */}
-      <section id="topics" className="py-28 lg:py-40 px-6">
+      <section id="topics" className="py-16 lg:py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <p
             className="font-mono font-bold text-xs uppercase tracking-widest mb-4"
@@ -445,7 +445,7 @@ export const LandingPage = () => {
           >
             Topics
           </p>
-          <div className="flex items-end justify-between mb-12 gap-4 flex-wrap">
+          <div className="flex items-end justify-between mb-8 gap-4 flex-wrap">
             <h2 className="text-3xl lg:text-4xl font-bold tracking-tight" style={{ lineHeight: 1.1 }}>
               Five tracks.<br />
               <span style={{ color: 'rgba(255,255,255,0.35)' }}>Junior to Senior.</span>
@@ -466,7 +466,7 @@ export const LandingPage = () => {
 
           {/* Apple-style explore link — centered text + arrow that animates on hover */}
           <div
-            className="mt-12 flex justify-center"
+            className="mt-8 flex justify-center"
             style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 380ms forwards' }}
           >
             <Link
@@ -494,10 +494,10 @@ export const LandingPage = () => {
       </section>
 
       {/* Section divider */}
-      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
 
       {/* ── Tier Showcase ────────────────────────────────────────────────── */}
-      <section id="tiers" className="py-28 lg:py-40 px-6">
+      <section id="tiers" className="py-16 lg:py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3 mb-4">
             <p
@@ -528,7 +528,7 @@ export const LandingPage = () => {
             Three levels of depth.<br />
             <span style={{ color: 'rgba(255,255,255,0.35)' }}>One clear path forward.</span>
           </h2>
-          <p className="text-[15px] leading-relaxed mb-16" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '540px' }}>
+          <p className="text-[15px] leading-relaxed mb-10" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '540px' }}>
             Every topic is structured into Junior, Mid, and Senior tiers. Start with foundations, progress to advanced systems, and master platform architecture.
           </p>
 
@@ -657,10 +657,10 @@ export const LandingPage = () => {
 
 
       {/* Section divider */}
-      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
 
       {/* ── Grid Game ──────────────────────────────────────────────────────── */}
-      <section id="grid" className="py-28 lg:py-40 px-6">
+      <section id="grid" className="py-16 lg:py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <p
             className="font-mono font-bold text-xs uppercase tracking-widest mb-4"
@@ -676,7 +676,7 @@ export const LandingPage = () => {
             Every lesson charges your kWh reserve. Spend it in the shop to bring ten power components online across an interactive 3D map of a real regional grid (Lithuania).
           </p>
           <p
-            className="font-mono text-[11px] uppercase mb-16"
+            className="font-mono text-[11px] uppercase mb-10"
             style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.14em' }}
           >
             kWh = kilowatt-hour · earned per completed lesson
@@ -688,10 +688,10 @@ export const LandingPage = () => {
       </section>
 
       {/* Section divider */}
-      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
 
       {/* ── Pricing ────────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-28 lg:py-40 px-6">
+      <section id="pricing" className="py-16 lg:py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <p
             className="font-mono font-bold text-xs uppercase tracking-widest mb-4"
@@ -703,7 +703,7 @@ export const LandingPage = () => {
             Free while we&apos;re in beta.<br />
             <span style={{ color: 'rgba(255,255,255,0.35)' }}>€2.99 if you want to back it.</span>
           </h2>
-          <p className="text-[15px] leading-relaxed mb-16" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '520px' }}>
+          <p className="text-[15px] leading-relaxed mb-10" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '520px' }}>
             Everyone gets the whole platform during beta. Supporters chip in so we can keep shipping — and lock in €2.99 for life.
           </p>
 
@@ -957,19 +957,19 @@ export const LandingPage = () => {
       </section>
 
       {/* Section divider */}
-      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
 
       {/* ── FAQ ────────────────────────────────────────────────────────────── */}
       <FaqSection />
 
       {/* Section divider */}
-      <div className="h-20 lg:h-28 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
 
       {/* ── CTA Section ────────────────────────────────────────────────────── */}
-      <section className="py-28 lg:py-40 px-6">
+      <section className="py-16 lg:py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <div
-            className="relative overflow-hidden text-center px-8 py-20"
+            className="relative overflow-hidden text-center px-8 py-14"
             style={{
               backgroundColor: '#181c20',
               borderRadius: '22px',
