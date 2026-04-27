@@ -4192,6 +4192,2104 @@
         "module-AFI10-lesson-10",
         "airflow-mid"
       ]
+    },
+    {
+      "id": "airflow-AFS1-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the unifying purpose of every architectural decision in BalticSolar's platform?",
+      "options": [
+        "Make the default path the correct path so engineers do not need to coordinate to do right",
+        "Maximize throughput so the alliance scheduler can dispatch the most tasks in any given hour",
+        "Minimize cost so the platform team can return budget surplus to the alliance leadership team",
+        "Standardize tooling so every team across every country uses identical Airflow configurations"
+      ],
+      "correctAnswer": "Make the default path the correct path so engineers do not need to coordinate to do right",
+      "explanation": "Lesson 1: namespace prevents collisions, ownership prevents unauthorized changes, CI prevents bad deploys. Default = correct, deviation = hard.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS1",
+        "module-AFS1-lesson-01",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS1-l02-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is multi-instance topology a 2–3 year decision rather than a quarterly tweak?",
+      "options": [
+        "Splitting or merging instances requires DAG migration, DB splits, and dependency rewrites — months of work",
+        "The Airflow scheduler caches the topology at startup and refuses to rebalance once the alliance is formed",
+        "AWS bills the platform team a one-time charge for every topology change above a published threshold",
+        "Lithuanian regulations forbid changing the topology more than once per year without filing notice"
+      ],
+      "correctAnswer": "Splitting or merging instances requires DAG migration, DB splits, and dependency rewrites — months of work",
+      "explanation": "Lesson 2: topology changes are months-long migrations with significant risk. Choose for 2-3 years, not the cheapest option this quarter.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS1",
+        "module-AFS1-lesson-02",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS1-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is a `dag_id` in the BalticSolar namespace operational infrastructure rather than a style choice?",
+      "options": [
+        "It routes the on-call alert, maps to the RBAC role, and assigns the cost center for chargeback",
+        "It controls which scheduler heartbeat picks up the DAG so naming determines scheduling latency",
+        "It determines which Airflow version the DAG runs against because the scheduler parses by prefix",
+        "It chooses the executor (Celery/K8s) because the namespace prefix is matched against worker labels"
+      ],
+      "correctAnswer": "It routes the on-call alert, maps to the RBAC role, and assigns the cost center for chargeback",
+      "explanation": "Lesson 3: the dag_id is parsed by CI to route alerts, enforce RBAC, and bill compute. Style guide for humans; routing key for the platform.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS1",
+        "module-AFS1-lesson-03",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS1-l04-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar enforce staging-vs-production isolation at the network layer, not just connection config?",
+      "options": [
+        "Connection config is one alias away from cross-environment data corruption — infrastructure controls cannot be bypassed",
+        "Network isolation is required by VPC peering rules that AWS imposes between the two environments",
+        "Network isolation halves the latency between staging and prod by routing through dedicated subnets",
+        "Network isolation makes connection rotation faster because the peering rule cache is purged on switch"
+      ],
+      "correctAnswer": "Connection config is one alias away from cross-environment data corruption — infrastructure controls cannot be bypassed",
+      "explanation": "Lesson 4: a misconfigured Connection alias in code can target prod from staging. Network rules cannot be bypassed by an application-layer mistake.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS1",
+        "module-AFS1-lesson-04",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS1-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "BalticSolar's cross-instance dependency rule says coordination must be three things. Which list?",
+      "options": [
+        "Explicit (deliberate API call), auditable (full conf record), timeout-bounded (no indefinite waits)",
+        "Implicit (auto-discover), eventual (eventually consistent), best-effort (skip on partial failures)",
+        "Synchronous (block on response), strongly consistent (no stale reads), at-most-once (no retries)",
+        "Asynchronous (fire-and-forget), eventually delivered (queue replay), idempotent on the receiver"
+      ],
+      "correctAnswer": "Explicit (deliberate API call), auditable (full conf record), timeout-bounded (no indefinite waits)",
+      "explanation": "Lesson 5: every cross-instance trigger is a deliberate API call, the conf records what triggered it, and timeouts prevent silent multi-hour stalls.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS1",
+        "module-AFS1-lesson-05",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS1-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the purpose of BalticSolar's configuration drift detection job?",
+      "options": [
+        "Compare expected config (from Git) against actual config reported by each instance, alert on drift",
+        "Reconcile drift automatically by overwriting any local change with the value committed to Git",
+        "Translate alliance-level YAML into instance-specific config, distributing the rendered output nightly",
+        "Backup current config to S3 every six hours so engineers can roll back without going through Git"
+      ],
+      "correctAnswer": "Compare expected config (from Git) against actual config reported by each instance, alert on drift",
+      "explanation": "Lesson 6: Git is the source of truth, but only if enforced. Drift detection makes 'we use Git for config' a monitored invariant, not a team agreement.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS1",
+        "module-AFS1-lesson-06",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS1-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar's monorepo layout matter for deployment architecture?",
+      "options": [
+        "Directory tree determines path-based CI filters, CODEOWNERS reviews, and deployment-target routing",
+        "The directory tree controls which Python interpreter parses each DAG file based on the country prefix",
+        "The directory structure is required to be exactly four levels deep by the Airflow community standard",
+        "The directory tree determines which scheduler heartbeats parse which DAGs through path-based hashing"
+      ],
+      "correctAnswer": "Directory tree determines path-based CI filters, CODEOWNERS reviews, and deployment-target routing",
+      "explanation": "Lesson 7: structure = deployment architecture. dags/lt/ deploys to LT; CODEOWNERS in lt/de/ routes review; CI filters tests by changed paths.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS1",
+        "module-AFS1-lesson-07",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS1-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What was the organizational compromise that enabled BalticSolar's chargeback model adoption?",
+      "options": [
+        "The platform team absorbs the first 20% of any team's overrun as an 'innovation buffer' for experimentation",
+        "Each team commits to a fixed annual budget that is renegotiated only if usage triples in a single quarter",
+        "The platform team charges flat per-DAG fees that are identical across teams regardless of compute used",
+        "Each country's regulator dictates the chargeback rate to align with national energy market pricing"
+      ],
+      "correctAnswer": "The platform team absorbs the first 20% of any team's overrun as an 'innovation buffer' for experimentation",
+      "explanation": "Lesson 8: the technical implementation is straightforward (pools, tags). Organizational acceptance took 3 months. The buffer made cost visible without immediate pressure.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS1",
+        "module-AFS1-lesson-08",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS1-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is a per-instance dashboard insufficient for multi-instance observability?",
+      "options": [
+        "Per-instance green can hide a coordinator failure caused by a missing signal — no causal correlation",
+        "Per-instance dashboards are slower to render than alliance dashboards because of database round-trips",
+        "Per-instance dashboards do not support PagerDuty integration so alerts cannot route to on-call rotations",
+        "Per-instance dashboards consume more StatsD bandwidth because each panel emits redundant per-DAG metrics"
+      ],
+      "correctAnswer": "Per-instance green can hide a coordinator failure caused by a missing signal — no causal correlation",
+      "explanation": "Lesson 9: per-instance views show component health in isolation. The platform dashboard must show the causal chain across instances or it creates false confidence.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS1",
+        "module-AFS1-lesson-09",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS1-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 frames platform architecture as which kind of activity?",
+      "options": [
+        "An ongoing practice of evaluating trade-offs and evolving the architecture as workload changes",
+        "A one-time design exercise that produces a final blueprint that the team builds against forever",
+        "A cost-optimization activity that reduces infrastructure spend each quarter through continuous tuning",
+        "A vendor-management discipline that focuses on negotiating rates with cloud providers and Airflow forks"
+      ],
+      "correctAnswer": "An ongoing practice of evaluating trade-offs and evolving the architecture as workload changes",
+      "explanation": "Lesson 10: today's architecture fits today's workload. As DAGs/teams/countries grow, architecture must evolve through deliberate review, not unplanned drift.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS1",
+        "module-AFS1-lesson-10",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS2-l01-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Below what DAG count does the DAG factory's overhead exceed its benefits?",
+      "options": [
+        "Below ~30 DAGs the factory's complexity is more expensive than maintaining hand-crafted DAGs",
+        "Below ~5 DAGs the factory's complexity is more expensive than maintaining hand-crafted DAGs",
+        "Below ~100 DAGs the factory's complexity is more expensive than maintaining hand-crafted DAGs",
+        "Below ~200 DAGs the factory's complexity is more expensive than maintaining hand-crafted DAGs"
+      ],
+      "correctAnswer": "Below ~30 DAGs the factory's complexity is more expensive than maintaining hand-crafted DAGs",
+      "explanation": "Lesson 1: factories convert cross-cutting changes from O(n) to O(1). Below 30, the overhead exceeds the savings; above 100, the factory is the only sustainable approach.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS2",
+        "module-AFS2-lesson-01",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS2-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the right mental model for a DAG factory?",
+      "options": [
+        "A compiler — validates schema, optimizes the task graph, and reports errors with actionable messages",
+        "A template engine — fills in blanks in a pre-existing DAG structure with values from the YAML config",
+        "A code generator — emits hand-editable Python files into the dags/ folder for engineers to refine",
+        "A scheduler plugin — intercepts task submission and rewrites task properties on the fly per heartbeat"
+      ],
+      "correctAnswer": "A compiler — validates schema, optimizes the task graph, and reports errors with actionable messages",
+      "explanation": "Lesson 2: compiler thinking shapes every design decision. Templates fill blanks; compilers transform with optimization, validation, and error reporting.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS2",
+        "module-AFS2-lesson-02",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS2-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How should breaking changes to the factory's config schema be treated?",
+      "options": [
+        "As API changes — backward compatibility, clear errors, progressive disclosure, version the schema",
+        "As internal refactors — update the factory and migrate every YAML config in the same PR atomically",
+        "As scheduled rewrites — pipeline teams must update configs every quarter regardless of impact",
+        "As config-only changes — modify the schema freely; the factory's tests catch any regressions early"
+      ],
+      "correctAnswer": "As API changes — backward compatibility, clear errors, progressive disclosure, version the schema",
+      "explanation": "Lesson 3: the schema is the factory's API surface. Pipeline teams should not rewrite configs when the factory is upgraded. Schema = API.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS2",
+        "module-AFS2-lesson-03",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS2-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar log the resolved configuration with each field's source (base/country/domain/pipeline)?",
+      "options": [
+        "Debugging a template hierarchy at 2 AM requires tracing which template provided each value — manual reading is error-prone",
+        "Logging the source layer is required by the regulator's audit framework for any factory-generated DAG",
+        "The Airflow scheduler refuses to register a DAG whose config did not log its layer source on parse",
+        "Layer attribution lets the factory throttle parse time by skipping unchanged layers between heartbeats"
+      ],
+      "correctAnswer": "Debugging a template hierarchy at 2 AM requires tracing which template provided each value — manual reading is error-prone",
+      "explanation": "Lesson 4: four-layer merge is hard to debug without traceability. Logging field-by-field source makes incident response much faster.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS2",
+        "module-AFS2-lesson-04",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS2-l05-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the key constraint of dynamic task generation in the factory?",
+      "options": [
+        "Tasks are created at PARSE time, not execution — adding a source requires re-parsing before the new task appears",
+        "Tasks are created at EXECUTION time so the scheduler must observe a full DagRun to see the task graph",
+        "Tasks are created at SCHEDULER startup so the platform must restart whenever the YAML config is changed"
+      ],
+      "correctAnswer": "Tasks are created at PARSE time, not execution — adding a source requires re-parsing before the new task appears",
+      "explanation": "Lesson 5: parse-time generation is fundamental to Airflow's architecture. The factory reads the config during parse; task count cannot change between DagRuns without re-parsing.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS2",
+        "module-AFS2-lesson-05",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS2-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the paradigm shift in factory testing compared to hand-crafted DAG testing?",
+      "options": [
+        "The factory code is the unit under test, not the generated DAGs — config validation + DAG integrity + snapshots",
+        "Each generated DAG has its own test file that runs the standard DAG integrity checks per pipeline",
+        "Generated DAGs cannot be tested directly because their structure is determined at runtime by config",
+        "Factory testing replaces unit tests with end-to-end tests because the factory's logic is too complex"
+      ],
+      "correctAnswer": "The factory code is the unit under test, not the generated DAGs — config validation + DAG integrity + snapshots",
+      "explanation": "Lesson 6: O(1) test maintenance for 180 DAGs. Test the factory's input boundary, output correctness, and snapshot stability.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS2",
+        "module-AFS2-lesson-06",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS2-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the factory's MAJOR/MINOR/PATCH versioning communicate to pipeline teams?",
+      "options": [
+        "MAJOR = config may need modification; MINOR = new capability available; PATCH = bug fix, no impact",
+        "MAJOR = team must rebuild from scratch; MINOR = team must rerun migration; PATCH = team is unaffected",
+        "MAJOR = scheduler restart required; MINOR = factory restart required; PATCH = no restart required at all",
+        "MAJOR = all configs invalidated; MINOR = new schema fields default to null; PATCH = output unchanged"
+      ],
+      "correctAnswer": "MAJOR = config may need modification; MINOR = new capability available; PATCH = bug fix, no impact",
+      "explanation": "Lesson 7: semantic versioning communicates impact. Version is embedded in every generated DAG's tags so the team can track which factory built each DAG.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS2",
+        "module-AFS2-lesson-07",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS2-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "BalticSolar's factory took 6 weeks to build but 18 months to migrate every team to it. Why?",
+      "options": [
+        "Organizational change (trust, governance, exceptions) takes 3× longer than the technical implementation",
+        "Pipeline teams refused to migrate without a Lithuanian regulatory exemption granted on a per-DAG basis",
+        "Airflow's parser performance dropped during the migration so each new factory DAG required tuning",
+        "The metadata database was rebuilt three times during the migration as the schema kept changing"
+      ],
+      "correctAnswer": "Organizational change (trust, governance, exceptions) takes 3× longer than the technical implementation",
+      "explanation": "Lesson 8: technical architects underestimate organizational change. Budget 3× more time for org change than for tech work.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS2",
+        "module-AFS2-lesson-08",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS2-l09-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What protects a factory's simplicity over time?",
+      "options": [
+        "Discipline about exceptions — every pipeline that bypasses the factory with documented justification keeps it simple",
+        "Allowing the factory to absorb every edge case so all 200 DAGs go through one unified code path",
+        "Forking the factory into per-team variants so each team's edge cases live in their own version",
+        "Locking the schema after launch so no new fields are added regardless of team requirements"
+      ],
+      "correctAnswer": "Discipline about exceptions — every pipeline that bypasses the factory with documented justification keeps it simple",
+      "explanation": "Lesson 9: a factory that absorbs every edge case grows until its complexity exceeds the cost of hand-crafted DAGs. Disciplined exceptions are a feature.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS2",
+        "module-AFS2-lesson-09",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS2-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the long-term architectural value of the DAG factory beyond maintenance reduction?",
+      "options": [
+        "Distribution mechanism — every platform improvement is automatically available to all 180 generated DAGs",
+        "Cost reduction — the factory uses 40% fewer scheduler resources than hand-crafted DAGs at the same scale",
+        "Multi-tenancy — the factory is the only Airflow component that supports multi-tenant deployments",
+        "Migration path — the factory automatically rewrites configs when Airflow major versions are released"
+      ],
+      "correctAnswer": "Distribution mechanism — every platform improvement is automatically available to all 180 generated DAGs",
+      "explanation": "Lesson 10: the factory is the leverage. Every Module 3-9 improvement (scheduling, executors, integration, observability) propagates to 180 DAGs without team action.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS2",
+        "module-AFS2-lesson-10",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS3-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does scheduling change conceptually between 12 DAGs and 200+ DAGs?",
+      "options": [
+        "From a configuration problem (set cron, set trigger) to a resource allocation problem with governance",
+        "From a Python problem (write the DAG) to a YAML problem (configure the schedule for each DAG)",
+        "From a single-machine problem (one scheduler) to a multi-region problem (scheduler per data center)",
+        "From a deterministic problem (fixed cron) to a non-deterministic problem (event-driven only)"
+      ],
+      "correctAnswer": "From a configuration problem (set cron, set trigger) to a resource allocation problem with governance",
+      "explanation": "Lesson 1: at scale, scheduling is finite slots, competing priorities, regulatory deadlines, cascading deps — a governance framework, not a config dialog.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS3",
+        "module-AFS3-lesson-01",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS3-l02-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar centralize external deadlines (Nord Pool, ENTSO-E, VERT) in a timezone registry?",
+      "options": [
+        "DAGs reference logical deadlines; the registry handles DST conversion so DAGs do not embed UTC offsets",
+        "The registry caches deadlines in memory so the scheduler avoids re-reading them on every heartbeat",
+        "The registry is required by Lithuanian regulation because each external deadline must have an audit owner",
+        "The registry encrypts deadlines so external system schedules are not exposed via the Airflow audit log"
+      ],
+      "correctAnswer": "DAGs reference logical deadlines; the registry handles DST conversion so DAGs do not embed UTC offsets",
+      "explanation": "Lesson 2: DST shifts UTC offsets twice a year. Hardcoding 06:00 UTC in DAGs breaks during transitions. The registry centralizes the conversion.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS3",
+        "module-AFS3-lesson-02",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS3-l03-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar's quarterly review challenge teams whose DAGs exceed 15% platinum?",
+      "options": [
+        "Priority is only meaningful when scarce — over-allocation makes the platinum designation meaningless",
+        "Lithuanian regulations cap the number of platinum-tier DAGs that any single team can operate at once",
+        "The scheduler refuses to dispatch more than 15% platinum tasks per heartbeat regardless of pool slots",
+        "The platform team charges 4× the standard per-task cost for any DAG above the 15% platinum threshold"
+      ],
+      "correctAnswer": "Priority is only meaningful when scarce — over-allocation makes the platinum designation meaningless",
+      "explanation": "Lesson 3: target distribution 10/25/50/15. If 80% are platinum, the other 20% starve and platinum loses meaning. Reviews catch 30-40% mis-tagged.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS3",
+        "module-AFS3-lesson-03",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS3-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is a 'maintenance window' in BalticSolar's scheduling calendar?",
+      "options": [
+        "A contract — the platform team guarantees infra changes only inside it; pipeline teams keep DAGs out of it",
+        "A flexible target — engineers prefer to do maintenance inside it but may deviate when pressed for time",
+        "A deployment freeze — no DAG deployments are allowed during the window across the entire alliance",
+        "A monitoring blackout — alerts are suppressed during the window so the on-call engineer is not paged"
+      ],
+      "correctAnswer": "A contract — the platform team guarantees infra changes only inside it; pipeline teams keep DAGs out of it",
+      "explanation": "Lesson 4: contract between platform and pipeline teams. Breaking either side damages trust. The calendar formalizes the agreement so both can verify compliance.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS3",
+        "module-AFS3-lesson-04",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS3-l05-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar use conditional Dataset updates instead of a simple `outlets=[...]` declaration?",
+      "options": [
+        "Update the outlet only if data passes quality checks — bad data quarantined, consumers not triggered",
+        "Update the outlet only if the run is the first of the day — duplicate updates from retries are dropped",
+        "Update the outlet only if the producing task ran on the platinum pool — silver tasks do not trigger consumers",
+        "Update the outlet only if the consumer is currently idle — busy consumers ignore upstream updates entirely"
+      ],
+      "correctAnswer": "Update the outlet only if data passes quality checks — bad data quarantined, consumers not triggered",
+      "explanation": "Lesson 5: a Dataset says 'data is ready', not 'data is good'. Conditional updates make the signal meaningful — quality-checked data triggers consumers.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS3",
+        "module-AFS3-lesson-05",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS3-l06-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why must a custom Timetable's `next_dagrun_info()` be a pure function?",
+      "options": [
+        "The scheduler may call it multiple times per heartbeat from multiple processes in any order",
+        "The scheduler must serialize and replay timetable calls during HA failover to avoid double-creates",
+        "Pure functions are required by the Airflow community style guide for any timetable plugin contribution",
+        "Pure functions enable the scheduler to cache the next DagRun in Redis to skip future timetable calls"
+      ],
+      "correctAnswer": "The scheduler may call it multiple times per heartbeat from multiple processes in any order",
+      "explanation": "Lesson 6: same inputs must return same outputs and not modify state. DB reads, API calls, instance variable mutations are sources of subtle bugs.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS3",
+        "module-AFS3-lesson-06",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS3-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar prefer prevention over resolution for scheduling conflicts?",
+      "options": [
+        "Prevention (pool reservation, staggered scheduling, fairness caps) reduces the conflicts the scheduler must resolve",
+        "Resolution at the scheduler is forbidden by Airflow's design and engineers must always work around the constraint",
+        "Prevention is required by the regulator because every scheduling conflict triggers a compliance review",
+        "Prevention removes the need for priority weights so all DAGs share equal access to the executor pool"
+      ],
+      "correctAnswer": "Prevention (pool reservation, staggered scheduling, fairness caps) reduces the conflicts the scheduler must resolve",
+      "explanation": "Lesson 7: pool reservation prevents tier-mixing; staggered scheduling reduces peak contention 60%; fairness caps prevent monopolization. Fewer conflicts = more predictable.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS3",
+        "module-AFS3-lesson-07",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS3-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why must a backfill run differ behaviorally from a production run for the same DAG?",
+      "options": [
+        "Skip notifications, skip SLA checks, skip cross-instance triggers, write to backfill paths — historical data is always 'late'",
+        "Run on the platinum pool — backfills are critical because they fill gaps in the regulatory audit trail",
+        "Run twice — once to validate the data, once to commit it — to account for the historical context loss",
+        "Use the live data sources — backfills must always use the current state of upstream systems for accuracy"
+      ],
+      "correctAnswer": "Skip notifications, skip SLA checks, skip cross-instance triggers, write to backfill paths — historical data is always 'late'",
+      "explanation": "Lesson 8: an `is_backfill` flag enables behavioral differences. Same DAG code; different runtime behavior. Avoids 90 days of trigger spam to the coordinator.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS3",
+        "module-AFS3-lesson-08",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS3-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 9 says scheduling anti-patterns 'are not wrong at 12 DAGs.' What is the platform team's responsibility?",
+      "options": [
+        "Detect when the platform approaches each anti-pattern's threshold and apply the architectural fix early",
+        "Forbid the anti-patterns globally so no team can introduce them regardless of their current scale",
+        "Wait for production incidents to surface anti-patterns and fix them reactively as they cause damage",
+        "Force every team to adopt the senior architecture from day one regardless of their actual scale or needs"
+      ],
+      "correctAnswer": "Detect when the platform approaches each anti-pattern's threshold and apply the architectural fix early",
+      "explanation": "Lesson 9: each anti-pattern has a different threshold. Platform team monitors approach and applies the fix before incidents — not preemptively, not too late.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS3",
+        "module-AFS3-lesson-09",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS3-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does BalticSolar's weekly scheduling review prevent?",
+      "options": [
+        "Gradual accumulation of anti-patterns (priority inflation, over-pooling, herds) until an incident forces redesign",
+        "Cron expression typos that would otherwise produce DAGs scheduled at impossible times like 32:00 daily",
+        "Database bloat in the metadata database that would otherwise consume more than the allocated 5GB capacity",
+        "Plug-in conflicts between DAG factories owned by different teams that share the same Airflow instance"
+      ],
+      "correctAnswer": "Gradual accumulation of anti-patterns (priority inflation, over-pooling, herds) until an incident forces redesign",
+      "explanation": "Lesson 10: scheduling architecture is not built once. The weekly review adapts it to changing DAG counts, priorities, deadlines, and capacity.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS3",
+        "module-AFS3-lesson-10",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS4-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the executor selection determine for the platform?",
+      "options": [
+        "The runtime contract with each task — startup latency, isolation, resource sharing, failure modes",
+        "The Airflow version compatible with the platform — Celery for 2.x, Kubernetes for 3.x",
+        "The team's permission model — Celery operators get full RBAC; Kubernetes operators get limited RBAC",
+        "The DAG file structure — Celery DAGs use TaskFlow; Kubernetes DAGs must use classic operators only"
+      ],
+      "correctAnswer": "The runtime contract with each task — startup latency, isolation, resource sharing, failure modes",
+      "explanation": "Lesson 1: Celery promises low-latency startup but shared resources. K8s promises isolation but startup overhead. Hybrid promises both at higher complexity.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS4",
+        "module-AFS4-lesson-01",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS4-l02-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar monitor etcd write latency on the Kubernetes cluster running KubernetesExecutor?",
+      "options": [
+        "Pod churn drives etcd writes — high P99 latency is a leading indicator of pod scaling limits being hit",
+        "etcd is the secrets store and high latency means tasks cannot resolve credentials before timing out",
+        "etcd holds the DAG file index and slow writes block the scheduler's parser from registering new DAGs",
+        "etcd stores the XCom payloads and high latency causes downstream tasks to read stale upstream output"
+      ],
+      "correctAnswer": "Pod churn drives etcd writes — high P99 latency is a leading indicator of pod scaling limits being hit",
+      "explanation": "Lesson 2: every pod create/delete is an etcd write. 150 pods/day = 1000+ writes. > 50ms P99 = approaching the cluster's churn ceiling.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS4",
+        "module-AFS4-lesson-02",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS4-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is Redis identified as the single point of failure in CeleryExecutor?",
+      "options": [
+        "If Redis is down, no tasks can be dispatched and no results reported — the broker is the only path",
+        "If Redis is down, the metadata database loses connectivity because they share a connection pool",
+        "If Redis is down, every running task is killed because Celery workers heartbeat through Redis only"
+      ],
+      "correctAnswer": "If Redis is down, no tasks can be dispatched and no results reported — the broker is the only path",
+      "explanation": "Lesson 3: broker outage stalls the entire pipeline. Redis Sentinel + 60-second alert mitigates. Brief outages don't lose state (DB has it); sustained ones halt scheduling.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS4",
+        "module-AFS4-lesson-03",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS4-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar's Latvian instance use a CeleryKubernetes hybrid?",
+      "options": [
+        "Bimodal workload — most tasks are lightweight (Celery efficient) but some need 32GB RAM (K8s isolated)",
+        "Latvia has stricter regulations than Lithuania, requiring KubernetesExecutor for regulatory DAGs only",
+        "Hybrid is the default for any instance with more than 30 DAGs to balance load between two executors",
+        "Hybrid avoids paying licensing fees for Celery alone since Apache charges per-broker for production use"
+      ],
+      "correctAnswer": "Bimodal workload — most tasks are lightweight (Celery efficient) but some need 32GB RAM (K8s isolated)",
+      "explanation": "Lesson 4: pure Celery wastes RAM for the 80% of light tasks. Pure K8s imposes 3-8s startup on lightweight tasks. Hybrid routes by resource profile.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS4",
+        "module-AFS4-lesson-04",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS4-l05-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What three alternatives should be evaluated before building a custom executor?",
+      "options": [
+        "Custom operators (logic in execute), task wrappers (PythonOperator manages remote), external orchestration",
+        "Custom plugins (UI extensions), custom timetables (scheduling), custom XCom backends (data passing)",
+        "CeleryExecutor (default), KubernetesExecutor (isolation), LocalExecutor (development simplicity)",
+        "Forking Airflow (full control), patching the executor (selective override), upstream PRs (community fix)"
+      ],
+      "correctAnswer": "Custom operators (logic in execute), task wrappers (PythonOperator manages remote), external orchestration",
+      "explanation": "Lesson 5: each alternative is simpler than a custom executor. Build a custom executor only when execution is fundamentally incompatible with built-in models.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS4",
+        "module-AFS4-lesson-05",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS4-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar reclassify a task to a higher resource tier rather than raising its memory limit?",
+      "options": [
+        "High limit-to-request ratios reduce scheduling efficiency — the cluster cannot pack pods reliably",
+        "High limit-to-request ratios trigger the regulator's audit requirement for any task above 4GB usage",
+        "High limit-to-request ratios are blocked by the Kubernetes API server's admission controller globally",
+        "High limit-to-request ratios are charged at 5× the rate by the cloud provider for resource over-commit"
+      ],
+      "correctAnswer": "High limit-to-request ratios reduce scheduling efficiency — the cluster cannot pack pods reliably",
+      "explanation": "Lesson 6: a 1Gi request with 8Gi limit means K8s schedules optimistically but evicts under pressure. Reclassification keeps requests realistic.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS4",
+        "module-AFS4-lesson-06",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS4-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is BalticSolar's worker-fleet ownership model?",
+      "options": [
+        "Platform team owns fleet sizing/health/scaling; pipeline teams interact via pools and resource requests",
+        "Each pipeline team operates its own worker fleet sized to their DAG count and updated independently",
+        "Pipeline teams own day-to-day operations; platform team is consulted only for major capacity changes",
+        "Operations team owns workers; platform team owns the scheduler; pipeline teams own only their DAG code"
+      ],
+      "correctAnswer": "Platform team owns fleet sizing/health/scaling; pipeline teams interact via pools and resource requests",
+      "explanation": "Lesson 7: fleet management is infrastructure responsibility. Pipeline teams say 'we need this much capacity'; platform team delivers it.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS4",
+        "module-AFS4-lesson-07",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS4-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar profile executor performance through the dashboard rather than tuning by intuition?",
+      "options": [
+        "Every optimization has a trade-off — only profiling data identifies the highest SLA improvement per cost",
+        "Profiling is required by the regulator for any executor change in production environments worldwide",
+        "Profiling is the only way to comply with Apache Airflow's recommended performance tuning guidance",
+        "Profiling identifies which optimizations have already been applied so duplicates do not stack up over time"
+      ],
+      "correctAnswer": "Every optimization has a trade-off — only profiling data identifies the highest SLA improvement per cost",
+      "explanation": "Lesson 8: increasing max_tis_per_query improves dispatch but loads DB. Reducing zombie interval catches stale tasks but adds overhead. Profile first.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS4",
+        "module-AFS4-lesson-08",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS4-l09-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does Lesson 9 say about the cost of maintaining a custom executor?",
+      "options": [
+        "Every hour spent on a custom executor is an hour not improving the platform for the 200 other DAGs",
+        "Every hour saved by a custom executor pays for itself within one quarter through reduced infrastructure spend",
+        "Every hour spent maintaining a custom executor counts toward the team's Kubernetes certification renewal",
+        "Every hour spent on a custom executor is reimbursed by Apache as part of the open-source contribution program"
+      ],
+      "correctAnswer": "Every hour spent on a custom executor is an hour not improving the platform for the 200 other DAGs",
+      "explanation": "Lesson 9: built-ins are maintained by hundreds of community contributors. Custom = your team alone. Use custom operator/wrapper unless truly incompatible.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS4",
+        "module-AFS4-lesson-09",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS4-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What should pipeline teams need to think about regarding executors when writing DAGs?",
+      "options": [
+        "Nothing — the factory determines executor, resources, and routing from the pipeline config's task type",
+        "Everything — pipeline teams must specify queue, executor_config, and pool_override on every task",
+        "The country only — pipeline teams pick a queue based on country; the factory handles the rest of routing",
+        "The SLA tier only — pipeline teams pick platinum/gold and the platform translates that to an executor"
+      ],
+      "correctAnswer": "Nothing — the factory determines executor, resources, and routing from the pipeline config's task type",
+      "explanation": "Lesson 10: the factory abstracts the executor layer. Pipeline says 'this is a Spark job'; factory translates that into queue, executor_config, resource request.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS4",
+        "module-AFS4-lesson-10",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS5-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does Lesson 1 frame integration architecture at scale?",
+      "options": [
+        "As dependency management — cataloging, contracting, isolating failures, governing evolution",
+        "As performance optimization — minimizing latency between Airflow tasks and external API calls",
+        "As cost optimization — choosing the cheapest provider package that satisfies functional requirements",
+        "As security hardening — wrapping every external system call in encryption and authentication layers"
+      ],
+      "correctAnswer": "As dependency management — cataloging, contracting, isolating failures, governing evolution",
+      "explanation": "Lesson 1: 15+ external systems = dependency management. Catalog them, define contracts, isolate failures, govern evolution. Same discipline as schema dependencies.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS5",
+        "module-AFS5-lesson-01",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS5-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar enforce hook-operator separation as an internal API?",
+      "options": [
+        "Hook method changes that break return types break every operator that calls it — same as REST without versioning",
+        "Hook-operator separation is mandated by Airflow's plugin system and refused by the loader otherwise",
+        "Hook-operator separation halves test runtime because mocked hooks need fewer fixtures than mocked operators",
+        "Hook-operator separation prevents the scheduler from caching hook responses across DagRuns inadvertently"
+      ],
+      "correctAnswer": "Hook method changes that break return types break every operator that calls it — same as REST without versioning",
+      "explanation": "Lesson 2: the hook's public methods define the platform's API. Stable signatures, backward-compatible evolution, documented return types — like any internal API.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS5",
+        "module-AFS5-lesson-02",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS5-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the role of an integration contract YAML file at BalticSolar?",
+      "options": [
+        "Defines what the platform expects from the external system and what the system can expect from the platform",
+        "Specifies the rate at which the integration is billed by the cloud provider per request invocation",
+        "Documents the migration plan from the current external system to its planned replacement vendor",
+        "Lists the engineers authorized to modify the integration's connection credentials in HashiCorp Vault"
+      ],
+      "correctAnswer": "Defines what the platform expects from the external system and what the system can expect from the platform",
+      "explanation": "Lesson 3: contract = bidirectional agreement. Same principle as schema contracts in PySpark senior. Detect changes, classify failures, coordinate evolution.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS5",
+        "module-AFS5-lesson-03",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS5-l04-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "BalticSolar's decision framework recommends a custom provider only when which conditions are met?",
+      "options": [
+        "3+ teams or 5+ DAGs use the integration AND community coverage is below 70% of the team's needs",
+        "1+ team uses the integration AND the integration is mentioned in the regulatory audit checklist",
+        "10+ teams use the integration AND the platform team has at least 3 engineers available for ownership",
+        "Any team uses the integration AND the team is willing to pay the platform team's hourly rate for upkeep"
+      ],
+      "correctAnswer": "3+ teams or 5+ DAGs use the integration AND community coverage is below 70% of the team's needs",
+      "explanation": "Lesson 4: custom provider costs ~12 days/year. Justified only by enough users (3+ teams or 5+ DAGs) and insufficient community coverage (< 70%).",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS5",
+        "module-AFS5-lesson-04",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS5-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar package every custom integration in a single provider rather than separate packages?",
+      "options": [
+        "One release pipeline, one version, one CHANGELOG — and shared infrastructure (base hook, error taxonomy)",
+        "Separate packages cannot register connection types in the Airflow UI because of a plugin loader limitation",
+        "One package is required by the Airflow community standard for any provider with more than three integrations",
+        "Separate packages would expose internal implementation details to teams that should not see other teams' hooks"
+      ],
+      "correctAnswer": "One release pipeline, one version, one CHANGELOG — and shared infrastructure (base hook, error taxonomy)",
+      "explanation": "Lesson 5: trade-off is coupling — Nord Pool change forces ENTSO-E rebuild. Acceptable at monthly release cadence; benefits outweigh.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS5",
+        "module-AFS5-lesson-05",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS5-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is a plugin error worse than a DAG error or a provider error?",
+      "options": [
+        "A plugin error during import crashes the web server, scheduler, and every worker on the instance",
+        "A plugin error invalidates the metadata database schema and forces a full restore from backup",
+        "A plugin error pages every team's on-call engineer because plugins are owned across teams equally",
+        "A plugin error triggers a full Airflow version upgrade because plugins lock the version on import"
+      ],
+      "correctAnswer": "A plugin error during import crashes the web server, scheduler, and every worker on the instance",
+      "explanation": "Lesson 6: plugin errors are instance-wide. DAG errors affect one DAG; provider errors affect DAGs using it; plugin errors affect everything.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS5",
+        "module-AFS5-lesson-06",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS5-l07-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does cross-team integration testing verify that provider unit tests do not?",
+      "options": [
+        "The boundary — does the hook's output match the consuming DAG's expectations? Does its perf meet SLA budgets?",
+        "The internals — does the hook's auth handshake follow the OAuth 2.0 specification correctly?",
+        "The metadata — does the hook register its connection type with the Airflow UI dropdown menu correctly?",
+        "The cost — does the hook's call rate stay within the cloud provider's billing tier for that integration?"
+      ],
+      "correctAnswer": "The boundary — does the hook's output match the consuming DAG's expectations? Does its perf meet SLA budgets?",
+      "explanation": "Lesson 7: each team tests their side independently; nobody tests the boundary. Cross-team testing catches mismatches at the contract surface.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS5",
+        "module-AFS5-lesson-07",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS5-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the most valuable output of BalticSolar's quarterly integration review?",
+      "options": [
+        "The deletions — retiring custom integrations replaced by community providers frees engineering time",
+        "The additions — approving new custom integrations grows the platform's capability surface area",
+        "The metrics — quarterly DAG count and team count for each integration shape the next year's budget",
+        "The audits — the regulator requires a list of every external connection point reviewed quarterly"
+      ],
+      "correctAnswer": "The deletions — retiring custom integrations replaced by community providers frees engineering time",
+      "explanation": "Lesson 8: BalticSolar retired 2 integrations year 1, saving ~24 days/year. Without the review, packages grow monotonically.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS5",
+        "module-AFS5-lesson-08",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS5-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When should you NOT build a custom integration?",
+      "options": [
+        "Integration used by < 3 teams, community provider covers 95%+, or DAG count below the governance threshold",
+        "Integration used by > 10 teams because shared usage means too many stakeholders for coordinated changes",
+        "Integration on a Lithuanian system because Lithuanian regulations forbid in-house integration code",
+        "Integration that uses OAuth because Airflow's community providers handle OAuth poorly across versions"
+      ],
+      "correctAnswer": "Integration used by < 3 teams, community provider covers 95%+, or DAG count below the governance threshold",
+      "explanation": "Lesson 9: governance overhead exceeds savings below the threshold. A PythonOperator wrapper or community provider is the right call.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS5",
+        "module-AFS5-lesson-09",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS5-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the integration architecture's purpose at the platform level?",
+      "options": [
+        "Absorb external changes at the boundary so they do not propagate uncontrolled into the platform",
+        "Maximize integration count so the platform supports every external system the alliance might use",
+        "Replicate every external system inside the platform so DAGs are insulated from outage at the source",
+        "Encrypt every external interaction so the regulator's audit framework reports zero unencrypted bytes"
+      ],
+      "correctAnswer": "Absorb external changes at the boundary so they do not propagate uncontrolled into the platform",
+      "explanation": "Lesson 10: external systems change. Architecture absorbs change at the boundary through contracts, error taxonomies, governance — without it, every external change cascades.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS5",
+        "module-AFS5-lesson-10",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS6-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the goal of reading the Airflow scheduler source code?",
+      "options": [
+        "Trace a production symptom to the code that produces it — targeted reading, not full comprehension",
+        "Memorize the entire codebase so any incident can be resolved without consulting documentation later",
+        "Identify code paths that the scheduler uses most often so they can be patched for performance gains",
+        "Submit upstream patches to the Apache Airflow community as part of the engineer's certification path"
+      ],
+      "correctAnswer": "Trace a production symptom to the code that produces it — targeted reading, not full comprehension",
+      "explanation": "Lesson 1: source reading is a diagnostic skill, not a memorization task. Know that _do_scheduling has 3 phases and trace symptoms to phase logic.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS6",
+        "module-AFS6-lesson-01",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS6-l02-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the cost of a SQL query at the top of a DAG file (e.g., `pd.read_sql(...)` outside a task)?",
+      "options": [
+        "The query runs at parse time on every heartbeat — consumes seconds of every scheduling cycle for nothing",
+        "The query runs once at DAG import and is cached forever — but the cached value goes stale across restarts",
+        "The query runs at every task instance creation — multiplies parser load by the number of task instances",
+        "The query runs only when the DAG is triggered — but the result is invisible to the scheduler dispatcher"
+      ],
+      "correctAnswer": "The query runs at parse time on every heartbeat — consumes seconds of every scheduling cycle for nothing",
+      "explanation": "Lesson 2: parse-time imports run on every heartbeat. With 4 parsing processes and 200+ files, one slow file dominates the parsing budget.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS6",
+        "module-AFS6-lesson-02",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS6-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How should the DagRun state machine be understood?",
+      "options": [
+        "Bookkeeping — tracks whether a DAG's tasks have been processed for a specific data interval",
+        "Workflow engine — orchestrates task execution and resource allocation across all running DAGs",
+        "Event sourcing — replays the entire DagRun history during scheduling to derive current state",
+        "Reactive system — adjusts task priorities continuously based on real-time external signals"
+      ],
+      "correctAnswer": "Bookkeeping — tracks whether a DAG's tasks have been processed for a specific data interval",
+      "explanation": "Lesson 3: DagRun is bookkeeping. Scheduler creates them, executor runs tasks, state reflects aggregate outcome. Understanding this explains UI behaviors.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS6",
+        "module-AFS6-lesson-03",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS6-l04-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is a 'zombie task,' and what causes one?",
+      "options": [
+        "Task in 'running' state without an active heartbeat — worker crashed, OOM, network split, evicted pod",
+        "Task in 'failed' state that retries despite exceeding the max retry count — a state machine glitch",
+        "Task in 'scheduled' state that the executor refuses to dispatch — a permissions or authorization issue",
+        "Task in 'success' state with no XCom value — a serialization failure that lost the return value silently"
+      ],
+      "correctAnswer": "Task in 'running' state without an active heartbeat — worker crashed, OOM, network split, evicted pod",
+      "explanation": "Lesson 4: DB believes task is running but no executor process is. After zombie_detection_interval, scheduler fails it; retries fire if available.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS6",
+        "module-AFS6-lesson-04",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS6-l05-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does the Airflow UI not show which dependency is blocking a 'scheduled' task?",
+      "options": [
+        "DAG TI Slots / Pool Slots / Trigger Rule deps are evaluated at DEBUG log level — not surfaced in the UI",
+        "Dependencies cannot be evaluated for running tasks because of metadata DB row locking semantics",
+        "Dependencies are encrypted by Airflow's security layer to prevent leaking them across multi-tenant boundaries",
+        "Dependencies are computed lazily at the executor level so the scheduler does not know which one blocks"
+      ],
+      "correctAnswer": "DAG TI Slots / Pool Slots / Trigger Rule deps are evaluated at DEBUG log level — not surfaced in the UI",
+      "explanation": "Lesson 5: dep chain output is in DEBUG-level scheduler logs. SaulėGrid runbook: check scheduler DEBUG logs first when tasks are stuck.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS6",
+        "module-AFS6-lesson-05",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS6-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar identify the DAG factory as the most effective scheduler-rent reduction?",
+      "options": [
+        "It consolidates 180 individually-parsed files into 180 YAML configs read by a single factory file",
+        "It compiles DAGs ahead of time into Airflow's serialized binary format that skips parsing",
+        "It runs DAG parsing on a separate K8s cluster so the scheduler is not blocked by parse-time work",
+        "It moves DAG files out of the dags/ folder entirely and into a database table indexed by team"
+      ],
+      "correctAnswer": "It consolidates 180 individually-parsed files into 180 YAML configs read by a single factory file",
+      "explanation": "Lesson 6: DAG dir parsing is the scheduler's rent. Factory consolidates parsing into one optimizable file instead of 180 uncoordinated ones.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS6",
+        "module-AFS6-lesson-06",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS6-l07-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "How does BalticSolar's active-active scheduler HA prevent duplicate task dispatch?",
+      "options": [
+        "PostgreSQL `SELECT FOR UPDATE SKIP LOCKED` — each scheduler locks a batch of tasks no other can see",
+        "Redis distributed locks — each scheduler acquires a lock per task before dispatching to the executor",
+        "ZooKeeper coordination — only one scheduler is leader and dispatches; the other is a hot standby",
+        "Manual partitioning — scheduler 1 handles odd-numbered DAGs and scheduler 2 handles even-numbered"
+      ],
+      "correctAnswer": "PostgreSQL `SELECT FOR UPDATE SKIP LOCKED` — each scheduler locks a batch of tasks no other can see",
+      "explanation": "Lesson 7: row-locking with SKIP LOCKED enables concurrent processing of disjoint task sets. Tested monthly with zero missed/duplicated dispatches over 12 months.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS6",
+        "module-AFS6-lesson-07",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS6-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What ultimately manifests every scheduling optimization in Modules 1-5?",
+      "options": [
+        "A reduction in the scheduler's per-heartbeat workload — the platform's fundamental resource",
+        "A reduction in the metadata database's storage footprint — the platform's storage capacity limit",
+        "A reduction in the executor's queue depth — the platform's task dispatch capacity limit",
+        "A reduction in the worker fleet's CPU usage — the platform's compute spending baseline cost"
+      ],
+      "correctAnswer": "A reduction in the scheduler's per-heartbeat workload — the platform's fundamental resource",
+      "explanation": "Lesson 8: factory reduces parse time, priority pools reduce eligible task count, lazy imports reduce per-file overhead. All optimizations target heartbeat budget.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS6",
+        "module-AFS6-lesson-08",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS6-l09-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does Lesson 9 say a senior engineer recognizes that a mid-level engineer does not?",
+      "options": [
+        "When the scheduler should NOT handle a workload at all — Airflow has design boundaries beyond which a different system fits",
+        "When the scheduler can handle 10× more tasks than its documentation suggests — through aggressive tuning of every config",
+        "When the scheduler can be patched to fix performance issues — through forking Airflow and applying internal team patches",
+        "When the scheduler can be replaced by a custom one — through implementing the BaseExecutor interface differently"
+      ],
+      "correctAnswer": "When the scheduler should NOT handle a workload at all — Airflow has design boundaries beyond which a different system fits",
+      "explanation": "Lesson 9: not every optimization belongs in Airflow. Sub-second dispatch latency, real-time orchestration, millions of tasks/day = different tool.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS6",
+        "module-AFS6-lesson-09",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS6-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 says the scheduler's power and its limitations come from the same place. Where?",
+      "options": [
+        "The metadata database — state machines, row locking, serialized DAG storage, query latency, table growth",
+        "The DAG file directory — single source of truth, deployment simplicity, parse cost, file count overhead",
+        "The Python interpreter — flexible task definitions, ecosystem reuse, GIL contention, import cost",
+        "The web UI — observability, manual intervention, browser session state, REST API rate limits"
+      ],
+      "correctAnswer": "The metadata database — state machines, row locking, serialized DAG storage, query latency, table growth",
+      "explanation": "Lesson 10: power = simple state model in the DB. Limits = query latency, connection pool, table growth. Module 7 covers the database side.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS6",
+        "module-AFS6-lesson-10",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS7-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does Lesson 1 reframe the metadata database?",
+      "options": [
+        "Active working memory — every scheduler query is on the critical path of a scheduling decision",
+        "Historical archive — read-only record of past executions consulted during incident investigation",
+        "Configuration store — connection passwords, variables, and pool definitions read at boot only",
+        "Event stream — append-only log of state transitions consumed by the audit and observability stack"
+      ],
+      "correctAnswer": "Active working memory — every scheduler query is on the critical path of a scheduling decision",
+      "explanation": "Lesson 1: scheduler reads task_instance every heartbeat, dag_run on creation, pool on dispatch. DB latency = scheduling delay regardless of code optimization.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS7",
+        "module-AFS7-lesson-01",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS7-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why must the platform team understand PostgreSQL query optimization as an Airflow prerequisite?",
+      "options": [
+        "Two identical Airflow installs can perform very differently based on indexing, statistics, and tuning",
+        "Airflow generates raw SQL by hand and the platform team must review every query before deployment",
+        "PostgreSQL's query planner blocks Airflow operations that take longer than 10ms in production by default",
+        "Airflow refuses to start unless the engineer passes a PostgreSQL certification administered by Apache"
+      ],
+      "correctAnswer": "Two identical Airflow installs can perform very differently based on indexing, statistics, and tuning",
+      "explanation": "Lesson 2: scheduling perf depends on DB perf. EXPLAIN ANALYZE, index tuning, vacuum scheduling are prerequisites for scheduler optimization.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS7",
+        "module-AFS7-lesson-02",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS7-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When does an XCom value belong in S3 instead of the metadata database?",
+      "options": [
+        "Above ~100KB — payloads larger than this slow scheduler queries through DB I/O bandwidth contention",
+        "Above 5MB — Airflow's hard limit beyond which the metadata database refuses to accept the value",
+        "Above 1GB — the threshold where PostgreSQL's TOAST mechanism degrades to single-row reads",
+        "Above 10KB — anything that does not fit in a single TCP packet should be stored externally"
+      ],
+      "correctAnswer": "Above ~100KB — payloads larger than this slow scheduler queries through DB I/O bandwidth contention",
+      "explanation": "Lesson 3: small payloads (<100KB) stay in the DB; larger payloads bloat the metadata DB and slow scheduling. The custom backend stores ref keys for big values.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS7",
+        "module-AFS7-lesson-03",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS7-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar treat metadata DB maintenance failure as P2?",
+      "options": [
+        "Accumulated performance degradation from a missed maintenance window compounds over subsequent weeks",
+        "Lithuanian regulators require quarterly proof that the maintenance DAG ran on schedule for compliance",
+        "The maintenance DAG owns the database backup and a missed run leaves the platform without DR coverage",
+        "The maintenance DAG triggers the SLA monitor and a missed run blocks every Gold DAG from completing"
+      ],
+      "correctAnswer": "Accumulated performance degradation from a missed maintenance window compounds over subsequent weeks",
+      "explanation": "Lesson 4: 500K dead tuples in task_instance = dependency queries 30-40% slower. Maintenance is a scheduling prerequisite, not housekeeping.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS7",
+        "module-AFS7-lesson-04",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS7-l05-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar rehearse Airflow database migrations on production-volume staging data?",
+      "options": [
+        "5-second migrations on 1K-row staging take 45 minutes on 1.7M-row production due to index creation",
+        "Lithuanian regulations require migration timing to be reported in advance of any version upgrade",
+        "Migrations are CPU-bound and the staging cluster has different CPUs than production hardware",
+        "Apache Airflow refuses to apply migrations to databases that have not undergone rehearsal first"
+      ],
+      "correctAnswer": "5-second migrations on 1K-row staging take 45 minutes on 1.7M-row production due to index creation",
+      "explanation": "Lesson 5: production-volume rehearsal predicts duration and surfaces lock contention. Staging refresh from prod backup before every rehearsal.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS7",
+        "module-AFS7-lesson-05",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS7-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What architectural advantage does Vault provide over DB-stored connections?",
+      "options": [
+        "Credential lifecycle decoupled from Airflow lifecycle — security team rotates without DAG redeployment",
+        "Lower query latency for connection lookup — Vault's response time is faster than the metadata database",
+        "Stronger encryption — Vault uses AES-256 while Airflow's database stores credentials in plaintext only",
+        "Higher availability — Vault's clustering protocol provides 5× the uptime of a managed PostgreSQL service"
+      ],
+      "correctAnswer": "Credential lifecycle decoupled from Airflow lifecycle — security team rotates without DAG redeployment",
+      "explanation": "Lesson 6: DB-stored credentials couple rotation to the platform's deploy lifecycle. Vault decouples them — rotation does not need platform team involvement.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS7",
+        "module-AFS7-lesson-06",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS7-l07-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "How does BalticSolar achieve tamper-evidence for regulatory audit trails?",
+      "options": [
+        "Audit export to compliance warehouse with immutable storage (S3 Object Lock) + per-batch SHA-256 hash",
+        "Audit log encryption with a per-event key managed by the security team's hardware security module",
+        "Audit log replication across all four Airflow instances so any tampering creates an inconsistency immediately",
+        "Audit log signing by the engineer who triggered the action so the regulator can verify identity per event"
+      ],
+      "correctAnswer": "Audit export to compliance warehouse with immutable storage (S3 Object Lock) + per-batch SHA-256 hash",
+      "explanation": "Lesson 7: log table is mutable. Export to immutable S3 + hash comparison detects tampering. Required for VERT/SPRK/Konkurentsiiamet audits.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS7",
+        "module-AFS7-lesson-07",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS7-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why is vertical (not horizontal) scaling correct for BalticSolar's metadata database?",
+      "options": [
+        "PostgreSQL on appropriately sized hardware handles millions of rows below 1,000+ DAG / 100K+ task scale",
+        "Horizontal scaling is forbidden by Airflow's design and the scheduler refuses to connect to sharded DBs",
+        "Vertical scaling is the only option offered by managed PostgreSQL providers in the EU regions used",
+        "Horizontal scaling triples the cost per query because of cross-shard coordination overhead at runtime"
+      ],
+      "correctAnswer": "PostgreSQL on appropriately sized hardware handles millions of rows below 1,000+ DAG / 100K+ task scale",
+      "explanation": "Lesson 8: at BalticSolar scale, distributed transactions/query routing/schema sync complexity is not justified. Bigger hardware + IOPS + PgBouncer is the answer.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS7",
+        "module-AFS7-lesson-08",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS7-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the correct mental model for the metadata database's storage capacity?",
+      "options": [
+        "Scarce resource allocated to scheduling — every non-scheduling byte reduces scheduling throughput",
+        "Cheap commodity — store any operational data with the platform's other Airflow tables for convenience",
+        "Backup target — large XCom values and audit logs help with restoration testing if data is lost",
+        "Performance buffer — storing data in the metadata DB makes it faster to query than external storage"
+      ],
+      "correctAnswer": "Scarce resource allocated to scheduling — every non-scheduling byte reduces scheduling throughput",
+      "explanation": "Lesson 9: every byte stored = backup time, vacuum time, query competition. XCom backend, Secrets backend, audit export all keep non-scheduling data out.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS7",
+        "module-AFS7-lesson-09",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS7-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 says the metadata database's simplicity is both Airflow's strength and its scaling constraint. Why?",
+      "options": [
+        "Single source of truth for state — easy to reason about, but every component shares its capacity",
+        "Single Python module per state machine — easy to read, but limits concurrent state transitions",
+        "Single SQL dialect — easy to deploy, but limits the database engine choice to PostgreSQL only",
+        "Single connection pool — easy to manage, but limits the number of active scheduling threads"
+      ],
+      "correctAnswer": "Single source of truth for state — easy to reason about, but every component shares its capacity",
+      "explanation": "Lesson 10: every component reads/writes the same DB. No distributed state, no eventual consistency. The DB's capacity = the platform's capacity.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS7",
+        "module-AFS7-lesson-10",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS8-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the tenancy model decision actually about?",
+      "options": [
+        "An organizational decision about how teams share infrastructure, propagate failures, and enforce compliance",
+        "A software configuration about whether to deploy one Airflow instance or multiple Airflow instances",
+        "A licensing decision about whether to pay Apache for multi-tenant features or use the open-source build",
+        "A networking decision about whether to use VPC peering or transit gateways between team workloads"
+      ],
+      "correctAnswer": "An organizational decision about how teams share infrastructure, propagate failures, and enforce compliance",
+      "explanation": "Lesson 1: tenancy follows organizational constraints — regulatory data residency, team count, cross-team dependencies. Technology follows the model, not the reverse.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS8",
+        "module-AFS8-lesson-01",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS8-l02-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar's policy say 'no user receives a built-in role directly'?",
+      "options": [
+        "Built-in User can trigger DAGs and view connection strings — too much for an analytics team member",
+        "Built-in roles are deprecated and the Airflow community recommends custom roles for every user account",
+        "Built-in roles do not work with OAuth authentication so SAML federation breaks for any built-in role user",
+        "Built-in roles cost extra licensing fees in the enterprise edition and the open-source edition lacks them"
+      ],
+      "correctAnswer": "Built-in User can trigger DAGs and view connection strings — too much for an analytics team member",
+      "explanation": "Lesson 2: User can trigger DAGs and view connections. Custom roles restrict to team's namespace. Built-ins serve only as base templates.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS8",
+        "module-AFS8-lesson-02",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS8-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does the DAG factory set `access_control` automatically based on the config's owner_team?",
+      "options": [
+        "Aligns DAG visibility/permissions with the namespace convention and ownership registry — automatic correctness",
+        "Reduces YAML complexity by eliminating the access_control field from the pipeline config schema entirely",
+        "Bypasses the metadata database's RBAC tables for performance reasons by computing permissions in code",
+        "Enables the scheduler to skip RBAC evaluation for factory-generated DAGs since the factory pre-validated"
+      ],
+      "correctAnswer": "Aligns DAG visibility/permissions with the namespace convention and ownership registry — automatic correctness",
+      "explanation": "Lesson 3: namespace + RBAC + access_control work together. Factory enforcement = organizational intent technically enforced at every interaction point.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS8",
+        "module-AFS8-lesson-03",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS8-l04-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does BalticSolar's three-layer data residency design protect against?",
+      "options": [
+        "Even with one layer breached for maintenance, the other layers continue to prevent unauthorized access",
+        "Even when a country regulator audits, the layers reduce the audit's scope to the network layer only",
+        "Even when a country instance crashes, the layers ensure data is replicated to the other countries safely",
+        "Even when a team adds a new connection, the layers automatically apply the correct country prefix to it"
+      ],
+      "correctAnswer": "Even with one layer breached for maintenance, the other layers continue to prevent unauthorized access",
+      "explanation": "Lesson 4: defense in depth. Infrastructure + connection + RBAC. A relaxed VPN tunnel during debugging does not by itself enable cross-country data access.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS8",
+        "module-AFS8-lesson-04",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS8-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How do RBAC and Vault policy cover each other's gaps?",
+      "options": [
+        "RBAC blocks UI/API; Vault policy blocks instance access — bypass UI but Vault token still denies cross-country secrets",
+        "RBAC blocks read access; Vault policy blocks write access — write protection is independent of read controls",
+        "RBAC blocks production; Vault policy blocks staging — environment separation is enforced at both layers",
+        "RBAC blocks deletion; Vault policy blocks creation — lifecycle management is split between two systems"
+      ],
+      "correctAnswer": "RBAC blocks UI/API; Vault policy blocks instance access — bypass UI but Vault token still denies cross-country secrets",
+      "explanation": "Lesson 5: a Lithuanian operator bypassing the UI still cannot read Latvian secrets — Vault token policy denies it. A Vault policy mistake is caught by RBAC.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS8",
+        "module-AFS8-lesson-05",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS8-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Lesson 6 say about when compliance work should happen?",
+      "options": [
+        "Continuously — every DAG deploy with access_control, every credential rotation verified, every CI namespace check",
+        "Quarterly only — focus on quarterly review instead of distracting engineers with day-to-day compliance overhead",
+        "Annually only — once-per-year regulatory submission is sufficient for the platform's compliance requirements",
+        "Reactively — only when the regulator requests evidence, with retroactive compilation of audit data"
+      ],
+      "correctAnswer": "Continuously — every DAG deploy with access_control, every credential rotation verified, every CI namespace check",
+      "explanation": "Lesson 6: compliance is continuous. Quarterly review aggregates continuous actions into a report. If only quarterly = 3 months of latent violations.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS8",
+        "module-AFS8-lesson-06",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS8-l07-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is BalticSolar's tenant onboarding target?",
+      "options": [
+        "1 business day from request to first DAG deploy on staging — automation enables 2-3 hours of platform team work",
+        "1 business week — gives platform team time to manually configure RBAC, secrets, and pools per team",
+        "1 business month — allows for formal training, governance review, and cross-team coordination meetings",
+        "1 business quarter — aligns with the quarterly governance review so onboarding gets full team attention"
+      ],
+      "correctAnswer": "1 business day from request to first DAG deploy on staging — automation enables 2-3 hours of platform team work",
+      "explanation": "Lesson 7: onboarding speed = leading indicator of platform health. If onboarding slows, manual steps have outpaced automation.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS8",
+        "module-AFS8-lesson-07",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS8-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does the subscription registry convert?",
+      "options": [
+        "Invisible cross-tenant Dataset dependencies into explicit, governed, and acknowledged relationships",
+        "Implicit Dataset URIs into explicit Vault paths so each consumer reads through the secrets backend",
+        "Manual cross-tenant data exchanges into REST API calls that the coordinator instance routes by tenant",
+        "Cron-scheduled cross-tenant DAGs into Dataset-triggered DAGs to remove timing assumptions globally"
+      ],
+      "correctAnswer": "Invisible cross-tenant Dataset dependencies into explicit, governed, and acknowledged relationships",
+      "explanation": "Lesson 8: without the registry, you discover cross-tenant deps by breaking them. The registry makes deps documented, change impact assessable, breaking changes coordinated.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS8",
+        "module-AFS8-lesson-08",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS8-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "When is enterprise-grade multi-tenancy NOT justified?",
+      "options": [
+        "Fewer than 3 teams, no regulatory residency requirements, and minimal cross-team dependencies",
+        "Fewer than 10 DAGs because RBAC overhead is high relative to the platform's surface area",
+        "Fewer than 100 users because the audit log volume is too small to justify the warehouse export",
+        "Fewer than 5 external integrations because contract validation is overkill at smaller scales"
+      ],
+      "correctAnswer": "Fewer than 3 teams, no regulatory residency requirements, and minimal cross-team dependencies",
+      "explanation": "Lesson 9: enterprise multi-tenancy at 2-team scale = premature optimization. Governance overhead consumes time that should build pipelines.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS8",
+        "module-AFS8-lesson-09",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS8-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 names three layers of governance. Which set is correct?",
+      "options": [
+        "Technical controls (real-time prevention) + audit (detection) + organizational processes (adaptation)",
+        "Network controls + application controls + data controls — each at a different OSI layer",
+        "Pre-deployment + production + post-incident — each at a different point in the development lifecycle",
+        "Country level + team level + DAG level — each at a different scope of enforcement granularity"
+      ],
+      "correctAnswer": "Technical controls (real-time prevention) + audit (detection) + organizational processes (adaptation)",
+      "explanation": "Lesson 10: prevention + detection + adaptation = immune system. Tech controls alone catch current; all three improve over time.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS8",
+        "module-AFS8-lesson-10",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS9-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the observability challenge at 200+ DAGs?",
+      "options": [
+        "Correlating data that already exists, not collecting more — three signals = one root cause",
+        "Storing more metrics than the local Prometheus can hold within its retention window default",
+        "Renaming legacy metrics to match the alliance-wide observability naming convention going forward",
+        "Replicating dashboards across countries so each country's team has its own copy of every panel"
+      ],
+      "correctAnswer": "Correlating data that already exists, not collecting more — three signals = one root cause",
+      "explanation": "Lesson 1: scheduling delay + DB latency + 15 DAG failures = one cause. Dashboards that show the correlation in 30 seconds vs 30 min of log archaeology.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS9",
+        "module-AFS9-lesson-01",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS9-l02-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is SLA tier assignment governed by the quarterly review rather than self-service?",
+      "options": [
+        "If every team self-assigns platinum, the resource reservation system collapses (priority inflation)",
+        "Self-service SLA tiers violate Lithuanian regulations that require quarterly platform team approval",
+        "Self-service SLA tiers prevent the scheduler from caching priority weights across DagRuns reliably",
+        "Self-service SLA tiers cost an extra licensing fee that the alliance is unwilling to pay annually"
+      ],
+      "correctAnswer": "If every team self-assigns platinum, the resource reservation system collapses (priority inflation)",
+      "explanation": "Lesson 2: tier = resource allocation decision. Higher tier costs other DAGs. Governance prevents priority inflation (Module 3 lesson 9 anti-pattern).",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS9",
+        "module-AFS9-lesson-02",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS9-l03-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What is the purpose of BalticSolar's alert correlation engine?",
+      "options": [
+        "Group related alerts into one incident, route to the right team — prevents 50 alerts from one root cause",
+        "Suppress duplicate alerts by keeping only the highest-severity one within a sliding 5-minute window",
+        "Translate alerts into PagerDuty-format JSON before delivery to the on-call rotation's notification system",
+        "Throttle alert frequency below the regulator's reporting cap of 100 alert events per business day"
+      ],
+      "correctAnswer": "Group related alerts into one incident, route to the right team — prevents 50 alerts from one root cause",
+      "explanation": "Lesson 3: scheduler slow + 15 DAG failures = scheduler is the root cause, not 15 separate incidents. Correlation prevents alert fatigue at platform scale.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS9",
+        "module-AFS9-lesson-03",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS9-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How do detection patterns progress from reactive to predictive?",
+      "options": [
+        "Task failure (reactive) → duration anomaly (proactive) → scheduling drift (predictive)",
+        "Pipeline error (reactive) → SLA breach (proactive) → SLO breach (predictive) — based on customer impact",
+        "Manual triage (reactive) → automated runbooks (proactive) → AI-driven mitigation (predictive)",
+        "Single-DAG (reactive) → multi-DAG (proactive) → cross-instance (predictive) — based on scope of effect"
+      ],
+      "correctAnswer": "Task failure (reactive) → duration anomaly (proactive) → scheduling drift (predictive)",
+      "explanation": "Lesson 4: further upstream = more time to remediate. Reactive catches what already happened; predictive catches what would happen if no action.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS9",
+        "module-AFS9-lesson-04",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS9-l05-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why does BalticSolar's chaos engineering deliberately trigger documented failure modes?",
+      "options": [
+        "Verifies that diagnosis steps work and recovery procedures succeed — playbook assumptions vs production reality",
+        "Generates training data for an LLM that auto-resolves common incidents based on past chaos test outcomes",
+        "Demonstrates resilience to the regulator during the quarterly compliance review with documented evidence",
+        "Reduces the on-call team's monthly compensation since chaos tests count as practice incident response shifts"
+      ],
+      "correctAnswer": "Verifies that diagnosis steps work and recovery procedures succeed — playbook assumptions vs production reality",
+      "explanation": "Lesson 5: 'systemctl restart' is useless if pods don't have systemd. Chaos tests catch playbook-vs-reality gaps. Update the playbook from each test.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS9",
+        "module-AFS9-lesson-05",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS9-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does BalticSolar's blameless post-mortem principle redirect investigation toward?",
+      "options": [
+        "From 'who made the mistake' to 'what system allowed the mistake to reach production'",
+        "From 'when did this happen' to 'how often has this happened in the last quarter at the platform'",
+        "From 'why did this happen' to 'what monetary impact did this have on the alliance's quarterly budget'",
+        "From 'how was this fixed' to 'who got paged about this and how quickly did they respond'"
+      ],
+      "correctAnswer": "From 'who made the mistake' to 'what system allowed the mistake to reach production'",
+      "explanation": "Lesson 6: 'engineer deployed bad config' is blame. 'CI didn't validate config against schema' is systemic. Systemic findings produce durable improvements.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS9",
+        "module-AFS9-lesson-06",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS9-l07-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why did BalticSolar wait until Month 6 to start chaos engineering?",
+      "options": [
+        "Prerequisites: platform observability, alerting, playbooks, post-mortem process — all four operational first",
+        "Lithuanian regulators required formal approval for chaos testing in production-grade systems",
+        "The platform team's headcount only reached the threshold needed to run chaos exercises in Month 6",
+        "Apache Airflow added native chaos engineering support in version 2.7 which BalticSolar adopted in Month 6"
+      ],
+      "correctAnswer": "Prerequisites: platform observability, alerting, playbooks, post-mortem process — all four operational first",
+      "explanation": "Lesson 7: chaos without observability/alerting/playbooks is just chaos. Damages confidence rather than building it. Wait until the prerequisites work.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS9",
+        "module-AFS9-lesson-07",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS9-l08-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Why are capacity incidents fully predictable?",
+      "options": [
+        "Resource consumption trends are visible in monitoring, growth rates calculable, threshold dates projectable",
+        "Capacity incidents require an external trigger that the platform always logs in advance via StatsD",
+        "Capacity incidents only happen during business hours so the on-call team can prepare each morning shift",
+        "Capacity incidents are scheduled by the platform team at a fixed cadence to test resilience"
+      ],
+      "correctAnswer": "Resource consumption trends are visible in monitoring, growth rates calculable, threshold dates projectable",
+      "explanation": "Lesson 8: a capacity incident means trends were visible, threshold projectable, and team did not act. Forecasting + quarterly review = organizationally impossible.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS9",
+        "module-AFS9-lesson-08",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS9-l09-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why does an alert without a documented response action damage the alerting system?",
+      "options": [
+        "Trains the engineer to ignore alerts — alert fatigue spiral is hard to reverse once it starts",
+        "Violates the regulator's audit requirement that every alert have a documented owner per incident",
+        "Slows the scheduler because the alerter holds a database row lock during alert generation overhead",
+        "Increases the cost of PagerDuty because the per-alert pricing tier scales with the response time"
+      ],
+      "correctAnswer": "Trains the engineer to ignore alerts — alert fatigue spiral is hard to reverse once it starts",
+      "explanation": "Lesson 9: every ignored alert makes the next 5% more likely to be ignored. Engineer learns 'probably another false positive'. Spiral is hard to reverse.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS9",
+        "module-AFS9-lesson-09",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS9-l10-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "Lesson 10 calls observability what part of the platform?",
+      "options": [
+        "The nervous system — sensory network that detects pain, reports it, enables reflexive response",
+        "The heart — pumps metrics through the platform so each component receives operational data",
+        "The skeleton — provides structure that holds the platform's components in their proper places",
+        "The skin — the outer surface that protects the platform from environmental factors externally"
+      ],
+      "correctAnswer": "The nervous system — sensory network that detects pain, reports it, enables reflexive response",
+      "explanation": "Lesson 10: architecture = skeleton. Factory + scheduling = muscle. Database + scheduler = brain. Governance = immune system. Observability = nervous system.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS9",
+        "module-AFS9-lesson-10",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS10-l01-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Lesson 1 say about platform architecture phases?",
+      "options": [
+        "Architectures fit current scale; phases are natural consequences of growth — not failures of the previous design",
+        "Architectures are stable for 5+ years; phase transitions only occur due to major regulatory changes",
+        "Architectures should be designed for the imagined final state to avoid costly rewrites later",
+        "Architectures must change every quarter to stay current with the latest Airflow community recommendations"
+      ],
+      "correctAnswer": "Architectures fit current scale; phases are natural consequences of growth — not failures of the previous design",
+      "explanation": "Lesson 1: don't over-engineer for 1000 DAGs at 200 scale. Senior engineers design for current scale + awareness of next inflection.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS10",
+        "module-AFS10-lesson-01",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS10-l02-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "Why is BalticSolar's 48-hour canary window for Airflow upgrades not optional?",
+      "options": [
+        "Two issues in 4 upgrades that would have hit all 3 instances simultaneously were caught on Lithuanian canary",
+        "Lithuanian regulations mandate a 48-hour proving period before any version change becomes effective",
+        "Apache Airflow's release notes require canary deployment and the community refuses support otherwise",
+        "The metadata database's replication lag is exactly 48 hours so the DB is never consistent before then"
+      ],
+      "correctAnswer": "Two issues in 4 upgrades that would have hit all 3 instances simultaneously were caught on Lithuanian canary",
+      "explanation": "Lesson 2: canary on LT, evaluate, then LV/EE. Caught Dataset trigger dedup change (15 DAGs) and PgBouncer exhaustion. Both prevented alliance-wide breaches.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS10",
+        "module-AFS10-lesson-02",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS10-l03-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What partnership produces realistic capacity plans?",
+      "options": [
+        "Engineering provides forecasts and cost models; finance provides budget envelope and prioritization criteria",
+        "Engineering provides the entire plan; finance signs off on whatever number engineering puts forward",
+        "Engineering follows finance's budget cap; the team scales infrastructure to whatever budget finance grants",
+        "Engineering and finance produce independent plans; whoever's number is lower wins for the next fiscal year"
+      ],
+      "correctAnswer": "Engineering provides forecasts and cost models; finance provides budget envelope and prioritization criteria",
+      "explanation": "Lesson 3: engineering alone = no business justification. Finance alone = no engineering reality. Quarterly review with both teams + shared budget model.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS10",
+        "module-AFS10-lesson-03",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS10-l04-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "How does DAG deprecation parallel API deprecation?",
+      "options": [
+        "Announce → migration path → monitor adoption → remove only after all consumers have migrated",
+        "Pause immediately → wait one week → delete forcibly so consumers learn to keep their tooling current",
+        "Mark as deprecated in code → ignore until the next major version → bulk-remove during the upgrade",
+        "Reroute traffic to a new DAG name → keep the old one running indefinitely as a permanent fallback"
+      ],
+      "correctAnswer": "Announce → migration path → monitor adoption → remove only after all consumers have migrated",
+      "explanation": "Lesson 4: 90-day window + consumer tracking. Removing before all consumers migrated = data platform's equivalent of breaking a production API.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS10",
+        "module-AFS10-lesson-04",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS10-l05-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does Lesson 5 warn about missing ADRs?",
+      "options": [
+        "An ADR from Month 3 cannot be accurately written in Month 12 — context, alternatives, rationale fade",
+        "An ADR from Month 3 cannot be approved by the regulator without the engineer's contemporaneous signature",
+        "An ADR from Month 3 must be re-written every quarter to stay aligned with current platform practices",
+        "An ADR from Month 3 is automatically deleted by the document store's retention policy after 9 months"
+      ],
+      "correctAnswer": "An ADR from Month 3 cannot be accurately written in Month 12 — context, alternatives, rationale fade",
+      "explanation": "Lesson 5: documentation debt past a point cannot be recovered. Quarterly completeness scoring with dedicated catch-up sprints prevents this.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS10",
+        "module-AFS10-lesson-05",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS10-l06-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What is the measure of a mature platform team?",
+      "options": [
+        "How many DAGs other teams can build without them — independence enabled, not dependence created",
+        "How many DAGs the platform team itself builds per quarter for downstream consumer teams",
+        "How many incidents the platform team resolves single-handedly without escalating to other teams",
+        "How many Apache Airflow contributions the platform team makes to the upstream community per year"
+      ],
+      "correctAnswer": "How many DAGs other teams can build without them — independence enabled, not dependence created",
+      "explanation": "Lesson 6: a team that builds for 10 teams creates a dependency. A team that builds the factory + CI + monitoring + onboarding creates independence.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS10",
+        "module-AFS10-lesson-06",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS10-l07-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What did BalticSolar's first DR test reveal about backups?",
+      "options": [
+        "Backup worked at staging size; restoration script timed out at production volume — backup ≠ restoration",
+        "Backup worked but the encryption key was lost — restoration succeeded but data was unreadable afterward",
+        "Backup worked but the Airflow version had advanced — restoration succeeded but DAGs failed to parse",
+        "Backup worked but the disk filled up — restoration was incomplete because the staging disk was too small"
+      ],
+      "correctAnswer": "Backup worked at staging size; restoration script timed out at production volume — backup ≠ restoration",
+      "explanation": "Lesson 7: untested DR is hope. Production-volume rehearsal proves the procedure works at scale, not just that backups exist.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS10",
+        "module-AFS10-lesson-07",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS10-l08-001",
+      "topic": "airflow",
+      "difficulty": "hard",
+      "type": "multiple-choice",
+      "question": "What does BalticSolar's tool-agnostic governance framework enable?",
+      "options": [
+        "Migration changes the implementation, not the organization — RBAC, SLA tiers, contracts transfer to a new tool",
+        "Migration changes the organization, not the implementation — the platform's components stay in place forever",
+        "Migration becomes impossible because the platform is now too tightly coupled to Airflow's specific features",
+        "Migration becomes automated by the cloud provider's tooling without human involvement at the platform layer"
+      ],
+      "correctAnswer": "Migration changes the implementation, not the organization — RBAC, SLA tiers, contracts transfer to a new tool",
+      "explanation": "Lesson 8: governance describes WHAT the platform does, not HOW Airflow implements it. Hypothetical migration changes implementation while governance survives.",
+      "xpReward": 120,
+      "tags": [
+        "module-AFS10",
+        "module-AFS10-lesson-08",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS10-l09-001",
+      "topic": "airflow",
+      "difficulty": "medium",
+      "type": "multiple-choice",
+      "question": "What does Lesson 9 say is the most durable contribution of a senior engineer?",
+      "options": [
+        "Organizational artifacts (ADRs, onboarding docs, governance, team structure) outlast personnel changes",
+        "Technical artifacts (factory code, scheduling architecture, observability dashboards) define the platform",
+        "Cost reductions (dependency retirement, efficiency optimizations, vendor renegotiations) prove value",
+        "Open-source contributions (PRs to Apache Airflow, custom executors, plugins) credit the engineer's career"
+      ],
+      "correctAnswer": "Organizational artifacts (ADRs, onboarding docs, governance, team structure) outlast personnel changes",
+      "explanation": "Lesson 9: tech artifacts collapse without org context. Platform that evolves after architect leaves = well-designed organization, not just well-coded software.",
+      "xpReward": 80,
+      "tags": [
+        "module-AFS10",
+        "module-AFS10-lesson-09",
+        "airflow-senior"
+      ]
+    },
+    {
+      "id": "airflow-AFS10-l10-001",
+      "topic": "airflow",
+      "difficulty": "easy",
+      "type": "multiple-choice",
+      "question": "Lesson 10 frames the journey from platform engineer to platform architect. What does the architect now know how to do?",
+      "options": [
+        "Design the platform that makes DAG dev/deploy/ops reliable for 10 teams across 3 countries",
+        "Write better DAGs than every other engineer in the alliance using advanced TaskFlow patterns and decorators",
+        "Operate the existing Airflow installation without ever needing to escalate incidents to the platform team",
+        "Configure Kubernetes clusters and PostgreSQL replicas without involving the infrastructure team for changes"
+      ],
+      "correctAnswer": "Design the platform that makes DAG dev/deploy/ops reliable for 10 teams across 3 countries",
+      "explanation": "Lesson 10: arch from M1, factory M2, scheduling M3, executor M4, integration M5, scheduler M6, DB M7, governance M8, observability M9, lifecycle M10 = complete toolkit.",
+      "xpReward": 40,
+      "tags": [
+        "module-AFS10",
+        "module-AFS10-lesson-10",
+        "airflow-senior"
+      ]
     }
   ]
 }
