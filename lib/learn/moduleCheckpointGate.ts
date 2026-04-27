@@ -3,6 +3,7 @@ import airflowQuestions from '@/data/questions/airflow.json';
 import fabricQuestions from '@/data/questions/fabric.json';
 import pysparkQuestions from '@/data/questions/pyspark.json';
 import pythonQuestions from '@/data/questions/python.json';
+import sqlQuestions from '@/data/questions/sql.json';
 
 interface QuestionPayload {
   questions?: Question[];
@@ -13,6 +14,7 @@ const QUESTION_BANKS: Record<string, Question[]> = {
   fabric: (fabricQuestions as QuestionPayload).questions ?? [],
   airflow: (airflowQuestions as QuestionPayload).questions ?? [],
   'python-de': (pythonQuestions as QuestionPayload).questions ?? [],
+  sql: (sqlQuestions as QuestionPayload).questions ?? [],
 };
 
 export const CHECKPOINT_PASS_RATIO = 0.9;
