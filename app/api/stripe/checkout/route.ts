@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      mode: 'subscription',
+      mode: 'payment',
       line_items: [
         {
           price: priceId,
@@ -99,7 +99,13 @@ export async function POST(request: Request) {
       ],
       success_url: `${origin}/settings?tab=billing&success=1`,
       cancel_url: `${origin}/settings?tab=billing`,
-      subscription_data: {
+      // Track the user on both the session and the underlying payment intent
+      // so the webhook can map the purchase back to a Supabase user even if
+      // Stripe's customer object is not yet persisted in our DB.
+      metadata: {
+        user_id: user.id
+      },
+      payment_intent_data: {
         metadata: {
           user_id: user.id
         }

@@ -121,7 +121,7 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
       `}</style>
       <SettingsCard
         title="Current Plan"
-        description="Support the build — €2.99/month in beta gets you everything."
+        description="Support the build — €14.99 one-time in beta gets you lifetime access."
         icon={<CreditCard className="h-4 w-4" />}
       >
         <div
@@ -188,8 +188,8 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
                   {isPaid
                     ? renewalText
                       ? `Renews on ${renewalText}. Cancel anytime.`
-                      : 'Your Supporter plan is active. Cancel anytime.'
-                    : 'Back the beta to keep the build going — locked-in pricing for life.'}
+                      : 'Lifetime supporter — paid once, no renewals.'
+                    : 'Back the beta to keep the build going — pay once, lifetime access.'}
                 </p>
               </div>
               <div className="shrink-0 text-right">
@@ -202,7 +202,7 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
                     lineHeight: 1
                   }}
                 >
-                  {isPaid ? '€2.99' : '€0'}
+                  {isPaid ? '€14.99' : '€0'}
                 </p>
                 <p
                   className="mt-1 font-mono"
@@ -214,7 +214,7 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
                     fontWeight: 700
                   }}
                 >
-                  {isPaid ? '/ month' : 'forever'}
+                  {isPaid ? 'lifetime' : 'forever'}
                 </p>
               </div>
             </div>
@@ -295,7 +295,7 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
                   }}
                 >
                   <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
-                  {loading === 'upgrade' ? 'Redirecting…' : 'Back the beta · €2.99/month'}
+                  {loading === 'upgrade' ? 'Redirecting…' : 'Back the beta · €14.99 once'}
                 </button>
               ) : (
                 <>
@@ -325,30 +325,36 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
                       e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
                     }}
                   >
-                    {loading === 'portal' ? 'Redirecting…' : 'Manage subscription'}
+                    {loading === 'portal'
+                      ? 'Redirecting…'
+                      : subscription?.stripe_sub_id
+                        ? 'Manage subscription'
+                        : 'View receipts'}
                     <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setCancelOpen(true)}
-                    className="font-mono transition-colors"
-                    style={{
-                      fontSize: 10.5,
-                      letterSpacing: '0.22em',
-                      color: 'rgba(255,255,255,0.3)',
-                      textTransform: 'uppercase',
-                      fontWeight: 700,
-                      padding: '6px 4px'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.color = 'rgba(255,113,108,0.85)';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.color = 'rgba(255,255,255,0.3)';
-                    }}
-                  >
-                    Cancel subscription
-                  </button>
+                  {subscription?.stripe_sub_id ? (
+                    <button
+                      type="button"
+                      onClick={() => setCancelOpen(true)}
+                      className="font-mono transition-colors"
+                      style={{
+                        fontSize: 10.5,
+                        letterSpacing: '0.22em',
+                        color: 'rgba(255,255,255,0.3)',
+                        textTransform: 'uppercase',
+                        fontWeight: 700,
+                        padding: '6px 4px'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.color = 'rgba(255,113,108,0.85)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.color = 'rgba(255,255,255,0.3)';
+                      }}
+                    >
+                      Cancel subscription
+                    </button>
+                  ) : null}
                 </>
               )}
             </div>

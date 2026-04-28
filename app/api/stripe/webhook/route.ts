@@ -171,6 +171,16 @@ export async function POST(request: Request) {
     const identifiers = getSubscriptionIdentifiers(subscription);
     customerId = identifiers.customerId;
     subscriptionId = identifiers.subscriptionId;
+  } else if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session;
+    customerId =
+      typeof session.customer === 'string'
+        ? session.customer
+        : session.customer?.id ?? null;
+    subscriptionId =
+      typeof session.subscription === 'string'
+        ? session.subscription
+        : session.subscription?.id ?? null;
   }
 
   try {
@@ -292,10 +302,78 @@ export async function POST(request: Request) {
       }
     }
 
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session;
+
+      // Subscription-mode sessions are handled by customer.subscription.*
+      // events; only one-off (mode === 'payment') needs work here.
+      if (session.mode !== 'payment') {
+        await finishWebhookEventProcessing(admin, event.id, 'skipped', {
+          skipReason: `Skipped checkout.session for mode: ${session.mode}`
+        });
+        return NextResponse.json({ received: true });
+      }
+
+      if (session.payment_status !== 'paid') {
+        await finishWebhookEventProcessing(admin, event.id, 'skipped', {
+          skipReason: `Skipped checkout.session with payment_status: ${session.payment_status}`
+        });
+        return NextResponse.json({ received: true });
+      }
+
+      const sessionCustomerId =
+        typeof session.customer === 'string'
+          ? session.customer
+          : session.customer?.id ?? null;
+
+      if (!sessionCustomerId) {
+        await finishWebhookEventProcessing(admin, event.id, 'skipped', {
+          skipReason: 'Missing Stripe customer id on session.'
+        });
+        return NextResponse.json({ received: true });
+      }
+
+      // Prefer metadata (set at checkout creation) over the customer→user
+      // lookup so first-time purchases work even before the row is upserted.
+      const userId =
+        (session.metadata?.user_id as string | undefined) ??
+        (await getUserIdFromCustomer(admin, sessionCustomerId));
+
+      if (!userId) {
+        await finishWebhookEventProcessing(admin, event.id, 'skipped', {
+          skipReason: 'No user mapping for Stripe customer.'
+        });
+        return NextResponse.json({ received: true });
+      }
+
+      // Lifetime supporter — no recurring subscription, no expiry.
+      const { error } = await admin.from('subscriptions').upsert(
+        {
+          user_id: userId,
+          stripe_customer_id: sessionCustomerId,
+          stripe_sub_id: null,
+          plan: 'supporter',
+          status: 'active',
+          current_period_end: null,
+          stripe_last_event_id: event.id,
+          stripe_last_event_created_at: eventCreatedAtIso,
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'user_id' }
+      );
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      await finishWebhookEventProcessing(admin, event.id, 'processed');
+    }
+
     if (
       event.type !== 'customer.subscription.created' &&
       event.type !== 'customer.subscription.updated' &&
-      event.type !== 'customer.subscription.deleted'
+      event.type !== 'customer.subscription.deleted' &&
+      event.type !== 'checkout.session.completed'
     ) {
       await finishWebhookEventProcessing(admin, event.id, 'skipped', {
         skipReason: `Unhandled Stripe event type: ${event.type}`
