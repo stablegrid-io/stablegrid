@@ -14,7 +14,6 @@ import {
   RotateCcw,
   Eye,
   ArrowRight,
-  Trophy,
   Target,
 } from 'lucide-react';
 import type { PracticeSet, PracticeTask, TemplateField } from '@/data/operations/practice-sets';
@@ -51,6 +50,12 @@ const SplitPanelCodeTask = dynamic(
 const ACCENT = '153,247,255';
 const GREEN = '34,197,94';
 const RED = '239,68,68';
+
+/* Theme-aware feedback colors — adapt per reading mode (defined in
+   globals.css). Use these for any results / breakdown surface so contrast
+   holds on light, book and kindle modes. */
+const SUCCESS_RGB = 'var(--rm-success-rgb)';
+const ERROR_RGB = 'var(--rm-error-rgb)';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -281,15 +286,15 @@ function ProgressDots({
 
         if (isChecked && isSelfReview) {
           // Code task — submitted but not machine-validated. Neutral, not green.
-          bg = 'rgba(255,255,255,0.35)';
+          bg = 'var(--rm-text-secondary)';
           border = 'transparent';
           size = 'w-2.5 h-2.5';
         } else if (isChecked && isCorrect) {
-          bg = `rgb(${GREEN})`;
+          bg = `rgb(${SUCCESS_RGB})`;
           border = 'transparent';
           size = 'w-2.5 h-2.5';
         } else if (isChecked && !isCorrect) {
-          bg = `rgb(${RED})`;
+          bg = `rgb(${ERROR_RGB})`;
           border = 'transparent';
           size = 'w-2.5 h-2.5';
         } else if (isCurrent) {
@@ -551,6 +556,42 @@ function TaskScreen({
         return val && val.length > 0;
       });
 
+  // Sentinel at the top of the task viewport. `scrollIntoView` walks up to the
+  // nearest scrollable ancestor and scrolls *that* — works correctly whether
+  // the practice session lives inside a checkpoint shell (overflow-y-auto
+  // wrapper) or the legacy full-page route (window scroll). `window.scrollTo`
+  // is a no-op inside the checkpoint shell because the body never scrolls.
+  const topSentinelRef = React.useRef<HTMLDivElement>(null);
+  const scrollToTop = useCallback(() => {
+    topSentinelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  // Auto-focus the primary action button as it becomes actionable, so Enter
+  // naturally advances the quiz without users needing to Tab. Selecting the
+  // last unanswered option lights up Check Answer; clicking Check Answer
+  // promotes Continue / See Results into focus. Restricted to MCQ-only tasks
+  // because code tasks have their own keyboard shortcut (Cmd/Ctrl+Enter to
+  // run) and competing focus would surprise users mid-typing.
+  const checkBtnRef = React.useRef<HTMLButtonElement>(null);
+  const continueBtnRef = React.useRef<HTMLButtonElement>(null);
+  const prevAllFilledRef = React.useRef(allFieldsFilled);
+  const prevCheckedRef = React.useRef(taskState.checked);
+  useEffect(() => {
+    if (!isMcqOnlyTask || state.isReview) {
+      prevAllFilledRef.current = allFieldsFilled;
+      prevCheckedRef.current = taskState.checked;
+      return;
+    }
+    if (!prevAllFilledRef.current && allFieldsFilled && !taskState.checked) {
+      checkBtnRef.current?.focus({ preventScroll: true });
+    }
+    if (!prevCheckedRef.current && taskState.checked) {
+      continueBtnRef.current?.focus({ preventScroll: true });
+    }
+    prevAllFilledRef.current = allFieldsFilled;
+    prevCheckedRef.current = taskState.checked;
+  }, [allFieldsFilled, taskState.checked, isMcqOnlyTask, state.isReview]);
+
   const handleCheck = useCallback(() => {
     dispatch({ type: 'CHECK_ANSWERS', tasks });
   }, [dispatch, tasks]);
@@ -565,18 +606,18 @@ function TaskScreen({
     } else {
       dispatch({ type: 'NEXT_TASK' });
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [dispatch, isLast, practiceSet]);
+    scrollToTop();
+  }, [dispatch, isLast, practiceSet, scrollToTop]);
 
   const handlePrev = useCallback(() => {
     dispatch({ type: 'PREV_TASK' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [dispatch]);
+    scrollToTop();
+  }, [dispatch, scrollToTop]);
 
   const handleNavigate = useCallback((index: number) => {
     dispatch({ type: 'GO_TO_TASK', index });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [dispatch]);
+    scrollToTop();
+  }, [dispatch, scrollToTop]);
 
   const handleAnswerChange = useCallback((fieldId: string, value: string) => {
     dispatch({ type: 'SET_ANSWER', taskIndex: state.currentTaskIndex, fieldId, value });
@@ -588,6 +629,7 @@ function TaskScreen({
       className={useFixedFocusOverlay ? 'fixed inset-0 z-40 overflow-y-auto' : ''}
       style={{ backgroundColor: 'var(--rm-bg, transparent)' }}
     >
+    <div ref={topSentinelRef} aria-hidden />
     <div className={`relative mx-auto w-[85%] py-8 lg:py-12 ${useFixedFocusOverlay ? 'min-h-screen' : ''} ${isMcqOnlyTask ? 'min-h-full flex flex-col justify-center' : ''}`}>
 
       {/* Floating controls — visible in focus mode */}
@@ -724,6 +766,7 @@ function TaskScreen({
                 in both dark and light themes). */}
             {!isCodeTask && !state.isReview && !taskState.checked && (
               <button
+                ref={checkBtnRef}
                 onClick={handleCheck}
                 disabled={!allFieldsFilled}
                 className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
@@ -741,6 +784,7 @@ function TaskScreen({
             {(isCodeTask || taskState.checked || state.isReview) && (
               !isLast ? (
                 <button
+                  ref={continueBtnRef}
                   onClick={handleNext}
                   className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                   style={{
@@ -754,6 +798,7 @@ function TaskScreen({
                 </button>
               ) : (
                 <button
+                  ref={continueBtnRef}
                   onClick={handleNext}
                   className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                   style={{
@@ -813,33 +858,34 @@ function ResultsBreakdownRow({
     >
       <button
         onClick={() => setExpanded((p) => !p)}
-        className="w-full text-left px-5 py-4 flex items-center gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+        className="w-full text-left px-5 py-4 flex items-center gap-4 cursor-pointer transition-all duration-200 hover:brightness-[1.04]"
       >
         {/* Status icon */}
         <div
           className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0"
           style={{
             background: isSelfReview
-              ? 'rgba(255,255,255,0.06)'
+              ? 'var(--rm-bg)'
               : taskState.allCorrect
-                ? `rgba(${GREEN},0.08)`
-                : `rgba(${RED},0.08)`,
+                ? `rgba(${SUCCESS_RGB},0.12)`
+                : `rgba(${ERROR_RGB},0.12)`,
+            border: isSelfReview ? '1px solid var(--rm-border)' : 'none',
           }}
         >
           {isSelfReview ? (
-            <Eye className="h-3.5 w-3.5" style={{ color: 'rgba(255,255,255,0.5)' }} />
+            <Eye className="h-3.5 w-3.5" style={{ color: 'var(--rm-text-secondary)' }} />
           ) : taskState.allCorrect ? (
-            <Check className="h-3.5 w-3.5" style={{ color: `rgb(${GREEN})` }} />
+            <Check className="h-3.5 w-3.5" style={{ color: `rgb(${SUCCESS_RGB})` }} />
           ) : (
-            <X className="h-3.5 w-3.5" style={{ color: `rgb(${RED})` }} />
+            <X className="h-3.5 w-3.5" style={{ color: `rgb(${ERROR_RGB})` }} />
           )}
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-medium text-white/80 truncate">
+          <div className="text-[13px] font-medium truncate" style={{ color: 'var(--rm-text)' }}>
             Task {index + 1}: {task.title}
           </div>
-          <div className="text-[11px] text-white/25 mt-0.5">
+          <div className="text-[11px] mt-0.5" style={{ color: 'var(--rm-text-secondary)' }}>
             {isSelfReview
               ? 'Submitted — review your output'
               : `${correctFields}/${totalFields} fields correct`}
@@ -847,9 +893,9 @@ function ResultsBreakdownRow({
         </div>
 
         {expanded ? (
-          <ChevronDown className="h-4 w-4 shrink-0 text-white/20" />
+          <ChevronDown className="h-4 w-4 shrink-0" style={{ color: 'var(--rm-text-secondary)' }} />
         ) : (
-          <ChevronRight className="h-4 w-4 shrink-0 text-white/20" />
+          <ChevronRight className="h-4 w-4 shrink-0" style={{ color: 'var(--rm-text-secondary)' }} />
         )}
       </button>
 
@@ -862,7 +908,7 @@ function ResultsBreakdownRow({
             const answer = taskState.answers[field.id];
             const isCorrect = answer?.result === true;
             const correctValue = getCorrectValue(field);
-            const tint = isCorrect ? GREEN : RED;
+            const tint = isCorrect ? SUCCESS_RGB : ERROR_RGB;
             const toleranceHint =
               field.type === 'numeric' && (field.tolerance ?? 0) > 0
                 ? ` (±${field.tolerance})`
@@ -877,26 +923,26 @@ function ResultsBreakdownRow({
                 key={field.id}
                 className="rounded-lg px-4 py-3 mt-2"
                 style={{
-                  background: `rgba(${tint},0.03)`,
-                  border: `1px solid rgba(${tint},0.08)`,
+                  background: `rgba(${tint},0.06)`,
+                  border: `1px solid rgba(${tint},0.16)`,
                 }}
               >
-                <div className="text-[11px] text-white/30 mb-1.5">{field.label}</div>
+                <div className="text-[11px] mb-1.5" style={{ color: 'var(--rm-text-secondary)' }}>{field.label}</div>
                 <div className="flex items-start gap-2">
                   {isCorrect ? (
-                    <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: `rgb(${GREEN})` }} />
+                    <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: `rgb(${SUCCESS_RGB})` }} />
                   ) : (
-                    <X className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: `rgb(${RED})` }} />
+                    <X className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: `rgb(${ERROR_RGB})` }} />
                   )}
                   <div className="text-[12px] min-w-0">
-                    <div style={{ color: `rgba(${tint},0.8)` }}>
+                    <div style={{ color: `rgb(${tint})`, fontWeight: 500 }}>
                       {answer?.value || '(no answer)'}
                     </div>
                     {!isCorrect && (
-                      <div className="mt-1.5" style={{ color: `rgba(${GREEN},0.6)` }}>
+                      <div className="mt-1.5" style={{ color: `rgb(${SUCCESS_RGB})` }}>
                         Correct: {correctValue}{toleranceHint}
                         {acceptedAlternates.length > 0 && (
-                          <span className="block text-[11px] mt-0.5" style={{ color: `rgba(${GREEN},0.45)` }}>
+                          <span className="block text-[11px] mt-0.5" style={{ color: 'var(--rm-text-secondary)' }}>
                             Also accepted: {acceptedAlternates.join(', ')}
                           </span>
                         )}
@@ -910,6 +956,66 @@ function ResultsBreakdownRow({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Stable-grid mark with the same staggered L-charge fill animation as the
+ * pre-checkpoint interstitial — so the user sees the brand mark "complete
+ * itself" once when results mount, mirroring the entrance from the start of
+ * the run. The four active cells fill sequentially over ~600ms, then hold.
+ */
+function ResultsLogoMark({ tint }: { tint?: string }) {
+  const stroke = tint ? `rgb(${tint})` : 'currentColor';
+  const fill = tint ? `rgb(${tint})` : 'currentColor';
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      width="32"
+      height="32"
+      fill="none"
+      aria-hidden="true"
+      className="sg-results-mark"
+    >
+      <g stroke={stroke} strokeWidth="2.5">
+        <rect x="15" y="15" width="22" height="22" rx="3" />
+        <rect x="41" y="15" width="22" height="22" rx="3" />
+        <rect x="67" y="15" width="22" height="22" rx="3" />
+        <rect x="15" y="41" width="22" height="22" rx="3" />
+        <rect x="41" y="41" width="22" height="22" rx="3" strokeOpacity="0.45" />
+        <rect x="67" y="41" width="22" height="22" rx="3" strokeOpacity="0.45" />
+        <rect x="15" y="67" width="22" height="22" rx="3" strokeOpacity="0.45" />
+        <rect x="41" y="67" width="22" height="22" rx="3" strokeOpacity="0.45" />
+        <rect x="67" y="67" width="22" height="22" rx="3" strokeOpacity="0.45" />
+      </g>
+      <g fill={fill}>
+        <rect className="sg-rf0" x="19" y="19" width="14" height="14" rx="2" opacity="0" />
+        <rect className="sg-rf1" x="45" y="19" width="14" height="14" rx="2" opacity="0" />
+        <rect className="sg-rf2" x="71" y="19" width="14" height="14" rx="2" opacity="0" />
+        <rect className="sg-rf3" x="19" y="45" width="14" height="14" rx="2" opacity="0" />
+      </g>
+      <style jsx>{`
+        @keyframes sg-results-fill {
+          from { opacity: 0; transform: scale(0.85); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        .sg-results-mark rect[class^='sg-rf'] {
+          transform-origin: center;
+          transform-box: fill-box;
+          animation: sg-results-fill 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .sg-results-mark .sg-rf0 { animation-delay: 0.1s; }
+        .sg-results-mark .sg-rf1 { animation-delay: 0.22s; }
+        .sg-results-mark .sg-rf2 { animation-delay: 0.34s; }
+        .sg-results-mark .sg-rf3 { animation-delay: 0.46s; }
+        @media (prefers-reduced-motion: reduce) {
+          .sg-results-mark rect[class^='sg-rf'] {
+            animation: none;
+            opacity: 1;
+          }
+        }
+      `}</style>
+    </svg>
   );
 }
 
@@ -994,35 +1100,77 @@ function ResultsScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Apple-minimalistic action button styles. The primary CTA inverts heading
+  // text against the background — works across every reading mode (white pill
+  // on dark, near-black pill on light) without any per-mode overrides.
+  const primaryBtn =
+    'rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2';
+  const primaryBtnStyle: React.CSSProperties = {
+    background: 'var(--rm-text-heading)',
+    color: 'var(--rm-bg)',
+    border: '1px solid var(--rm-text-heading)',
+  };
+  const secondaryBtn =
+    'rounded-[14px] py-3.5 text-[13px] font-medium transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:brightness-[1.06] focus-visible:ring-2 focus-visible:ring-offset-2';
+  const secondaryBtnStyle: React.CSSProperties = {
+    background: 'var(--rm-bg-elevated)',
+    border: '1px solid var(--rm-border)',
+    color: 'var(--rm-text)',
+  };
+
+  const encouragement = isCheckpoint
+    ? checkpointPassed
+      ? `You cleared the ${passingThreshold}% threshold. The next module is now unlocked.`
+      : `You need ${passingThreshold}% to unlock the next module. Review the missed questions, then try again — questions are reshuffled on each attempt.`
+    : scorePercent === 100
+      ? 'Perfect score. Every field correct.'
+      : scorePercent >= 80
+        ? 'Strong performance. Review the few you missed to lock in your understanding.'
+        : scorePercent >= 60
+          ? 'Solid foundation. Review the missed questions and try again for a higher score.'
+          : 'Good start. Take time to review the explanations, then give it another attempt.';
+
+  const closeHref = checkpointMode?.returnHref ?? buildTrackMapPath(practiceSet);
+
   return (
-    <div className="relative mx-auto max-w-5xl px-6 py-16 sm:px-8 lg:py-24">
+    <div className="relative mx-auto max-w-6xl px-6 py-16 sm:px-8 lg:py-20">
+      {/* Two-column dashboard layout: summary + actions on the left, per-task
+          breakdown on the right. Stacks vertically below lg so mobile users
+          see the score first, then drill into the breakdown. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-12 lg:gap-16 items-start">
       {/* Score section */}
       <div
-        className="text-center mb-16"
+        className="text-center lg:sticky lg:top-8"
         style={{
           opacity: 0,
           animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         }}
       >
-        {/* Icon */}
-        <div className="flex justify-center mb-6">
+        {/* Brand mark — same L-charge fill animation as the pre-checkpoint
+            interstitial, replayed once on results mount. Closes the loop:
+            user enters with the mark animating, exits with it animating. */}
+        <div className="flex justify-center mb-7">
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center"
             style={{
-              background: isGoodScore ? `rgba(${GREEN},0.08)` : `rgba(${ACCENT},0.08)`,
-              border: `1px solid ${isGoodScore ? `rgba(${GREEN},0.12)` : `rgba(${ACCENT},0.12)`}`,
+              background: isGoodScore
+                ? `rgba(${SUCCESS_RGB},0.1)`
+                : 'var(--rm-bg-elevated)',
+              border: isGoodScore
+                ? `1px solid rgba(${SUCCESS_RGB},0.2)`
+                : '1px solid var(--rm-border)',
+              color: isGoodScore ? `rgb(${SUCCESS_RGB})` : 'var(--rm-text-secondary)',
             }}
           >
-            {isGoodScore ? (
-              <Trophy className="h-6 w-6" style={{ color: `rgb(${GREEN})` }} />
-            ) : (
-              <Target className="h-6 w-6" style={{ color: `rgb(${ACCENT})` }} />
-            )}
+            <ResultsLogoMark tint={isGoodScore ? SUCCESS_RGB : undefined} />
           </div>
         </div>
 
-        {/* Message */}
-        <p className="text-[13px] text-white/30 mb-3 uppercase tracking-[0.12em] font-medium">
+        {/* Eyebrow label */}
+        <p
+          className="text-[11px] mb-5 uppercase tracking-[0.16em] font-semibold"
+          style={{ color: 'var(--rm-text-secondary)' }}
+        >
           {isCheckpoint
             ? checkpointPassed
               ? `${checkpointMode?.resultsHeading ?? 'Checkpoint'} Passed`
@@ -1030,71 +1178,73 @@ function ResultsScreen({
             : 'Practice Complete'}
         </p>
 
-        {/* Large score */}
-        <div className="mb-3">
-          <span className="text-6xl sm:text-7xl font-bold tracking-tighter text-white/90">
+        {/* Large score number — Apple-style: huge, tight tracking, high contrast */}
+        <div className="mb-3 flex items-baseline justify-center">
+          <span
+            className="text-7xl sm:text-8xl font-semibold tracking-[-0.04em] tabular-nums"
+            style={{ color: 'var(--rm-text-heading)' }}
+          >
             {scorePercent}
           </span>
-          <span className="text-2xl font-medium text-white/20">%</span>
+          <span
+            className="text-3xl sm:text-4xl font-medium ml-0.5"
+            style={{ color: 'var(--rm-text-secondary)' }}
+          >
+            %
+          </span>
         </div>
 
-        {/* Subtitle */}
-        <p className="text-[14px] text-white/40 mb-2">
-          {totalCorrectFields} of {totalFields} fields correct
-        </p>
-        <p className="text-[13px] text-white/25">
-          {tasksFullyCorrect} of {verifiedTaskCount} tasks fully correct
+        {/* Subtitle — single concise line */}
+        <p className="text-[14px] mb-8" style={{ color: 'var(--rm-text-secondary)' }}>
+          {totalCorrectFields} of {totalFields} correct
+          {tasksFullyCorrect > 0 && tasksFullyCorrect !== verifiedTaskCount && (
+            <> · {tasksFullyCorrect} task{tasksFullyCorrect === 1 ? '' : 's'} perfect</>
+          )}
           {selfReviewTaskCount > 0 && (
-            <> · {selfReviewTaskCount} code task{selfReviewTaskCount === 1 ? '' : 's'} for self-review</>
+            <> · {selfReviewTaskCount} for self-review</>
           )}
         </p>
 
-        {/* Encouragement text */}
-        <p className="text-[14px] text-white/35 mt-6 max-w-md mx-auto">
-          {isCheckpoint
-            ? checkpointPassed
-              ? `You cleared the ${passingThreshold}% threshold. The next module is now unlocked.`
-              : `You need ${passingThreshold}% to unlock the next module. Review the missed questions, then try again — questions are reshuffled on each attempt.`
-            : scorePercent === 100
-              ? 'Perfect score. Every field correct.'
-              : scorePercent >= 80
-                ? 'Strong performance. Review the few you missed to lock in your understanding.'
-                : scorePercent >= 60
-                  ? 'Solid foundation. Review the missed questions and try again for a higher score.'
-                  : 'Good start. Take time to review the explanations, then give it another attempt.'}
+        {/* Encouragement */}
+        <p
+          className="text-[15px] leading-relaxed max-w-md mx-auto"
+          style={{ color: 'var(--rm-text)' }}
+        >
+          {encouragement}
         </p>
 
-        {/* Action buttons — primary "Continue" returns to the track map where
-            the just-completed module is now marked done and the next one
-            unlocked. In checkpoint mode, on pass we promote a direct "Next
-            module" CTA when one exists, demoting "Continue to track" to a
-            secondary outline button so users move forward without bouncing
-            through the track map. On fail the retry button is the primary CTA. */}
+        {/* Action buttons — exactly two: a primary forward action and a
+            single "leave" affordance. Per-task review is dropped because the
+            breakdown panel on the right already exposes every answer
+            inline. */}
         <div className="flex flex-col gap-3 mt-10 max-w-md mx-auto">
           {checkpointFailed ? (
-            <button
-              onClick={() => {
-                dispatch({ type: 'RESET', taskCount: tasks.length });
-                checkpointMode?.onRetry?.();
-              }}
-              className="rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
-              style={{
-                background: 'rgba(255,255,255,0.92)',
-                color: '#0a0c0e',
-              }}
-            >
-              <RotateCcw className="h-4 w-4" />
-              Retry checkpoint
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  dispatch({ type: 'RESET', taskCount: tasks.length });
+                  checkpointMode?.onRetry?.();
+                }}
+                className={primaryBtn}
+                style={primaryBtnStyle}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Retry checkpoint
+              </button>
+              <Link
+                href={closeHref}
+                className={secondaryBtn}
+                style={secondaryBtnStyle}
+              >
+                Back to track
+              </Link>
+            </>
           ) : checkpointPassed && checkpointMode?.nextModuleHref ? (
             <>
               <Link
                 href={checkpointMode.nextModuleHref}
-                className="rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
-                style={{
-                  background: 'rgba(255,255,255,0.92)',
-                  color: '#0a0c0e',
-                }}
+                className={primaryBtn}
+                style={primaryBtnStyle}
               >
                 {checkpointMode.nextModuleTitle
                   ? `Next module: ${checkpointMode.nextModuleTitle}`
@@ -1102,71 +1252,39 @@ function ResultsScreen({
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href={checkpointMode.returnHref ?? buildTrackMapPath(practiceSet)}
-                className="rounded-[14px] py-3 text-[12px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
-                style={{
-                  background: 'transparent',
-                  border: '1px solid rgba(255,255,255,0.16)',
-                  color: 'rgba(255,255,255,0.65)',
-                }}
+                href={closeHref}
+                className={secondaryBtn}
+                style={secondaryBtnStyle}
               >
                 Back to track
               </Link>
             </>
           ) : (
             <Link
-              href={checkpointMode?.returnHref ?? buildTrackMapPath(practiceSet)}
-              className="rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
-              style={{
-                background: 'rgba(255,255,255,0.92)',
-                color: '#0a0c0e',
-              }}
+              href={closeHref}
+              className={primaryBtn}
+              style={primaryBtnStyle}
             >
               Continue to track
               <ArrowRight className="h-4 w-4" />
             </Link>
           )}
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={() => dispatch({ type: 'REVIEW' })}
-              className="flex-1 rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
-              style={{
-                background: 'var(--rm-bg-elevated)',
-                border: '1px solid var(--rm-border)',
-                color: 'var(--rm-text-secondary)',
-              }}
-            >
-              <Eye className="h-4 w-4" />
-              Review Answers
-            </button>
-
-            <button
-              onClick={() => dispatch({ type: 'RESET', taskCount: tasks.length })}
-              className="flex-1 rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
-              style={{
-                background: 'var(--rm-bg-elevated)',
-                border: '1px solid var(--rm-border)',
-                color: 'var(--rm-text-secondary)',
-              }}
-            >
-              <RotateCcw className="h-4 w-4" />
-              Retry
-            </button>
-          </div>
         </div>
       </div>
 
       {/* Per-task breakdown */}
       <div
-        className="space-y-2"
+        className="space-y-2 min-w-0"
         style={{
           opacity: 0,
           animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 100ms forwards',
         }}
       >
-        <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/20 mb-4 px-1">
-          Task Breakdown
+        <h3
+          className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-4 px-1"
+          style={{ color: 'var(--rm-text-secondary)' }}
+        >
+          Breakdown
         </h3>
 
         {tasks.map((task, i) => (
@@ -1177,6 +1295,7 @@ function ResultsScreen({
             index={i}
           />
         ))}
+      </div>
       </div>
 
     </div>
@@ -1194,8 +1313,16 @@ interface PersistedPracticeSession {
   savedAt: string;
 }
 
+// Checkpoints generate a fresh random shuffle of questions on every mount, so
+// restoring a saved SessionState (whose answers are keyed by old shuffle order)
+// would attach stale results to different questions. Skip persistence entirely
+// for checkpoint sessions — they're meant to be one-shot and the user expects
+// a clean board on refresh.
+const isCheckpointModuleId = (moduleId: string) => moduleId.startsWith('checkpoint-');
+
 function saveSession(moduleId: string, route: string, state: SessionState) {
   if (state.phase === 'start') return;
+  if (isCheckpointModuleId(moduleId)) return;
   try {
     const snapshot: PersistedPracticeSession = {
       moduleId,
@@ -1208,6 +1335,7 @@ function saveSession(moduleId: string, route: string, state: SessionState) {
 }
 
 function loadSession(moduleId: string): SessionState | null {
+  if (isCheckpointModuleId(moduleId)) return null;
   try {
     const raw = window.sessionStorage.getItem(PRACTICE_SESSION_KEY);
     if (!raw) return null;
