@@ -124,6 +124,18 @@ const hasCompletedOnboarding = async (userId: string) => {
 };
 
 export async function middleware(request: NextRequest) {
+  // Canonical-host redirect: send any *.vercel.app traffic to the apex domain.
+  // Keeps the .vercel.app preview URL out of search results and locks the
+  // canonical surface to stablegrid.io. Path + query string are preserved.
+  const host = request.headers.get('host') ?? '';
+  if (host.endsWith('.vercel.app')) {
+    const canonical = new URL(request.nextUrl.toString());
+    canonical.host = 'stablegrid.io';
+    canonical.protocol = 'https:';
+    canonical.port = '';
+    return NextResponse.redirect(canonical, 308);
+  }
+
   // Maintenance mode: redirect everything except / and static assets
   if (MAINTENANCE_MODE) {
     const { pathname } = request.nextUrl;

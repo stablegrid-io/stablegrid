@@ -1115,6 +1115,7 @@ export const LandingPage = () => {
                 alt=""
                 fill
                 sizes="(min-width: 1024px) 1024px, 100vw"
+                unoptimized
                 className="object-cover object-center"
               />
             </div>
