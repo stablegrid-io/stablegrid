@@ -757,7 +757,7 @@ export const LandingPage = () => {
           </p>
           <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-6" style={{ lineHeight: 1.1 }}>
             Learn. Earn.<br />
-            <span style={{ color: '#99f7ff' }}>Rebuild the grid.</span>
+            <span style={{ color: 'rgba(255,255,255,0.35)' }}>Rebuild the grid.</span>
           </h2>
           <p className="text-[15px] leading-relaxed mb-4" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '560px' }}>
             Every lesson charges your kWh reserve. Spend it in the shop to bring ten power components online across an interactive 3D map of a real regional grid (Lithuania).
@@ -842,7 +842,7 @@ export const LandingPage = () => {
                 key={plan.name}
                 className="relative flex flex-col overflow-hidden group"
                 style={{
-                  backgroundColor: '#0f1215',
+                  backgroundColor: '#181c20',
                   borderRadius: '24px',
                   border: plan.highlight
                     ? `1px solid rgba(${plan.accent},0.35)`
@@ -893,8 +893,10 @@ export const LandingPage = () => {
                   <div
                     className="absolute inset-0 flex items-center justify-center transition-transform duration-700 group-hover:scale-105"
                     style={{
-                      color: `rgb(${plan.accent})`,
-                      filter: `drop-shadow(0 0 18px rgba(${plan.accent},0.35))`,
+                      color: plan.highlight ? `rgb(${plan.accent})` : 'rgba(255,255,255,0.95)',
+                      filter: plan.highlight
+                        ? `drop-shadow(0 0 18px rgba(${plan.accent},0.35))`
+                        : 'drop-shadow(0 0 18px rgba(255,255,255,0.25))',
                     }}
                   >
                     <StableGridMark className="h-20 w-20" />
@@ -902,7 +904,7 @@ export const LandingPage = () => {
                   {/* bottom fade into card */}
                   <div
                     className="absolute inset-0 pointer-events-none"
-                    style={{ background: 'linear-gradient(to bottom, transparent 20%, #0f1215 98%)' }}
+                    style={{ background: 'linear-gradient(to bottom, transparent 20%, #181c20 98%)' }}
                   />
                 </div>
 
@@ -948,14 +950,22 @@ export const LandingPage = () => {
                           <div
                             className="flex items-center justify-center w-[18px] h-[18px] rounded-full mt-px shrink-0"
                             style={{
-                              backgroundColor: `rgba(${plan.accent},0.14)`,
-                              border: `1px solid rgba(${plan.accent},0.3)`,
+                              backgroundColor: plan.highlight
+                                ? `rgba(${plan.accent},0.14)`
+                                : 'rgba(255,255,255,0.08)',
+                              border: plan.highlight
+                                ? `1px solid rgba(${plan.accent},0.3)`
+                                : '1px solid rgba(255,255,255,0.18)',
                             }}
                           >
                             <Check
                               aria-hidden="true"
                               className="w-2.5 h-2.5"
-                              style={{ color: `rgb(${plan.accent})` }}
+                              style={{
+                                color: plan.highlight
+                                  ? `rgb(${plan.accent})`
+                                  : 'rgba(255,255,255,0.95)',
+                              }}
                               strokeWidth={3}
                             />
                           </div>

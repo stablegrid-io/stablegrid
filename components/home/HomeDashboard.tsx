@@ -101,7 +101,7 @@ export const HomeDashboard = ({
   }, []);
 
   const greetingLine = useMemo(() => {
-    const name = <span style={{ color: '#99f7ff' }}>{firstName}</span>;
+    const name = <span style={{ color: '#ffc965' }}>{firstName}</span>;
     const streak = stats.currentStreak;
     const lifetime = stats.totalXp;
 

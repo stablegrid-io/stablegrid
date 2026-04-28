@@ -97,7 +97,7 @@ export function LoginForm() {
         className="relative flex min-h-screen items-center justify-center px-4 py-6 z-10"
       >
         <div
-          className="login-card relative w-full max-w-[400px] rounded-[22px] bg-[#181c20] p-8"
+          className="login-card relative w-full max-w-[400px] rounded-[22px] bg-surface-container-highest p-8"
           style={{
             boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
           }}

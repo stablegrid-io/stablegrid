@@ -17,6 +17,9 @@ const FADE_MS = 900;
 const PLAYBACK_RATE = 1.5;
 const END_TRIM_SECONDS = 0;
 const SESSION_KEY = 'stablegrid-landing-intro-seen';
+// Other components (e.g. CookieConsentManager) listen for this so they can hold
+// off any first-paint UI until the cinematic intro is done.
+const INTRO_FINISHED_EVENT = 'stablegrid-landing-intro-finished';
 
 export function LandingIntro() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -95,6 +98,9 @@ export function LandingIntro() {
   const dismiss = () => {
     if (fading || done) return;
     try { sessionStorage.setItem(SESSION_KEY, '1'); } catch { /* ignore */ }
+    try {
+      window.dispatchEvent(new CustomEvent(INTRO_FINISHED_EVENT));
+    } catch { /* ignore */ }
     setFading(true);
     window.setTimeout(() => setDone(true), FADE_MS);
   };
@@ -185,8 +191,8 @@ export function LandingIntro() {
             transform: 'scaleX(0)',
             willChange: 'transform',
             background:
-              'linear-gradient(90deg, rgba(153,247,255,0.4) 0%, #99f7ff 100%)',
-            boxShadow: '0 0 8px rgba(153,247,255,0.45)'
+              'linear-gradient(90deg, rgba(255,255,255,0.4) 0%, #ffffff 100%)',
+            boxShadow: '0 0 8px rgba(255,255,255,0.45)'
           }}
         />
       </div>

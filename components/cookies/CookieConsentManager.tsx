@@ -27,6 +27,9 @@ const OPTIONAL_CATEGORIES: Array<Exclude<keyof CookieConsentState, 'necessary'>>
   'preferences'
 ];
 const COOKIE_BANNER_SESSION_KEY = 'stablegrid-cookie-banner-seen-session';
+// Mirrors constants in components/home/landing/LandingIntro.tsx.
+const LANDING_INTRO_SEEN_KEY = 'stablegrid-landing-intro-seen';
+const LANDING_INTRO_FINISHED_EVENT = 'stablegrid-landing-intro-finished';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -42,6 +45,9 @@ export function CookieConsentManager() {
   const [draftConsent, setDraftConsent] = useState<CookieConsentState>(buildRejectAllConsentState());
   const [modalOpen, setModalOpen] = useState(false);
   const [bannerSeenThisSession, setBannerSeenThisSession] = useState(false);
+  // On the landing route we hold the cookie banner until the cinematic intro
+  // finishes (or has already been seen this session). Other routes pass through.
+  const [landingIntroDone, setLandingIntroDone] = useState(pathname !== '/');
 
   const openPreferences = useCallback(() => {
     setDraftConsent(consentRef.current);
@@ -118,6 +124,31 @@ export function CookieConsentManager() {
       setBannerSeenThisSession(false);
     }
   }, []);
+
+  // Hold the cookie banner on the landing route until the intro finishes.
+  useEffect(() => {
+    if (pathname !== '/') {
+      setLandingIntroDone(true);
+      return;
+    }
+    if (typeof window === 'undefined') return;
+
+    // If the intro was already dismissed this session, allow the banner now.
+    try {
+      if (window.sessionStorage.getItem(LANDING_INTRO_SEEN_KEY) === '1') {
+        setLandingIntroDone(true);
+        return;
+      }
+    } catch {
+      // sessionStorage unavailable — fall through and listen for the event.
+    }
+
+    const handleIntroFinished = () => setLandingIntroDone(true);
+    window.addEventListener(LANDING_INTRO_FINISHED_EVENT, handleIntroFinished);
+    return () => {
+      window.removeEventListener(LANDING_INTRO_FINISHED_EVENT, handleIntroFinished);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (!ready || !currentUserId) {
@@ -218,7 +249,7 @@ export function CookieConsentManager() {
 
   const shouldUseLandingSessionPrompt = pathname === '/';
   const bannerVisible = shouldUseLandingSessionPrompt
-    ? ready && !bannerSeenThisSession
+    ? ready && !bannerSeenThisSession && landingIntroDone
     : ready && !hasSavedDecision;
 
   return (
@@ -227,7 +258,14 @@ export function CookieConsentManager() {
       {bannerVisible ? (
         <section
           aria-label="Cookie consent"
-          className="fixed bottom-5 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-[22px] border border-white/[0.08] bg-[#0d0f11]/90 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:bottom-6 sm:right-5"
+          className="fixed bottom-5 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-[22px] sm:bottom-6 sm:right-5"
+          style={{
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(40px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 32px rgba(0,0,0,0.35)',
+          }}
         >
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-start gap-3 mb-4">
