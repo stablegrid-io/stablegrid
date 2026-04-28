@@ -39,6 +39,17 @@ interface TheoryTrackPathProps {
    * authoritative for instant updates after passing a checkpoint client-side.
    */
   initialCheckpointPassedById?: Record<string, boolean>;
+  /**
+   * Server-rendered map of moduleId → full checkpoint snapshot (passed +
+   * last/best score). When present, supersedes `initialCheckpointPassedById`
+   * — passing both is fine, the richer map wins. Powers the progress fill on
+   * "Checkpoint ready" CTAs so users see how close they came on their last
+   * attempt.
+   */
+  initialCheckpointResultsById?: Record<
+    string,
+    { passed: boolean; lastScore: number; bestScore: number; totalQuestions: number }
+  >;
   practiceSets?: PracticeSet[];
   practiceBasePath?: string;
 }
@@ -98,6 +109,7 @@ export const TheoryTrackPath = ({
   doc, track, completedChapterIds,
   chapterProgressById = {}, moduleProgressById = {},
   initialCheckpointPassedById,
+  initialCheckpointResultsById,
   practiceSets = [], practiceBasePath = '',
 }: TheoryTrackPathProps) => {
   const {
@@ -114,19 +126,32 @@ export const TheoryTrackPath = ({
 
   // Seed the local cache from the server-rendered map so passes made on
   // other devices are reflected, then retry any local-only attempts that
-  // failed to sync previously.
+  // failed to sync previously. The richer `initialCheckpointResultsById`
+  // wins when present — it carries last/best scores in addition to passed.
   useEffect(() => {
-    if (initialCheckpointPassedById) {
-      const keyed: Record<string, { passed: boolean }> = {};
+    const keyed: Record<
+      string,
+      { passed: boolean; lastScore?: number; bestScore?: number; totalQuestions?: number }
+    > = {};
+    if (initialCheckpointResultsById) {
+      for (const [moduleId, snapshot] of Object.entries(initialCheckpointResultsById)) {
+        keyed[buildCheckpointKey(doc.topic, moduleId)] = {
+          passed: snapshot.passed,
+          lastScore: snapshot.lastScore,
+          bestScore: snapshot.bestScore,
+          totalQuestions: snapshot.totalQuestions,
+        };
+      }
+    } else if (initialCheckpointPassedById) {
       for (const [moduleId, passed] of Object.entries(initialCheckpointPassedById)) {
         if (passed) keyed[buildCheckpointKey(doc.topic, moduleId)] = { passed: true };
       }
-      if (Object.keys(keyed).length > 0) {
-        seedFromServer(keyed);
-      }
+    }
+    if (Object.keys(keyed).length > 0) {
+      seedFromServer(keyed);
     }
     void flushPendingSync();
-  }, [initialCheckpointPassedById, seedFromServer, flushPendingSync, doc.topic]);
+  }, [initialCheckpointPassedById, initialCheckpointResultsById, seedFromServer, flushPendingSync, doc.topic]);
 
   const serverCheckpointSet = useMemo(
     () => new Set(
@@ -140,6 +165,21 @@ export const TheoryTrackPath = ({
   const isCheckpointPassed = (moduleId: string) =>
     serverCheckpointSet.has(moduleId) ||
     Boolean(checkpointResults[buildCheckpointKey(doc.topic, moduleId)]?.passed);
+
+  /**
+   * Last attempt score for a module as a 0..100 percent. Returns 0 when the
+   * user has never attempted the checkpoint (no fill rendered). Combines the
+   * client store (latest local truth) with the server snapshot (cross-device).
+   */
+  const getCheckpointLastScorePct = (moduleId: string): number => {
+    const cached = checkpointResults[buildCheckpointKey(doc.topic, moduleId)];
+    const serverSnapshot = initialCheckpointResultsById?.[moduleId];
+    const lastScore = Math.max(
+      cached?.lastScore ?? 0,
+      serverSnapshot?.lastScore ?? 0,
+    );
+    return Math.round(lastScore * 100);
+  };
 
   const modules = sortModulesByOrder(track.chapters);
   const ta = getTrackAccent(track.slug);
@@ -220,6 +260,7 @@ export const TheoryTrackPath = ({
       ...c,
       status,
       checkpointStatus,
+      checkpointLastScorePct: getCheckpointLastScorePct(c.module.id),
       progressPct: c.lessonsTotal > 0 ? Math.round((c.lessonsDone / c.lessonsTotal) * 100) : 0,
     };
   });
@@ -334,6 +375,7 @@ export const TheoryTrackPath = ({
                     moduleNumber={card.module.number}
                     chapterId={card.module.id}
                     status={card.checkpointStatus}
+                    lastScorePct={card.checkpointLastScorePct}
                     ta={ta}
                     topic={doc.topic}
                     trackSlug={track.slug}
@@ -627,11 +669,13 @@ function PracticeNode({ ps, idx, ta, practiceBasePath }: {
 /* ── Checkpoint Mini Node ───────────────────────────────────────────────────── */
 
 function CheckpointMiniNode({
-  moduleNumber, chapterId, status, ta, topic, trackSlug,
+  moduleNumber, chapterId, status, lastScorePct = 0, ta, topic, trackSlug,
 }: {
   moduleNumber: number;
   chapterId: string;
   status: CheckpointStatus;
+  /** Last attempt score (0-100). 0 means "no attempt yet" (no fill rendered). */
+  lastScorePct?: number;
   ta: { color: string; rgb: string };
   topic: string;
   trackSlug: string;
@@ -675,21 +719,55 @@ function CheckpointMiniNode({
     );
   }
 
-  // ready
+  // ready — render a fill bar from previous attempts. Bar tints with the
+  // track accent and gains a faint glow once the fill crosses the pass
+  // threshold (90%), giving the user a visual cue that they're at/above
+  // passing range. In practice 90%+ flips status to `passed`, but we keep
+  // the threshold logic here so the visual hierarchy is consistent.
+  const fillPct = Math.max(0, Math.min(100, lastScorePct));
+  const hasAttempt = fillPct > 0;
+  const passThresholdPct = Math.round(CHECKPOINT_PASS_RATIO * 100);
+  const isAtOrAboveThreshold = fillPct >= passThresholdPct;
+  const fillIntensity = hasAttempt
+    ? 0.16 + Math.min(0.18, (fillPct / 100) * 0.18)
+    : 0;
+  const labelText = hasAttempt
+    ? `Last ${fillPct}% · Pass ${passThresholdLabel}`
+    : `Checkpoint ready · Pass ${passThresholdLabel}`;
+
   return (
     <Link
       href={`/learn/${topic}/theory/${trackSlug}?checkpoint=${chapterId}`}
-      className="group inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 hover:bg-white/[0.1]"
+      aria-label={`Module ${moduleNumberLabel} checkpoint — ${labelText}`}
+      className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-full overflow-hidden transition-all duration-200 hover:bg-white/[0.1]"
       style={{
         background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.16)',
+        border: `1px solid rgba(${hasAttempt ? ta.rgb : '255,255,255'},${hasAttempt ? 0.22 : 0.16})`,
+        boxShadow: isAtOrAboveThreshold ? `0 0 14px rgba(${ta.rgb},0.18)` : undefined,
       }}
     >
-      <Target className="h-3 w-3" style={{ color: 'rgba(255,255,255,0.7)' }} />
-      <span className="font-mono text-[10px] font-bold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.78)' }}>
-        Checkpoint ready · Pass {passThresholdLabel}
+      {/* Fill bar — sits behind the text, advances from left to fillPct%. */}
+      {hasAttempt && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-0 left-0 transition-[width] duration-500 ease-out"
+          style={{
+            width: `${fillPct}%`,
+            background: `linear-gradient(90deg, rgba(${ta.rgb},${fillIntensity * 0.6}) 0%, rgba(${ta.rgb},${fillIntensity}) 100%)`,
+          }}
+        />
+      )}
+      <Target className="relative h-3 w-3" style={{ color: hasAttempt ? ta.color : 'rgba(255,255,255,0.7)' }} />
+      <span
+        className="relative font-mono text-[10px] font-bold tracking-widest uppercase"
+        style={{ color: hasAttempt ? ta.color : 'rgba(255,255,255,0.78)' }}
+      >
+        {labelText}
       </span>
-      <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5" style={{ color: 'rgba(255,255,255,0.7)' }} />
+      <ArrowRight
+        className="relative h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5"
+        style={{ color: hasAttempt ? ta.color : 'rgba(255,255,255,0.7)' }}
+      />
     </Link>
   );
 }

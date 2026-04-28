@@ -25,6 +25,17 @@ export interface ServerTheoryModuleProgressSnapshot {
   updatedAt: string | null;
 }
 
+export interface ServerCheckpointSnapshot {
+  passed: boolean;
+  /** Score on the most recent attempt as a 0..1 ratio. Used to render the
+   *  fill bar on the "Checkpoint ready" CTA so the user sees how close they
+   *  came on their previous attempt without needing to re-enter the quiz. */
+  lastScore: number;
+  /** Best-ever score (0..1). Sticky so reattempts can't lower it. */
+  bestScore: number;
+  totalQuestions: number;
+}
+
 export interface ServerTheoryProgressPayload {
   hasUser: boolean;
   totalChapterCount: number;
@@ -37,8 +48,16 @@ export interface ServerTheoryProgressPayload {
    * The client store (lib/stores/useCheckpointStore.ts) ORs this with its
    * localStorage cache so a just-passed-but-not-yet-synced result still
    * reflects on the track map until the next page load.
+   *
+   * Kept alongside `checkpointResultsById` for backward compatibility with
+   * callers that only need the boolean.
    */
   checkpointPassedById: Record<string, boolean>;
+  /**
+   * Full per-module checkpoint snapshot — passed flag + last/best scores.
+   * Powers the progress fill on "Checkpoint ready" CTAs.
+   */
+  checkpointResultsById: Record<string, ServerCheckpointSnapshot>;
 }
 
 interface ServerTheoryModuleProgressRow {
@@ -198,7 +217,8 @@ export const loadServerTheoryProgress = async (
       completedChapterIds: [],
       chapterProgressById: {},
       moduleProgressById: {},
-      checkpointPassedById: {}
+      checkpointPassedById: {},
+      checkpointResultsById: {}
     };
   }
 
@@ -261,18 +281,35 @@ export const loadServerTheoryProgress = async (
   // Checkpoint quiz pass state. Tolerate a missing table (fresh installs that
   // haven't run the 20260427120000_module_checkpoints migration yet) so the
   // theory hub keeps rendering — fall back to the client store on the page.
+  // Also pull last/best score so the track map can render a progress fill on
+  // the "Checkpoint ready" CTA without an extra round-trip.
   const checkpointPassedById: Record<string, boolean> = {};
+  const checkpointResultsById: Record<string, ServerCheckpointSnapshot> = {};
   const { data: checkpointRows, error: checkpointRowsError } = await supabase
     .from('module_checkpoints')
-    .select('module_id,passed')
+    .select('module_id,passed,last_score,best_score,total_questions')
     .eq('user_id', user.id)
     .eq('topic', topic);
 
   if (!checkpointRowsError && Array.isArray(checkpointRows)) {
-    for (const row of checkpointRows as { module_id: string | null; passed: boolean | null }[]) {
-      if (typeof row.module_id === 'string' && row.passed) {
-        checkpointPassedById[row.module_id] = true;
-      }
+    for (const row of checkpointRows as {
+      module_id: string | null;
+      passed: boolean | null;
+      last_score: number | null;
+      best_score: number | null;
+      total_questions: number | null;
+    }[]) {
+      if (typeof row.module_id !== 'string') continue;
+      const passed = Boolean(row.passed);
+      if (passed) checkpointPassedById[row.module_id] = true;
+      checkpointResultsById[row.module_id] = {
+        passed,
+        lastScore: clampScore(row.last_score),
+        bestScore: clampScore(row.best_score),
+        totalQuestions: typeof row.total_questions === 'number' && row.total_questions > 0
+          ? row.total_questions
+          : 0
+      };
     }
   }
 
@@ -282,6 +319,14 @@ export const loadServerTheoryProgress = async (
     completedChapterIds,
     chapterProgressById,
     moduleProgressById,
-    checkpointPassedById
+    checkpointPassedById,
+    checkpointResultsById
   };
+};
+
+const clampScore = (value: number | null): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
 };

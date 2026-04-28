@@ -226,7 +226,8 @@ export default async function LearnTopicTheoryCategoryPage({
       completedChapterIds,
       chapterProgressById,
       moduleProgressById,
-      checkpointPassedById
+      checkpointPassedById,
+      checkpointResultsById
     } = await loadServerTheoryProgress(trackDoc.topic);
 
     // Load practice sets matching this topic + level
@@ -265,6 +266,7 @@ export default async function LearnTopicTheoryCategoryPage({
           chapterProgressById={chapterProgressById}
           moduleProgressById={moduleProgressById}
           initialCheckpointPassedById={checkpointPassedById}
+          initialCheckpointResultsById={checkpointResultsById}
           practiceSets={levelPracticeSets}
           practiceBasePath={`/learn/${params.topic}/theory/${categoryParam}`}
         />
