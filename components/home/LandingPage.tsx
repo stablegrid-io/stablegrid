@@ -449,39 +449,6 @@ export const LandingPage = () => {
 
         {/* Centered hero stack */}
         <div className="relative z-10 w-full max-w-3xl mx-auto text-center flex flex-col items-center">
-          {/* Beta pill */}
-          <div
-            className="inline-flex items-center gap-2"
-            style={{
-              padding: '6px 14px',
-              marginBottom: 24,
-              borderRadius: 999,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-              fontSize: 12,
-              fontWeight: 500,
-              letterSpacing: '0.02em',
-              color: 'rgba(255,255,255,0.72)',
-              opacity: 0,
-              animation: 'fadeSlideUp .6s cubic-bezier(.16,1,.3,1) 0ms forwards',
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: '#99f7ff',
-                boxShadow: '0 0 8px rgba(153,247,255,0.55)',
-              }}
-            />
-            <span>Beta · Free for early users</span>
-          </div>
-
           {/* Headline */}
           <h1
             style={{
@@ -496,7 +463,7 @@ export const LandingPage = () => {
               animation: 'fadeSlideUp .7s cubic-bezier(.16,1,.3,1) 80ms forwards',
             }}
           >
-            Understanding <span style={{ color: '#99f7ff' }}>data</span>
+            Understanding <span style={{ color: '#ffc965' }}>data</span>
             <br />
             is your edge.
           </h1>
@@ -624,30 +591,13 @@ export const LandingPage = () => {
       {/* ── Tier Showcase ────────────────────────────────────────────────── */}
       <section id="tiers" className="py-16 lg:py-24 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="mb-4">
             <p
               className="font-mono font-bold text-xs uppercase tracking-widest"
               style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.18em' }}
             >
               Progression
             </p>
-            <span
-              className="font-mono inline-flex items-center gap-1.5"
-              style={{
-                fontSize: 9,
-                letterSpacing: '0.22em',
-                color: '#99f7ff',
-                textTransform: 'uppercase',
-                fontWeight: 700,
-                padding: '3px 8px',
-                borderRadius: 999,
-                border: '1px solid rgba(153,247,255,0.3)',
-                background: 'rgba(153,247,255,0.08)',
-              }}
-            >
-              <span aria-hidden style={{ width: 5, height: 5, borderRadius: '50%', background: '#99f7ff' }} />
-              Preview
-            </span>
           </div>
           <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-6" style={{ lineHeight: 1.1 }}>
             Three levels of depth.<br />
@@ -1115,7 +1065,6 @@ export const LandingPage = () => {
                 alt=""
                 fill
                 sizes="(min-width: 1024px) 1024px, 100vw"
-                unoptimized
                 className="object-cover object-center"
               />
             </div>

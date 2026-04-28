@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { User } from '@supabase/supabase-js';
 import {
-  ArrowLeft,
   Clock3,
   Trophy,
   TrendingUp,
@@ -449,14 +448,6 @@ export function ProgressDashboard({
   return (
     <div className="min-h-screen pb-24 lg:pb-10">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12 space-y-12">
-
-        <Link
-          href="/home"
-          className="inline-flex items-center gap-2 text-[13px] font-medium text-on-surface-variant/50 hover:text-on-surface-variant transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Home
-        </Link>
 
         {/* ── Hero ── */}
         <div

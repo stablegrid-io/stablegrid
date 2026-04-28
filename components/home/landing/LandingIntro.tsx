@@ -134,12 +134,15 @@ export function LandingIntro() {
         autoPlay
         disablePictureInPicture
         controls={false}
+        poster="/landing-intro-poster.jpg"
         className="absolute inset-0 h-full w-full object-cover"
         onEnded={dismiss}
       >
-        {/* Primary: HEVC 4K — modern Safari, Chrome on Apple Silicon, Edge */}
+        {/* Mobile: H.264 720p — small file, fast first-byte on cellular */}
+        <source src="/landing-intro-720p.mp4" media="(max-width: 768px)" type='video/mp4; codecs="avc1.640028"' />
+        {/* Desktop primary: HEVC 4K — modern Safari, Chrome on Apple Silicon, Edge */}
         <source src="/landing-intro-4k.mp4" type='video/mp4; codecs="hvc1"' />
-        {/* Fallback: H.264 1080p — universal */}
+        {/* Desktop fallback: H.264 1080p — universal */}
         <source src="/landing-intro-1080p.mp4" type='video/mp4; codecs="avc1.640033"' />
       </video>
 
@@ -187,6 +190,63 @@ export function LandingIntro() {
           }}
         />
       </div>
+
+      {/* CRT power-on effect: black halves retract from center as a bright
+          horizontal line flashes through, revealing the video. */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="landing-intro-tv-top absolute inset-x-0 top-0 h-1/2 bg-black" />
+        <div className="landing-intro-tv-bottom absolute inset-x-0 bottom-0 h-1/2 bg-black" />
+        <div
+          className="landing-intro-tv-line absolute inset-x-0 h-[2px]"
+          style={{
+            top: '50%',
+            marginTop: '-1px',
+            background: 'rgba(255,255,255,0.95)',
+            boxShadow:
+              '0 0 18px 4px rgba(255,255,255,0.85), 0 0 48px 12px rgba(170,200,255,0.55)',
+            transformOrigin: 'center',
+          }}
+        />
+      </div>
+
+      <style>{`
+        .landing-intro-tv-top {
+          animation: landing-intro-tv-top-retract 1100ms cubic-bezier(.65,0,.35,1) both;
+          will-change: transform;
+        }
+        .landing-intro-tv-bottom {
+          animation: landing-intro-tv-bottom-retract 1100ms cubic-bezier(.65,0,.35,1) both;
+          will-change: transform;
+        }
+        .landing-intro-tv-line {
+          animation: landing-intro-tv-line-flash 1100ms linear both;
+          will-change: opacity, transform;
+        }
+        @keyframes landing-intro-tv-top-retract {
+          0%, 45% { transform: translateY(0); }
+          100%    { transform: translateY(-100%); }
+        }
+        @keyframes landing-intro-tv-bottom-retract {
+          0%, 45% { transform: translateY(0); }
+          100%    { transform: translateY(100%); }
+        }
+        @keyframes landing-intro-tv-line-flash {
+          0%   { opacity: 0; transform: scaleX(0); }
+          10%  { opacity: 1; transform: scaleX(0.18); }
+          25%  { opacity: 1; transform: scaleX(1); }
+          45%  { opacity: 1; transform: scaleX(1); }
+          85%  { opacity: 0.7; transform: scaleX(1); }
+          100% { opacity: 0; transform: scaleX(1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .landing-intro-tv-top,
+          .landing-intro-tv-bottom,
+          .landing-intro-tv-line {
+            animation-duration: 1ms !important;
+            animation-delay: 0s !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
