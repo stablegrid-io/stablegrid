@@ -40,18 +40,6 @@ export const COOKIE_CATEGORY_COPY: Record<CookieCategory, { label: string; descr
   }
 };
 
-const clearThemePreferenceStorage = () => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.localStorage.removeItem('stablegrid-theme');
-  } catch {
-    // Ignore localStorage failures during best-effort cleanup.
-  }
-};
-
 const noop = () => {};
 
 export const COOKIE_SERVICE_REGISTRY: CookieServiceConfig[] = [
@@ -61,6 +49,18 @@ export const COOKIE_SERVICE_REGISTRY: CookieServiceConfig[] = [
     provider: 'stableGrid',
     category: 'necessary',
     purpose: 'Stores cookie choices and timestamp so the site can honor your decision.',
+    expiry: '180 days',
+    type: 'first-party',
+    legalBasis: 'necessary',
+    requiresConsent: false,
+    loader: noop
+  },
+  {
+    id: 'stablegrid-track-essentials-seen',
+    name: 'Track essentials acknowledgement',
+    provider: 'stableGrid',
+    category: 'necessary',
+    purpose: 'Remembers which track-essentials briefings you have dismissed so they are not repeated on every visit.',
     expiry: '180 days',
     type: 'first-party',
     legalBasis: 'necessary',
@@ -86,16 +86,17 @@ export const COOKIE_SERVICE_REGISTRY: CookieServiceConfig[] = [
     }
   },
   {
-    id: 'stablegrid-theme-preference',
-    name: 'Theme preference',
-    provider: 'stableGrid',
-    category: 'preferences',
-    purpose: 'Remembers light or dark mode preference.',
-    expiry: 'Until cleared',
-    type: 'first-party',
+    id: 'vercel-analytics',
+    name: 'Vercel Analytics',
+    provider: 'Vercel',
+    category: 'analytics',
+    purpose: 'Anonymized traffic and Web Vitals measurement provided by our hosting platform.',
+    expiry: 'Session',
+    type: 'third-party',
     legalBasis: 'consent',
     requiresConsent: true,
-    loader: noop,
-    cleanup: clearThemePreferenceStorage
-  }
+    // The <VercelAnalyticsGate /> component mounts/unmounts the script in
+    // response to consent changes, so this entry is for disclosure only.
+    loader: noop
+  },
 ];

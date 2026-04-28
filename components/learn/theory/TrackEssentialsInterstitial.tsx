@@ -7,7 +7,13 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { TrackEssentialsPanel } from '@/components/learn/theory/TrackEssentialsPanel';
 
 const COOKIE_NAME = 'seenTrackEssentials';
-const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
+// 180 days mirrors the consent cookie's lifetime — "don't show this again"
+// dismissal state shouldn't outlive the visitor's other strictly-necessary
+// cookies. Disclosed in COOKIE_SERVICE_REGISTRY as a necessary cookie.
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180;
+// `Secure` is rejected on http://localhost; only attach on https.
+const secureCookieAttr = () =>
+  typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; secure' : '';
 
 interface TrackEssentialsInterstitialProps {
   topic: string;
@@ -31,7 +37,7 @@ const readSeenSlugs = (): Set<string> => {
 
 const writeSeenSlugs = (slugs: Set<string>) => {
   const value = Array.from(slugs).join(',');
-  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(value)}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`;
+  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(value)}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; samesite=lax${secureCookieAttr()}`;
 };
 
 export const TrackEssentialsInterstitial = ({

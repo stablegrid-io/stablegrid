@@ -1,6 +1,12 @@
 'use client';
 
 import { COOKIE_CATEGORY_COPY, COOKIE_SERVICE_REGISTRY } from '@/lib/cookies/cookie-config';
+import { COOKIE_PREFERENCES_OPEN_EVENT } from '@/lib/cookies/cookie-consent';
+
+const openCookiePreferences = () => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(COOKIE_PREFERENCES_OPEN_EVENT));
+};
 
 const policyCategories = [
   COOKIE_CATEGORY_COPY.necessary,
@@ -47,16 +53,18 @@ export function PrivacyTab() {
           Settings {'>'} Danger Zone. These actions require authentication.
         </p>
         <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
-          You can change cookie choices at any time from the persistent
-          {' '}
-          <span className="font-medium">Cookie settings</span>
-          {' '}
-          control shown across the site.
-        </p>
-        <p className="text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
           When you are signed in, cookie choices are also stored with your account so
           your consent settings can follow you across sessions and devices.
         </p>
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={openCookiePreferences}
+            className="inline-flex items-center gap-2 rounded-[14px] border border-white/[0.1] bg-white/[0.04] px-4 py-2 text-sm font-medium text-on-surface transition-all hover:border-white/[0.2] hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+          >
+            Manage cookie preferences
+          </button>
+        </div>
       </section>
 
       <section

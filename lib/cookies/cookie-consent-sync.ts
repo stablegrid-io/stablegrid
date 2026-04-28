@@ -1,5 +1,6 @@
 import {
   compareConsentRecordFreshness,
+  isCurrentVersionRecord,
   parseConsentRecord
 } from '@/lib/cookies/cookie-consent';
 import type { CookieConsentRecord } from '@/lib/cookies/cookie-types';
@@ -84,7 +85,13 @@ export const writeServerConsentRecord = async (record: CookieConsentRecord) => {
 export const syncConsentRecordWithServer = async (
   localRecord: CookieConsentRecord | null
 ): Promise<CookieConsentRecord | null> => {
-  const { record: serverRecord, canWrite } = await readServerConsentState();
+  const { record: rawServerRecord, canWrite } = await readServerConsentState();
+
+  // A server-side record from a previous policy version is treated as no
+  // decision — it's still kept in the audit table, but we won't apply it
+  // client-side. The next opt-in will overwrite it with a current record.
+  const serverRecord =
+    rawServerRecord && isCurrentVersionRecord(rawServerRecord) ? rawServerRecord : null;
 
   if (!localRecord && !serverRecord) {
     return null;

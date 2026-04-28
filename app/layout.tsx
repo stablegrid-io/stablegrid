@@ -2,9 +2,9 @@ import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { JetBrains_Mono, Inter } from 'next/font/google';
-import { Analytics } from '@vercel/analytics/next';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { CookieConsentManager } from '@/components/cookies/CookieConsentManager';
+import { VercelAnalyticsGate } from '@/components/cookies/VercelAnalyticsGate';
 import { Navigation } from '@/components/navigation/Navigation';
 import { OrganizationJsonLd, WebSiteJsonLd } from '@/lib/seo/jsonLd';
 
@@ -96,7 +96,7 @@ export default function RootLayout({
         <AuthProvider>
           <Navigation>{children}</Navigation>
         </AuthProvider>
-        <Analytics />
+        <VercelAnalyticsGate />
       </body>
     </html>
   );

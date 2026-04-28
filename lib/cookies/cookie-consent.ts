@@ -132,6 +132,12 @@ export const compareConsentRecordFreshness = (
   return getConsentTimestamp(left) - getConsentTimestamp(right);
 };
 
+// A record is current when its version matches (or exceeds) the policy
+// version compiled into the app. Bumping COOKIE_CONSENT_VERSION invalidates
+// every previously stored decision so users are re-prompted.
+export const isCurrentVersionRecord = (record: CookieConsentRecord) =>
+  record.version >= COOKIE_CONSENT_VERSION;
+
 export const pickPreferredConsentRecord = (
   ...records: Array<CookieConsentRecord | null | undefined>
 ) => {
@@ -150,6 +156,11 @@ export const pickPreferredConsentRecord = (
   return preferredRecord;
 };
 
+// `Secure` is rejected by browsers on plain http://localhost; only set it
+// when the document is actually served over https so dev still works.
+const consentCookieSecureAttr = () =>
+  canUseDom() && window.location.protocol === 'https:' ? '; secure' : '';
+
 const writeConsentCookie = (record: CookieConsentRecord) => {
   if (!canUseDom()) {
     return;
@@ -157,9 +168,29 @@ const writeConsentCookie = (record: CookieConsentRecord) => {
 
   try {
     const encodedRecord = encodeURIComponent(JSON.stringify(record));
-    document.cookie = `${COOKIE_CONSENT_COOKIE_NAME}=${encodedRecord}; path=/; max-age=${COOKIE_CONSENT_COOKIE_MAX_AGE}; samesite=lax`;
+    document.cookie = `${COOKIE_CONSENT_COOKIE_NAME}=${encodedRecord}; path=/; max-age=${COOKIE_CONSENT_COOKIE_MAX_AGE}; samesite=lax${consentCookieSecureAttr()}`;
   } catch {
     // Ignore cookie write failures and continue with local storage.
+  }
+};
+
+// Wipe both persistence layers — used when we detect a stale record from a
+// previous policy version and want to force a fresh prompt.
+const clearStoredConsentRecord = () => {
+  if (!canUseDom()) {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(COOKIE_CONSENT_STORAGE_KEY);
+  } catch {
+    // Ignore localStorage failures.
+  }
+
+  try {
+    document.cookie = `${COOKIE_CONSENT_COOKIE_NAME}=; path=/; max-age=0; samesite=lax${consentCookieSecureAttr()}`;
+  } catch {
+    // Ignore cookie cleanup failures.
   }
 };
 
@@ -189,12 +220,24 @@ export const readStoredConsentRecord = () => {
   }
 
   if (localStorageRecord) {
+    if (!isCurrentVersionRecord(localStorageRecord)) {
+      // Policy version moved on — discard the old decision so the banner
+      // re-prompts. Server sync (in CookieConsentManager) handles re-writing
+      // an authoritative record once the user picks again.
+      clearStoredConsentRecord();
+      return null;
+    }
     writeConsentCookie(localStorageRecord);
     return localStorageRecord;
   }
 
   const cookieRecord = readConsentCookieRecord();
   if (!cookieRecord) {
+    return null;
+  }
+
+  if (!isCurrentVersionRecord(cookieRecord)) {
+    clearStoredConsentRecord();
     return null;
   }
 

@@ -11,6 +11,11 @@ type EventMetadata = Record<string, unknown>;
 const canUseWindow = () => typeof window !== 'undefined';
 const hasAnalyticsConsent = () => hasCategoryConsent('analytics');
 
+// `Secure` is rejected on plain http://localhost; only attach it on https so
+// dev keeps working without warnings.
+const secureCookieAttr = () =>
+  canUseWindow() && window.location.protocol === 'https:' ? '; secure' : '';
+
 const persistSessionId = (sessionId: string) => {
   if (!canUseWindow() || !hasAnalyticsConsent()) {
     return;
@@ -23,7 +28,7 @@ const persistSessionId = (sessionId: string) => {
   }
 
   try {
-    document.cookie = `${PRODUCT_SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}; path=/; max-age=${PRODUCT_SESSION_MAX_AGE}; samesite=lax`;
+    document.cookie = `${PRODUCT_SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}; path=/; max-age=${PRODUCT_SESSION_MAX_AGE}; samesite=lax${secureCookieAttr()}`;
   } catch {
     // Ignore cookie write failures and continue with in-memory usage.
   }
@@ -76,7 +81,7 @@ export const clearProductAnalyticsData = () => {
   }
 
   try {
-    document.cookie = `${PRODUCT_SESSION_COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
+    document.cookie = `${PRODUCT_SESSION_COOKIE_NAME}=; path=/; max-age=0; samesite=lax${secureCookieAttr()}`;
   } catch {
     // Ignore cookie cleanup failures.
   }
