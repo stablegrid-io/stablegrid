@@ -588,7 +588,7 @@ function TaskScreen({
       className={useFixedFocusOverlay ? 'fixed inset-0 z-40 overflow-y-auto' : ''}
       style={{ backgroundColor: 'var(--rm-bg, transparent)' }}
     >
-    <div className={`relative mx-auto w-[85%] py-8 lg:py-12 ${useFixedFocusOverlay ? 'min-h-screen' : ''}`}>
+    <div className={`relative mx-auto w-[85%] py-8 lg:py-12 ${useFixedFocusOverlay ? 'min-h-screen' : ''} ${isMcqOnlyTask ? 'min-h-full flex flex-col justify-center' : ''}`}>
 
       {/* Floating controls — visible in focus mode */}
       {useFixedFocusOverlay && (
