@@ -58,7 +58,7 @@ export function CharacterTierHero() {
     <section
       className="relative overflow-hidden"
       style={{
-        background: '#0f1215',
+        background: '#181c20',
         borderRadius: 24,
         border: '1px solid rgba(255,255,255,0.06)',
         boxShadow: '0 30px 80px rgba(0,0,0,0.55)',

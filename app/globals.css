@@ -247,7 +247,7 @@
 /* ── Reading Mode Tokens ── */
 [data-reading-mode="dark"] {
   --rm-bg: #141a1e;
-  --rm-bg-elevated: #1d2023;
+  --rm-bg-elevated: #141a1e;
   --rm-text: #cfdad5;
   --rm-text-heading: #f3f6f4;
   --rm-text-secondary: #8ca79a;
@@ -275,56 +275,99 @@
   --rm-list-badge-bg: rgba(153,247,255,0.1);
   --rm-list-badge-text: #99f7ff;
   --rm-hr: rgba(255,255,255,0.06);
+  /* Apple-style card elevation (dark). */
+  --rm-card-bg: #1d2125;
+  --rm-card-border: rgba(255,255,255,0.06);
+  --rm-card-radius: 18px;
+  --rm-card-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 14px 36px rgba(0,0,0,0.4);
   /* Feedback colors — green-400/red-400 read vibrantly on dark surfaces. */
   --rm-success-rgb: 74,222,128;
   --rm-error-rgb: 248,113,113;
 }
 
 [data-reading-mode="light"] {
-  --rm-bg: #f8f9fa;
-  --rm-bg-elevated: #ffffff;
-  --rm-text: #374151;
-  --rm-text-heading: #111827;
-  --rm-text-secondary: #6b7280;
-  --rm-text-lead: #1f2937;
-  --rm-border: #e5e7eb;
-  --rm-accent: #3b82f6;
-  --rm-callout-bg: #eff6ff;
-  --rm-callout-border: #3b82f6;
-  --rm-code-bg: #1e293b;
-  --rm-code-border: #334155;
-  --rm-code-text: #e2e8f0;
-  --rm-code-comment: #64748b;
-  --rm-code-string: #86efac;
-  --rm-code-keyword: #c4b5fd;
-  --rm-code-number: #fbbf24;
-  --rm-code-label-bg: rgba(255,255,255,0.05);
-  --rm-code-label-text: #94a3b8;
-  --rm-code-radius: 8px;
+  /* Apple-premium light: page is signature gray (#f5f5f7), components are crisp white cards. */
+  --rm-bg: #f5f5f7;
+  --rm-bg-elevated: #f5f5f7;
+  --rm-text: #1d1d1f;
+  --rm-text-heading: #1d1d1f;
+  --rm-text-secondary: #6e6e73;
+  --rm-text-lead: #1d1d1f;
+  --rm-border: #d2d2d7;
+  --rm-accent: #0071e3;
+  --rm-callout-bg: #f5f5f7;
+  --rm-callout-border: #0071e3;
+  --rm-code-bg: #1d1d1f;
+  --rm-code-border: #2d2d2f;
+  --rm-code-text: #f5f5f7;
+  --rm-code-comment: #86868b;
+  --rm-code-string: #a1eaa1;
+  --rm-code-keyword: #d6b6ff;
+  --rm-code-number: #ffd479;
+  --rm-code-label-bg: rgba(255,255,255,0.06);
+  --rm-code-label-text: #a1a1a6;
+  --rm-code-radius: 12px;
   --rm-font: -apple-system, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
   --rm-font-heading: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
-  --rm-line-height: 1.85;
+  --rm-line-height: 1.7;
   --rm-content-max-width: 50rem;
-  --rm-table-header-bg: #f3f4f6;
-  --rm-table-hover: #f9fafb;
-  --rm-list-badge-bg: #dbeafe;
-  --rm-list-badge-text: #1d4ed8;
-  --rm-hr: #e5e7eb;
+  --rm-table-header-bg: #f5f5f7;
+  --rm-table-hover: #fafafa;
+  --rm-list-badge-bg: rgba(0,113,227,0.1);
+  --rm-list-badge-text: #0071e3;
+  --rm-hr: #d2d2d7;
+  /* Apple-style card elevation. */
+  --rm-card-bg: #ffffff;
+  --rm-card-border: rgba(0,0,0,0.06);
+  --rm-card-radius: 20px;
+  --rm-card-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(0,0,0,0.06);
   /* Feedback colors — green-700/red-700 for AA contrast on white. */
   --rm-success-rgb: 21,128,61;
   --rm-error-rgb: 185,28,28;
 }
 
+/* Apple-premium card surfaces — top-level sections inside the reading viewport float. */
+[data-reading-mode] > div > section {
+  background: var(--rm-card-bg);
+  border: 1px solid var(--rm-card-border);
+  border-radius: var(--rm-card-radius);
+  box-shadow: var(--rm-card-shadow);
+  padding: 2rem 2.25rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Lesson intro: neutralize the Tailwind border-b/pb so the card looks uniform. */
+[data-reading-mode] > div > section:first-of-type {
+  padding: 1.75rem 2.25rem;
+  margin-bottom: 1.25rem;
+}
+[data-reading-mode] > div > section:first-of-type > div:last-child {
+  margin-top: 0.75rem;
+}
+
+/* Navigation footer: drop the divider line and let the buttons breathe on the page. */
+[data-reading-mode] > div > div.mt-10:last-child {
+  border-top-color: transparent !important;
+  padding-top: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* Tables inside cards: clean up borders. */
+[data-reading-mode] section[data-section-id] table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
 [data-reading-mode="book"] {
   --rm-bg: #d5d1cb;
-  --rm-bg-elevated: #cfc9c1;
+  --rm-bg-elevated: #d5d1cb;
   --rm-text: #3d3529;
   --rm-text-heading: #1a1510;
   --rm-text-secondary: #756a58;
   --rm-text-lead: #2c2416;
   --rm-border: #beb7ad;
   --rm-accent: #a68c60;
-  --rm-callout-bg: #cfc9c1;
+  --rm-callout-bg: #d5d1cb;
   --rm-callout-border: #a68c60;
   --rm-code-bg: #262320;
   --rm-code-border: #3d3829;
@@ -345,6 +388,11 @@
   --rm-list-badge-bg: rgba(166,140,96,0.15);
   --rm-list-badge-text: #756a58;
   --rm-hr: #beb7ad;
+  /* Card elevation — pages of brighter cream paper. */
+  --rm-card-bg: #ece6d8;
+  --rm-card-border: rgba(61,53,41,0.08);
+  --rm-card-radius: 12px;
+  --rm-card-shadow: 0 1px 2px rgba(61,53,41,0.06), 0 8px 24px rgba(61,53,41,0.08);
   /* Feedback colors — darker shades for warm beige surface. */
   --rm-success-rgb: 22,101,52;
   --rm-error-rgb: 153,27,27;
@@ -352,14 +400,14 @@
 
 [data-reading-mode="kindle"] {
   --rm-bg: #f5f1e8;
-  --rm-bg-elevated: #ede8dd;
+  --rm-bg-elevated: #f5f1e8;
   --rm-text: #2d2a26;
   --rm-text-heading: #1a1816;
   --rm-text-secondary: #6b6560;
   --rm-text-lead: #1f1d1a;
   --rm-border: #d8d0c4;
   --rm-accent: #3d3d3d;
-  --rm-callout-bg: #ede8dd;
+  --rm-callout-bg: #f5f1e8;
   --rm-callout-border: #b0a898;
   --rm-code-bg: #e8e3d8;
   --rm-code-border: #d0c9bc;
@@ -380,6 +428,11 @@
   --rm-list-badge-bg: rgba(0,0,0,0.05);
   --rm-list-badge-text: #6b6560;
   --rm-hr: #d8d0c4;
+  /* Card elevation — flat e-paper minimalism. */
+  --rm-card-bg: #fffbf2;
+  --rm-card-border: rgba(45,42,38,0.07);
+  --rm-card-radius: 4px;
+  --rm-card-shadow: 0 1px 1px rgba(45,42,38,0.04), 0 4px 12px rgba(45,42,38,0.04);
   /* Feedback colors — darker shades for warm cream surface. */
   --rm-success-rgb: 22,101,52;
   --rm-error-rgb: 153,27,27;
@@ -387,14 +440,14 @@
 
 [data-reading-mode="nightowl"] {
   --rm-bg: #1a1008;
-  --rm-bg-elevated: #241a0e;
+  --rm-bg-elevated: #1a1008;
   --rm-text: #c8a878;
   --rm-text-heading: #e0c89a;
   --rm-text-secondary: #8a7050;
   --rm-text-lead: #d4b888;
   --rm-border: #3a2a18;
   --rm-accent: #d4a050;
-  --rm-callout-bg: #241a0e;
+  --rm-callout-bg: #1a1008;
   --rm-callout-border: #8a6830;
   --rm-code-bg: #140c04;
   --rm-code-border: #2a1e10;
@@ -415,6 +468,11 @@
   --rm-list-badge-bg: rgba(212,160,80,0.1);
   --rm-list-badge-text: #d4a050;
   --rm-hr: #3a2a18;
+  /* Card elevation — warm amber lift over near-black. */
+  --rm-card-bg: #241a0e;
+  --rm-card-border: rgba(212,160,80,0.08);
+  --rm-card-radius: 14px;
+  --rm-card-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 12px 32px rgba(0,0,0,0.45);
   /* Feedback colors — vibrant on dark amber surface. */
   --rm-success-rgb: 74,222,128;
   --rm-error-rgb: 248,113,113;
@@ -422,14 +480,14 @@
 
 [data-reading-mode="black"] {
   --rm-bg: #000000;
-  --rm-bg-elevated: #0a0a0a;
+  --rm-bg-elevated: #000000;
   --rm-text: #c8c8c8;
   --rm-text-heading: #e8e8e8;
   --rm-text-secondary: #707070;
   --rm-text-lead: #d8d8d8;
   --rm-border: #1a1a1a;
   --rm-accent: #ffffff;
-  --rm-callout-bg: #0a0a0a;
+  --rm-callout-bg: #000000;
   --rm-callout-border: #333333;
   --rm-code-bg: #000000;
   --rm-code-border: #1a1a1a;
@@ -450,6 +508,11 @@
   --rm-list-badge-bg: rgba(255,255,255,0.05);
   --rm-list-badge-text: #888888;
   --rm-hr: #1a1a1a;
+  /* Card elevation — AMOLED-friendly: barely-there lift, hairline border carries the edge. */
+  --rm-card-bg: #0d0d0d;
+  --rm-card-border: rgba(255,255,255,0.07);
+  --rm-card-radius: 14px;
+  --rm-card-shadow: 0 1px 2px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.5);
   /* Feedback colors — vibrant on pure black. */
   --rm-success-rgb: 74,222,128;
   --rm-error-rgb: 248,113,113;
@@ -463,9 +526,25 @@
 /* Targeted child transitions (NOT wildcard — avoids Framer Motion jank) */
 [data-reading-mode] h1, [data-reading-mode] h2, [data-reading-mode] h3,
 [data-reading-mode] p, [data-reading-mode] li, [data-reading-mode] td,
-[data-reading-mode] th, [data-reading-mode] section,
+[data-reading-mode] th,
 [data-reading-mode] blockquote, [data-reading-mode] pre {
   transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Reading-card surfaces: fade elevation + radius + bg + border together so
+   nothing snaps when the user toggles modes. Scoped to direct descendants
+   of the reading viewport so Framer Motion roots higher up are untouched. */
+[data-reading-mode] > div > section,
+[data-reading-mode] > div > section div,
+[data-reading-mode] > div > section table,
+[data-reading-mode] > div > section thead,
+[data-reading-mode] > div > section tbody,
+[data-reading-mode] > div > section tr,
+[data-reading-mode] > div > section span,
+[data-reading-mode] > div > div,
+[data-reading-mode] > div > div button,
+[data-reading-mode] > div > div span {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, border-radius 0.2s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -486,6 +565,14 @@
 
 [data-focus-mode="true"] {
   height: 100dvh !important;
+}
+
+/* Tools cluster in focus mode: shrink the icon buttons so their glyphs sit
+   visually flush against each other (default w-8 leaves ~16px between glyphs). */
+[data-focus-mode="true"] button[aria-label="Appearance settings"],
+[data-focus-mode="true"] button[aria-label="Focus mode"],
+[data-focus-mode="true"] button[aria-label="Exit focus mode"] {
+  width: 1.25rem;
 }
 
 @layer components {

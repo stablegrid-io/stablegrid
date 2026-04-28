@@ -12,6 +12,7 @@ import {
   TrendingDown,
   Minus,
   CheckCircle2,
+  ChevronDown,
   Lock,
   Zap,
   Brain,
@@ -45,6 +46,12 @@ const APPLE_FONT = '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui
 const CARD = 'rounded-[22px] bg-[#181c20] border border-white/[0.06] p-5';
 const SECTION_LABEL = 'text-[11px] font-mono font-bold text-on-surface/75 uppercase tracking-[0.18em]';
 const SECTION_SUBLABEL = 'text-[13px] text-on-surface-variant/75 leading-relaxed';
+
+const TIERS = [
+  { slug: 'junior', label: 'Junior', color: '#99f7ff', rgb: '153,247,255' },
+  { slug: 'mid',    label: 'Mid',    color: '#ffc965', rgb: '255,201,101' },
+  { slug: 'senior', label: 'Senior', color: '#ff716c', rgb: '255,113,108' },
+] as const;
 
 /* ── Helpers ── */
 
@@ -92,6 +99,16 @@ export function ProgressDashboard({
   // between server render and client. Gate such text behind this flag.
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { setHydrated(true); }, []);
+
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(() => new Set());
+  const toggleTopic = (topicId: string) => {
+    setExpandedTopics((prev) => {
+      const next = new Set(prev);
+      if (next.has(topicId)) next.delete(topicId);
+      else next.add(topicId);
+      return next;
+    });
+  };
 
   /* ── Core aggregates ── */
   const {
@@ -324,15 +341,18 @@ export function ProgressDashboard({
         // Prefer authoritative set size; fall back to topic_progress value
         const completed = Math.max(completedSet.size, progress?.theoryChaptersCompleted ?? 0);
 
-        const tracks = (trackMetaByTopic as Record<string, Array<{ slug: string; moduleCount: number; moduleIds: string[] }>>)[topicId] ?? [];
+        const tracks = (trackMetaByTopic as Record<string, Array<{ slug: string; moduleCount: number; moduleIds: string[]; modules: { id: string; title: string; number: number }[] }>>)[topicId] ?? [];
         const levels = (['junior', 'mid', 'senior'] as const).map((slug) => {
           const track = tracks.find((t) => t.slug === slug);
-          if (!track || track.moduleCount === 0) return { slug, status: 'empty' as const, pct: 0, done: 0, total: 0 };
-          const done = track.moduleIds.filter((id) => completedSet.has(id)).length;
+          if (!track || track.moduleCount === 0) {
+            return { slug, status: 'empty' as const, pct: 0, done: 0, total: 0, modules: [] as Array<{ id: string; title: string; completed: boolean }> };
+          }
+          const modules = track.modules.map((m) => ({ id: m.id, title: m.title, completed: completedSet.has(m.id) }));
+          const done = modules.filter((m) => m.completed).length;
           const pct = Math.round((done / track.moduleCount) * 100);
           const status: 'complete' | 'progress' | 'available' =
             pct >= 100 ? 'complete' : pct > 0 ? 'progress' : 'available';
-          return { slug, status, pct, done, total: track.moduleCount };
+          return { slug, status, pct, done, total: track.moduleCount, modules };
         });
 
         return {
@@ -466,6 +486,192 @@ export function ProgressDashboard({
         <div
           aria-hidden="true"
           className="h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent"
+        />
+
+        {/* ── Concept mastery ── */}
+        <section
+          className="space-y-4"
+          style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 80ms forwards' }}
+        >
+          <div>
+            <h2 className={SECTION_LABEL}>Concept mastery</h2>
+            <p className={SECTION_SUBLABEL + ' mt-1'}>
+              Every concept across the curriculum, by topic and tier. Filled rows are mastered.
+            </p>
+          </div>
+          {topicMastery.length === 0 ? (
+            <div className={CARD + ' text-center py-10'}>
+              <p className="text-[13px] text-on-surface-variant/50">
+                Start reading any topic to see mastery here.
+              </p>
+              <Link
+                href="/learn"
+                className="inline-block mt-3 text-[12px] text-primary hover:underline"
+              >
+                Browse topics →
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {topicMastery.map((topic) => {
+                const tracksTotal = topic.levels.reduce((s, l) => s + l.total, 0);
+                const tracksDone = topic.levels.reduce((s, l) => s + l.done, 0);
+                const isOpen = expandedTopics.has(topic.topicId);
+                return (
+                  <div key={topic.topicId} className={CARD}>
+                    <button
+                      type="button"
+                      onClick={() => toggleTopic(topic.topicId)}
+                      aria-expanded={isOpen}
+                      aria-controls={`concept-mastery-${topic.topicId}`}
+                      className="flex items-center gap-3 w-full text-left group"
+                    >
+                      <Image
+                        src={TOPIC_ICON[topic.topicId] ?? '/brand/pyspark-track-star.svg'}
+                        alt=""
+                        width={22}
+                        height={22}
+                        className="opacity-70 shrink-0"
+                      />
+                      <span
+                        className="text-[15px] font-semibold text-on-surface/90 group-hover:text-on-surface transition-colors"
+                        style={{ fontFamily: APPLE_FONT, letterSpacing: '-0.015em' }}
+                      >
+                        {topic.label}
+                      </span>
+                      <span className="ml-auto text-[11px] tabular-nums text-on-surface-variant/55 shrink-0">
+                        {tracksDone}/{tracksTotal} concepts · {formatHrs(topic.minutes).text}
+                      </span>
+                      <ChevronDown
+                        size={16}
+                        className="shrink-0 text-on-surface-variant/45 transition-transform"
+                        style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                      />
+                    </button>
+
+                    {isOpen && (
+                    <div
+                      id={`concept-mastery-${topic.topicId}`}
+                      className="mt-5"
+                    >
+                    <div className="flex justify-end mb-4">
+                      <Link
+                        href={`/learn/${topic.topicId}/theory`}
+                        className="text-[11px] font-mono uppercase tracking-[0.16em] text-on-surface-variant/55 hover:text-on-surface transition-colors"
+                      >
+                        Open track →
+                      </Link>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-8">
+                      {TIERS.map((tier) => {
+                        const level = topic.levels.find((l) => l.slug === tier.slug);
+                        const hasContent = !!level && level.total > 0;
+                        return (
+                          <div key={tier.slug}>
+                            <div className="flex items-center justify-between mb-3">
+                              <span
+                                className="font-mono uppercase"
+                                style={{
+                                  fontSize: 10,
+                                  letterSpacing: '0.22em',
+                                  color: hasContent ? tier.color : 'rgba(255,255,255,0.25)',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {tier.label}
+                              </span>
+                              <span
+                                className="font-mono uppercase tabular-nums"
+                                style={{
+                                  fontSize: 10,
+                                  letterSpacing: '0.16em',
+                                  color: 'rgba(255,255,255,0.3)',
+                                }}
+                              >
+                                {hasContent ? `${level!.done}/${level!.total}` : '—'}
+                              </span>
+                            </div>
+                            <div
+                              aria-hidden
+                              className="h-px w-full mb-3"
+                              style={{
+                                background: hasContent
+                                  ? `linear-gradient(to right, rgba(${tier.rgb},0.4), transparent)`
+                                  : 'linear-gradient(to right, rgba(255,255,255,0.08), transparent)',
+                              }}
+                            />
+                            {hasContent ? (
+                              <ol className="space-y-2">
+                                {level!.modules.map((m, i) => (
+                                  <li key={m.id} className="flex items-start gap-3">
+                                    <span
+                                      className="font-mono shrink-0 mt-[3px] tabular-nums"
+                                      style={{
+                                        fontSize: 10,
+                                        color: 'rgba(255,255,255,0.28)',
+                                        letterSpacing: '0.05em',
+                                        width: 22,
+                                      }}
+                                    >
+                                      {String(i + 1).padStart(2, '0')}
+                                    </span>
+                                    {m.completed ? (
+                                      <CheckCircle2
+                                        size={12}
+                                        className="shrink-0 mt-[5px]"
+                                        style={{ color: tier.color }}
+                                      />
+                                    ) : (
+                                      <span
+                                        aria-hidden
+                                        className="shrink-0 mt-[6px] rounded-full"
+                                        style={{
+                                          width: 10,
+                                          height: 10,
+                                          border: '1px solid rgba(255,255,255,0.18)',
+                                        }}
+                                      />
+                                    )}
+                                    <span
+                                      style={{
+                                        fontFamily: APPLE_FONT,
+                                        fontSize: 13,
+                                        lineHeight: 1.45,
+                                        color: m.completed
+                                          ? 'rgba(255,255,255,0.88)'
+                                          : 'rgba(255,255,255,0.55)',
+                                        fontWeight: m.completed ? 500 : 400,
+                                      }}
+                                    >
+                                      {m.title}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ol>
+                            ) : (
+                              <p
+                                className="text-[12px] italic"
+                                style={{ color: 'rgba(255,255,255,0.3)' }}
+                              >
+                                Coming soon
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <div
+          aria-hidden="true"
+          className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent"
         />
 
         {/* ── KPIs ── */}
@@ -758,65 +964,6 @@ export function ProgressDashboard({
           </div>
         </section>
 
-        {/* ── Topic mastery ── */}
-        <section
-          className="space-y-4"
-          style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 400ms forwards' }}
-        >
-          <div>
-            <h2 className={SECTION_LABEL}>Topic mastery</h2>
-            <p className={SECTION_SUBLABEL + ' mt-1'}>
-              Each bar is split into three tracks. Cyan Junior, amber Mid, coral Senior.
-            </p>
-          </div>
-          {topicMastery.length === 0 ? (
-            <div className={CARD + ' text-center py-10'}>
-              <p className="text-[13px] text-on-surface-variant/50">
-                Start reading any topic to see mastery here.
-              </p>
-              <Link
-                href="/learn"
-                className="inline-block mt-3 text-[12px] text-primary hover:underline"
-              >
-                Browse topics →
-              </Link>
-            </div>
-          ) : (
-            <div className={CARD + ' divide-y divide-white/[0.04]'}>
-              {topicMastery.map((topic) => {
-                const tracksTotal = topic.levels.reduce((s, l) => s + l.total, 0);
-                const tracksDone = topic.levels.reduce((s, l) => s + l.done, 0);
-                return (
-                  <Link
-                    key={topic.topicId}
-                    href={`/learn/${topic.topicId}/theory`}
-                    className="flex items-center gap-4 py-3 first:pt-1 last:pb-1 group"
-                  >
-                    <Image
-                      src={TOPIC_ICON[topic.topicId] ?? '/brand/pyspark-track-star.svg'}
-                      alt={topic.label}
-                      width={22}
-                      height={22}
-                      className="opacity-70 shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline justify-between gap-3 mb-1.5">
-                        <span className="text-[13px] font-medium text-on-surface/85 truncate group-hover:text-on-surface transition-colors">
-                          {topic.label}
-                        </span>
-                        <span className="text-[11px] tabular-nums text-on-surface-variant/55 shrink-0">
-                          {tracksDone}/{tracksTotal} · {formatHrs(topic.minutes).text}
-                        </span>
-                      </div>
-                      <TrackSegmentBar levels={topic.levels} />
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
         {/* ── Milestones ── */}
         <section
           className="space-y-4"
@@ -982,56 +1129,6 @@ function ModeChip({
           }}
         />
       </div>
-    </div>
-  );
-}
-
-/* ── Tier segment bar ── */
-
-const TIER_COLORS: Record<string, { from: string; to: string; glow: string }> = {
-  junior: { from: 'rgba(153,247,255,0.55)', to: 'rgba(153,247,255,0.95)', glow: 'rgba(153,247,255,0.4)' },
-  mid:    { from: 'rgba(255,201,101,0.55)', to: 'rgba(255,201,101,0.95)', glow: 'rgba(255,201,101,0.4)' },
-  senior: { from: 'rgba(255,113,108,0.55)', to: 'rgba(255,113,108,0.95)', glow: 'rgba(255,113,108,0.4)' },
-};
-
-const TIER_LABEL: Record<string, string> = { junior: 'Jr', mid: 'Mid', senior: 'Sr' };
-
-function TrackSegmentBar({
-  levels,
-}: {
-  levels: Array<{ slug: string; status: string; done: number; total: number }>;
-}) {
-  return (
-    <div className="flex items-center gap-[3px]">
-      {levels.map((lvl) => {
-        const c = TIER_COLORS[lvl.slug] ?? TIER_COLORS.junior;
-        const pct = lvl.total > 0 ? (lvl.done / lvl.total) * 100 : 0;
-        const isEmpty = lvl.status === 'empty';
-        return (
-          <div
-            key={lvl.slug}
-            className="relative flex-1 h-[5px] rounded-full overflow-hidden"
-            title={isEmpty ? `${TIER_LABEL[lvl.slug]} — not available` : `${TIER_LABEL[lvl.slug]} — ${lvl.done}/${lvl.total}`}
-            style={{
-              backgroundColor: isEmpty ? 'transparent' : 'rgba(255,255,255,0.05)',
-              backgroundImage: isEmpty
-                ? 'repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0 3px, transparent 3px 6px)'
-                : undefined,
-            }}
-          >
-            {!isEmpty && pct > 0 && (
-              <div
-                className="absolute inset-y-0 left-0 rounded-full transition-all"
-                style={{
-                  width: `${pct}%`,
-                  background: `linear-gradient(90deg, ${c.from}, ${c.to})`,
-                  boxShadow: `0 0 6px ${c.glow}`,
-                }}
-              />
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }

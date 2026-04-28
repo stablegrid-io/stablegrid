@@ -10,6 +10,7 @@ export interface TrackMetaSummary {
   label: string;
   moduleCount: number;
   moduleIds: string[];
+  modules: { id: string; title: string; number: number }[];
 }
 
 export interface TopicTrackMeta {
@@ -33,6 +34,7 @@ export function buildTrackMetaByTopic(): TrackMetaByTopic {
         label: track.label,
         moduleCount: modules.length,
         moduleIds: modules.map((m) => m.id),
+        modules: modules.map((m) => ({ id: m.id, title: m.title, number: m.number })),
       };
     });
   }

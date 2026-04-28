@@ -1251,7 +1251,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         </div>
 
         {/* Right group: tools */}
-        <div className="flex flex-shrink-0 items-center gap-1">
+        <div className={`flex flex-shrink-0 items-center ${focusMode ? 'gap-0' : 'gap-1'}`}>
           <ReadingModeDropdown />
           <FocusModeButton />
           {!theorySession.hasActiveSession && (

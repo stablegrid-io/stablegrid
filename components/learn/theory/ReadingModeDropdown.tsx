@@ -81,6 +81,7 @@ export const ReadingModeDropdown = () => {
           style={{
             border: '1px solid color-mix(in srgb, var(--rm-border) 60%, transparent)',
             backgroundColor: 'color-mix(in srgb, var(--rm-bg-elevated) 85%, transparent)',
+            transition: 'background-color 0.2s ease, border-color 0.2s ease',
           }}
           onKeyDown={handleKeyDown}
         >

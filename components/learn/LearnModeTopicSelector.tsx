@@ -422,7 +422,7 @@ export function LearnModeTopicSelector({
         <section
           ref={toolbarRef}
           aria-label="Filter tracks"
-          className="relative z-30 w-full max-w-4xl"
+          className="relative z-30 w-full"
           style={{
             borderRadius: 18,
             background: 'rgba(255,255,255,0.05)',
