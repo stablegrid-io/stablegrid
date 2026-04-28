@@ -58,7 +58,7 @@ export function PracticeSessionMiniPlayer() {
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-50 rounded-[22px] border px-5 py-4 min-w-[240px]"
+      className="fixed right-3 lg:right-6 z-40 rounded-[22px] border px-5 py-4 min-w-[240px] max-w-[calc(100vw-1.5rem)] bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6"
       style={{
         background: 'rgba(10,12,14,0.92)',
         backdropFilter: 'blur(24px) saturate(1.4)',

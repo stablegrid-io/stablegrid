@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { User, UserCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import { getUserTier, getTierProfileImage } from '@/lib/energy';
+import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { getUserTier } from '@/lib/energy';
 import {
   SettingsCard,
   SettingsField,
@@ -71,7 +71,8 @@ export function ProfileTab({ profile, userEmail, provider, onToast }: ProfileTab
     setProgressHydrated(true);
   }, []);
   const tier = getUserTier({ kwh: xp, completedTracks });
-  const tierAvatar = getTierProfileImage(tier);
+  const tierAccent =
+    tier === 'senior' ? '#ff716c' : tier === 'mid' ? '#ffc965' : '#99f7ff';
   const tierLabel = tier === 'senior' ? 'Senior' : tier === 'mid' ? 'Mid' : 'Junior';
 
   const hasChanges =
@@ -133,20 +134,13 @@ export function ProfileTab({ profile, userEmail, provider, onToast }: ProfileTab
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div className="flex shrink-0 flex-col items-center gap-3 sm:items-start">
             <div
-              className="relative h-24 w-24 overflow-hidden rounded-full"
-              style={{
-                boxShadow: '0 0 0 2px rgba(255,255,255,0.08)',
-                backgroundColor: 'rgba(255,255,255,0.04)'
-              }}
+              className="relative h-24 w-24 flex items-center justify-center"
+              aria-label={`${tierLabel} tier`}
             >
               {progressHydrated ? (
-                <Image
-                  src={tierAvatar}
-                  alt={`${tierLabel} tier`}
-                  fill
-                  unoptimized
-                  className="object-cover"
-                  sizes="96px"
+                <StableGridMark
+                  className="h-12 w-12"
+                  style={{ color: tierAccent }}
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center font-mono text-xl font-bold tracking-wider text-on-surface/70">

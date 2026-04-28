@@ -118,7 +118,7 @@ export function UnifiedMiniPlayer() {
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-50 flex flex-col gap-2"
+      className="fixed right-3 lg:right-6 z-40 flex flex-col gap-2 max-w-[calc(100vw-1.5rem)] bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6"
       style={{ animation: 'fadeSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
     >
       {/* Theory session card */}

@@ -47,7 +47,7 @@ export const LessonCompletionToast = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.97 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[min(28rem,calc(100vw-2rem))]"
+      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 left-1/2 -translate-x-1/2 z-40 w-[min(28rem,calc(100vw-1.5rem))]"
     >
       <div
         className="relative overflow-hidden rounded-[22px] border backdrop-blur-2xl"

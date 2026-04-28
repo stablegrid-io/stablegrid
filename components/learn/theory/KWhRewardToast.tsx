@@ -60,7 +60,7 @@ function LessonToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-[60] pointer-events-auto"
+      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 right-3 lg:right-6 z-[60] pointer-events-auto"
       style={{
         width: size,
         height: size,

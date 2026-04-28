@@ -1,10 +1,9 @@
 'use client';
 
-import Image from 'next/image';
 import type { CSSProperties } from 'react';
 import { Check, Lock } from 'lucide-react';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import { getTierProfileImage } from '@/lib/energy';
+import { StableGridMark } from '@/components/brand/StableGridLogo';
 import { getUserTier, getTierProgressReport, type TierContext } from '@/lib/tiers';
 
 /**
@@ -46,7 +45,6 @@ export function CharacterTierHero() {
   const ctx: TierContext = { kwh: xp, completedTracks };
   const tier = getUserTier(ctx);
   const meta = TIER_META[tier];
-  const image = getTierProfileImage(tier);
 
   const nextTier: 'mid' | 'senior' | null =
     tier === 'junior' ? 'mid' : tier === 'mid' ? 'senior' : null;
@@ -77,42 +75,17 @@ export function CharacterTierHero() {
         {/* ── Left: portrait + identity ── */}
         <div className="relative flex flex-col">
           <div
-            className="relative mx-auto h-48 w-48 overflow-hidden rounded-full shrink-0 lg:mx-0 lg:h-56 lg:w-56"
-            style={{
-              boxShadow: '0 0 0 2px rgba(255,255,255,0.08)'
-            }}
+            className="relative mx-auto h-48 w-48 shrink-0 lg:mx-0 lg:h-56 lg:w-56 flex items-center justify-center"
+            aria-label={`${meta.label} tier`}
           >
-            <div
-              className="absolute inset-0"
-              style={{
-                background: `radial-gradient(ellipse at center, rgba(${meta.rgb},0.3) 0%, transparent 70%)`
-              }}
-            />
-            <Image
-              src={image}
-              alt={`${meta.label} tier`}
-              fill
-              unoptimized
-              className="object-cover"
-              sizes="(min-width: 1024px) 224px, 192px"
+            <StableGridMark
+              className="h-24 w-24 lg:h-28 lg:w-28"
+              style={{ color: meta.accent }}
             />
           </div>
 
           <div className="mt-6 text-center lg:text-left">
-            <p
-              className="font-mono"
-              style={{
-                fontSize: 10.5,
-                letterSpacing: '0.26em',
-                color: 'rgba(255,255,255,0.85)',
-                textTransform: 'uppercase',
-                fontWeight: 700
-              }}
-            >
-              Character Tier
-            </p>
             <h2
-              className="mt-2"
               style={{
                 fontSize: 'clamp(2.5rem, 4.5vw, 3.5rem)',
                 fontWeight: 800,
@@ -123,16 +96,6 @@ export function CharacterTierHero() {
             >
               {meta.label}
             </h2>
-            <p
-              className="mt-3"
-              style={{
-                fontSize: 14,
-                color: 'rgba(255,255,255,0.55)',
-                lineHeight: 1.5
-              }}
-            >
-              {meta.headline}
-            </p>
 
             <div className="mt-5 flex flex-wrap justify-center gap-2 lg:justify-start">
               <StatPill label="kWh" value={xp.toLocaleString()} />

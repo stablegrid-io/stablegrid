@@ -270,12 +270,12 @@ export const TheoryTrackPath = ({
         </div>
 
         {/* ── Title ── */}
-        <div className="text-center mb-12" style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards' }}>
+        <div className="text-center mb-8 lg:mb-12" style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards' }}>
           <div
-            className="inline-block w-10 h-1.5 mb-6 rounded-full"
+            className="inline-block w-10 h-1.5 mb-4 lg:mb-6 rounded-full"
             style={{ backgroundColor: ta.color, boxShadow: `0 0 12px rgba(${ta.rgb},0.5)` }}
           />
-          <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-on-surface">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-on-surface">
             Learning Path
           </h1>
           <p className="mt-3 font-mono font-medium text-[12px] tracking-widest text-on-surface-variant/70 uppercase">
@@ -284,7 +284,7 @@ export const TheoryTrackPath = ({
         </div>
         <div
           aria-hidden="true"
-          className="h-px w-full mb-16 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+          className="h-px w-full mb-8 lg:mb-16 bg-gradient-to-r from-transparent via-white/15 to-transparent"
         />
 
         {/* ── Zigzag tree map ── */}

@@ -220,11 +220,11 @@ function CategoryCard({ category, index }: { category: Category; index: number }
 export function PracticeHub() {
   return (
     <div className="min-h-screen pb-24 lg:pb-10">
-      <div className="relative w-full px-4 py-8 sm:px-6 lg:px-10 xl:px-14">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12 space-y-12">
 
         {/* Header */}
         <header
-          className="mb-10"
+          className="border-b border-white/[0.08] pb-6"
           style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}
         >
           <h1 className="text-5xl font-bold tracking-tight text-on-surface">
@@ -234,14 +234,10 @@ export function PracticeHub() {
             Theory builds the map. Practice builds the reflex. Five disciplines, drilled until hesitation
             turns into instinct &mdash; the kind of fluency you only earn by doing the rep one more time.
           </p>
-          <div
-            aria-hidden="true"
-            className="h-px w-full mt-6 bg-gradient-to-r from-transparent via-white/15 to-transparent"
-          />
         </header>
 
         {/* Category grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-3 gap-6">
           {CATEGORIES.map((cat, i) =>
             cat.comingSoon ? (
               <CategoryCard key={cat.id} category={cat} index={i} />

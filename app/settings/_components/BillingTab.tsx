@@ -129,14 +129,8 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
           style={{
             background: '#0f1215',
             borderRadius: 20,
-            border: `1px solid rgba(${accent.rgb},${isPaid ? 0.3 : 0.14})`,
-            boxShadow: isPaid
-              ? `0 0 0 1px rgba(${accent.rgb},0.06), 0 20px 60px rgba(0,0,0,0.45), 0 0 50px rgba(${accent.rgb},0.08)`
-              : '0 10px 40px rgba(0,0,0,0.35)'
           }}
         >
-          <BillingCorner position="top-left" accentRgb={accent.rgb} />
-          <BillingCorner position="bottom-right" accentRgb={accent.rgb} />
 
           <div className="relative p-6">
             <div className="flex items-start justify-between gap-4">
@@ -291,16 +285,13 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
                     letterSpacing: '0.18em',
                     textTransform: 'uppercase',
                     border: '1px solid transparent',
-                    boxShadow: '0 8px 30px rgba(255,201,101,0.22)'
                   }}
                   onMouseOver={(e) => {
                     if (loading === 'upgrade') return;
                     e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 14px 40px rgba(255,201,101,0.36)';
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 8px 30px rgba(255,201,101,0.22)';
                   }}
                 >
                   <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -434,54 +425,3 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
   );
 }
 
-// L-bracket corner marker — matches the landing pricing card + /progress
-// character tier hero. Two 1px lines meeting at the corner in the plan's
-// accent color.
-function BillingCorner({
-  position,
-  accentRgb
-}: {
-  position: 'top-left' | 'bottom-right';
-  accentRgb: string;
-}) {
-  const isTop = position.startsWith('top');
-  const isLeft = position.endsWith('left');
-  const color = `rgba(${accentRgb},0.5)`;
-  const size = 18;
-
-  return (
-    <div
-      aria-hidden
-      style={{
-        position: 'absolute',
-        [isTop ? 'top' : 'bottom']: 0,
-        [isLeft ? 'left' : 'right']: 0,
-        width: size,
-        height: size,
-        zIndex: 10,
-        pointerEvents: 'none'
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          [isTop ? 'top' : 'bottom']: 0,
-          [isLeft ? 'left' : 'right']: 0,
-          width: '100%',
-          height: 1,
-          background: color
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          [isTop ? 'top' : 'bottom']: 0,
-          [isLeft ? 'left' : 'right']: 0,
-          width: 1,
-          height: '100%',
-          background: color
-        }}
-      />
-    </div>
-  );
-}

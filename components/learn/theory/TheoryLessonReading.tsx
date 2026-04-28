@@ -250,7 +250,7 @@ export const TheoryLessonIntro = ({
   const activeSegmentProgress = isCurrentLessonCompleted ? 100 : Math.round((elapsedSeconds / 30) * 100);
 
   return (
-    <section className="mb-10 border-b pb-8" style={{ borderColor: 'var(--rm-border)' }}>
+    <section className="mb-5 border-b pb-4 lg:mb-10 lg:pb-8" style={{ borderColor: 'var(--rm-border)' }}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[0.72rem] font-mono font-medium uppercase tracking-[0.18em]" style={{ color: 'var(--rm-text-secondary)' }}>
         <span>Module {chapter.order ?? chapter.number}</span>
         <span className="opacity-35">•</span>
@@ -265,9 +265,9 @@ export const TheoryLessonIntro = ({
         ) : null}
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-2.5 lg:mt-4 space-y-3">
         <h1
-          className="max-w-[24ch] text-[clamp(1.7rem,3.1vw,3rem)] font-semibold leading-[1.02] tracking-[-0.03em]"
+          className="max-w-[24ch] text-[clamp(1.4rem,5vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em]"
           style={{ textWrap: 'balance', color: 'var(--rm-text-heading)', fontFamily: 'var(--rm-font-heading)' }}
         >
           {normalizedLessonTitle}

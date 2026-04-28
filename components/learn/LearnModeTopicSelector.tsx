@@ -403,8 +403,11 @@ export function LearnModeTopicSelector({
 
   return (
     <div className="min-h-screen pb-24 lg:pb-10">
-      <div className="relative w-full px-4 py-8 sm:px-6 lg:px-10 xl:px-14">
-        <header className="mb-10" style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}>
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12 space-y-12">
+        <header
+          className="border-b border-white/[0.08] pb-6"
+          style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}
+        >
           <h1 className="text-5xl font-bold tracking-tight text-on-surface">
             Theory Hub
           </h1>
@@ -413,17 +416,13 @@ export function LearnModeTopicSelector({
             real features, and inheriting the messy decisions someone made two quarters ago. You learn the
             tools the way you&rsquo;d actually use them on the job, not as isolated drills.
           </p>
-          <div
-            aria-hidden="true"
-            className="h-px w-full mt-6 bg-gradient-to-r from-transparent via-white/15 to-transparent"
-          />
         </header>
 
         {/* Filter toolbar — search + dropdowns */}
         <section
           ref={toolbarRef}
           aria-label="Filter tracks"
-          className="relative z-30 mb-10 w-full max-w-4xl"
+          className="relative z-30 w-full max-w-4xl"
           style={{
             borderRadius: 18,
             background: 'rgba(255,255,255,0.05)',
@@ -533,7 +532,7 @@ export function LearnModeTopicSelector({
         {/* Track cards */}
         <div>
         {filteredTopics.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-3 gap-6">
             {filteredTopics.map((topic, index) => {
               const trackIconSrc =
                 TRACK_ICON_SRC_BY_TOPIC[topic.id] ?? '/brand/pyspark-track-star.svg';
@@ -586,13 +585,8 @@ export function LearnModeTopicSelector({
                       e.currentTarget.style.boxShadow = 'none';
                     }}
                   >
-                    {/* Top accent: cat gradient for built tracks, caution tape for UC */}
-                    {hasContent ? (
-                      <div
-                        className="absolute top-0 left-0 right-0 transition-all duration-300 z-10"
-                        style={{ height: 2, background: `linear-gradient(90deg, transparent 5%, rgba(${catRgb}, 0.5), transparent 95%)` }}
-                      />
-                    ) : (
+                    {/* Caution tape for under-construction tracks only */}
+                    {!hasContent && (
                       <div
                         className="absolute top-0 left-0 right-0 z-10"
                         style={{

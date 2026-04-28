@@ -48,7 +48,7 @@ const NavigationShell = ({ children }: { children: ReactNode }) => {
 
       <div
         data-testid="navigation-shell-content"
-        className={`pb-16 lg:pb-0 transition-[padding,margin] duration-200 ${
+        className={`pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 transition-[padding,margin] duration-200 ${
           hideForFocus ? '!p-0 !m-0' : hideNav ? '' : isCompact ? 'lg:ml-16 pt-14' : 'lg:ml-48 pt-14'
         }`}
         style={{ isolation: 'isolate' }}

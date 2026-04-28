@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { StableGridMark } from '@/components/brand/StableGridLogo';
 import { usePathname, useRouter } from 'next/navigation';
 import { Fingerprint, Wrench, MessageCircle } from 'lucide-react';
 import type { AdminRole } from '@/lib/admin/types';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import { getUserTier, getTierProfileImage } from '@/lib/energy';
+import { getUserTier } from '@/lib/energy';
 import {
   isNavItemActive,
   isCompactDesktopNavPath,
@@ -67,7 +67,6 @@ export const Sidebar = () => {
     };
   }, [user?.id]);
   const tier = getUserTier({ kwh: xp, completedTracks });
-  const resolvedAvatarUrl = getTierProfileImage(tier);
   const tierAccent =
     tier === 'senior' ? '#ff716c' : tier === 'mid' ? '#ffc965' : '#99f7ff';
   const tierLabel = tier === 'senior' ? 'Senior' : tier === 'mid' ? 'Mid' : 'Junior';
@@ -138,27 +137,21 @@ export const Sidebar = () => {
       <div className={`${isCompact ? 'px-3 py-2 flex justify-center' : 'px-4 py-2'}`}>
         {isCompact ? (
           <div
-            className="relative w-10 h-10 shrink-0 overflow-hidden rounded-full ring-2"
-            style={{
-              ['--tw-ring-color' as string]: 'rgba(255,255,255,0.08)',
-              backgroundColor: 'rgba(255,255,255,0.04)'
-            }}
+            className="relative w-10 h-10 shrink-0 flex items-center justify-center"
+            aria-label={`${tier} avatar`}
           >
             {progressHydrated && (
-              <Image src={resolvedAvatarUrl} alt={`${tier} avatar`} fill unoptimized className="object-cover" />
+              <StableGridMark className="h-5 w-5" style={{ color: tierAccent }} />
             )}
           </div>
         ) : (
           <div className="flex items-center gap-3">
             <div
-              className="relative w-12 h-12 shrink-0 overflow-hidden rounded-full ring-2"
-              style={{
-                ['--tw-ring-color' as string]: 'rgba(255,255,255,0.08)',
-                backgroundColor: 'rgba(255,255,255,0.04)'
-              }}
+              className="relative w-12 h-12 shrink-0 flex items-center justify-center"
+              aria-label={`${tier} avatar`}
             >
               {progressHydrated && (
-                <Image src={resolvedAvatarUrl} alt={`${tier} avatar`} fill unoptimized className="object-cover" />
+                <StableGridMark className="h-6 w-6" style={{ color: tierAccent }} />
               )}
             </div>
             <div
@@ -200,6 +193,8 @@ export const Sidebar = () => {
               href={item.href}
               onMouseEnter={() => prefetchRoute(item.href)}
               title={isCompact ? item.label : undefined}
+              aria-label={isCompact ? item.label : undefined}
+              aria-current={isActive ? 'page' : undefined}
               className={`group relative flex items-center ${isCompact ? 'justify-center px-0 py-2.5 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-[13px] font-medium transition-all duration-150 ${
                 isActive
                   ? 'bg-white/[0.08] text-on-surface'
@@ -209,7 +204,7 @@ export const Sidebar = () => {
               <Icon className={`flex-shrink-0 ${isCompact ? 'h-5 w-5' : 'h-[18px] w-[18px]'}`} />
               {!isCompact && <span>{item.label}</span>}
               {isCompact && (
-                <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-[7px] bg-surface-container/95 backdrop-blur-lg border border-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-on-surface opacity-0 shadow-lg group-hover:opacity-100 transition-opacity z-50">
+                <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-[7px] bg-surface-container/95 backdrop-blur-lg border border-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-on-surface opacity-0 shadow-lg group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50">
                   {item.label}
                 </span>
               )}

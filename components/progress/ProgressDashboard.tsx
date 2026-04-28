@@ -415,13 +415,13 @@ export function ProgressDashboard({
     return list;
   }, [allSessions, completedSessions, firstActiveAt, stats.currentStreak, totalMinutes, totalModulesDone, topicMastery.length, totalLessonsEver, hydrated]);
 
-  /* ── Hero summary sentence ── */
+  /* ── Hero subtitle: one-sentence description of what's on this page ── */
   const summary = useMemo(() => {
-    if (totalSessions === 0) return 'No sessions yet — your first reading session starts the log.';
-    const t = formatHrs(totalMinutes).text;
-    const streakPart = stats.currentStreak > 0 ? `, ${stats.currentStreak}-day streak active` : '';
-    return `${t} invested · ${totalLessonsEver} lesson${totalLessonsEver === 1 ? '' : 's'} · ${totalModulesDone} module${totalModulesDone === 1 ? '' : 's'}${streakPart}.`;
-  }, [totalSessions, totalMinutes, totalLessonsEver, totalModulesDone, stats.currentStreak]);
+    if (totalSessions === 0) {
+      return 'Your reading time, completed modules, and streaks will land here once you start a session.';
+    }
+    return 'Time on task, lessons closed, modules earned — the receipts of how the work compounds.';
+  }, [totalSessions]);
 
   const totalH = formatHrs(totalMinutes);
 
@@ -437,9 +437,6 @@ export function ProgressDashboard({
           <ArrowLeft className="h-4 w-4" />
           Home
         </Link>
-
-        {/* ── Character Tier (first section) ── */}
-        <CharacterTierHero />
 
         {/* ── Hero ── */}
         <div
@@ -458,10 +455,18 @@ export function ProgressDashboard({
           >
             Your impact
           </h1>
-          <p className="text-[15px] text-on-surface-variant/70 max-w-2xl leading-relaxed tabular-nums">
+          <p className="text-[15px] text-on-surface-variant/70 max-w-2xl leading-relaxed">
             {summary}
           </p>
         </div>
+
+        {/* ── Character Tier ── */}
+        <CharacterTierHero />
+
+        <div
+          aria-hidden="true"
+          className="h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent"
+        />
 
         {/* ── KPIs ── */}
         <div
@@ -474,7 +479,7 @@ export function ProgressDashboard({
             unit="h:m"
             delta={trends.minutesDelta}
             sub={trends.minutesThisWeek > 0 ? `${formatHrs(trends.minutesThisWeek).text} this week` : 'No time this week'}
-            rgb="153,247,255"
+            rgb="255,255,255"
           />
           <Kpi
             label="Lessons read"
@@ -482,7 +487,7 @@ export function ProgressDashboard({
             unit="unique lessons"
             delta={null}
             sub={`Across ${topicMastery.length} topic${topicMastery.length === 1 ? '' : 's'}`}
-            rgb="191,129,255"
+            rgb="255,255,255"
           />
           <Kpi
             label="Modules done"
@@ -490,7 +495,7 @@ export function ProgressDashboard({
             unit={`of ${totalModules}`}
             delta={trends.modulesDelta}
             sub={`${overallPct}% of library`}
-            rgb="255,201,101"
+            rgb="255,255,255"
           />
           <Kpi
             label="Current streak"
@@ -498,7 +503,7 @@ export function ProgressDashboard({
             unit={stats.currentStreak === 1 ? 'day' : 'days'}
             delta={null}
             sub={stats.currentStreak > 0 ? 'Keep showing up' : 'Read today to start'}
-            rgb="255,113,108"
+            rgb="255,255,255"
           />
         </div>
 
@@ -518,7 +523,7 @@ export function ProgressDashboard({
               <StatBlock
                 label="This month"
                 value={formatHrs(dailyFocus.total).text}
-                rgb="153,247,255"
+                rgb="255,255,255"
               />
               <StatBlock
                 label="Daily avg"
@@ -531,7 +536,8 @@ export function ProgressDashboard({
                 label="Best day"
                 value={dailyFocus.best && dailyFocus.best.minutes > 0 ? `${dailyFocus.best.minutes}m` : '—'}
                 sub={hydrated && dailyFocus.best && dailyFocus.best.minutes > 0 ? dailyFocus.best.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : undefined}
-                rgb="255,201,101"
+                rgb="255,255,255"
+                faded
               />
             </div>
             <FocusAreaChart days={dailyFocus.days} max={dailyFocus.max} />
@@ -635,7 +641,7 @@ export function ProgressDashboard({
                 label="Completed"
                 value={completedStats.count.toString()}
                 sub={completedStats.topicsCompleted > 0 ? `across ${completedStats.topicsCompleted} topic${completedStats.topicsCompleted === 1 ? '' : 's'}` : undefined}
-                rgb="153,247,255"
+                rgb="255,255,255"
               />
               <StatBlock
                 label="Time in chapters"
@@ -648,13 +654,15 @@ export function ProgressDashboard({
                 label="Avg per chapter"
                 value={completedStats.avgMinutes > 0 ? `${completedStats.avgMinutes}m` : '—'}
                 sub={completedStats.count > 1 ? 'average finish time' : undefined}
-                rgb="255,201,101"
+                rgb="255,255,255"
+                faded
               />
               <StatBlock
                 label="Fastest · Longest"
                 value={completedStats.count > 0 ? `${completedStats.fastestMinutes}m · ${completedStats.longestMinutes}m` : '—'}
                 sub={completedStats.count >= 2 ? 'personal range' : undefined}
-                rgb="255,113,108"
+                rgb="255,255,255"
+                faded
               />
             </div>
 

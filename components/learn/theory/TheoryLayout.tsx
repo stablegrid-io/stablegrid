@@ -1209,9 +1209,9 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     >
 
 
-      <div className="flex h-12 flex-shrink-0 items-center border-b border-outline-variant/20 bg-surface/95 backdrop-blur-md px-4 sticky top-0 z-40">
+      <div className="flex h-12 flex-shrink-0 items-center gap-2 border-b border-outline-variant/20 bg-surface/95 backdrop-blur-md px-2 sm:px-4 sticky top-0 z-40">
         {/* Left group: navigation */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-shrink-0 items-center gap-1.5">
           <Link
             href={`/learn/${doc.topic}/theory/${activeTrackSlug ?? 'all'}`}
             onClick={() => {
@@ -1236,11 +1236,11 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         </div>
 
         {/* Center: context info or session */}
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 min-w-0 flex items-center justify-center overflow-hidden">
           {theorySession.hasActiveSession ? (
             <TheorySessionTopbar session={wrappedTheorySession} />
           ) : (
-            <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide">
+            <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide truncate">
               M{activeChapter.order ?? activeChapter.number}
               <span className="mx-1.5 text-outline-variant/50">·</span>
               <span className="text-on-surface/80">
@@ -1251,7 +1251,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         </div>
 
         {/* Right group: tools */}
-        <div className="flex items-center gap-1">
+        <div className="flex flex-shrink-0 items-center gap-1">
           <ReadingModeDropdown />
           <FocusModeButton />
           {!theorySession.hasActiveSession && (

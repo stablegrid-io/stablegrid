@@ -12,7 +12,13 @@ export const BottomNav = () => {
   if (shouldHideNav(pathname, Boolean(user))) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 bg-surface-container-high border-t border-white/10 flex justify-around items-center lg:hidden">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 bg-surface-container-high border-t border-white/10 flex justify-around items-center lg:hidden"
+      style={{
+        height: 'calc(4rem + env(safe-area-inset-bottom))',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
+    >
       {navItems.filter((item) => !item.disabled).map((item) => {
         const Icon = item.icon;
         const isActive = isNavItemActive(pathname, item);
@@ -21,6 +27,8 @@ export const BottomNav = () => {
           <Link
             key={item.href}
             href={item.href}
+            aria-label={item.label}
+            aria-current={isActive ? 'page' : undefined}
             className={`flex flex-col items-center justify-center gap-1 flex-1 h-full mx-1 my-1.5 rounded-[10px] transition-all duration-150 ${
               isActive
                 ? 'bg-white/[0.08] text-on-surface'
@@ -28,14 +36,12 @@ export const BottomNav = () => {
             }`}
           >
             <Icon className="h-5 w-5" />
-            <span className="font-mono text-[9px] uppercase tracking-wider">
+            <span className="text-[11px] font-medium tracking-wide">
               {item.label}
             </span>
           </Link>
         );
       })}
-
-      <div className="h-safe-bottom bg-surface-container-high" />
     </nav>
   );
 };
