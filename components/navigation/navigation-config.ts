@@ -66,6 +66,7 @@ export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolea
   if (!pathname) return false;
   // Hide nav on the landing-style marketing pages and auth pages (own header included).
   if (pathname === '/' || pathname === '/topics') return true;
+  if (pathname.startsWith('/topics/')) return true;
   const authPages = ['/login', '/signup'];
   if (authPages.includes(pathname)) return true;
   // Hide nav on public pages when not authenticated
@@ -91,7 +92,9 @@ const LANDING_FOOTER_PATHS = new Set<string>([
 
 export const shouldShowLandingFooter = (pathname?: string | null) => {
   if (!pathname) return false;
-  return LANDING_FOOTER_PATHS.has(pathname);
+  if (LANDING_FOOTER_PATHS.has(pathname)) return true;
+  if (pathname.startsWith('/topics/')) return true;
+  return false;
 };
 
 export const isPracticeSessionPath = (pathname?: string | null, search?: string | null) => {

@@ -1,39 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Check, ChevronRight, Lock, Minus } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Lock, Minus } from 'lucide-react';
 import { LANDING_TOPICS } from '@/lib/landing/topics';
+import { LANDING_FAQS as FAQS } from '@/lib/landing/faqs';
 import { TopicCard } from '@/components/topics/TopicCard';
+import { useTopicScores } from '@/lib/hooks/useTopicScores';
 import { LandingIntro } from '@/components/home/landing/LandingIntro';
 import { ComponentCatalogDemo } from '@/components/home/landing/ComponentCatalogDemo';
 import { StableGridMark } from '@/components/brand/StableGridLogo';
 
 // ─── Nav on scroll ───────────────────────────────────────────────────────────
-
-const FAQS: { q: string; a: string }[] = [
-  {
-    q: 'What is stablegrid.io?',
-    a: "An ed-tech platform for analysts and data engineers who'd rather understand a query plan than collect another certificate. Deep theory, real projects, no shortcuts.",
-  },
-  {
-    q: 'Who is it for?',
-    a: 'Working analysts, junior engineers, and self-taught learners moving toward data engineering or analytics. Three tiers — Junior (foundations), Mid (advanced systems), Senior (platform architecture).',
-  },
-  {
-    q: 'What will I learn?',
-    a: 'PySpark, Microsoft Fabric, SQL, data modeling, ETL, performance tuning. Each track is ~42–66 hours of deep theory paired with hands-on practice sets.',
-  },
-  {
-    q: 'What does it cost?',
-    a: 'Free during beta. After launch, supporters pay €2.99/month — locked in for life.',
-  },
-  {
-    q: 'How is this different from DataCamp or Coursera?',
-    a: "We don't sell certificates. We teach you to read query plans, build pipelines, and understand systems. The output is a portfolio, not a paper credential.",
-  },
-];
 
 function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -224,9 +203,162 @@ function NavOnScroll() {
   );
 }
 
+// ─── Topics Carousel ─────────────────────────────────────────────────────────
+//
+// Always 3 cards visible on desktop, 1 on mobile. Auto-rotates through every
+// position; pauses while the pointer hovers the carousel so users can read.
+
+const VISIBLE_DESKTOP = 3;
+const AUTO_INTERVAL_MS = 4500;
+const GAP_PX = 24;
+
+const TopicsCarousel = ({
+  topicScores,
+}: {
+  topicScores: Record<string, { average: number; count: number }>;
+}) => {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // 5 cards / 3 visible → 3 stop positions (0, 1, 2). Wraps back to 0.
+  const totalPages = Math.max(
+    1,
+    LANDING_TOPICS.length - VISIBLE_DESKTOP + 1,
+  );
+
+  // Scroll the track to a given page (one card-width step per page).
+  const scrollToPage = (idx: number) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const card = el.querySelector<HTMLElement>('[data-carousel-card]');
+    const step = (card?.offsetWidth ?? 0) + GAP_PX;
+    el.scrollTo({ left: idx * step, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToPage(pageIndex);
+  }, [pageIndex]);
+
+  useEffect(() => {
+    if (isPaused) return;
+    const id = setInterval(() => {
+      setPageIndex((prev) => (prev + 1) % totalPages);
+    }, AUTO_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [isPaused, totalPages]);
+
+  const goPrev = () =>
+    setPageIndex((prev) => (prev - 1 + totalPages) % totalPages);
+  const goNext = () => setPageIndex((prev) => (prev + 1) % totalPages);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onFocus={() => setIsPaused(true)}
+      onBlur={() => setIsPaused(false)}
+    >
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            .topics-carousel-track::-webkit-scrollbar { display: none; }
+            .topics-carousel-track { scrollbar-width: none; -ms-overflow-style: none; }
+            .topics-carousel-btn { transition: opacity 200ms ease, transform 200ms ease, background-color 200ms ease; }
+            .topics-carousel-btn:hover { background-color: rgba(255,255,255,0.16); transform: translateY(-50%) scale(1.05); }
+            .topics-carousel-dot { transition: width 280ms cubic-bezier(.16,1,.3,1), background-color 200ms ease; }
+          `,
+        }}
+      />
+
+      <div
+        ref={trackRef}
+        className="topics-carousel-track flex overflow-x-auto snap-x snap-mandatory pb-2"
+        style={{ gap: GAP_PX, scrollSnapType: 'x mandatory' }}
+      >
+        {LANDING_TOPICS.map((topic, i) => (
+          <div
+            key={topic.name}
+            data-carousel-card
+            className="snap-start shrink-0 w-full md:w-[calc((100%-48px)/3)]"
+          >
+            <TopicCard
+              topic={topic}
+              index={i}
+              score={topicScores[topic.topicId] ?? null}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Prev / Next buttons */}
+      <button
+        type="button"
+        aria-label="Previous topics"
+        onClick={goPrev}
+        className="topics-carousel-btn absolute -left-3 top-1/2 -translate-y-1/2 z-10 hidden md:flex h-11 w-11 items-center justify-center rounded-full"
+        style={{
+          backgroundColor: 'rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          color: 'rgba(255,255,255,0.9)',
+        }}
+      >
+        <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
+      </button>
+      <button
+        type="button"
+        aria-label="Next topics"
+        onClick={goNext}
+        className="topics-carousel-btn absolute -right-3 top-1/2 -translate-y-1/2 z-10 hidden md:flex h-11 w-11 items-center justify-center rounded-full"
+        style={{
+          backgroundColor: 'rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          color: 'rgba(255,255,255,0.9)',
+        }}
+      >
+        <ChevronRight className="h-5 w-5" strokeWidth={2.2} />
+      </button>
+
+      {/* Page dots */}
+      <div
+        className="mt-6 flex justify-center gap-2"
+        role="tablist"
+        aria-label="Topic page"
+      >
+        {Array.from({ length: totalPages }).map((_, i) => {
+          const active = i === pageIndex;
+          return (
+            <button
+              key={i}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-label={`Page ${i + 1} of ${totalPages}`}
+              onClick={() => setPageIndex(i)}
+              className="topics-carousel-dot h-1.5 rounded-full"
+              style={{
+                width: active ? 24 : 6,
+                backgroundColor: active
+                  ? 'rgba(255,255,255,0.85)'
+                  : 'rgba(255,255,255,0.2)',
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const LandingPage = () => {
+  const topicScores = useTopicScores();
   return (
     <div
       className="relative min-h-screen text-white"
@@ -455,14 +587,7 @@ export const LandingPage = () => {
             </p>
           </div>
 
-          <div
-            className="grid gap-6"
-            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}
-          >
-            {LANDING_TOPICS.slice(0, 3).map((topic, i) => (
-              <TopicCard key={topic.name} topic={topic} index={i} />
-            ))}
-          </div>
+          <TopicsCarousel topicScores={topicScores} />
 
           {/* Apple-style explore link — centered text + arrow that animates on hover */}
           <div
@@ -536,15 +661,21 @@ export const LandingPage = () => {
             {[
               {
                 level: 'JUNIOR', subtitle: 'FOUNDATIONAL MODULES', color: '#99f7ff', rgb: '153,247,255',
-                modules: '0/10', est: '~42 hours total', xp: '1.0X', cta: 'Start track', locked: false,
+                description:
+                  'Other platforms teach SQL in isolation, Python in isolation. We teach the systems behind production data — joins, schemas, scheduling — grounded in real warehouses from module one. Foundations that actually transfer.',
+                cta: 'Start track', locked: false,
               },
               {
                 level: 'MID', subtitle: 'ADVANCED SYSTEMS', color: '#ffc965', rgb: '255,201,101',
-                modules: '0/10', est: '~53 hours total', xp: '1.5X', cta: 'Start track', locked: false,
+                description:
+                  'Where most courses stop at intermediate, ours starts. Partitioning, query plans, broadcast joins, and the tradeoffs senior engineers weigh daily. Depth-first — no skim, no fluff.',
+                cta: 'Start track', locked: false,
               },
               {
                 level: 'SENIOR', subtitle: 'PLATFORM ARCHITECTURE', color: '#ff716c', rgb: '255,113,108',
-                modules: '0/10', est: '~66 hours total', xp: '3.0X', cta: 'Start track', locked: false,
+                description:
+                  "Most platforms don't have senior content. Ours does. Optimizer internals, multi-tenant governance, capacity planning — the depth you need to architect distributed systems, not just author scripts.",
+                cta: 'Start track', locked: false,
               },
             ].map((tier, i) => (
               <Link
@@ -620,26 +751,23 @@ export const LandingPage = () => {
                       {tier.subtitle}
                     </p>
 
-                    {/* Stat rows */}
-                    <div className="space-y-0 flex-1">
-                      {[
-                        { label: 'MODULES', value: tier.modules },
-                        { label: 'Duration', value: tier.est },
-                        { label: 'kWh Multiplier', value: tier.xp },
-                      ].map((row) => (
-                        <div
-                          key={row.label}
-                          className="flex items-center justify-between py-3"
-                          style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
-                        >
-                          <span className="font-mono text-[10px] tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                            {row.label}
-                          </span>
-                          <span className="font-mono text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                            {row.value}
-                          </span>
-                        </div>
-                      ))}
+                    {/* Why-it-stands-out copy */}
+                    <div
+                      className="flex-1 pt-4"
+                      style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+                    >
+                      <p
+                        style={{
+                          fontFamily:
+                            '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+                          fontSize: 14,
+                          lineHeight: 1.6,
+                          color: 'rgba(255,255,255,0.72)',
+                          letterSpacing: '-0.005em',
+                        }}
+                      >
+                        {tier.description}
+                      </p>
                     </div>
 
                     {/* CTA */}

@@ -94,3 +94,91 @@ export function BreadcrumbJsonLd({ items }: { items: BreadcrumbItem[] }): ReactE
     />
   );
 }
+
+export function WebSiteJsonLd(): ReactElement {
+  return (
+    <JsonLd
+      data={{
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: ORGANIZATION_NAME,
+        url: SITE_URL,
+        description:
+          'Ed-tech platform for working data analysts and engineers. Junior to Senior tracks in PySpark, Apache Airflow, Microsoft Fabric, SQL, and Python.',
+        publisher: {
+          '@type': 'Organization',
+          name: ORGANIZATION_NAME,
+          url: SITE_URL,
+        },
+        inLanguage: 'en-US',
+      }}
+    />
+  );
+}
+
+export interface FaqEntry {
+  q: string;
+  a: string;
+}
+
+export function FaqJsonLd({ items }: { items: readonly FaqEntry[] }): ReactElement {
+  return (
+    <JsonLd
+      data={{
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: items.map((item) => ({
+          '@type': 'Question',
+          name: item.q,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: item.a,
+          },
+        })),
+      }}
+    />
+  );
+}
+
+export interface CourseListItem {
+  name: string;
+  description: string;
+  url: string;
+}
+
+export function CourseListJsonLd({
+  items,
+  listName,
+  listUrl,
+}: {
+  items: CourseListItem[];
+  listName: string;
+  listUrl: string;
+}): ReactElement {
+  return (
+    <JsonLd
+      data={{
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        name: listName,
+        url: listUrl.startsWith('http') ? listUrl : `${SITE_URL}${listUrl}`,
+        numberOfItems: items.length,
+        itemListElement: items.map((item, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          item: {
+            '@type': 'Course',
+            name: item.name,
+            description: item.description,
+            url: item.url.startsWith('http') ? item.url : `${SITE_URL}${item.url}`,
+            provider: {
+              '@type': 'Organization',
+              name: ORGANIZATION_NAME,
+              sameAs: SITE_URL,
+            },
+          },
+        })),
+      }}
+    />
+  );
+}

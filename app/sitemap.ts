@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { LANDING_TOPICS } from '@/lib/landing/topics';
 
 const BASE = 'https://stablegrid.io';
 
@@ -15,5 +16,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/support`, lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
   ];
 
-  return staticRoutes;
+  const topicRoutes: MetadataRoute.Sitemap = LANDING_TOPICS.map((topic) => ({
+    url: `${BASE}/topics/${topic.slug}`,
+    lastModified: now,
+    changeFrequency: 'weekly',
+    priority: 0.85,
+  }));
+
+  return [...staticRoutes, ...topicRoutes];
 }

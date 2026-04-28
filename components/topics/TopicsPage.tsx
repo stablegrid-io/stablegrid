@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { LANDING_TOPICS } from '@/lib/landing/topics';
 import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { useTopicScores } from '@/lib/hooks/useTopicScores';
 import { TopicCard } from './TopicCard';
 
 export function TopicsPage() {
+  const topicScores = useTopicScores();
   return (
     <div
       className="relative min-h-screen text-white"
@@ -55,27 +58,37 @@ export function TopicsPage() {
               </span>
             </span>
           </Link>
-          <Link
-            href="/login"
-            prefetch={false}
-            className="px-4 py-2 text-sm font-semibold transition-all whitespace-nowrap"
-            style={{
-              backgroundColor: '#f0f0f3',
-              color: '#0a0c0e',
-              borderRadius: '14px',
-              boxShadow: '0 0 12px rgba(240,240,243,0.1)',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 20px rgba(240,240,243,0.15)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 12px rgba(240,240,243,0.1)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            Get started
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="hidden sm:inline-flex items-center gap-1.5 text-[13px] font-medium opacity-70 hover:opacity-100 transition-opacity"
+              style={{ color: 'rgba(255,255,255,0.85)' }}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Home
+            </Link>
+            <Link
+              href="/login"
+              prefetch={false}
+              className="px-4 py-2 text-sm font-semibold transition-all whitespace-nowrap"
+              style={{
+                backgroundColor: '#f0f0f3',
+                color: '#0a0c0e',
+                borderRadius: '14px',
+                boxShadow: '0 0 12px rgba(240,240,243,0.1)',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.boxShadow = '0 0 20px rgba(240,240,243,0.15)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.boxShadow = '0 0 12px rgba(240,240,243,0.1)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              Get started
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -141,7 +154,12 @@ export function TopicsPage() {
             style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}
           >
             {LANDING_TOPICS.map((topic, i) => (
-              <TopicCard key={topic.name} topic={topic} index={i} />
+              <TopicCard
+                key={topic.name}
+                topic={topic}
+                index={i}
+                score={topicScores[topic.topicId] ?? null}
+              />
             ))}
           </div>
         </div>

@@ -6,7 +6,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { CookieConsentManager } from '@/components/cookies/CookieConsentManager';
 import { Navigation } from '@/components/navigation/Navigation';
-import { OrganizationJsonLd } from '@/lib/seo/jsonLd';
+import { OrganizationJsonLd, WebSiteJsonLd } from '@/lib/seo/jsonLd';
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
@@ -91,6 +91,7 @@ export default function RootLayout({
     <html lang="en" className={`dark ${jetbrainsMono.variable} ${inter.variable}`}>
       <body className="min-h-screen font-sans text-on-surface">
         <OrganizationJsonLd />
+        <WebSiteJsonLd />
         <CookieConsentManager />
         <AuthProvider>
           <Navigation>{children}</Navigation>

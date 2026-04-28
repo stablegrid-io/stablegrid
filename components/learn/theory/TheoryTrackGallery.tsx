@@ -9,6 +9,7 @@ import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { getLearnTopicMeta } from '@/data/learn';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { summarizeTrackLessonProgress } from '@/lib/learn/theoryTrackProgress';
+import { TheoryConceptMatrix } from '@/components/learn/theory/TheoryConceptMatrix';
 import type { TheoryDoc } from '@/types/theory';
 import type { TheoryTrackSummary } from '@/data/learn/theory/tracks';
 
@@ -89,6 +90,15 @@ export const TheoryTrackGallery = ({
 
   const topicStyle = getTheoryTopicStyle(doc.topic);
 
+  const trackStats = tracks.map((track) =>
+    summarizeTrackLessonProgress({
+      chapters: track.chapters,
+      completedChapterIds: liveCompleted,
+      chapterProgressById,
+    }),
+  );
+  const trackProgressPct = trackStats.map((s) => s.progressPct);
+
   return (
     <div className="relative min-h-screen pb-24 lg:pb-10" style={{ '--theory-accent': topicStyle.accentRgb } as CSSProperties}>
       <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
@@ -129,16 +139,17 @@ export const TheoryTrackGallery = ({
           />
         </header>
 
+        {/* Concept mastery matrix — shows which key concepts per tier are mastered */}
+        <TheoryConceptMatrix
+          tracks={tracks}
+          tiers={TIER}
+          completedChapterIds={liveCompleted}
+          trackProgressPct={trackProgressPct}
+        />
+
         {/* 3-column tier grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {(() => {
-            const trackStats = tracks.map((track) =>
-              summarizeTrackLessonProgress({
-                chapters: track.chapters,
-                completedChapterIds: liveCompleted,
-                chapterProgressById,
-              }),
-            );
             return tracks.map((track, i) => {
             const tier = TIER[i] ?? TIER[0];
             const { completedModules, progressPct } = trackStats[i];

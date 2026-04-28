@@ -2,15 +2,28 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { ArrowUpRight } from 'lucide-react';
+import { TopicLightbulbRating } from '@/components/feedback/TopicLightbulbRating';
 import type { LandingTopic } from '@/lib/landing/topics';
+
+interface TopicScore {
+  average: number;
+  count: number;
+}
 
 interface TopicCardProps {
   topic: LandingTopic;
   index: number;
   href?: string;
+  score?: TopicScore | null;
 }
 
-export function TopicCard({ topic, index, href = '/login' }: TopicCardProps) {
+export function TopicCard({
+  topic,
+  index,
+  href = `/topics/${topic.slug}`,
+  score,
+}: TopicCardProps) {
   const hasProgress = topic.progressPct > 0;
 
   return (
@@ -107,18 +120,40 @@ export function TopicCard({ topic, index, href = '/login' }: TopicCardProps) {
               <div className="mb-8" style={{ height: 25 }} aria-hidden />
             )}
 
+            {/* Community rating */}
+            <div className="mb-6">
+              <TopicLightbulbRating
+                average={score?.average ?? null}
+                count={score?.count ?? 0}
+                accentRgb={topic.catRgb}
+              />
+            </div>
+
             <div
-              className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center uppercase rounded-[14px]"
-              style={{
-                backgroundColor: hasProgress ? 'rgba(255,255,255,0.08)' : 'transparent',
-                border: hasProgress
-                  ? '1px solid rgba(255,255,255,0.12)'
-                  : '1px solid rgba(255,255,255,0.1)',
-                color: hasProgress ? 'rgba(255,255,255,0.8)' : '#f0f0f3',
-                letterSpacing: '0.18em',
-              }}
+              className="flex items-center justify-between pt-4 border-t"
+              style={{ borderColor: 'rgba(255,255,255,0.06)' }}
             >
-              {hasProgress ? 'Continue' : 'Start track'}
+              <span
+                className="text-[14px] font-medium tracking-tight"
+                style={{
+                  fontFamily:
+                    '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+                  color: 'rgba(255,255,255,0.92)',
+                  letterSpacing: '-0.005em',
+                }}
+              >
+                {hasProgress ? 'Continue track' : 'Explore track'}
+              </span>
+              <span
+                aria-hidden="true"
+                className="flex h-7 w-7 items-center justify-center rounded-full transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                style={{
+                  backgroundColor: `rgba(${topic.catRgb},0.1)`,
+                  color: `rgb(${topic.catRgb})`,
+                }}
+              >
+                <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2.4} />
+              </span>
             </div>
           </div>
         </div>
