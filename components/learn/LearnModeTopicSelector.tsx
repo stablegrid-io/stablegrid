@@ -532,7 +532,7 @@ export function LearnModeTopicSelector({
         {/* Track cards */}
         <div>
         {filteredTopics.length > 0 ? (
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
             {filteredTopics.map((topic, index) => {
               const trackIconSrc =
                 TRACK_ICON_SRC_BY_TOPIC[topic.id] ?? '/brand/pyspark-track-star.svg';
