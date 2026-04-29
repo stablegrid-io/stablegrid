@@ -380,6 +380,13 @@ export const LandingPage = () => {
           from { opacity: 0; }
           to   { opacity: 1; }
         }
+        @keyframes landing-hero-mark-spin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .landing-hero-mark { animation: none !important; }
+        }
         .landing-hero-cta:hover {
           transform: translateY(-1px);
           box-shadow: 0 10px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.12) !important;
@@ -451,35 +458,36 @@ export const LandingPage = () => {
 
         {/* Centered hero stack */}
         <div className="relative z-10 w-full max-w-3xl mx-auto text-center flex flex-col items-center">
-          {/* Headline — two lines staggered for a smoother reveal */}
+          {/* Headline — brand wordmark: mark + "stablegrid" + ".io" */}
           <h1
+            className="lowercase"
             style={{
               fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
               fontSize: 'clamp(3rem, 8vw, 6rem)',
               fontWeight: 600,
-              letterSpacing: '-0.035em',
+              letterSpacing: '-0.045em',
               lineHeight: 1.03,
               color: 'rgba(255,255,255,0.97)',
               marginBottom: 28,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'clamp(0.75rem, 1.4vw, 1.25rem)',
+              opacity: 0,
+              animation: 'fadeSlideUp 1.1s cubic-bezier(.16,1,.3,1) 120ms forwards',
             }}
           >
-            <span
+            <StableGridMark
+              className="shrink-0 landing-hero-mark"
               style={{
-                display: 'block',
-                opacity: 0,
-                animation: 'fadeSlideUp 1.1s cubic-bezier(.16,1,.3,1) 120ms forwards',
+                width: 'clamp(2.75rem, 7vw, 5.25rem)',
+                height: 'clamp(2.75rem, 7vw, 5.25rem)',
+                color: 'rgba(255,255,255,0.97)',
+                transformOrigin: '50% 50%',
+                animation: 'landing-hero-mark-spin 24s linear infinite',
               }}
-            >
-              Understanding <span style={{ color: '#ffc965' }}>data</span>
-            </span>
-            <span
-              style={{
-                display: 'block',
-                opacity: 0,
-                animation: 'fadeSlideUp 1.1s cubic-bezier(.16,1,.3,1) 340ms forwards',
-              }}
-            >
-              is your edge.
+            />
+            <span>
+              stable<span style={{ color: '#ffc965' }}>grid</span><span style={{ color: 'rgba(255,255,255,0.45)' }}>.io</span>
             </span>
           </h1>
 
