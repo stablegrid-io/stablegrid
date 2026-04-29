@@ -9,12 +9,9 @@ import {
   Check,
   Terminal,
   Clock,
-  Code2,
-  Layers,
   FileText,
   Database,
   Lightbulb,
-  BarChart3,
   Columns,
   ChevronDown,
   ChevronRight,
@@ -56,6 +53,9 @@ interface TaskState {
   answers: Record<string, FieldAnswer>;
   checked: boolean;
   allCorrect: boolean;
+  selfReview?: boolean;
+  output?: string;
+  validationReasons?: string[];
 }
 
 interface SplitPanelCodeTaskProps {
@@ -65,6 +65,12 @@ interface SplitPanelCodeTaskProps {
   taskState: TaskState;
   isReview: boolean;
   onAnswerChange: (fieldId: string, value: string) => void;
+  /**
+   * Pushes the captured stdout from the most recent run up to the session
+   * reducer so CHECK_ANSWERS can validate against an `expectedOutput` spec.
+   * Optional — non-code task surfaces don't need it.
+   */
+  onOutputChange?: (output: string) => void;
   onCheck: () => void;
   onNext: () => void;
   onSkip: () => void;
@@ -73,16 +79,6 @@ interface SplitPanelCodeTaskProps {
 }
 
 type LeftTab = 'context' | 'dataset' | 'hints';
-
-/* ── Type config ────────────────────────────────────────────────────────────── */
-
-const TYPE_CONFIG: Record<string, { label: string; icon: typeof Code2; color: string }> = {
-  concept_identification: { label: 'Concept ID', icon: Lightbulb, color: '168,162,255' },
-  output_prediction: { label: 'Output Prediction', icon: BarChart3, color: '108,200,255' },
-  synthesis: { label: 'Synthesis', icon: Layers, color: '255,180,108' },
-  write_the_code: { label: 'Write Code', icon: Code2, color: '120,255,180' },
-  synthesis_pipeline: { label: 'Synthesis', icon: Layers, color: '255,180,108' },
-};
 
 /* ── Pyodide Execution Engine (shared singleton) ────────────────────────────── */
 
@@ -148,7 +144,9 @@ async function getPyodide(): Promise<PyodideInterface> {
 const PYSPARK_MOCK = `
 # ── PySpark Mock (pandas-backed, browser execution) ──────────────────────────
 import pandas as pd
-import sys, types, io, math
+import sys, types, io, math, re
+
+_ISO_DATE_RE = re.compile(r'^\\d{4}-\\d{2}-\\d{2}$')
 
 class _MockConf:
     def __init__(self):
@@ -160,42 +158,318 @@ class _MockConf:
         return self
 
 class _MockColumn:
-    def __init__(self, name):
+    """
+    Carries enough information to evaluate column expressions against the
+    underlying pandas DataFrame inside agg() and filter().
+
+    op   — agg ops: 'sum'|'avg'|'mean'|'min'|'max'|'count'|'count_distinct'|
+            'first'|'last'|'round'|'lit'|None (None = bare column reference).
+            predicate ops (used by filter): 'pred_gt'|'pred_ge'|'pred_lt'|
+            'pred_le'|'pred_eq'|'pred_ne'|'pred_isnull'|'pred_notnull'|
+            'pred_between'|'pred_isin'|'pred_and'|'pred_or'|'pred_not'.
+    src  — for terminal ops: source column name as string.
+            for 'round': another _MockColumn (the inner expression).
+            for predicates: typically the lhs _MockColumn (or list for and/or).
+    args — extra params (e.g. {'scale': 2} for round, {'value': 50} for gt).
+    """
+    def __init__(self, name, op=None, src=None, args=None):
         self._name = name
+        self._op = op
+        self._src = src
+        self._args = args or {}
     def alias(self, a):
-        return _MockColumn(a)
+        return _MockColumn(a, op=self._op, src=self._src, args=dict(self._args))
     def isNotNull(self):
-        return self
+        return _MockColumn(f'{self._name} IS NOT NULL', op='pred_notnull', src=self)
     def isNull(self):
-        return self
+        return _MockColumn(f'{self._name} IS NULL', op='pred_isnull', src=self)
     def cast(self, t):
         return self
     def isin(self, *vals):
-        return self
+        flat = list(vals)
+        if len(flat) == 1 and isinstance(flat[0], (list, tuple)):
+            flat = list(flat[0])
+        return _MockColumn(f'{self._name} IN ...', op='pred_isin', src=self, args={'values': flat})
+    # when().when().otherwise() chain — only meaningful when self is itself a
+    # 'when' column; on other columns the call is a no-op so we don't blow up
+    # exotic student code.
     def when(self, cond, val):
+        if self._op == 'when':
+            new_conds = list(self._args.get('conditions', [])) + [(cond, val)]
+            return _MockColumn(
+                'when',
+                op='when',
+                args={'conditions': new_conds, 'otherwise': self._args.get('otherwise')}
+            )
         return self
     def otherwise(self, val):
+        if self._op == 'when':
+            return _MockColumn(
+                'when',
+                op='when',
+                args={
+                    'conditions': self._args.get('conditions', []),
+                    'otherwise': val,
+                }
+            )
         return self
+    # Arithmetic ops — produce row-wise expression columns so things like
+    # col('a') + col('b') and col('x') * 1.5 evaluate inside agg / filter.
+    def __add__(self, other):
+        return _MockColumn(f'{self._name} + ...', op='arith_add', src=[self, other])
+    def __radd__(self, other):
+        return _MockColumn(f'... + {self._name}', op='arith_add', src=[other, self])
+    def __sub__(self, other):
+        return _MockColumn(f'{self._name} - ...', op='arith_sub', src=[self, other])
+    def __rsub__(self, other):
+        return _MockColumn(f'... - {self._name}', op='arith_sub', src=[other, self])
+    def __mul__(self, other):
+        return _MockColumn(f'{self._name} * ...', op='arith_mul', src=[self, other])
+    def __rmul__(self, other):
+        return _MockColumn(f'... * {self._name}', op='arith_mul', src=[other, self])
+    def __truediv__(self, other):
+        return _MockColumn(f'{self._name} / ...', op='arith_div', src=[self, other])
+    def __rtruediv__(self, other):
+        return _MockColumn(f'... / {self._name}', op='arith_div', src=[other, self])
     def __ge__(self, other):
-        return self
+        return _MockColumn(f'{self._name} >= ...', op='pred_ge', src=self, args={'value': other})
     def __gt__(self, other):
-        return self
+        return _MockColumn(f'{self._name} > ...', op='pred_gt', src=self, args={'value': other})
     def __le__(self, other):
-        return self
+        return _MockColumn(f'{self._name} <= ...', op='pred_le', src=self, args={'value': other})
     def __lt__(self, other):
-        return self
+        return _MockColumn(f'{self._name} < ...', op='pred_lt', src=self, args={'value': other})
     def __eq__(self, other):
-        return self
+        return _MockColumn(f'{self._name} = ...', op='pred_eq', src=self, args={'value': other})
     def __ne__(self, other):
-        return self
+        return _MockColumn(f'{self._name} != ...', op='pred_ne', src=self, args={'value': other})
     def __and__(self, other):
-        return self
+        return _MockColumn('AND', op='pred_and', src=[self, other])
     def __or__(self, other):
-        return self
+        return _MockColumn('OR', op='pred_or', src=[self, other])
     def __invert__(self):
-        return self
+        return _MockColumn('NOT', op='pred_not', src=self)
     def between(self, lo, hi):
-        return self
+        return _MockColumn(f'{self._name} BETWEEN ...', op='pred_between', src=self, args={'lo': lo, 'hi': hi})
+    # __eq__ returning a non-bool would normally break hashing; pin a stable
+    # identity-based hash so MockColumns can still appear in sets/dicts.
+    def __hash__(self):
+        return id(self)
+
+
+def _resolve_to_series(pdf, expr):
+    """
+    Coerce a literal / column ref / arith / when / lit expression into a
+    pandas Series aligned to pdf. Used by both the predicate compiler
+    (filter) and the aggregation evaluator.
+
+    Aggregation ops (sum/avg/...) are NOT resolved here — they collapse a
+    Series into a scalar, which is the agg evaluator's job. Returning None
+    signals "can't resolve this in row context".
+    """
+    if isinstance(expr, _MockColumn):
+        op = expr._op
+        if op is None:
+            if expr._name in pdf.columns:
+                return pdf[expr._name]
+            # Bare ref to a non-existent column — treat as null series.
+            return pd.Series([None] * len(pdf), index=pdf.index)
+        if op == 'lit':
+            return pd.Series([expr._args.get('value')] * len(pdf), index=pdf.index)
+        if op == 'when':
+            return _eval_when_series(pdf, expr)
+        if op in ('arith_add', 'arith_sub', 'arith_mul', 'arith_div'):
+            a, b = expr._src
+            s_a = _resolve_to_series(pdf, a)
+            s_b = _resolve_to_series(pdf, b)
+            if s_a is None or s_b is None:
+                return None
+            try:
+                if op == 'arith_add': return s_a + s_b
+                if op == 'arith_sub': return s_a - s_b
+                if op == 'arith_mul': return s_a * s_b
+                if op == 'arith_div': return s_a / s_b
+            except Exception:
+                return None
+        # Predicate ops resolve to a boolean mask Series.
+        if op and op.startswith('pred_'):
+            return _build_predicate_mask(pdf, expr)
+        # Aggregation ops aren't row-resolvable.
+        return None
+    if isinstance(expr, str):
+        if expr in pdf.columns:
+            return pdf[expr]
+        return pd.Series([expr] * len(pdf), index=pdf.index)
+    if expr is None:
+        return pd.Series([None] * len(pdf), index=pdf.index)
+    return pd.Series([expr] * len(pdf), index=pdf.index)
+
+
+def _eval_when_series(pdf, col):
+    """Evaluate a when()...when()...otherwise() chain into a Series."""
+    result = pd.Series([None] * len(pdf), index=pdf.index, dtype=object)
+    matched = pd.Series([False] * len(pdf), index=pdf.index)
+    for cond, val_expr in col._args.get('conditions', []):
+        try:
+            cond_mask = _build_predicate_mask(pdf, cond)
+        except Exception:
+            cond_mask = pd.Series([False] * len(pdf), index=pdf.index)
+        active = cond_mask & ~matched
+        val_series = _resolve_to_series(pdf, val_expr)
+        if val_series is not None:
+            result.loc[active] = val_series.loc[active]
+        matched = matched | active
+    otherwise = col._args.get('otherwise')
+    if otherwise is not None:
+        val_series = _resolve_to_series(pdf, otherwise)
+        if val_series is not None:
+            result.loc[~matched] = val_series.loc[~matched]
+    # Promote dtype if the values are uniformly numeric — keeps downstream
+    # aggregations like sum() working without coercion.
+    try:
+        as_numeric = pd.to_numeric(result, errors='coerce')
+        if as_numeric.notna().sum() == result.notna().sum():
+            return as_numeric
+    except Exception:
+        pass
+    return result
+
+
+def _build_predicate_mask(pdf, col):
+    """Compile a _MockColumn predicate tree into a boolean Series aligned to
+    pdf. The lhs of a comparison is resolved via _resolve_to_series so
+    arithmetic and 'when' expressions work on the left-hand side, not just
+    bare column refs. Anything we can't interpret degrades to 'match all'
+    so exotic predicates don't crash student code."""
+    if not isinstance(col, _MockColumn):
+        return pd.Series([True]*len(pdf), index=pdf.index)
+    op = col._op
+    if op == 'pred_and':
+        a, b = col._src
+        return _build_predicate_mask(pdf, a) & _build_predicate_mask(pdf, b)
+    if op == 'pred_or':
+        a, b = col._src
+        return _build_predicate_mask(pdf, a) | _build_predicate_mask(pdf, b)
+    if op == 'pred_not':
+        return ~_build_predicate_mask(pdf, col._src)
+    # Unary predicate: lhs is col._src — resolve it (may be a bare column,
+    # arith expression, when, etc).
+    series = _resolve_to_series(pdf, col._src)
+    if series is None:
+        return pd.Series([True]*len(pdf), index=pdf.index)
+    rhs = col._args.get('value')
+    rhs_series = _resolve_to_series(pdf, rhs) if rhs is not None else None
+    rhs_resolved = rhs_series if rhs_series is not None else rhs
+    if op == 'pred_gt':
+        return series > rhs_resolved
+    if op == 'pred_ge':
+        return series >= rhs_resolved
+    if op == 'pred_lt':
+        return series < rhs_resolved
+    if op == 'pred_le':
+        return series <= rhs_resolved
+    if op == 'pred_eq':
+        return series == rhs_resolved
+    if op == 'pred_ne':
+        return series != rhs_resolved
+    if op == 'pred_isnull':
+        return series.isna()
+    if op == 'pred_notnull':
+        return series.notna()
+    if op == 'pred_between':
+        lo = _resolve_to_series(pdf, col._args.get('lo'))
+        hi = _resolve_to_series(pdf, col._args.get('hi'))
+        if lo is None: lo = col._args.get('lo')
+        if hi is None: hi = col._args.get('hi')
+        return (series >= lo) & (series <= hi)
+    if op == 'pred_isin':
+        return series.isin(col._args.get('values', []))
+    return pd.Series([True]*len(pdf), index=pdf.index)
+
+
+def _eval_agg_column(pdf, col):
+    """Evaluate a _MockColumn aggregation expression against a pandas DF.
+    Returns the scalar result. The src may be either a column-name string
+    (legacy/simple case) or a _MockColumn carrying an arith/when/lit
+    expression — _resolve_to_series handles both."""
+    if not hasattr(col, '_op') or col._op is None:
+        return None
+    op = col._op
+
+    def _src_series():
+        """Resolve col._src to a pandas Series — None if not resolvable."""
+        s = col._src
+        if isinstance(s, str):
+            return pdf[s] if s in pdf.columns else None
+        return _resolve_to_series(pdf, s)
+
+    if op == 'sum':
+        s = _src_series()
+        if s is None:
+            return 0
+        return float(pd.to_numeric(s, errors='coerce').dropna().sum())
+    if op in ('avg', 'mean'):
+        s = _src_series()
+        if s is None:
+            return 0.0
+        s2 = pd.to_numeric(s, errors='coerce').dropna()
+        return float(s2.mean()) if len(s2) else 0.0
+    if op == 'min':
+        s = _src_series()
+        if s is None:
+            return None
+        s2 = s.dropna()
+        return s2.min() if len(s2) else None
+    if op == 'max':
+        s = _src_series()
+        if s is None:
+            return None
+        s2 = s.dropna()
+        return s2.max() if len(s2) else None
+    if op == 'count':
+        if col._src in (None, '*'):
+            return int(len(pdf))
+        s = _src_series()
+        if s is None:
+            return 0
+        return int(s.notna().sum())
+    if op == 'count_distinct':
+        if isinstance(col._src, list):
+            cols = [c for c in col._src if c in pdf.columns]
+            if not cols:
+                return 0
+            return int(pdf[cols].dropna().drop_duplicates().shape[0])
+        s = _src_series()
+        if s is None:
+            return 0
+        return int(s.dropna().nunique())
+    if op == 'first':
+        s = _src_series()
+        if s is None:
+            return None
+        if col._args.get('ignorenulls'):
+            s = s.dropna()
+        return s.iloc[0] if len(s) else None
+    if op == 'last':
+        s = _src_series()
+        if s is None:
+            return None
+        if col._args.get('ignorenulls'):
+            s = s.dropna()
+        return s.iloc[-1] if len(s) else None
+    if op == 'round':
+        # round wraps another aggregation expression — recurse.
+        inner_val = _eval_agg_column(pdf, col._src)
+        scale = int(col._args.get('scale', 0))
+        if inner_val is None:
+            return None
+        try:
+            return round(float(inner_val), scale)
+        except (TypeError, ValueError):
+            return inner_val
+    if op == 'lit':
+        return col._args.get('value')
+    return 0
 
 class _MockDF:
     def __init__(self, pdf, _schema=None):
@@ -216,16 +490,79 @@ class _MockDF:
             'float64': 'DoubleType()', 'float32': 'FloatType()',
             'int64': 'LongType()', 'int32': 'IntegerType()',
             'bool': 'BooleanType()',
+            'datetime64[ns]': 'DateType()',
         }
         fields = []
         for c in pdf.columns:
             dt = str(pdf[c].dtype)
             spark_type = type_map.get(dt, 'StringType()')
+            # Heuristic: if column dtype is object, infer DateType when every
+            # non-null value is either a python date object OR an ISO date
+            # string ("YYYY-MM-DD"). CSV-loaded date columns arrive as
+            # strings until parsed, so this keeps schema parity with the
+            # validator's expectation.
+            if spark_type == 'StringType()':
+                non_null = pdf[c].dropna()
+                if len(non_null) > 0:
+                    all_date_objs = all(
+                        hasattr(v, 'year') and not hasattr(v, 'hour') for v in non_null
+                    )
+                    all_iso_strings = all(
+                        isinstance(v, str) and bool(_ISO_DATE_RE.match(v)) for v in non_null
+                    )
+                    if all_date_objs or all_iso_strings:
+                        spark_type = 'DateType()'
             nullable = bool(pdf[c].isna().any())
             fields.append(_MockStructField(c, spark_type, nullable))
         return _MockStructType(fields)
     def show(self, n=20, truncate=True):
-        print(self._pdf.head(n).to_string(index=False))
+        # Render in Spark's pipe-table format so the output is parseable by
+        # the auto-validator (which expects +---+, |col|, +---+, rows, +---+).
+        df = self._pdf.head(n)
+        cols = [str(c) for c in df.columns]
+        if not cols:
+            print("++")
+            print("||")
+            print("++")
+            return
+        def _fmt(v):
+            if v is None:
+                return 'null'
+            try:
+                if pd.isna(v):
+                    return 'null'
+            except (TypeError, ValueError):
+                pass
+            # Date / Timestamp → ISO yyyy-mm-dd (matches Spark show for DateType)
+            if hasattr(v, 'strftime'):
+                try:
+                    return v.strftime('%Y-%m-%d') if v.__class__.__name__ in ('date', 'Timestamp', 'datetime') and not hasattr(v, 'hour') else v.strftime('%Y-%m-%d %H:%M:%S')
+                except Exception:
+                    return str(v)
+            if isinstance(v, float):
+                if math.isnan(v):
+                    return 'NaN'
+                if math.isinf(v):
+                    return 'Infinity' if v > 0 else '-Infinity'
+                # Use repr — shortest round-trip representation. '%g' truncates
+                # to 6 sig figs (58892.6783 → "58892.7"), which falsely fails
+                # the validator's tolerance check downstream.
+                return repr(v)
+            return str(v)
+        cells = [[_fmt(v) for v in df[c]] for c in cols]
+        widths = [max(len(c), max((len(cell) for cell in col_cells), default=0)) for c, col_cells in zip(cols, cells)]
+        border = '+' + '+'.join('-' * (w + 2) for w in widths) + '+'
+        header = '|' + '|'.join(' ' + c.ljust(w) + ' ' for c, w in zip(cols, widths)) + '|'
+        print(border)
+        print(header)
+        print(border)
+        for i in range(len(df)):
+            row = '|' + '|'.join(' ' + cells[j][i].rjust(widths[j]) + ' ' for j in range(len(cols))) + '|'
+            print(row)
+        print(border)
+        # Spark prints the row-truncation hint when n < total rows
+        if len(self._pdf) > n:
+            print(f"only showing top {n} rows")
     def count(self):
         return len(self._pdf)
     def printSchema(self):
@@ -243,21 +580,30 @@ class _MockDF:
         pdf = pdf[names]
         return _MockDF(pdf)
     def filter(self, cond):
-        return self
+        # Compile the predicate against the underlying pandas DataFrame.
+        # When the predicate isn't interpretable, _build_predicate_mask
+        # returns "match all" so we degrade to the previous no-op behavior.
+        if cond is None:
+            return self
+        try:
+            mask = _build_predicate_mask(self._pdf, cond)
+            filtered = self._pdf[mask].reset_index(drop=True)
+            return _MockDF(filtered)
+        except Exception:
+            return self
     def where(self, cond):
         return self.filter(cond)
     def agg(self, *exprs):
-        # Bare DataFrame aggregation (no preceding groupBy). The mock can't
-        # actually compute the SQL semantics of arbitrary expressions, so we
-        # return a single-row DataFrame whose columns are named from the
-        # aliases passed in — enough to keep .show() and .printSchema()
-        # working without crashing student code.
-        cols = []
-        for e in exprs:
-            cols.append(getattr(e, '_name', 'agg'))
-        if not cols:
+        # Bare DataFrame aggregation (no preceding groupBy). Each expression
+        # is evaluated against the underlying pandas DF — enabling auto-
+        # validation against the task's expectedOutput spec.
+        if not exprs:
             return _MockDF(pd.DataFrame())
-        return _MockDF(pd.DataFrame([{c: 0 for c in cols}]))
+        row = {}
+        for e in exprs:
+            name = getattr(e, '_name', 'agg')
+            row[name] = _eval_agg_column(self._pdf, e)
+        return _MockDF(pd.DataFrame([row]))
     def withColumnRenamed(self, old, new):
         pdf = self._pdf.rename(columns={old: new})
         return _MockDF(pdf)
@@ -375,22 +721,36 @@ class _MockGrouped:
         r = self._pdf.groupby(self._cols)[list(cols)].min().reset_index()
         return _MockDF(r)
     def agg(self, *exprs):
-        # Multi-expression aggregation against pandas groupby. The mock
-        # cannot inspect arbitrary _MockColumn function nodes, so we
-        # approximate by building a result frame keyed on the groupBy cols
-        # plus columns named from the supplied aliases. Students see the
-        # output schema match the task spec; numeric values are filled
-        # with placeholder zeros.
-        agg_names = [getattr(e, '_name', 'agg') for e in exprs] or ['agg']
-        # Real groupby keys (deduped, ordered).
+        # Multi-expression aggregation against pandas groupby. Each
+        # _MockColumn carries an op + source column, so we evaluate it
+        # per group and assemble a Spark-shaped result frame.
         keys = self._cols
+        if not exprs:
+            agg_names = []
+        else:
+            agg_names = [getattr(e, '_name', 'agg') for e in exprs]
+
         if not keys:
-            row = {n: 0 for n in agg_names}
+            # No grouping → identical to df.agg
+            row = {}
+            for e in exprs:
+                row[getattr(e, '_name', 'agg')] = _eval_agg_column(self._pdf, e)
             return _MockDF(pd.DataFrame([row]))
-        unique_keys = self._pdf[keys].drop_duplicates().reset_index(drop=True)
-        for n in agg_names:
-            unique_keys[n] = 0
-        return _MockDF(unique_keys)
+
+        # Compute per-group values. Iterate explicitly so each agg can be
+        # evaluated against the group's pandas DataFrame using
+        # _eval_agg_column (consistent with bare-DF agg semantics).
+        results = []
+        for key_vals, group in self._pdf.groupby(list(keys), dropna=False):
+            if not isinstance(key_vals, tuple):
+                key_vals = (key_vals,)
+            row = dict(zip(keys, key_vals))
+            for e in exprs:
+                row[getattr(e, '_name', 'agg')] = _eval_agg_column(group, e)
+            results.append(row)
+        col_order = list(keys) + agg_names
+        out = pd.DataFrame(results, columns=col_order)
+        return _MockDF(out)
 
 class _MockStructField:
     def __init__(self, name, dataType, nullable=True):
@@ -414,13 +774,23 @@ class _MockStructType:
     def __iter__(self):
         return iter(self.fields)
     def treeString(self):
+        # Match Spark's printSchema output: "long" not "longtype", etc.
+        SHORT = {
+            'stringtype': 'string',
+            'longtype': 'long',
+            'doubletype': 'double',
+            'floattype': 'float',
+            'integertype': 'integer',
+            'booleantype': 'boolean',
+            'datetype': 'date',
+            'timestamptype': 'timestamp',
+            'binarytype': 'binary',
+        }
         lines = ["root"]
         for f in self.fields:
             dt = f.dataType
-            if isinstance(dt, str):
-                dt_name = dt.replace('()', '').lower()
-            else:
-                dt_name = str(dt).replace('()', '').lower()
+            raw = (dt if isinstance(dt, str) else str(dt)).replace('()', '').lower()
+            dt_name = SHORT.get(raw, raw)
             lines.append(f" |-- {f.name}: {dt_name} (nullable = {str(f.nullable).lower()})")
         return "\\n".join(lines)
     def __repr__(self):
@@ -572,24 +942,61 @@ _pyspark_sql_types.LongType = lambda: 'LongType()'
 _pyspark_sql_types.BooleanType = lambda: 'BooleanType()'
 _pyspark_sql_types.DateType = lambda: 'DateType()'
 _pyspark_sql_types.TimestampType = lambda: 'TimestampType()'
+def _col_arg_to_name(c):
+    """Coerce a function argument to a source-column name.
+    Accepts strings, _MockColumn, or anything stringifiable."""
+    if hasattr(c, '_name'):
+        # If the inner column has its own op (e.g. round(sum(...))), pass the
+        # whole _MockColumn through so _eval_agg_column can recurse.
+        return c if c._op is not None else c._name
+    return c
+
 _pyspark_sql_functions = types.ModuleType('pyspark.sql.functions')
-_pyspark_sql_functions.col = _MockColumn
-_pyspark_sql_functions.lit = lambda v: _MockColumn(f'lit({v})')
-_pyspark_sql_functions.count = lambda c='*': _MockColumn('count')
-_pyspark_sql_functions.countDistinct = lambda *cols: _MockColumn('count_distinct')
+_pyspark_sql_functions.col = lambda name: _MockColumn(name)
+_pyspark_sql_functions.lit = lambda v: _MockColumn(f'lit({v})', op='lit', args={'value': v})
+_pyspark_sql_functions.count = lambda c='*': (
+    _MockColumn('count', op='count', src='*') if c == '*'
+    else _MockColumn(f'count({_col_arg_to_name(c)})', op='count', src=_col_arg_to_name(c))
+)
+_pyspark_sql_functions.countDistinct = lambda *cols: _MockColumn(
+    f"count(DISTINCT {', '.join(str(_col_arg_to_name(c)) for c in cols)})",
+    op='count_distinct',
+    src=([_col_arg_to_name(c) for c in cols] if len(cols) > 1 else _col_arg_to_name(cols[0]) if cols else None)
+)
 _pyspark_sql_functions.count_distinct = _pyspark_sql_functions.countDistinct
-_pyspark_sql_functions.first = lambda c, ignorenulls=False: _MockColumn('first')
-_pyspark_sql_functions.last = lambda c, ignorenulls=False: _MockColumn('last')
-_pyspark_sql_functions.sum = lambda c: _MockColumn('sum')
-_pyspark_sql_functions.avg = lambda c: _MockColumn('avg')
-_pyspark_sql_functions.mean = lambda c: _MockColumn('mean')
-_pyspark_sql_functions.max = lambda c: _MockColumn('max')
-_pyspark_sql_functions.min = lambda c: _MockColumn('min')
-_pyspark_sql_functions.when = lambda cond, val: _MockColumn('when')
+_pyspark_sql_functions.first = lambda c, ignorenulls=False: _MockColumn(
+    f'first({_col_arg_to_name(c)})', op='first', src=_col_arg_to_name(c), args={'ignorenulls': ignorenulls}
+)
+_pyspark_sql_functions.last = lambda c, ignorenulls=False: _MockColumn(
+    f'last({_col_arg_to_name(c)})', op='last', src=_col_arg_to_name(c), args={'ignorenulls': ignorenulls}
+)
+_pyspark_sql_functions.sum = lambda c: _MockColumn(
+    f'sum({_col_arg_to_name(c)})', op='sum', src=_col_arg_to_name(c)
+)
+_pyspark_sql_functions.avg = lambda c: _MockColumn(
+    f'avg({_col_arg_to_name(c)})', op='avg', src=_col_arg_to_name(c)
+)
+_pyspark_sql_functions.mean = lambda c: _MockColumn(
+    f'mean({_col_arg_to_name(c)})', op='mean', src=_col_arg_to_name(c)
+)
+_pyspark_sql_functions.max = lambda c: _MockColumn(
+    f'max({_col_arg_to_name(c)})', op='max', src=_col_arg_to_name(c)
+)
+_pyspark_sql_functions.min = lambda c: _MockColumn(
+    f'min({_col_arg_to_name(c)})', op='min', src=_col_arg_to_name(c)
+)
+_pyspark_sql_functions.when = lambda cond, val: _MockColumn(
+    'when', op='when', args={'conditions': [(cond, val)], 'otherwise': None}
+)
 _pyspark_sql_functions.upper = lambda c: _MockColumn('upper')
 _pyspark_sql_functions.lower = lambda c: _MockColumn('lower')
 _pyspark_sql_functions.trim = lambda c: _MockColumn('trim')
-_pyspark_sql_functions.round = lambda c, scale=0: _MockColumn('round')
+_pyspark_sql_functions.round = lambda c, scale=0: _MockColumn(
+    f'round({getattr(c, "_name", c)}, {scale})',
+    op='round',
+    src=c if hasattr(c, '_op') else _MockColumn(str(c), op=None, src=str(c)),
+    args={'scale': scale}
+)
 _pyspark_sql_functions.year = lambda c: _MockColumn('year')
 _pyspark_sql_functions.month = lambda c: _MockColumn('month')
 _pyspark_sql_functions.dayofmonth = lambda c: _MockColumn('dayofmonth')
@@ -805,8 +1212,12 @@ function DatasetPanel({
                               key={i}
                               className="sticky top-0 px-3 py-2 text-left font-semibold whitespace-nowrap"
                               style={{
-                                backgroundColor: 'var(--rm-code-bg, #0d1117)',
-                                color: 'var(--rm-text)',
+                                // Per-mode header surface: light cream in
+                                // book/kindle, near-black in dark/black, etc.
+                                // The previous --rm-code-bg fallback rendered
+                                // as a dark bar in light reading modes.
+                                backgroundColor: 'var(--rm-table-header-bg, var(--rm-bg-elevated))',
+                                color: 'var(--rm-text-heading, var(--rm-text))',
                                 borderBottom: '1px solid var(--rm-border)',
                               }}
                             >
@@ -867,10 +1278,10 @@ function getCorrectValue(field: TemplateField): string {
 /* ── FieldRenderer ──────────────────────────────────────────────────────────── */
 
 function getOptionsGridClass(count: number): string {
-  if (count <= 2) return 'grid grid-cols-2 gap-2.5';
-  if (count === 3) return 'grid grid-cols-1 sm:grid-cols-3 gap-2.5';
-  if (count === 4) return 'grid grid-cols-1 sm:grid-cols-2 gap-2.5';
-  return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5';
+  if (count <= 2) return 'grid grid-cols-2 gap-3 sm:gap-3.5';
+  if (count === 3) return 'grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-3.5';
+  if (count === 4) return 'grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5';
+  return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-3.5';
 }
 
 function FieldRenderer({
@@ -937,21 +1348,21 @@ function FieldRenderer({
 
             if (showCorrectHighlight) {
               borderStyle = `1.5px solid rgba(${SUCCESS_RGB},0.55)`;
-              iconElement = <Check className="h-4 w-4 shrink-0" style={{ color: `rgb(${SUCCESS_RGB})` }} />;
+              iconElement = <Check className="h-[18px] w-[18px] shrink-0" style={{ color: `rgb(${SUCCESS_RGB})` }} />;
             } else if (selected && showFeedback && result === true) {
               borderStyle = `1.5px solid rgba(${SUCCESS_RGB},0.55)`;
-              iconElement = <Check className="h-4 w-4 shrink-0" style={{ color: `rgb(${SUCCESS_RGB})` }} />;
+              iconElement = <Check className="h-[18px] w-[18px] shrink-0" style={{ color: `rgb(${SUCCESS_RGB})` }} />;
             } else if (selected && showFeedback && result === false) {
               borderStyle = `1.5px solid rgba(${ERROR_RGB},0.55)`;
-              iconElement = <X className="h-4 w-4 shrink-0" style={{ color: `rgb(${ERROR_RGB})` }} />;
+              iconElement = <X className="h-[18px] w-[18px] shrink-0" style={{ color: `rgb(${ERROR_RGB})` }} />;
             } else if (selected) {
               // Selected (pre-check) — white indicator with bg-color check
               // so it auto-inverts in light reading modes too.
-              borderStyle = '1px solid var(--rm-border)';
+              borderStyle = `1.5px solid var(--rm-text-heading, var(--rm-text))`;
               iconElement = (
-                <div className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center"
+                <div className="w-[18px] h-[18px] rounded-full shrink-0 flex items-center justify-center"
                   style={{ background: 'var(--rm-text-heading, #ffffff)' }}>
-                  <Check className="h-2.5 w-2.5" style={{ color: 'var(--rm-bg, #000000)' }} />
+                  <Check className="h-3 w-3" style={{ color: 'var(--rm-bg, #000000)' }} strokeWidth={3} />
                 </div>
               );
             }
@@ -962,7 +1373,7 @@ function FieldRenderer({
                 key={opt}
                 onClick={() => !readOnly && !checked && onChange(opt)}
                 disabled={readOnly || checked}
-                className={`group w-full h-full text-left rounded-[14px] px-4 py-3.5 text-[13px] leading-relaxed transition-all duration-200 ${
+                className={`group w-full h-full text-left rounded-[16px] px-5 py-5 text-[14px] sm:text-[15px] leading-relaxed transition-all duration-200 ${
                   interactive
                     ? 'cursor-pointer hover:brightness-[1.06] hover:-translate-y-px'
                     : 'cursor-default'
@@ -978,11 +1389,11 @@ function FieldRenderer({
                         : 'var(--rm-bg-elevated)',
                 }}
               >
-                <span className="flex items-start gap-3">
+                <span className="flex items-start gap-3.5">
                   {iconElement && <span className="mt-0.5">{iconElement}</span>}
                   {!iconElement && !showFeedback && (
                     <div
-                      className="w-4 h-4 rounded-full shrink-0 mt-0.5 transition-all duration-200"
+                      className="w-[18px] h-[18px] rounded-full shrink-0 mt-0.5 transition-all duration-200"
                       style={{
                         border: selected ? 'none' : '1.5px solid var(--rm-border)',
                         background: 'transparent',
@@ -990,7 +1401,7 @@ function FieldRenderer({
                     />
                   )}
                   {!iconElement && showFeedback && (
-                    <div className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div className="w-[18px] h-[18px] shrink-0 mt-0.5" />
                   )}
                   <span
                     className="flex-1"
@@ -1052,6 +1463,225 @@ function FieldRenderer({
         >
           <Check className="h-3 w-3 shrink-0" />
           Correct answer: {correctValue}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Code Verdict Banner ────────────────────────────────────────────────────── */
+
+function CodeVerdictBanner({
+  allCorrect,
+  selfReview,
+  reasons,
+  hasExpectedOutput,
+}: {
+  allCorrect: boolean;
+  selfReview?: boolean;
+  reasons?: string[];
+  hasExpectedOutput: boolean;
+}) {
+  // Three states: success (validator returned 'success'), failure
+  // (validator returned 'failure'), self_review (no spec OR output couldn't
+  // be parsed — neutral acknowledgement, not a wrong-answer signal).
+  const isSelfReview = !!selfReview;
+  const isSuccess = !isSelfReview && allCorrect;
+  const isFailure = !isSelfReview && !allCorrect;
+
+  // First reason is the most actionable diagnostic from the validator.
+  const headlineReason = (reasons ?? []).find((r) => r && r.length > 0);
+
+  let icon: React.ReactNode = null;
+  let title = '';
+  let subtitle = '';
+  let tintRgb = '';
+  let bg = '';
+  let border = '';
+  let titleColor = '';
+
+  if (isSuccess) {
+    icon = <Check className="h-4 w-4" strokeWidth={3} style={{ color: `rgb(${SUCCESS_RGB})` }} />;
+    title = 'Correct';
+    subtitle = headlineReason ?? 'Schema and values match the expected output.';
+    tintRgb = SUCCESS_RGB;
+    bg = `rgba(${SUCCESS_RGB},0.10)`;
+    border = `rgba(${SUCCESS_RGB},0.32)`;
+    titleColor = `rgb(${SUCCESS_RGB})`;
+  } else if (isFailure) {
+    icon = <X className="h-4 w-4" strokeWidth={3} style={{ color: `rgb(${ERROR_RGB})` }} />;
+    title = 'Not quite';
+    subtitle = headlineReason ?? 'The output doesn’t match the expected spec.';
+    tintRgb = ERROR_RGB;
+    bg = `rgba(${ERROR_RGB},0.10)`;
+    border = `rgba(${ERROR_RGB},0.32)`;
+    titleColor = `rgb(${ERROR_RGB})`;
+  } else {
+    // self-review — show neutral
+    icon = (
+      <span
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full"
+        style={{ background: 'var(--rm-text-secondary)', opacity: 0.85 }}
+      >
+        <span className="block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--rm-bg)' }} />
+      </span>
+    );
+    title = 'Submitted';
+    subtitle = hasExpectedOutput
+      ? headlineReason ?? 'Run the code to compare against the expected output.'
+      : 'Self-review — no automatic check is configured for this task.';
+    bg = 'var(--rm-bg-elevated)';
+    border = 'var(--rm-border)';
+    titleColor = 'var(--rm-text-heading, var(--rm-text))';
+  }
+
+  return (
+    <div
+      className="px-4 pt-3 pb-3"
+      style={{
+        animation: 'fadeSlideUp 220ms cubic-bezier(.16,1,.3,1) both',
+      }}
+    >
+      <div
+        className="flex items-start gap-3 rounded-[14px] px-4 py-3"
+        style={{
+          background: bg,
+          border: `1px solid ${border}`,
+          // Hairline highlight on top edge — the Apple "lift" trick.
+          boxShadow: tintRgb
+            ? `inset 0 1px 0 rgba(${tintRgb},0.08)`
+            : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+        }}
+        role="status"
+        aria-live="polite"
+      >
+        <span className="mt-0.5 shrink-0">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <p
+            className="text-[14px] font-semibold tracking-[-0.01em] leading-tight"
+            style={{ color: titleColor }}
+          >
+            {title}
+          </p>
+          <p
+            className="mt-0.5 text-[12.5px] leading-snug"
+            style={{ color: 'var(--rm-text-secondary)' }}
+          >
+            {subtitle}
+          </p>
+          {/* Surface up to 3 detail lines from the validator (if present
+              and not the same as the headline). Helps the user diagnose
+              "why failure" without opening dev tools. */}
+          {isFailure && reasons && reasons.length > 1 && (
+            <ul className="mt-2 space-y-0.5">
+              {reasons.slice(1, 4).map((r, i) => (
+                <li
+                  key={i}
+                  className="text-[11.5px] leading-snug"
+                  style={{ color: 'var(--rm-text-secondary)', opacity: 0.85 }}
+                >
+                  · {r}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Expected Output Preview ────────────────────────────────────────────────── */
+
+function ExpectedOutputPreview({ spec }: { spec: any }) {
+  if (!spec || typeof spec !== 'object') return null;
+
+  // Legacy prose shape (`{pattern, notes}`) — render as before.
+  if (typeof spec.pattern === 'string') {
+    return (
+      <>
+        <pre
+          className="font-mono text-[12px] whitespace-pre-wrap"
+          style={{ color: 'var(--rm-text)' }}
+        >
+          {spec.pattern}
+        </pre>
+        {typeof spec.notes === 'string' && (
+          <p className="mt-2 text-[11px] italic" style={{ color: 'var(--rm-text-secondary)' }}>
+            {spec.notes}
+          </p>
+        )}
+      </>
+    );
+  }
+
+  // Structured shape used by the auto-validator: schema / rowCount /
+  // requiredValues / cellValues. Render each section that's present.
+  const schema: Array<{ name: string; type: string }> | undefined = spec.schema;
+  const rowCount: number | undefined = spec.rowCount;
+  const requiredValues: Array<unknown> | undefined = spec.requiredValues;
+  const cellValues: Array<{ row: number; col: number | string; value: unknown; tolerance?: number }> | undefined = spec.cellValues;
+
+  const formatRequiredValue = (v: unknown): string => {
+    if (v && typeof v === 'object' && 'value' in (v as Record<string, unknown>)) {
+      const obj = v as { value: unknown; tolerance?: number };
+      return `${String(obj.value)}${obj.tolerance != null ? ` (±${obj.tolerance})` : ''}`;
+    }
+    return String(v);
+  };
+
+  return (
+    <div className="space-y-3 text-[12px]" style={{ color: 'var(--rm-text)' }}>
+      {schema && schema.length > 0 && (
+        <div>
+          <p className="text-[10px] font-mono uppercase tracking-widest mb-1.5" style={{ color: 'var(--rm-text-secondary)' }}>
+            Schema
+          </p>
+          <ul className="font-mono space-y-0.5">
+            {schema.map((field) => (
+              <li key={field.name}>
+                <span style={{ color: 'var(--rm-text-heading, var(--rm-text))' }}>{field.name}</span>
+                <span style={{ color: 'var(--rm-text-secondary)' }}>{': '}</span>
+                <span style={{ color: 'var(--rm-accent)' }}>{field.type}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {typeof rowCount === 'number' && (
+        <div className="font-mono">
+          <span className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--rm-text-secondary)' }}>
+            Rows
+          </span>
+          <span className="ml-2">{rowCount}</span>
+        </div>
+      )}
+
+      {requiredValues && requiredValues.length > 0 && (
+        <div>
+          <p className="text-[10px] font-mono uppercase tracking-widest mb-1.5" style={{ color: 'var(--rm-text-secondary)' }}>
+            Must contain
+          </p>
+          <p className="font-mono leading-relaxed">
+            {requiredValues.map(formatRequiredValue).join(', ')}
+          </p>
+        </div>
+      )}
+
+      {cellValues && cellValues.length > 0 && (
+        <div>
+          <p className="text-[10px] font-mono uppercase tracking-widest mb-1.5" style={{ color: 'var(--rm-text-secondary)' }}>
+            Cell checks
+          </p>
+          <ul className="font-mono space-y-0.5">
+            {cellValues.map((cell, i) => (
+              <li key={i}>
+                row {cell.row}, col {String(cell.col)} = {String(cell.value)}
+                {cell.tolerance != null ? ` (±${cell.tolerance})` : ''}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
@@ -1429,6 +2059,7 @@ export function SplitPanelCodeTask({
   taskState,
   isReview,
   onAnswerChange,
+  onOutputChange,
   onCheck,
   onNext,
   onSkip,
@@ -1479,10 +2110,38 @@ export function SplitPanelCodeTask({
   const [code, setCode] = useState(initialCode);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  /* Execution state */
-  const [output, setOutput] = useState<string | null>(null);
+  /* Execution state — initialized from persisted taskState so a refresh
+     mid-session shows the last run's output and verdict alongside the
+     restored code, instead of an empty console. */
+  const [output, setOutput] = useState<string | null>(taskState.output ?? null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+
+  /* One-way sync: reducer → local. When the reducer state's __code or
+     output value changes externally (e.g. session-restore from
+     sessionStorage on page refresh), adopt it locally so the editor and
+     console reflect the persisted attempt. The local-edit path still
+     pushes UP via onAnswerChange / onOutputChange, but it must NOT push
+     the just-synced value back up — doing so would dispatch SET_ANSWER,
+     which resets `checked = false` and wipes the restored verdict.
+     `lastPushedCodeRef` tracks the last value we sent up, so the push-up
+     effect skips the round-trip on synced values. */
+  const lastPushedCodeRef = useRef<string>(initialCode);
+  const externalCode = taskState.answers['__code']?.value;
+  useEffect(() => {
+    if (typeof externalCode === 'string' && externalCode !== code) {
+      setCode(externalCode);
+      lastPushedCodeRef.current = externalCode;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalCode]);
+  const externalOutput = taskState.output;
+  useEffect(() => {
+    if (typeof externalOutput === 'string' && externalOutput !== output) {
+      setOutput(externalOutput);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalOutput]);
   const [pyodideReady, setPyodideReady] = useState(false);
   const [pyodideLoading, setPyodideLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -1495,10 +2154,22 @@ export function SplitPanelCodeTask({
     return /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ Enter' : 'Ctrl + Enter';
   }, []);
 
-  /* Sync code changes to parent */
+  /* Sync code changes to parent — but skip if the change came from a
+     reducer→local sync (lastPushedCodeRef tracks what we already know
+     parent has), otherwise SET_ANSWER would reset `checked` and wipe the
+     restored verdict. */
   useEffect(() => {
+    if (code === lastPushedCodeRef.current) return;
+    lastPushedCodeRef.current = code;
     onAnswerChange('__code', code);
   }, [code, onAnswerChange]);
+
+  /* Sync run output up so CHECK_ANSWERS can validate against expectedOutput */
+  useEffect(() => {
+    if (output != null && onOutputChange) {
+      onOutputChange(output);
+    }
+  }, [output, onOutputChange]);
 
   /* Datasets for this task */
   const taskDatasets = useMemo(() => {
@@ -1720,13 +2391,14 @@ sys.stderr = sys.__stderr__
   }, []);
 
   const lineCount = code.split('\n').length;
-  const typeInfo = TYPE_CONFIG[task.type];
 
   const showLeft = showLeftForMcq;
   const showRight = true;
 
   /* ── Resizable split ───────────────────────────────────────────────────────── */
-  const [splitPct, setSplitPct] = useState(50);
+  // Default favors the right (code) panel — code lines + scrollbars typically
+  // need more horizontal room than the prose-only left panel.
+  const [splitPct, setSplitPct] = useState(42);
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
 
@@ -1757,10 +2429,20 @@ sys.stderr = sys.__stderr__
 
   return (
     <div
-      className="rounded-[14px] overflow-hidden"
+      className="rounded-[18px] overflow-hidden"
       style={{
-        border: '1px solid var(--rm-border)',
-        backgroundColor: 'var(--rm-bg-elevated)',
+        // Use card-bg (genuinely elevated per reading mode) instead of
+        // bg-elevated, which collapses to pure black in Pitch Black mode and
+        // makes the MCQ card vanish into the page background.
+        // Border uses the saturated `--rm-border` (not card-border) so the
+        // edge reads clearly on warm light surfaces (Book, Kindle) where the
+        // default card-border is too soft.
+        border: `1.5px solid var(--rm-border)`,
+        backgroundColor: 'var(--rm-card-bg, var(--rm-bg-elevated))',
+        // Stack the per-mode card shadow with a stronger universal lift so
+        // the card detaches from the page on every reading mode, including
+        // the otherwise-flat Kindle / Book themes.
+        boxShadow: 'var(--rm-card-shadow, none), 0 18px 36px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10)',
       }}
     >
       {/* ─ Split Panels ────────────────────────────────────────────────────── */}
@@ -1818,21 +2500,8 @@ sys.stderr = sys.__stderr__
             {/* Tab content */}
             {leftTab === 'context' && (
               <div className="p-5 space-y-6">
-                {/* Type badge + time */}
+                {/* Time estimate */}
                 <div className="flex items-center gap-3">
-                  {typeInfo && (
-                    <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[14px] text-[11px] font-medium"
-                      style={{
-                        backgroundColor: `rgba(${typeInfo.color},0.08)`,
-                        color: `rgb(${typeInfo.color})`,
-                        border: `1px solid rgba(${typeInfo.color},0.15)`,
-                      }}
-                    >
-                      {(() => { const Icon = typeInfo.icon; return <Icon className="h-3 w-3" />; })()}
-                      {typeInfo.label}
-                    </span>
-                  )}
                   <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--rm-text-secondary)' }}>
                     <Clock className="h-3 w-3" />
                     ~{task.estimatedMinutes} min
@@ -2020,24 +2689,11 @@ sys.stderr = sys.__stderr__
                       >
                         <p
                           className="text-[10px] font-semibold uppercase tracking-widest mb-2"
-                          style={{ color: `rgb(${ACCENT})` }}
+                          style={{ color: 'var(--rm-accent)' }}
                         >
                           Expected Output
                         </p>
-                        <pre
-                          className="font-mono text-[12px] whitespace-pre-wrap"
-                          style={{ color: 'var(--rm-text)' }}
-                        >
-                          {task.expectedOutput.pattern}
-                        </pre>
-                        {task.expectedOutput.notes && (
-                          <p
-                            className="mt-2 text-[11px] italic"
-                            style={{ color: 'var(--rm-text-secondary)' }}
-                          >
-                            {task.expectedOutput.notes}
-                          </p>
-                        )}
+                        <ExpectedOutputPreview spec={task.expectedOutput} />
                       </div>
                     )}
 
@@ -2121,21 +2777,22 @@ sys.stderr = sys.__stderr__
                     {task.hints.map((hint, i) => {
                       const isUnlocked = unlockedHints.has(hint.tier);
                       const tierNum = parseInt(hint.tier.replace('H', ''), 10) || (i + 1);
-                      const TIER_COLORS = [
-                        { rgb: '59,130,246', label: 'Direction' },
-                        { rgb: '168,85,247', label: 'Guidance' },
-                        { rgb: '245,158,11', label: 'Walkthrough' },
-                        { rgb: '239,68,68', label: 'Solution' },
-                      ];
-                      const tc = TIER_COLORS[tierNum - 1] ?? TIER_COLORS[0];
+                      const TIER_LABELS = ['Direction', 'Guidance', 'Walkthrough', 'Solution'];
+                      const label = TIER_LABELS[tierNum - 1] ?? `Tier ${tierNum}`;
 
                       return (
                         <div
                           key={hint.tier}
                           className="rounded-[14px] overflow-hidden transition-all duration-300"
                           style={{
-                            border: `1px solid rgba(${tc.rgb},${isUnlocked ? 0.15 : 0.06})`,
-                            backgroundColor: isUnlocked ? `rgba(${tc.rgb},0.04)` : 'rgba(255,255,255,0.02)',
+                            // Single contrasting palette driven by the
+                            // reading-mode tokens — no per-tier hue. The
+                            // visible difference between locked and unlocked
+                            // is opacity / weight, not color.
+                            border: '1px solid var(--rm-border)',
+                            backgroundColor: isUnlocked
+                              ? 'var(--rm-bg-elevated)'
+                              : 'transparent',
                           }}
                         >
                           {/* Header — always visible */}
@@ -2144,17 +2801,28 @@ sys.stderr = sys.__stderr__
                               <div
                                 className="flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold"
                                 style={{
-                                  backgroundColor: `rgba(${tc.rgb},${isUnlocked ? 0.15 : 0.08})`,
-                                  color: isUnlocked ? `rgb(${tc.rgb})` : 'rgba(255,255,255,0.25)',
+                                  backgroundColor: isUnlocked
+                                    ? 'var(--rm-text-heading, var(--rm-text))'
+                                    : 'var(--rm-bg-elevated)',
+                                  color: isUnlocked
+                                    ? 'var(--rm-bg)'
+                                    : 'var(--rm-text-secondary)',
+                                  border: isUnlocked
+                                    ? 'none'
+                                    : '1px solid var(--rm-border)',
                                 }}
                               >
                                 {tierNum}
                               </div>
                               <span
                                 className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                                style={{ color: isUnlocked ? `rgb(${tc.rgb})` : 'rgba(255,255,255,0.3)' }}
+                                style={{
+                                  color: isUnlocked
+                                    ? 'var(--rm-text-heading, var(--rm-text))'
+                                    : 'var(--rm-text-secondary)',
+                                }}
                               >
-                                {hint.tier} · {tc.label}
+                                {hint.tier} · {label}
                               </span>
                             </div>
                             {!isUnlocked && (
@@ -2163,9 +2831,9 @@ sys.stderr = sys.__stderr__
                                 onClick={() => setUnlockedHints((prev) => new Set(prev).add(hint.tier))}
                                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium tracking-wide uppercase transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] cursor-pointer"
                                 style={{
-                                  border: `1px solid rgba(${tc.rgb},0.2)`,
-                                  backgroundColor: `rgba(${tc.rgb},0.06)`,
-                                  color: `rgb(${tc.rgb})`,
+                                  border: '1px solid var(--rm-border)',
+                                  backgroundColor: 'var(--rm-bg-elevated)',
+                                  color: 'var(--rm-text)',
                                 }}
                               >
                                 {hint.xp_cost > 0 ? `Unlock · −${hint.xp_cost} XP` : 'Reveal'}
@@ -2228,6 +2896,27 @@ sys.stderr = sys.__stderr__
                   style={{ color: 'var(--rm-text-secondary)' }}
                 >
                   solution.py
+                </span>
+                {/* Language pill — surfaces the practice topic so the user
+                    knows the runtime context at a glance (e.g. PySpark
+                    vs plain Python). */}
+                <span
+                  className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-[0.14em]"
+                  style={{
+                    fontSize: 9.5,
+                    color: `rgb(${ACCENT})`,
+                    border: `1px solid rgba(${ACCENT},0.28)`,
+                    backgroundColor: `rgba(${ACCENT},0.08)`,
+                  }}
+                >
+                  {(() => {
+                    const t = (topic || '').toLowerCase();
+                    if (t === 'pyspark') return 'PySpark';
+                    if (t === 'sql') return 'SQL';
+                    if (t === 'python' || t === 'python-de') return 'Python';
+                    if (t === 'fabric') return 'Fabric';
+                    return topic || 'Code';
+                  })()}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -2309,6 +2998,20 @@ sys.stderr = sys.__stderr__
               </div>
             </div>
 
+            {/* Verdict banner — shown the moment auto-validation completes
+                so the user sees Correct / Not quite / Submitted alongside
+                the Output console below. Apple-style: tinted surface,
+                hairline border in the same hue, SF-flavored typography,
+                no all-caps yelling. */}
+            {isCodeTask && taskState.checked && !isReview && (
+              <CodeVerdictBanner
+                allCorrect={taskState.allCorrect}
+                selfReview={taskState.selfReview}
+                reasons={taskState.validationReasons}
+                hasExpectedOutput={Boolean((task as { expectedOutput?: unknown }).expectedOutput)}
+              />
+            )}
+
             {/* Output console */}
             <div
               className="shrink-0"
@@ -2367,7 +3070,7 @@ sys.stderr = sys.__stderr__
                         <>
                           <Play className="h-3 w-3" />
                           Run code
-                          <kbd className="ml-1 hidden sm:inline-block rounded px-1.5 py-0.5 text-[9px] font-mono opacity-70" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.18)' }}>
+                          <kbd className="ml-1 hidden sm:inline-block rounded px-1.5 py-0.5 text-[9px] font-mono opacity-80" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.35)' }}>
                             {runShortcutLabel}
                           </kbd>
                         </>
@@ -2516,19 +3219,19 @@ sys.stderr = sys.__stderr__
             {/* Stacked question cards (no "ANSWER" header — radio buttons make
                 the section purpose obvious; per-field Correct/Incorrect chips
                 replace the aggregate status row). */}
-            <div className="p-6 sm:p-8 space-y-8">
+            <div className="p-7 sm:p-10 space-y-10">
               {fields.map((field, idx) => {
                 const answer = taskState.answers[field.id];
                 const result = answer?.result ?? null;
                 const showFeedback = taskState.checked;
                 return (
-                  <div key={field.id} className="space-y-5">
+                  <div key={field.id} className="space-y-7">
                     {/* Question heading — dominant typography so the question
                         clearly leads the answer options visually. */}
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3.5">
                       {fields.length > 1 && (
                         <span
-                          className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-[12px] font-semibold mt-0.5"
+                          className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full text-[14px] font-bold mt-1"
                           style={{
                             border: '1px solid var(--rm-border)',
                             color: 'var(--rm-text-secondary)',
@@ -2538,7 +3241,7 @@ sys.stderr = sys.__stderr__
                         </span>
                       )}
                       <h3
-                        className="flex-1 text-[18px] sm:text-[20px] leading-snug font-semibold tracking-[-0.01em]"
+                        className="flex-1 text-[17px] sm:text-[19px] lg:text-[22px] leading-snug font-semibold tracking-[-0.012em]"
                         style={{ color: 'var(--rm-text-heading, var(--rm-text))' }}
                       >
                         {field.label}

@@ -2,11 +2,10 @@
 
 import React, { useReducer, useCallback, useEffect, useMemo, useState, useContext } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   Clock,
-  Clock3,
   Check,
   X,
   ChevronDown,
@@ -18,18 +17,11 @@ import {
 } from 'lucide-react';
 import type { PracticeSet, PracticeTask, TemplateField } from '@/data/operations/practice-sets';
 import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
-import { useTheorySessionTimer } from '@/lib/hooks/useTheorySessionTimer';
 import {
-  useTheorySessionPreferencesStore,
-  resolveTheorySessionMethodConfigs,
-} from '@/lib/stores/useTheorySessionPreferencesStore';
-import { TheorySessionTopbar } from '@/components/learn/theory/TheorySessionTopbar';
+  validateCodeOutput,
+  type ExpectedOutputSpec,
+} from '@/lib/practice/codeTaskValidator';
 import dynamic from 'next/dynamic';
-
-const TheorySessionPicker = dynamic(
-  () => import('@/components/learn/theory/TheorySessionPicker').then((m) => m.TheorySessionPicker),
-  { ssr: false }
-);
 
 const ReadingModeDropdown = dynamic(
   () => import('@/components/learn/theory/ReadingModeDropdown').then((m) => m.ReadingModeDropdown),
@@ -97,11 +89,17 @@ interface TaskState {
   answers: Record<string, FieldAnswer>;
   checked: boolean;
   allCorrect: boolean;
-  // Code tasks have no machine-verifiable answer fields, so we surface a
-  // neutral "submitted, self-review" state instead of falsely marking the
-  // task correct. Keeping it optional preserves backward compatibility
-  // with sessionStorage snapshots from before this flag existed.
+  // Code tasks have no machine-verifiable answer fields by default. When a
+  // task ships an `expectedOutput` spec we run the validator and set
+  // allCorrect accordingly; otherwise we surface a neutral "submitted,
+  // self-review" state instead of falsely marking the task correct.
+  // Keeping these flags optional preserves backward compatibility with
+  // sessionStorage snapshots from before they existed.
   selfReview?: boolean;
+  /** Last captured stdout from running the user's code. */
+  output?: string;
+  /** Validator diagnostic from CHECK_ANSWERS — surfaced in the UI. */
+  validationReasons?: string[];
 }
 
 interface SessionState {
@@ -114,6 +112,7 @@ interface SessionState {
 type SessionAction =
   | { type: 'START' }
   | { type: 'SET_ANSWER'; taskIndex: number; fieldId: string; value: string }
+  | { type: 'SET_OUTPUT'; taskIndex: number; output: string }
   | { type: 'CHECK_ANSWERS'; tasks: PracticeTask[] }
   | { type: 'NEXT_TASK' }
   | { type: 'PREV_TASK' }
@@ -186,6 +185,14 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
       return { ...state, taskStates: newStates };
     }
 
+    case 'SET_OUTPUT': {
+      const newStates = [...state.taskStates];
+      const ts = { ...newStates[action.taskIndex] };
+      ts.output = action.output;
+      newStates[action.taskIndex] = ts;
+      return { ...state, taskStates: newStates };
+    }
+
     case 'CHECK_ANSWERS': {
       const idx = state.currentTaskIndex;
       const task = action.tasks[idx];
@@ -195,16 +202,31 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
       const newAnswers: Record<string, FieldAnswer> = { ...ts.answers };
       let allCorrect = true;
 
-      // Code tasks have no validatable fields — we can't claim correctness.
-      // Mark as submitted for self-review instead so the UI shows a neutral
-      // badge rather than a false "correct" state.
+      // Code tasks: validate against the task's `expectedOutput` spec when
+      // present. The validator parses Spark printSchema/show output and
+      // compares schema, row count, and any spot-check cell values. When
+      // the spec is missing or the output cannot be parsed, fall back to
+      // the neutral "self-review" state.
       if (task.type === 'write_the_code' && fields.length === 0) {
         const codeVal = ts.answers['__code']?.value ?? '';
         newAnswers['__code'] = { value: codeVal, result: null };
         ts.answers = newAnswers;
         ts.checked = true;
-        ts.allCorrect = false;
-        ts.selfReview = true;
+
+        const expected = (task as { expectedOutput?: ExpectedOutputSpec })
+          .expectedOutput;
+        const validation = validateCodeOutput(ts.output, expected);
+        if (validation.verdict === 'success') {
+          ts.allCorrect = true;
+          ts.selfReview = false;
+        } else if (validation.verdict === 'failure') {
+          ts.allCorrect = false;
+          ts.selfReview = false;
+        } else {
+          ts.allCorrect = false;
+          ts.selfReview = true;
+        }
+        ts.validationReasons = validation.reasons;
         newStates[idx] = ts;
         return { ...state, taskStates: newStates };
       }
@@ -592,6 +614,64 @@ function TaskScreen({
     prevCheckedRef.current = taskState.checked;
   }, [allFieldsFilled, taskState.checked, isMcqOnlyTask, state.isReview]);
 
+  // Persist each Check-Answer attempt so the Practice Mastery panel and
+  // future analytics can read which tasks the user has solved. Append-only:
+  // every time a given task's `checked` flips false → true we record one
+  // row. Re-checking after Clear is a fresh attempt and produces another
+  // row. Tracked per-taskId so navigating Previous to a previously-checked
+  // task does NOT re-submit. Skipped in review mode (no new attempt) and in
+  // checkpoint mode (checkpoints have their own scoring path).
+  const lastCheckedByTaskIdRef = React.useRef<Record<string, boolean>>({});
+  useEffect(() => {
+    if (state.isReview || checkpointMode) {
+      lastCheckedByTaskIdRef.current[task.id] = taskState.checked;
+      return;
+    }
+    const previouslyChecked = lastCheckedByTaskIdRef.current[task.id] ?? false;
+    lastCheckedByTaskIdRef.current[task.id] = taskState.checked;
+    if (previouslyChecked || !taskState.checked) return;
+
+    const moduleId = practiceSet.metadata?.moduleId;
+    const topic = practiceSet.topic;
+    if (!moduleId || !topic || moduleId.startsWith('checkpoint-')) return;
+
+    const result: 'success' | 'failure' | 'self_review' = taskState.selfReview
+      ? 'self_review'
+      : taskState.allCorrect
+        ? 'success'
+        : 'failure';
+
+    void fetch('/api/operations/practice/task-attempt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic,
+        moduleId,
+        taskId: task.id,
+        result,
+        // Persist what the user typed and what the run produced so the
+        // attempt is fully reconstructible without round-tripping
+        // through the editor.
+        code: taskState.answers['__code']?.value ?? null,
+        output: taskState.output ?? null,
+      }),
+      credentials: 'same-origin',
+    }).catch((err) => {
+      console.warn('[practice-attempt] failed to record:', err);
+    });
+  }, [
+    taskState.checked,
+    taskState.allCorrect,
+    taskState.selfReview,
+    state.isReview,
+    checkpointMode,
+    practiceSet.metadata?.moduleId,
+    practiceSet.topic,
+    task.id,
+    taskState.answers,
+    taskState.output,
+  ]);
+
   const handleCheck = useCallback(() => {
     dispatch({ type: 'CHECK_ANSWERS', tasks });
   }, [dispatch, tasks]);
@@ -623,14 +703,33 @@ function TaskScreen({
     dispatch({ type: 'SET_ANSWER', taskIndex: state.currentTaskIndex, fieldId, value });
   }, [dispatch, state.currentTaskIndex]);
 
+  const handleOutputChange = useCallback((output: string) => {
+    dispatch({ type: 'SET_OUTPUT', taskIndex: state.currentTaskIndex, output });
+    // For code tasks, capturing output IS the check — running the code is
+    // the only meaningful submission gesture. Skip the extra "Check Answer"
+    // click and dispatch CHECK_ANSWERS in the same render so the validator
+    // sees the just-set output (reducer dispatches batch and the second
+    // dispatch reads from the post-SET_OUTPUT state).
+    const t = tasks[state.currentTaskIndex];
+    if (t && (t as { starterScaffold?: unknown }).starterScaffold) {
+      dispatch({ type: 'CHECK_ANSWERS', tasks });
+    }
+  }, [dispatch, state.currentTaskIndex, tasks]);
+
   return (
     <div
       data-reading-mode={readingMode}
-      className={useFixedFocusOverlay ? 'fixed inset-0 z-40 overflow-y-auto' : ''}
+      className={
+        useFixedFocusOverlay
+          ? 'fixed inset-0 z-40 overflow-y-auto'
+          : isMcqOnlyTask
+            ? 'h-full'
+            : ''
+      }
       style={{ backgroundColor: 'var(--rm-bg, transparent)' }}
     >
     <div ref={topSentinelRef} aria-hidden />
-    <div className={`relative mx-auto w-[85%] py-8 lg:py-12 ${useFixedFocusOverlay ? 'min-h-screen' : ''} ${isMcqOnlyTask ? 'min-h-full flex flex-col justify-center' : ''}`}>
+    <div className={`relative mx-auto w-[94%] py-8 lg:py-12 ${useFixedFocusOverlay ? 'min-h-screen flex flex-col justify-center' : ''} ${isMcqOnlyTask && !useFixedFocusOverlay ? 'min-h-full flex flex-col justify-center' : ''}`}>
 
       {/* Floating controls — visible in focus mode */}
       {useFixedFocusOverlay && (
@@ -726,6 +825,7 @@ function TaskScreen({
             taskState={taskState}
             isReview={state.isReview}
             onAnswerChange={handleAnswerChange}
+            onOutputChange={handleOutputChange}
             onCheck={handleCheck}
             onNext={handleNext}
             onSkip={isCodeTask ? handleNext : () => {
@@ -780,7 +880,9 @@ function TaskScreen({
               </button>
             )}
 
-            {/* Continue / See Results — same primary-action pattern. */}
+            {/* Continue / See Results — same primary-action pattern.
+                Code tasks always show Continue (user can skip without
+                running); MCQ tasks only show it after Check fires. */}
             {(isCodeTask || taskState.checked || state.isReview) && (
               !isLast ? (
                 <button
@@ -1395,12 +1497,20 @@ export function PracticeSetSession({
 }) {
   const tasks = practiceSet.tasks as PracticeTask[];
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const moduleId = practiceSet.metadata?.moduleId ?? '';
   // ESC exits practice session and returns to the tree map.
   // - When mounted under /learn/[topic]/theory/[level]?practice=..., the tree map IS this pathname (strip query).
   // - When mounted under the legacy /operations/practice/[topic]/[level]/[modulePrefix] route, derive the learn URL.
+  // - A `?from=` query param overrides the derivation, used when entering from
+  //   /practice/coding/[topic] so the back button returns to the topic tier
+  //   picker, not the theory track map. Restricted to internal absolute paths.
   let treeMapPath = pathname.replace(/\/session\/?$/, '');
-  const opsMatch = pathname.match(/^\/operations\/practice\/([^/]+)\/([^/]+)/);
+  const fromParam = searchParams?.get('from') ?? null;
+  if (fromParam && fromParam.startsWith('/') && !fromParam.startsWith('//')) {
+    treeMapPath = fromParam;
+  }
+  const opsMatch = !fromParam ? pathname.match(/^\/operations\/practice\/([^/]+)\/([^/]+)/) : null;
   if (opsMatch) {
     treeMapPath = `/learn/${opsMatch[1]}/theory/${opsMatch[2]}`;
   }
@@ -1410,30 +1520,8 @@ export function PracticeSetSession({
     phase: 'session' as const,
   }));
   const [hydrated, setHydrated] = useState(false);
-  const [sessionPickerVisible, setSessionPickerVisible] = useState(false);
   const focusMode = useReadingModeStore((s) => s.focusMode);
   const readingMode = useReadingModeStore((s) => s.mode);
-
-  // Reuse the reading session timer with a separate scope so practice sessions
-  // (Sprint / Pomodoro / Deep Focus / Free Practice) run independently of reading.
-  const practiceSession = useTheorySessionTimer('practice-global');
-  const { methodConfigs: sessionMethodConfigs, hasHydrated: sessionDefaultsHydrated } =
-    useTheorySessionPreferencesStore((s) => ({
-      methodConfigs: s.methodConfigs,
-      hasHydrated: s.hasHydrated,
-    }));
-  const resolvedSessionMethodConfigs = useMemo(
-    () => resolveTheorySessionMethodConfigs(sessionMethodConfigs),
-    [sessionMethodConfigs]
-  );
-  const startPracticeSession = practiceSession.start;
-
-  // Auto-reset session when it completes
-  useEffect(() => {
-    if (practiceSession.phase === 'complete') {
-      practiceSession.reset();
-    }
-  }, [practiceSession.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Detect in-progress checkpoint work so we can warn before navigation
   // discards it. Practice sets aren't graded, so we only guard checkpoint
@@ -1467,11 +1555,6 @@ export function PracticeSetSession({
       'Leave the checkpoint? Your current attempt will be discarded — questions are reshuffled when you return.'
     );
   }, [hasUnsavedCheckpointProgress]);
-
-  const openSessionPicker = useCallback(() => {
-    if (!sessionDefaultsHydrated) return;
-    setSessionPickerVisible(true);
-  }, [sessionDefaultsHydrated]);
 
   // Restore session from sessionStorage after mount
   useEffect(() => {
@@ -1523,43 +1606,28 @@ export function PracticeSetSession({
                 className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Learning Path</span>
+                <span className="hidden sm:inline">Back</span>
               </a>
             </div>
 
             {/* Center: practice set context or active session */}
             <div className="flex-1 flex items-center justify-center">
-              {practiceSession.hasActiveSession ? (
-                <TheorySessionTopbar session={practiceSession} />
-              ) : (
-                <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide">
-                  {checkpointMode?.topbarLabel ?? moduleNumber}
-                  <span className="mx-1.5 text-outline-variant/50">·</span>
-                  <span className="text-on-surface/80">
-                    {checkpointMode ? 'Question' : 'Task'} {state.currentTaskIndex + 1} of {tasks.length}
-                  </span>
+              <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide">
+                {checkpointMode?.topbarLabel ?? moduleNumber}
+                <span className="mx-1.5 text-outline-variant/50">·</span>
+                <span className="text-on-surface/80">
+                  {checkpointMode ? 'Question' : 'Task'} {state.currentTaskIndex + 1} of {tasks.length}
                 </span>
-              )}
+              </span>
             </div>
 
-            {/* Right: reading mode + start session */}
+            {/* Right: reading mode + focus toggle.
+                Sprint/Pomodoro/Deep-Focus sessions are theory-only; practice
+                runs untimed by default, so the Start session entry point is
+                intentionally absent here. */}
             <div className="flex items-center gap-1">
               <ReadingModeDropdown />
               <FocusModeButton />
-              {!practiceSession.hasActiveSession && !moduleId.startsWith('capstone-') && !checkpointMode && (
-                <>
-                  <div className="mx-1 h-5 w-px bg-white/[0.12]" aria-hidden="true" />
-                  <button
-                    type="button"
-                    onClick={openSessionPicker}
-                    disabled={!sessionDefaultsHydrated}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-[14px] border border-white/[0.12] bg-white/[0.06] px-3 text-xs font-medium text-white/70 transition-all hover:bg-white/[0.1] hover:border-white/[0.18]"
-                  >
-                    <Clock3 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Start session</span>
-                  </button>
-                </>
-              )}
             </div>
           </div>
 
@@ -1595,25 +1663,6 @@ export function PracticeSetSession({
         </div>
       )}
 
-      {sessionPickerVisible && !practiceSession.hasActiveSession ? (
-        <TheorySessionPicker
-          isOpen
-          configsByMethod={resolvedSessionMethodConfigs}
-          lessonTitle={practiceSet.title}
-          lessonDurationMinutes={
-            tasks.reduce((s, t: any) => s + (t.estimatedMinutes ?? 0), 0)
-          }
-          onStart={(config) => {
-            setSessionPickerVisible(false);
-            startPracticeSession(config);
-          }}
-          onOpenSettings={() => {
-            setSessionPickerVisible(false);
-            window.location.href = '/settings?tab=reading';
-          }}
-          onDismiss={() => setSessionPickerVisible(false)}
-        />
-      ) : null}
     </div>
   );
 }
