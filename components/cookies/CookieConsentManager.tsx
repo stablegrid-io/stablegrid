@@ -27,9 +27,6 @@ const OPTIONAL_CATEGORIES: Array<Exclude<keyof CookieConsentState, 'necessary'>>
   'preferences'
 ];
 const COOKIE_BANNER_SESSION_KEY = 'stablegrid-cookie-banner-seen-session';
-// Mirrors constants in components/home/landing/LandingIntro.tsx.
-const LANDING_INTRO_SEEN_KEY = 'stablegrid-landing-intro-seen';
-const LANDING_INTRO_FINISHED_EVENT = 'stablegrid-landing-intro-finished';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -45,9 +42,6 @@ export function CookieConsentManager() {
   const [draftConsent, setDraftConsent] = useState<CookieConsentState>(buildRejectAllConsentState());
   const [modalOpen, setModalOpen] = useState(false);
   const [bannerSeenThisSession, setBannerSeenThisSession] = useState(false);
-  // On the landing route we hold the cookie banner until the cinematic intro
-  // finishes (or has already been seen this session). Other routes pass through.
-  const [landingIntroDone, setLandingIntroDone] = useState(pathname !== '/');
 
   const openPreferences = useCallback(() => {
     setDraftConsent(consentRef.current);
@@ -124,31 +118,6 @@ export function CookieConsentManager() {
       setBannerSeenThisSession(false);
     }
   }, []);
-
-  // Hold the cookie banner on the landing route until the intro finishes.
-  useEffect(() => {
-    if (pathname !== '/') {
-      setLandingIntroDone(true);
-      return;
-    }
-    if (typeof window === 'undefined') return;
-
-    // If the intro was already dismissed this session, allow the banner now.
-    try {
-      if (window.sessionStorage.getItem(LANDING_INTRO_SEEN_KEY) === '1') {
-        setLandingIntroDone(true);
-        return;
-      }
-    } catch {
-      // sessionStorage unavailable — fall through and listen for the event.
-    }
-
-    const handleIntroFinished = () => setLandingIntroDone(true);
-    window.addEventListener(LANDING_INTRO_FINISHED_EVENT, handleIntroFinished);
-    return () => {
-      window.removeEventListener(LANDING_INTRO_FINISHED_EVENT, handleIntroFinished);
-    };
-  }, [pathname]);
 
   useEffect(() => {
     if (!ready || !currentUserId) {
@@ -249,7 +218,7 @@ export function CookieConsentManager() {
 
   const shouldUseLandingSessionPrompt = pathname === '/';
   const bannerVisible = shouldUseLandingSessionPrompt
-    ? ready && !bannerSeenThisSession && landingIntroDone
+    ? ready && !bannerSeenThisSession
     : ready && !hasSavedDecision;
 
   return (

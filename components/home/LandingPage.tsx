@@ -8,7 +8,6 @@ import { LANDING_TOPICS } from '@/lib/landing/topics';
 import { LANDING_FAQS as FAQS } from '@/lib/landing/faqs';
 import { TopicCard } from '@/components/topics/TopicCard';
 import { useTopicScores } from '@/lib/hooks/useTopicScores';
-import { LandingIntro } from '@/components/home/landing/LandingIntro';
 import { ComponentCatalogDemo } from '@/components/home/landing/ComponentCatalogDemo';
 import { StableGridMark } from '@/components/brand/StableGridLogo';
 
@@ -364,15 +363,18 @@ export const LandingPage = () => {
       className="relative min-h-screen text-white"
       style={{ backgroundColor: '#0a0c0e', fontFamily: 'Inter, sans-serif' }}
     >
-      {/* Cinematic intro — plays once per session, fades into hero */}
-      <LandingIntro />
-
       <style
         dangerouslySetInnerHTML={{
           __html: `
         @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translateY(20px); filter: blur(6px); }
+          to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes fadeSlideUp {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+          }
         }
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -449,7 +451,7 @@ export const LandingPage = () => {
 
         {/* Centered hero stack */}
         <div className="relative z-10 w-full max-w-3xl mx-auto text-center flex flex-col items-center">
-          {/* Headline */}
+          {/* Headline — two lines staggered for a smoother reveal */}
           <h1
             style={{
               fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
@@ -459,13 +461,26 @@ export const LandingPage = () => {
               lineHeight: 1.03,
               color: 'rgba(255,255,255,0.97)',
               marginBottom: 28,
-              opacity: 0,
-              animation: 'fadeSlideUp .7s cubic-bezier(.16,1,.3,1) 80ms forwards',
             }}
           >
-            Understanding <span style={{ color: '#ffc965' }}>data</span>
-            <br />
-            is your edge.
+            <span
+              style={{
+                display: 'block',
+                opacity: 0,
+                animation: 'fadeSlideUp 1.1s cubic-bezier(.16,1,.3,1) 120ms forwards',
+              }}
+            >
+              Understanding <span style={{ color: '#ffc965' }}>data</span>
+            </span>
+            <span
+              style={{
+                display: 'block',
+                opacity: 0,
+                animation: 'fadeSlideUp 1.1s cubic-bezier(.16,1,.3,1) 340ms forwards',
+              }}
+            >
+              is your edge.
+            </span>
           </h1>
 
           {/* Subtitle — trimmed, one idea only */}
@@ -480,7 +495,7 @@ export const LandingPage = () => {
               maxWidth: 540,
               marginBottom: 44,
               opacity: 0,
-              animation: 'fadeSlideUp .7s cubic-bezier(.16,1,.3,1) 140ms forwards',
+              animation: 'fadeSlideUp 1s cubic-bezier(.16,1,.3,1) 580ms forwards',
             }}
           >
             Ed-tech for analysts and engineers who&rsquo;d rather understand a query plan than collect another certificate.
@@ -489,7 +504,7 @@ export const LandingPage = () => {
           {/* CTAs — one primary pill + one text link */}
           <div
             className="flex flex-wrap items-center justify-center gap-x-7 gap-y-4"
-            style={{ opacity: 0, animation: 'fadeSlideUp .7s cubic-bezier(.16,1,.3,1) 260ms forwards' }}
+            style={{ opacity: 0, animation: 'fadeSlideUp 1s cubic-bezier(.16,1,.3,1) 800ms forwards' }}
           >
             <Link
               href="/login"
