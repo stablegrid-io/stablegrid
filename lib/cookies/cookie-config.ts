@@ -56,18 +56,6 @@ export const COOKIE_SERVICE_REGISTRY: CookieServiceConfig[] = [
     loader: noop
   },
   {
-    id: 'stablegrid-track-essentials-seen',
-    name: 'Track essentials acknowledgement',
-    provider: 'stableGrid',
-    category: 'necessary',
-    purpose: 'Remembers which track-essentials briefings you have dismissed so they are not repeated on every visit.',
-    expiry: '180 days',
-    type: 'first-party',
-    legalBasis: 'necessary',
-    requiresConsent: false,
-    loader: noop
-  },
-  {
     id: 'stablegrid-product-analytics',
     name: 'Product analytics',
     provider: 'stableGrid',

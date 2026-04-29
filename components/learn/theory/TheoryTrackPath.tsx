@@ -2,10 +2,9 @@
 
 import { Fragment, useEffect, useMemo, type CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Lock, Target, Zap, BookOpen, FlaskConical, Layers, Clock, Trophy } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Lock, Target, Zap, BookOpen, FlaskConical, Layers, Clock, Trophy } from 'lucide-react';
 import { getTheoryTopicStyle } from '@/data/learn/theory/topicStyles';
 import { getTrackConceptMeta } from '@/data/learn/theory/trackConceptMeta';
-import { getTrackEssentials } from '@/data/learn/trackEssentials';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import { getModuleCheckpointMeta } from '@/lib/learn/moduleCheckpoints';
@@ -299,15 +298,6 @@ export const TheoryTrackPath = ({
             <ArrowLeft className="h-4 w-4" />
             Track Selection
           </Link>
-          {getTrackEssentials(doc.topic, track.slug) && (
-            <Link
-              href={`/learn/${doc.topic}/theory/${track.slug}?essentials=1`}
-              className="inline-flex items-center gap-1.5 font-mono font-medium text-[11px] text-on-surface-variant/80 hover:text-on-surface transition-colors uppercase tracking-widest"
-            >
-              Track Essentials
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
-          )}
         </div>
 
         {/* ── Title ── */}
