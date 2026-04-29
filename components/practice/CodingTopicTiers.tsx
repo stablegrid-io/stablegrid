@@ -48,12 +48,14 @@ interface CodingTopicTiersProps {
 /* ── Component ──────────────────────────────────────────────────────────────── */
 
 export function CodingTopicTiers({ topicId }: CodingTopicTiersProps) {
+  // Look up topic + tiers up-front, but DO NOT early-return before the
+  // hooks below — rules-of-hooks requires every hook to run on every
+  // render. The render path handles a missing topic at the bottom.
   const topic = getCodingTopic(topicId);
-  if (!topic) {
-    return null;
-  }
-  const Icon = topic.icon;
-  const tiers = getPracticeTopicTiers(topic.id);
+  const tiers = useMemo(
+    () => (topic ? getPracticeTopicTiers(topic.id) : {}),
+    [topic],
+  );
 
   // Resolve real tasks (id + title) from each tier's practice set so the
   // Mastery panel renders matching IDs that the API can correlate against.
@@ -159,6 +161,12 @@ export function CodingTopicTiers({ topicId }: CodingTopicTiersProps) {
       window.removeEventListener('focus', onFocus);
     };
   }, [refresh]);
+
+  // Hooks done — now safe to bail on a missing topic.
+  if (!topic) {
+    return null;
+  }
+  const Icon = topic.icon;
 
   return (
     <div
