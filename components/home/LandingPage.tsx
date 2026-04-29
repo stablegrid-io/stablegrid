@@ -811,10 +811,10 @@ export const LandingPage = () => {
           </p>
           <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-6" style={{ lineHeight: 1.1 }}>
             Free while we&apos;re in beta.<br />
-            <span style={{ color: 'rgba(255,255,255,0.35)' }}>€2.99 if you want to back it.</span>
+            <span style={{ color: 'rgba(255,255,255,0.35)' }}>€14.99 once if you want to back it.</span>
           </h2>
           <p className="text-[15px] leading-relaxed mb-10" style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '520px' }}>
-            Everyone gets the whole platform during beta. Supporters chip in so we can keep shipping — and lock in €2.99 for life.
+            Everyone gets the whole platform during beta. Supporters chip in once so we can keep shipping — €14.99 lifetime, no subscription, no renewals.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
