@@ -28,6 +28,7 @@ import px7PracticeData from './pyspark/PX7_Practice.json';
 import px8PracticeData from './pyspark/PX8_Practice.json';
 import px9PracticeData from './pyspark/PX9_Practice.json';
 import px10PracticeData from './pyspark/PX10_Practice.json';
+import pspj1PracticeData from './pyspark/PSPJ1_Practice.json';
 import f1PracticeData from './fabric/F1_Practice.json';
 import f2PracticeData from './fabric/F2_Practice.json';
 import f3PracticeData from './fabric/F3_Practice.json';
@@ -194,6 +195,7 @@ const ALL_PRACTICE_SETS: PracticeSet[] = [
   px8PracticeData as unknown as PracticeSet,
   px9PracticeData as unknown as PracticeSet,
   px10PracticeData as unknown as PracticeSet,
+  pspj1PracticeData as unknown as PracticeSet,
   f1PracticeData as unknown as PracticeSet,
   f2PracticeData as unknown as PracticeSet,
   f3PracticeData as unknown as PracticeSet,

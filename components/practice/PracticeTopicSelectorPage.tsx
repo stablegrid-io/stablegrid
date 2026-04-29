@@ -12,6 +12,10 @@ export interface Topic {
   accentRgb: string;
   category: string;
   comingSoon: boolean;
+  /** Override the default `${hrefPrefix}/${id}` link target. */
+  href?: string;
+  /** Override the default "Initialize Track" CTA label on available topics. */
+  ctaLabel?: string;
 }
 
 interface PracticeTopicSelectorPageProps {
@@ -427,11 +431,12 @@ export function PracticeTopicSelectorPage({
                         <div
                           className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase rounded-[14px]"
                           style={{
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            color: '#f0f0f3'
+                            border: `1px solid rgba(${topic.accentRgb},0.35)`,
+                            backgroundColor: `rgba(${topic.accentRgb},0.08)`,
+                            color: `rgb(${topic.accentRgb})`,
                           }}
                         >
-                          Initialize Track
+                          {topic.ctaLabel ?? 'Initialize Track'}
                         </div>
                       ) : (
                         <>
@@ -468,7 +473,7 @@ export function PracticeTopicSelectorPage({
               );
 
               return hasContent ? (
-                <Link key={topic.id} href={`${hrefPrefix}/${topic.id}`} className="group h-full">
+                <Link key={topic.id} href={topic.href ?? `${hrefPrefix}/${topic.id}`} className="group h-full">
                   {cardInner}
                 </Link>
               ) : (

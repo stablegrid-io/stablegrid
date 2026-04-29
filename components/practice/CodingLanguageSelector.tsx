@@ -41,7 +41,9 @@ const TOPICS: Topic[] = [
     icon: BarChart3,
     accentRgb: ACCENT,
     category: 'Analysis',
-    comingSoon: true,
+    comingSoon: false,
+    href: '/operations/practice/pyspark/junior/PSPJ1',
+    ctaLabel: 'Begin · 9 PySpark Tasks',
   },
   {
     id: 'joins',

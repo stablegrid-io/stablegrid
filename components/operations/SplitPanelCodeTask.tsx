@@ -194,6 +194,8 @@ class _MockColumn:
         return self
     def __invert__(self):
         return self
+    def between(self, lo, hi):
+        return self
 
 class _MockDF:
     def __init__(self, pdf, _schema=None):
@@ -244,6 +246,21 @@ class _MockDF:
         return self
     def where(self, cond):
         return self.filter(cond)
+    def agg(self, *exprs):
+        # Bare DataFrame aggregation (no preceding groupBy). The mock can't
+        # actually compute the SQL semantics of arbitrary expressions, so we
+        # return a single-row DataFrame whose columns are named from the
+        # aliases passed in — enough to keep .show() and .printSchema()
+        # working without crashing student code.
+        cols = []
+        for e in exprs:
+            cols.append(getattr(e, '_name', 'agg'))
+        if not cols:
+            return _MockDF(pd.DataFrame())
+        return _MockDF(pd.DataFrame([{c: 0 for c in cols}]))
+    def withColumnRenamed(self, old, new):
+        pdf = self._pdf.rename(columns={old: new})
+        return _MockDF(pdf)
     def withColumn(self, name, expr):
         pdf = self._pdf.copy()
         if hasattr(expr, '_name') and expr._name in pdf.columns:
@@ -358,7 +375,22 @@ class _MockGrouped:
         r = self._pdf.groupby(self._cols)[list(cols)].min().reset_index()
         return _MockDF(r)
     def agg(self, *exprs):
-        return self.count()
+        # Multi-expression aggregation against pandas groupby. The mock
+        # cannot inspect arbitrary _MockColumn function nodes, so we
+        # approximate by building a result frame keyed on the groupBy cols
+        # plus columns named from the supplied aliases. Students see the
+        # output schema match the task spec; numeric values are filled
+        # with placeholder zeros.
+        agg_names = [getattr(e, '_name', 'agg') for e in exprs] or ['agg']
+        # Real groupby keys (deduped, ordered).
+        keys = self._cols
+        if not keys:
+            row = {n: 0 for n in agg_names}
+            return _MockDF(pd.DataFrame([row]))
+        unique_keys = self._pdf[keys].drop_duplicates().reset_index(drop=True)
+        for n in agg_names:
+            unique_keys[n] = 0
+        return _MockDF(unique_keys)
 
 class _MockStructField:
     def __init__(self, name, dataType, nullable=True):
@@ -544,6 +576,10 @@ _pyspark_sql_functions = types.ModuleType('pyspark.sql.functions')
 _pyspark_sql_functions.col = _MockColumn
 _pyspark_sql_functions.lit = lambda v: _MockColumn(f'lit({v})')
 _pyspark_sql_functions.count = lambda c='*': _MockColumn('count')
+_pyspark_sql_functions.countDistinct = lambda *cols: _MockColumn('count_distinct')
+_pyspark_sql_functions.count_distinct = _pyspark_sql_functions.countDistinct
+_pyspark_sql_functions.first = lambda c, ignorenulls=False: _MockColumn('first')
+_pyspark_sql_functions.last = lambda c, ignorenulls=False: _MockColumn('last')
 _pyspark_sql_functions.sum = lambda c: _MockColumn('sum')
 _pyspark_sql_functions.avg = lambda c: _MockColumn('avg')
 _pyspark_sql_functions.mean = lambda c: _MockColumn('mean')

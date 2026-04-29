@@ -23,6 +23,8 @@ interface PlaceholderModule {
   id: string;
   title: string;
   description: string;
+  /** When set, the card becomes a link to this practice route. */
+  practiceHref?: string;
 }
 
 const MODULES: Record<string, Record<string, PlaceholderModule[]>> = {
@@ -78,7 +80,7 @@ const MODULES: Record<string, Record<string, PlaceholderModule[]>> = {
     junior: [
       { id: 'ps-j-01', title: 'SparkSession & RDDs', description: 'Creating sessions, understanding RDDs, and basic transformations.' },
       { id: 'ps-j-02', title: 'DataFrame Basics', description: 'Creating DataFrames, selecting columns, and filtering rows.' },
-      { id: 'ps-j-03', title: 'Aggregations & GroupBy', description: 'GroupBy operations, aggregate functions, and pivot tables.' },
+      { id: 'ps-j-03', title: 'Aggregations & GroupBy', description: 'GroupBy operations, aggregate functions, and pivot tables.', practiceHref: '/operations/practice/pyspark/junior/PSPJ1' },
       { id: 'ps-j-04', title: 'Joins & Unions', description: 'Join types, broadcast joins, and combining DataFrames.' },
       { id: 'ps-j-05', title: 'UDFs & Column Ops', description: 'User-defined functions, column expressions, and when/otherwise.' },
       { id: 'ps-j-06', title: 'Reading & Writing Data', description: 'Parquet, CSV, JSON I/O, partitioning, and schema inference.' },
@@ -158,6 +160,78 @@ export function CodingPracticeTreeMap({ language, level }: { language: string; l
             const isLeft = i % 2 === 0;
             const stagger = i * 70 + 100;
             const eyebrow = EYEBROWS[i % EYEBROWS.length];
+            const isAvailable = !!mod.practiceHref;
+
+            const cardInner = (
+              <div
+                className="relative p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
+                style={{
+                  background: '#181c20',
+                  border: isAvailable
+                    ? `1px solid rgba(${ta.rgb},0.18)`
+                    : '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '22px',
+                }}
+              >
+                {/* Top row: eyebrow + icon */}
+                <div className="flex items-start justify-between mb-4">
+                  <span
+                    className="font-mono text-[10px] font-bold tracking-widest uppercase"
+                    style={{ color: ta.color }}
+                  >
+                    {eyebrow}
+                  </span>
+                  <Code2 className="h-5 w-5" style={{ color: 'rgba(255,255,255,0.12)' }} />
+                </div>
+
+                {/* Title */}
+                <h3 className="text-xl font-bold tracking-tight text-on-surface mb-2">
+                  {mod.title}
+                </h3>
+
+                {/* Description */}
+                <p className="text-[12px] leading-relaxed text-on-surface-variant/40 mb-5 line-clamp-2">
+                  {mod.description}
+                </p>
+
+                {/* Progress bar */}
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono text-[10px] text-on-surface-variant/35 tracking-wide">Module Progress</span>
+                    <span className="font-mono text-[13px] font-bold" style={{ color: ta.color }}>0%</span>
+                  </div>
+                  <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
+                    <div style={{ width: '0%', height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85 }} />
+                  </div>
+                </div>
+
+                {/* CTA */}
+                {isAvailable ? (
+                  <div
+                    className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300 group-hover:brightness-110"
+                    style={{
+                      border: `1px solid rgba(${ta.rgb},0.35)`,
+                      backgroundColor: `rgba(${ta.rgb},0.1)`,
+                      color: ta.color,
+                      borderRadius: '14px',
+                    }}
+                  >
+                    Begin Practice
+                  </div>
+                ) : (
+                  <div
+                    className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
+                    style={{
+                      border: '1px dashed rgba(255,255,255,0.08)',
+                      color: 'rgba(255,255,255,0.2)',
+                      borderRadius: '14px',
+                    }}
+                  >
+                    Under Construction
+                  </div>
+                )}
+              </div>
+            );
 
             return (
               <div
@@ -171,67 +245,22 @@ export function CodingPracticeTreeMap({ language, level }: { language: string; l
                     className="w-4 h-4 rounded-full"
                     style={{
                       backgroundColor: '#0c0e10',
-                      border: `2px solid rgba(255,255,255,0.12)`,
+                      border: isAvailable
+                        ? `2px solid rgba(${ta.rgb},0.5)`
+                        : `2px solid rgba(255,255,255,0.12)`,
                     }}
                   />
                 </div>
 
                 {/* Card — alternating left/right */}
                 <div className={`w-full md:w-[calc(50%-32px)] ${isLeft ? 'md:mr-auto' : 'md:ml-auto'}`}>
-                  <div className="group block h-full">
-                    <div
-                      className="relative p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
-                      style={{
-                        background: '#181c20',
-                        border: '1px solid rgba(255,255,255,0.06)',
-                        borderRadius: '22px',
-                      }}
-                    >
-                      {/* Top row: eyebrow + icon */}
-                      <div className="flex items-start justify-between mb-4">
-                        <span
-                          className="font-mono text-[10px] font-bold tracking-widest uppercase"
-                          style={{ color: ta.color }}
-                        >
-                          {eyebrow}
-                        </span>
-                        <Code2 className="h-5 w-5" style={{ color: 'rgba(255,255,255,0.12)' }} />
-                      </div>
-
-                      {/* Title */}
-                      <h3 className="text-xl font-bold tracking-tight text-on-surface mb-2">
-                        {mod.title}
-                      </h3>
-
-                      {/* Description */}
-                      <p className="text-[12px] leading-relaxed text-on-surface-variant/40 mb-5 line-clamp-2">
-                        {mod.description}
-                      </p>
-
-                      {/* Progress bar */}
-                      <div className="mb-5">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-mono text-[10px] text-on-surface-variant/35 tracking-wide">Module Progress</span>
-                          <span className="font-mono text-[13px] font-bold" style={{ color: ta.color }}>0%</span>
-                        </div>
-                        <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
-                          <div style={{ width: '0%', height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85 }} />
-                        </div>
-                      </div>
-
-                      {/* CTA */}
-                      <div
-                        className="mt-auto w-full py-3 text-center font-mono text-[12px] font-bold tracking-widest uppercase transition-all duration-300"
-                        style={{
-                          border: '1px dashed rgba(255,255,255,0.08)',
-                          color: 'rgba(255,255,255,0.2)',
-                          borderRadius: '14px',
-                        }}
-                      >
-                        Under Construction
-                      </div>
-                    </div>
-                  </div>
+                  {isAvailable ? (
+                    <Link href={mod.practiceHref!} className="group block h-full">
+                      {cardInner}
+                    </Link>
+                  ) : (
+                    <div className="group block h-full">{cardInner}</div>
+                  )}
                 </div>
               </div>
             );
