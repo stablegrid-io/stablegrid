@@ -171,12 +171,23 @@ export function CheckpointInterstitial({
           from { opacity: 0; transform: translateY(2px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @keyframes sg-checkpoint-spin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+        .sg-checkpoint-loader {
+          transform-origin: 50% 50%;
+          animation: sg-checkpoint-spin 24s linear infinite;
+        }
         .sg-checkpoint-loader .sg-f0 { animation: sg-checkpoint-fill 2.4s infinite ease-in-out; animation-delay: 0s; }
         .sg-checkpoint-loader .sg-f1 { animation: sg-checkpoint-fill 2.4s infinite ease-in-out; animation-delay: 0.15s; }
         .sg-checkpoint-loader .sg-f2 { animation: sg-checkpoint-fill 2.4s infinite ease-in-out; animation-delay: 0.3s; }
         .sg-checkpoint-loader .sg-f3 { animation: sg-checkpoint-fill 2.4s infinite ease-in-out; animation-delay: 0.45s; }
         .sg-checkpoint-loader .sg-empty { animation: sg-checkpoint-breathe 2.4s infinite ease-in-out; }
         .sg-checkpoint-status { animation: sg-checkpoint-status-in .25s ease-out; display: inline-block; }
+        @media (prefers-reduced-motion: reduce) {
+          .sg-checkpoint-loader { animation: none !important; }
+        }
       `}</style>
     </div>
   );

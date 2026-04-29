@@ -269,7 +269,7 @@
   --rm-font: Inter, system-ui, sans-serif;
   --rm-font-heading: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
   --rm-line-height: 1.8;
-  --rm-content-max-width: 54rem;
+  --rm-content-max-width: 68rem;
   --rm-table-header-bg: rgba(255,255,255,0.03);
   --rm-table-hover: rgba(255,255,255,0.02);
   --rm-list-badge-bg: rgba(153,247,255,0.1);
@@ -310,7 +310,7 @@
   --rm-font: -apple-system, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
   --rm-font-heading: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
   --rm-line-height: 1.7;
-  --rm-content-max-width: 50rem;
+  --rm-content-max-width: 64rem;
   --rm-table-header-bg: #f5f5f7;
   --rm-table-hover: #fafafa;
   --rm-list-badge-bg: rgba(0,113,227,0.1);
@@ -396,7 +396,7 @@
   --rm-font: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
   --rm-font-heading: Georgia, 'Iowan Old Style', serif;
   --rm-line-height: 1.9;
-  --rm-content-max-width: 48rem;
+  --rm-content-max-width: 62rem;
   --rm-table-header-bg: #cbc5bc;
   --rm-table-hover: #d0cbc4;
   --rm-list-badge-bg: rgba(166,140,96,0.15);
@@ -436,7 +436,7 @@
   --rm-font: 'Bookerly', 'Georgia', 'Iowan Old Style', 'Palatino Linotype', serif;
   --rm-font-heading: 'Bookerly', 'Georgia', 'Iowan Old Style', serif;
   --rm-line-height: 1.85;
-  --rm-content-max-width: 42rem;
+  --rm-content-max-width: 56rem;
   --rm-table-header-bg: #e8e3d8;
   --rm-table-hover: #ede8dd;
   --rm-list-badge-bg: rgba(0,0,0,0.05);
@@ -476,7 +476,7 @@
   --rm-font: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
   --rm-font-heading: Georgia, 'Iowan Old Style', serif;
   --rm-line-height: 1.9;
-  --rm-content-max-width: 48rem;
+  --rm-content-max-width: 62rem;
   --rm-table-header-bg: #241a0e;
   --rm-table-hover: #2a1e12;
   --rm-list-badge-bg: rgba(212,160,80,0.1);
@@ -494,7 +494,7 @@
 
 [data-reading-mode="black"] {
   --rm-bg: #000000;
-  --rm-bg-elevated: #000000;
+  --rm-bg-elevated: #161616;
   --rm-text: #c8c8c8;
   --rm-text-heading: #e8e8e8;
   --rm-text-secondary: #707070;
@@ -516,7 +516,7 @@
   --rm-font: Inter, system-ui, sans-serif;
   --rm-font-heading: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
   --rm-line-height: 1.8;
-  --rm-content-max-width: 54rem;
+  --rm-content-max-width: 68rem;
   --rm-table-header-bg: #0a0a0a;
   --rm-table-hover: #0f0f0f;
   --rm-list-badge-bg: rgba(255,255,255,0.05);
@@ -531,6 +531,24 @@
   --rm-success-rgb: 74,222,128;
   --rm-error-rgb: 248,113,113;
 }
+
+/* Per-mode text selection — match each theme so selection is visible against
+   the surface it sits on. The default ::selection (faint cyan + white text) is
+   illegible on light/cream backgrounds and washes out on warm/amber ones.
+   Note: ::selection and ::-moz-selection MUST be in separate rules — combining
+   them with a comma breaks the entire selector list in both engines. */
+[data-reading-mode="dark"] ::selection { background-color: rgba(153, 247, 255, 0.32); color: #f0f0f3; }
+[data-reading-mode="dark"] ::-moz-selection { background-color: rgba(153, 247, 255, 0.32); color: #f0f0f3; }
+[data-reading-mode="light"] ::selection { background-color: rgba(0, 113, 227, 0.22); color: #1d1d1f; }
+[data-reading-mode="light"] ::-moz-selection { background-color: rgba(0, 113, 227, 0.22); color: #1d1d1f; }
+[data-reading-mode="book"] ::selection { background-color: rgba(166, 140, 96, 0.38); color: #1a1510; }
+[data-reading-mode="book"] ::-moz-selection { background-color: rgba(166, 140, 96, 0.38); color: #1a1510; }
+[data-reading-mode="kindle"] ::selection { background-color: rgba(45, 42, 38, 0.18); color: #1a1816; }
+[data-reading-mode="kindle"] ::-moz-selection { background-color: rgba(45, 42, 38, 0.18); color: #1a1816; }
+[data-reading-mode="nightowl"] ::selection { background-color: rgba(212, 160, 80, 0.32); color: #f4dcae; }
+[data-reading-mode="nightowl"] ::-moz-selection { background-color: rgba(212, 160, 80, 0.32); color: #f4dcae; }
+[data-reading-mode="black"] ::selection { background-color: rgba(255, 255, 255, 0.20); color: #ffffff; }
+[data-reading-mode="black"] ::-moz-selection { background-color: rgba(255, 255, 255, 0.20); color: #ffffff; }
 
 /* Transition on container */
 [data-reading-mode] {

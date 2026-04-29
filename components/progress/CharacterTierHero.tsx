@@ -71,23 +71,23 @@ export function CharacterTierHero() {
       <Corner position="bottom-left" accentRgb={accentRgb} />
       <Corner position="bottom-right" accentRgb={accentRgb} />
 
-      <div className="grid gap-10 p-8 lg:grid-cols-[320px_1fr] lg:gap-14 lg:p-10">
+      <div className="grid grid-cols-1 gap-6 p-5 sm:gap-10 sm:p-8 lg:grid-cols-[320px_1fr] lg:gap-14 lg:p-10">
         {/* ── Left: portrait + identity ── */}
         <div className="relative flex flex-col">
           <div
-            className="relative mx-auto h-48 w-48 shrink-0 lg:mx-0 lg:h-56 lg:w-56 flex items-center justify-center"
+            className="relative mx-auto h-36 w-36 shrink-0 sm:h-48 sm:w-48 lg:mx-0 lg:h-56 lg:w-56 flex items-center justify-center"
             aria-label={`${meta.label} tier`}
           >
             <StableGridMark
-              className="h-24 w-24 lg:h-28 lg:w-28"
+              className="h-20 w-20 sm:h-24 sm:w-24 lg:h-28 lg:w-28"
               style={{ color: meta.accent }}
             />
           </div>
 
-          <div className="mt-6 text-center lg:text-left">
+          <div className="mt-5 text-center sm:mt-6 lg:text-left">
             <h2
               style={{
-                fontSize: 'clamp(2.5rem, 4.5vw, 3.5rem)',
+                fontSize: 'clamp(2rem, 4.5vw, 3.5rem)',
                 fontWeight: 800,
                 letterSpacing: '-0.04em',
                 lineHeight: 0.95,
@@ -250,7 +250,7 @@ export function CharacterTierHero() {
 
               {/* ── Tier ladder footer ── */}
               <div
-                className="mt-6 grid grid-cols-3 gap-2 pt-5"
+                className="mt-6 grid grid-cols-3 gap-1.5 pt-5 sm:gap-2"
                 style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
               >
                 {(['junior', 'mid', 'senior'] as const).map((t) => {
@@ -259,7 +259,7 @@ export function CharacterTierHero() {
                   return (
                     <div
                       key={t}
-                      className="rounded-[12px] px-3 py-2.5 text-center transition-colors"
+                      className="rounded-[12px] px-2 py-2 text-center transition-colors sm:px-3 sm:py-2.5"
                       style={{
                         backgroundColor: isCurrent ? 'rgba(255,255,255,0.04)' : 'transparent',
                         border: `1px solid ${
@@ -271,7 +271,7 @@ export function CharacterTierHero() {
                         className="font-mono"
                         style={{
                           fontSize: 10,
-                          letterSpacing: '0.22em',
+                          letterSpacing: '0.18em',
                           color: isCurrent ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.3)',
                           fontWeight: 700,
                           textTransform: 'uppercase'
@@ -282,12 +282,13 @@ export function CharacterTierHero() {
                       <p
                         className="mt-1 font-mono tabular-nums"
                         style={{
-                          fontSize: 11.5,
+                          fontSize: 10.5,
                           color: 'rgba(255,255,255,0.45)',
-                          fontWeight: 500
+                          fontWeight: 500,
+                          whiteSpace: 'nowrap'
                         }}
                       >
-                        {m.label === 'Junior' ? 'Start' : `${t === 'mid' ? '10,000' : '30,000'}+ kWh`}
+                        {m.label === 'Junior' ? 'Start' : `${t === 'mid' ? '10k' : '30k'}+ kWh`}
                       </p>
                     </div>
                   );

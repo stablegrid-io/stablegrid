@@ -239,8 +239,6 @@ interface ProgressIssueState {
   message: string;
 }
 
-const SESSION_PICKER_DISMISSED_STORAGE_PREFIX = 'theory-session-picker-dismissed';
-
 const parseLessonFromRoute = (route: string | null) => {
   if (!route || !route.includes('?')) {
     return null;
@@ -328,7 +326,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   const lastTouchedRouteRef = useRef<string>('');
   const syncFailCountRef = useRef(0);
   const lastTrackedChapterStartRef = useRef<string | null>(null);
-  const sessionPickerInitializedRef = useRef(false);
   const addXP = useProgressStore((state) => state.addXP);
 
   // Extract track level from URL (e.g. /learn/pyspark/theory/junior)
@@ -360,9 +357,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         plannedFocusMinutes: cfg.focusMinutes * cfg.rounds,
       });
     }
-    // Once the user has run a session this mount, the picker should not
-    // auto-open again — they'll start the next one explicitly.
-    sessionPickerInitializedRef.current = true;
     setFocus(false);
     theorySession.stop();
   }, [theorySession, setFocus]);
@@ -406,9 +400,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         });
         setFocus(false);
       }
-      // Don't auto-reopen the picker after a session ends — the user will
-      // start the next one explicitly via the toolbar.
-      sessionPickerInitializedRef.current = true;
       userInitiatedStopRef.current = false;
       theorySession.reset();
     }
@@ -491,34 +482,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     },
     [pathname]
   );
-  const sessionPickerDismissedStorageKey = useMemo(
-    () => `${SESSION_PICKER_DISMISSED_STORAGE_PREFIX}:${pathname}`,
-    [pathname]
-  );
-  const hasDismissedSessionPicker = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-
-    try {
-      return (
-        window.sessionStorage.getItem(sessionPickerDismissedStorageKey) === '1'
-      );
-    } catch {
-      return false;
-    }
-  }, [sessionPickerDismissedStorageKey]);
-  const markSessionPickerDismissed = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    try {
-      window.sessionStorage.setItem(sessionPickerDismissedStorageKey, '1');
-    } catch {
-      // Ignore storage failures and fall back to the component-local guard.
-    }
-  }, [sessionPickerDismissedStorageKey]);
   const persistedRoute = useMemo(() => {
     return buildLessonRoute(activeChapter.id, activeLessonId);
   }, [activeChapter.id, activeLessonId, buildLessonRoute]);
@@ -690,7 +653,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
 
   useEffect(() => {
     lastTouchedRouteRef.current = '';
-    sessionPickerInitializedRef.current = false;
     setRouteReady(false);
     setSessionPickerVisible(false);
     setProgressIssue(null);
@@ -1099,27 +1061,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     setSessionPickerVisible(true);
   }, [sessionDefaultsHydrated]);
 
-  useEffect(() => {
-    if (
-      !routeReady ||
-      !sessionDefaultsHydrated ||
-      !theorySession.hasHydrated ||
-      theorySession.hasActiveSession ||
-      sessionPickerInitializedRef.current
-    ) {
-      return;
-    }
-
-    sessionPickerInitializedRef.current = true;
-    openSessionPicker();
-  }, [
-    openSessionPicker,
-    routeReady,
-    sessionDefaultsHydrated,
-    theorySession.hasHydrated,
-    theorySession.hasActiveSession
-  ]);
-
   const completeCurrentModule = useCallback(async () => {
     if (completionActionPending) return false;
     setCompletionActionPending(true);
@@ -1352,7 +1293,6 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           lessonTitle={activeLesson?.title ?? doc.title}
           lessonDurationMinutes={activeLessonDurationMinutes}
           onStart={(config) => {
-            markSessionPickerDismissed();
             setSessionPickerVisible(false);
             startTheorySession(config);
             setFocus(true);
@@ -1363,12 +1303,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             });
           }}
           onOpenSettings={() => {
-            markSessionPickerDismissed();
             setSessionPickerVisible(false);
             router.push('/settings?tab=reading');
           }}
           onDismiss={() => {
-            markSessionPickerDismissed();
             setSessionPickerVisible(false);
           }}
         />
