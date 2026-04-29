@@ -101,21 +101,21 @@ export const TheoryTrackGallery = ({
 
   return (
     <div className="relative min-h-screen pb-24 lg:pb-10" style={{ '--theory-accent': topicStyle.accentRgb } as CSSProperties}>
-      <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-14">
 
         {/* Back */}
         <Link
           href="/learn"
-          className="mb-8 inline-flex items-center gap-2 text-[13px] font-medium text-on-surface-variant/80 hover:text-on-surface transition-colors"
+          className="mb-6 sm:mb-8 inline-flex items-center gap-2 text-[13px] font-medium text-on-surface-variant/80 hover:text-on-surface transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Learn Hub
         </Link>
 
         {/* Title block */}
-        <header className="mb-10">
+        <header className="mb-8 sm:mb-10">
           <h1
-            className="flex items-center gap-4 font-black text-5xl lg:text-[4rem] tracking-tighter text-on-surface mb-6"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4 font-black text-3xl sm:text-5xl lg:text-[4rem] tracking-tighter text-on-surface mb-5 sm:mb-6"
             style={{
               opacity: 0,
               animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) forwards',
@@ -128,7 +128,7 @@ export const TheoryTrackGallery = ({
                 src={TOPIC_LOGO_PATHS[doc.topic]}
                 alt=""
                 aria-hidden="true"
-                className="h-12 w-12 lg:h-14 lg:w-14 shrink-0 object-contain"
+                className="h-9 w-9 sm:h-12 sm:w-12 lg:h-14 lg:w-14 shrink-0 object-contain"
               />
             )}
             {getLearnTopicMeta(doc.topic)?.title ?? doc.topic.replace(/-/g, ' ')}
@@ -195,7 +195,7 @@ export const TheoryTrackGallery = ({
                   <Corner pos="bottom-right" rgb={tier.rgb} locked={isLocked} />
 
                   {/* ── Banner: tier-tinted brand mark ── */}
-                  <div className="relative h-44 overflow-hidden shrink-0">
+                  <div className="relative h-32 sm:h-40 lg:h-44 overflow-hidden shrink-0">
                     {!isLocked ? (
                       <>
                         {/* Soft tier-coloured radial backdrop so the mark sits
@@ -216,7 +216,7 @@ export const TheoryTrackGallery = ({
                             filter: `drop-shadow(0 0 18px rgba(${tier.rgb},0.35))`,
                           }}
                         >
-                          <StableGridMark className="h-24 w-24 lg:h-28 lg:w-28" />
+                          <StableGridMark className="h-20 w-20 sm:h-24 sm:w-24 lg:h-28 lg:w-28" />
                         </div>
                       </>
                     ) : (
@@ -261,14 +261,14 @@ export const TheoryTrackGallery = ({
                   </div>
 
                   {/* ── Card body ── */}
-                  <div className={`relative flex-1 flex flex-col px-6 pb-6 pt-2 ${isLocked ? 'opacity-35' : ''}`}>
+                  <div className={`relative flex-1 flex flex-col px-5 pb-5 pt-2 sm:px-6 sm:pb-6 ${isLocked ? 'opacity-35' : ''}`}>
 
                     {/* Title */}
-                    <h2 className="text-[2.4rem] font-black tracking-tight text-on-surface leading-none mb-1">
+                    <h2 className="text-[2rem] sm:text-[2.4rem] font-black tracking-tight text-on-surface leading-none mb-1">
                       {tier.label}
                     </h2>
                     <p
-                      className="font-mono font-medium text-[10px] tracking-[0.18em] uppercase mb-8"
+                      className="font-mono font-medium text-[10px] tracking-[0.18em] uppercase mb-6 sm:mb-8"
                       style={{ color: tier.color }}
                     >
                       {tier.subtitle}

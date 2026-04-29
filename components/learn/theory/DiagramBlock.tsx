@@ -14,9 +14,13 @@ export const DiagramBlock = ({ title, content, caption }: DiagramBlockProps) => 
           {title}
         </div>
       ) : null}
-      <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] p-4 text-xs leading-relaxed" style={{ backgroundColor: 'var(--rm-bg-elevated)', color: 'var(--rm-text)' }}>
-        {content}
-      </pre>
+      {/* Horizontal scroll preserves ASCII art alignment on narrow screens —
+          wrapping mid-line would destroy the visual structure. */}
+      <div className="overflow-x-auto" style={{ backgroundColor: 'var(--rm-bg-elevated)' }}>
+        <pre className="whitespace-pre p-4 text-xs leading-relaxed" style={{ color: 'var(--rm-text)' }}>
+          {content}
+        </pre>
+      </div>
       {caption ? (
         <div className="border-t px-4 py-2 text-xs italic" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-bg-elevated)', color: 'var(--rm-text)' }}>
           {caption}

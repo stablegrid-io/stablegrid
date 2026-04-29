@@ -287,8 +287,11 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
         </button>
       </div>
 
-      <div className="px-3 py-3" style={{ backgroundColor: 'var(--rm-code-bg)' }}>
-        <pre className="font-mono text-sm" style={{ color: 'var(--rm-code-text)' }}>
+      {/* Horizontal scroll on overflow keeps indentation and long lines
+          readable on phones; mid-token wrapping mangles code structure.
+          `min-w-max` on the pre so every row aligns to the widest line. */}
+      <div className="overflow-x-auto px-2 py-3 sm:px-3" style={{ backgroundColor: 'var(--rm-code-bg)' }}>
+        <pre className="font-mono text-sm min-w-max" style={{ color: 'var(--rm-code-text)' }}>
           <code>
             {codeLines.map((line, index) => {
               const previousLine = index > 0 ? codeLines[index - 1] : '';
@@ -297,14 +300,14 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
               return (
                 <span
                   key={`${index}-${line.slice(0, 10)}`}
-                  className={`grid grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-4 px-1 ${
+                  className={`grid grid-cols-[1.5rem_minmax(0,1fr)] items-start gap-2 px-1 sm:grid-cols-[2.25rem_minmax(0,1fr)] sm:gap-4 ${
                     addGroupGap ? 'mt-2' : ''
                   }`}
                 >
                   <span className="select-none text-right text-[11px] leading-7" style={{ color: 'var(--rm-code-comment)' }}>
                     {index + 1}
                   </span>
-                  <span className="block whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[13px] leading-7 tracking-[0.01em]" style={{ color: 'var(--rm-code-text)' }}>
+                  <span className="block whitespace-pre text-[13px] leading-7 tracking-[0.01em]" style={{ color: 'var(--rm-code-text)' }}>
                     {highlightRegex
                       ? highlightLine(line, highlightRegex, `line-${index}`)
                       : line}

@@ -67,7 +67,7 @@ export function TheoryConceptMatrix({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 px-6 py-4 text-left transition-colors hover:bg-white/[0.02]"
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 sm:px-6 text-left transition-colors hover:bg-white/[0.02]"
         aria-expanded={expanded}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -101,7 +101,7 @@ export function TheoryConceptMatrix({
         style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden">
-          <div className="px-6 pb-6 pt-1 grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-5">
+          <div className="px-5 pb-5 pt-1 sm:px-6 sm:pb-6 grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-5">
             {tracks.map((track, i) => {
               const tier = tiers[i] ?? tiers[0];
               const prevPct = i > 0 ? trackProgressPct[i - 1] ?? 0 : 100;

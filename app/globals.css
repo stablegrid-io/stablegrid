@@ -352,6 +352,20 @@
   margin-top: 0.75rem;
 }
 
+/* Mobile: drop the card chrome and shrink horizontal padding so prose, tables,
+   and code blocks can use the full viewport width. The card aesthetic eats
+   ~56px of horizontal space at 2.25rem padding, which leaves <250px for text
+   on a 360px phone — too narrow to read comfortably. */
+@media (max-width: 640px) {
+  [data-reading-mode] > div > section,
+  [data-reading-mode] > div > section:first-of-type {
+    padding: 1.25rem 0.875rem;
+    border-radius: 12px;
+    box-shadow: none;
+    margin-bottom: 0.875rem;
+  }
+}
+
 /* Tables inside cards: clean up borders. */
 [data-reading-mode] section[data-section-id] table {
   border-collapse: separate;

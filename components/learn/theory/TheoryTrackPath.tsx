@@ -289,9 +289,9 @@ export const TheoryTrackPath = ({
 
   return (
     <div className="min-h-screen pb-24 lg:pb-8" style={vars}>
-      <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="mx-auto max-w-5xl px-3 py-6 sm:px-4 sm:py-8">
 
-        <div className="mb-8 flex items-center justify-between gap-4">
+        <div className="mb-6 sm:mb-8 flex items-center justify-between gap-3 flex-wrap">
           <Link
             href={`/learn/${doc.topic}/theory`}
             className="inline-flex items-center gap-2 font-mono font-medium text-[11px] text-on-surface-variant/80 hover:text-on-surface transition-colors uppercase tracking-widest"
@@ -502,7 +502,7 @@ function TheoryNode({ card, idx, ta, topic }: {
 
   const inner = (
     <div
-      className={`relative p-7 h-full flex flex-col transition-all duration-300 ${
+      className={`relative p-5 sm:p-6 lg:p-7 h-full flex flex-col transition-all duration-300 ${
         isLocked ? '' : 'group-hover:scale-[1.01]'
       }`}
       style={{
@@ -605,7 +605,7 @@ function PracticeNode({ ps, idx, ta, practiceBasePath }: {
       className="group block h-full"
     >
           <div
-            className="relative p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
+            className="relative p-5 sm:p-6 lg:p-7 h-full flex flex-col transition-all duration-300 group-hover:scale-[1.01]"
             style={{
               background: '#181c20',
               border: '1px solid rgba(255,255,255,0.06)',

@@ -286,7 +286,7 @@ export const TheoryContent = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.16 }}
-        className={`mx-auto w-full px-5 py-10 sm:px-6 lg:px-10 ${editingLessonId ? 'max-w-[110rem]' : ''}`}
+        className={`mx-auto w-full px-2 py-6 sm:px-6 sm:py-10 lg:px-10 ${editingLessonId ? 'max-w-[110rem]' : ''}`}
         style={editingLessonId ? undefined : { maxWidth: 'var(--rm-content-max-width)' }}
       >
         {visibleLesson ? (
