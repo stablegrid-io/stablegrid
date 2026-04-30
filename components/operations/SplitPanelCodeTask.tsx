@@ -2234,6 +2234,26 @@ export function SplitPanelCodeTask({
     [code, running, isReview],
   );
 
+  /* Insert a character at the textarea cursor — used by the mobile
+     quick-insert toolbar so users can type Tab / brackets / quotes /
+     colon without those keys being absent from soft keyboards. */
+  const insertAtCursor = useCallback(
+    (chars: string) => {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      const start = ta.selectionStart ?? code.length;
+      const end = ta.selectionEnd ?? code.length;
+      const newCode = code.substring(0, start) + chars + code.substring(end);
+      setCode(newCode);
+      requestAnimationFrame(() => {
+        const next = start + chars.length;
+        ta.selectionStart = ta.selectionEnd = next;
+        ta.focus({ preventScroll: true });
+      });
+    },
+    [code],
+  );
+
   /* Fetch dataset content for execution */
   const fetchFullCsv = useCallback(
     async (file: string): Promise<string> => {
@@ -2950,9 +2970,90 @@ sys.stderr = sys.__stderr__
               </div>
             </div>
 
+            {/* Mobile-only quick-insert toolbar — soft keyboards lack
+                Tab, brackets, colon, and proper straight quotes (iOS
+                substitutes smart quotes that break string literals).
+                Horizontally scrollable so the strip never wraps. The Run
+                pill on the right keeps the primary action reachable
+                without scrolling past a tall editor. */}
+            {isMobile && !isReview && (
+              <div
+                className="flex items-stretch gap-1.5 px-2 py-1.5 overflow-x-auto"
+                style={{
+                  borderBottom: '1px solid var(--rm-border)',
+                  backgroundColor: 'var(--rm-bg-elevated)',
+                  WebkitOverflowScrolling: 'touch',
+                }}
+              >
+                {[
+                  { label: '⇥', value: '    ', title: 'Tab (4 spaces)' },
+                  { label: '(', value: '(' },
+                  { label: ')', value: ')' },
+                  { label: '[', value: '[' },
+                  { label: ']', value: ']' },
+                  { label: '{', value: '{' },
+                  { label: '}', value: '}' },
+                  { label: ':', value: ':' },
+                  { label: ',', value: ',' },
+                  { label: "'", value: "'" },
+                  { label: '"', value: '"' },
+                  { label: '_', value: '_' },
+                  { label: '=', value: '=' },
+                  { label: '.', value: '.' },
+                  { label: '#', value: '#' },
+                ].map((k) => (
+                  <button
+                    key={k.label}
+                    type="button"
+                    aria-label={k.title ?? `Insert ${k.label}`}
+                    onClick={() => insertAtCursor(k.value)}
+                    onTouchStart={(e) => e.preventDefault()}
+                    className="shrink-0 inline-flex items-center justify-center font-mono font-semibold rounded-[10px] transition-colors active:opacity-70"
+                    style={{
+                      minWidth: 40,
+                      height: 36,
+                      padding: '0 10px',
+                      fontSize: 16,
+                      color: 'var(--rm-text)',
+                      backgroundColor: 'rgba(255,255,255,0.05)',
+                      border: '1px solid var(--rm-border)',
+                    }}
+                  >
+                    {k.label}
+                  </button>
+                ))}
+                {/* Run pill — primary action, sticks to the right end */}
+                <button
+                  type="button"
+                  onClick={() => handleRunRef.current?.()}
+                  disabled={running}
+                  aria-label="Run code"
+                  className="shrink-0 ml-auto inline-flex items-center justify-center gap-1.5 rounded-[10px] font-semibold transition-all active:scale-[0.97] disabled:opacity-60"
+                  style={{
+                    minWidth: 64,
+                    height: 36,
+                    padding: '0 14px',
+                    fontSize: 13,
+                    color: '#fff',
+                    backgroundColor: running ? `rgba(${GREEN_RGB},0.45)` : RUN_GREEN,
+                    border: 'none',
+                  }}
+                >
+                  {running ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <Play className="h-3.5 w-3.5" />
+                      Run
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
             {/* Code editor area */}
             <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
-              <div className="flex" style={{ minHeight: '280px' }}>
+              <div className="flex" style={{ minHeight: isMobile ? '60vh' : '280px' }}>
                 {/* Line numbers — match editor font size so rows line up.
                    16px on mobile prevents iOS focus-zoom on the textarea. */}
                 <div
@@ -2969,7 +3070,7 @@ sys.stderr = sys.__stderr__
                 </div>
 
                 {/* Editor with syntax highlighting overlay */}
-                <div className="relative flex-1" style={{ minHeight: '280px' }}>
+                <div className="relative flex-1" style={{ minHeight: isMobile ? '60vh' : '280px' }}>
                   {/* Highlighted code layer */}
                   <pre
                     className="absolute inset-0 font-mono text-[16px] lg:text-[13px] leading-relaxed p-4 pointer-events-none whitespace-pre-wrap break-words overflow-hidden"
@@ -2990,9 +3091,15 @@ sys.stderr = sys.__stderr__
                       backgroundColor: 'transparent',
                       color: 'transparent',
                       caretColor: 'var(--rm-code-text, #e2e8f0)',
-                      minHeight: '280px',
+                      minHeight: isMobile ? '60vh' : '280px',
                     }}
                     spellCheck={false}
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    autoComplete="off"
+                    // iOS Safari ignores spellCheck without these — without
+                    // them, "result" gets autocapitalized to "Result" and
+                    // smart quotes corrupt every string literal.
                   />
                 </div>
               </div>
