@@ -244,7 +244,6 @@ export function CodingTopicTiers({ topicId }: CodingTopicTiersProps) {
             const entry = tiers[tier.slug];
             const resolved = resolvedTiers[tier.slug];
             const isAvailable = Boolean(entry);
-            const isLocked = i > 0 && !tiers[TIER[0].slug];
             const taskCount = resolved?.tasks.length ?? 0;
             const moduleProgress = resolved
               ? progressByModule[resolved.moduleId] ?? {}
@@ -278,24 +277,12 @@ export function CodingTopicTiers({ topicId }: CodingTopicTiersProps) {
                 {/* Banner */}
                 <div className="relative h-32 sm:h-40 lg:h-44 overflow-hidden shrink-0">
                   {isAvailable ? (
-                    <>
-                      <div
-                        aria-hidden="true"
-                        className="absolute inset-0 transition-opacity duration-700 group-hover:opacity-80"
-                        style={{
-                          background: `radial-gradient(60% 70% at 50% 45%, rgba(${tier.rgb},0.18) 0%, rgba(${tier.rgb},0.05) 40%, transparent 75%)`,
-                        }}
-                      />
-                      <div
-                        className="absolute inset-0 flex items-center justify-center transition-transform duration-700 group-hover:scale-105"
-                        style={{
-                          color: tier.color,
-                          filter: `drop-shadow(0 0 18px rgba(${tier.rgb},0.35))`,
-                        }}
-                      >
-                        <StableGridMark className="h-20 w-20 sm:h-24 sm:w-24 lg:h-28 lg:w-28" />
-                      </div>
-                    </>
+                    <div
+                      className="absolute inset-0 flex items-center justify-center transition-transform duration-700 group-hover:scale-105"
+                      style={{ color: tier.color }}
+                    >
+                      <StableGridMark className="h-20 w-20 sm:h-24 sm:w-24 lg:h-28 lg:w-28" />
+                    </div>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <Lock className="h-10 w-10 text-white/[0.12]" />
@@ -347,9 +334,9 @@ export function CodingTopicTiers({ topicId }: CodingTopicTiersProps) {
                       style={
                         isAvailable
                           ? {
-                              border: `1px solid rgba(${tier.rgb},0.4)`,
-                              backgroundColor: `rgba(${tier.rgb},0.1)`,
-                              color: tier.color,
+                              border: '1px solid rgba(255,255,255,0.4)',
+                              backgroundColor: 'rgba(255,255,255,0.08)',
+                              color: '#ffffff',
                             }
                           : {
                               border: '1px dashed rgba(255,255,255,0.08)',

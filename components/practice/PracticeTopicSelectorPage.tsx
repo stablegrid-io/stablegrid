@@ -16,6 +16,16 @@ export interface Topic {
   href?: string;
   /** Override the default "Initialize Track" CTA label on available topics. */
   ctaLabel?: string;
+  /**
+   * Programming languages this topic supports. When omitted, the topic is
+   * treated as language-agnostic (matches every Language filter).
+   */
+  languages?: string[];
+}
+
+interface LanguageOption {
+  id: string;
+  label: string;
 }
 
 interface PracticeTopicSelectorPageProps {
@@ -25,6 +35,8 @@ interface PracticeTopicSelectorPageProps {
   hrefPrefix: string;
   backHref?: string;
   backLabel?: string;
+  /** Render a Language filter dropdown alongside Category/Status/Sort. */
+  languageOptions?: LanguageOption[];
 }
 
 type StatusFilter = 'all' | 'available' | 'coming-soon';
@@ -187,14 +199,20 @@ export function PracticeTopicSelectorPage({
   hrefPrefix,
   backHref = '/practice',
   backLabel = 'Practice Lab',
+  languageOptions,
 }: PracticeTopicSelectorPageProps) {
   const accentRgb = topics[0]?.accentRgb ?? '255,255,255';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [languageFilter, setLanguageFilter] = useState<string>(
+    languageOptions?.[0]?.id ?? 'all',
+  );
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
-  const [openDropdown, setOpenDropdown] = useState<'category' | 'status' | 'sort' | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<
+    'category' | 'language' | 'status' | 'sort' | null
+  >(null);
   const toolbarRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -232,6 +250,13 @@ export function PracticeTopicSelectorPage({
     const q = searchQuery.trim().toLowerCase();
     const filtered = topics.filter((t) => {
       if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+      if (languageFilter !== 'all') {
+        // Topics with no language metadata are treated as language-agnostic
+        // and match every filter; topics with metadata must include the pick.
+        if (t.languages && t.languages.length > 0 && !t.languages.includes(languageFilter)) {
+          return false;
+        }
+      }
       if (statusFilter === 'available' && t.comingSoon) return false;
       if (statusFilter === 'coming-soon' && !t.comingSoon) return false;
       if (q && !t.title.toLowerCase().includes(q) && !t.description.toLowerCase().includes(q)) return false;
@@ -242,7 +267,7 @@ export function PracticeTopicSelectorPage({
       return sortBy === 'name-asc' ? cmp : -cmp;
     });
     return filtered;
-  }, [topics, searchQuery, categoryFilter, statusFilter, sortBy]);
+  }, [topics, searchQuery, categoryFilter, languageFilter, statusFilter, sortBy]);
 
   const statusCounts = useMemo(() => {
     const counts = { all: topics.length, available: 0, 'coming-soon': 0 } as Record<StatusFilter, number>;
@@ -322,7 +347,7 @@ export function PracticeTopicSelectorPage({
                 }}
               />
               <kbd
-                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] tabular-nums text-white/55"
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] tabular-nums text-white/55 hidden sm:inline-block"
                 style={{
                   padding: '2px 6px',
                   borderRadius: 5,
@@ -343,6 +368,22 @@ export function PracticeTopicSelectorPage({
                 {filteredTopics.length === 1 ? 'topic' : 'topics'}
               </span>
             </div>
+
+            {/* Language */}
+            {languageOptions && languageOptions.length > 0 && (
+              <FilterDropdown
+                eyebrow="Language"
+                value={languageFilter}
+                options={languageOptions.map((lang) => ({
+                  id: lang.id,
+                  label: lang.label,
+                  rgb: accentRgb,
+                }))}
+                onChange={(id) => setLanguageFilter(id)}
+                isOpen={openDropdown === 'language'}
+                onToggle={() => setOpenDropdown(openDropdown === 'language' ? null : 'language')}
+              />
+            )}
 
             {/* Category */}
             <FilterDropdown

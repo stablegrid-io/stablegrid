@@ -71,6 +71,8 @@ type EnergyEventSource =
   | 'streak-milestone'
   | 'chapter-complete'
   | 'lesson-read'
+  | 'practice-task'
+  | 'practice-module-complete'
   | 'track-complete'
   | 'mission'
   | 'infrastructure-deploy'

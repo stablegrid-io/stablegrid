@@ -76,6 +76,13 @@ interface SplitPanelCodeTaskProps {
   onSkip: () => void;
   checked: boolean;
   isLast: boolean;
+  /**
+   * Optional lifted hint state. When provided, the parent owns which hints
+   * are unlocked for this task (so it can compute completion rewards based
+   * on hint usage). When omitted, the component falls back to local state.
+   */
+  unlockedHints?: Set<string>;
+  onUnlockHint?: (tier: string) => void;
 }
 
 type LeftTab = 'context' | 'dataset' | 'hints';
@@ -2065,6 +2072,8 @@ export function SplitPanelCodeTask({
   onSkip,
   checked,
   isLast,
+  unlockedHints: unlockedHintsProp,
+  onUnlockHint,
 }: SplitPanelCodeTaskProps) {
   /* Determine if this is a code task or a template-based task */
   const isCodeTask = !!(task.starterScaffold);
@@ -2083,10 +2092,10 @@ export function SplitPanelCodeTask({
      where a 50/50 horizontal split leaves the editor unusably narrow. */
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === 'undefined') return false;
-    return window.innerWidth < 1024;
+    return window.innerWidth < 768;
   });
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 1024);
+    const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -2094,15 +2103,36 @@ export function SplitPanelCodeTask({
   /* Left panel tab */
   const [leftTab, setLeftTab] = useState<LeftTab>('context');
 
-  /* Tiered hints state — track which hint tiers are unlocked */
-  const [unlockedHints, setUnlockedHints] = useState<Set<string>>(() => {
+  /* Tiered hints — when the parent owns this state (lifted form, used by
+     the practice runner so it can dock reward on hint usage), defer to the
+     prop. Otherwise fall back to local state so any standalone caller still
+     works. */
+  const [localUnlockedHints, setLocalUnlockedHints] = useState<Set<string>>(() => {
     const initial = new Set<string>();
-    // Only H1 is unlocked by default
     task.hints?.forEach((h) => {
       if (h.tier === 'H1') initial.add(h.tier);
     });
     return initial;
   });
+  const unlockedHints = unlockedHintsProp ?? localUnlockedHints;
+  /* Tracks the most recently unlocked hint so we can play one-shot
+     animations (kWh float, badge punch, card flash) without re-triggering
+     them on every re-render. Cleared after the longest animation finishes. */
+  const [recentUnlock, setRecentUnlock] = useState<{ tier: string; cost: number } | null>(null);
+  const handleUnlockHint = useCallback(
+    (tier: string, cost: number = 0) => {
+      if (onUnlockHint) {
+        onUnlockHint(tier);
+      } else {
+        setLocalUnlockedHints((prev) => new Set(prev).add(tier));
+      }
+      setRecentUnlock({ tier, cost });
+      window.setTimeout(() => {
+        setRecentUnlock((cur) => (cur?.tier === tier ? null : cur));
+      }, 1000);
+    },
+    [onUnlockHint],
+  );
 
   /* Code state */
   const scaffold = task.starterScaffold?.content ?? '';
@@ -2209,7 +2239,10 @@ export function SplitPanelCodeTask({
   /* Stable ref to handleRun for keyboard shortcut */
   const handleRunRef = useRef<() => void>();
 
-  /* Tab key for indentation */
+  /* Tab → 4 spaces; Enter → smart auto-indent (match previous line's
+     indent and add 4 more after a colon — Python indentation that
+     would otherwise require multiple Tab taps to recreate on mobile);
+     Cmd/Ctrl+Enter → run. */
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Tab') {
@@ -2222,6 +2255,7 @@ export function SplitPanelCodeTask({
         requestAnimationFrame(() => {
           ta.selectionStart = ta.selectionEnd = start + 4;
         });
+        return;
       }
       // Cmd/Ctrl + Enter to run
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -2229,6 +2263,32 @@ export function SplitPanelCodeTask({
         if (!running && !isReview) {
           handleRunRef.current?.();
         }
+        return;
+      }
+      // Plain Enter — preserve indent + extend after a trailing colon.
+      // Skipped when a modifier (Shift/Alt) is held so power users keep
+      // their browser-native behavior.
+      if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+        const ta = e.currentTarget;
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        if (start !== end) return; // selection-replace: defer to default
+        const before = code.substring(0, start);
+        const lineStart = before.lastIndexOf('\n') + 1;
+        const currentLine = before.slice(lineStart);
+        const indentMatch = currentLine.match(/^[ \t]*/);
+        const indent = indentMatch ? indentMatch[0] : '';
+        const trimmed = currentLine.trimEnd();
+        const extraIndent = trimmed.endsWith(':') ? '    ' : '';
+        const insert = '\n' + indent + extraIndent;
+        if (!indent && !extraIndent) return; // nothing to add — let browser handle
+        e.preventDefault();
+        const newCode = before + insert + code.substring(end);
+        setCode(newCode);
+        requestAnimationFrame(() => {
+          const next = start + insert.length;
+          ta.selectionStart = ta.selectionEnd = next;
+        });
       }
     },
     [code, running, isReview],
@@ -2481,10 +2541,12 @@ sys.stderr = sys.__stderr__
               borderBottom: isMcqOnlyTask ? '1px solid var(--rm-border)' : undefined,
             }}
           >
-            {/* Sub-tabs */}
+            {/* Sub-tabs — sticky on desktop where the left panel is its
+                own scroll container; on mobile the page scrolls and there
+                is no useful scroll-container to stick to. */}
             {availableTabs.length > 1 && (
               <div
-                className="flex items-center gap-1 px-4 py-2.5 sticky top-0 z-10"
+                className="flex items-center gap-1 px-4 py-2.5 lg:sticky lg:top-0 lg:z-10"
                 style={{
                   borderBottom: '1px solid var(--rm-border)',
                   backgroundColor: 'var(--rm-bg-elevated)',
@@ -2792,10 +2854,11 @@ sys.stderr = sys.__stderr__
                 {task.hints && task.hints.length > 0 && (
                   <div className="space-y-3">
                     <p className="text-[11px] text-on-surface-variant/40 leading-relaxed">
-                      Hints reveal progressively more detail. Higher tiers cost XP.
+                      Hints reveal progressively more detail. Higher tiers cost kWh.
                     </p>
                     {task.hints.map((hint, i) => {
                       const isUnlocked = unlockedHints.has(hint.tier);
+                      const isRecent = recentUnlock?.tier === hint.tier;
                       const tierNum = parseInt(hint.tier.replace('H', ''), 10) || (i + 1);
                       const TIER_LABELS = ['Direction', 'Guidance', 'Walkthrough', 'Solution'];
                       const label = TIER_LABELS[tierNum - 1] ?? `Tier ${tierNum}`;
@@ -2803,7 +2866,7 @@ sys.stderr = sys.__stderr__
                       return (
                         <div
                           key={hint.tier}
-                          className="rounded-[14px] overflow-hidden transition-all duration-300"
+                          className="relative rounded-[14px] overflow-hidden transition-all duration-300"
                           style={{
                             // Single contrasting palette driven by the
                             // reading-mode tokens — no per-tier hue. The
@@ -2813,13 +2876,30 @@ sys.stderr = sys.__stderr__
                             backgroundColor: isUnlocked
                               ? 'var(--rm-bg-elevated)'
                               : 'transparent',
+                            animation: isRecent
+                              ? 'hintCardFlash 700ms cubic-bezier(0.16, 1, 0.3, 1)'
+                              : undefined,
                           }}
                         >
+                          {/* Floating kWh deduction badge — fires on click,
+                              floats up + fades. Skipped for free hints. */}
+                          {isRecent && recentUnlock && recentUnlock.cost > 0 && (
+                            <div
+                              className="pointer-events-none absolute right-3 top-2 font-mono text-[11px] font-semibold tracking-wide"
+                              style={{
+                                color: '#ffc965',
+                                animation: 'kwhFloat 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                              }}
+                            >
+                              −{recentUnlock.cost} kWh
+                            </div>
+                          )}
+
                           {/* Header — always visible */}
                           <div className="flex items-center justify-between px-4 py-3">
                             <div className="flex items-center gap-2.5">
                               <div
-                                className="flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold"
+                                className="flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold transition-colors duration-300"
                                 style={{
                                   backgroundColor: isUnlocked
                                     ? 'var(--rm-text-heading, var(--rm-text))'
@@ -2830,12 +2910,15 @@ sys.stderr = sys.__stderr__
                                   border: isUnlocked
                                     ? 'none'
                                     : '1px solid var(--rm-border)',
+                                  animation: isRecent
+                                    ? 'unlockPunch 420ms cubic-bezier(0.16, 1, 0.3, 1)'
+                                    : undefined,
                                 }}
                               >
                                 {tierNum}
                               </div>
                               <span
-                                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
+                                className="text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors duration-300"
                                 style={{
                                   color: isUnlocked
                                     ? 'var(--rm-text-heading, var(--rm-text))'
@@ -2848,15 +2931,15 @@ sys.stderr = sys.__stderr__
                             {!isUnlocked && (
                               <button
                                 type="button"
-                                onClick={() => setUnlockedHints((prev) => new Set(prev).add(hint.tier))}
-                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium tracking-wide uppercase transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] cursor-pointer"
+                                onClick={() => handleUnlockHint(hint.tier, hint.xp_cost)}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium tracking-wide uppercase transition-all duration-200 hover:scale-[1.03] active:scale-[0.92] cursor-pointer"
                                 style={{
                                   border: '1px solid var(--rm-border)',
                                   backgroundColor: 'var(--rm-bg-elevated)',
                                   color: 'var(--rm-text)',
                                 }}
                               >
-                                {hint.xp_cost > 0 ? `Unlock · −${hint.xp_cost} XP` : 'Reveal'}
+                                {hint.xp_cost > 0 ? `Unlock · −${hint.xp_cost} kWh` : 'Reveal'}
                               </button>
                             )}
                           </div>
@@ -2864,8 +2947,15 @@ sys.stderr = sys.__stderr__
                           {/* Body — revealed content */}
                           {isUnlocked && (
                             <div
-                              className="px-4 pb-4 text-[13px] leading-[1.75] whitespace-pre-wrap"
-                              style={{ color: 'var(--rm-text)' }}
+                              className="px-4 pb-4 text-[13px] leading-[1.75] whitespace-pre-wrap overflow-hidden"
+                              style={{
+                                color: 'var(--rm-text)',
+                                // Only animate the freshly-unlocked tier so the
+                                // panel doesn't re-animate every Hints-tab visit.
+                                animation: isRecent
+                                  ? 'hintReveal 360ms cubic-bezier(0.16, 1, 0.3, 1)'
+                                  : undefined,
+                              }}
                             >
                               {hint.text}
                             </div>
@@ -3007,13 +3097,16 @@ sys.stderr = sys.__stderr__
                     type="button"
                     aria-label={k.title ?? `Insert ${k.label}`}
                     onClick={() => insertAtCursor(k.value)}
-                    onTouchStart={(e) => e.preventDefault()}
-                    className="shrink-0 inline-flex items-center justify-center font-mono font-semibold rounded-[10px] transition-colors active:opacity-70"
+                    // mousedown (not touchstart) is what blurs the textarea —
+                    // preventing it here keeps focus + caret position so
+                    // tapping a symbol button doesn't dismiss the keyboard.
+                    onMouseDown={(e) => e.preventDefault()}
+                    className="shrink-0 inline-flex items-center justify-center font-mono font-semibold rounded-[12px] transition-colors active:opacity-70"
                     style={{
-                      minWidth: 40,
-                      height: 36,
-                      padding: '0 10px',
-                      fontSize: 16,
+                      minWidth: 44,
+                      height: 40,
+                      padding: '0 12px',
+                      fontSize: 17,
                       color: 'var(--rm-text)',
                       backgroundColor: 'rgba(255,255,255,0.05)',
                       border: '1px solid var(--rm-border)',
@@ -3026,24 +3119,25 @@ sys.stderr = sys.__stderr__
                 <button
                   type="button"
                   onClick={() => handleRunRef.current?.()}
+                  onMouseDown={(e) => e.preventDefault()}
                   disabled={running}
                   aria-label="Run code"
-                  className="shrink-0 ml-auto inline-flex items-center justify-center gap-1.5 rounded-[10px] font-semibold transition-all active:scale-[0.97] disabled:opacity-60"
+                  className="shrink-0 ml-auto inline-flex items-center justify-center gap-1.5 rounded-[12px] font-semibold transition-all active:scale-[0.97] disabled:opacity-60"
                   style={{
-                    minWidth: 64,
-                    height: 36,
-                    padding: '0 14px',
-                    fontSize: 13,
+                    minWidth: 72,
+                    height: 40,
+                    padding: '0 16px',
+                    fontSize: 14,
                     color: '#fff',
                     backgroundColor: running ? `rgba(${GREEN_RGB},0.45)` : RUN_GREEN,
                     border: 'none',
                   }}
                 >
                   {running ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
-                      <Play className="h-3.5 w-3.5" />
+                      <Play className="h-4 w-4" />
                       Run
                     </>
                   )}
@@ -3052,8 +3146,8 @@ sys.stderr = sys.__stderr__
             )}
 
             {/* Code editor area */}
-            <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
-              <div className="flex" style={{ minHeight: isMobile ? '60vh' : '280px' }}>
+            <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, overscrollBehavior: 'contain' }}>
+              <div className="flex" style={{ minHeight: isMobile ? '55svh' : '280px' }}>
                 {/* Line numbers — match editor font size so rows line up.
                    16px on mobile prevents iOS focus-zoom on the textarea. */}
                 <div
@@ -3070,10 +3164,16 @@ sys.stderr = sys.__stderr__
                 </div>
 
                 {/* Editor with syntax highlighting overlay */}
-                <div className="relative flex-1" style={{ minHeight: isMobile ? '60vh' : '280px' }}>
-                  {/* Highlighted code layer */}
+                <div className="relative flex-1" style={{ minHeight: isMobile ? '55svh' : '280px' }}>
+                  {/* Highlighted code layer.
+                      Wrapping must match the textarea's native behavior:
+                      `whitespace-pre-wrap` only — no `break-words`. The
+                      textarea wraps at whitespace and never inside a token,
+                      so adding `break-words` here mid-wraps long identifiers
+                      in the overlay only, which desyncs the cursor from the
+                      colored character on narrow screens. */}
                   <pre
-                    className="absolute inset-0 font-mono text-[16px] lg:text-[13px] leading-relaxed p-4 pointer-events-none whitespace-pre-wrap break-words overflow-hidden"
+                    className="absolute inset-0 font-mono text-[16px] lg:text-[13px] leading-relaxed p-4 pointer-events-none whitespace-pre-wrap overflow-hidden"
                     aria-hidden
                     style={{ color: 'var(--rm-code-text, #e2e8f0)' }}
                     dangerouslySetInnerHTML={{ __html: highlightPython(code) + '\n' }}
@@ -3084,6 +3184,21 @@ sys.stderr = sys.__stderr__
                     value={code}
                     onChange={(e) => !isReview && setCode(e.target.value)}
                     onKeyDown={isReview ? undefined : handleKeyDown}
+                    onFocus={(e) => {
+                      // iOS Safari keeps `vh` constant when the keyboard
+                      // opens, so the editor's bottom can sit under the
+                      // keyboard. Scroll the editor block to the top of
+                      // the viewport on focus — keyboard then occupies
+                      // only the empty area below.
+                      if (isMobile) {
+                        requestAnimationFrame(() => {
+                          e.currentTarget.scrollIntoView({
+                            block: 'start',
+                            behavior: 'smooth',
+                          });
+                        });
+                      }
+                    }}
                     readOnly={isReview}
                     rows={Math.max(14, lineCount + 2)}
                     className="relative z-10 w-full h-full font-mono text-[16px] lg:text-[13px] leading-relaxed p-4 resize-none focus:outline-none overflow-hidden"
@@ -3091,7 +3206,7 @@ sys.stderr = sys.__stderr__
                       backgroundColor: 'transparent',
                       color: 'transparent',
                       caretColor: 'var(--rm-code-text, #e2e8f0)',
-                      minHeight: isMobile ? '60vh' : '280px',
+                      minHeight: isMobile ? '55svh' : '280px',
                     }}
                     spellCheck={false}
                     autoCorrect="off"
@@ -3156,7 +3271,7 @@ sys.stderr = sys.__stderr__
                       Clear
                     </button>
                   )}
-                  {!isReview && (
+                  {!isReview && !isMobile && (
                     <button
                       onClick={handleRun}
                       disabled={running}
@@ -3225,8 +3340,9 @@ sys.stderr = sys.__stderr__
                 </div>
               )}
 
-              {/* Keyboard shortcut hint */}
-              {!isReview && !running && !(output || error) && (
+              {/* Keyboard shortcut hint — desktop only; mobile has the
+                  toolbar Run pill anchored above the editor instead. */}
+              {!isReview && !running && !(output || error) && !isMobile && (
                 <div className="px-4 pb-3">
                   <p className="text-[10px]" style={{ color: 'var(--rm-text-secondary)', opacity: 0.35 }}>
                     {typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent) ? 'Cmd' : 'Ctrl'}+Enter to run

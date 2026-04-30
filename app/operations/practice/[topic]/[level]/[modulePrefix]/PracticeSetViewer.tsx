@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import type { PracticeSet, PracticeTask, TemplateField } from '@/data/operations/practice-sets';
 import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
+import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { getPracticeTaskReward, getModuleCompleteBonus } from '@/lib/energy';
 import {
   validateCodeOutput,
   type ExpectedOutputSpec,
@@ -559,6 +561,44 @@ function TaskScreen({
   const fields = task.template?.fields ?? [];
   const isLast = state.currentTaskIndex === tasks.length - 1;
   const isFirst = state.currentTaskIndex === 0;
+
+  /* ── Lifted hint state ─────────────────────────────────────────────────────
+     Owned at the session level (keyed by task.id) so navigating away and back
+     preserves which tiers the user has unlocked, AND so the reward path can
+     dock the task payout based on hint usage. H1 is free / pre-unlocked. */
+  const [unlockedHintsByTaskId, setUnlockedHintsByTaskId] = useState<
+    Map<string, Set<string>>
+  >(() => {
+    const map = new Map<string, Set<string>>();
+    tasks.forEach((t) => {
+      const initial = new Set<string>();
+      t.hints?.forEach((h) => {
+        if (h.tier === 'H1') initial.add(h.tier);
+      });
+      map.set(t.id, initial);
+    });
+    return map;
+  });
+  const unlockedHintsForCurrentTask =
+    unlockedHintsByTaskId.get(task.id) ?? new Set<string>();
+  const handleUnlockHintForCurrentTask = useCallback(
+    (tier: string) => {
+      setUnlockedHintsByTaskId((prev) => {
+        const next = new Map(prev);
+        const current = new Set(next.get(task.id) ?? []);
+        current.add(tier);
+        next.set(task.id, current);
+        return next;
+      });
+    },
+    [task.id],
+  );
+
+  /* Awards are once-per-task-per-session. We don't persist this — a fresh
+     visit gives the user another shot at the reward (consistent with how the
+     practice runner already lets them clear and re-check answers). */
+  const awardedTaskIdsRef = React.useRef<Set<string>>(new Set());
+  const awardedModuleRef = React.useRef(false);
   const readingMode = useReadingModeStore((s) => s.mode);
   const focusMode = useReadingModeStore((s) => s.focusMode);
   const exitSession = useContext(FocusWrapperContext);
@@ -659,17 +699,47 @@ function TaskScreen({
     }).catch((err) => {
       console.warn('[practice-attempt] failed to record:', err);
     });
+
+    // Award kWh for this task. Only on a clean success and only once per
+    // session (re-checking after Clear doesn't re-award). Hint usage docks
+    // the payout: unlocking the highest-tier hint zeros the reward, lower
+    // tiers subtract their xp_cost.
+    if (result === 'success' && !awardedTaskIdsRef.current.has(task.id)) {
+      awardedTaskIdsRef.current.add(task.id);
+      const trackSlug =
+        resolvePracticeTrackSlug(practiceSet.metadata?.trackLevel) ?? 'junior';
+      const baseReward = getPracticeTaskReward(trackSlug);
+      const taskHints = task.hints ?? [];
+      const unlocked = unlockedHintsByTaskId.get(task.id) ?? new Set<string>();
+      const lastHintTier = taskHints[taskHints.length - 1]?.tier;
+      let reward = baseReward;
+      if (taskHints.length > 0 && lastHintTier && unlocked.has(lastHintTier)) {
+        reward = 0;
+      } else {
+        const hintCostUsed = taskHints
+          .filter((h) => unlocked.has(h.tier))
+          .reduce((sum, h) => sum + (h.xp_cost ?? 0), 0);
+        reward = Math.max(0, baseReward - hintCostUsed);
+      }
+      if (reward > 0) {
+        useProgressStore.getState().addXP(reward, {
+          source: 'practice-task',
+          label: `Practice · ${practiceSet.title}`,
+        });
+      }
+    }
   }, [
     taskState.checked,
     taskState.allCorrect,
     taskState.selfReview,
     state.isReview,
     checkpointMode,
-    practiceSet.metadata?.moduleId,
-    practiceSet.topic,
+    practiceSet,
     task.id,
+    task.hints,
     taskState.answers,
     taskState.output,
+    unlockedHintsByTaskId,
   ]);
 
   const handleCheck = useCallback(() => {
@@ -682,12 +752,29 @@ function TaskScreen({
       // the result survives a tab close. Fire-and-forget — UX must not wait
       // on the network and any failure is recoverable on the next visit.
       void persistPracticeCompletion(practiceSet);
+
+      // Module-completion bonus. Once per session — re-entering review mode
+      // and clicking Next again must not re-award. Skipped in checkpoint
+      // mode (checkpoints have their own scoring path).
+      if (!awardedModuleRef.current && !checkpointMode) {
+        awardedModuleRef.current = true;
+        const trackSlug =
+          resolvePracticeTrackSlug(practiceSet.metadata?.trackLevel) ?? 'junior';
+        const bonus = getModuleCompleteBonus(trackSlug);
+        if (bonus > 0) {
+          useProgressStore.getState().addXP(bonus, {
+            source: 'practice-module-complete',
+            label: `Practice module · ${practiceSet.title}`,
+          });
+        }
+      }
+
       dispatch({ type: 'FINISH' });
     } else {
       dispatch({ type: 'NEXT_TASK' });
     }
     scrollToTop();
-  }, [dispatch, isLast, practiceSet, scrollToTop]);
+  }, [dispatch, isLast, practiceSet, scrollToTop, checkpointMode]);
 
   const handlePrev = useCallback(() => {
     dispatch({ type: 'PREV_TASK' });
@@ -837,6 +924,8 @@ function TaskScreen({
             }}
             checked={taskState.checked}
             isLast={isLast}
+            unlockedHints={unlockedHintsForCurrentTask}
+            onUnlockHint={handleUnlockHintForCurrentTask}
           />
 
           {/* Footer navigation */}
@@ -1580,7 +1669,7 @@ export function PracticeSetSession({
 
   return (
     <div
-      className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface lg:h-[calc(100dvh-3.5rem)]"
+      className="relative flex h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom))] flex-col overflow-hidden bg-surface lg:h-[calc(100dvh-3.5rem)]"
       data-focus-mode={focusMode ? 'true' : undefined}
     >
       {state.phase === 'session' && (
@@ -1610,9 +1699,12 @@ export function PracticeSetSession({
               </a>
             </div>
 
-            {/* Center: practice set context or active session */}
-            <div className="flex-1 flex items-center justify-center">
-              <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide">
+            {/* Center: practice set context or active session.
+                `min-w-0` + `truncate` so a long module slug on a narrow
+                phone shrinks the label rather than pushing the right-side
+                controls off-screen. */}
+            <div className="flex-1 min-w-0 flex items-center justify-center px-2">
+              <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide truncate">
                 {checkpointMode?.topbarLabel ?? moduleNumber}
                 <span className="mx-1.5 text-outline-variant/50">·</span>
                 <span className="text-on-surface/80">

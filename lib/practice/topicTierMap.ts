@@ -39,3 +39,14 @@ export const PRACTICE_TOPIC_TIER_MAP: Record<string, PracticeTopicTierMap> = {
 export function getPracticeTopicTiers(topicId: string): PracticeTopicTierMap {
   return PRACTICE_TOPIC_TIER_MAP[topicId] ?? {};
 }
+
+export function getPracticeTopicLanguages(
+  topicId: string,
+): PracticeTopicTierEntry['language'][] {
+  const tiers = getPracticeTopicTiers(topicId);
+  const seen = new Set<PracticeTopicTierEntry['language']>();
+  for (const entry of Object.values(tiers)) {
+    if (entry) seen.add(entry.language);
+  }
+  return Array.from(seen);
+}

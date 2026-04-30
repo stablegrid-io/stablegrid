@@ -17,6 +17,7 @@ const TIER_MULTIPLIER: Record<string, number> = {
 
 const BASE_REWARDS = {
   lessonRead: 5,
+  practiceTask: 10,
   moduleComplete: 25,
   trackComplete: 200,
 };
@@ -24,6 +25,11 @@ const BASE_REWARDS = {
 export function getLessonRewardKWh(trackLevel: string): number {
   const mult = TIER_MULTIPLIER[trackLevel] ?? 1;
   return Math.round(BASE_REWARDS.lessonRead * mult);
+}
+
+export function getPracticeTaskReward(trackLevel: string): number {
+  const mult = TIER_MULTIPLIER[trackLevel] ?? 1;
+  return Math.round(BASE_REWARDS.practiceTask * mult);
 }
 
 export function getModuleCompleteBonus(trackLevel: string): number {
