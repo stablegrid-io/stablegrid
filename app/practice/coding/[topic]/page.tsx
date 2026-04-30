@@ -10,11 +10,12 @@ interface Props {
 export function generateMetadata({ params }: Props): Metadata {
   const topic = getCodingTopic(params.topic);
   if (!topic) {
-    return { title: 'Coding Practice | stablegrid.io' };
+    return { title: 'Coding Practice | stablegrid.io', robots: { index: false, follow: false } };
   }
   return {
     title: `${topic.title} — Coding Practice | stablegrid.io`,
     description: topic.description,
+    robots: { index: false, follow: false },
   };
 }
 

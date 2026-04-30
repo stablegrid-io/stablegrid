@@ -4,6 +4,7 @@ import { CodingLanguageSelector } from '@/components/practice/CodingLanguageSele
 export const metadata: Metadata = {
   title: 'Coding Practice | stablegrid.io',
   description: 'Python, SQL, and PySpark coding challenges across Junior, Mid, and Senior levels.',
+  robots: { index: false, follow: false },
 };
 
 export default function CodingPracticePage() {

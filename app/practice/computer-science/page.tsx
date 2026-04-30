@@ -4,6 +4,7 @@ import { ComputerScienceTopicSelector } from '@/components/practice/ComputerScie
 export const metadata: Metadata = {
   title: 'Computer Science Practice | stablegrid.io',
   description: 'Data structures, algorithms, complexity, storage, systems design, distributed systems, concurrency, memory, and networking.',
+  robots: { index: false, follow: false },
 };
 
 export default function ComputerSciencePracticePage() {
