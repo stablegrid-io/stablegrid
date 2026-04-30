@@ -1094,7 +1094,7 @@ export const LandingPage = () => {
             {/* Battery hero — full-bleed, centered */}
             <div className="absolute inset-0 pointer-events-none z-0">
               <Image
-                src="/landing-cta-battery.png"
+                src="/landing-cta-battery.jpg"
                 alt=""
                 fill
                 sizes="(min-width: 1024px) 1024px, 100vw"
